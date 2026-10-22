@@ -17,7 +17,7 @@ COPY docker-entrypoint.sh .
 ARG PREBUILD=0
 RUN mkdir -p /data && if [ "$PREBUILD" = "1" ]; then \
       python -m suptracker.ingest && python -m suptracker.build \
-      && python scripts/verify_ground_truth.py --out /data/reports; fi
+      && python scripts/verify_ground_truth.py --out /data/verification; fi
 
 RUN useradd --system --uid 10001 app && chown -R app /data /app
 USER app

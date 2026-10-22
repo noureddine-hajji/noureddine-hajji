@@ -28,7 +28,7 @@ cd suptracker
 pip install -r requirements-pipeline.txt
 python -m suptracker.ingest            # downloads data/raw/*.parquet from data.enseignementsup-recherche.gouv.fr
 python -m suptracker.build             # builds data/suptracker.duckdb
-python scripts/verify_ground_truth.py --live 25 --strict   # writes reports/verification.{md,json}
+python scripts/verify_ground_truth.py --live 25 --strict   # writes data/verification/verification.{md,json}
 uvicorn suptracker.api:app             # http://127.0.0.1:8000
 ```
 
@@ -69,7 +69,7 @@ docker run -p 8000:8000 -v suptracker-data:/data suptracker-sies
   downloads the SIES exports and builds the warehouse in the background (a few minutes). During that
   time, `/healthz` returns 200 with `ready: false`, while `/readyz` and the API return 503. The build
   swaps the finished warehouse in atomically. The verification report is written to
-  `/data/reports/verification.md`.
+  `/data/verification/verification.md` (shown on the data-quality page).
 - **Hosting:** `render.yaml` (at the repo root) is a ready Render blueprint (web service, Docker, 2 GB disk at `/data`).
   Fly.io, Railway, Cloud Run or a VPS work the same way: build the Dockerfile, mount a volume at
   `/data`, and set `$PORT` if the platform requires it.

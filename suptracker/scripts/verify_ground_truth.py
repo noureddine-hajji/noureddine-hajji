@@ -15,7 +15,7 @@ Then writes the longitudinal continuity report (% of 2025 formations linked back
 Rows where a component is NULL are counted as "not evaluable", never as passes.
 
     python scripts/verify_ground_truth.py --db data/suptracker.duckdb --raw-dir data/raw \
-        --out reports/ [--live 25] [--strict]
+        [--out data/verification/] [--live 25] [--strict]
 """
 from __future__ import annotations
 
@@ -223,7 +223,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", type=Path, default=config.DB_PATH)
     ap.add_argument("--raw-dir", type=Path, default=config.RAW_DIR)
-    ap.add_argument("--out", type=Path, default=Path("reports"))
+    ap.add_argument("--out", type=Path, default=config.DB_PATH.parent / "verification",
+                    help="report directory; /api/verification reads <warehouse dir>/verification")
     ap.add_argument("--live", type=int, default=0, help="sample size per year for the live API check")
     ap.add_argument("--strict", action="store_true", help="exit 1 if any primary check fails")
     a = ap.parse_args(argv)
