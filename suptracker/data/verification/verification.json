@@ -1,0 +1,637 @@
+{
+  "generated_at": "2026-10-22T16:46:44+00:00",
+  "identities": [
+    {
+      "check": "series_eq_acc_neobac",
+      "primary": true,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 13644,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_eq_acc_neobac",
+      "primary": true,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 13869,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_eq_acc_neobac",
+      "primary": true,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 14079,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_eq_acc_neobac",
+      "primary": true,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 14252,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mentions_eq_acc_neobac",
+      "primary": true,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 13644,
+      "n_violations": 356,
+      "n_violations_upstream": 356,
+      "max_abs_diff": 12,
+      "pct_ok": 97.39,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "10044",
+        "29229",
+        "12527",
+        "8064",
+        "62"
+      ]
+    },
+    {
+      "check": "mentions_eq_acc_neobac",
+      "primary": true,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 13869,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mentions_eq_acc_neobac",
+      "primary": true,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 14079,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mentions_eq_acc_neobac",
+      "primary": true,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 14252,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_plus_at_eq_acc_tot",
+      "primary": true,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 13644,
+      "n_violations": 21,
+      "n_violations_upstream": 21,
+      "max_abs_diff": 2,
+      "pct_ok": 99.85,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "11735",
+        "10204",
+        "10369",
+        "10598",
+        "25368"
+      ]
+    },
+    {
+      "check": "series_plus_at_eq_acc_tot",
+      "primary": true,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 13869,
+      "n_violations": 15,
+      "n_violations_upstream": 15,
+      "max_abs_diff": 1,
+      "pct_ok": 99.89,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "33058",
+        "11783",
+        "6736",
+        "2000",
+        "24929"
+      ]
+    },
+    {
+      "check": "series_plus_at_eq_acc_tot",
+      "primary": true,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 14079,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_plus_at_eq_acc_tot",
+      "primary": true,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 14252,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "series_eq_acc_term",
+      "primary": false,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 6277,
+      "n_violations": 6187,
+      "n_violations_upstream": 6187,
+      "max_abs_diff": 236,
+      "pct_ok": 1.43,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "8970",
+        "7916",
+        "8989"
+      ]
+    },
+    {
+      "check": "series_eq_acc_term",
+      "primary": false,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 6322,
+      "n_violations": 6238,
+      "n_violations_upstream": 6238,
+      "max_abs_diff": 243,
+      "pct_ok": 1.33,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "7916",
+        "8970",
+        "8989"
+      ]
+    },
+    {
+      "check": "series_eq_acc_term",
+      "primary": false,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 6327,
+      "n_violations": 6232,
+      "n_violations_upstream": 6232,
+      "max_abs_diff": 238,
+      "pct_ok": 1.5,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "7916",
+        "8970",
+        "20794"
+      ]
+    },
+    {
+      "check": "series_eq_acc_term",
+      "primary": false,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 6337,
+      "n_violations": 6243,
+      "n_violations_upstream": 6243,
+      "max_abs_diff": 239,
+      "pct_ok": 1.48,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "8970",
+        "7916",
+        "10072"
+      ]
+    },
+    {
+      "check": "mentions_eq_acc_term",
+      "primary": false,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 6277,
+      "n_violations": 6186,
+      "n_violations_upstream": 6186,
+      "max_abs_diff": 236,
+      "pct_ok": 1.45,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "8970",
+        "7916",
+        "8984"
+      ]
+    },
+    {
+      "check": "mentions_eq_acc_term",
+      "primary": false,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 6322,
+      "n_violations": 6238,
+      "n_violations_upstream": 6238,
+      "max_abs_diff": 243,
+      "pct_ok": 1.33,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "7916",
+        "8970",
+        "8989"
+      ]
+    },
+    {
+      "check": "mentions_eq_acc_term",
+      "primary": false,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 6327,
+      "n_violations": 6232,
+      "n_violations_upstream": 6232,
+      "max_abs_diff": 238,
+      "pct_ok": 1.5,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "7916",
+        "8970",
+        "20794"
+      ]
+    },
+    {
+      "check": "mentions_eq_acc_term",
+      "primary": false,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 6337,
+      "n_violations": 6243,
+      "n_violations_upstream": 6243,
+      "max_abs_diff": 239,
+      "pct_ok": 1.48,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "8983",
+        "8982",
+        "8970",
+        "7916",
+        "10072"
+      ]
+    }
+  ],
+  "taux_raw": [
+    {
+      "session": 2022,
+      "n_upstream": 13644,
+      "n_warehouse": 13644,
+      "n_missing_in_warehouse": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2023,
+      "n_upstream": 13869,
+      "n_warehouse": 13869,
+      "n_missing_in_warehouse": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2024,
+      "n_upstream": 14079,
+      "n_warehouse": 14079,
+      "n_missing_in_warehouse": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2025,
+      "n_upstream": 14252,
+      "n_warehouse": 14252,
+      "n_missing_in_warehouse": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    }
+  ],
+  "taux_live": [
+    {
+      "session": 2022,
+      "n_sampled": 10,
+      "n_errors": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2023,
+      "n_sampled": 10,
+      "n_errors": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2024,
+      "n_sampled": 10,
+      "n_errors": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    },
+    {
+      "session": 2025,
+      "n_sampled": 10,
+      "n_errors": 0,
+      "n_mismatch": 0,
+      "sample_mismatch": [],
+      "status": "pass"
+    }
+  ],
+  "bounds": [
+    {
+      "field": "pct_f",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_bours",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_aca_orig",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_etab_orig",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_neobac",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_bg",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_bt",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_bp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_mention_non_renseignee",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_sansmention",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_ab",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_b",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_tb",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_tbf",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "taux_acces_ens",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "part_terminale_generale_en_position_admis_pp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "part_terminale_techno_en_position_admis_pp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "part_terminale_pro_en_position_admis_pp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    }
+  ],
+  "structure": [
+    {
+      "check": "unique_session_cod_aff_form",
+      "violations": 0
+    },
+    {
+      "check": "every_row_in_a_lineage",
+      "violations": 0
+    },
+    {
+      "check": "row_in_single_lineage",
+      "violations": 0
+    },
+    {
+      "check": "links_one_to_one",
+      "violations": 0
+    }
+  ],
+  "continuity": [
+    {
+      "fili": "TOTAL",
+      "n_2025": 14252,
+      "pct_linked_2022": 83.1,
+      "pct_linked_2023": 87.6,
+      "pct_linked_2024": 93.2,
+      "pct_full_span": 83.0,
+      "pct_full_span_exact": 82.0,
+      "pct_with_inferred_link": 1.2
+    },
+    {
+      "fili": "BTS",
+      "n_2025": 5351,
+      "pct_linked_2022": 95.3,
+      "pct_linked_2023": 97.2,
+      "pct_linked_2024": 98.6,
+      "pct_full_span": 95.3,
+      "pct_full_span_exact": 95.1,
+      "pct_with_inferred_link": 0.1
+    },
+    {
+      "fili": "Licence",
+      "n_2025": 3052,
+      "pct_linked_2022": 70.2,
+      "pct_linked_2023": 75.6,
+      "pct_linked_2024": 87.3,
+      "pct_full_span": 70.2,
+      "pct_full_span_exact": 67.4,
+      "pct_with_inferred_link": 3.2
+    },
+    {
+      "fili": "Autre formation",
+      "n_2025": 1815,
+      "pct_linked_2022": 70.9,
+      "pct_linked_2023": 79.6,
+      "pct_linked_2024": 89.4,
+      "pct_full_span": 70.4,
+      "pct_full_span_exact": 69.5,
+      "pct_with_inferred_link": 1.0
+    },
+    {
+      "fili": "CPGE",
+      "n_2025": 986,
+      "pct_linked_2022": 96.7,
+      "pct_linked_2023": 97.9,
+      "pct_linked_2024": 99.2,
+      "pct_full_span": 96.7,
+      "pct_full_span_exact": 96.1,
+      "pct_with_inferred_link": 0.5
+    },
+    {
+      "fili": "BUT",
+      "n_2025": 820,
+      "pct_linked_2022": 96.5,
+      "pct_linked_2023": 98.8,
+      "pct_linked_2024": 99.4,
+      "pct_full_span": 96.3,
+      "pct_full_span_exact": 96.3,
+      "pct_with_inferred_link": 0.0
+    },
+    {
+      "fili": "Ecole d'Ingénieur",
+      "n_2025": 585,
+      "pct_linked_2022": 57.6,
+      "pct_linked_2023": 69.1,
+      "pct_linked_2024": 79.8,
+      "pct_full_span": 57.3,
+      "pct_full_span_exact": 55.9,
+      "pct_with_inferred_link": 1.9
+    },
+    {
+      "fili": "Licence_Las",
+      "n_2025": 513,
+      "pct_linked_2022": 71.7,
+      "pct_linked_2023": 79.3,
+      "pct_linked_2024": 88.7,
+      "pct_full_span": 71.7,
+      "pct_full_span_exact": 68.6,
+      "pct_with_inferred_link": 3.7
+    },
+    {
+      "fili": "IFSI",
+      "n_2025": 344,
+      "pct_linked_2022": 94.2,
+      "pct_linked_2023": 95.9,
+      "pct_linked_2024": 99.4,
+      "pct_full_span": 94.2,
+      "pct_full_span_exact": 94.2,
+      "pct_with_inferred_link": 0.0
+    },
+    {
+      "fili": "PASS",
+      "n_2025": 287,
+      "pct_linked_2022": 61.0,
+      "pct_linked_2023": 72.1,
+      "pct_linked_2024": 80.8,
+      "pct_full_span": 61.0,
+      "pct_full_span_exact": 60.6,
+      "pct_with_inferred_link": 0.3
+    },
+    {
+      "fili": "Ecole de Commerce",
+      "n_2025": 256,
+      "pct_linked_2022": 60.2,
+      "pct_linked_2023": 72.3,
+      "pct_linked_2024": 78.9,
+      "pct_full_span": 60.2,
+      "pct_full_span_exact": 59.0,
+      "pct_with_inferred_link": 1.6
+    },
+    {
+      "fili": "EFTS",
+      "n_2025": 243,
+      "pct_linked_2022": 86.0,
+      "pct_linked_2023": 93.8,
+      "pct_linked_2024": 96.7,
+      "pct_full_span": 85.6,
+      "pct_full_span_exact": 85.6,
+      "pct_with_inferred_link": 1.2
+    }
+  ],
+  "overall": "PASS",
+  "n_failed_checks": 0
+}
