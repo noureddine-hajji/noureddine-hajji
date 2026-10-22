@@ -96,6 +96,14 @@ def test_low_n_excluded_from_profile_reference_but_access_rate_kept(con, built):
                        [built[2]["low_n"]]).fetchone()[0]
 
 
+def test_geometry_coordinates_parsed(con):
+    typ = con.execute("""SELECT column_type FROM meta.raw_columns WHERE dataset='parcoursup_2025'
+                         AND column_name='g_olocalisation_des_formations'""").fetchone()[0]
+    assert typ.startswith("GEOMETRY")
+    lat, lon = con.execute("SELECT lat, lon FROM core.formation_year WHERE session=2025 AND cod_aff_form='1101'").fetchone()
+    assert (lat, lon) == (48.85, 2.35)
+
+
 def test_peer_percentiles_bounded(con):
     lo, hi = con.execute("SELECT min(peer_percentile), max(peer_percentile) FROM mart.peer_rank").fetchone()
     assert 0 <= lo <= hi <= 100

@@ -139,6 +139,12 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
         if y == 2025:
             df = df.rename(columns={"part_acces_gen": "part_terminale_generale_en_position_admis_pp"})
         df.to_parquet(raw_dir / f"parcoursup_{y}.parquet", index=False)
+        if y == 2025:  # real exports carry GEOMETRY('OGC:CRS84') points
+            import duckdb
+            path = raw_dir / f"parcoursup_{y}.parquet"
+            duckdb.sql(f"""COPY (SELECT * REPLACE ('POINT (2.35 48.85)'::GEOMETRY AS g_olocalisation_des_formations)
+                           FROM read_parquet('{path}')) TO '{path}.tmp' (FORMAT parquet)""")
+            Path(f"{path}.tmp").replace(path)
 
     spe = []
     for y in YEARS:
