@@ -160,11 +160,24 @@ formation. The matrix therefore benchmarks types of formation, and its unit is c
 
 `scripts/verify_ground_truth.py` checks, for every campaign:
 
-- the series identity, `acc_bg + acc_bt + acc_bp == acc_term`;
-- the mention identity, sum of the six mention fields `== acc_term`;
-- the same two identities against `acc_neobac`, plus `series + acc_at == acc_tot`, as diagnostics. These
-  show which denominator SIES actually uses in each vintage;
-- `taux_acces_ens` in the warehouse against the raw upstream Parquet, re-read independently with pyarrow;
+- the series identity, `acc_bg + acc_bt + acc_bp == acc_neobac`;
+- the mention identity, sum of the six mention fields `== acc_neobac`;
+- `series + acc_at == acc_tot`.
+
+The first run on the real SIES exports showed that both breakdowns add up to `acc_neobac`
+(néo-bacheliers), not to `acc_term`. The series identity holds on 100% of rows in all four years,
+against about 1.5% for `acc_term`. The `acc_term` sums are kept as diagnostics.
+
+Every identity is evaluated twice: on the warehouse and on the raw upstream file. A row that
+violates it identically in both is an inconsistency inside the SIES export itself, for example a few
+hundred 2022 rows whose mention counts are off by up to 12. Those rows are reported as
+`upstream_inconsistency` and flagged on the formation page; they do not fail the build. Any
+difference the pipeline introduces is a `fail`.
+
+The suite also checks:
+
+- `taux_acces_ens` in the warehouse against the raw upstream Parquet, re-read independently with
+  pyarrow;
 - `taux_acces_ens` against the live SIES records API on a random sample (`--live N`);
 - that bounds hold, keys are unique, links are one-to-one, and every row belongs to exactly one lineage.
 

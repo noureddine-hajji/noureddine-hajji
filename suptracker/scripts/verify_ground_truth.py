@@ -1,10 +1,15 @@
 """Ground-truth verification of the warehouse against SIES accounting identities.
 
 Checks, for every campaign 2022–2025:
-  1. series identity   acc_bg + acc_bt + acc_bp            == acc_term
-  2. mention identity  sansmention + ab + b + tb + tbf + nr == acc_term
-     (each also tested against acc_neobac, diagnostically, so the report shows which
-      denominator SIES actually uses in that vintage instead of failing opaquely)
+  1. series identity   acc_bg + acc_bt + acc_bp            == acc_neobac
+  2. mention identity  sansmention + ab + b + tb + tbf + nr == acc_neobac
+     plus  series + acc_at == acc_tot. The same sums against acc_term are kept as
+     diagnostics: on the real 2022–2025 exports SIES uses acc_neobac (néo-bacheliers)
+     as the denominator of both breakdowns, not acc_term.
+     Every identity is evaluated on the warehouse AND on the raw upstream file.
+     Rows that violate it identically in both are an inconsistency inside the SIES
+     export itself ("upstream_inconsistency": reported, flagged in the UI, not a
+     pipeline failure); any other difference is a pipeline "fail".
   3. taux_acces_ens fidelity: warehouse value == value in the raw upstream Parquet,
      re-read independently with pyarrow (no DuckDB transform), and optionally
      == the live SIES records API for a random sample (--live N)
@@ -37,16 +42,33 @@ from suptracker.schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEU
 
 IDENTITIES = [
     # name, components, total, primary?
-    ("series_eq_acc_term", SERIES_FIELDS, "acc_term", True),
-    ("mentions_eq_acc_term", MENTION_FIELDS, "acc_term", True),
-    ("series_eq_acc_neobac", SERIES_FIELDS, "acc_neobac", False),
-    ("mentions_eq_acc_neobac", MENTION_FIELDS, "acc_neobac", False),
-    ("series_plus_at_eq_acc_tot", (*SERIES_FIELDS, "acc_at"), "acc_tot", False),
+    ("series_eq_acc_neobac", SERIES_FIELDS, "acc_neobac", True),
+    ("mentions_eq_acc_neobac", MENTION_FIELDS, "acc_neobac", True),
+    ("series_plus_at_eq_acc_tot", (*SERIES_FIELDS, "acc_at"), "acc_tot", True),
+    ("series_eq_acc_term", SERIES_FIELDS, "acc_term", False),
+    ("mentions_eq_acc_term", MENTION_FIELDS, "acc_term", False),
 ]
 SHARES = [f.name for f in VOEUX_FIELDS if f.dtype == "DOUBLE" and f.stage == "indicator"]
 
 
-def check_identities(con) -> list[dict]:
+def raw_violators(raw_dir: Path, year: int, comps, total) -> set[str] | None:
+    """cod_aff_form violating the identity in the raw upstream file (no warehouse involved)."""
+    path = raw_dir / f"parcoursup_{year}.parquet"
+    if not path.exists():
+        return None
+    fields = tuple(FIELD_BY_NAME[c] for c in ("cod_aff_form", *comps, total))
+    m = resolve(fields, pq.ParquetFile(path).schema_arrow.names)
+    if any(m[f.name] is None for f in fields):
+        return None
+    num = lambda c: f"TRY_CAST(REPLACE(CAST(\"{m[c]}\" AS VARCHAR), ',', '.') AS DOUBLE)"  # noqa: E731
+    s = " + ".join(num(c) for c in comps)
+    nn = " AND ".join(f"{num(c)} IS NOT NULL" for c in (*comps, total))
+    key = f"regexp_replace(CAST(\"{m['cod_aff_form']}\" AS VARCHAR), '\\.0$', '')"
+    rows = duckdb.sql(f"SELECT {key} FROM read_parquet('{path}') WHERE {nn} AND ({s}) <> {num(total)}").fetchall()
+    return {r[0] for r in rows}
+
+
+def check_identities(con, raw_dir: Path) -> list[dict]:
     out = []
     for name, comps, total, primary in IDENTITIES:
         s = " + ".join(comps)
@@ -54,17 +76,27 @@ def check_identities(con) -> list[dict]:
         for r in con.execute(f"""
             SELECT session, count(*) AS n_rows,
               count(*) FILTER (WHERE {nn}) AS n_evaluable,
-              count(*) FILTER (WHERE {nn} AND ({s}) <> {total}) AS n_violations,
               max(abs(({s}) - {total})) FILTER (WHERE {nn}) AS max_abs_diff,
               list(cod_aff_form ORDER BY abs(({s}) - {total}) DESC) FILTER (WHERE {nn} AND ({s}) <> {total})
-                [1:5] AS sample
+                AS violators
             FROM core.formation_year GROUP BY session ORDER BY session""").fetchall():
-            session, n, ev, viol, mad, sample = r
+            session, n, ev, mad, viol = r
+            viol = viol or []
+            upstream = raw_violators(raw_dir, session, comps, total)
+            if not ev:
+                status = "not_evaluable"
+            elif not viol:
+                status = "pass"
+            elif upstream is not None and set(viol) == upstream:
+                status = "upstream_inconsistency"   # warehouse reproduces SIES exactly
+            else:
+                status = "fail"
             out.append({"check": name, "primary": primary, "session": session, "n_rows": n,
-                        "n_evaluable": ev, "n_violations": viol, "max_abs_diff": mad,
-                        "pct_ok": round(100 * (ev - viol) / ev, 2) if ev else None,
-                        "status": "not_evaluable" if not ev else ("pass" if viol == 0 else "fail"),
-                        "sample_violators": sample or []})
+                        "n_evaluable": ev, "n_violations": len(viol),
+                        "n_violations_upstream": None if upstream is None else len(upstream),
+                        "max_abs_diff": mad,
+                        "pct_ok": round(100 * (ev - len(viol)) / ev, 2) if ev else None,
+                        "status": status, "sample_violators": viol[:5]})
     return out
 
 
@@ -174,11 +206,11 @@ def check_structure(con) -> list[dict]:
 def render_md(rep: dict) -> str:
     L = [f"# SIES ground-truth verification — {rep['generated_at']}", ""]
     L += ["## Accounting identities", "",
-          "| check | primary | session | evaluable | violations | % ok | max abs diff | status |",
-          "|---|---|---|---|---|---|---|---|"]
+          "| check | primary | session | evaluable | violations | same rows in raw SIES file | % ok | max abs diff | status |",
+          "|---|---|---|---|---|---|---|---|---|"]
     for r in rep["identities"]:
         L.append(f"| {r['check']} | {'yes' if r['primary'] else 'diag'} | {r['session']} | {r['n_evaluable']} | "
-                 f"{r['n_violations']} | {r['pct_ok']} | {r['max_abs_diff']} | {r['status']} |")
+                 f"{r['n_violations']} | {r['n_violations_upstream']} | {r['pct_ok']} | {r['max_abs_diff']} | {r['status']} |")
     L += ["", "## taux_acces_ens fidelity (warehouse vs raw upstream Parquet)", "",
           "| session | upstream rows | mismatches | missing in warehouse | status |", "|---|---|---|---|---|"]
     for r in rep["taux_raw"]:
@@ -205,7 +237,7 @@ def render_md(rep: dict) -> str:
 
 def run(db: Path, raw_dir: Path, live: int = 0) -> dict:
     con = duckdb.connect(str(db), read_only=True)
-    ident = check_identities(con)
+    ident = check_identities(con, raw_dir)
     raw = check_taux_raw(con, raw_dir)
     lv = check_taux_live(con, live) if live else []
     bounds = check_bounds(con)

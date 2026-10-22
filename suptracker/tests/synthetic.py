@@ -53,8 +53,9 @@ def _cohort(rng: random.Random, acc_tot: int) -> dict:
     f = rng.randint(0, acc_tot)
     pct = lambda x, d: round(100.0 * x / d) if d else None  # noqa: E731 - SIES rounds to integers
     return {
-        "acc_tot": acc_tot, "acc_tot_f": f, "acc_term": term, "acc_term_f": min(f, term),
-        "acc_neobac": term, "acc_at": acc_at, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp,
+        # like the real SIES exports: breakdowns add up to acc_neobac, acc_term does not
+        "acc_tot": acc_tot, "acc_tot_f": f, "acc_term": max(0, term - rng.randint(0, 3)),
+        "acc_term_f": min(f, term), "acc_neobac": term, "acc_at": acc_at, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp,
         "acc_brs": brs, "acc_pp": acc_tot - acc_tot // 10, "acc_pc": acc_tot // 10,
         "acc_aca_orig": rng.randint(0, acc_tot), "acc_internat": 0, **mentions,
         "pct_f": pct(f, acc_tot), "pct_bours": pct(brs, term), "pct_bg": pct(bg, term),

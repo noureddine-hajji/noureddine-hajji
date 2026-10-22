@@ -62,8 +62,10 @@ METHODOLOGY = {
         "agrégée, d'après la similarité des libellés (meilleur candidat mutuel, avec une marge minimale). "
         "Les cas ambigus ne sont jamais reliés."),
     "mentions": (
-        "La décomposition par mention porte sur les admis néo-bacheliers issus de terminale (acc_term). "
-        "Les parts sont celles publiées par SIES (pct_*)."),
+        "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
+        "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
+        "exactement à acc_neobac, et non à acc_term. Les parts affichées sont celles publiées par SIES (pct_*). "
+        "Quelques lignes de l'export SIES lui-même ne s'additionnent pas ; elles sont signalées."),
 }
 
 
@@ -189,6 +191,10 @@ def _warnings(rec: dict, peers: list[dict] | None = None) -> list[dict]:
     if rec["subwish_flag"]:
         w.append({"code": "subwish", "text": "Sous-vœu de vœu multiple / concours commun : les "
                   "effectifs de vœux sont partagés avec d'autres formations, et ne sont pas additionnables."})
+    if rec.get("series_sum_mismatch") or rec.get("mention_sum_mismatch"):
+        w.append({"code": "sies_identity", "text": "Incohérence dans l'export SIES : la décomposition par "
+                  + ("série" if rec.get("series_sum_mismatch") else "mention")
+                  + " ne s'additionne pas exactement aux admis néo-bacheliers. Données reprises telles quelles."})
     if rec["lineage_confidence"] == INFERRED:
         w.append({"code": "lineage", "text": "Historique reconstitué avec au moins un appariement inféré "
                   "(changement de code formation)."})
@@ -218,7 +224,7 @@ def formation(cod: str, session: int | None = None):
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers)}
 
 
-DECOMP = ("acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
+DECOMP = ("series_sum_mismatch", "mention_sum_mismatch", "acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
           "acc_tot_f", "pct_f", "pct_bours", "pct_aca_orig", "pct_etab_orig", "pct_bg", "pct_bt", "pct_bp",
           "pct_tb", "pct_tbf", "taux_acces_ens", "part_terminale_generale_en_position_admis_pp",
           "voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "capa_fin", "low_n_flag", "subwish_flag")

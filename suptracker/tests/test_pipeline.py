@@ -109,24 +109,40 @@ def test_verification_passes_on_consistent_data(built):
     assert 0 < total["pct_full_span"] <= 100
 
 
-def test_verification_catches_broken_identity_and_taux_drift(tmp_path):
+def test_upstream_inconsistency_is_flagged_not_failed(tmp_path):
     raw = tmp_path / "raw"
     make_raw(raw)
     p = raw / "parcoursup_2024.parquet"
     df = pd.read_parquet(p)
-    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1
+    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1   # SIES export itself does not add up
     df.to_parquet(p, index=False)
     db = build_mod.build(raw, tmp_path / "w.duckdb")
-    # tamper with the warehouse value so it no longer matches upstream
+    rep = verify.run(db, raw)
+    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series["status"] == "upstream_inconsistency" and series["sample_violators"] == ["1100"]
+    assert rep["overall"] == "PASS"
+    c = duckdb.connect(str(db), read_only=True)
+    assert c.execute("""SELECT series_sum_mismatch FROM core.formation_year
+                        WHERE session=2024 AND cod_aff_form='1100'""").fetchone()[0] is True
+    c.close()
+
+
+def test_verification_catches_pipeline_errors(tmp_path):
+    raw = tmp_path / "raw"
+    make_raw(raw)
+    db = build_mod.build(raw, tmp_path / "w.duckdb")
+    # corrupt the warehouse only: it no longer reproduces the upstream file
     c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg + 1 WHERE session=2024 AND cod_aff_form='1100'")
     c.execute("UPDATE core.formation_year SET taux_acces_ens = taux_acces_ens + 1 WHERE session=2023 AND cod_aff_form='1101'")
     c.close()
     rep = verify.run(db, raw)
     assert rep["overall"] == "FAIL"
-    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_term" and r["session"] == 2024)
-    assert series["n_violations"] == 1 and series["sample_violators"] == ["1100"]
+    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series["status"] == "fail" and series["sample_violators"] == ["1100"]
     taux = next(r for r in rep["taux_raw"] if r["session"] == 2023)
     assert taux["sample_mismatch"] == ["1101"]
+    assert verify.main(["--db", str(db), "--raw-dir", str(raw), "--out", str(tmp_path / "v"), "--strict"]) == 1
 
 
 @pytest.mark.parametrize("url,expected", [

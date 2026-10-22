@@ -133,6 +133,10 @@ def build_formation_year(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
              THEN md5(concat_ws('|', b.session, b.fili, b.voe_tot, b.nb_voe_pp))
       END AS subwish_group_id,
       coalesce(b.acc_tot < {config.LOW_N_THRESHOLD}, TRUE) AS low_n_flag,
+      -- SIES breakdowns are published on néo-bacheliers; a few upstream rows do not add up
+      coalesce(b.acc_bg + b.acc_bt + b.acc_bp <> b.acc_neobac, FALSE) AS series_sum_mismatch,
+      coalesce(b.acc_sansmention + b.acc_ab + b.acc_b + b.acc_tb + b.acc_tbf + b.acc_mention_non_renseignee
+               <> b.acc_neobac, FALSE) AS mention_sum_mismatch,
       strip_accents(lower(concat_ws(' ', b.g_ea_lib_vx, b.ville_etab, b.cod_uai, b.form_lib_voe_acc,
                                     b.fil_lib_voe_acc, b.lib_for_voe_ins, b.lib_comp_voe_ins))) AS search_text
     FROM base b
