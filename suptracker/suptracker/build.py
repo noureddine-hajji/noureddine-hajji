@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> None:
     path = build(args.raw_dir, args.db)
     con = duckdb.connect(str(path), read_only=True)
     print(con.execute("SELECT session, count(*) n FROM core.formation_year GROUP BY 1 ORDER BY 1").df())
-    print(crosswalk.continuity_report(con).head(1).to_string(index=False))
+    print(crosswalk.continuity_report(con)[0])
 
 
 if __name__ == "__main__":

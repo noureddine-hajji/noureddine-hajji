@@ -20,7 +20,6 @@ import unicodedata
 from collections import defaultdict
 
 import duckdb
-import pandas as pd
 
 from . import config
 
@@ -54,7 +53,9 @@ def similarity(a: frozenset[str], b: frozenset[str]) -> float:
     return len(a & b) / len(a | b)
 
 
-def _secondary(prev: pd.DataFrame, cur: pd.DataFrame) -> tuple[list[dict], list[dict]]:
+def _secondary(prev, cur) -> tuple[list[dict], list[dict]]:
+    import pandas as pd
+
     links, audit = [], []
     pg = prev.groupby(["cod_uai", "fili"], dropna=False)
     for key, cgrp in cur.groupby(["cod_uai", "fili"], dropna=False):
@@ -89,6 +90,8 @@ def _secondary(prev: pd.DataFrame, cur: pd.DataFrame) -> tuple[list[dict], list[
 
 
 def build_crosswalk(con: duckdb.DuckDBPyConnection) -> None:
+    import pandas as pd  # build-time only: the serving runtime ships without pandas
+
     df = con.execute("""SELECT session, cod_uai, cod_aff_form, fili, form_lib_voe_acc,
                                fil_lib_voe_acc, lib_comp_voe_ins FROM core.formation_year""").df()
     df["tokens"] = [normalize_label(a, b, c) for a, b, c in
@@ -166,12 +169,12 @@ def build_crosswalk(con: duckdb.DuckDBPyConnection) -> None:
         raise RuntimeError(f"lineage covers {n_lin} rows but formation_year has {n_nodes}")
 
 
-def continuity_report(con: duckdb.DuckDBPyConnection, anchor: int = config.LATEST_YEAR) -> pd.DataFrame:
+def continuity_report(con: duckdb.DuckDBPyConnection, anchor: int = config.LATEST_YEAR) -> list[dict]:
     """Share of `anchor`-year formations whose lineage reaches each earlier campaign."""
     years = [y for y in config.YEARS if y < anchor]
     cols = ",\n".join(
         f"bool_or(l2.session = {y}) AS in_{y}" for y in years)
-    return con.execute(f"""
+    cur = con.execute(f"""
     WITH a AS (SELECT l.lineage_id, l.lineage_confidence, fy.fili
                FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)
                WHERE l.session = {anchor}),
@@ -184,4 +187,6 @@ def continuity_report(con: duckdb.DuckDBPyConnection, anchor: int = config.LATES
         AS pct_full_span_exact,
       round(100.0 * avg((conf = '{INFERRED}')::INT), 1) AS pct_with_inferred_link
     FROM p GROUP BY ROLLUP (fili) ORDER BY grouping(fili) DESC, n_{anchor} DESC
-    """).df()
+    """)
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, r)) for r in cur.fetchall()]

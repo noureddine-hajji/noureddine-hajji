@@ -299,11 +299,20 @@ def filiere(fil: str, session: int | None = None):
     return r
 
 
+@app.get("/api/verification")
+def verification():
+    """Latest ground-truth verification report written by scripts/verify_ground_truth.py."""
+    path = _db_path().parent / "verification" / "verification.json"
+    if not path.exists():
+        raise HTTPException(404, "aucun rapport de vérification publié")
+    rep = json.loads(path.read_text())
+    return {k: rep.get(k) for k in ("generated_at", "overall", "n_failed_checks", "identities", "taux_raw",
+                                    "taux_live", "structure")}
+
+
 @app.get("/api/continuity")
 def continuity():
-    df = continuity_report(_con().cursor())
-    return {"anchor": config.LATEST_YEAR,
-            "rows": json.loads(df.to_json(orient="records", force_ascii=False))}
+    return {"anchor": config.LATEST_YEAR, "rows": continuity_report(_con().cursor())}
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

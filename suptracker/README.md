@@ -25,14 +25,37 @@ suptracker/
 
 ```bash
 cd suptracker
-pip install -r requirements.txt
+pip install -r requirements-pipeline.txt
 python -m suptracker.ingest            # downloads data/raw/*.parquet from data.enseignementsup-recherche.gouv.fr
 python -m suptracker.build             # builds data/suptracker.duckdb
 python scripts/verify_ground_truth.py --live 25 --strict   # writes reports/verification.{md,json}
 uvicorn suptracker.api:app             # http://127.0.0.1:8000
 ```
 
-## Deploy
+## Deploy on Vercel (serverless)
+
+On Vercel the app runs as a read-only serverless function, so it cannot download or build data at
+start-up. The data is built ahead of time instead:
+
+1. **Build the data on GitHub.** The workflow `.github/workflows/suptracker-data.yml` runs on a GitHub
+   runner, which can reach SIES. It ingests, builds and verifies the data, then commits
+   `suptracker/data/suptracker.duckdb` and `suptracker/data/verification/`. It runs monthly; to run it
+   by hand, go to **Actions → suptracker-data → Run workflow**.
+2. **Create the Vercel project.** Import the repo with these settings:
+   - Root Directory: `suptracker`
+   - Application Preset: **FastAPI**
+   - Build and Output Settings: leave as is
+   - Environment Variables: none needed
+
+   Vercel installs the slim `requirements.txt` (duckdb, fastapi, uvicorn) and serves `app.py`.
+3. **Redeploys are automatic.** Every data commit on `main` triggers one. Until the first data commit
+   exists, the site loads but the API answers 503.
+
+`requirements.txt` holds only the serving runtime, to fit Vercel's 250 MB function limit. The pipeline
+and tests use `requirements-pipeline.txt`. duckdb is pinned exactly (`2.0.0`) because the warehouse
+file must be read by the same version that wrote it.
+
+## Deploy with Docker (Render, Fly.io, VPS)
 
 The app is one container: FastAPI + DuckDB, with a persistent volume at `/data`.
 
