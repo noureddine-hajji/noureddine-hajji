@@ -1,0 +1,19 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+# Creates one Docker web service from suptracker/ with a persistent disk for the
+# SIES data. Persistent disks need a paid instance type (starter or above).
+services:
+  - type: web
+    name: suptracker-sies
+    runtime: docker
+    plan: starter
+    dockerContext: ./suptracker
+    dockerfilePath: ./suptracker/Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 2
+    envVars:
+      - key: SUPTRACKER_AUTOBUILD
+        value: "1"
