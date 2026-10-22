@@ -32,6 +32,40 @@ python scripts/verify_ground_truth.py --live 25 --strict   # writes reports/veri
 uvicorn suptracker.api:app             # http://127.0.0.1:8000
 ```
 
+## Deploy
+
+The app is one container: FastAPI + DuckDB, with a persistent volume at `/data`.
+
+```bash
+docker build -t suptracker-sies .                          # or: --build-arg PREBUILD=1 to bake data in
+docker run -p 8000:8000 -v suptracker-data:/data suptracker-sies
+```
+
+- **First start:** if `/data/suptracker.duckdb` is missing, the entrypoint serves right away and then
+  downloads the SIES exports and builds the warehouse in the background (a few minutes). During that
+  time, `/healthz` returns 200 with `ready: false`, while `/readyz` and the API return 503. The build
+  swaps the finished warehouse in atomically. The verification report is written to
+  `/data/reports/verification.md`.
+- **Hosting:** `render.yaml` is a ready Render blueprint (web service, Docker, 2 GB disk at `/data`).
+  Fly.io, Railway, Cloud Run or a VPS work the same way: build the Dockerfile, mount a volume at
+  `/data`, and set `$PORT` if the platform requires it.
+- **Environment variables:**
+
+  | variable | default | purpose |
+  |---|---|---|
+  | `PORT` | `8000` | port the app listens on |
+  | `SUPTRACKER_DATA` | `/data` | data directory |
+  | `SUPTRACKER_DB` | `$SUPTRACKER_DATA/suptracker.duckdb` | warehouse path |
+  | `SUPTRACKER_AUTOBUILD` | `1` | build the warehouse on first start; `0` to turn off |
+  | `SIES_ODS_BASE` | SIES v2.1 API | API base URL |
+
+- **Base image:** if Docker Hub rate-limits your builder, pass
+  `--build-arg BASE_IMAGE=mirror.gcr.io/library/python:3.12-slim`.
+- **Refreshing data:** run `make refresh` (or `python -m suptracker.ingest --force && python -m suptracker.build`)
+  inside the container, then restart it. The running process keeps its connection to the previous
+  warehouse until it restarts.
+- **Network:** the host that builds the data must be able to reach `data.enseignementsup-recherche.gouv.fr`.
+
 ## 1. Ingestion and schema harmonisation
 
 | key | ODS dataset id (tried in order) |

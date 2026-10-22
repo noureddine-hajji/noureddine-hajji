@@ -12,8 +12,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import duckdb
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
@@ -66,11 +67,19 @@ METHODOLOGY = {
 }
 
 
-@lru_cache(maxsize=1)
+class WarehouseMissing(RuntimeError):
+    pass
+
+
+def _db_path() -> Path:
+    return Path(os.environ.get("SUPTRACKER_DB", config.DB_PATH))
+
+
+@lru_cache(maxsize=1)  # failures are not cached, so the app picks the warehouse up once it is built
 def _con() -> duckdb.DuckDBPyConnection:
-    db = Path(os.environ.get("SUPTRACKER_DB", config.DB_PATH))
+    db = _db_path()
     if not db.exists():
-        raise RuntimeError(f"warehouse {db} not found: run python -m suptracker.build")
+        raise WarehouseMissing(f"warehouse {db} not found: run python -m suptracker.build")
     return duckdb.connect(str(db), read_only=True)
 
 
@@ -89,6 +98,25 @@ def fold(s: str) -> str:
 
 
 app = FastAPI(title="SupTracker SIES", version="1.0")
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+@app.exception_handler(WarehouseMissing)
+def _warehouse_missing(_: Request, exc: WarehouseMissing):
+    return JSONResponse({"detail": "Entrepôt de données en cours de construction ou absent. "
+                         "Réessayez dans quelques minutes."}, status_code=503)
+
+
+@app.get("/healthz")
+def healthz():
+    """Liveness: the process is up. `ready` tells whether the warehouse is queryable."""
+    return {"status": "ok", "ready": _db_path().exists()}
+
+
+@app.get("/readyz")
+def readyz():
+    _con()  # raises WarehouseMissing -> 503 until the build has finished
+    return {"status": "ready"}
 
 SUMMARY_COLS = """fy.session, fy.cod_aff_form, fy.cod_uai, fy.g_ea_lib_vx, fy.ville_etab, fy.fili,
   fy.form_lib_voe_acc, fy.fil_lib_voe_acc, fy.lib_for_voe_ins, fy.lib_comp_voe_ins, fy.acc_tot,

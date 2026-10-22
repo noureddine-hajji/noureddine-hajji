@@ -292,4 +292,7 @@ document.getElementById("search").onsubmit = (e) => {
   if (q) location.hash = `#/s/${encodeURIComponent(q)}`;
 };
 window.addEventListener("hashchange", route);
-(async () => { META = await api("/api/meta"); basket.render(); route(); })();
+(async () => {
+  try { META = await api("/api/meta"); } catch (e) { $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`; return; }
+  basket.render(); route();
+})();
