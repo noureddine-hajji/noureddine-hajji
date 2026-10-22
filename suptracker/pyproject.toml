@@ -1,0 +1,19 @@
+# Serving runtime for Vercel's FastAPI preset (and any `uv`/pip install of the app).
+# The data pipeline and tests use requirements-pipeline.txt instead.
+[project]
+name = "suptracker-sies"
+version = "1.0.0"
+description = "Longitudinal Parcoursup 2022-2025 analytics over SIES open data"
+requires-python = ">=3.12"
+dependencies = [
+    # pinned exactly: the warehouse file must be read by the version that wrote it
+    "duckdb==2.0.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[tool.uv]
+package = false   # an application, not a library: never try to build/install it as a package
+
+[tool.vercel]
+entrypoint = "suptracker.api:app"

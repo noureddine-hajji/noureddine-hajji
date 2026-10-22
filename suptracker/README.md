@@ -47,7 +47,8 @@ start-up. The data is built ahead of time instead:
    - Build and Output Settings: leave as is
    - Environment Variables: none needed
 
-   Vercel installs the slim `requirements.txt` (duckdb, fastapi, uvicorn) and serves `app.py`.
+   Vercel installs the slim runtime declared in `pyproject.toml` (duckdb, fastapi, uvicorn), and
+   `[tool.vercel] entrypoint = "suptracker.api:app"` tells it which app to serve.
 3. **Redeploys are automatic.** Every data commit on `main` triggers one. Until the first data commit
    exists, the site loads but the API answers 503.
 
