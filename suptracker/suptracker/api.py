@@ -272,17 +272,22 @@ def specialites(session: int | None = None, formation_type: str | None = None):
     (type of formation, doublette), with no candidate counts. So the matrix shows
     each doublette's share of the type's accepted students. It is a composition of
     one stage (acceptances), never a rate across stages.
+
+    The 2025 export stacks three aggregation levels (0 = all bacheliers, 1 = a group of
+    formations, 2 = its detailed formations, which repeat the level-1 totals). Only
+    levels 0-1 are read, so no acceptance is counted twice. 2021-2024 have one level.
     """
+    level = "coalesce(aggregation_level, '1') IN ('0', '1')"
     session = session or config.LATEST_YEAR
     types = [r["formation_type"] for r in rows(
-        """SELECT formation_type FROM core.specialites WHERE session = ? AND formation_type IS NOT NULL
-           GROUP BY 1 ORDER BY sum(n_accepte) DESC NULLS LAST, 1""", [session])]
+        f"""SELECT formation_type FROM core.specialites WHERE session = ? AND formation_type IS NOT NULL
+           AND {level} GROUP BY 1 ORDER BY sum(n_accepte) DESC NULLS LAST, 1""", [session])]
     ftype = formation_type if formation_type in types else (types[0] if types else None)
-    res = rows("""
+    res = rows(f"""
       SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte,
         round(100.0 * n_accepte / nullif(sum(n_accepte) OVER (), 0), 1) AS pct_acceptations,
         round(100.0 * n_proposition / nullif(sum(n_proposition) OVER (), 0), 1) AS pct_propositions
-      FROM core.specialites WHERE session = ? AND formation_type = ?
+      FROM core.specialites WHERE session = ? AND formation_type = ? AND {level}
       ORDER BY n_accepte DESC NULLS LAST, doublette""", [session, ftype])
     return {"session": session, "formation_type": ftype, "formation_types": types, "rows": res,
             "totals": {"n_accepte": sum(r["n_accepte"] or 0 for r in res),

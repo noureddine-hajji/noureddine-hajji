@@ -156,7 +156,14 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
                             "propositions_d_admissions": p, "acceptations": rng.randint(p // 3, p)})
     spe = pd.DataFrame(spe)
     spe[spe.annee_du_bac < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
-    spe[spe.annee_du_bac == 2025].rename(columns={"formation": "regroupement_de_formations"}).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
+    # 2025 layout: level 0 = all bacheliers, 1 = group total, 2 = detailed formations (repeat level 1)
+    s25 = spe[spe.annee_du_bac == 2025].rename(columns={"formation": "regroupement_de_formations"})
+    lvl1 = s25.assign(niveau_d_agregation="1", formation="Ensemble regroupement de formations")
+    lvl2 = s25.assign(niveau_d_agregation="2", formation=s25.regroupement_de_formations + " (détail)")
+    lvl0 = (s25.groupby(["annee_du_bac", "doublette"], as_index=False)[["propositions_d_admissions", "acceptations"]]
+            .sum().assign(regroupement_de_formations="Ensemble des bacheliers", niveau_d_agregation="0",
+                          formation="Ensemble des bacheliers"))
+    pd.concat([lvl0, lvl1, lvl2]).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
 
     pd.DataFrame([{"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85",
                    "fiche": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/"
