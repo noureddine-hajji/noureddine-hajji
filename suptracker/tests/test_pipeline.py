@@ -163,6 +163,12 @@ def test_api(built, monkeypatch):
     assert c.get("/api/formation/does-not-exist").status_code == 404
     assert c.get("/api/specialites", params={"session": 2025}).json()["rows"]
     assert c.get("/").status_code == 200
+    assert c.get("/api/verification").status_code == 404  # no report written next to this warehouse
+    verify.main(["--db", str(built[1]), "--raw-dir", str(built[0] / "raw"),
+                 "--out", str(built[1].parent / "verification")])
+    v = c.get("/api/verification").json()
+    assert v["overall"] == "PASS" and v["identities"]
+    assert c.get("/api/continuity").json()["rows"][0]["fili"] == "TOTAL"
 
 
 def test_no_access_rate_derived_from_offers_over_wishes():

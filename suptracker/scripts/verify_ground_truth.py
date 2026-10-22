@@ -210,7 +210,7 @@ def run(db: Path, raw_dir: Path, live: int = 0) -> dict:
     lv = check_taux_live(con, live) if live else []
     bounds = check_bounds(con)
     struct = check_structure(con)
-    cont = json.loads(continuity_report(con).to_json(orient="records", force_ascii=False))
+    cont = continuity_report(con)
     failed = ([r for r in ident if r["primary"] and r["status"] == "fail"]
               + [r for r in raw + lv if r["status"] == "fail"]
               + [b for b in bounds if b["status"] == "fail"] + [s for s in struct if s["violations"]])

@@ -1,0 +1,54 @@
+# Builds the SupTracker warehouse from the official SIES exports on a GitHub runner
+# and commits it (suptracker/data/suptracker.duckdb + verification report) to the
+# branch it runs on. Vercel redeploys on that push and serves the file read-only.
+name: suptracker-data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 1 * *"   # monthly; SIES republishes rarely
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-data
+  cancel-in-progress: false
+jobs:
+  build-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-pipeline.txt
+      - name: Ingest SIES Parquet exports
+        run: python -m suptracker.ingest --force
+      - name: Build warehouse
+        run: python -m suptracker.build
+      - name: Verify against SIES accounting identities
+        run: python scripts/verify_ground_truth.py --out data/verification --live 10
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-report
+          path: |
+            suptracker/data/verification/
+            suptracker/data/raw/manifest.json
+          if-no-files-found: warn
+      - name: Check warehouse size
+        run: |
+          ls -la data/
+          size=$(stat -c %s data/suptracker.duckdb)
+          echo "warehouse: $size bytes"
+          test "$size" -lt 95000000 || { echo "::error::warehouse exceeds GitHub's 100 MB file limit"; exit 1; }
+      - name: Commit warehouse
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/suptracker.duckdb data/verification
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Refresh SIES warehouse ($(date -u +%Y-%m-%d))"
+          git push

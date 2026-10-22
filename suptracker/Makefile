@@ -1,5 +1,5 @@
 .PHONY: install data verify serve test docker
-install: ; pip install -r requirements.txt
+install: ; pip install -r requirements-pipeline.txt
 data: ; python -m suptracker.ingest && python -m suptracker.build
 verify: ; python scripts/verify_ground_truth.py --live 25 --strict
 serve: ; uvicorn suptracker.api:app --host 0.0.0.0 --port $${PORT:-8000}

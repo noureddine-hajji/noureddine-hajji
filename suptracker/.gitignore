@@ -1,4 +1,8 @@
-data/
+# Raw SIES exports and build scratch stay out of git; the built warehouse
+# (data/suptracker.duckdb) is committed by the data workflow so Vercel can serve it.
+data/raw/
+data/*.building
+data/*.wal
 reports/
 __pycache__/
 *.pyc

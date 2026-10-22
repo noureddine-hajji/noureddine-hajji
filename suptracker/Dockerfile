@@ -5,8 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     SUPTRACKER_DATA=/data PORT=8000
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-pipeline.txt ./
+RUN pip install --no-cache-dir -r requirements-pipeline.txt
 
 COPY suptracker ./suptracker
 COPY scripts ./scripts

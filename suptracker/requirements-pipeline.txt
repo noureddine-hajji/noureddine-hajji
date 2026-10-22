@@ -1,0 +1,6 @@
+# Data pipeline (ingest / build / verify) and tests.
+-r requirements.txt
+pyarrow>=15
+pandas>=2.1
+httpx>=0.27
+pytest>=8
