@@ -51,7 +51,7 @@ jobs:
           # Commit only when the SIES inputs or the pipeline code changed: the warehouse
           # is a 40+ MB binary, and an identical rebuild must not grow the git history.
           fp=$( { jq -r '.[].sha256' data/raw/manifest.json | sort; \
-                  git ls-files -s -- 'suptracker/*.py' scripts; } | sha256sum | cut -d' ' -f1 )
+                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml; } | sha256sum | cut -d' ' -f1 )
           if [ -f data/fingerprint.txt ] && [ "$(cat data/fingerprint.txt)" = "$fp" ]; then
             echo "SIES exports and pipeline unchanged since the last published warehouse"; exit 0
           fi

@@ -135,6 +135,34 @@ def test_upstream_inconsistency_is_flagged_not_failed(tmp_path):
     c.close()
 
 
+def test_changed_discrepancy_on_upstream_violator_fails(tmp_path):
+    raw = tmp_path / "raw"
+    make_raw(raw)
+    p = raw / "parcoursup_2024.parquet"
+    df = pd.read_parquet(p)
+    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1          # upstream discrepancy +1
+    df.to_parquet(p, index=False)
+    db = build_mod.build(raw, tmp_path / "w.duckdb")
+    c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg + 2 WHERE session=2024 AND cod_aff_form='1100'")
+    c.close()
+    series = lambda rep: next(r for r in rep["identities"]  # noqa: E731
+                              if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series(verify.run(db, raw))["status"] == "fail"     # same key, different discrepancy
+    c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg - 3 WHERE session=2024 AND cod_aff_form='1100'")
+    c.close()
+    assert series(verify.run(db, raw))["status"] == "fail"     # pipeline silently "repaired" SIES
+
+
+def test_app_js_calls_only_defined_helpers():
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    defined = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(", js))
+    defined |= set(re.findall(r"const\s+([A-Za-z_]\w*)\s*=\s*(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>", js))
+    called = set(re.findall(r"(?<![.\w])([a-z]\w*(?:Card|Chart|Bars|Bar|Badge)|view[A-Z]\w*)\s*\(", js))
+    assert called <= defined, called - defined
+
+
 def test_verification_catches_pipeline_errors(tmp_path):
     raw = tmp_path / "raw"
     make_raw(raw)

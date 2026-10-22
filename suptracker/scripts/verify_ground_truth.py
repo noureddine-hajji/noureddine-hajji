@@ -51,8 +51,9 @@ IDENTITIES = [
 SHARES = [f.name for f in VOEUX_FIELDS if f.dtype == "DOUBLE" and f.stage == "indicator"]
 
 
-def raw_violators(raw_dir: Path, year: int, comps, total) -> set[str] | None:
-    """cod_aff_form violating the identity in the raw upstream file (no warehouse involved)."""
+def raw_violators(raw_dir: Path, year: int, comps, total) -> dict[str, float] | None:
+    """{cod_aff_form: sum(components) - total} for rows violating the identity in the raw
+    upstream file (no warehouse involved)."""
     path = raw_dir / f"parcoursup_{year}.parquet"
     if not path.exists():
         return None
@@ -64,8 +65,9 @@ def raw_violators(raw_dir: Path, year: int, comps, total) -> set[str] | None:
     s = " + ".join(num(c) for c in comps)
     nn = " AND ".join(f"{num(c)} IS NOT NULL" for c in (*comps, total))
     key = f"regexp_replace(CAST(\"{m['cod_aff_form']}\" AS VARCHAR), '\\.0$', '')"
-    rows = duckdb.sql(f"SELECT {key} FROM read_parquet('{path}') WHERE {nn} AND ({s}) <> {num(total)}").fetchall()
-    return {r[0] for r in rows}
+    rows = duckdb.sql(f"""SELECT {key}, ({s}) - {num(total)} FROM read_parquet('{path}')
+                          WHERE {nn} AND ({s}) <> {num(total)}""").fetchall()
+    return {k: float(d) for k, d in rows}
 
 
 def check_identities(con, raw_dir: Path) -> list[dict]:
@@ -77,20 +79,23 @@ def check_identities(con, raw_dir: Path) -> list[dict]:
             SELECT session, count(*) AS n_rows,
               count(*) FILTER (WHERE {nn}) AS n_evaluable,
               max(abs(({s}) - {total})) FILTER (WHERE {nn}) AS max_abs_diff,
-              list(cod_aff_form ORDER BY abs(({s}) - {total}) DESC) FILTER (WHERE {nn} AND ({s}) <> {total})
-                AS violators
+              list({{'k': cod_aff_form, 'd': ({s}) - {total}}} ORDER BY abs(({s}) - {total}) DESC)
+                FILTER (WHERE {nn} AND ({s}) <> {total}) AS violators
             FROM core.formation_year GROUP BY session ORDER BY session""").fetchall():
             session, n, ev, mad, viol = r
-            viol = viol or []
+            diffs = {v["k"]: float(v["d"]) for v in (viol or [])}
+            viol = list(diffs)
             upstream = raw_violators(raw_dir, session, comps, total)
             if not ev:
                 status = "not_evaluable"
-            elif not viol:
+            elif upstream is None:
+                status = "pass" if not diffs else "fail"
+            elif diffs != upstream:
+                status = "fail"   # the warehouse does not reproduce the upstream discrepancies row by row
+            elif not diffs:
                 status = "pass"
-            elif upstream is not None and set(viol) == upstream:
-                status = "upstream_inconsistency"   # warehouse reproduces SIES exactly
             else:
-                status = "fail"
+                status = "upstream_inconsistency"   # same rows, same discrepancy as the SIES export
             out.append({"check": name, "primary": primary, "session": session, "n_rows": n,
                         "n_evaluable": ev, "n_violations": len(viol),
                         "n_violations_upstream": None if upstream is None else len(upstream),
