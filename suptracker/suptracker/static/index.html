@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SupTracker SIES</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/">SupTracker <span>SIES · Parcoursup 2022–2025</span></a>
+  <nav>
+    <a href="#/">Recherche</a>
+    <a href="#/compare">Comparateur <span id="basket-count" class="pill">0</span></a>
+    <a href="#/specialites">Spécialités</a>
+    <a href="#/qualite">Qualité des données</a>
+  </nav>
+</header>
+<form id="search" class="search" autocomplete="off">
+  <input id="q" type="search" placeholder="Établissement, code UAI, filière, ou URL de fiche parcoursup.fr…" aria-label="Recherche">
+  <button type="submit">Rechercher</button>
+</form>
+<main id="view" aria-live="polite"></main>
+<footer>Données : SIES / MESR, open data Parcoursup (licence ouverte Etalab). Les indicateurs officiels sont repris tels quels.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
