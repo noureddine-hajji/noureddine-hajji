@@ -144,15 +144,13 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
     for y in YEARS:
         for d in ("Mathématiques / Physique-Chimie", "SES / HGGSP", "SVT / Physique-Chimie"):
             for ft in ("BUT", "Licence", "CPGE"):
-                n = rng.randint(1000, 20000)
-                p = rng.randint(n // 2, n)
-                spe.append({"annee_du_baccalaureat": y, "formation": ft, "enseignements_de_specialite": d,
-                            "nombre_de_candidats_bacheliers_ayant_confirme_au_moins_un_voeu": n,
-                            "nombre_de_candidats_bacheliers_ayant_recu_au_moins_une_proposition": p,
-                            "nombre_de_candidats_bacheliers_ayant_accepte_une_proposition": rng.randint(p // 2, p)})
+                p = rng.randint(1000, 20000)
+                # real SIES layout: proposals and acceptances only, no candidate counts
+                spe.append({"annee_du_bac": y, "formation": ft, "doublette": d,
+                            "propositions_d_admissions": p, "acceptations": rng.randint(p // 3, p)})
     spe = pd.DataFrame(spe)
-    spe[spe.annee_du_baccalaureat < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
-    spe[spe.annee_du_baccalaureat == 2025].to_parquet(raw_dir / "specialites_2025.parquet", index=False)
+    spe[spe.annee_du_bac < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
+    spe[spe.annee_du_bac == 2025].rename(columns={"formation": "regroupement_de_formations"}).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
 
     pd.DataFrame([{"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85",
                    "fiche": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/"

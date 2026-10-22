@@ -147,14 +147,22 @@ def build_formation_year(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
 
 SPE_RULES = {
     "year": [("annee",), ("session",)],
-    "formation_type": [("formation",), ("filiere",)],
+    "formation_type": [("regroupement",), ("formation",), ("filiere",)],
     "doublette": [("doublette",), ("enseignement", "specialite"), ("specialite",)],
 }
 SPE_COUNT_RULES = {
     "n_candidats": [("confirm",), ("candidat", "voeu")],
-    "n_proposition": [("propos",), ("recu",)],
+    "n_proposition": [("propos",), ("recu",)],  # SIES: propositions_d_admissions
     "n_accepte": [("accept",), ("admis",)],
 }
+
+
+def audit_raw_columns(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
+    """meta.raw_columns: every upstream column and its physical type, per raw file."""
+    con.execute("CREATE OR REPLACE TABLE meta.raw_columns (dataset VARCHAR, column_name VARCHAR, column_type VARCHAR)")
+    for path in sorted(raw_dir.glob("*.parquet")):
+        for col, typ in columns_of(con, path):
+            con.execute("INSERT INTO meta.raw_columns VALUES (?, ?, ?)", [path.stem, col, typ])
 
 
 def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:

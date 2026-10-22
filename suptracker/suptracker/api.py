@@ -266,22 +266,27 @@ def compare(ids: str, session: int | None = None):
 
 @app.get("/api/specialites")
 def specialites(session: int | None = None, formation_type: str | None = None):
+    """Admission profile by Terminale specialty doublette, for one type of formation.
+
+    The SIES specialty exports publish admission proposals and acceptances per
+    (type of formation, doublette), with no candidate counts. So the matrix shows
+    each doublette's share of the type's accepted students. It is a composition of
+    one stage (acceptances), never a rate across stages.
+    """
     session = session or config.LATEST_YEAR
     types = [r["formation_type"] for r in rows(
-        "SELECT DISTINCT formation_type FROM core.specialites WHERE session = ? ORDER BY 1", [session])]
-    sql = """SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte,
-               -- unit = distinct candidates (persons), not vœux: a legitimate share, unlike prop_tot over voe_tot
-               CASE WHEN n_candidats > 0 THEN round(100.0 * n_proposition / n_candidats, 1) END
-                 AS pct_candidats_avec_proposition,
-               CASE WHEN n_candidats > 0 THEN round(100.0 * n_accepte / n_candidats, 1) END
-                 AS pct_candidats_ayant_accepte
-             FROM core.specialites WHERE session = ?"""
-    params: list = [session]
-    if formation_type:
-        sql += " AND formation_type = ?"
-        params.append(formation_type)
-    return {"session": session, "formation_types": types,
-            "rows": rows(sql + " ORDER BY formation_type, n_candidats DESC", params)}
+        """SELECT formation_type FROM core.specialites WHERE session = ? AND formation_type IS NOT NULL
+           GROUP BY 1 ORDER BY sum(n_accepte) DESC NULLS LAST, 1""", [session])]
+    ftype = formation_type if formation_type in types else (types[0] if types else None)
+    res = rows("""
+      SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte,
+        round(100.0 * n_accepte / nullif(sum(n_accepte) OVER (), 0), 1) AS pct_acceptations,
+        round(100.0 * n_proposition / nullif(sum(n_proposition) OVER (), 0), 1) AS pct_propositions
+      FROM core.specialites WHERE session = ? AND formation_type = ?
+      ORDER BY n_accepte DESC NULLS LAST, doublette""", [session, ftype])
+    return {"session": session, "formation_type": ftype, "formation_types": types, "rows": res,
+            "totals": {"n_accepte": sum(r["n_accepte"] or 0 for r in res),
+                       "n_proposition": sum(r["n_proposition"] or 0 for r in res)}}
 
 
 @app.get("/api/filiere")
