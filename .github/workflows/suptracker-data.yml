@@ -28,8 +28,10 @@ jobs:
         run: python -m suptracker.ingest --force
       - name: Build warehouse
         run: python -m suptracker.build
+      # --strict: a FAIL report stops the job before the commit step, so a warehouse that
+      # breaks an SIES identity is never published (the report is still uploaded below).
       - name: Verify against SIES accounting identities
-        run: python scripts/verify_ground_truth.py --out data/verification --live 10
+        run: python scripts/verify_ground_truth.py --out data/verification --live 10 --strict
       - uses: actions/upload-artifact@v4
         if: always()
         with:
