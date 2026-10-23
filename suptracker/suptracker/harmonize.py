@@ -58,13 +58,15 @@ def cast_expr(f: Field, col: str | None) -> list[str]:
 
 
 def geo_expr(g: str, part: str) -> str:
-    """Parse ODS geo_point_2d whether it arrives as 'lat, lon' text or a {lon, lat} struct."""
+    """Parse ODS geo points: native GEOMETRY ('POINT (lon lat)' WKT, what the SIES Parquet
+    exports carry with DuckDB >= 2.0), a {lon, lat} struct, or 'lat, lon' text."""
+    wkt = f"regexp_extract({g}, 'POINT\\s*\\(\\s*(-?[0-9.]+)\\s+(-?[0-9.]+)', {2 if part == 'lat' else 1})"
     keyed = f"regexp_extract({g}, '''?{part}''?\\s*[:=]\\s*(-?[0-9.]+)', 1)"
     positional = (
         f"regexp_extract({g}, '(-?[0-9.]+)\\s*,', 1)" if part == "lat"
         else f"regexp_extract({g}, ',\\s*(-?[0-9.]+)', 1)"
     )
-    return (f"TRY_CAST(CASE WHEN {g} ILIKE '%{part}%' THEN {keyed} "
+    return (f"TRY_CAST(CASE WHEN {g} ILIKE 'POINT%' THEN {wkt} WHEN {g} ILIKE '%{part}%' THEN {keyed} "
             f"ELSE {positional} END AS DOUBLE)")
 
 
@@ -133,6 +135,10 @@ def build_formation_year(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
              THEN md5(concat_ws('|', b.session, b.fili, b.voe_tot, b.nb_voe_pp))
       END AS subwish_group_id,
       coalesce(b.acc_tot < {config.LOW_N_THRESHOLD}, TRUE) AS low_n_flag,
+      -- SIES breakdowns are published on néo-bacheliers; a few upstream rows do not add up
+      coalesce(b.acc_bg + b.acc_bt + b.acc_bp <> b.acc_neobac, FALSE) AS series_sum_mismatch,
+      coalesce(b.acc_sansmention + b.acc_ab + b.acc_b + b.acc_tb + b.acc_tbf + b.acc_mention_non_renseignee
+               <> b.acc_neobac, FALSE) AS mention_sum_mismatch,
       strip_accents(lower(concat_ws(' ', b.g_ea_lib_vx, b.ville_etab, b.cod_uai, b.form_lib_voe_acc,
                                     b.fil_lib_voe_acc, b.lib_for_voe_ins, b.lib_comp_voe_ins))) AS search_text
     FROM base b
@@ -143,14 +149,27 @@ def build_formation_year(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
 
 SPE_RULES = {
     "year": [("annee",), ("session",)],
-    "formation_type": [("formation",), ("filiere",)],
+    "formation_type": [("regroupement",), ("formation",), ("filiere",)],
     "doublette": [("doublette",), ("enseignement", "specialite"), ("specialite",)],
+}
+SPE_EXTRA_RULES = {   # 2025 export: several aggregation levels in one file
+    "aggregation_level": [("niveau", "agregation")],
+    "formation_detail": [("formation",)],
 }
 SPE_COUNT_RULES = {
     "n_candidats": [("confirm",), ("candidat", "voeu")],
-    "n_proposition": [("propos",), ("recu",)],
+    "n_proposition": [("propos",), ("recu",)],  # SIES: propositions_d_admissions
     "n_accepte": [("accept",), ("admis",)],
+    "n_voeux": [("voeux",)],
 }
+
+
+def audit_raw_columns(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
+    """meta.raw_columns: every upstream column and its physical type, per raw file."""
+    con.execute("CREATE OR REPLACE TABLE meta.raw_columns (dataset VARCHAR, column_name VARCHAR, column_type VARCHAR)")
+    for path in sorted(raw_dir.glob("*.parquet")):
+        for col, typ in columns_of(con, path):
+            con.execute("INSERT INTO meta.raw_columns VALUES (?, ?, ?)", [path.stem, col, typ])
 
 
 def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
@@ -165,6 +184,9 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
         num_cols = [c for c, t in cols if t != "VARCHAR"]
         m = resolve_by_keywords(text_cols + [c for c in num_cols if "annee" in c.lower()
                                               or "session" in c.lower()], SPE_RULES)
+        # an exact "formation" column beats e.g. "regroupement_de_formations_abrege"
+        rest = sorted((c for c in text_cols if c not in m.values()), key=lambda c: norm(c) != "formation")
+        m.update(resolve_by_keywords(rest, SPE_EXTRA_RULES))
         m.update(resolve_by_keywords([c for c in num_cols if c != m.get("year")], SPE_COUNT_RULES))
         for canon, src in m.items():
             con.execute("INSERT INTO meta.schema_audit VALUES (NULL, ?, ?, ?)",
@@ -173,7 +195,7 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
             (f"TRY_CAST({_num(m['year'])} AS BIGINT)" if m["year"] else "NULL::BIGINT") + " AS session",
             (_text(m["formation_type"]) if m["formation_type"] else "NULL") + " AS formation_type",
             (_text(m["doublette"]) if m["doublette"] else "NULL") + " AS doublette",
-        ] + [
+        ] + [(_text(m[c]) if m[c] else "NULL::VARCHAR") + f" AS {c}" for c in SPE_EXTRA_RULES] + [
             (f"TRY_CAST(ROUND({_num(m[c])}) AS BIGINT)" if m[c] else "NULL::BIGINT") + f" AS {c}"
             for c in SPE_COUNT_RULES
         ]
@@ -184,7 +206,8 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
             + " UNION ALL ".join(parts) + f") WHERE session IN {tuple(config.YEARS)}")
     else:
         con.execute("""CREATE OR REPLACE TABLE core.specialites (session BIGINT, formation_type VARCHAR,
-            doublette VARCHAR, n_candidats BIGINT, n_proposition BIGINT, n_accepte BIGINT, source VARCHAR)""")
+            doublette VARCHAR, aggregation_level VARCHAR, formation_detail VARCHAR, n_candidats BIGINT,
+            n_proposition BIGINT, n_accepte BIGINT, n_voeux BIGINT, source VARCHAR)""")
 
 
 CARTO_RULES = {

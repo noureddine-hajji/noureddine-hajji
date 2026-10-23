@@ -23,6 +23,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH) -> Pat
     con = duckdb.connect(str(tmp))
     try:
         harmonize.build_formation_year(con, raw_dir)
+        harmonize.audit_raw_columns(con, raw_dir)
         harmonize.build_specialites(con, raw_dir)
         harmonize.build_cartographie(con, raw_dir)
         harmonize.attach_fiche(con)

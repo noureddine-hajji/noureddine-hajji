@@ -157,7 +157,7 @@ async function viewFormation(cod, session) {
   <div class="grid3">
     ${stageCard("1 · Candidatures (vœux)", ["voe_tot", "nb_voe_pp", "nb_voe_pc", "voe_tot_f"], r, r.subwish_flag ? "Sous-vœu : effectifs partagés, non additionnables. " + tip("subwish") : "Unité : vœux, pas candidats uniques.")}
     ${stageCard("2 · Classés & proposés", ["nb_cla_pp", "nb_cla_pc", "prop_tot", "ran_grp1"], r)}
-    ${stageCard("3 · Admis", ["acc_tot", "acc_pp", "acc_pc", "acc_term", "acc_brs"], r)}
+    ${stageCard("3 · Admis", ["acc_tot", "acc_pp", "acc_pc", "acc_neobac", "acc_term", "acc_brs"], r)}
   </div>
   <div class="card"><h2>Position dans la filière · ${esc(r.fil_lib_voe_acc)} ${tip("peers")}</h2>
     <div class="legend"><span><i style="background:var(--range)"></i>p10–p90</span><span><i style="background:var(--box)"></i>p25–p75</span><span>│ médiane</span><span><i style="background:var(--c2);border-radius:50%"></i>cette formation (creux = hors référence)</span></div>
@@ -195,7 +195,7 @@ async function viewEvolution(cod) {
     <div class="card"><h3>Taux d'accès &amp; terminales générales en position d'admis (PP) ${tip("taux_acces_ens")}</h3>
       ${legend([{ name: "Taux d'accès" }, { name: "Part term. générales en position d'admis" }])}
       ${lineChart(years, [{ name: "Taux d'accès", values: col("taux_acces_ens") }, { name: "Part term. gén.", values: col("part_terminale_generale_en_position_admis_pp") }])}</div>
-    <div class="card"><h3>Admis par série de bac (part de acc_bg+bt+bp)</h3>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
+    <div class="card"><h3>Admis néo-bacheliers par série de bac ${tip("mentions")}</h3>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
     <div class="card"><h3>Admis par mention au bac ${tip("mentions")}</h3>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
     <div class="card"><h3>Boursiers, femmes, origine</h3>
       ${legend([{ name: "% boursiers" }, { name: "% femmes" }, { name: "% même académie" }, { name: "% même établissement" }])}
@@ -203,7 +203,7 @@ async function viewEvolution(cod) {
       <p class="muted small">Points creux : moins de ${META.low_n_threshold} admis. ${tip("low_n")}</p></div>
     <div class="card"><h3>Effectifs (trois étapes, non ratio-ables) ${tip("funnel")}</h3><div class="scroll"><table>
       <tr><th></th>${years.map((y) => `<th class="num">${y}</th>`).join("")}</tr>
-      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_term", "acc_brs", "capa_fin"].map((k) => `<tr><td>${esc(label(k))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
+      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_neobac", "acc_term", "acc_brs", "capa_fin"].map((k) => `<tr><td>${esc(label(k))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
     </table></div></div>
   </div>`;
 }
@@ -238,27 +238,25 @@ async function viewCompare() {
 }
 
 async function viewSpecialites(session, ftype) {
-  const d = await api(`/api/specialites?session=${session || ""}`);
-  const types = d.formation_types, sel = ftype || "";
-  const rows = sel ? d.rows.filter((r) => r.formation_type === sel) : d.rows;
-  const dbl = [...new Set(rows.map((r) => r.doublette))];
-  const cols = sel ? [sel] : types;
-  const cell = Object.fromEntries(rows.map((r) => [`${r.doublette}|${r.formation_type}`, r]));
-  const shade = (v) => v == null ? "transparent" : `color-mix(in srgb, var(--c1) ${Math.round(v)}%, var(--surface))`;
-  $view.innerHTML = `<div class="card"><h2>Matrice doublettes de spécialités × type de formation</h2>
-    <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité. Unité : <strong>candidats</strong> (personnes), pas vœux. La part rapporte les candidats ayant reçu au moins une proposition aux candidats ayant confirmé au moins un vœu dans ce type de formation. Données agrégées au niveau national par type de formation, pas par formation.</p>
+  const d = await api(`/api/specialites?session=${session || ""}&formation_type=${encodeURIComponent(ftype || "")}`);
+  const max = Math.max(1, ...d.rows.map((r) => r.pct_acceptations || 0));
+  $view.innerHTML = `<div class="card"><h2>Doublettes de spécialités des admis</h2>
+    <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par doublette : c'est une répartition, pas un taux d'accès.</p>
     <div class="toolbar"><label>Session <select id="ss">${META.years.map((y) => `<option ${y === d.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
-      <label>Type <select id="st"><option value="">tous</option>${types.map((t) => `<option ${t === sel ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label></div>
-    <div class="scroll"><table class="heat"><tr><th>Doublette</th>${cols.map((c) => `<th class="num">${esc(c)}</th>`).join("")}</tr>
-    ${dbl.map((x) => `<tr><td>${esc(x)}</td>${cols.map((c) => { const r = cell[`${x}|${c}`]; return `<td class="cell" style="background:${shade(r?.pct_candidats_avec_proposition)}" title="${r ? `${fmt(r.n_candidats)} candidats · ${fmt(r.n_proposition)} avec proposition · ${fmt(r.n_accepte)} ayant accepté` : "n.d."}">${r ? pct(r.pct_candidats_avec_proposition) : "—"}</td>`; }).join("")}</tr>`).join("") || `<tr><td class="muted">Pas de données pour cette session.</td></tr>`}
+      <label>Type de formation <select id="st" style="max-width:100%">${d.formation_types.map((t) => `<option ${t === d.formation_type ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label></div>
+    <p class="small">${fmt(d.totals.n_accepte)} acceptations · ${fmt(d.totals.n_proposition)} propositions</p>
+    <div class="scroll"><table><tr><th>Doublette</th><th>Part des admis</th><th class="num">Acceptations</th><th class="num">Propositions</th></tr>
+    ${d.rows.map((r) => `<tr><td>${esc(r.doublette)}</td>
+      <td style="min-width:140px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (r.pct_acceptations || 0) / max}" height="10" fill="var(--c1)"/></svg><span class="small">${pct(r.pct_acceptations)}</span></td>
+      <td class="num">${fmt(r.n_accepte)}</td><td class="num">${fmt(r.n_proposition)}</td></tr>`).join("") || `<tr><td class="muted">Pas de données pour cette session.</td></tr>`}
     </table></div></div>`;
-  document.getElementById("ss").onchange = (e) => { location.hash = `#/specialites/${e.target.value}/${encodeURIComponent(sel)}`; };
+  document.getElementById("ss").onchange = (e) => { location.hash = `#/specialites/${e.target.value}/${encodeURIComponent(d.formation_type || "")}`; };
   document.getElementById("st").onchange = (e) => { location.hash = `#/specialites/${d.session}/${encodeURIComponent(e.target.value)}`; };
 }
 
 function verificationCard(v) {
   if (!v) return `<div class="card"><h2>Vérification SIES</h2><p class="muted">Aucun rapport publié pour ce build.</p></div>`;
-  const st = (x) => x === "pass" ? "✓" : x === "fail" ? "✗" : "–";
+  const st = (x) => ({ pass: "✓", fail: "✗", upstream_inconsistency: "⚠ incohérence SIES (reproduite à l'identique)" }[x] || "–");
   return `<div class="card"><h2>Vérification SIES : ${esc(v.overall)}</h2>
     <p class="muted small">Rapport du ${esc(v.generated_at)}. Identités comptables par campagne (« diag » = contrôle diagnostique du dénominateur).</p>
     <div class="scroll"><table><tr><th>Contrôle</th><th>Session</th><th class="num">Évaluables</th><th class="num">Écarts</th><th class="num">% ok</th><th>Statut</th></tr>

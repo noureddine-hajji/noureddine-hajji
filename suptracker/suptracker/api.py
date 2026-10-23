@@ -62,8 +62,10 @@ METHODOLOGY = {
         "agrégée, d'après la similarité des libellés (meilleur candidat mutuel, avec une marge minimale). "
         "Les cas ambigus ne sont jamais reliés."),
     "mentions": (
-        "La décomposition par mention porte sur les admis néo-bacheliers issus de terminale (acc_term). "
-        "Les parts sont celles publiées par SIES (pct_*)."),
+        "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
+        "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
+        "exactement à acc_neobac, et non à acc_term. Les parts affichées sont celles publiées par SIES (pct_*). "
+        "Quelques lignes de l'export SIES lui-même ne s'additionnent pas ; elles sont signalées."),
 }
 
 
@@ -189,6 +191,10 @@ def _warnings(rec: dict, peers: list[dict] | None = None) -> list[dict]:
     if rec["subwish_flag"]:
         w.append({"code": "subwish", "text": "Sous-vœu de vœu multiple / concours commun : les "
                   "effectifs de vœux sont partagés avec d'autres formations, et ne sont pas additionnables."})
+    if rec.get("series_sum_mismatch") or rec.get("mention_sum_mismatch"):
+        w.append({"code": "sies_identity", "text": "Incohérence dans l'export SIES : la décomposition par "
+                  + ("série" if rec.get("series_sum_mismatch") else "mention")
+                  + " ne s'additionne pas exactement aux admis néo-bacheliers. Données reprises telles quelles."})
     if rec["lineage_confidence"] == INFERRED:
         w.append({"code": "lineage", "text": "Historique reconstitué avec au moins un appariement inféré "
                   "(changement de code formation)."})
@@ -218,7 +224,7 @@ def formation(cod: str, session: int | None = None):
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers)}
 
 
-DECOMP = ("acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
+DECOMP = ("series_sum_mismatch", "mention_sum_mismatch", "acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
           "acc_tot_f", "pct_f", "pct_bours", "pct_aca_orig", "pct_etab_orig", "pct_bg", "pct_bt", "pct_bp",
           "pct_tb", "pct_tbf", "taux_acces_ens", "part_terminale_generale_en_position_admis_pp",
           "voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "capa_fin", "low_n_flag", "subwish_flag")
@@ -260,22 +266,32 @@ def compare(ids: str, session: int | None = None):
 
 @app.get("/api/specialites")
 def specialites(session: int | None = None, formation_type: str | None = None):
+    """Admission profile by Terminale specialty doublette, for one type of formation.
+
+    The SIES specialty exports publish admission proposals and acceptances per
+    (type of formation, doublette), with no candidate counts. So the matrix shows
+    each doublette's share of the type's accepted students. It is a composition of
+    one stage (acceptances), never a rate across stages.
+
+    The 2025 export stacks three aggregation levels (0 = all bacheliers, 1 = a group of
+    formations, 2 = its detailed formations, which repeat the level-1 totals). Only
+    levels 0-1 are read, so no acceptance is counted twice. 2021-2024 have one level.
+    """
+    level = "coalesce(aggregation_level, '1') IN ('0', '1')"
     session = session or config.LATEST_YEAR
     types = [r["formation_type"] for r in rows(
-        "SELECT DISTINCT formation_type FROM core.specialites WHERE session = ? ORDER BY 1", [session])]
-    sql = """SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte,
-               -- unit = distinct candidates (persons), not vœux: a legitimate share, unlike prop_tot over voe_tot
-               CASE WHEN n_candidats > 0 THEN round(100.0 * n_proposition / n_candidats, 1) END
-                 AS pct_candidats_avec_proposition,
-               CASE WHEN n_candidats > 0 THEN round(100.0 * n_accepte / n_candidats, 1) END
-                 AS pct_candidats_ayant_accepte
-             FROM core.specialites WHERE session = ?"""
-    params: list = [session]
-    if formation_type:
-        sql += " AND formation_type = ?"
-        params.append(formation_type)
-    return {"session": session, "formation_types": types,
-            "rows": rows(sql + " ORDER BY formation_type, n_candidats DESC", params)}
+        f"""SELECT formation_type FROM core.specialites WHERE session = ? AND formation_type IS NOT NULL
+           AND {level} GROUP BY 1 ORDER BY sum(n_accepte) DESC NULLS LAST, 1""", [session])]
+    ftype = formation_type if formation_type in types else (types[0] if types else None)
+    res = rows(f"""
+      SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte,
+        round(100.0 * n_accepte / nullif(sum(n_accepte) OVER (), 0), 1) AS pct_acceptations,
+        round(100.0 * n_proposition / nullif(sum(n_proposition) OVER (), 0), 1) AS pct_propositions
+      FROM core.specialites WHERE session = ? AND formation_type = ? AND {level}
+      ORDER BY n_accepte DESC NULLS LAST, doublette""", [session, ftype])
+    return {"session": session, "formation_type": ftype, "formation_types": types, "rows": res,
+            "totals": {"n_accepte": sum(r["n_accepte"] or 0 for r in res),
+                       "n_proposition": sum(r["n_proposition"] or 0 for r in res)}}
 
 
 @app.get("/api/filiere")

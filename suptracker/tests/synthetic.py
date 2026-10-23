@@ -53,8 +53,9 @@ def _cohort(rng: random.Random, acc_tot: int) -> dict:
     f = rng.randint(0, acc_tot)
     pct = lambda x, d: round(100.0 * x / d) if d else None  # noqa: E731 - SIES rounds to integers
     return {
-        "acc_tot": acc_tot, "acc_tot_f": f, "acc_term": term, "acc_term_f": min(f, term),
-        "acc_neobac": term, "acc_at": acc_at, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp,
+        # like the real SIES exports: breakdowns add up to acc_neobac, acc_term does not
+        "acc_tot": acc_tot, "acc_tot_f": f, "acc_term": max(0, term - rng.randint(0, 3)),
+        "acc_term_f": min(f, term), "acc_neobac": term, "acc_at": acc_at, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp,
         "acc_brs": brs, "acc_pp": acc_tot - acc_tot // 10, "acc_pc": acc_tot // 10,
         "acc_aca_orig": rng.randint(0, acc_tot), "acc_internat": 0, **mentions,
         "pct_f": pct(f, acc_tot), "pct_bours": pct(brs, term), "pct_bg": pct(bg, term),
@@ -138,20 +139,31 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
         if y == 2025:
             df = df.rename(columns={"part_acces_gen": "part_terminale_generale_en_position_admis_pp"})
         df.to_parquet(raw_dir / f"parcoursup_{y}.parquet", index=False)
+        if y == 2025:  # real exports carry GEOMETRY('OGC:CRS84') points
+            import duckdb
+            path = raw_dir / f"parcoursup_{y}.parquet"
+            duckdb.sql(f"""COPY (SELECT * REPLACE ('POINT (2.35 48.85)'::GEOMETRY AS g_olocalisation_des_formations)
+                           FROM read_parquet('{path}')) TO '{path}.tmp' (FORMAT parquet)""")
+            Path(f"{path}.tmp").replace(path)
 
     spe = []
     for y in YEARS:
         for d in ("Mathématiques / Physique-Chimie", "SES / HGGSP", "SVT / Physique-Chimie"):
             for ft in ("BUT", "Licence", "CPGE"):
-                n = rng.randint(1000, 20000)
-                p = rng.randint(n // 2, n)
-                spe.append({"annee_du_baccalaureat": y, "formation": ft, "enseignements_de_specialite": d,
-                            "nombre_de_candidats_bacheliers_ayant_confirme_au_moins_un_voeu": n,
-                            "nombre_de_candidats_bacheliers_ayant_recu_au_moins_une_proposition": p,
-                            "nombre_de_candidats_bacheliers_ayant_accepte_une_proposition": rng.randint(p // 2, p)})
+                p = rng.randint(1000, 20000)
+                # real SIES layout: proposals and acceptances only, no candidate counts
+                spe.append({"annee_du_bac": y, "formation": ft, "doublette": d,
+                            "propositions_d_admissions": p, "acceptations": rng.randint(p // 3, p)})
     spe = pd.DataFrame(spe)
-    spe[spe.annee_du_baccalaureat < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
-    spe[spe.annee_du_baccalaureat == 2025].to_parquet(raw_dir / "specialites_2025.parquet", index=False)
+    spe[spe.annee_du_bac < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
+    # 2025 layout: level 0 = all bacheliers, 1 = group total, 2 = detailed formations (repeat level 1)
+    s25 = spe[spe.annee_du_bac == 2025].rename(columns={"formation": "regroupement_de_formations"})
+    lvl1 = s25.assign(niveau_d_agregation="1", formation="Ensemble regroupement de formations")
+    lvl2 = s25.assign(niveau_d_agregation="2", formation=s25.regroupement_de_formations + " (détail)")
+    lvl0 = (s25.groupby(["annee_du_bac", "doublette"], as_index=False)[["propositions_d_admissions", "acceptations"]]
+            .sum().assign(regroupement_de_formations="Ensemble des bacheliers", niveau_d_agregation="0",
+                          formation="Ensemble des bacheliers"))
+    pd.concat([lvl0, lvl1, lvl2]).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
 
     pd.DataFrame([{"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85",
                    "fiche": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/"

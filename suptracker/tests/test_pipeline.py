@@ -96,6 +96,14 @@ def test_low_n_excluded_from_profile_reference_but_access_rate_kept(con, built):
                        [built[2]["low_n"]]).fetchone()[0]
 
 
+def test_geometry_coordinates_parsed(con):
+    typ = con.execute("""SELECT column_type FROM meta.raw_columns WHERE dataset='parcoursup_2025'
+                         AND column_name='g_olocalisation_des_formations'""").fetchone()[0]
+    assert typ.startswith("GEOMETRY")
+    lat, lon = con.execute("SELECT lat, lon FROM core.formation_year WHERE session=2025 AND cod_aff_form='1101'").fetchone()
+    assert (lat, lon) == (48.85, 2.35)
+
+
 def test_peer_percentiles_bounded(con):
     lo, hi = con.execute("SELECT min(peer_percentile), max(peer_percentile) FROM mart.peer_rank").fetchone()
     assert 0 <= lo <= hi <= 100
@@ -109,24 +117,68 @@ def test_verification_passes_on_consistent_data(built):
     assert 0 < total["pct_full_span"] <= 100
 
 
-def test_verification_catches_broken_identity_and_taux_drift(tmp_path):
+def test_upstream_inconsistency_is_flagged_not_failed(tmp_path):
     raw = tmp_path / "raw"
     make_raw(raw)
     p = raw / "parcoursup_2024.parquet"
     df = pd.read_parquet(p)
-    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1
+    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1   # SIES export itself does not add up
     df.to_parquet(p, index=False)
     db = build_mod.build(raw, tmp_path / "w.duckdb")
-    # tamper with the warehouse value so it no longer matches upstream
+    rep = verify.run(db, raw)
+    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series["status"] == "upstream_inconsistency" and series["sample_violators"] == ["1100"]
+    assert rep["overall"] == "PASS"
+    c = duckdb.connect(str(db), read_only=True)
+    assert c.execute("""SELECT series_sum_mismatch FROM core.formation_year
+                        WHERE session=2024 AND cod_aff_form='1100'""").fetchone()[0] is True
+    c.close()
+
+
+def test_changed_discrepancy_on_upstream_violator_fails(tmp_path):
+    raw = tmp_path / "raw"
+    make_raw(raw)
+    p = raw / "parcoursup_2024.parquet"
+    df = pd.read_parquet(p)
+    df.loc[df.cod_aff_form == "1100", "acc_bg"] += 1          # upstream discrepancy +1
+    df.to_parquet(p, index=False)
+    db = build_mod.build(raw, tmp_path / "w.duckdb")
     c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg + 2 WHERE session=2024 AND cod_aff_form='1100'")
+    c.close()
+    series = lambda rep: next(r for r in rep["identities"]  # noqa: E731
+                              if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series(verify.run(db, raw))["status"] == "fail"     # same key, different discrepancy
+    c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg - 3 WHERE session=2024 AND cod_aff_form='1100'")
+    c.close()
+    assert series(verify.run(db, raw))["status"] == "fail"     # pipeline silently "repaired" SIES
+
+
+def test_app_js_calls_only_defined_helpers():
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    defined = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(", js))
+    defined |= set(re.findall(r"const\s+([A-Za-z_]\w*)\s*=\s*(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>", js))
+    called = set(re.findall(r"(?<![.\w])([a-z]\w*(?:Card|Chart|Bars|Bar|Badge)|view[A-Z]\w*)\s*\(", js))
+    assert called <= defined, called - defined
+
+
+def test_verification_catches_pipeline_errors(tmp_path):
+    raw = tmp_path / "raw"
+    make_raw(raw)
+    db = build_mod.build(raw, tmp_path / "w.duckdb")
+    # corrupt the warehouse only: it no longer reproduces the upstream file
+    c = duckdb.connect(str(db))
+    c.execute("UPDATE core.formation_year SET acc_bg = acc_bg + 1 WHERE session=2024 AND cod_aff_form='1100'")
     c.execute("UPDATE core.formation_year SET taux_acces_ens = taux_acces_ens + 1 WHERE session=2023 AND cod_aff_form='1101'")
     c.close()
     rep = verify.run(db, raw)
     assert rep["overall"] == "FAIL"
-    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_term" and r["session"] == 2024)
-    assert series["n_violations"] == 1 and series["sample_violators"] == ["1100"]
+    series = next(r for r in rep["identities"] if r["check"] == "series_eq_acc_neobac" and r["session"] == 2024)
+    assert series["status"] == "fail" and series["sample_violators"] == ["1100"]
     taux = next(r for r in rep["taux_raw"] if r["session"] == 2023)
     assert taux["sample_mismatch"] == ["1101"]
+    assert verify.main(["--db", str(db), "--raw-dir", str(raw), "--out", str(tmp_path / "v"), "--strict"]) == 1
 
 
 @pytest.mark.parametrize("url,expected", [
@@ -161,7 +213,16 @@ def test_api(built, monkeypatch):
     one = c.get("/api/formation/2001").json()["record"]["voe_tot"]
     assert fil["n_formations"] == 4 and fil["voe_tot_dedup_subwish"] == one  # pool counted once, not 4x
     assert c.get("/api/formation/does-not-exist").status_code == 404
-    assert c.get("/api/specialites", params={"session": 2025}).json()["rows"]
+    spe = c.get("/api/specialites", params={"session": 2025}).json()
+    assert spe["formation_type"] in spe["formation_types"] and spe["rows"]
+    assert abs(sum(r["pct_acceptations"] for r in spe["rows"]) - 100) < 0.5
+    assert spe["formation_type"] == "Ensemble des bacheliers"   # level 0, the largest
+    but = c.get("/api/specialites", params={"session": 2025, "formation_type": "BUT"}).json()
+    raw25 = pd.read_parquet(built[0] / "raw" / "specialites_2025.parquet")
+    lvl1 = raw25[(raw25.niveau_d_agregation == "1") & (raw25.regroupement_de_formations == "BUT")]
+    assert but["totals"]["n_accepte"] == lvl1.acceptations.sum()   # level-2 detail not double counted
+    other = c.get("/api/specialites", params={"session": 2023, "formation_type": "CPGE"}).json()
+    assert other["formation_type"] == "CPGE" and all(r["formation_type"] == "CPGE" for r in other["rows"])
     assert c.get("/").status_code == 200
     assert c.get("/api/verification").status_code == 404  # no report written next to this warehouse
     verify.main(["--db", str(built[1]), "--raw-dir", str(built[0] / "raw"),
