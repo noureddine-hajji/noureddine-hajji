@@ -90,6 +90,86 @@ docker run -p 8000:8000 -v suptracker-data:/data suptracker-sies
   warehouse until it restarts.
 - **Network:** the host that builds the data must be able to reach `data.enseignementsup-recherche.gouv.fr`.
 
+## Student positioning journey (`#/parcours`)
+
+This feature takes a general-bac student's Terminale specialty doublette, expected mention, home
+académie (optional) and boursier status (optional). It positions them in two separate stages. The two
+SIES sources are **never multiplied together**: the specialty table is national and has no mentions,
+while the establishment table has mentions only for final admits. Combining them would be ecological
+inference.
+
+**Data layer** (`suptracker/journey.py`, built into the warehouse):
+
+- `core.spe_doublette` parses the 77 SIES doublette strings against the 13-specialty vocabulary.
+  Several specialty names contain commas, so the strings are never split on ",". The key is an
+  unordered pair, e.g. `MATHS+SES`.
+- `core.taxonomy_link` / `core.taxonomy_rule` form a deterministic, ordered rule table. It maps each
+  formation's `(fili, form_lib_voe_acc, fil_lib_voe_acc)` to one formation type of the specialty
+  dataset, with an `exact` / `approx` quality flag. It covers 92% of 2025 formations; the rest are
+  certificates and other catch-all formations with no type in the specialty data.
+- `mart.spe_filiere` holds doublette × type × year counts, from aggregation levels 0–1 only, with type
+  labels normalised across vintages.
+- `group_applies` / `student_group` is the parser for `lib_grp1..3`. It selects the calling group that
+  applies to a general-bac student and reports its last-called rank (`ran_grp`). It also handles
+  specialty-split labels such as "spécialité Maths + une spécialité non scientifique". **Finding:**
+  the 2022–2025 SIES exports contain no specialty-split group; their 23 distinct labels are based on
+  series, gender, campus or CEP. So on real data the parser applies the series rules.
+
+**Stage 1, national gate** (unit: candidates, confirmed on real data; years 2022–2025 pooled):
+
+- **Offer rate:** candidates of the doublette with at least one proposition in the filière, divided by
+  those with at least one wish there. It's compared with the offer rate of all candidates in the same
+  filière, because the doublette's national offer rate (95.5% for Maths+SES) is too high to be a
+  useful bar.
+- **Lift:** the doublette's share of the filière's admits, divided by its share of all admits.
+- **Destination share:** the share of the doublette's admitted candidates who accepted this filière.
+- **Gates:**
+  - *atypique:* the doublette is under 2% of the filière's admits;
+  - *prédilection:* lift ≥ 1.5 and relative offer rate ≥ 1;
+  - *accessible:* everything else;
+  - *insuffisant:* fewer than 100 pooled candidates.
+
+**Stage 2, establishment positioning** (per formation, pooled over its 2022–2025 lineage):
+
+- **CDF:** the share of admitted néo-bacheliers *with a known mention* whose mention is at or below the
+  student's. The denominator is the sum of the known mention categories. That matches
+  `acc_neobac − acc_mention_non_renseignee` wherever the SIES identity holds, and stays within [0, 1]
+  on the 2022 rows where it doesn't. It is never computed against `acc_term`, which is not the mention
+  base.
+- **Confidence interval:** a 95% Wilson interval. A formation is flagged *uncertain* when a value
+  inside that interval would change its zone.
+- **Other indicators shown:**
+  - the exact-mention share;
+  - the official `taux_acces_ens`;
+  - the bac-général share. SIES does not cross mentions with bac series, so a formation where fewer
+    than 50% of admits are bac général gets a "comparabilité limitée" badge;
+  - the scholarship share;
+  - home académie, with `pct_aca_orig` for non-selective Licences;
+  - fewer than 10 bac-général admits (`acc_bg`).
+- **Excluded formations:** those closed to bac général, either because their calling groups exclude it
+  or because fewer than 5% of admits are bac général (e.g. CPGE ECT).
+- **Zones:**
+  - *hors-profil:* CDF < 2%;
+  - *ambitieux:* access rate < 30% or CDF < 15%;
+  - *sécurité:* access rate ≥ 70% and CDF ≥ 50%;
+  - *cible:* everything else.
+
+**UI:** a profile bar, then a matrix of filières, then a positioning scatter (`taux_acces_ens` against
+the CDF, with zone shading), then a simulated wish list (stored in the browser) with a balance audit.
+The page never shows an individual admission probability.
+
+**Calibration:** `scripts/verify_persona.py` runs the persona *Maths + SES, mention AB*. It runs in the
+data workflow with `--strict`, and the app shows its report on the data-quality page. It checks:
+
+- Stage 1 gates: CPGE ECG, éco-gestion, AES, Droit and BUT Service pass; CPGE S, which contains MPSI
+  and PCSI, is atypique;
+- that the national baseline equals the deduplicated "Ensemble des bacheliers" row;
+- CPGE ECG stratification (real data: median CDF 6% in the selective half against 45% in the
+  accessible half; Henri IV is hors-profil);
+- maths invariants, with the CDF recomputed independently in SQL;
+- that Stage 2 results do not depend on the doublette (no ecological inference);
+- that no output field is a probability.
+
 ## 1. Ingestion and schema harmonisation
 
 | key | ODS dataset id (tried in order) |

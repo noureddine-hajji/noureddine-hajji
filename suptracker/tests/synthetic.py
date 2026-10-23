@@ -25,15 +25,50 @@ ETABS = [
     ("0671234H", "École d'ingénieurs Exemple Strasbourg", "Strasbourg", "67", "Strasbourg"),
 ]
 
-TRACKS = [  # fili, form_lib_voe_acc, fil_lib_voe_acc
-    ("BUT", "BUT - Production", "BUT - Génie mécanique et productique"),
-    ("BUT", "BUT - Service", "BUT - Gestion des entreprises et des administrations"),
-    ("BTS", "BTS - Services", "BTS - Comptabilité et gestion"),
-    ("BTS", "BTS - Production", "BTS - Systèmes numériques"),
-    ("Licence", "Licence - Droit", "Licence - Droit"),
-    ("Licence", "Licence - Sciences", "Licence - Mathématiques"),
-    ("CPGE", "CPGE - MPSI", "Classe préparatoire scientifique - MPSI"),
+TRACKS = [  # fili, form_lib_voe_acc, fil_lib_voe_acc (real SIES taxonomy labels)
+    ("BUT", "BUT - Production", "Génie mécanique et productique"),
+    ("BUT", "BUT - Service", "Gestion des entreprises et des administrations"),
+    ("BTS", "BTS - Services", "Comptabilité et gestion"),
+    ("BTS", "BTS - Production", "Systèmes numériques"),
+    ("Licence", "Licence - Droit-économie-gestion", "Droit"),
+    ("Licence", "Licence - Sciences - technologies - santé", "Mathématiques"),
+    ("CPGE", "Classe préparatoire scientifique", "MPSI"),
 ]
+ECG = ("CPGE", "Classe préparatoire économique et commerciale", "ECG - Mathématiques appliquées + ESH")
+ECT = ("CPGE", "Classe préparatoire économique et commerciale", "ECT - Option technologique")
+AES = ("Licence", "Licence - Droit-économie-gestion", "Administration économique et sociale")
+DOUBLETTES = {  # SIES spelling
+    "MATHS+SES": "Mathématiques Spécialité,Sciences Economiques et Sociales Spécialité",
+    "MATHS+PC": "Mathématiques Spécialité,Physique-Chimie Spécialité",
+    "HGGSP+SES": "Sciences Economiques et Sociales Spécialité,Histoire-Géographie, Géopolitique et Sciences politiques",
+}
+# (voeux, propositions, acceptations) per year, by SIES formation type and doublette key
+SPE_PLAN = {
+    "CPGE ECG": {"MATHS+SES": (900, 700, 600), "MATHS+PC": (300, 150, 100), "HGGSP+SES": (100, 40, 20)},
+    "CPGE S": {"MATHS+SES": (40, 3, 2), "MATHS+PC": (3000, 2400, 2000), "HGGSP+SES": (5, 0, 0)},
+    "Licence Pluri Sciences économiques - Gestion":
+        {"MATHS+SES": (1500, 1200, 800), "MATHS+PC": (300, 250, 150), "HGGSP+SES": (900, 700, 500)},
+    "Licence AES": {"MATHS+SES": (400, 320, 200), "MATHS+PC": (100, 80, 40), "HGGSP+SES": (600, 450, 300)},
+    "Licence Sciences juridiques":
+        {"MATHS+SES": (500, 350, 250), "MATHS+PC": (500, 300, 200), "HGGSP+SES": (3000, 2000, 1500)},
+    "BUT Service": {"MATHS+SES": (800, 450, 300), "MATHS+PC": (300, 150, 80), "HGGSP+SES": (500, 250, 150)},
+}
+NATIONAL = {"MATHS+SES": (3000, 2900), "MATHS+PC": (3600, 3500), "HGGSP+SES": (3500, 3400)}  # voeux, prop
+SPLIT_LABEL = "Bac Série générale avec la spécialité Maths + une spécialité non scientifique"
+
+
+def _fixed_cohort(sm, ab, b, tb, tbf, bg, bt, bp):
+    """Admitted cohort with an exact mention / series profile (identities hold)."""
+    neo = sm + ab + b + tb + tbf
+    assert bg + bt + bp == neo
+    pct = lambda x: round(100.0 * x / neo) if neo else None  # noqa: E731
+    return {"acc_tot": neo, "acc_tot_f": neo // 2, "acc_term": neo, "acc_term_f": neo // 2, "acc_neobac": neo,
+            "acc_at": 0, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp, "acc_brs": neo // 4, "acc_pp": neo,
+            "acc_pc": 0, "acc_aca_orig": neo // 2, "acc_internat": 0, "acc_sansmention": sm, "acc_ab": ab,
+            "acc_b": b, "acc_tb": tb, "acc_tbf": tbf, "acc_mention_nonrenseignee": 0,
+            "pct_f": 50, "pct_bours": 25, "pct_bg": pct(bg), "pct_bt": pct(bt), "pct_bp": pct(bp),
+            "pct_tb": pct(tb), "pct_tbf": pct(tbf), "pct_b": pct(b), "pct_ab": pct(ab), "pct_sansmention": pct(sm),
+            "pct_mention_nonrenseignee": 0, "pct_aca_orig": 50, "pct_etab_orig": 10, "pct_neobac": 100}
 
 
 def _cohort(rng: random.Random, acc_tot: int) -> dict:
@@ -104,7 +139,9 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
     rng = random.Random(seed)
     raw_dir.mkdir(parents=True, exist_ok=True)
     plan = {"recoded": ("1003", "9003"), "ambiguous": ("1010", "1011"), "gap": "1020",
-            "new_2025": "1030", "low_n": "1040", "pool": ["2001", "2002", "2003", "2004"]}
+            "new_2025": "1030", "low_n": "1040", "pool": ["2001", "2002", "2003", "2004"],
+            "ecg_elite": "3001", "ecg_open": "3002", "ect": "3003", "ecg_mid": "3006", "aes": "3005",
+            "ecogestion": "3007", "pcsi": "3008"}
     stable = []
     cod = 1100
     for e in ETABS[:5]:
@@ -129,6 +166,28 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
             rows.append(_row(rng, y, c, e, ("Ecole d'Ingénieur", "Formation d'ingénieur Bac + 5",
                                             "Formation d'ingénieur Bac + 5 - bac général"),
                              lib_comp="Concours Puissance Alpha", pool=pools[y]))
+        # journey personas: an elite and an accessible ECG, a mid one, an ECT and an AES licence
+        journey = [
+            ("3001", ETABS[0], ECG, 5, _fixed_cohort(0, 0, 5, 25, 15, 45, 0, 0), None),
+            ("3002", ETABS[1], ECG, 85, _fixed_cohort(15, 20, 8, 2, 0, 40, 5, 0),
+             [(SPLIT_LABEL, 120), ("Autres candidats", 300)]),
+            ("3006", ETABS[2], ECG, 45, _fixed_cohort(4, 10, 16, 12, 3, 45, 0, 0), None),
+            ("3009", ETABS[3], ECG, 20, _fixed_cohort(1, 4, 15, 18, 7, 45, 0, 0), None),
+            ("3003", ETABS[3], ECT, 60, _fixed_cohort(15, 15, 8, 2, 0, 0, 40, 0), None),
+            ("3005", ETABS[4], AES, 90, _fixed_cohort(60, 50, 20, 5, 1, 120, 12, 4), None),
+            ("3007", ETABS[0], ("Licence", "Licence - Droit-économie-gestion", "Economie et gestion"), 80,
+             _fixed_cohort(50, 60, 30, 8, 2, 140, 10, 0), None),
+            ("3008", ETABS[1], ("CPGE", "Classe préparatoire scientifique", "PCSI"), 40,
+             _fixed_cohort(0, 2, 10, 20, 10, 42, 0, 0), None),
+        ]
+        for c, e, track, taux, cohort, groups in journey:
+            r = _row(rng, y, c, e, track)
+            r.update(cohort)
+            r.update({"taux_acces_ens": taux, "capa_fin": cohort["acc_tot"] + 2,
+                      "lib_grp1": "Tous les candidats", "ran_grp1": 400, "lib_grp2": None, "ran_grp2": None})
+            for i, (lib, ran) in enumerate(groups or [], start=1):
+                r[f"lib_grp{i}"], r[f"ran_grp{i}"] = lib, ran
+            rows.append(r)
         df = pd.DataFrame(rows)
         # synthetic schema drift between vintages
         if y == 2022:
@@ -148,21 +207,22 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
 
     spe = []
     for y in YEARS:
-        for d in ("Mathématiques / Physique-Chimie", "SES / HGGSP", "SVT / Physique-Chimie"):
-            for ft in ("BUT", "Licence", "CPGE"):
-                p = rng.randint(1000, 20000)
-                # real SIES layout: proposals and acceptances only, no candidate counts
-                spe.append({"annee_du_bac": y, "formation": ft, "doublette": d,
-                            "propositions_d_admissions": p, "acceptations": rng.randint(p // 3, p)})
+        for ft, by_d in SPE_PLAN.items():
+            for dk, (v, pr, a) in by_d.items():
+                spe.append({"annee_du_bac": y, "formation": ft, "doublette": DOUBLETTES[dk],
+                            "voeux": v, "propositions_d_admissions": pr, "acceptations": a})
+        for dk, (v, pr) in NATIONAL.items():   # deduplicated national row: each candidate accepts once
+            spe.append({"annee_du_bac": y, "formation": "Ensemble des bacheliers", "doublette": DOUBLETTES[dk],
+                        "voeux": v, "propositions_d_admissions": pr,
+                        "acceptations": sum(SPE_PLAN[ft][dk][2] for ft in SPE_PLAN)})
     spe = pd.DataFrame(spe)
     spe[spe.annee_du_bac < 2025].to_parquet(raw_dir / "specialites_2021_2024.parquet", index=False)
     # 2025 layout: level 0 = all bacheliers, 1 = group total, 2 = detailed formations (repeat level 1)
     s25 = spe[spe.annee_du_bac == 2025].rename(columns={"formation": "regroupement_de_formations"})
-    lvl1 = s25.assign(niveau_d_agregation="1", formation="Ensemble regroupement de formations")
-    lvl2 = s25.assign(niveau_d_agregation="2", formation=s25.regroupement_de_formations + " (détail)")
-    lvl0 = (s25.groupby(["annee_du_bac", "doublette"], as_index=False)[["propositions_d_admissions", "acceptations"]]
-            .sum().assign(regroupement_de_formations="Ensemble des bacheliers", niveau_d_agregation="0",
-                          formation="Ensemble des bacheliers"))
+    nat = s25.regroupement_de_formations == "Ensemble des bacheliers"
+    lvl0 = s25[nat].assign(niveau_d_agregation="0", formation="Ensemble des bacheliers")
+    lvl1 = s25[~nat].assign(niveau_d_agregation="1", formation="Ensemble regroupement de formations")
+    lvl2 = s25[~nat].assign(niveau_d_agregation="2", formation=s25.regroupement_de_formations + " (détail)")
     pd.concat([lvl0, lvl1, lvl2]).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
 
     pd.DataFrame([{"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85",

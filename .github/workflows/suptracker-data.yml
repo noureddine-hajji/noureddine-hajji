@@ -32,6 +32,9 @@ jobs:
       # breaks an SIES identity is never published (the report is still uploaded below).
       - name: Verify against SIES accounting identities
         run: python scripts/verify_ground_truth.py --out data/verification --live 10 --strict
+      # Persona calibration of the profile -> programme journey (Maths + SES, mention AB)
+      - name: Verify the positioning journey on the reference persona
+        run: python scripts/verify_persona.py --out data/verification --strict
       - uses: actions/upload-artifact@v4
         if: always()
         with:
