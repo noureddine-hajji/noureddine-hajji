@@ -217,12 +217,12 @@ def test_api(built, monkeypatch):
     assert spe["formation_type"] in spe["formation_types"] and spe["rows"]
     assert abs(sum(r["pct_acceptations"] for r in spe["rows"]) - 100) < 0.5
     assert spe["formation_type"] == "Ensemble des bacheliers"   # level 0, the largest
-    but = c.get("/api/specialites", params={"session": 2025, "formation_type": "BUT"}).json()
+    but = c.get("/api/specialites", params={"session": 2025, "formation_type": "BUT Service"}).json()
     raw25 = pd.read_parquet(built[0] / "raw" / "specialites_2025.parquet")
-    lvl1 = raw25[(raw25.niveau_d_agregation == "1") & (raw25.regroupement_de_formations == "BUT")]
+    lvl1 = raw25[(raw25.niveau_d_agregation == "1") & (raw25.regroupement_de_formations == "BUT Service")]
     assert but["totals"]["n_accepte"] == lvl1.acceptations.sum()   # level-2 detail not double counted
-    other = c.get("/api/specialites", params={"session": 2023, "formation_type": "CPGE"}).json()
-    assert other["formation_type"] == "CPGE" and all(r["formation_type"] == "CPGE" for r in other["rows"])
+    other = c.get("/api/specialites", params={"session": 2023, "formation_type": "CPGE ECG"}).json()
+    assert other["formation_type"] == "CPGE ECG" and all(r["formation_type"] == "CPGE ECG" for r in other["rows"])
     assert c.get("/").status_code == 200
     assert c.get("/api/verification").status_code == 404  # no report written next to this warehouse
     verify.main(["--db", str(built[1]), "--raw-dir", str(built[0] / "raw"),
