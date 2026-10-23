@@ -359,11 +359,19 @@ function scatter(F, onPick) {
 }
 
 function spark(trend, key, scale = 1) {
-  const pts = trend.filter((t) => t[key] != null);
-  if (pts.length < 2) return "";
-  const xs = (i) => 2 + i * 56 / (trend.length - 1), ys = (v) => 16 - 14 * Math.min(1, v / scale);
-  const d = trend.map((t, i) => t[key] == null ? null : `${xs(i)},${ys(t[key])}`).filter(Boolean).join(" L");
-  return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="M${d}" fill="none" stroke="var(--c1)" stroke-width="1.5"/><title>${trend.map((t) => `${t.session} : ${t[key] == null ? "n.d." : (scale === 1 ? pc1(t[key]) : fmt(t[key]) + " %")}`).join("\n")}</title></svg>`;
+  // One slot per campaign (2022-2025): missing campaigns and null values break the line,
+  // never interpolated, consistent with the evolution charts.
+  const years = META.years, by = Object.fromEntries(trend.map((t) => [t.session, t[key]]));
+  const vals = years.map((y) => (by[y] === undefined ? null : by[y]));
+  if (vals.filter((v) => v != null).length < 1) return "";
+  const xs = (i) => 3 + i * 54 / Math.max(1, years.length - 1), ys = (v) => 16 - 14 * Math.min(1, v / scale);
+  let d = "", pen = false, dots = "";
+  vals.forEach((v, i) => {
+    if (v == null) { pen = false; return; }
+    d += `${pen ? "L" : "M"}${xs(i)},${ys(v)}`; pen = true;
+    dots += `<circle cx="${xs(i)}" cy="${ys(v)}" r="1.6" fill="var(--c1)"/>`;
+  });
+  return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="${d}" fill="none" stroke="var(--c1)" stroke-width="1.5"/>${dots}<title>${years.map((y, i) => `${y} : ${vals[i] == null ? "n.d." : (scale === 1 ? pc1(vals[i]) : fmt(vals[i]) + " %")}`).join("\n")}</title></svg>`;
 }
 
 function wishAudit(W) {
@@ -394,7 +402,7 @@ async function viewParcours() {
   const drill = store.get("drill", null);
   const s2 = s1 && drill ? await api(`/api/journey/stage2?spe1=${p.spe1}&spe2=${p.spe2}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
   const W = store.get("wishlist", []);
-  const onlyHome = store.get("onlyHome", false);
+  const onlyHome = !!p.academie && store.get("onlyHome", false);   // never filter without an académie
   const F = s2 ? s2.formations.filter((f) => f.zone !== "non_ouvert" && (!onlyHome || f.home_academie)) : [];
   const closed = s2 ? s2.formations.filter((f) => f.zone === "non_ouvert").length : 0;
   const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
@@ -433,6 +441,7 @@ async function viewParcours() {
     const fd = new FormData(e.target);
     const np = { spe1: fd.get("spe1"), spe2: fd.get("spe2"), mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier") };
     if (np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
+    if (!np.academie) store.set("onlyHome", false);
     store.set("profile", np); viewParcours();
   };
   $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
