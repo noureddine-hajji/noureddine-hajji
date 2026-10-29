@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
+from . import journey as J
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -61,6 +62,39 @@ METHODOLOGY = {
         "formation a changé, et le lien a été inféré au sein du même établissement et de la même filière "
         "agrégée, d'après la similarité des libellés (meilleur candidat mutuel, avec une marge minimale). "
         "Les cas ambigus ne sont jamais reliés."),
+    "journey_stage1": (
+        "Étape 1, au niveau national : données SIES « enseignements de spécialité », dont l'unité est le "
+        "candidat (et non le vœu). Taux de proposition : candidats de la doublette ayant reçu au moins une "
+        "proposition dans la filière, rapportés aux candidats de la doublette ayant formulé au moins un vœu "
+        "dans cette filière. Indice de représentation : part de la doublette parmi les admis de la filière, "
+        "divisée par sa part parmi l'ensemble des admis bacheliers généraux. Part de destination : part des "
+        "admis de la doublette qui ont accepté cette filière. Les années 2022–2025 sont cumulées. On ne somme "
+        "jamais entre filières, et seuls les niveaux d'agrégation 0–1 de l'export 2025 sont lus."),
+    "journey_gate": (
+        "Filières de prédilection : la doublette représente au moins 2 % des admis, son indice de "
+        "représentation est d'au moins 1,5, et son taux de proposition est au moins égal à celui de "
+        "l'ensemble des candidats de la filière. Filières atypiques : la doublette représente moins de 2 % "
+        "des admis bacheliers généraux. Les autres filières sont accessibles. En dessous de 100 candidats "
+        "cumulés, l'effectif est jugé insuffisant."),
+    "journey_cdf": (
+        "Part des admis ayant au plus votre mention : parmi les admis néo-bacheliers de la formation dont "
+        "la mention est connue, la part qui a une mention inférieure ou égale à la vôtre, cumulée sur la "
+        "lignée 2022–2025. L'intervalle est un intervalle de Wilson à 95 %. SIES publie les mentions "
+        "pour tous les néo-bacheliers (général, technologique et professionnel), sans croisement avec la "
+        "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
+        "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
+    "journey_zones": (
+        "Hors-profil : moins de 2 % des admis ont votre mention ou moins. Ambitieux : taux d'accès "
+        "inférieur à 30 %, ou votre mention se situe dans les 15 % inférieurs de la cohorte admise. "
+        "Sécurité : taux d'accès d'au moins 70 % et au moins la moitié des admis avec votre mention ou "
+        "moins. Cible : tous les autres cas. Une formation est marquée « incertaine » quand une valeur "
+        "comprise dans l'intervalle à 95 % la placerait dans une autre zone."),
+    "journey_groups": (
+        "Groupe d'appel : le groupe de classement Parcoursup (lib_grp1 à 3) qui s'applique à un bachelier "
+        "général, avec le rang du dernier candidat appelé dans ce groupe. Dans les données SIES 2022–2025, "
+        "aucun groupe n'est découpé par enseignement de spécialité ; les groupes portent sur la série du "
+        "bac, le sexe, le campus ou la voie CEP. Le rang du dernier appelé n'est pas une probabilité : la "
+        "taille du groupe n'est pas publiée."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -324,6 +358,61 @@ def verification():
     rep = json.loads(path.read_text())
     return {k: rep.get(k) for k in ("generated_at", "overall", "n_failed_checks", "identities", "taux_raw",
                                     "taux_live", "structure")}
+
+
+def _journey_ready():
+    try:
+        rows("SELECT 1 FROM mart.spe_filiere LIMIT 1")
+        rows("SELECT 1 FROM core.taxonomy_link LIMIT 1")
+    except duckdb.CatalogException:
+        raise HTTPException(503, "Couche « parcours » absente de cet entrepôt : relancer python -m suptracker.build")
+
+
+def _dkey(spe1: str, spe2: str) -> str:
+    a, b = spe1.upper(), spe2.upper()
+    if a not in J.SPECIALTIES or b not in J.SPECIALTIES or a == b:
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
+    return J.doublette_key(a, b)
+
+
+@app.get("/api/journey/persona")
+def journey_persona():
+    """Latest persona calibration report written by scripts/verify_persona.py."""
+    path = _db_path().parent / "verification" / "persona.json"
+    if not path.exists():
+        raise HTTPException(404, "aucun rapport de calibration publié")
+    return json.loads(path.read_text())
+
+
+@app.get("/api/journey/vocab")
+def journey_vocab():
+    _journey_ready()
+    nat = rows("""SELECT doublette_key, sum(voeux) AS candidates, sum(acceptations) AS accepted
+                  FROM mart.spe_filiere WHERE type_key = ? GROUP BY 1 ORDER BY 3 DESC""", [J.NATIONAL_TYPE])
+    acads = [r["acad_mies"] for r in rows("""SELECT DISTINCT acad_mies FROM core.formation_year
+               WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL ORDER BY 1""")]
+    return {"specialties": [{"code": k, "label": v, "short": J.SPECIALTY_SHORT[k]} for k, v in J.SPECIALTIES.items()],
+            "mentions": [{"code": m, "label": J.MENTION_LABEL[m]} for m in J.MENTIONS[:4]],
+            "academies": acads, "doublettes": nat, "zone_rules": J.ZONE_RULES, "gate_rules": J.GATE_RULES}
+
+
+@app.get("/api/journey/stage1")
+def journey_stage1(spe1: str, spe2: str):
+    _journey_ready()
+    res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
+    if not res["national"] or not res["national"]["candidates"]:
+        raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
+    return res
+
+
+@app.get("/api/journey/stage2")
+def journey_stage2(spe1: str, spe2: str, mention: str, type: str, academie: str | None = None,
+                   sex: str | None = Query(None, pattern="^[FM]$")):
+    _journey_ready()
+    try:
+        return J.stage2(_con().cursor(), _dkey(spe1, spe2), mention, type, academie, sex)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @app.get("/api/continuity")

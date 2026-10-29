@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import config, crosswalk, harmonize, indicators
+from . import config, crosswalk, harmonize, indicators, journey
 from .ingest import load_manifest
 
 
@@ -29,6 +29,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH) -> Pat
         harmonize.attach_fiche(con)
         crosswalk.build_crosswalk(con)
         indicators.build_peers(con)
+        journey.build_journey(con)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
         con.execute("INSERT INTO meta.build VALUES ('built_at', ?), ('manifest', ?), ('years', ?)", [
             datetime.now(timezone.utc).isoformat(timespec="seconds"),

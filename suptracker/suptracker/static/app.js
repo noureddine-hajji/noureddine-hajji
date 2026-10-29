@@ -268,17 +268,188 @@ function verificationCard(v) {
 
 async function viewQualite() {
   const c = await api("/api/continuity");
-  let v = null;
+  let v = null, pr = null;
   try { v = await api("/api/verification"); } catch (_) { /* no report published */ }
+  try { pr = await api("/api/journey/persona"); } catch (_) { /* no persona report */ }
   const cols = c.rows.length ? Object.keys(c.rows[0]) : [];
   const audit = META.schema_audit.filter((a) => a.status !== "keyword");
-  $view.innerHTML = verificationCard(v) + `<div class="card"><h2>Continuité longitudinale (ancre ${c.anchor}) ${tip("lineage")}</h2><div class="scroll"><table>
+  const personaCard = pr ? `<div class="card"><h2>Calibration du parcours : ${esc(pr.overall)}</h2>
+    <p class="muted small">Persona : Mathématiques + SES, mention Assez bien. Rapport du ${esc(pr.generated_at)}.</p>
+    <table>${pr.checks.map((c) => `<tr><td>${esc(c.check)}</td><td>${c.ok ? "✓" : "✗"}</td></tr>`).join("")}</table></div>` : "";
+  $view.innerHTML = verificationCard(v) + personaCard + `<div class="card"><h2>Continuité longitudinale (ancre ${c.anchor}) ${tip("lineage")}</h2><div class="scroll"><table>
     <tr>${cols.map((k) => `<th class="${k === "fili" ? "" : "num"}">${esc(k)}</th>`).join("")}</tr>
     ${c.rows.map((r) => `<tr>${cols.map((k) => `<td class="${k === "fili" ? "" : "num"}">${esc(r[k])}</td>`).join("")}</tr>`).join("")}</table></div></div>
   <div class="card"><h2>Harmonisation des schémas</h2><p class="muted small">Champs canoniques alimentés par un alias, ou absents d'un millésime (laissés à NULL, jamais imputés).</p>
     <div class="scroll"><table><tr><th>Session</th><th>Champ canonique</th><th>Colonne amont</th><th>Statut</th></tr>
     ${audit.map((a) => `<tr><td>${a.session ?? ""}</td><td>${esc(a.canonical)}</td><td>${esc(a.upstream ?? "—")}</td><td>${esc(a.status)}</td></tr>`).join("")}</table></div>
     <p class="muted small">Construit le ${esc(META.built_at)}.</p></div>`;
+}
+
+
+// ---- student positioning journey -------------------------------------------
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* storage blocked */ } },
+};
+const pc1 = (v) => (v === null || v === undefined) ? "—" : `${fmt(100 * v, 1)} %`;
+const ZONES = {
+  securite: { label: "Vœu de sécurité", color: "var(--c3)" },
+  cible: { label: "Vœu cible", color: "var(--c1)" },
+  ambitieux: { label: "Vœu ambitieux", color: "var(--c2)" },
+  hors_profil: { label: "Hors-profil statistique", color: "var(--c6)" },
+  indetermine: { label: "Indéterminé", color: "var(--line)" },
+  non_ouvert: { label: "Non ouvert au bac général (ou < 5 % d'admis bac G)", color: "var(--line)" },
+};
+const GATES = {
+  predilection: { label: "Filière de prédilection", color: "var(--c3)" },
+  accessible: { label: "Filière accessible", color: "var(--c1)" },
+  atypique: { label: "Atypique / prérequis non alignés", color: "var(--c6)" },
+  insuffisant: { label: "Effectif insuffisant", color: "var(--line)" },
+};
+let JV = null;
+
+function profileForm(p) {
+  const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
+    list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
+  return `<form id="pf" class="toolbar">
+    <label>Spécialité 1 <select name="spe1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select></label>
+    <label>Spécialité 2 <select name="spe2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></label>
+    <label>Mention visée <select name="mention">${opt(JV.mentions, p.mention)}</select></label>
+    <label>Académie <select name="academie"><option value="">—</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>
+    <label><input type="checkbox" name="boursier" ${p.boursier ? "checked" : ""}> Boursier</label>
+    <button class="primary">Explorer</button></form>`;
+}
+
+function stage1Matrix(s1, show, all) {
+  const kept = s1.filieres.filter((f) => show.has(f.gate));
+  const rows = all ? kept : kept.slice(0, 15);
+  const max = Math.max(0.01, ...rows.map((f) => f.destination_share || 0));
+  return `<div class="legend">${Object.entries(GATES).map(([k, g]) => `<label style="cursor:pointer"><input type="checkbox" data-gate="${k}" ${show.has(k) ? "checked" : ""}> <i style="background:${g.color}"></i>${g.label} (${s1.filieres.filter((f) => f.gate === k).length})</label>`).join("")}</div>
+  <div class="scroll"><table><tr><th>Filière</th><th>Part de destination</th><th class="num">Part des admis</th><th class="num">Indice</th><th class="num">Taux de proposition</th><th class="num">… tous candidats</th><th></th></tr>
+  ${rows.map((f) => `<tr><td><span class="badge" style="border-color:${GATES[f.gate].color};color:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats de la doublette · ${f.years} an(s)</div></td>
+    <td style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
+    <td class="num">${pc1(f.share)}</td><td class="num">×${fmt(f.lift, 2)}</td><td class="num"><strong>${pc1(f.offer_rate)}</strong></td><td class="num muted">${pc1(f.offer_rate_all)}</td>
+    <td>${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : '<span class="muted small">pas de correspondance formation par formation</span>'}</td></tr>`).join("")}
+  </table></div>
+  ${kept.length > 15 ? `<button id="allf">${all ? "Réduire" : `Afficher les ${kept.length} filières`}</button>` : ""}`;
+}
+
+function scatter(F, onPick) {
+  const W = 640, H = 420, L = 46, R = 14, T = 14, B = 40, Z = JV.zone_rules;
+  const x = (v) => L + (W - L - R) * v / 100, y = (v) => T + (H - T - B) * (1 - v);
+  const rect = (x0, x1, y0, y1, c) => `<rect x="${x(x0)}" y="${y(y1)}" width="${x(x1) - x(x0)}" height="${y(y0) - y(y1)}" fill="${c}" opacity=".10"/>`;
+  let g = rect(0, 100, 0, 1, ZONES.cible.color)
+    + rect(0, Z.ambitieux_access, Z.hors_profil_cdf, 1, ZONES.ambitieux.color)
+    + rect(0, 100, Z.hors_profil_cdf, Z.ambitieux_cdf, ZONES.ambitieux.color)
+    + rect(Z.securite_access, 100, Z.securite_cdf, 1, ZONES.securite.color)
+    + rect(0, 100, 0, Z.hors_profil_cdf, ZONES.hors_profil.color);
+  for (let k = 0; k <= 4; k++) {
+    g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(k / 4)}" y2="${y(k / 4)}"/><text x="${L - 6}" y="${y(k / 4) + 4}" text-anchor="end">${k * 25} %</text>`;
+    g += `<text x="${x(k * 25)}" y="${H - B + 16}" text-anchor="middle">${k * 25}</text>`;
+  }
+  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">Taux d'accès officiel (phase principale, %)</text>`;
+  g += `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">Part des admis avec votre mention ou moins</text>`;
+  F.forEach((f, i) => {
+    if (f.taux_acces_ens == null || f.cdf == null) return;
+    const c = ZONES[f.zone].color, hollow = f.uncertain || f.small_cohort;
+    g += `<circle data-i="${i}" cx="${x(f.taux_acces_ens)}" cy="${y(f.cdf)}" r="${f.home_academie ? 6 : 4.5}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${pc1(f.cdf)} [${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}]\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></circle>`;
+  });
+  setTimeout(() => document.querySelectorAll("svg.positioning circle[data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
+  return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img">${g}</svg>`;
+}
+
+function spark(trend, key, scale = 1) {
+  // One slot per campaign (2022-2025): missing campaigns and null values break the line,
+  // never interpolated, consistent with the evolution charts.
+  const years = META.years, by = Object.fromEntries(trend.map((t) => [t.session, t[key]]));
+  const vals = years.map((y) => (by[y] === undefined ? null : by[y]));
+  if (vals.filter((v) => v != null).length < 1) return "";
+  const xs = (i) => 3 + i * 54 / Math.max(1, years.length - 1), ys = (v) => 16 - 14 * Math.min(1, v / scale);
+  let d = "", pen = false, dots = "";
+  vals.forEach((v, i) => {
+    if (v == null) { pen = false; return; }
+    d += `${pen ? "L" : "M"}${xs(i)},${ys(v)}`; pen = true;
+    dots += `<circle cx="${xs(i)}" cy="${ys(v)}" r="1.6" fill="var(--c1)"/>`;
+  });
+  return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="${d}" fill="none" stroke="var(--c1)" stroke-width="1.5"/>${dots}<title>${years.map((y, i) => `${y} : ${vals[i] == null ? "n.d." : (scale === 1 ? pc1(vals[i]) : fmt(vals[i]) + " %")}`).join("\n")}</title></svg>`;
+}
+
+function wishAudit(W) {
+  const n = (z) => W.filter((w) => w.zone === z).length;
+  const msgs = [];
+  if (!W.length) return `<p class="muted">Épinglez des formations depuis la matrice ou le tableau (10 vœux au maximum sur Parcoursup).</p>`;
+  if (!n("securite")) msgs.push(["warn", "Aucun vœu de sécurité : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé."]);
+  if (n("ambitieux") + n("hors_profil") > W.length / 2) msgs.push(["warn", "Plus de la moitié de la liste est ambitieuse ou hors-profil."]);
+  if (n("hors_profil")) msgs.push(["warn", `${n("hors_profil")} vœu(x) hors-profil : moins de 2 % des admis avaient votre mention ou moins sur 2022–2025.`]);
+  if (!n("cible")) msgs.push(["info", "Aucun vœu cible pour l'instant."]);
+  if (!n("ambitieux")) msgs.push(["info", "Aucun vœu ambitieux : la liste peut viser plus haut sans se déséquilibrer."]);
+  if (W.length > 10) msgs.push(["warn", "Parcoursup limite la liste à 10 vœux (hors sous-vœux)."]);
+  if (!msgs.length) msgs.push(["info", "La liste combine des vœux de sécurité, cibles et ambitieux."]);
+  return `<div class="legend">${Object.entries(ZONES).filter(([k]) => !["indetermine", "non_ouvert"].includes(k)).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} : <strong>${n(k)}</strong></span>`).join("")}</div>
+    ${msgs.map(([t, m]) => `<div class="${t}">${esc(m)}</div>`).join("")}
+    <table><tr><th>Formation</th><th>Zone</th><th class="num">Taux d'accès</th><th class="num">Votre mention ou moins</th><th></th></tr>
+    ${W.map((w, i) => `<tr><td>${esc(w.etablissement)}<div class="muted small">${esc(w.filiere)} · ${esc(w.type_label)}</div></td><td><span class="badge" style="border-color:${ZONES[w.zone].color};color:${ZONES[w.zone].color}">${ZONES[w.zone].label}</span>${w.uncertain ? ' <span class="badge">incertain</span>' : ""}</td>
+      <td class="num">${fmt(w.taux_acces_ens)} %</td><td class="num">${pc1(w.cdf)}</td><td><button data-unpin="${i}" class="small">retirer</button></td></tr>`).join("")}</table>
+    <p class="muted small">Ces indicateurs décrivent les cohortes admises de 2022 à 2025 ; ce ne sont pas des probabilités d'admission individuelles. Les profils ont été enregistrés pour la mention visée au moment de l'épinglage.</p>`;
+}
+
+async function viewParcours() {
+  JV = JV || await api("/api/journey/vocab");
+  const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
+  const show = new Set(store.get("gates", ["predilection", "accessible"]));
+  const allF = store.get("allFilieres", false);
+  const s1 = p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?spe1=${p.spe1}&spe2=${p.spe2}`) : null;
+  const drill = store.get("drill", null);
+  const s2 = s1 && drill ? await api(`/api/journey/stage2?spe1=${p.spe1}&spe2=${p.spe2}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
+  const W = store.get("wishlist", []);
+  const onlyHome = !!p.academie && store.get("onlyHome", false);   // never filter without an académie
+  const F = s2 ? s2.formations.filter((f) => f.zone !== "non_ouvert" && (!onlyHome || f.home_academie)) : [];
+  const closed = s2 ? s2.formations.filter((f) => f.zone === "non_ouvert").length : 0;
+  const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
+  $view.innerHTML = `
+  <div class="card"><h2>1 · Mon profil</h2>${profileForm(p)}
+    ${s1 ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>` : `<div class="warn">Choisissez deux spécialités distinctes.</div>`}</div>
+  ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent votre doublette ${tip("journey_stage1")} ${tip("journey_gate")}</h2>${stage1Matrix(s1, show, allF)}</div>` : ""}
+  ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
+    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 admis en bac général${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'épingler.${closed ? ` ${closed} formation(s) fermées aux bacheliers généraux, par leurs groupes d'appel ou parce qu'ils représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT), sont exclues.` : ""}</p>
+    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}</div>
+    <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
+    ${scatter(F, (f) => pin(f))}
+    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">Taux d'accès</th><th class="num">Votre mention ou moins [IC 95 %]</th><th class="num">Mention exacte</th><th class="num">Bac général</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th><th>Évolution</th><th></th></tr>
+    ${F.slice().sort((a, b) => (b.cdf ?? -1) - (a.cdf ?? -1)).slice(0, 80).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div></td>
+      <td><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ' <span class="badge warnb">n&lt;10 bac G</span>' : ""}${f.limited_comparability ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
+      <td class="num">${fmt(f.taux_acces_ens)} %</td><td class="num">${pc1(f.cdf)}<div class="muted small">[${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}] · n=${fmt(f.n_known)}</div></td>
+      <td class="num">${pc1(f.exact_share)}</td><td class="num">${pc1(f.pct_bg)}</td><td class="num">${pc1(f.pct_boursiers)}</td>
+      <td class="small">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
+      <td>${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
+      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button></td></tr>`).join("")}
+    </table></div>${F.length > 80 ? `<p class="muted small">80 premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
+    ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
+  <div class="card"><h2>4 · Ma liste de vœux simulée</h2>${wishAudit(W)}</div>`;
+
+  function pin(f) {
+    const list = store.get("wishlist", []);
+    if (!list.some((w) => w.cod_aff_form === f.cod_aff_form)) {
+      list.push({ cod_aff_form: f.cod_aff_form, etablissement: f.etablissement, filiere: f.filiere, type_label: drill.label,
+        zone: f.zone, uncertain: f.uncertain, taux_acces_ens: f.taux_acces_ens, cdf: f.cdf });
+      store.set("wishlist", list);
+    }
+    viewParcours();
+  }
+  document.getElementById("pf").onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const np = { spe1: fd.get("spe1"), spe2: fd.get("spe2"), mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier") };
+    if (np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
+    if (!np.academie) store.set("onlyHome", false);
+    store.set("profile", np); viewParcours();
+  };
+  $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
+  $view.querySelectorAll("[data-type]").forEach((el) => { el.onclick = async () => { store.set("drill", { type: el.dataset.type, label: el.dataset.label }); await viewParcours(); document.getElementById("stage3")?.scrollIntoView({ behavior: "smooth" }); }; });
+  const af = document.getElementById("allf"); if (af) af.onclick = () => { store.set("allFilieres", !allF); viewParcours(); };
+  $view.querySelectorAll("[data-pin]").forEach((el) => { el.onclick = () => pin(F.find((f) => f.cod_aff_form === el.dataset.pin)); });
+  $view.querySelectorAll("[data-unpin]").forEach((el) => { el.onclick = () => { const l = store.get("wishlist", []); l.splice(+el.dataset.unpin, 1); store.set("wishlist", l); viewParcours(); }; });
+  const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
 }
 
 // ---- router ----------------------------------------------------------------
@@ -292,6 +463,7 @@ async function route() {
     if (a === "compare") return await viewCompare();
     if (a === "specialites") return await viewSpecialites(b, c);
     if (a === "qualite") return await viewQualite();
+    if (a === "parcours") return await viewParcours();
     return await viewSearch("");
   } catch (e) {
     $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`;
