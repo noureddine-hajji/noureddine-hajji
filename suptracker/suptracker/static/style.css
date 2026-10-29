@@ -53,6 +53,7 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line
 th { font-size: 12px; color: var(--muted); font-weight: 600; }
 td.num, th.num { text-align: right; }
 .scroll { overflow-x: auto; }
+.result .num { white-space: nowrap; min-width: 4.5em; text-align: right; }
 .result { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .result:last-child { border-bottom: 0; }
 .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted); margin-right: 4px; white-space: nowrap; }

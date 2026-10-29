@@ -105,23 +105,54 @@ const lineageBadge = (c) => c === "inferred_uai_track_match"
   : `<span class="badge exact" title="Même (cod_uai, cod_aff_form)">exact</span>`;
 
 // ---- views -----------------------------------------------------------------
-async function viewSearch(q) {
+const INTERP_LABEL = { lieu: "Lieu", sigle: "Reconnu", "corrigé": "Corrigé", "approché": "Mot approché", "ignoré": "Ignoré", uai: "Établissement (UAI)" };
+const FILI_LABEL = { Licence_Las: "Licence L.AS", "Ecole d'Ingénieur": "École d'ingénieurs", "Ecole de Commerce": "École de commerce", "Autre formation": "Autres formations" };
+
+function searchHash(q, params) {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== "" && v != null && v !== 0)).toString();
+  return `#/s/${encodeURIComponent(q)}${qs ? `/${encodeURIComponent(qs)}` : ""}`;
+}
+
+async function viewSearch(q, rawParams) {
   if (!q) {
     $view.innerHTML = `<div class="card"><h2>Rechercher une formation</h2>
-      <p class="muted">Saisir le nom d'un établissement, une ville, un code UAI (ex. <code>0751234A</code>), une filière, ou coller l'URL d'une fiche Parcoursup (<code>…afficherFicheFormation?g_ta_cod=…</code>).</p>
+      <p class="muted">Tapez ce que vous cherchez, comme vous le diriez : <em>prépa HEC Lyon</em>, <em>BTS NDRC</em>, <em>IUT informatique Toulouse</em>, <em>sciences po</em>, <em>infirmière Bordeaux</em>, <em>kiné</em>… Les sigles, les fautes de frappe et les villes sont reconnus. Vous pouvez aussi coller l'URL d'une fiche Parcoursup.</p>
       <div class="info">${esc(META.methodology.funnel)}</div></div>`;
     return;
   }
-  const d = await api(`/api/search?q=${encodeURIComponent(q)}`);
+  const P = Object.fromEntries(new URLSearchParams(rawParams || ""));
+  const near = store.get("profile", {}).academie || "";
+  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: 40 });
+  for (const k of ["fili", "academie", "selective"]) if (P[k]) qs.set(k, P[k]);
+  if (near) qs.set("near", near);
+  const d = await api(`/api/search?${qs}`);
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
-  $view.innerHTML = `<div class="card"><h2>${d.results.length} résultat(s) <span class="muted small">(${esc(d.mode)})</span></h2>
+  const go = (patch) => searchHash(q, { fili: P.fili, academie: P.academie, selective: P.selective, ...patch, offset: patch.offset || 0 });
+  const chip = (label, href, active) => `<a class="badge${active ? " exact" : ""}" href="${esc(href)}">${esc(label)}</a>`;
+  const facets = d.facets || {};
+  const off = +(P.offset || 0);
+  $view.innerHTML = `<div class="card">
+    <h2>${fmt(d.total)} formation(s)${d.partial ? ` <span class="badge warnb">résultats partiels</span>` : ""}</h2>
+    ${d.interpretation.length ? `<div class="legend" aria-label="Interprétation de la recherche">${d.interpretation.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : ""}
+    ${d.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("")}
+    ${d.total === 0 ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou une ville.</p>` : ""}
+    ${(facets.fili || []).length > 1 || P.fili ? `<div class="toolbar"><span class="small muted">Type :</span>${chip("Tous", go({ fili: "" }), !P.fili)}${(facets.fili || []).map((f) => chip(`${FILI_LABEL[f.value] || f.value} (${f.count})`, go({ fili: f.value }), P.fili === f.value)).join("")}</div>` : ""}
+    ${(facets.academie || []).length > 1 || P.academie ? `<div class="toolbar"><label class="small">Académie <select id="facad"><option value="">Toutes</option>${(facets.academie || []).map((a) => `<option value="${esc(a.value)}" ${P.academie === a.value ? "selected" : ""}>${esc(a.value)} (${a.count})</option>`).join("")}</select></label>
+      <label class="small">Sélectivité <select id="fsel"><option value="">Toutes</option><option value="true" ${P.selective === "true" ? "selected" : ""}>Sélectives</option><option value="false" ${P.selective === "false" ? "selected" : ""}>Non sélectives</option></select></label></div>` : ""}
     ${d.results.map((r) => `<div class="result"><div>
-        <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}</span><br>
+        <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
         ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
-        <span class="badge">${esc(r.fili)}</span><span class="badge">UAI ${esc(r.cod_uai)}</span><span class="badge">${r.session}</span>
+        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span><span class="badge">${r.session}</span>
         <span class="badge">${r.lineage_years} campagne(s)</span>${lineageBadge(r.lineage_confidence)}
         ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
-      </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("") || `<p class="muted">Aucune formation.</p>`}</div>`;
+      </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
+    ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + 40 }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + 80))}) →</a></p>` : ""}
+    ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - 40) }))}">← Résultats précédents</a></p>` : ""}
+    ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
+  </div>`;
+  $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
+  const fa = document.getElementById("facad"); if (fa) fa.onchange = () => { location.hash = go({ academie: fa.value }); };
+  const fs = document.getElementById("fsel"); if (fs) fs.onchange = () => { location.hash = go({ selective: fs.value }); };
 }
 
 function stageCard(title, keys, rec, note) {
@@ -457,7 +488,7 @@ async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
   try {
-    if (a === "s") return await viewSearch(b || "");
+    if (a === "s") return await viewSearch(b || "", c || "");
     if (a === "f") return await viewFormation(b, c);
     if (a === "evolution") return await viewEvolution(b);
     if (a === "compare") return await viewCompare();
