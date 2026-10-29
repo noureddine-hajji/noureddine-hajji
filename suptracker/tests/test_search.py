@@ -89,6 +89,14 @@ def test_facets_are_disjunctive_and_exact(con):
         assert S.search(con, "licence", fili="Licence", academie=a["value"])["total"] == a["count"]
 
 
+def test_facets_list_every_value_and_keep_the_active_one(con):
+    r = S.search(con, "licence")
+    assert {a["value"] for a in r["facets"]["academie"]} == {x["acad_mies"] for x in S.search(con, "licence", limit=10_000)["results"]}
+    pick = r["facets"]["academie"][-1]["value"]                  # the rarest académie
+    rr = S.search(con, "licence", academie=pick)
+    assert pick in {a["value"] for a in rr["facets"]["academie"]}
+
+
 def test_pagination_and_determinism(con):
     full = [x["cod_aff_form"] for x in S.search(con, "licence", limit=10)["results"]]
     p1 = [x["cod_aff_form"] for x in S.search(con, "licence", limit=5)["results"]]

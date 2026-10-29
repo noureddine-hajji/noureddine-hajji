@@ -556,7 +556,9 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
     return {
         "mode": "uai" if uai else "text", "query": q, "terms": terms, "interpretation": interp,
         "notes": notes, "partial": partial, "total": len(ranked), "offset": offset, "limit": limit,
-        "facets": {k: [{"value": v, "count": c} for v, c in cnt.most_common(12) if v] for k, cnt in facets.items()},
+        # every value, never a top-N: a dropdown must offer each académie the results contain, and
+        # the active selection is always present so the control reflects the filter in force
+        "facets": {k: [{"value": v, "count": c} for v, c in cnt.most_common() if v] for k, cnt in facets.items()},
         "results": [{**{k: idx.docs[d][k] for k in PUBLIC},
                      "lib_comp_voe_ins": clean_complement(idx.docs[d])} for d in page],
     }
