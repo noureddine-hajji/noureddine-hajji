@@ -114,3 +114,9 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 :root { --t1: #163a8a; --t2: #4a7ce0; --t3: #a3bdf0; --t4: #dde2ea; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --t1: #b8cbff; --t2: #7096ec; --t3: #3e5794; --t4: #2c323b; } }
 :root[data-theme="dark"] { --t1: #b8cbff; --t2: #7096ec; --t3: #3e5794; --t4: #2c323b; }
+/* "Voir un plan B" in Mon parcours: the plan opens under the row, pinned to the visible part of
+   the wide table so it can be read without scrolling sideways on a phone */
+.planb-btn { display: block; margin-top: 6px; max-width: 120px; text-align: left; }
+.planb-row > td { background: var(--bg); padding: 0; }
+.planb-inline { position: sticky; left: 0; max-width: min(900px, calc(100vw - 72px)); padding: 10px 12px; border-left: 3px solid var(--c2); }
+.planb-title { font-size: 14px; margin: 0 0 6px; }

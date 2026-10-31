@@ -368,6 +368,21 @@ Each formation page shows, for the student's profile (series, specialties for ba
 - usefulness on selective targets;
 - no navigation race: a late answer never fills or rebinds another formation's card (found in review).
 
+### "Voir un plan B" in "Mon parcours"
+
+In the positioning table of "Mon parcours", every **ambitious** or **hors profil** row has a *Voir un plan B* button. Rows that are already *cible* or *sécurité* have none, since a plan B is only useful for a hard target.
+
+- **Where it opens.** The plan B opens under the row. It stays pinned to the visible part of the wide table, so it reads on a phone without scrolling sideways. A second click closes it.
+- **Profile.** It uses the profile shown on the page, with the series validated, not a stored copy.
+- **Pinning.** Each suggestion can be pinned to the simulated wish list directly, and the list audit updates in place.
+- **Late answers.** Every request stamps its box. Only the latest request for a box still on the page may fill it, so a late answer, a superseded paid-private toggle or a closed row is dropped (this also fixes the same race on the formation page's toggle).
+
+The red team adds four checks:
+- **B15:** the button is only on ambitious rows, uses the page's profile, is escaped and opens and closes under its row.
+- **B16:** on real data, the Plan B opened from an ambitious row reads that formation in the **same zone** as the row and never answers "déjà accessible".
+- **B14 (updated):** the stamp is set before the request and checked after it.
+- **B17, mutation test:** eight seeded UI bugs and two seeded rule bugs (the +15-point threshold dropped, an uncertain zone accepted) must each be caught.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

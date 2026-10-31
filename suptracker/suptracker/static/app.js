@@ -236,43 +236,61 @@ async function viewFormation(cod, session) {
 }
 
 // ---- Plan B: same programme elsewhere, more accessible for the student's profile -------------
+// Rendered in two places: the fiche (#planb card) and, inline, under an ambitious row of
+// "Mon parcours" (opts.box, opts.profile, opts.inline, opts.onPin).
 const WHY = { zone: "zone plus favorable", acces: "nettement plus accessible" };
-async function loadPlanB(cod, includePaid = false) {
-  const box = document.getElementById("planb");
+let planbSeq = 0;
+async function loadPlanB(cod, opts = {}) {
+  const box = opts.box || document.getElementById("planb");
   if (!box) return;
-  const p = store.get("profile", null);
+  const includePaid = !!opts.includePaid;
+  const p = opts.profile || store.get("profile", null);
   const prof = p || { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "" };
   const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
   const qs = new URLSearchParams({ serie, mention: prof.mention || "ab" });
   if (serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
   if (prof.academie) qs.set("academie", prof.academie);
   if (includePaid) qs.set("include_paid", "true");
+  // every request stamps its box: only the latest request made for a box still on the page may
+  // fill it (a late answer for formation A, or for a superseded toggle, is dropped)
+  const req = String(++planbSeq);
+  box.dataset.req = req;
+  if (opts.inline) box.innerHTML = `<p class="muted small">Recherche d'un plan B…</p>`;
   let d;
-  try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) { box.innerHTML = ""; return; }
-  // the user may have navigated meanwhile: only the card this request was made for may be filled,
-  // otherwise a late answer for formation A would rebind the toggle of formation B's card
-  if (document.getElementById("planb") !== box || !box.isConnected) return;
+  try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) {
+    if (box.isConnected && box.dataset.req === req) box.innerHTML = opts.inline ? `<p class="muted small">Plan B indisponible pour le moment.</p>` : "";
+    return;
+  }
+  if (!box.isConnected || box.dataset.req !== req) return;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(prof.spe1 || "MATHS")} + ${esc(prof.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}`;
-  const head = `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
+  const head = opts.inline
+    ? `<h3 class="planb-title">Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h3>`
+    : `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
     <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/parcours">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon parcours »</a>.</p>`;
-  const paidToggle = d.hidden_paid || d.include_paid ? `<label class="small"><input type="checkbox" id="pbpaid" ${d.include_paid ? "checked" : ""}> Inclure le privé hors contrat / enseignement supérieur privé (frais de scolarité possibles)${d.hidden_paid ? ` · ${fmt(d.hidden_paid)} masqué(s)` : ""}</label>` : "";
+  const paidToggle = d.hidden_paid || d.include_paid ? `<label class="small"><input type="checkbox" data-pbpaid ${d.include_paid ? "checked" : ""}> Inclure le privé hors contrat / enseignement supérieur privé (frais de scolarité possibles)${d.hidden_paid ? ` · ${fmt(d.hidden_paid)} masqué(s)` : ""}</label>` : "";
+  const W = opts.onPin ? store.get("wishlist", []) : [];
   let body;
   if (d.status === "deja_accessible") body = `<div class="info">Bonne nouvelle : pour votre profil, cette formation est déjà un vœu de sécurité.</div>`;
   else if (d.status === "non_disponible") body = `<p class="muted small">Plan B indisponible : ${esc(d.reason)}.</p>`;
   else if (!d.alternatives.length) body = `<p class="muted small">Aucune formation de la même filière n'est plus accessible pour votre profil d'après les données 2022–2025.</p>`;
   else {
     body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : <span class="badge" style="border-color:${ZONES[d.target.zone].color};color:${ZONES[d.target.zone].color}">${ZONES[d.target.zone].label}</span> · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
-    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">Votre mention ou moins</th><th class="num">Distance de la formation visée</th></tr>
+    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">Votre mention ou moins</th><th class="num">Distance de la formation visée</th>${opts.onPin ? "<th></th>" : ""}</tr>
     ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(a.academie)})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
       <td><span class="badge" style="border-color:${ZONES[a.zone].color};color:${ZONES[a.zone].color}">${ZONES[a.zone].label}</span><div class="muted small">${WHY[a.why] || ""}</div></td>
       <td class="num">${fmt(a.taux_acces_ens)} %</td>
       <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
-      <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td></tr>`).join("")}</table></div>
+      <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td>${opts.onPin ? `<td><button type="button" class="small" data-pbpin="${esc(a.cod_aff_form)}">${W.some((w) => w.cod_aff_form === a.cod_aff_form) ? "épinglé" : "épingler"}</button></td>` : ""}</tr>`).join("")}</table></div>
     <p class="muted small">Parts d'admis des campagnes passées, pas des chances d'admission. Vérifiez chaque fiche Parcoursup.</p>`;
   }
-  box.innerHTML = `<div class="card">${head}${body}${paidToggle ? `<div class="toolbar">${paidToggle}</div>` : ""}</div>`;
-  const t = box.querySelector("#pbpaid");
-  if (t) t.onchange = () => loadPlanB(cod, t.checked);
+  box.innerHTML = `${opts.inline ? "" : '<div class="card">'}${head}${body}${paidToggle ? `<div class="toolbar">${paidToggle}</div>` : ""}${opts.inline ? "" : "</div>"}`;
+  const t = box.querySelector("[data-pbpaid]");
+  if (t) t.onchange = () => loadPlanB(cod, { ...opts, box, includePaid: t.checked });
+  if (opts.onPin) {
+    box.querySelectorAll("[data-pbpin]").forEach((el) => {
+      el.onclick = () => { const a = d.alternatives.find((x) => x.cod_aff_form === el.dataset.pbpin); if (a) opts.onPin(a); };
+    });
+  }
 }
 
 function offerCard(r) {
@@ -498,6 +516,9 @@ function stage1SeriesMatrix(s1, show, all) {
 // A3 / B4: position among admits of the student's series when it can be bounded, else all néo-bacheliers
 const SERIE_SHORT = { bg: "bacs généraux", bt: "bacs technos", bp: "bacs pros" };
 const pos = (f) => (f.spos ? f.spos.cdf_used : f.cdf);
+// rows of "Mon parcours" that get a "Voir un plan B" button: a plan B is only proposed when the
+// target is not already a safe choice, and is most useful for the selective ones
+const PLANB_ZONES = ["ambitieux", "hors_profil"];
 function bgCell(f) {
   if (!f.spos) {
     return `${pc1(f.cdf)}<div class="muted small">tous bacs · [${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}] · n=${fmt(f.n_known)}</div>`;
@@ -601,19 +622,19 @@ async function viewParcours() {
       <td class="num">${pc1(f.exact_share)}</td><td class="num">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num">${pc1(f.pct_boursiers)}</td>
       <td class="small">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
       <td>${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
-      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button></td></tr>`).join("")}
+      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button>${PLANB_ZONES.includes(f.zone) ? `<button type="button" data-planb="${esc(f.cod_aff_form)}" class="small planb-btn" aria-expanded="false">Voir un plan B</button>` : ""}</td></tr>`).join("")}
     </table></div>${F.length > 80 ? `<p class="muted small">80 premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
     ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
-  <div class="card"><h2>4 · Ma liste de vœux simulée</h2>${wishAudit(W)}</div>${feedbackBox("parcours")}`;
+  <div class="card"><h2>4 · Ma liste de vœux simulée</h2><div id="wishlist">${wishAudit(W)}</div></div>${feedbackBox("parcours")}`;
 
-  function pin(f) {
+  function pin(f, rerender = true) {
     const list = store.get("wishlist", []);
     if (!list.some((w) => w.cod_aff_form === f.cod_aff_form)) {
       list.push({ cod_aff_form: f.cod_aff_form, etablissement: f.etablissement, filiere: f.filiere, type_label: drill.label,
         zone: f.zone, uncertain: f.uncertain, taux_acces_ens: f.taux_acces_ens, cdf: pos(f) });
       store.set("wishlist", list);
     }
-    viewParcours();
+    if (rerender) viewParcours();
   }
   const ser = document.querySelector('#pf [name="serie"]');
   if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
@@ -629,8 +650,33 @@ async function viewParcours() {
   $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
   $view.querySelectorAll("[data-type]").forEach((el) => { el.onclick = async () => { store.set("drill", { type: el.dataset.type, label: el.dataset.label }); await viewParcours(); document.getElementById("stage3")?.scrollIntoView({ behavior: "smooth" }); }; });
   const af = document.getElementById("allf"); if (af) af.onclick = () => { store.set("allFilieres", !allF); viewParcours(); };
+  // "Voir un plan B": the same programme elsewhere, more accessible, opened under the row
+  $view.querySelectorAll("[data-planb]").forEach((el) => {
+    el.onclick = () => {
+      const tr = el.closest("tr");
+      const open = tr.nextElementSibling?.classList.contains("planb-row") ? tr.nextElementSibling : null;
+      if (open) { open.remove(); el.textContent = "Voir un plan B"; el.setAttribute("aria-expanded", "false"); return; }
+      const row = document.createElement("tr");
+      row.className = "planb-row";
+      row.innerHTML = `<td colspan="${tr.children.length}"><div class="planb-inline" aria-live="polite"></div></td>`;
+      tr.after(row);
+      el.textContent = "Masquer le plan B";
+      el.setAttribute("aria-expanded", "true");
+      const box = row.querySelector(".planb-inline");
+      loadPlanB(el.dataset.planb, { box, profile: { ...p, serie }, inline: true, onPin: (a) => {
+        pin({ cod_aff_form: a.cod_aff_form, etablissement: a.etablissement, filiere: a.filiere, zone: a.zone,
+          uncertain: a.uncertain, taux_acces_ens: a.taux_acces_ens, cdf: a.position }, false);
+        const b = box.querySelector(`[data-pbpin="${CSS.escape(a.cod_aff_form)}"]`);
+        if (b) b.textContent = "épinglé";
+        const list = document.getElementById("wishlist");
+        if (list) list.innerHTML = wishAudit(store.get("wishlist", []));
+        bindUnpin();
+      } });
+    };
+  });
   $view.querySelectorAll("[data-pin]").forEach((el) => { el.onclick = () => pin(F.find((f) => f.cod_aff_form === el.dataset.pin)); });
-  $view.querySelectorAll("[data-unpin]").forEach((el) => { el.onclick = () => { const l = store.get("wishlist", []); l.splice(+el.dataset.unpin, 1); store.set("wishlist", l); viewParcours(); }; });
+  function bindUnpin() { $view.querySelectorAll("[data-unpin]").forEach((el) => { el.onclick = () => { const l = store.get("wishlist", []); l.splice(+el.dataset.unpin, 1); store.set("wishlist", l); viewParcours(); }; }); }
+  bindUnpin();
   const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
 }
 
