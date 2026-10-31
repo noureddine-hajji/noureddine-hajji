@@ -212,7 +212,7 @@ honoured, and bots are filtered.
 
 Generate the secrets with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
-**Docker / local.** Counters go to a SQLite file (`data/analytics/`, or `SUPTRACKER_ANALYTICS_DIR`).
+**Docker / local.** Counters go to a SQLite file under the data directory (`$SUPTRACKER_DATA/analytics`, i.e. the `/data` volume in Docker), or `SUPTRACKER_ANALYTICS_DIR`.
 `make demo-stats` seeds 90 invented days into `/tmp/st-demo` and serves the dashboard with the
 token `demo-token-0123456789`.
 
@@ -230,9 +230,10 @@ token `demo-token-0123456789`.
 | R12 | Store down | the app keeps answering (fail-open); dashboard 502 |
 | R13–R14 | Pseudonym linkability; ballot stuffing | rotates daily; one vote per page and day |
 | R15 | Stored XSS through queries | every stored text is escaped (static check plus mutation test) |
-| R16 | Latency overhead on `/api/search` | about +2 ms median |
+| R16 | Latency overhead on `/api/search` | about +3 ms (median of interleaved pairs) |
 | R17 | Redis (Upstash, Lua) path vs SQLite path | identical dashboards (fakeredis + lupa) |
 | R18–R20 | Statistics (Wilson, z-test, Holm); empty period; side-effect-free reads | pass |
+| R21 | No proxy header (direct uvicorn, Docker) | visitors told apart by socket address, which a client cannot forge |
 
 ## Student positioning journey (`#/parcours`)
 

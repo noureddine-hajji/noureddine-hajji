@@ -26,7 +26,7 @@ def test_red_team(warehouse):
     res = R.run(Path(warehouse))
     failed = [r for r in res if not r["ok"]]
     assert not failed, failed
-    assert len(res) == 20
+    assert len(res) == 21
 
 
 @pytest.mark.parametrize("q,expect", [
@@ -83,3 +83,14 @@ def test_summary_over_days_and_periods(tmp_path, monkeypatch):
     assert [s["visitors"] for s in r["funnel"]] == [8, 8, 1, 1]
     assert r["top_queries"] == [{"key": "droit", "visitor_days": 8}]       # per visitor-day, k >= 3
     assert r["sources"]["moteur"] == 8 and r["devices"]["mobile"] == 8
+
+
+def test_default_store_follows_the_data_volume(tmp_path, monkeypatch):
+    for v in ("SUPTRACKER_ANALYTICS_DIR", "VERCEL", "UPSTASH_REDIS_REST_URL", "KV_REST_API_URL"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setattr("suptracker.config.DATA_DIR", tmp_path)
+    A.reset_store(None)
+    try:
+        assert A.store().path == tmp_path / "analytics" / "counters.sqlite"
+    finally:
+        A.reset_store(None)

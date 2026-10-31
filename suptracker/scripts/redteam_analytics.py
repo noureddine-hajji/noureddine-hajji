@@ -13,7 +13,7 @@ import statistics
 import sys
 import tempfile
 import time
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -171,7 +171,8 @@ def r9(H):
     good = c.get("/api/stats", headers={"Authorization": f"Bearer {TOKEN}"})
     ok = (weak, none, wrong, in_url, good.status_code) == (503, 401, 401, 401, 200) and \
         good.headers.get("cache-control") == "no-store"
-    return ok, f"weak {weak}, none {none}, wrong {wrong}, url {in_url}, good {good.status_code} {good.headers.get('cache-control')}"
+    cc = good.headers.get("cache-control")
+    return ok, f"weak {weak}, none {none}, wrong {wrong}, url {in_url}, good {good.status_code} {cc}"
 
 
 @check("R10 bounded cardinality: a flood of distinct queries cannot grow storage without limit")
@@ -225,7 +226,8 @@ def r13(H):
     A = H.A
     d0, d1 = date(2026, 1, 20), date(2026, 1, 21)
     a, b, c = A.visitor_id("1.2.3.4", UA, d0), A.visitor_id("1.2.3.4", UA, d1), A.visitor_id("1.2.3.5", UA, d0)
-    return a == A.visitor_id("1.2.3.4", UA, d0) and len({a, b, c}) == 3 and "1.2.3.4" not in a, "stable within a day, unlinkable across days"
+    ok = a == A.visitor_id("1.2.3.4", UA, d0) and len({a, b, c}) == 3 and "1.2.3.4" not in a
+    return ok, "stable within a day, unlinkable across days"
 
 
 @check("R14 ballot stuffing: one visitor's repeated votes count once per page and day")
@@ -256,19 +258,21 @@ def r15(H):
 def r16(H):
     c = H.client
 
-    def lat(n=30):
-        out = []
-        for i in range(n):
-            t0 = time.perf_counter()
-            c.get("/api/search", params={"q": f"licence droit {i % 3}"}, headers=H.h(ip=f"10.3.0.{i}"))
-            out.append(1000 * (time.perf_counter() - t0))
-        return statistics.median(out)
-    lat(5)
-    os.environ["SUPTRACKER_ANALYTICS"] = "off"
-    off = lat()
-    os.environ.pop("SUPTRACKER_ANALYTICS")
-    on = lat()
-    return on - off < 15, f"median {off:.1f} ms off → {on:.1f} ms on (+{on - off:.1f} ms)"
+    def one(i, on):
+        if on:
+            os.environ.pop("SUPTRACKER_ANALYTICS", None)
+        else:
+            os.environ["SUPTRACKER_ANALYTICS"] = "off"
+        t0 = time.perf_counter()
+        c.get("/api/search", params={"q": f"licence droit {i % 3}"}, headers=H.h(ip=f"10.3.{i // 250}.{i % 250}"))
+        return 1000 * (time.perf_counter() - t0)
+    for i in range(5):
+        one(i, True)
+    # interleaved pairs: machine noise hits both arms alike, the paired difference isolates the overhead
+    diffs = [one(2 * i, True) - one(2 * i + 1, False) for i in range(40)]
+    os.environ.pop("SUPTRACKER_ANALYTICS", None)
+    d = statistics.median(diffs)
+    return d < 10, f"median paired overhead {d:+.1f} ms per search"
 
 
 @check("R17 the Redis (Upstash) path computes exactly what the SQLite path computes")
@@ -350,7 +354,17 @@ def r20(H):
     return H.counters() == {} and get_e == 405, f"counters after 2 dashboard reads {H.counters()}, GET /api/e {get_e}"
 
 
-CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20]
+@check("R21 without proxy headers, visitors are told apart by their socket address (unforgeable)")
+def r21(H):
+    A = H.A
+    a = A.client_ip({A.PEER_KEY: "192.0.2.10"})
+    b = A.client_ip({"x-real-ip": "198.51.100.1", A.PEER_KEY: "192.0.2.10"})
+    req = type("R", (), {"headers": {A.PEER_KEY: "6.6.6.6"}, "client": type("C", (), {"host": "192.0.2.99"})()})()
+    forged = H.api._hdrs(req)[A.PEER_KEY]
+    return (a, b, forged) == ("192.0.2.10", "198.51.100.1", "192.0.2.99"), f"peer {a}, proxied {b}, forged peer -> {forged}"
+
+
+CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21]
 
 
 def run(db: Path) -> list[dict]:

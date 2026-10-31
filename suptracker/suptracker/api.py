@@ -234,7 +234,7 @@ def search(request: Request, bg: BackgroundTasks,
         refined = any(v is not None and v != "" for v in (fili, academie, selective))  # near = profile
         bg.add_task(A.record, "refine" if refined else "search",
                     {"q": A.clean_query(q), "total": res["total"], "partial": bool(res.get("partial"))},
-                    request.headers)
+                    _hdrs(request))
     return res
 
 
@@ -437,7 +437,7 @@ def journey_stage1(spe1: str, spe2: str, request: Request, bg: BackgroundTasks):
     res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
     if not res["national"] or not res["national"]["candidates"]:
         raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
-    bg.add_task(A.record, "journey", {"stage": "stage1"}, request.headers)
+    bg.add_task(A.record, "journey", {"stage": "stage1"}, _hdrs(request))
     return res
 
 
@@ -449,7 +449,7 @@ def journey_stage2(spe1: str, spe2: str, mention: str, type: str, request: Reque
         res = J.stage2(_con().cursor(), _dkey(spe1, spe2), mention, type, academie, sex)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    bg.add_task(A.record, "journey", {"stage": "stage2"}, request.headers)
+    bg.add_task(A.record, "journey", {"stage": "stage2"}, _hdrs(request))
     return res
 
 
@@ -459,6 +459,14 @@ def continuity():
 
 
 # ---------------------------------------------------------------- audience measurement
+def _hdrs(request: Request) -> dict:
+    """Request headers plus the socket peer, the IP fallback when no proxy header is set
+    (direct uvicorn, Docker without a proxy). Always overwritten, so a client cannot forge it."""
+    h = dict(request.headers)
+    h[A.PEER_KEY] = request.client.host if request.client else ""
+    return h
+
+
 @app.post("/api/e", status_code=204)
 async def event(request: Request, bg: BackgroundTasks):
     """Beacon from the front-end (see suptracker/analytics.py for what is, and is not, kept)."""
@@ -472,9 +480,9 @@ async def event(request: Request, bg: BackgroundTasks):
     try:
         t, props = A.validate_client_event(json.loads(body or b"null"))
     except (ValueError, A.Rejected):
-        A.record_invalid(request.headers)
+        A.record_invalid(_hdrs(request))
         raise HTTPException(422, "invalid event") from None
-    bg.add_task(A.record, t, props, request.headers)
+    bg.add_task(A.record, t, props, _hdrs(request))
     return Response(status_code=204)
 
 

@@ -100,9 +100,13 @@ def visitor_id(ip: str, ua: str, day: date) -> str:
     return hmac.new(key, f"{day.isoformat()}|{ip}|{ua}".encode(), hashlib.sha256).hexdigest()[:20]
 
 
+PEER_KEY = "\x00peer"   # not a valid HTTP header name: only the server can set it
+
+
 def client_ip(headers) -> str:
-    # x-real-ip is set by Vercel; x-forwarded-for's first hop elsewhere (proxy-headers in Docker)
-    return (headers.get("x-real-ip") or headers.get("x-forwarded-for", "").split(",")[0]).strip()
+    # x-real-ip is set by Vercel; x-forwarded-for's first hop behind other proxies; else the peer
+    return (headers.get("x-real-ip") or headers.get("x-forwarded-for", "").split(",")[0]
+            or headers.get(PEER_KEY, "")).strip()
 
 
 def opted_out(headers) -> bool:
@@ -311,8 +315,8 @@ def store() -> Store:
             if url and tok:
                 _STORE = UpstashStore(url, tok)
             else:
-                default = Path("/tmp/suptracker-analytics") if os.environ.get("VERCEL") else \
-                    Path(__file__).resolve().parents[1] / "data" / "analytics"
+                from . import config              # Docker: the persistent SUPTRACKER_DATA volume
+                default = Path("/tmp/suptracker-analytics") if os.environ.get("VERCEL") else config.DATA_DIR / "analytics"
                 _STORE = SqliteStore(Path(os.environ.get("SUPTRACKER_ANALYTICS_DIR", default)) / "counters.sqlite")
         return _STORE
 
