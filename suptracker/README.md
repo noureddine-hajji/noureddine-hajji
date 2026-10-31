@@ -234,6 +234,7 @@ token `demo-token-0123456789`.
 | R17 | Redis (Upstash, Lua) path vs SQLite path | identical dashboards (fakeredis + lupa) |
 | R18–R20 | Statistics (Wilson, z-test, Holm); empty period; side-effect-free reads | pass |
 | R21 | No proxy header (direct uvicorn, Docker) | visitors told apart by socket address, which a client cannot forge |
+| R22 | Outbound click with no recorded view (past midnight, lost beacon) | funnel stays nested, rates stay in [0, 1] |
 
 ## Student positioning journey (`#/parcours`)
 

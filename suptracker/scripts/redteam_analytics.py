@@ -364,7 +364,21 @@ def r21(H):
     return (a, b, forged) == ("192.0.2.10", "198.51.100.1", "192.0.2.99"), f"peer {a}, proxied {b}, forged peer -> {forged}"
 
 
-CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21]
+@check("R22 incomplete populations: clicks without a recorded view keep every rate in [0, 1]")
+def r22(H):
+    H.fresh()
+    A = H.A
+    A.record("view", {"route": "home", "device": "mobile", "source": None}, H.h(ip="10.4.0.1"))
+    for i in range(4):          # tab left open past midnight, or view beacon lost
+        A.record("out", {"cod": "42"}, H.h(ip=f"10.4.1.{i}"))
+    s = H.stats()
+    k = {x["name"]: x for x in s["kpis"]}["Visiteurs allant sur Parcoursup"]
+    f = [x["visitors"] for x in s["funnel"]]
+    ok = 0 <= k["value"] <= 1 and all(0 <= c <= 1 for c in k["ci"]) and f[0] >= max(f[1:])
+    return ok, f"conversion {k['value']}, CI {k['ci']}, funnel {f}"
+
+
+CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22]
 
 
 def run(db: Path) -> list[dict]:

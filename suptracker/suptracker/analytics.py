@@ -376,9 +376,11 @@ def ops_for(t: str, p: dict, vid: str, day: date) -> list[tuple]:
     k = _day_keys(day)
     ops: list[tuple] = []
     h = lambda f: ops.append(("h", k["d"], f))  # noqa: E731
+    # Anyone who produced an event that day is a visitor, so every funnel stage is a subset of
+    # the visitor population (an outbound click after midnight or a lost view beacon included).
+    ops.append(("p", k["u"], vid))
     if t == "view":
         h("pv"); h(f"pv:{p['route']}")
-        ops.append(("p", k["u"], vid))
         ops.append(("o", k["d"], f"dev:{p['device']}", k["seen"], f"dev|{vid}"))
         if p.get("source"):
             ops.append(("o", k["d"], f"src:{p['source']}", k["seen"], f"src|{vid}"))
@@ -453,7 +455,7 @@ def record_server_error() -> None:
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float | None, float | None]:
     if not n:
         return None, None
-    p = k / n
+    p = min(1.0, max(0.0, k / n))         # defensive: never a domain error on a stray numerator
     d = 1 + z * z / n
     c = (p + z * z / (2 * n)) / d
     h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d

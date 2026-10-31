@@ -26,7 +26,7 @@ def test_red_team(warehouse):
     res = R.run(Path(warehouse))
     failed = [r for r in res if not r["ok"]]
     assert not failed, failed
-    assert len(res) == 21
+    assert len(res) == 22
 
 
 @pytest.mark.parametrize("q,expect", [
