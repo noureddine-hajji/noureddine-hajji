@@ -324,6 +324,48 @@ where:
 - **Mutation test.** Four seeded bugs were all caught. A fifth "bug" proved to be an equivalent mutant: a redundant constraint, now removed.
 - **Reference persona.** `verify_persona.py` also checks that each zone matches the rules, that the position used lies inside its bounds, and that the margin contains the bounds.
 
+## Bac technologique and bac professionnel students (B4, "Mon parcours")
+
+"Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.
+
+**What SIES allows, and what it does not.**
+- **No access rate by series.** `part_terminale_generale/techno/pro` is **not** one. The three add up to 100 % on 99.2 % of rows: each is the series' **share among the candidates in a position to get an offer**. The site used to present the general one as an access rate (fiche, comparator, evolution chart, peer metric). That is fixed everywhere.
+- **Official counts by series.** These exist: candidates in the main and complementary phases (`nb_voe_pp_*`, `nb_voe_pc_*`), proposals (`prop_tot_*`) and admits.
+- **No detail inside a series.** STMG, STI2D, ST2S and so on are never told apart, and neither are the bac pro specialties. The site says so.
+
+**Stage 1 (which formation types recruit the series).** It counts **admits**, which are people (each néo-bachelier accepts one formation). It never sums candidates across formations, which would count vœux. For each type it shows:
+- where the series' admits go;
+- the series' share among admits;
+- a representation index;
+- the median estimated access.
+
+The gates are the same as for bac général.
+
+**Stage 2 (formations of one type).**
+- **Estimated access for the series.** The official taux d'accès, scaled by the series' proposal rate relative to all candidates', and capped at 100 %. The raw proposal rate is a different quantity: it counts proposals actually sent, fewer than candidates in a position to get one. It is not comparable with the zone thresholds, so it is shown only as a detail, next to the official rate.
+- **Fragile rates.** Below 20 candidates of the series, the zone is *indéterminé*. A techno class with 2 candidates and 2 proposals would otherwise read as "100 %, sécurité".
+- **Mention position.** The sharp mention bounds of A3, generalised to every series.
+- **Calling groups.** They are read for the student's series, covering all 23 labels of the 2022–2025 exports.
+- **No closure by share.** A low share of the series among admits flags the formation as *rare*, never *closed*. A licence de droit stays open to bacs technos, unlike the CPGE ECT rule for bac général.
+
+**Red team (`scripts/redteam_series.py`, 12 checks, run in CI by `tests/test_series.py`).**
+- **Group routing.** Every real label is routed correctly for each series. This caught "sauf les Bac technologiques **et** Bac professionnels", which wrongly admitted bacs pros, and a "STI2D" group that wrongly admitted bacs pros.
+- **Composition wording.** `part_terminale_*` is never called an access rate again.
+- **Counts.** Series counts are consistent.
+- **Estimated access.** It is bounded, equals the official rate when the series does as well as everyone, and is monotone.
+- **Undefined estimates.** An undefined estimate stays undefined: DuckDB's `least(100, NULL)` returns 100. Found in review: a formation with no proposal at all read as "100 %, sécurité".
+- **No zone without a rate.** On real data, 39,525 readings, and none is zoned without a rate.
+- **Units.** Stage 1 counts people, not vœux.
+- **No false closure.** Licence de droit: 0 of 270 closed. The techno CPGE (TSI, TB, TPC) come out sécurité or cible, and MPSI never does.
+- **Fragile rates.** A rate over fewer than 20 candidates never sets a zone.
+- **Mention bounds.** They are valid and sharp for bac techno and pro too.
+- **Bac général unchanged.** It gives identical results, and the persona check passes.
+- **API.** The series is a closed list.
+- **Disclosure.** The UI states what is estimated and that STMG, STI2D and ST2S cannot be told apart.
+- **Plausibility.** BTS and BUT are predilection types for the series; PASS and L.AS never are for bac pro.
+
+A mutation test seeded 5 bugs, and all 5 were caught.
+
 ## Student positioning journey (`#/parcours`)
 
 This feature takes a general-bac student's Terminale specialty doublette, expected mention, home

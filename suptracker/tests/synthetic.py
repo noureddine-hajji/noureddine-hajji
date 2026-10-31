@@ -82,6 +82,26 @@ def _series_mentions(rng: random.Random, c: dict) -> dict:
             "pct_bg_mention": round(100.0 * bg / c["acc_neobac"]) if c["acc_neobac"] else None}
 
 
+def _series_candidates(rng: random.Random, r: dict) -> dict:
+    """Candidates (PP, PC) and proposals by series, consistent like the real exports: admits <=
+    proposals <= candidates for each series, and the series fit inside the formation totals
+    (which stay untouched: a shared concours pool must keep identical totals)."""
+    ser = ("bg", "bt", "bp")
+    acc = {s: r.get(f"acc_{s}", 0) or 0 for s in ser}
+    left = {"pp": r["nb_voe_pp"] - sum(acc.values()), "prop": r["prop_tot"] - sum(acc.values()),
+            "pc": r["nb_voe_pc"]}
+    out = {}
+    for s in ser:                       # every admit was a main-phase candidate who got a proposal
+        extra_pp = rng.randint(0, max(0, left["pp"]) // 3)
+        extra_prop = min(rng.randint(0, max(0, left["prop"]) // 3), acc[s] + extra_pp - acc[s])
+        c_pc = rng.randint(0, max(0, left["pc"]) // 3)
+        out.update({f"nb_voe_pp_{s}": acc[s] + extra_pp, f"nb_voe_pc_{s}": c_pc, f"prop_tot_{s}": acc[s] + extra_prop})
+        left["pp"] -= extra_pp
+        left["prop"] -= extra_prop
+        left["pc"] -= c_pc
+    return out
+
+
 def _timing(rng: random.Random, acc_tot: int) -> dict:
     """Cumulative offer timing, as published: counts and SIES-rounded shares of acc_tot."""
     d = rng.randint(0, acc_tot)
@@ -155,6 +175,7 @@ def _row(rng, year, cod, etab, track, lib_comp="", acc_tot=None, pool=None):
         **_cohort(rng, acc_tot),
     }
     row.update(_series_mentions(rng, row))
+    row.update(_series_candidates(rng, row))
     return row
 
 
@@ -209,6 +230,11 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
             r.update(cohort)
             r.update(_timing(rng, cohort["acc_tot"]))
             r.update(_series_mentions(rng, r))
+            # a fixed cohort can exceed the random row's proposals and candidates: admits never do
+            r["prop_tot"] = max(r["prop_tot"], r["acc_tot"])
+            r["nb_voe_pp"] = max(r["nb_voe_pp"], r["acc_tot"])
+            r["voe_tot"] = max(r["voe_tot"], r["nb_voe_pp"] + r["nb_voe_pc"])
+            r.update(_series_candidates(rng, r))
             r.update({"taux_acces_ens": taux, "capa_fin": cohort["acc_tot"] + 2,
                       "lib_grp1": "Tous les candidats", "ran_grp1": 400, "lib_grp2": None, "ran_grp2": None})
             for i, (lib, ran) in enumerate(groups or [], start=1):

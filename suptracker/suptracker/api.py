@@ -45,9 +45,22 @@ METHODOLOGY = {
         "différents. Diviser prop_tot par voe_tot mélangerait ces phases et compterait des vœux au lieu "
         "de candidats."),
     "part_terminale_generale_en_position_admis_pp": (
-        "Indicateur officiel SIES (part_acces_gen) : la part des candidats de terminale générale en phase "
-        "principale qui étaient en position de recevoir une proposition. Il porte sur la phase "
-        "principale uniquement, pour la même raison que le taux d'accès."),
+        "Indicateur officiel SIES (part_acces_gen) : parmi les candidats de terminale en position de recevoir "
+        "une proposition en phase principale, la part de ceux qui viennent de terminale générale. C'est une "
+        "composition, pas une chance d'accès : avec les parts techno et pro, elle fait 100 % (vérifié sur "
+        "99,9 % des formations 2025). 100 % en CPGE scientifique veut dire que les candidats appelés étaient tous "
+        "en terminale générale, pas que tous les candidats de terminale générale ont été appelés."),
+    "serie_offer": (
+        "SIES ne publie pas de taux d'accès par série du bac. L'accès estimé pour votre série part du taux "
+        "d'accès officiel de la formation (tous candidats) et l'ajuste selon la réussite de votre série : il est "
+        "multiplié par le rapport entre le taux de proposition de votre série (candidats de votre série ayant reçu "
+        "une proposition, toutes phases, rapportés aux candidats de votre série) et celui de l'ensemble des "
+        "candidats, puis plafonné à 100 %. C'est une estimation : elle suppose que l'écart entre séries est le "
+        "même pour l'accès que pour les propositions. Le taux de proposition de votre série et le taux d'accès "
+        "officiel sont affichés à côté. En dessous de 20 candidats de votre série, le taux est jugé fragile. "
+        "SIES ne distingue pas les "
+        "séries technologiques entre elles (STMG, STI2D, ST2S…) ni les spécialités du bac professionnel : "
+        "« bac technologique » les regroupe toutes."),
     "subwish": (
         "Vœu multiple ou concours commun : les sous-vœux partagent un même vivier de candidats. Leurs "
         "effectifs de vœux sont publiés à l'identique pour chaque école et ne doivent jamais être "
@@ -87,7 +100,8 @@ METHODOLOGY = {
         "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
         "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
     "journey_bg": (
-        "Vous êtes en bac général : vous êtes situé parmi les admis du bac général seulement. SIES ne publie pas "
+        "Vous êtes situé parmi les admis de votre série du bac seulement (général, technologique ou "
+        "professionnel). Les explications ci-dessous valent pour chaque série. SIES ne publie pas "
         "la répartition des mentions par série du bac, seulement le nombre d'admis de chaque série ayant une "
         "mention, et la répartition des mentions toutes séries confondues. La part des bacheliers généraux "
         "admis avec votre mention ou moins n'est donc connue qu'à un encadrement près : un encadrement exact, "
@@ -463,12 +477,20 @@ def journey_vocab():
                WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL ORDER BY 1""")]
     return {"specialties": [{"code": k, "label": v, "short": J.SPECIALTY_SHORT[k]} for k, v in J.SPECIALTIES.items()],
             "mentions": [{"code": m, "label": J.MENTION_LABEL[m]} for m in J.MENTIONS[:4]],
+            "series": [{"code": k, "label": v} for k, v in J.SERIES_LABEL.items()],
             "academies": acads, "doublettes": nat, "zone_rules": J.ZONE_RULES, "gate_rules": J.GATE_RULES}
 
 
 @app.get("/api/journey/stage1")
-def journey_stage1(spe1: str, spe2: str, request: Request, bg: BackgroundTasks):
+def journey_stage1(request: Request, bg: BackgroundTasks, spe1: str | None = None, spe2: str | None = None,
+                   serie: str = Query("bg", pattern="^(bg|bt|bp)$")):
     _journey_ready()
+    if serie != "bg":                    # B4: no specialties for bac technologique / professionnel
+        res = J.stage1_series(_con().cursor(), serie)
+        bg.add_task(A.record, "journey", {"stage": "stage1"}, _hdrs(request))
+        return res
+    if not spe1 or not spe2:
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
     if not res["national"] or not res["national"]["candidates"]:
         raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
@@ -477,11 +499,16 @@ def journey_stage1(spe1: str, spe2: str, request: Request, bg: BackgroundTasks):
 
 
 @app.get("/api/journey/stage2")
-def journey_stage2(spe1: str, spe2: str, mention: str, type: str, request: Request, bg: BackgroundTasks,
+def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTasks,
+                   spe1: str | None = None, spe2: str | None = None,
+                   serie: str = Query("bg", pattern="^(bg|bt|bp)$"),
                    academie: str | None = None, sex: str | None = Query(None, pattern="^[FM]$")):
     _journey_ready()
+    if serie == "bg" and (not spe1 or not spe2):
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
+    dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
-        res = J.stage2(_con().cursor(), _dkey(spe1, spe2), mention, type, academie, sex)
+        res = J.stage2(_con().cursor(), dkey, mention, type, academie, sex, serie=serie)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     bg.add_task(A.record, "journey", {"stage": "stage2"}, _hdrs(request))

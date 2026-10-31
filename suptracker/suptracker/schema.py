@@ -96,6 +96,17 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("acc_bg_mention", "BIGINT", stage="admitted", label="Admis bac général avec mention"),
     F("acc_bt_mention", "BIGINT", stage="admitted", label="Admis bac technologique avec mention"),
     F("acc_bp_mention", "BIGINT", stage="admitted", label="Admis bac professionnel avec mention"),
+    # B4: candidates and proposals by bac series (néo-bacheliers). nb_voe_* count candidates of the
+    # formation (one per candidate and formation); prop_tot_* are proposals over all phases
+    F("nb_voe_pp_bg", "BIGINT", stage="candidates", label="Candidats bac général (phase principale)"),
+    F("nb_voe_pp_bt", "BIGINT", stage="candidates", label="Candidats bac technologique (phase principale)"),
+    F("nb_voe_pp_bp", "BIGINT", stage="candidates", label="Candidats bac professionnel (phase principale)"),
+    F("nb_voe_pc_bg", "BIGINT", stage="candidates", label="Candidats bac général (phase complémentaire)"),
+    F("nb_voe_pc_bt", "BIGINT", stage="candidates", label="Candidats bac technologique (phase complémentaire)"),
+    F("nb_voe_pc_bp", "BIGINT", stage="candidates", label="Candidats bac professionnel (phase complémentaire)"),
+    F("prop_tot_bg", "BIGINT", stage="ranked_offered", label="Bac général ayant reçu une proposition"),
+    F("prop_tot_bt", "BIGINT", stage="ranked_offered", label="Bac technologique ayant reçu une proposition"),
+    F("prop_tot_bp", "BIGINT", stage="ranked_offered", label="Bac professionnel ayant reçu une proposition"),
     # offer timing (cumulative): proposal received at the opening of the main phase, before the
     # baccalauréat results, before the end of the main phase
     F("acc_debutpp", "BIGINT", stage="admitted",
@@ -132,11 +143,11 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("taux_acces_ens", "DOUBLE", "taux_acces", stage="indicator",
       label="Taux d'accès (phase principale)"),
     F("part_terminale_generale_en_position_admis_pp", "DOUBLE", "part_acces_gen", stage="indicator",
-      label="Part des terminales générales en position de recevoir une proposition (PP)"),
+      label="Part des terminales générales parmi les candidats en position de recevoir une proposition (PP)"),
     F("part_terminale_techno_en_position_admis_pp", "DOUBLE", "part_acces_tec", stage="indicator",
-      label="Part des terminales technologiques en position de recevoir une proposition (PP)"),
+      label="Part des terminales technologiques parmi les candidats en position de recevoir une proposition (PP)"),
     F("part_terminale_pro_en_position_admis_pp", "DOUBLE", "part_acces_pro", stage="indicator",
-      label="Part des terminales professionnelles en position de recevoir une proposition (PP)"),
+      label="Part des terminales professionnelles parmi les candidats en position de recevoir une proposition (PP)"),
 )
 
 SERIES_FIELDS = ("acc_bg", "acc_bt", "acc_bp")
