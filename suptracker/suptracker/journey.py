@@ -207,8 +207,27 @@ _SPE_PATTERNS = {
 
 SERIES = ("bg", "bt", "bp")
 SERIES_LABEL = {"bg": "bac général", "bt": "bac technologique", "bp": "bac professionnel"}
-# official SIES access rate of the series' terminales in the main phase (B4: never recomputed)
-SERIES_ACCESS = {"bt": "part_terminale_techno_en_position_admis_pp", "bp": "part_terminale_pro_en_position_admis_pp"}
+# B4: SIES publishes no access rate by series (part_terminale_* is a composition: the three add up to
+# 100 %). The series indicator is the proposal rate of the series, from official counts: candidates
+# of the series who received a proposal (all phases) / candidates of the series (main + complementary).
+MIN_SERIES_CANDIDATES = 20   # below this, the series rate of a formation is flagged as fragile
+
+
+def series_rate_sql(serie: str, alias: str = "fy") -> str:
+    return (f"100.0 * {alias}.prop_tot_{serie} / nullif({alias}.nb_voe_pp_{serie} + coalesce({alias}.nb_voe_pc_{serie}, 0), 0)")
+
+
+def series_candidates_sql(serie: str, alias: str = "fy") -> str:
+    return f"({alias}.nb_voe_pp_{serie} + coalesce({alias}.nb_voe_pc_{serie}, 0))"
+
+
+def series_access_sql(serie: str, alias: str = "fy") -> str:
+    """Estimated access rate for the series: the official taux d'accès scaled by how the series'
+    proposal rate compares with all candidates' (same formation, same campaign), capped at 100.
+    The proposal rate itself is not comparable with the zone thresholds, which are set on the
+    taux d'accès: it counts proposals actually sent, fewer than candidates in a position to get one."""
+    all_rate = f"1.0 * {alias}.prop_tot / nullif({alias}.nb_voe_pp + coalesce({alias}.nb_voe_pc, 0), 0)"
+    return f"least(100.0, {alias}.taux_acces_ens * ({series_rate_sql(serie, alias)} / 100.0) / nullif({all_rate}, 0))"
 
 
 def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None,
@@ -265,18 +284,21 @@ def _group_applies_other(s: str, sex: str | None, serie: str) -> bool | None:
     name the series only ('Bacheliers technologiques toutes series'), never STMG, STI2D, etc."""
     mine = r"technologique" if serie == "bt" else r"professionnel"
     other = r"professionnel" if serie == "bt" else r"technologique"
-    if re.search(rf"sauf les bac\w* {mine}", s):
-        return False
-    if re.search(rf"sauf les bac\w* {other}", s):
-        return True
+    if "sauf" in s:                       # "... sauf les Bac technologiques et Bac professionnels"
+        excluded = s.split("sauf", 1)[1]
+        if re.search(mine, excluded):
+            return False
+        if re.search(other, excluded):
+            return True
     if re.search(rf"^bacheliers? {mine}|^bac {mine}", s):
         return True
     if re.search(rf"^bacheliers? {other}|^bac {other}", s):
         return False
     if re.search(r"^bacheliers generaux|^bac general|serie generale|specialit", s):
         return False                      # bac-général groups, incl. specialty-split ones
-    if serie == "bt" and re.search(r"^sti2d$|^st2s$|^stmg$", s):
-        return None                       # a single techno series: depends on the student's series
+    if re.search(r"^sti2d$|^st2s$|^stmg$|^std2a$|^stl$|^sthr$|^stav$|^s2tmd$", s):
+        # a single techno series: depends on which one the student has (SIES does not say)
+        return None if serie == "bt" else False
     if re.search(r"voie d acces cep|cep$", s):
         return False
     # "voie d'accès générale" is the ordinary admission route (vs CEP), not the bac général
@@ -584,7 +606,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
         raise ValueError(f"mention must be one of {MENTIONS[:4]}")
     if serie not in SERIES:
         raise ValueError(f"serie must be one of {SERIES}")
-    taux_col = "taux_acces_ens" if serie == "bg" else SERIES_ACCESS[serie]
+    taux = (lambda a: f"{a}.taux_acces_ens") if serie == "bg" else (lambda a: series_access_sql(serie, a))
+    n_cand = "NULL" if serie == "bg" else series_candidates_sql(serie, "t")
     upto = MENTIONS[: MENTIONS.index(mention) + 1]
     known = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in MENTIONS)
     cum = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in upto)
@@ -606,21 +629,22 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
              -- A3: the margins of the mention x series table, campaign by campaign
              list({bg_struct} ORDER BY fy.session) AS bg_margins,
              count(*) AS years,
-             list({{'session': fy.session, 'taux_acces_ens': fy.{taux_col},
+             list({{'session': fy.session, 'taux_acces_ens': {taux("fy")},
                    'cdf': ({cum}) / nullif({known}, 0), 'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
       FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)
       WHERE l.lineage_id IN (SELECT lineage_id FROM target) GROUP BY 1)
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
-           t.select_form, t.{taux_col}, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
-           t.taux_acces_ens AS taux_all, t.acc_{serie} AS s_latest,
+           t.select_form, {taux("t")} AS taux, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
+           t.taux_acces_ens AS taux_all, t.acc_{serie} AS s_latest, {n_cand} AS s_candidates,
+           {"NULL" if serie == "bg" else series_rate_sql(serie, "t")} AS s_rate,
            t.lib_grp1, t.ran_grp1, t.lib_grp2, t.ran_grp2, t.lib_grp3, t.ran_grp3, t.subwish_flag,
            t.internat, t.distance, t.apprentissage,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
-    ORDER BY t.{taux_col} NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
+    ORDER BY taux NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",
-            "taux_acces_all", "acc_serie_latest",
+            "taux_acces_all", "acc_serie_latest", "serie_candidates", "serie_proposal_rate",
             "lib_grp1", "ran_grp1", "lib_grp2", "ran_grp2", "lib_grp3", "ran_grp3", "subwish_flag",
             "internat", "distance", "apprentissage",
             "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend", "bg_margins", "s_sum"]
@@ -638,8 +662,13 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
         eligible = open_to_series(x, spe, serie)
         pct_bg = (x["bg"] / x["neobac"]) if x["neobac"] else None
         pct_serie = (x["s_sum"] / x["neobac"]) if x["neobac"] else None
-        if eligible is not False and pct_serie is not None and pct_serie < MIN_GENERAL_SHARE:
-            eligible = False   # e.g. CPGE ECT for bac général: ~0 % of admits from the series
+        # bac général: a formation with ~0 % bac-général admits is closed in practice (CPGE ECT is
+        # reserved to bac techno by regulation). Not for techno / pro students: a licence de droit
+        # with 3 % of bac techno admits is open to them; it is flagged rare, and its estimated access
+        # and the mention position say how it stands.
+        if (serie == "bg" and eligible is not False and pct_serie is not None
+                and pct_serie < MIN_GENERAL_SHARE):
+            eligible = False
         x.update({
             "open_to_general": eligible, "open_to_serie": eligible, "serie": serie,
             "cdf": cdf, "cdf_ci": [lo, hi], "exact_share": (x["k_exact"] / n) if n else None,
@@ -654,15 +683,20 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "non_selective": x["select_form"] == "formation non sélective",
             **(classify_zone(x["taux_acces_ens"], cdf_zone, lo_zone, hi_zone) if eligible is not False
                else {"zone": "non_ouvert", "uncertain": False}),
+            "rate_fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES,
+            "rare_for_serie": serie != "bg" and pct_serie is not None and pct_serie < MIN_GENERAL_SHARE,
             "group": student_group(x, spe, sex, serie),
         })
         x.pop("s_sum")
+        if x["rate_fragile"] and x["zone"] != "non_ouvert":
+            # 2 techno candidates, 2 proposals = "100 %": a handful of candidates cannot set a zone
+            x["zone"], x["uncertain"] = "indetermine", True
         for g in (1, 2, 3):
             x.pop(f"lib_grp{g}"), x.pop(f"ran_grp{g}")
         out.append(x)
     return {"doublette": dkey if serie == "bg" else None, "serie": serie, "mention": mention,
             "type_key": type_key_, "session": latest, "zone_rules": ZONE_RULES,
-            "access_field": taux_col, "formations": out}
+            "rate": "taux_acces_ens" if serie == "bg" else "estimated_series_access", "formations": out}
 
 
 def stage1_series(con, serie: str) -> dict:
@@ -670,13 +704,14 @@ def stage1_series(con, serie: str) -> dict:
     the series. SIES has no specialty-style table for these series, and summing per-formation
     candidates across formations would count vœux, not people; so everything here counts admits
     (each néo-bachelier accepts one formation) and the series' official access rate per formation."""
-    if serie not in SERIES_ACCESS:
-        raise ValueError(f"serie must be one of {tuple(SERIES_ACCESS)}")
+    if serie not in ("bt", "bp"):
+        raise ValueError("serie must be 'bt' or 'bp'")
     acc = f"acc_{serie}"
     rows = con.execute(f"""
     WITH linked AS (
       SELECT r.spe_type_key AS type_key, fy.session, fy.{acc} AS a_s, fy.acc_neobac AS a_all,
-             fy.{SERIES_ACCESS[serie]} AS access, fy.cod_aff_form
+             CASE WHEN {series_candidates_sql(serie)} >= {MIN_SERIES_CANDIDATES} THEN {series_access_sql(serie)} END AS access,
+             fy.cod_aff_form
       FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
       JOIN core.formation_year fy USING (session, cod_aff_form)),
     nat AS (SELECT sum({acc}) AS nat_s, sum(acc_neobac) AS nat_all, count(DISTINCT session) AS years

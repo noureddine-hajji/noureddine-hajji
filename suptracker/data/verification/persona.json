@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31T21:33:02+00:00",
+  "generated_at": "2026-10-31T21:46:24+00:00",
   "persona": {
     "doublette": "MATHS+SES",
     "mention": "ab"
@@ -69,8 +69,8 @@
       "check": "taxonomy: MPSI and PCSI belong to the filtered CPGE S type",
       "ok": true,
       "detail": {
-        "PCSI": 549,
-        "MPSI": 498
+        "MPSI": 498,
+        "PCSI": 549
       }
     },
     {

@@ -400,7 +400,7 @@ const ZONES = {
   ambitieux: { label: "Vœu ambitieux", color: "var(--c2)" },
   hors_profil: { label: "Hors-profil statistique", color: "var(--c6)" },
   indetermine: { label: "Indéterminé", color: "var(--line)" },
-  non_ouvert: { label: "Non ouvert au bac général (ou < 5 % d'admis bac G)", color: "var(--line)" },
+  non_ouvert: { label: "Non ouvert à votre série", color: "var(--line)" },
 };
 const GATES = {
   predilection: { label: "Filière de prédilection", color: "var(--c3)" },
@@ -413,9 +413,11 @@ let JV = null;
 function profileForm(p) {
   const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
+  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
   return `<form id="pf" class="toolbar">
-    <label>Spécialité 1 <select name="spe1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select></label>
-    <label>Spécialité 2 <select name="spe2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></label>
+    <label>Bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>
+    ${serie === "bg" ? `<label>Spécialité 1 <select name="spe1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select></label>
+    <label>Spécialité 2 <select name="spe2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></label>` : ""}
     <label>Mention visée <select name="mention">${opt(JV.mentions, p.mention)}</select></label>
     <label>Académie <select name="academie"><option value="">—</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>
     <label><input type="checkbox" name="boursier" ${p.boursier ? "checked" : ""}> Boursier</label>
@@ -436,15 +438,31 @@ function stage1Matrix(s1, show, all) {
   ${kept.length > 15 ? `<button id="allf">${all ? "Réduire" : `Afficher les ${kept.length} filières`}</button>` : ""}`;
 }
 
-// A3: position among bac-général admits when it can be bounded, else among all néo-bacheliers
-const pos = (f) => (f.bg ? f.bg.cdf_used : f.cdf);
+function stage1SeriesMatrix(s1, show, all) {
+  const kept = s1.filieres.filter((f) => show.has(f.gate));
+  const rows = all ? kept : kept.slice(0, 15);
+  const max = Math.max(0.01, ...rows.map((f) => f.destination_share || 0));
+  const sl = SERIE_SHORT[s1.serie];
+  return `<div class="legend">${Object.entries(GATES).map(([k, g]) => `<label style="cursor:pointer"><input type="checkbox" data-gate="${k}" ${show.has(k) ? "checked" : ""}> <i style="background:${g.color}"></i>${g.label} (${s1.filieres.filter((f) => f.gate === k).length})</label>`).join("")}</div>
+  <div class="scroll"><table><tr><th>Filière</th><th>Où vont les ${sl} admis</th><th class="num">Part des ${sl} parmi les admis</th><th class="num">Indice</th><th class="num">Accès estimé ${sl} (médiane) ${tip("serie_offer")}</th><th></th></tr>
+  ${rows.map((f) => `<tr><td><span class="badge" style="border-color:${GATES[f.gate].color};color:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.accepted)} ${sl} admis · ${f.years} an(s)</div></td>
+    <td style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
+    <td class="num">${pc1(f.share)}</td><td class="num">×${fmt(f.lift, 2)}</td><td class="num"><strong>${f.access_median != null ? `${fmt(f.access_median)} %` : "—"}</strong></td>
+    <td>${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : ""}</td></tr>`).join("")}
+  </table></div>
+  ${kept.length > 15 ? `<button id="allf">${all ? "Réduire" : `Afficher les ${kept.length} filières`}</button>` : ""}`;
+}
+
+// A3 / B4: position among admits of the student's series when it can be bounded, else all néo-bacheliers
+const SERIE_SHORT = { bg: "bacs généraux", bt: "bacs technos", bp: "bacs pros" };
+const pos = (f) => (f.spos ? f.spos.cdf_used : f.cdf);
 function bgCell(f) {
-  if (!f.bg) {
+  if (!f.spos) {
     return `${pc1(f.cdf)}<div class="muted small">tous bacs · [${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}] · n=${fmt(f.n_known)}</div>`;
   }
-  const b = f.bg, exact = b.width < 0.005;
+  const b = f.spos, exact = b.width < 0.005;
   return `<strong>${exact ? pc1(b.bounds[0]) : `${pc1(b.bounds[0])} – ${pc1(b.bounds[1])}`}</strong>
-    <div class="muted small" title="${exact ? "Valeur exacte" : "Encadrement exact : toute répartition compatible avec les chiffres publiés tombe dans cet intervalle"} ; marge d'échantillonnage ${pc1(b.ci[0])} – ${pc1(b.ci[1])}${Math.abs((f.cdf ?? 0) - b.cdf_used) >= 0.005 ? ` ; tous bacs confondus : ${pc1(f.cdf)}` : ""}">marge ${fmt(100 * b.ci[0], 0)}–${fmt(100 * b.ci[1], 0)} % · ${fmt(b.n)} bac G</div>`;
+    <div class="muted small" title="${exact ? "Valeur exacte" : "Encadrement exact : toute répartition compatible avec les chiffres publiés tombe dans cet intervalle"} ; marge d'échantillonnage ${pc1(b.ci[0])} – ${pc1(b.ci[1])}${Math.abs((f.cdf ?? 0) - b.cdf_used) >= 0.005 ? ` ; tous bacs confondus : ${pc1(f.cdf)}` : ""}">marge ${fmt(100 * b.ci[0], 0)}–${fmt(100 * b.ci[1], 0)} % · ${fmt(b.n)} ${{ bg: "bac G", bt: "bac techno", bp: "bac pro" }[f.serie || "bg"]}</div>`;
 }
 
 function scatter(F, onPick) {
@@ -460,13 +478,14 @@ function scatter(F, onPick) {
     g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(k / 4)}" y2="${y(k / 4)}"/><text x="${L - 6}" y="${y(k / 4) + 4}" text-anchor="end">${k * 25} %</text>`;
     g += `<text x="${x(k * 25)}" y="${H - B + 16}" text-anchor="middle">${k * 25}</text>`;
   }
-  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">Taux d'accès officiel (phase principale, %)</text>`;
-  g += `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">Part des admis bac général avec votre mention ou moins</text>`;
+  const se = (F[0] && F[0].serie) || "bg";
+  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">${se === "bg" ? "Taux d'accès officiel (phase principale, %)" : `Accès estimé pour les ${SERIE_SHORT[se]} (%)`}</text>`;
+  g += `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">Part des ${SERIE_SHORT[se]} admis avec votre mention ou moins</text>`;
   F.forEach((f, i) => {
     if (f.taux_acces_ens == null || pos(f) == null) return;
     const c = ZONES[f.zone].color, hollow = f.uncertain || f.small_cohort;
-    if (f.bg && f.bg.width >= 0.01) g += `<line x1="${x(f.taux_acces_ens)}" x2="${x(f.taux_acces_ens)}" y1="${y(f.bg.bounds[0])}" y2="${y(f.bg.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
-    g += `<circle data-i="${i}" cx="${x(f.taux_acces_ens)}" cy="${y(pos(f))}" r="${f.home_academie ? 6 : 4.5}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.bg ? `${pc1(f.bg.bounds[0])}–${pc1(f.bg.bounds[1])} des bacs généraux` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></circle>`;
+    if (f.spos && f.spos.width >= 0.01) g += `<line x1="${x(f.taux_acces_ens)}" x2="${x(f.taux_acces_ens)}" y1="${y(f.spos.bounds[0])}" y2="${y(f.spos.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
+    g += `<circle data-i="${i}" cx="${x(f.taux_acces_ens)}" cy="${y(pos(f))}" r="${f.home_academie ? 6 : 4.5}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></circle>`;
   });
   setTimeout(() => document.querySelectorAll("svg.positioning circle[data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
   return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img">${g}</svg>`;
@@ -512,9 +531,11 @@ async function viewParcours() {
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
   const show = new Set(store.get("gates", ["predilection", "accessible"]));
   const allF = store.get("allFilieres", false);
-  const s1 = p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?spe1=${p.spe1}&spe2=${p.spe2}`) : null;
+  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
+  const sq = serie === "bg" ? `spe1=${encodeURIComponent(p.spe1)}&spe2=${encodeURIComponent(p.spe2)}` : `serie=${encodeURIComponent(serie)}`;
+  const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
   const drill = store.get("drill", null);
-  const s2 = s1 && drill ? await api(`/api/journey/stage2?spe1=${p.spe1}&spe2=${p.spe2}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
+  const s2 = s1 && drill ? await api(`/api/journey/stage2?${sq}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
   const W = store.get("wishlist", []);
   const onlyHome = !!p.academie && store.get("onlyHome", false);   // never filter without an académie
   const F = s2 ? s2.formations.filter((f) => f.zone !== "non_ouvert" && (!onlyHome || f.home_academie)) : [];
@@ -522,18 +543,20 @@ async function viewParcours() {
   const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
   $view.innerHTML = `
   <div class="card"><h2>1 · Mon profil</h2>${profileForm(p)}
-    ${s1 ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>` : `<div class="warn">Choisissez deux spécialités distinctes.</div>`}</div>
-  ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent votre doublette ${tip("journey_stage1")} ${tip("journey_gate")}</h2>${stage1Matrix(s1, show, allF)}</div>` : ""}
+    ${!s1 ? `<div class="warn">Choisissez deux spécialités distinctes.</div>` : serie === "bg"
+      ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
+      : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>`}</div>
+  ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
-    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les admis du bac général ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 admis en bac général${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'épingler.${closed ? ` ${closed} formation(s) fermées aux bacheliers généraux, par leurs groupes d'appel ou parce qu'ils représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT), sont exclues.` : ""}</p>
+    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'épingler.${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
     <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}</div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
     ${scatter(F, (f) => pin(f))}
-    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">Taux d'accès</th><th class="num">Bacs généraux admis avec votre mention ou moins ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">Bac général</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th><th>Évolution</th><th></th></tr>
+    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis avec votre mention ou moins ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th><th>Évolution</th><th></th></tr>
     ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, 80).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
-      <td><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ' <span class="badge warnb">n&lt;10 bac G</span>' : ""}${f.limited_comparability && !f.bg ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
-      <td class="num">${fmt(f.taux_acces_ens)} %</td><td class="num">${bgCell(f)}</td>
-      <td class="num">${pc1(f.exact_share)}</td><td class="num">${pc1(f.pct_bg)}</td><td class="num">${pc1(f.pct_boursiers)}</td>
+      <td><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
+      <td class="num">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">estim. · tous ${fmt(f.taux_acces_all)} %</div>` : ""}</td><td class="num">${bgCell(f)}</td>
+      <td class="num">${pc1(f.exact_share)}</td><td class="num">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num">${pc1(f.pct_boursiers)}</td>
       <td class="small">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
       <td>${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
       <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button></td></tr>`).join("")}
@@ -550,11 +573,14 @@ async function viewParcours() {
     }
     viewParcours();
   }
+  const ser = document.querySelector('#pf [name="serie"]');
+  if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
   document.getElementById("pf").onsubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const np = { spe1: fd.get("spe1"), spe2: fd.get("spe2"), mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier") };
-    if (np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
+    const np = { serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
+      mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier") };
+    if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
     if (!np.academie) store.set("onlyHome", false);
     store.set("profile", np); viewParcours();
   };
