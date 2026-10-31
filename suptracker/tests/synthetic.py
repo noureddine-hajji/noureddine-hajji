@@ -82,6 +82,22 @@ def _series_mentions(rng: random.Random, c: dict) -> dict:
             "pct_bg_mention": round(100.0 * bg / c["acc_neobac"]) if c["acc_neobac"] else None}
 
 
+def _series_candidates(rng: random.Random, r: dict) -> dict:
+    """Candidates (PP, PC) and proposals by series, inside the formation totals; a series with
+    admits always has candidates and proposals at least as large."""
+    out = {}
+    pp, pc, prop = r["nb_voe_pp"], r["nb_voe_pc"], r["prop_tot"]
+    left_pp, left_pc, left_prop = pp, pc, prop
+    for s in ("bg", "bt", "bp"):
+        a = r.get(f"acc_{s}", 0) or 0
+        c_pp = min(left_pp, max(a, rng.randint(0, max(a, left_pp // 2))))
+        c_pc = min(left_pc, rng.randint(0, left_pc // 3))
+        pr = min(left_prop, c_pp + c_pc, max(a, rng.randint(a, max(a, (c_pp + c_pc) // 2))))
+        out.update({f"nb_voe_pp_{s}": c_pp, f"nb_voe_pc_{s}": c_pc, f"prop_tot_{s}": pr})
+        left_pp, left_pc, left_prop = left_pp - c_pp, left_pc - c_pc, left_prop - pr
+    return out
+
+
 def _timing(rng: random.Random, acc_tot: int) -> dict:
     """Cumulative offer timing, as published: counts and SIES-rounded shares of acc_tot."""
     d = rng.randint(0, acc_tot)
@@ -155,6 +171,7 @@ def _row(rng, year, cod, etab, track, lib_comp="", acc_tot=None, pool=None):
         **_cohort(rng, acc_tot),
     }
     row.update(_series_mentions(rng, row))
+    row.update(_series_candidates(rng, row))
     return row
 
 
@@ -209,6 +226,7 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
             r.update(cohort)
             r.update(_timing(rng, cohort["acc_tot"]))
             r.update(_series_mentions(rng, r))
+            r.update(_series_candidates(rng, r))
             r.update({"taux_acces_ens": taux, "capa_fin": cohort["acc_tot"] + 2,
                       "lib_grp1": "Tous les candidats", "ran_grp1": 400, "lib_grp2": None, "ran_grp2": None})
             for i, (lib, ran) in enumerate(groups or [], start=1):

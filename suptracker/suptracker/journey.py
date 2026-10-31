@@ -205,7 +205,14 @@ _SPE_PATTERNS = {
 }
 
 
-def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None) -> bool | None:
+SERIES = ("bg", "bt", "bp")
+SERIES_LABEL = {"bg": "bac général", "bt": "bac technologique", "bp": "bac professionnel"}
+# official SIES access rate of the series' terminales in the main phase (B4: never recomputed)
+SERIES_ACCESS = {"bt": "part_terminale_techno_en_position_admis_pp", "bp": "part_terminale_pro_en_position_admis_pp"}
+
+
+def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None,
+                  serie: str = "bg") -> bool | None:
     """Does a Parcoursup calling group (lib_grp*) apply to a *bac général* student?
 
     True / False when the label decides it, None when it depends on information we do
@@ -217,6 +224,8 @@ def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | Non
     if not label:
         return None
     s = _fold(label)
+    if serie != "bg":
+        return _group_applies_other(s, sex, serie)
     named = {c for c, p in _SPE_PATTERNS.items() if re.search(p, label.lower())}
     if "specialit" in s and (named or "non scientifique" in s or "scientifique" in s):
         if spe is None:
@@ -251,6 +260,47 @@ def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | Non
     return None
 
 
+def _group_applies_other(s: str, sex: str | None, serie: str) -> bool | None:
+    """Same question for a bac technologique ('bt') or professionnel ('bp') student. SIES labels
+    name the series only ('Bacheliers technologiques toutes series'), never STMG, STI2D, etc."""
+    mine = r"technologique" if serie == "bt" else r"professionnel"
+    other = r"professionnel" if serie == "bt" else r"technologique"
+    if re.search(rf"sauf les bac\w* {mine}", s):
+        return False
+    if re.search(rf"sauf les bac\w* {other}", s):
+        return True
+    if re.search(rf"^bacheliers? {mine}|^bac {mine}", s):
+        return True
+    if re.search(rf"^bacheliers? {other}|^bac {other}", s):
+        return False
+    if re.search(r"^bacheliers generaux|^bac general|serie generale|specialit", s):
+        return False                      # bac-général groups, incl. specialty-split ones
+    if serie == "bt" and re.search(r"^sti2d$|^st2s$|^stmg$", s):
+        return None                       # a single techno series: depends on the student's series
+    if re.search(r"voie d acces cep|cep$", s):
+        return False
+    # "voie d'accès générale" is the ordinary admission route (vs CEP), not the bac général
+    if re.search(r"^tous les candidats|groupe par defaut|voie d acces generale", s):
+        return True
+    if re.search(r"^toutes les filles$", s):
+        return None if sex is None else sex == "F"
+    if re.search(r"^tous les garcons$", s):
+        return None if sex is None else sex == "M"
+    return None                           # incl. "Autres candidats": the residual group
+
+
+def open_to_series(row: dict, spe: tuple[str, str] | None, serie: str = "bg") -> bool | None:
+    """open_to_general for any series."""
+    verdicts = [group_applies(row.get(f"lib_grp{i}"), spe, serie=serie) for i in (1, 2, 3) if row.get(f"lib_grp{i}")]
+    if not verdicts:
+        return None
+    if any(v is True for v in verdicts):
+        return True
+    if all(v is False for v in verdicts):
+        return False
+    return None
+
+
 def open_to_general(row: dict, spe: tuple[str, str] | None) -> bool | None:
     """False when every published calling group excludes bac général (e.g. CPGE ECT, which
     only ranks bacheliers technologiques); None when the groups do not decide it."""
@@ -264,12 +314,13 @@ def open_to_general(row: dict, spe: tuple[str, str] | None) -> bool | None:
     return None
 
 
-def student_group(row: dict, spe: tuple[str, str] | None, sex: str | None = None) -> dict | None:
-    """Pick the calling group a bac-général student falls in, with its last-called rank."""
+def student_group(row: dict, spe: tuple[str, str] | None, sex: str | None = None,
+                  serie: str = "bg") -> dict | None:
+    """Pick the calling group the student falls in, with its last-called rank."""
     groups = [(i, row.get(f"lib_grp{i}"), row.get(f"ran_grp{i}")) for i in (1, 2, 3) if row.get(f"lib_grp{i}")]
     if not groups:
         return None
-    verdicts = [(i, lib, ran, group_applies(lib, spe, sex)) for i, lib, ran in groups]
+    verdicts = [(i, lib, ran, group_applies(lib, spe, sex, serie)) for i, lib, ran in groups]
     hits = [v for v in verdicts if v[3] is True]
     if not hits:  # "Autres candidats" is the residual group when no explicit group fits
         hits = [v for v in verdicts if v[3] is None and _fold(v[1]) == "autres candidats"]
@@ -305,6 +356,10 @@ BG_KEYS = ("acc_bg", "acc_bt", "acc_bp", "acc_bg_mention", "acc_bt_mention", "ac
 
 
 def bg_cdf_bounds(mention: str, c: dict) -> tuple[int, int] | None:
+    return series_cdf_bounds("bg", mention, c)
+
+
+def series_cdf_bounds(serie: str, mention: str, c: dict) -> tuple[int, int] | None:
     """Sharp bounds on K = number of bac-général admits whose mention is <= `mention`.
 
     SIES publishes the mention ladder for all néo-bacheliers (acc_sansmention ... acc_tbf, plus
@@ -324,14 +379,15 @@ def bg_cdf_bounds(mention: str, c: dict) -> tuple[int, int] | None:
     """
     if any(c.get(k) is None for k in BG_KEYS) or mention not in MENTIONS:
         return None
-    g, gm = c["acc_bg"], c["acc_bg_mention"]
+    others = [x for x in SERIES if x != serie]
+    g, gm = c[f"acc_{serie}"], c[f"acc_{serie}_mention"]
     if not g or gm > g:
         return None
-    p, om, u = g - gm, c["acc_bt_mention"] + c["acc_bp_mention"], c["acc_mention_non_renseignee"]
+    p, om, u = g - gm, sum(c[f"acc_{x}_mention"] for x in others), c["acc_mention_non_renseignee"]
     ladder = MENTIONS[1:]                        # ab, b, tb, tbf
     # a table exists only if both halves of the margins agree: admits holding a mention, and
     # admits without one (sans mention or not reported) across bac général and the other series
-    no_mention_other = c["acc_bt"] + c["acc_bp"] - om
+    no_mention_other = sum(c[f"acc_{x}"] for x in others) - om
     if (gm + om != sum(c[f"acc_{m}"] for m in ladder) or no_mention_other < 0
             or p + no_mention_other != c["acc_sansmention"] + u):
         return None                              # the margins contradict each other upstream
@@ -349,6 +405,10 @@ MIN_BG_FOR_BOUNDS = 10    # below this many bac-général admits (pooled), keep 
 
 
 def bg_position(mention: str, margins: list[dict], cdf_all: float | None) -> dict | None:
+    return series_position("bg", mention, margins, cdf_all)
+
+
+def series_position(serie: str, mention: str, margins: list[dict], cdf_all: float | None) -> dict | None:
     """Where a bac-général student's mention sits among bac-général admits (A3).
 
     `margins`: one dict of BG_KEYS counts per campaign of the lineage.
@@ -363,10 +423,10 @@ def bg_position(mention: str, margins: list[dict], cdf_all: float | None) -> dic
     k_lo = k_hi = g = 0
     used = 0
     for camp in margins:
-        b = bg_cdf_bounds(mention, camp)
+        b = series_cdf_bounds(serie, mention, camp)
         if b is None:
             continue
-        k_lo, k_hi, g, used = k_lo + b[0], k_hi + b[1], g + camp["acc_bg"], used + 1
+        k_lo, k_hi, g, used = k_lo + b[0], k_hi + b[1], g + camp[f"acc_{serie}"], used + 1
     if g < MIN_BG_FOR_BOUNDS:
         return None
     lo, hi = k_lo / g, k_hi / g
@@ -516,14 +576,19 @@ def stage1(con, dkey: str) -> dict:
 
 
 # --------------------------------------------------------------------------- stage 2
-def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = None,
-           sex: str | None = None, limit: int = 4000) -> dict:
+def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | None = None,
+           sex: str | None = None, limit: int = 4000, serie: str = "bg") -> dict:
+    """Formations of one type for a student. serie='bg' (doublette `dkey` used for calling groups)
+    or 'bt' / 'bp' (B4: the series' official access rate, groups and mention position)."""
     if mention not in MENTIONS[:4]:
         raise ValueError(f"mention must be one of {MENTIONS[:4]}")
+    if serie not in SERIES:
+        raise ValueError(f"serie must be one of {SERIES}")
+    taux_col = "taux_acces_ens" if serie == "bg" else SERIES_ACCESS[serie]
     upto = MENTIONS[: MENTIONS.index(mention) + 1]
     known = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in MENTIONS)
     cum = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in upto)
-    spe = tuple(dkey.split("+")) if dkey else None
+    spe = tuple(dkey.split("+")) if dkey and serie == "bg" else None
     bg_struct = "{" + ", ".join(f"'{k}': fy.{k}" for k in BG_KEYS) + "}"
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     rows = con.execute(f"""
@@ -537,58 +602,113 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
       SELECT l.lineage_id,
              sum({known}) AS n_known, sum({cum}) AS k_cum, sum(coalesce(fy.acc_{mention}, 0)) AS k_exact,
              sum(fy.acc_neobac) AS neobac, sum(fy.acc_bg) AS bg, sum(fy.acc_brs) AS brs,
+             sum(fy.acc_{serie}) AS s_sum,
              -- A3: the margins of the mention x series table, campaign by campaign
              list({bg_struct} ORDER BY fy.session) AS bg_margins,
              count(*) AS years,
-             list({{'session': fy.session, 'taux_acces_ens': fy.taux_acces_ens,
+             list({{'session': fy.session, 'taux_acces_ens': fy.{taux_col},
                    'cdf': ({cum}) / nullif({known}, 0), 'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
       FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)
       WHERE l.lineage_id IN (SELECT lineage_id FROM target) GROUP BY 1)
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
-           t.select_form, t.taux_acces_ens, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
+           t.select_form, t.{taux_col}, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
+           t.taux_acces_ens AS taux_all, t.acc_{serie} AS s_latest,
            t.lib_grp1, t.ran_grp1, t.lib_grp2, t.ran_grp2, t.lib_grp3, t.ran_grp3, t.subwish_flag,
            t.internat, t.distance, t.apprentissage,
-           h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins
+           h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
-    ORDER BY t.taux_acces_ens NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
+    ORDER BY t.{taux_col} NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",
+            "taux_acces_all", "acc_serie_latest",
             "lib_grp1", "ran_grp1", "lib_grp2", "ran_grp2", "lib_grp3", "ran_grp3", "subwish_flag",
             "internat", "distance", "apprentissage",
-            "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend", "bg_margins"]
+            "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend", "bg_margins", "s_sum"]
     out = []
     for r in rows:
         x = dict(zip(cols, r))
         n, k = x["n_known"] or 0, x["k_cum"] or 0
         cdf = k / n if n else None
         lo, hi = wilson(k, n)
-        bg = bg_position(mention, x.pop("bg_margins") or [], cdf)
-        if bg:                                   # A3: the bac-général view replaces the all-series one
-            cdf_zone, lo_zone, hi_zone = bg["cdf_used"], bg["ci"][0], bg["ci"][1]
+        spos = series_position(serie, mention, x.pop("bg_margins") or [], cdf)
+        if spos:                                 # A3/B4: the student's series replaces the all-series view
+            cdf_zone, lo_zone, hi_zone = spos["cdf_used"], spos["ci"][0], spos["ci"][1]
         else:
             cdf_zone, lo_zone, hi_zone = cdf, lo, hi
-        eligible = open_to_general(x, spe)
+        eligible = open_to_series(x, spe, serie)
         pct_bg = (x["bg"] / x["neobac"]) if x["neobac"] else None
-        if eligible is not False and pct_bg is not None and pct_bg < MIN_GENERAL_SHARE:
-            eligible = False   # e.g. CPGE ECT: groups say "Tous les candidats", admits are ~0 % bac général
+        pct_serie = (x["s_sum"] / x["neobac"]) if x["neobac"] else None
+        if eligible is not False and pct_serie is not None and pct_serie < MIN_GENERAL_SHARE:
+            eligible = False   # e.g. CPGE ECT for bac général: ~0 % of admits from the series
         x.update({
-            "open_to_general": eligible,
+            "open_to_general": eligible, "open_to_serie": eligible, "serie": serie,
             "cdf": cdf, "cdf_ci": [lo, hi], "exact_share": (x["k_exact"] / n) if n else None,
-            "bg": bg,
-            "pct_bg": pct_bg,
+            "bg": spos if serie == "bg" else None, "spos": spos,
+            "pct_bg": pct_bg, "pct_serie": pct_serie,
             "pct_boursiers": (x["brs"] / x["neobac"]) if x["neobac"] else None,
-            "small_cohort": (x["acc_bg_latest"] or 0) < 10,
-            # mentions are published for all néo-bacheliers, not by series: flag cohorts that are
-            # mostly technological/professional, where the CDF says little about bac général peers
-            "limited_comparability": x["neobac"] and (x["bg"] or 0) / x["neobac"] < 0.5,
+            "small_cohort": (x["acc_serie_latest"] or 0) < 10,
+            # mentions are published for all néo-bacheliers, not by series: flag cohorts mostly made
+            # of other series, where the all-series CDF says little about the student's peers
+            "limited_comparability": bool(x["neobac"]) and (pct_serie or 0) < 0.5,
             "home_academie": bool(academie) and x["academie"] == academie,
             "non_selective": x["select_form"] == "formation non sélective",
             **(classify_zone(x["taux_acces_ens"], cdf_zone, lo_zone, hi_zone) if eligible is not False
                else {"zone": "non_ouvert", "uncertain": False}),
-            "group": student_group(x, spe, sex),
+            "group": student_group(x, spe, sex, serie),
         })
+        x.pop("s_sum")
         for g in (1, 2, 3):
             x.pop(f"lib_grp{g}"), x.pop(f"ran_grp{g}")
         out.append(x)
-    return {"doublette": dkey, "mention": mention, "type_key": type_key_, "session": latest,
-            "zone_rules": ZONE_RULES, "formations": out}
+    return {"doublette": dkey if serie == "bg" else None, "serie": serie, "mention": mention,
+            "type_key": type_key_, "session": latest, "zone_rules": ZONE_RULES,
+            "access_field": taux_col, "formations": out}
+
+
+def stage1_series(con, serie: str) -> dict:
+    """B4 stage 1 for a bac technologique / professionnel student: which formation types recruit
+    the series. SIES has no specialty-style table for these series, and summing per-formation
+    candidates across formations would count vœux, not people; so everything here counts admits
+    (each néo-bachelier accepts one formation) and the series' official access rate per formation."""
+    if serie not in SERIES_ACCESS:
+        raise ValueError(f"serie must be one of {tuple(SERIES_ACCESS)}")
+    acc = f"acc_{serie}"
+    rows = con.execute(f"""
+    WITH linked AS (
+      SELECT r.spe_type_key AS type_key, fy.session, fy.{acc} AS a_s, fy.acc_neobac AS a_all,
+             fy.{SERIES_ACCESS[serie]} AS access, fy.cod_aff_form
+      FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
+      JOIN core.formation_year fy USING (session, cod_aff_form)),
+    nat AS (SELECT sum({acc}) AS nat_s, sum(acc_neobac) AS nat_all, count(DISTINCT session) AS years
+            FROM core.formation_year),
+    t AS (
+      SELECT type_key, count(DISTINCT session) AS years, sum(a_s) AS a_s, sum(a_all) AS a_all,
+             median(access) FILTER (WHERE session = (SELECT max(session) FROM core.formation_year)) AS access_median,
+             count(*) FILTER (WHERE session = (SELECT max(session) FROM core.formation_year)) AS n_formations,
+             list({{'session': session, 'share': a_s, 'all': a_all}} ORDER BY session) AS per
+      FROM linked GROUP BY 1)
+    SELECT t.type_key, (SELECT any_value(type_label ORDER BY session DESC) FROM mart.spe_filiere m
+                        WHERE m.type_key = t.type_key) AS label,
+           t.years, t.a_s, t.a_all, t.a_s / nullif(t.a_all, 0) AS share,
+           (t.a_s / nullif(t.a_all, 0)) / nullif(nat.nat_s / nullif(nat.nat_all, 0), 0) AS lift,
+           t.a_s / nullif(nat.nat_s, 0) AS destination_share, t.access_median, t.n_formations,
+           nat.nat_s, nat.nat_all, nat.years
+    FROM t, nat ORDER BY destination_share DESC NULLS LAST""").fetchall()
+    out, national = [], None
+    for r in rows:
+        (type_key, label, years, a_s, a_all, share, lift, dest, access_median, n_form, nat_s, nat_all, nat_years) = r
+        national = {"accepted": nat_s, "accepted_all": nat_all, "years": nat_years,
+                    "national_share": (nat_s / nat_all) if nat_all else None}
+        if a_s is None or a_s < GATE_RULES["min_candidates"]:
+            gate = "insuffisant"
+        elif share < GATE_RULES["atypique_share"]:
+            gate = "atypique"
+        elif lift is not None and lift >= GATE_RULES["predilection_lift"]:
+            gate = "predilection"
+        else:
+            gate = "accessible"
+        out.append({"type_key": type_key, "label": label or type_key, "years": years, "accepted": a_s,
+                    "accepted_all": a_all, "share": share, "lift": lift, "destination_share": dest,
+                    "access_median": access_median, "n_formations": n_form, "gate": gate})
+    return {"serie": serie, "national": national, "filieres": out,
+            "coverage": sum(f["destination_share"] or 0 for f in out)}

@@ -21,7 +21,7 @@ PEER_METRICS: dict[str, tuple[str, bool, str, bool]] = {
     "taux_acces_ens": ("taux_acces_ens", False, "Taux d'accès (PP)", False),
     "part_terminale_generale_en_position_admis_pp": (
         "part_terminale_generale_en_position_admis_pp", False,
-        "Part des terminales générales en position d'admis (PP)", False),
+        "Part des terminales générales parmi les candidats en position d'admis (PP)", False),
     "pct_tb_tbf": ("pct_tb + coalesce(pct_tbf, 0)", True, "% mention TB (+ félicitations)", True),
     "pct_bours": ("pct_bours", True, "% boursiers", False),
     "pct_f": ("pct_f", True, "% femmes", False),

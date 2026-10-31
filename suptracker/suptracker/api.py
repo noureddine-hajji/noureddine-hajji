@@ -45,9 +45,18 @@ METHODOLOGY = {
         "différents. Diviser prop_tot par voe_tot mélangerait ces phases et compterait des vœux au lieu "
         "de candidats."),
     "part_terminale_generale_en_position_admis_pp": (
-        "Indicateur officiel SIES (part_acces_gen) : la part des candidats de terminale générale en phase "
-        "principale qui étaient en position de recevoir une proposition. Il porte sur la phase "
-        "principale uniquement, pour la même raison que le taux d'accès."),
+        "Indicateur officiel SIES (part_acces_gen) : parmi les candidats de terminale en position de recevoir "
+        "une proposition en phase principale, la part de ceux qui viennent de terminale générale. C'est une "
+        "composition, pas une chance d'accès : avec les parts techno et pro, elle fait 100 % (vérifié sur "
+        "99,9 % des formations 2025). 100 % en CPGE scientifique veut dire que les candidats appelés étaient tous "
+        "en terminale générale, pas que tous les candidats de terminale générale ont été appelés."),
+    "serie_offer": (
+        "SIES ne publie pas de taux d'accès par série du bac. Le taux affiché est calculé à partir des effectifs "
+        "officiels de votre série : candidats de votre série ayant reçu une proposition de la formation (toutes "
+        "phases), rapportés aux candidats de votre série en phase principale et complémentaire. Ce n'est pas le "
+        "taux d'accès officiel (phase principale, tous candidats), affiché à côté. SIES ne distingue pas les "
+        "séries technologiques entre elles (STMG, STI2D, ST2S…) ni les spécialités du bac professionnel : "
+        "« bac technologique » les regroupe toutes."),
     "subwish": (
         "Vœu multiple ou concours commun : les sous-vœux partagent un même vivier de candidats. Leurs "
         "effectifs de vœux sont publiés à l'identique pour chaque école et ne doivent jamais être "
