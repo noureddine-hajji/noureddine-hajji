@@ -71,6 +71,17 @@ def _fixed_cohort(sm, ab, b, tb, tbf, bg, bt, bp):
             "pct_mention_nonrenseignee": 0, "pct_aca_orig": 50, "pct_etab_orig": 10, "pct_neobac": 100}
 
 
+def _timing(rng: random.Random, acc_tot: int) -> dict:
+    """Cumulative offer timing, as published: counts and SIES-rounded shares of acc_tot."""
+    d = rng.randint(0, acc_tot)
+    b = rng.randint(d, acc_tot)
+    f = rng.randint(b, acc_tot)
+    pct = lambda x: round(100.0 * x / acc_tot) if acc_tot else None  # noqa: E731
+    return {"acc_debutpp": d, "acc_datebac": b, "acc_finpp": f,
+            "pct_acc_debutpp": pct(d), "pct_acc_datebac": pct(b), "pct_acc_finpp": pct(f),
+            "nb_voe_pp_internat": 0, "nb_cla_pp_internat": 0}
+
+
 def _cohort(rng: random.Random, acc_tot: int) -> dict:
     acc_at = rng.randint(0, max(0, acc_tot // 6))
     term = acc_tot - acc_at
@@ -92,7 +103,7 @@ def _cohort(rng: random.Random, acc_tot: int) -> dict:
         "acc_tot": acc_tot, "acc_tot_f": f, "acc_term": max(0, term - rng.randint(0, 3)),
         "acc_term_f": min(f, term), "acc_neobac": term, "acc_at": acc_at, "acc_bg": bg, "acc_bt": bt, "acc_bp": bp,
         "acc_brs": brs, "acc_pp": acc_tot - acc_tot // 10, "acc_pc": acc_tot // 10,
-        "acc_aca_orig": rng.randint(0, acc_tot), "acc_internat": 0, **mentions,
+        "acc_aca_orig": rng.randint(0, acc_tot), "acc_internat": 0, **mentions, **_timing(rng, acc_tot),
         "pct_f": pct(f, acc_tot), "pct_bours": pct(brs, term), "pct_bg": pct(bg, term),
         "pct_bt": pct(bt, term), "pct_bp": pct(bp, term),
         "pct_tb": pct(mentions["acc_tb"], term), "pct_tbf": pct(mentions["acc_tbf"], term),
@@ -183,6 +194,7 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
         for c, e, track, taux, cohort, groups in journey:
             r = _row(rng, y, c, e, track)
             r.update(cohort)
+            r.update(_timing(rng, cohort["acc_tot"]))
             r.update({"taux_acces_ens": taux, "capa_fin": cohort["acc_tot"] + 2,
                       "lib_grp1": "Tous les candidats", "ran_grp1": 400, "lib_grp2": None, "ran_grp2": None})
             for i, (lib, ran) in enumerate(groups or [], start=1):
@@ -225,8 +237,20 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
     lvl2 = s25[~nat].assign(niveau_d_agregation="2", formation=s25.regroupement_de_formations + " (détail)")
     pd.concat([lvl0, lvl1, lvl2]).to_parquet(raw_dir / "specialites_2025.parquet", index=False)
 
-    pd.DataFrame([{"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85",
-                   "fiche": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/"
-                            "afficherFicheFormation?g_ta_cod=1100&typeBac=0&originePc=0"}]
-                 ).to_parquet(raw_dir / "cartographie.parquet", index=False)
+    fiche = ("https://dossierappel.parcoursup.fr/Candidats/public/fiches/"
+             "afficherFicheFormation?g_ta_cod={}&typeBac=0&originePc=0")
+    # real ODS values; the cartographie lists several sessions per formation (latest wins)
+    carto = [
+        {"gta": "1100", "annee": 2025, "etab_gps": "45.75, 4.85", "fiche": fiche.format(1100),
+         "app": "", "int": "", "amg": "Enseignement en présentiel"},
+        {"gta": "1100", "annee": 2026, "etab_gps": "45.75, 4.85", "fiche": fiche.format(1100),
+         "app": "", "int": "Etablissements avec internat pour filles et garçons",
+         "amg": "Enseignement en présentiel,Formations avec aménagements pour sportifs haut niveau"},
+        {"gta": "1102", "annee": 2026, "etab_gps": None, "fiche": fiche.format(1102),
+         "app": "Formations en apprentissage", "int": "",
+         "amg": "Enseignement partiellement à distance,Formations avec aménagements pour artistes haut niveau"},
+        {"gta": "1103", "annee": 2026, "etab_gps": None, "fiche": fiche.format(1103),
+         "app": "", "int": "Etablissements avec internat pour filles", "amg": "Enseignement à distance"},
+    ]
+    pd.DataFrame(carto).to_parquet(raw_dir / "cartographie.parquet", index=False)
     return plan

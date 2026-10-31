@@ -208,6 +208,44 @@ def check_structure(con) -> list[dict]:
             {"check": "links_one_to_one", "violations": one2one}]
 
 
+def check_timing(con) -> list[dict]:
+    """Offer timing (acc_debutpp <= acc_datebac <= acc_finpp, cumulative) and which denominator the
+    published shares use. Diagnostic: the app shows the published pct_acc_* as they are."""
+    out = []
+    for (session,) in con.execute("SELECT DISTINCT session FROM core.formation_year ORDER BY 1").fetchall():
+        r = con.execute("""
+          SELECT count(*) FILTER (WHERE acc_debutpp IS NOT NULL AND acc_datebac IS NOT NULL AND acc_finpp IS NOT NULL),
+            count(*) FILTER (WHERE acc_debutpp > acc_datebac OR acc_datebac > acc_finpp),
+            count(*) FILTER (WHERE acc_finpp > acc_tot),
+            count(*) FILTER (WHERE pct_acc_debutpp > pct_acc_datebac OR pct_acc_datebac > pct_acc_finpp),
+            count(*) FILTER (WHERE acc_tot > 0 AND pct_acc_debutpp IS NOT NULL),
+            count(*) FILTER (WHERE acc_tot > 0 AND abs(pct_acc_debutpp - 100.0 * acc_debutpp / acc_tot) <= 1
+                                               AND abs(pct_acc_finpp - 100.0 * acc_finpp / acc_tot) <= 1),
+            count(*) FILTER (WHERE acc_pp > 0 AND abs(pct_acc_debutpp - 100.0 * acc_debutpp / acc_pp) <= 1
+                                              AND abs(pct_acc_finpp - 100.0 * acc_finpp / acc_pp) <= 1),
+            count(*) FILTER (WHERE acc_finpp = acc_pp), count(*) FILTER (WHERE acc_finpp = acc_tot),
+            count(*) FILTER (WHERE acc_tot > 0 AND acc_pp > 0)
+          FROM core.formation_year WHERE session = ?""", [session]).fetchone()
+        n, nonmono, over, pct_nonmono, n_pct, den_tot, den_pp, eq_pp, eq_tot, n_both = r
+        out.append({"session": session, "n_evaluable": n, "non_monotonic": nonmono, "finpp_gt_acc_tot": over,
+                    "pct_non_monotonic": pct_nonmono, "n_pct": n_pct,
+                    "pct_match_acc_tot": round(100 * den_tot / n_pct, 1) if n_pct else None,
+                    "pct_match_acc_pp": round(100 * den_pp / n_pct, 1) if n_pct else None,
+                    "finpp_eq_acc_pp": eq_pp, "finpp_eq_acc_tot": eq_tot, "n_with_admits": n_both,
+                    "status": "n/a" if not n else "pass" if not (nonmono or over or pct_nonmono) else "upstream"})
+    return out
+
+
+def check_offer_attributes(con) -> list[dict]:
+    """Coverage of the cartographie offer attributes on the latest campaign (diagnostic)."""
+    return [dict(zip(("session", "n", "with_carto", "apprentissage", "internat", "distance", "sport", "art"), r))
+            for r in con.execute("""
+      SELECT session, count(*), count(carto_session), count(*) FILTER (WHERE apprentissage),
+             count(*) FILTER (WHERE internat NOT IN ('non')), count(*) FILTER (WHERE distance IN ('partielle', 'totale')),
+             count(*) FILTER (WHERE amenag_sport), count(*) FILTER (WHERE amenag_art)
+      FROM core.formation_year GROUP BY 1 ORDER BY 1""").fetchall()]
+
+
 def render_md(rep: dict) -> str:
     L = [f"# SIES ground-truth verification — {rep['generated_at']}", ""]
     L += ["## Accounting identities", "",
@@ -229,6 +267,21 @@ def render_md(rep: dict) -> str:
     bad = [b for b in rep["bounds"] if b["status"] != "pass"]
     L += ["", "## Bounds", "", "All SIES shares within [0, 100]." if not bad else
           "\n".join(f"- {b['field']}: {b['n_out_of_bounds']} out of bounds" for b in bad)]
+    if rep.get("timing"):
+        L += ["", "## Offer timing (diagnostic)", "",
+              "| session | evaluable | non-monotonic counts | acc_finpp > acc_tot | non-monotonic shares | "
+              "shares = count / acc_tot (%) | shares = count / acc_pp (%) | acc_finpp = acc_pp | acc_finpp = acc_tot | status |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
+        for t in rep["timing"]:
+            L.append(f"| {t['session']} | {t['n_evaluable']} | {t['non_monotonic']} | {t['finpp_gt_acc_tot']} | "
+                     f"{t['pct_non_monotonic']} | {t['pct_match_acc_tot']} | {t['pct_match_acc_pp']} | "
+                     f"{t['finpp_eq_acc_pp']} | {t['finpp_eq_acc_tot']} | {t['status']} |")
+    if rep.get("offer"):
+        L += ["", "## Offer attributes from the cartographie (diagnostic)", "",
+              "| session | formations | with cartographie | apprentissage | internat | distance | sport HN | art HN |",
+              "|---|---|---|---|---|---|---|---|"]
+        L += [f"| {o['session']} | {o['n']} | {o['with_carto']} | {o['apprentissage']} | {o['internat']} | "
+              f"{o['distance']} | {o['sport']} | {o['art']} |" for o in rep["offer"]]
     L += ["", "## Structure", ""] + [f"- {s['check']}: {s['violations']} violation(s)" for s in rep["structure"]]
     c = rep["continuity"]
     if c:
@@ -248,12 +301,13 @@ def run(db: Path, raw_dir: Path, live: int = 0) -> dict:
     bounds = check_bounds(con)
     struct = check_structure(con)
     cont = continuity_report(con)
+    timing, offer = check_timing(con), check_offer_attributes(con)
     failed = ([r for r in ident if r["primary"] and r["status"] == "fail"]
               + [r for r in raw + lv if r["status"] == "fail"]
               + [b for b in bounds if b["status"] == "fail"] + [s for s in struct if s["violations"]])
     return {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "identities": ident, "taux_raw": raw, "taux_live": lv, "bounds": bounds, "structure": struct,
-            "continuity": cont, "overall": "FAIL" if failed else "PASS", "n_failed_checks": len(failed)}
+            "timing": timing, "offer": offer, "continuity": cont, "overall": "FAIL" if failed else "PASS", "n_failed_checks": len(failed)}
 
 
 def main(argv=None) -> int:

@@ -8,6 +8,7 @@ Tables produced
 """
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 
 import duckdb
@@ -215,18 +216,50 @@ CARTO_RULES = {
     "fiche_url": [("fiche",), ("lien",), ("url",)],
     "geo": [("gps",), ("geo",), ("coord",)],
     "year": [("annee",), ("session",)],
+    # offer attributes (field names of the ODS export, then its labels)
+    "apprentissage": [("app",), ("apprentissage",)],
+    "internat": [("int",), ("internat",)],
+    "amenagement": [("amg",), ("amenagement",)],
 }
+CARTO_COLS = """cod_aff_form VARCHAR, fiche_url VARCHAR, lat DOUBLE, lon DOUBLE, carto_session BIGINT,
+  apprentissage BOOLEAN, internat VARCHAR, distance VARCHAR, amenag_sport BOOLEAN, amenag_art BOOLEAN"""
+
+
+def _exact_first(cols: list[str], rules: dict) -> dict:
+    """Short ODS field names (app, int, amg) are substrings of longer ones: prefer exact names."""
+    exact = {norm(c): c for c in cols}
+    m = resolve_by_keywords(cols, rules)
+    for canon, alts in rules.items():
+        hit = exact.get(alts[0][0]) if len(alts[0]) == 1 else None
+        if hit:
+            m[canon] = hit
+    return m
+
+
+def carto_flags(app: str | None, internat: str | None, amg: str | None) -> dict:
+    """Python twin of the SQL decoding below (used by tests and the red team)."""
+    f = lambda s: (unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower())  # noqa: E731
+    a, i, g = f(app), f(internat), f(amg)
+    return {
+        "apprentissage": None if app is None else "apprentissage" in a,
+        "internat": None if internat is None else "non" if "internat" not in i else
+        ("mixte" if "filles" in i and "garcons" in i else "filles" if "filles" in i
+         else "garcons" if "garcons" in i else "oui"),
+        "distance": None if amg is None else "partielle" if "partiellement a distance" in g else
+        "totale" if "a distance" in g else "aucune",
+        "amenag_sport": None if amg is None else "sportif" in g,
+        "amenag_art": None if amg is None else "artiste" in g,
+    }
 
 
 def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
     path = raw_dir / "cartographie.parquet"
     if not path.exists():
         con.execute("INSERT INTO meta.schema_audit VALUES (NULL, 'cartographie', NULL, 'missing_file')")
-        con.execute("""CREATE OR REPLACE TABLE core.cartographie
-                       (cod_aff_form VARCHAR, fiche_url VARCHAR, lat DOUBLE, lon DOUBLE)""")
+        con.execute(f"CREATE OR REPLACE TABLE core.cartographie ({CARTO_COLS})")
         return
     cols = [c for c, _ in columns_of(con, path)]
-    m = resolve_by_keywords(cols, CARTO_RULES)
+    m = _exact_first(cols, CARTO_RULES)
     for canon, src in m.items():
         con.execute("INSERT INTO meta.schema_audit VALUES (NULL, ?, ?, ?)",
                     [f"cartographie.{canon}", src, "missing" if src is None else "keyword"])
@@ -236,14 +269,34 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
     order = _num(m["year"]) + " DESC NULLS LAST" if m["year"] else "1"
     con.execute(f"""
     CREATE OR REPLACE TABLE core.cartographie AS
-    SELECT cod_aff_form, fiche_url, lat, lon FROM (
+    SELECT cod_aff_form, fiche_url, lat, lon, carto_session,
+      CASE WHEN app_raw IS NULL THEN NULL ELSE contains(app_raw, 'apprentissage') END AS apprentissage,
+      CASE WHEN int_raw IS NULL THEN NULL WHEN NOT contains(int_raw, 'internat') THEN 'non'
+           WHEN contains(int_raw, 'filles') AND contains(int_raw, 'garcons') THEN 'mixte'
+           WHEN contains(int_raw, 'filles') THEN 'filles' WHEN contains(int_raw, 'garcons') THEN 'garcons'
+           ELSE 'oui' END AS internat,
+      CASE WHEN amg_raw IS NULL THEN NULL WHEN contains(amg_raw, 'partiellement a distance') THEN 'partielle'
+           WHEN contains(amg_raw, 'a distance') THEN 'totale' ELSE 'aucune' END AS distance,
+      CASE WHEN amg_raw IS NULL THEN NULL ELSE contains(amg_raw, 'sportif') END AS amenag_sport,
+      CASE WHEN amg_raw IS NULL THEN NULL ELSE contains(amg_raw, 'artiste') END AS amenag_art
+    FROM (
       SELECT {_text(m['cod_aff_form'], True)} AS cod_aff_form,
              {(_text(m['fiche_url']) if m['fiche_url'] else 'NULL')} AS fiche_url,
              {geo_expr(g, 'lat') if m['geo'] else 'NULL::DOUBLE'} AS lat,
              {geo_expr(g, 'lon') if m['geo'] else 'NULL::DOUBLE'} AS lon,
+             {f"TRY_CAST({_num(m['year'])} AS BIGINT)" if m['year'] else 'NULL::BIGINT'} AS carto_session,
+             {_fold(m['apprentissage'])} AS app_raw, {_fold(m['internat'])} AS int_raw,
+             {_fold(m['amenagement'])} AS amg_raw,
              row_number() OVER (PARTITION BY {_text(m['cod_aff_form'], True)} ORDER BY {order}) AS rn
       FROM read_parquet('{path}')) WHERE rn = 1 AND cod_aff_form IS NOT NULL
     """)
+
+
+def _fold(col: str | None) -> str:
+    """Lower-cased, accent-free text; '' for an empty cell, NULL only when the column is absent."""
+    if not col:
+        return "NULL::VARCHAR"
+    return f"lower(strip_accents(coalesce(CAST({q(col)} AS VARCHAR), '')))"
 
 
 def attach_fiche(con: duckdb.DuckDBPyConnection) -> None:
@@ -253,6 +306,11 @@ def attach_fiche(con: duckdb.DuckDBPyConnection) -> None:
     CREATE OR REPLACE TABLE core.formation_year AS
     SELECT fy.* EXCLUDE (lat, lon),
       coalesce(fy.lat, c.lat) AS lat, coalesce(fy.lon, c.lon) AS lon,
+      -- offer attributes describe the formation as currently listed (cartographie session), not a past
+      -- campaign; apprenticeship falls back on the SIES label, which states it ("... en apprentissage")
+      c.carto_session,
+      CASE WHEN fy.lib_for_voe_ins ILIKE '%apprentissage%' THEN true ELSE c.apprentissage END AS apprentissage,
+      c.internat, c.distance, c.amenag_sport, c.amenag_art,
       coalesce(c.fiche_url, fy.lien_form_psup, '{tmpl}') AS fiche_url,
       CASE WHEN c.fiche_url IS NOT NULL THEN 'cartographie'
            WHEN fy.lien_form_psup IS NOT NULL THEN 'lien_form_psup' ELSE 'template' END AS fiche_url_source

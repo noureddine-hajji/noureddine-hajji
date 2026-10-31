@@ -98,6 +98,20 @@ METHODOLOGY = {
         "aucun groupe n'est découpé par enseignement de spécialité ; les groupes portent sur la série du "
         "bac, le sexe, le campus ou la voie CEP. Le rang du dernier appelé n'est pas une probabilité : la "
         "taille du groupe n'est pas publiée."),
+    "timing": (
+        "Indicateurs officiels SIES repris tels quels (pct_acc_debutpp, pct_acc_datebac, pct_acc_finpp) : part "
+        "des admis ayant reçu leur proposition d'admission à l'ouverture de la phase principale, avant les "
+        "résultats du baccalauréat, puis avant la fin de la phase principale. Les trois parts sont cumulées : "
+        "chacune inclut la précédente. Le dénominateur est l'ensemble des admis de la formation, phase "
+        "complémentaire comprise (vérifié sur toutes les lignes 2022–2025) : le reste correspond aux admis "
+        "après la phase principale. Ce sont des parts d'admis, et non des chances d'admission : elles disent "
+        "quand les futurs admis ont reçu leur proposition, au fil des désistements."),
+    "offer": (
+        "Options issues de la cartographie des formations Parcoursup (dernière session publiée) : internat de "
+        "l'établissement, formation en apprentissage, enseignement à distance (total ou partiel), aménagements "
+        "pour sportifs ou artistes de haut niveau. Elles décrivent l'offre actuelle, pas une campagne passée. "
+        "L'apprentissage est aussi lu dans l'intitulé SIES. Les aménagements pour les candidats en situation de "
+        "handicap ne figurent pas dans ces données : chaque fiche Parcoursup indique le référent handicap."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -171,7 +185,8 @@ def readyz():
 
 SUMMARY_COLS = """fy.session, fy.cod_aff_form, fy.cod_uai, fy.g_ea_lib_vx, fy.ville_etab, fy.fili,
   fy.form_lib_voe_acc, fy.fil_lib_voe_acc, fy.lib_for_voe_ins, fy.lib_comp_voe_ins, fy.acc_tot,
-  fy.taux_acces_ens, fy.subwish_flag, fy.low_n_flag, l.lineage_id, l.lineage_confidence, l.lineage_years"""
+  fy.taux_acces_ens, fy.subwish_flag, fy.low_n_flag, l.lineage_id, l.lineage_confidence, l.lineage_years,
+  fy.carto_session, fy.apprentissage, fy.internat, fy.distance, fy.amenag_sport, fy.amenag_art"""
 
 
 def _warm_search_index():
@@ -210,6 +225,7 @@ def meta():
 def search(request: Request, bg: BackgroundTasks,
            q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
            academie: str | None = None, selective: bool | None = None, near: str | None = None,
+           options: str | None = Query(None, max_length=200, description="comma-separated: " + ",".join(S.OPTIONS)),
            offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):
     """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
     A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation."""
@@ -228,10 +244,14 @@ def search(request: Request, bg: BackgroundTasks,
         return {"mode": "cod_aff_form", "resolved_cod_aff_form": cod or q, "query": q, "results": res,
                 "total": len(res), "offset": 0, "limit": limit, "interpretation": [], "notes": [],
                 "partial": False, "facets": {}}
-    res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
-                   offset=offset, limit=limit)
+    opts = tuple(o for o in (options or "").split(",") if o)
+    try:
+        res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
+                       options=opts, offset=offset, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     if offset == 0:   # pagination is not a new search
-        refined = any(v is not None and v != "" for v in (fili, academie, selective))  # near = profile
+        refined = any(v is not None and v != "" for v in (fili, academie, selective, options))  # near = profile
         bg.add_task(A.record, "refine" if refined else "search",
                     {"q": A.clean_query(q), "total": res["total"], "partial": bool(res.get("partial"))},
                     _hdrs(request))
@@ -293,10 +313,12 @@ def formation(cod: str, session: int | None = None):
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers)}
 
 
+OFFER = ("carto_session", "apprentissage", "internat", "distance", "amenag_sport", "amenag_art")
 DECOMP = ("series_sum_mismatch", "mention_sum_mismatch", "acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
           "acc_tot_f", "pct_f", "pct_bours", "pct_aca_orig", "pct_etab_orig", "pct_bg", "pct_bt", "pct_bp",
           "pct_tb", "pct_tbf", "taux_acces_ens", "part_terminale_generale_en_position_admis_pp",
-          "voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "capa_fin", "low_n_flag", "subwish_flag")
+          "voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "capa_fin", "low_n_flag", "subwish_flag",
+          "acc_pp", "acc_pc", "pct_acc_debutpp", "pct_acc_datebac", "pct_acc_finpp", "acc_internat")
 
 
 @app.get("/api/lineage/{lineage_id}")
@@ -328,7 +350,7 @@ def compare(ids: str, session: int | None = None):
         out.append({"record": {k: f["record"].get(k) for k in
                                ("session", "cod_aff_form", "g_ea_lib_vx", "ville_etab", "fil_lib_voe_acc",
                                 "lib_comp_voe_ins", "lineage_id", "lineage_confidence", "fiche_url",
-                                *DECOMP)},
+                                *DECOMP, *OFFER)},
                     "peers": f["peers"], "history": f["history"], "warnings": f["warnings"]})
     return {"formations": out}
 

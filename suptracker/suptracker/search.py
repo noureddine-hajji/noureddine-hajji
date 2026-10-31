@@ -207,7 +207,25 @@ class Index:
 SUMMARY = ("session", "cod_aff_form", "cod_uai", "g_ea_lib_vx", "ville_etab", "acad_mies", "dep_lib",
            "region_etab_aff", "fili", "form_lib_voe_acc", "fil_lib_voe_acc", "lib_for_voe_ins",
            "lib_comp_voe_ins", "detail_forma", "select_form", "acc_tot", "capa_fin", "taux_acces_ens",
-           "subwish_flag", "low_n_flag", "lineage_id", "lineage_confidence", "lineage_years")
+           "subwish_flag", "low_n_flag", "lineage_id", "lineage_confidence", "lineage_years",
+           "apprentissage", "internat", "distance", "amenag_sport", "amenag_art", "carto_session")
+# offer options a student can require (all selected options must hold): name -> test on a doc.
+# Apprenticeship is deliberately absent: the SIES statistics dropped apprenticeship programmes
+# after 2022 (3 left in 2025 against ~16,700 in the cartographie), so a filter would claim there
+# are almost none. A query mentioning it gets APPRENTICESHIP_NOTE instead.
+OPTIONS = {
+    "internat": lambda x: x.get("internat") in ("mixte", "filles", "garcons", "oui"),
+    "distance": lambda x: x.get("distance") in ("partielle", "totale"),
+    "sport": lambda x: x.get("amenag_sport") is True,
+    "art": lambda x: x.get("amenag_art") is True,
+}
+APPRENTICESHIP_NOTE = (
+    "Les formations en apprentissage ne figurent presque plus dans les statistiques publiques de Parcoursup "
+    "depuis 2023 : SupTracker ne peut pas les comparer. Pour les trouver, utilisez la recherche de "
+    "Parcoursup avec le filtre « Apprentissage ». Les résultats ci-dessous sont des formations sous statut "
+    "scolaire.")
+_APPRENTI = re.compile(r"\b(apprenti\w*|alternan\w*|en alternance)\b")
+_INTERNAT = re.compile(r"\b(?:avec\s+(?:un\s+|l\s+)?)?internats?\b")
 PUBLIC = tuple(c for c in SUMMARY if c not in ("detail_forma", "dep_lib", "region_etab_aff", "capa_fin"))
 
 
@@ -219,9 +237,15 @@ def _place_key(s: str | None) -> str:
 
 def build_index(con: duckdb.DuckDBPyConnection) -> Index:
     cur = con.cursor()
+    have = {r[0] for r in cur.execute("""SELECT column_name FROM information_schema.columns
+                                         WHERE table_schema = 'core' AND table_name = 'formation_year'""").fetchall()}
+
+    def col(c: str) -> str:   # a warehouse built before a column existed still loads (as NULL)
+        if c in ("lineage_id", "lineage_confidence", "lineage_years"):
+            return "l." + c
+        return "fy." + c if c in have else f"NULL AS {c}"
     cur.execute(f"""
-      SELECT {', '.join('fy.' + c if c not in ('lineage_id', 'lineage_confidence', 'lineage_years') else 'l.' + c
-                        for c in SUMMARY)}
+      SELECT {', '.join(col(c) for c in SUMMARY)}
       FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
       QUALIFY row_number() OVER (PARTITION BY l.lineage_id ORDER BY fy.session DESC) = 1""")
     cols = [d[0] for d in cur.description]
@@ -442,18 +466,36 @@ def _tiebreak(cod: str) -> str:
 
 
 def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, academie: str | None = None,
-           selective: bool | None = None, near: str | None = None, offset: int = 0, limit: int = 40) -> dict:
-    """near: the student's home académie (from their profile). It only breaks ties between
+           selective: bool | None = None, near: str | None = None, options: tuple[str, ...] = (),
+           offset: int = 0, limit: int = 40) -> dict:
+    """options: offer options that must all hold (keys of OPTIONS; unknown keys raise ValueError).
+    near: the student's home académie (from their profile). It only breaks ties between
     equally relevant results; it never filters and never outranks a better match."""
+    bad = [o for o in options if o not in OPTIONS]
+    if bad:
+        raise ValueError(f"unknown option(s): {', '.join(map(str, bad))}")
     idx = get_index(con)
     q = (q or "")[:MAX_QUERY_CHARS]
     raw = fold(q)
     interp: list[dict] = []
     notes: list[str] = []
+    if _APPRENTI.search(raw):
+        notes.append(APPRENTICESHIP_NOTE)
+    # "prépa avec internat lyon": no label says "internat"; the word is the internat option
+    if _INTERNAT.search(raw):
+        q = _INTERNAT.sub(" ", raw)
+        raw = fold(q)
+        options = (*options, "internat")
+        interp.append({"type": "option", "value": "internat"})
+    options = tuple(dict.fromkeys(options))
     base: set[int] | None = None
 
     uai = re.fullmatch(r"\s*(\d{7}[a-zA-Z])\s*", q or "")
-    if uai:
+    if not raw.strip() and interp and interp[-1]["type"] == "option":
+        # "internat" alone: every formation with that option (the option filter does the work)
+        terms, partial = [], False
+        scores = {d: 1.0 for d in range(len(idx.docs))}
+    elif uai:
         base = set(idx.by_uai.get(uai.group(1).upper(), []))
         interp.append({"type": "uai", "value": uai.group(1).upper()})
         terms: list[str] = []
@@ -534,6 +576,8 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
         "academie": lambda x: not academie or x["acad_mies"] == academie,
         "selectivite": lambda x: selective is None or (x["select_form"] == "formation sélective") == selective,
     }
+    for o in options:
+        tests[f"opt:{o}"] = OPTIONS[o]
     src = {"fili": "fili", "academie": "acad_mies", "selectivite": "select_form"}
 
     def keep(d: int, skip: str | None = None) -> bool:
@@ -542,13 +586,17 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
 
     # disjunctive facets: each dimension is counted with the *other* active filters applied,
     # so every number shown is exactly what a click on it returns
-    facets = {k: Counter(idx.docs[d][src[k]] for d in matched_ids if keep(d, skip=k)) for k in tests}
+    facets = {k: Counter(idx.docs[d][src[k]] for d in matched_ids if keep(d, skip=k)) for k in src}
+    # options are conjunctive: the count of an option is what adding it to the current filters returns
+    kept = [d for d in matched_ids if keep(d)]
+    opt_facet = [{"value": o, "count": sum(1 for d in kept if t(idx.docs[d])), "active": o in options}
+                 for o, t in OPTIONS.items()]
 
     # Ties between equally relevant results: latest campaign, then the student's académie,
     # then a deterministic hash of the formation code. The hash ignores every attribute
     # (selectivity, size, name): alphabetical order would always favour "A…" establishments
     # and capacity order would systematically favour large, accessible programmes.
-    ranked = sorted((d for d in matched_ids if keep(d)),
+    ranked = sorted(kept,
                     key=lambda d: (-round(scores[d], 6), -(idx.docs[d]["session"] or 0),
                                    0 if near and idx.docs[d]["acad_mies"] == near else 1,
                                    _tiebreak(idx.docs[d]["cod_aff_form"])))
@@ -558,7 +606,9 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
         "notes": notes, "partial": partial, "total": len(ranked), "offset": offset, "limit": limit,
         # every value, never a top-N: a dropdown must offer each académie the results contain, and
         # the active selection is always present so the control reflects the filter in force
-        "facets": {k: [{"value": v, "count": c} for v, c in cnt.most_common() if v] for k, cnt in facets.items()},
+        "facets": {**{k: [{"value": v, "count": c} for v, c in cnt.most_common() if v] for k, cnt in facets.items()},
+                   "options": opt_facet},
+        "options": list(options),
         "results": [{**{k: idx.docs[d][k] for k in PUBLIC},
                      "lib_comp_voe_ins": clean_complement(idx.docs[d])} for d in page],
     }
