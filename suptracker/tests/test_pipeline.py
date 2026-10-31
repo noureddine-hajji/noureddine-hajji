@@ -156,7 +156,10 @@ def test_changed_discrepancy_on_upstream_violator_fails(tmp_path):
 
 
 def test_app_js_calls_only_defined_helpers():
-    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    # every classic script loaded by index.html shares one global scope
+    js = "\n".join((ROOT / "suptracker" / "static" / f).read_text() for f in ("app.js", "stats.js"))
+    html = (ROOT / "suptracker" / "static" / "index.html").read_text()
+    assert html.index("/static/app.js") < html.index("/static/stats.js")
     defined = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(", js))
     defined |= set(re.findall(r"const\s+([A-Za-z_]\w*)\s*=\s*(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>", js))
     called = set(re.findall(r"(?<![.\w])([a-z]\w*(?:Card|Chart|Bars|Bar|Badge)|view[A-Z]\w*)\s*\(", js))

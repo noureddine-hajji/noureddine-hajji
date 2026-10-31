@@ -151,7 +151,7 @@ async function viewSearch(q, rawParams) {
     ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + 40 }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + 80))}) →</a></p>` : ""}
     ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - 40) }))}">← Résultats précédents</a></p>` : ""}
     ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
-  </div>`;
+  </div>${feedbackBox("search")}`;
   $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
   const fa = document.getElementById("facad"); if (fa) fa.onchange = () => { location.hash = go({ academie: fa.value }); };
   const fs = document.getElementById("fsel"); if (fs) fs.onchange = () => { location.hash = go({ selective: fs.value }); };
@@ -176,7 +176,7 @@ async function viewFormation(cod, session) {
       <label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Ajouter au comparateur"}</button>
       <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
-      <a href="${esc(r.fiche_url)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}
+      <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}
     </div>
   </div>
   ${d.warnings.map((w) => `<div class="warn">⚠ ${esc(w.text)}</div>`).join("")}
@@ -203,7 +203,7 @@ async function viewFormation(cod, session) {
     <tr><th>Session</th><th>cod_aff_form</th><th>Libellé</th><th>Lien vers la campagne suivante</th><th class="num">Admis</th><th class="num">Taux d'accès</th></tr>
     ${d.history.map((h) => `<tr><td><a href="#/f/${esc(h.cod_aff_form)}/${h.session}">${h.session}</a></td><td>${esc(h.cod_aff_form)}</td><td>${esc(h.lib_for_voe_ins)}</td>
       <td>${h.link_to_next ? lineageBadge(h.link_to_next) : `<span class="muted small">—</span>`}</td><td class="num">${fmt(h.acc_tot)}</td><td class="num">${pct(h.taux_acces_ens)}</td></tr>`).join("")}
-  </table></div></div>`;
+  </table></div></div>${feedbackBox("fiche")}`;
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
 }
@@ -458,7 +458,7 @@ async function viewParcours() {
       <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button></td></tr>`).join("")}
     </table></div>${F.length > 80 ? `<p class="muted small">80 premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
     ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
-  <div class="card"><h2>4 · Ma liste de vœux simulée</h2>${wishAudit(W)}</div>`;
+  <div class="card"><h2>4 · Ma liste de vœux simulée</h2>${wishAudit(W)}</div>${feedbackBox("parcours")}`;
 
   function pin(f) {
     const list = store.get("wishlist", []);
@@ -485,11 +485,74 @@ async function viewParcours() {
   const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
 }
 
+// ---- audience measurement (no cookie, no identifier: see /#/stats → Méthode) ---------
+const PRIVACY_OFF = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+function track(t, props = {}) {
+  if (PRIVACY_OFF) return;
+  try {
+    const body = JSON.stringify({ t, ...props });
+    if (!(navigator.sendBeacon && navigator.sendBeacon("/api/e", new Blob([body], { type: "application/json" })))) {
+      fetch("/api/e", { method: "POST", body, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(() => {});
+    }
+  } catch (_) { /* measurement is best effort */ }
+}
+let firstView = true;
+function trackView(routeName, cod) {
+  const w = window.innerWidth || 1024;
+  const p = { route: routeName, device: w < 768 ? "mobile" : w < 1100 ? "tablet" : "desktop" };
+  if (routeName === "fiche") { if (!/^\d{1,9}$/.test(cod || "")) return; p.cod = cod; }
+  if (firstView) {
+    p.first = true;
+    try { const h = document.referrer ? new URL(document.referrer).hostname : ""; if (h && h !== location.hostname) p.ref = h; } catch (_) { /* bad referrer */ }
+    firstView = false;
+  }
+  track("view", p);
+}
+let jsErrors = 0;
+const onJsError = () => { if (jsErrors++ < 3) track("jserr", { route: ROUTE_NAME[(location.hash.split("/")[1] || "")] || "home" }); };
+window.addEventListener("error", onJsError);
+window.addEventListener("unhandledrejection", onJsError);
+document.addEventListener("click", (e) => {
+  const a = e.target.closest?.('a[href*="parcoursup.fr"]');
+  if (a) track("out", a.dataset.cod ? { cod: a.dataset.cod } : {});
+});
+
+const FB_REASONS = [["introuvable", "Je ne trouve pas ce que je cherche"], ["incomprehensible", "Les chiffres sont difficiles à comprendre"],
+  ["manque_info", "Il manque une information"], ["erreur_donnees", "Une donnée me semble fausse"], ["lent", "C'est lent"]];
+const fbDone = (page) => { try { return sessionStorage.getItem(`fb:${page}`); } catch (_) { return null; } };
+function feedbackBox(page) {
+  if (PRIVACY_OFF) return "";
+  if (fbDone(page)) return `<div class="card feedback small muted">Merci pour ton avis !</div>`;
+  return `<div class="card feedback" data-fbpage="${page}"><span>Cette page t'a aidé ?</span>
+    <button type="button" data-fb="up" aria-label="Oui, cette page m'a aidé">👍 Oui</button>
+    <button type="button" data-fb="down" aria-label="Non, cette page ne m'a pas aidé">👎 Non</button>
+    <span class="muted small">Anonyme : aucun texte libre, aucun identifiant.</span></div>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-fb], [data-fbr]");
+  const box = b?.closest("[data-fbpage]");
+  if (!box) return;
+  const page = box.dataset.fbpage;
+  try { sessionStorage.setItem(`fb:${page}`, "1"); } catch (_) { /* storage blocked */ }
+  if (b.dataset.fb === "up") { track("feedback", { page, vote: "up", reason: "utile" }); box.innerHTML = `<span class="muted small">Merci pour ton avis !</span>`; return; }
+  if (b.dataset.fb === "down") {
+    track("feedback", { page, vote: "down" });
+    box.innerHTML = `<span>Merci. Qu'est-ce qui n'allait pas ?</span> ${FB_REASONS.map(([k, l]) => `<button type="button" class="small" data-fbr="${k}">${esc(l)}</button>`).join(" ")}`;
+    return;
+  }
+  track("feedback", { page, vote: "down", reason: b.dataset.fbr });
+  box.innerHTML = `<span class="muted small">Merci, c'est noté : ça nous aide à corriger.</span>`;
+});
+
 // ---- router ----------------------------------------------------------------
+const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
+  qualite: "qualite", parcours: "parcours", stats: "stats" };
 async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
+  trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
   try {
+    if (a === "stats") return await viewStats(b);
     if (a === "s") return await viewSearch(b || "", c || "");
     if (a === "f") return await viewFormation(b, c);
     if (a === "evolution") return await viewEvolution(b);

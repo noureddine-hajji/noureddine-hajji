@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import hmac
 import json
 import math
 import os
@@ -12,11 +13,12 @@ from functools import lru_cache
 from pathlib import Path
 
 import duckdb
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from . import analytics as A
 from . import config
 from . import journey as J
 from . import search as S
@@ -138,6 +140,18 @@ app = FastAPI(title="SupTracker SIES", version="1.0")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
+@app.middleware("http")
+async def _count_server_errors(request: Request, call_next):
+    try:
+        resp = await call_next(request)
+    except Exception:
+        A.record_server_error()
+        raise
+    if resp.status_code >= 500:
+        A.record_server_error()
+    return resp
+
+
 @app.exception_handler(WarehouseMissing)
 def _warehouse_missing(_: Request, exc: WarehouseMissing):
     return JSONResponse({"detail": "Entrepôt de données en cours de construction ou absent. "
@@ -193,7 +207,8 @@ def meta():
 
 
 @app.get("/api/search")
-def search(q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
+def search(request: Request, bg: BackgroundTasks,
+           q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
            academie: str | None = None, selective: bool | None = None, near: str | None = None,
            offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):
     """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
@@ -213,8 +228,14 @@ def search(q: str = Query(..., min_length=1, max_length=2000), fili: str | None 
         return {"mode": "cod_aff_form", "resolved_cod_aff_form": cod or q, "query": q, "results": res,
                 "total": len(res), "offset": 0, "limit": limit, "interpretation": [], "notes": [],
                 "partial": False, "facets": {}}
-    return S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
-                    offset=offset, limit=limit)
+    res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
+                   offset=offset, limit=limit)
+    if offset == 0:   # pagination is not a new search
+        refined = any(v is not None and v != "" for v in (fili, academie, selective))  # near = profile
+        bg.add_task(A.record, "refine" if refined else "search",
+                    {"q": A.clean_query(q), "total": res["total"], "partial": bool(res.get("partial"))},
+                    request.headers)
+    return res
 
 
 def _record(cod: str, session: int | None) -> dict:
@@ -411,27 +432,78 @@ def journey_vocab():
 
 
 @app.get("/api/journey/stage1")
-def journey_stage1(spe1: str, spe2: str):
+def journey_stage1(spe1: str, spe2: str, request: Request, bg: BackgroundTasks):
     _journey_ready()
     res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
     if not res["national"] or not res["national"]["candidates"]:
         raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
+    bg.add_task(A.record, "journey", {"stage": "stage1"}, request.headers)
     return res
 
 
 @app.get("/api/journey/stage2")
-def journey_stage2(spe1: str, spe2: str, mention: str, type: str, academie: str | None = None,
-                   sex: str | None = Query(None, pattern="^[FM]$")):
+def journey_stage2(spe1: str, spe2: str, mention: str, type: str, request: Request, bg: BackgroundTasks,
+                   academie: str | None = None, sex: str | None = Query(None, pattern="^[FM]$")):
     _journey_ready()
     try:
-        return J.stage2(_con().cursor(), _dkey(spe1, spe2), mention, type, academie, sex)
+        res = J.stage2(_con().cursor(), _dkey(spe1, spe2), mention, type, academie, sex)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    bg.add_task(A.record, "journey", {"stage": "stage2"}, request.headers)
+    return res
 
 
 @app.get("/api/continuity")
 def continuity():
     return {"anchor": config.LATEST_YEAR, "rows": continuity_report(_con().cursor())}
+
+
+# ---------------------------------------------------------------- audience measurement
+@app.post("/api/e", status_code=204)
+async def event(request: Request, bg: BackgroundTasks):
+    """Beacon from the front-end (see suptracker/analytics.py for what is, and is not, kept)."""
+    if int(request.headers.get("content-length") or 0) > A.MAX_BODY:
+        raise HTTPException(413, "payload too large")
+    body = b""
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > A.MAX_BODY:
+            raise HTTPException(413, "payload too large")
+    try:
+        t, props = A.validate_client_event(json.loads(body or b"null"))
+    except (ValueError, A.Rejected):
+        A.record_invalid(request.headers)
+        raise HTTPException(422, "invalid event") from None
+    bg.add_task(A.record, t, props, request.headers)
+    return Response(status_code=204)
+
+
+def _fiche_labels(cods: list[str]) -> dict:
+    try:
+        rs = rows("""SELECT cod_aff_form, g_ea_lib_vx, fil_lib_voe_acc, ville_etab FROM core.formation_year
+                     WHERE cod_aff_form IN (SELECT unnest(?)) QUALIFY row_number() OVER
+                     (PARTITION BY cod_aff_form ORDER BY session DESC) = 1""", [cods])
+    except Exception:  # noqa: BLE001 - the dashboard still works without the warehouse
+        return {}
+    return {r["cod_aff_form"]: {"etablissement": r["g_ea_lib_vx"], "filiere": r["fil_lib_voe_acc"],
+                                "ville": r["ville_etab"]} for r in rs}
+
+
+@app.get("/api/stats")
+def stats(request: Request, days: int = Query(30, ge=7, le=180)):
+    """Audience dashboard data. Requires `Authorization: Bearer $SUPTRACKER_STATS_TOKEN`."""
+    token = os.environ.get("SUPTRACKER_STATS_TOKEN", "")
+    if len(token) < 16:
+        raise HTTPException(503, "Tableau de bord désactivé : définissez SUPTRACKER_STATS_TOKEN "
+                                 "(au moins 16 caractères) dans les variables d'environnement.")
+    given = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not hmac.compare_digest(given.encode(), token.encode()):
+        raise HTTPException(401, "Jeton invalide")
+    try:
+        data = A.summarize(days, labels=_fiche_labels)
+    except Exception as exc:  # noqa: BLE001 - e.g. the analytics store is unreachable
+        raise HTTPException(502, f"Stockage des mesures injoignable : {type(exc).__name__}") from None
+    return JSONResponse(data, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
