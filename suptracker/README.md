@@ -90,6 +90,80 @@ docker run -p 8000:8000 -v suptracker-data:/data suptracker-sies
   warehouse until it restarts.
 - **Network:** the host that builds the data must be able to reach `data.enseignementsup-recherche.gouv.fr`.
 
+## Search (`suptracker/search.py`)
+
+Students type what they would say out loud: *prépa HEC Lyon*, *BTS NDRC*, *IUT informatique
+Toulouse*, *sciences po*, *infirmière Bordeaux*, *kiné*. The engine is an in-memory index over the
+latest campaign of every lineage (16k documents, 67 MB). It is built once per warehouse and warmed
+in the background when the app loads.
+
+- **Normalisation**, applied to documents and queries alike:
+  - accents, case and full-width characters are folded;
+  - dotted acronyms are collapsed ("I.U.T" → "iut");
+  - "St" and "Ste" become "Saint" and "Sainte";
+  - plurals and "-ière" feminines are stemmed.
+- **Acronym tags.** About 90 student phrasings (NDRC, GEA, MPSI, hypokhâgne, sciences po, école
+  d'ingé, …) map to tags that programmes carry deterministically from their official labels. A few
+  English queries (law, nursing, engineering school, …) work too.
+- **Place detection.**
+  - The longest town, département, académie or region name in the query becomes a filter. Formations
+    in the named town rank above the rest of the académie.
+  - A single word is only taken as a place if it names more locations than it appears in programme
+    labels, so discipline words are never mistaken for places.
+  - A word such as "clermont" or "aix" covers every place it names.
+- **Ranking.**
+  - Weights by field: tag > discipline > establishment > place > complement > broad family.
+  - Words are weighted by IDF.
+  - Matching tries exact, then prefix, then one or two typos.
+  - A programme whose own label contains the word the student typed outranks one that only carries
+    the tag ("Parcours Kinésithérapie" before any L.AS).
+  - Ties break on the latest campaign, then the student's académie if their profile has one, then a
+    deterministic hash. **Never on selectivity, size or name**: alphabetical order would favour "A…"
+    establishments, and capacity order favoured large, accessible programmes (Spearman −0.46 against
+    access rate, found by the red team).
+- **Honest fallbacks.**
+  - If no programme matches every word, the least informative free word is dropped and the results are
+    flagged *partiels*. Recognised concepts are never dropped first.
+  - If most of the query is unknown, the engine returns nothing rather than guessing.
+  - Professions with no Parcoursup programme of their own (médecine, kiné, sage-femme, véto) return the
+    access programmes with an explanatory note.
+- **Disjunctive facets.** Each filter is counted with the other active filters applied, so every
+  count shown is exactly what clicking it returns.
+
+### Measured quality (real 2022–2025 warehouse)
+
+A query passes when at least 4 of its top 5 results are relevant, or, when fewer than 5 relevant
+formations exist, when all of them come first.
+
+| Set | Queries | Previous search | New search | New, first blind run |
+|---|---|---|---|---|
+| Gold (`scripts/eval_search.py`) | 46 | 34.8%, 15 empty | **100%**, 0 empty | – (used for tuning) |
+| Holdout 1 (`scripts/holdout_search.py`) | 30 | 63.3%, 4 empty | **100%** | 93.3% |
+| Holdout 2, harder phrasings (`scripts/holdout2_search.py`) | 20 | 60.0%, 4 empty | **100%** | 90.0% |
+
+Latency in-process: p50 about 3–6 ms, p95 under 15 ms; through the API, about 16 ms median.
+
+**Red team** (`scripts/redteam_search.py`), 13/13 pass:
+
+| # | Attack | Criterion |
+|---|---|---|
+| R1 | Hostile, malformed and huge inputs | No crash, under 250 ms |
+| R2 | Junk words | No confident results |
+| R3 | Stop-words only | Nothing returned |
+| R4 | SQL, wildcard and regex shapes | Inert |
+| R5 | 10 normalisation equivalences | Same top results |
+| R6 | 23 discipline words | Never taken as places |
+| R7 | Filters, including combined | Exact counts |
+| R8 | Pagination | Disjoint and deterministic |
+| R9 | Health professions | Access programmes, with a note |
+| R10 | Junk next to a real word | Junk dropped and flagged |
+| R11 | Ranking vs access rate | \|Spearman\| < 0.3 |
+| R12 | Load (1,000 random queries) | p95 under 60 ms |
+| R13 | Every echoed string in the UI | Escaped (mutation-tested: removing an `esc()` makes it fail) |
+
+`tests/test_search.py` runs the gold set, both holdouts and the red team against the committed
+warehouse on every push.
+
 ## Student positioning journey (`#/parcours`)
 
 This feature takes a general-bac student's Terminale specialty doublette, expected mention, home

@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from . import journey as J
+from . import search as S
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -159,8 +160,22 @@ SUMMARY_COLS = """fy.session, fy.cod_aff_form, fy.cod_uai, fy.g_ea_lib_vx, fy.vi
   fy.taux_acces_ens, fy.subwish_flag, fy.low_n_flag, l.lineage_id, l.lineage_confidence, l.lineage_years"""
 
 
+def _warm_search_index():
+    """Build the search index in the background as soon as the app loads (it takes ~2 s on a
+    cold serverless start), so the student's first search does not pay for it."""
+    import threading
+
+    def run():
+        try:
+            S.get_index(_con().cursor())
+        except Exception:  # noqa: BLE001 - warming is best effort; search builds on demand anyway
+            pass
+    threading.Thread(target=run, daemon=True).start()
+
+
 @app.get("/api/meta")
 def meta():
+    _warm_search_index()
     b = {r["key"]: r["value"] for r in rows("SELECT * FROM meta.build")}
     audit = rows("""SELECT session, canonical, upstream, status FROM meta.schema_audit
                     WHERE status IN ('missing', 'missing_file', 'alias', 'keyword') ORDER BY 1, 2""")
@@ -178,29 +193,28 @@ def meta():
 
 
 @app.get("/api/search")
-def search(q: str = Query(..., min_length=1), limit: int = Query(40, le=200)):
+def search(q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
+           academie: str | None = None, selective: bool | None = None, near: str | None = None,
+           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):
+    """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
+    A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation."""
     q = q.strip()
     cod = extract_cod_aff_form(q)
-    if cod or q.isdigit():
-        where, params, mode = "fy.cod_aff_form = ?", [cod or q], "cod_aff_form"
-    elif is_uai(q):
-        where, params, mode = "upper(fy.cod_uai) = ?", [q.upper()], "uai"
-    else:
-        toks = [t for t in fold(q).split() if t]
-        where = " AND ".join(["fy.search_text LIKE ?"] * len(toks))
-        params, mode = [f"%{t}%" for t in toks], "text"
     if q.lower().startswith(("http", "www.")) and not cod:
         raise HTTPException(422, "URL non reconnue : attendu une fiche parcoursup.fr contenant g_ta_cod=…")
-    # One row per lineage, showing its most recent campaign.
-    res = rows(f"""
-      SELECT * FROM (
-        SELECT {SUMMARY_COLS},
-          row_number() OVER (PARTITION BY l.lineage_id ORDER BY fy.session DESC) AS rn
-        FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
-        WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.formation_year fy
-                               JOIN core.lineage l2 USING (session, cod_aff_form) WHERE {where}))
-      WHERE rn = 1 ORDER BY session DESC, g_ea_lib_vx, fil_lib_voe_acc LIMIT ?""", params + [limit])
-    return {"mode": mode, "resolved_cod_aff_form": cod, "results": res}
+    if cod or (q.isdigit() and len(q) <= 9):
+        res = rows(f"""
+          SELECT * EXCLUDE (rn) FROM (
+            SELECT {SUMMARY_COLS}, fy.acad_mies,
+              row_number() OVER (PARTITION BY l.lineage_id ORDER BY fy.session DESC) AS rn
+            FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
+            WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?))
+          WHERE rn = 1""", [cod or q])
+        return {"mode": "cod_aff_form", "resolved_cod_aff_form": cod or q, "query": q, "results": res,
+                "total": len(res), "offset": 0, "limit": limit, "interpretation": [], "notes": [],
+                "partial": False, "facets": {}}
+    return S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
+                    offset=offset, limit=limit)
 
 
 def _record(cod: str, session: int | None) -> dict:
