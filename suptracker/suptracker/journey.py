@@ -538,6 +538,7 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
            t.select_form, t.taux_acces_ens, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
            t.lib_grp1, t.ran_grp1, t.lib_grp2, t.ran_grp2, t.lib_grp3, t.ran_grp3, t.subwish_flag,
+           t.internat, t.distance, t.apprentissage,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend,
            {", ".join(f"h.m_{k}" for k in bg_keys)}
     FROM target t JOIN hist h USING (lineage_id)
@@ -545,6 +546,7 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",
             "lib_grp1", "ran_grp1", "lib_grp2", "ran_grp2", "lib_grp3", "ran_grp3", "subwish_flag",
+            "internat", "distance", "apprentissage",
             "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend",
             *(f"m_{k}" for k in bg_keys)]
     out = []
