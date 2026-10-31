@@ -19,6 +19,18 @@ MAX_FILES = 20
 MAX_BYTES = 30_000_000
 
 
+def dest_name(url: str, taken: set[str]) -> str:
+    """A file name for `url` that no other downloaded URL uses: same-basename links (other year
+    folder, other query string) get a short URL hash so none overwrites another."""
+    name = re.sub(r"[^\w.\-]", "_", unquote(Path(urlparse(url).path).name)) or "file"
+    if name in taken:
+        stem, dot, ext = name.rpartition(".")
+        tag = hashlib.sha256(url.encode()).hexdigest()[:8]
+        name = f"{stem}-{tag}.{ext}" if dot and stem else f"{name}-{tag}"
+    taken.add(name)
+    return name
+
+
 def main(page: str, pattern: str, out: str) -> None:
     dest = Path(out)
     dest.mkdir(parents=True, exist_ok=True)
@@ -28,9 +40,9 @@ def main(page: str, pattern: str, out: str) -> None:
         hrefs = re.findall(r'href="([^"]+)"', html)
         rx = re.compile(pattern, re.I)
         urls = list(dict.fromkeys(urljoin(page, h) for h in hrefs if rx.search(h)))[:MAX_FILES]
-        index = []
+        index, taken = [], {"page.html", "index.json"}
         for url in urls:
-            name = re.sub(r"[^\w.\-]", "_", unquote(Path(urlparse(url).path).name)) or "file"
+            name = dest_name(url, taken)
             body = http.get(url).raise_for_status().content
             if len(body) > MAX_BYTES:
                 print(f"skip {url}: {len(body)} bytes")
