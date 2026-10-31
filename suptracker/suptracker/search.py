@@ -455,7 +455,12 @@ def clean_complement(d: dict) -> str | None:
     comp = d.get("lib_comp_voe_ins")
     if not comp:
         return comp
-    parts = [p.strip() for p in str(comp).split(" - ")]
+    comp, etab = str(comp), str(d.get("g_ea_lib_vx") or "")
+    # the establishment name may itself contain " - " ("Université Lumière - Lyon 2"): strip it whole
+    if etab and fold(comp).startswith(fold(etab)):
+        n = len(etab)
+        comp = comp[n:].lstrip(" -–") if fold(comp[:n]) == fold(etab) else comp
+    parts = [p.strip() for p in comp.split(" - ")]
     drop = {fold(d.get("g_ea_lib_vx")), fold(d.get("fili")), fold(d.get("fil_lib_voe_acc")), "licence", "bts", "but"}
     kept = [p for p in parts if fold(p) not in drop and fold(p) != fold(d.get("form_lib_voe_acc"))]
     return " - ".join(kept) or None
