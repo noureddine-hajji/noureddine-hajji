@@ -40,7 +40,8 @@ def margins(table: dict, unknown: dict) -> dict:
     (unknown-mention admits are in `unknown[s]`, with their hidden true mention irrelevant here)."""
     c = {f"acc_{m}": sum(table[s][m] for s in SERIES) for m in LADDER}
     c["acc_mention_non_renseignee"] = sum(unknown[s] for s in SERIES)
-    c["acc_bg"] = sum(table["bg"].values()) + unknown["bg"]
+    for s in SERIES:
+        c[f"acc_{s}"] = sum(table[s].values()) + unknown[s]
     for s in SERIES:
         c[f"acc_{s}_mention"] = sum(table[s][m] for m in LADDER[1:])
     return c
@@ -111,7 +112,7 @@ def m2(con, real):
 
 @check("M3 degenerate case: a cohort of bacheliers généraux only gets the exact share, no interval")
 def m3(con, real):
-    c = {"acc_bg": 40, "acc_bg_mention": 30, "acc_bt_mention": 0, "acc_bp_mention": 0, "acc_sansmention": 10,
+    c = {"acc_bg": 40, "acc_bt": 0, "acc_bp": 0, "acc_bg_mention": 30, "acc_bt_mention": 0, "acc_bp_mention": 0, "acc_sansmention": 10,
          "acc_ab": 12, "acc_b": 9, "acc_tb": 7, "acc_tbf": 2, "acc_mention_non_renseignee": 0}
     got = {m: J.bg_cdf_bounds(m, c) for m in LADDER[:4]}
     want = {"sansmention": (10, 10), "ab": (22, 22), "b": (31, 31), "tb": (38, 38)}
@@ -120,10 +121,14 @@ def m3(con, real):
 
 @check("M4 inconsistent or missing margins never produce an interval")
 def m4(con, real):
-    base = {"acc_bg": 10, "acc_bg_mention": 5, "acc_bt_mention": 0, "acc_bp_mention": 0, "acc_sansmention": 5,
-            "acc_ab": 5, "acc_b": 0, "acc_tb": 0, "acc_tbf": 0, "acc_mention_non_renseignee": 0}
+    base = {"acc_bg": 10, "acc_bt": 0, "acc_bp": 0, "acc_bg_mention": 5, "acc_bt_mention": 0, "acc_bp_mention": 0,
+            "acc_sansmention": 5, "acc_ab": 5, "acc_b": 0, "acc_tb": 0, "acc_tbf": 0, "acc_mention_non_renseignee": 0}
     cases = [{**base, "acc_bg_mention": 11}, {**base, "acc_bt_mention": 9}, {**base, "acc_bg": 0},
-             {**base, "acc_ab": None}, {**base, "acc_bg_mention": None}]
+             {**base, "acc_ab": None}, {**base, "acc_bg_mention": None},
+             # more bac général without a mention than the ladder has (found by review on formation 29223)
+             {**base, "acc_sansmention": 3},
+             # other series: more admits holding a mention than admits
+             {**base, "acc_bt_mention": 2, "acc_ab": 7, "acc_bt": 1, "acc_sansmention": 4}]
     out = [J.bg_cdf_bounds("ab", c) for c in cases]
     return all(o is None for o in out) and J.bg_cdf_bounds("ab", base) == (10, 10), f"{out}"
 
@@ -143,6 +148,40 @@ def m5(con, real):
             if any(J._zone(taux, v) != z["zone"] for v in grid):
                 bad += 1
     return bad == 0, f"{bad} certain zone(s) contradicted inside the interval"
+
+
+@check("M12 pooling campaigns: per-campaign bounds are added (valid, and never wider than pooling the margins)")
+def m12(con, real):
+    rng = random.Random(12)
+    bad_valid = wider = strictly = 0
+    for _ in range(5_000):
+        camps = [random_table(rng, rng.choice((3, 20))) for _ in range(rng.randint(2, 4))]
+        ms = [margins(t, u) for t, u in camps]
+        if sum(m["acc_bg"] for m in ms) < J.MIN_BG_FOR_BOUNDS:
+            continue
+        for m in LADDER[:4]:
+            pos = J.bg_position(m, ms, None)
+            if pos is None:
+                continue
+            g = sum(x["acc_bg"] for x in ms)
+            lo_t = sum(truth_range(t, u, m)[0] for t, u in camps) / g
+            hi_t = sum(truth_range(t, u, m)[1] for t, u in camps) / g
+            if not (pos["bounds"][0] - 1e-12 <= lo_t and hi_t <= pos["bounds"][1] + 1e-12):
+                bad_valid += 1
+            # reference: sharp bounds of each campaign, ends added (campaigns are independent tables)
+            per = [J.bg_cdf_bounds(m, x) for x in ms]
+            keep = [(b, x) for b, x in zip(per, ms) if b is not None]
+            gk = sum(x["acc_bg"] for _, x in keep)
+            ref = (sum(b[0] for b, _ in keep) / gk, sum(b[1] for b, _ in keep) / gk) if gk else None
+            if ref is None or abs(pos["bounds"][0] - ref[0]) > 1e-12 or abs(pos["bounds"][1] - ref[1]) > 1e-12:
+                bad_valid += 1
+            pooled = J.bg_cdf_bounds(m, {k: sum(x[k] for x in ms) for k in J.BG_KEYS})
+            if pooled:
+                plo, phi = pooled[0] / g, pooled[1] / g
+                wider += pos["bounds"][0] < plo - 1e-12 or pos["bounds"][1] > phi + 1e-12
+                strictly += pos["bounds"][0] > plo + 1e-12 or pos["bounds"][1] < phi - 1e-12
+    return bad_valid == 0 and wider == 0, (f"{bad_valid} invalid or ≠ per-campaign reference, {wider} wider than pooled margins; "
+                                           f"strictly tighter in {strictly} cases (constraints pooling would lose)")
 
 
 @check("M11 a better mention never ranks lower: both bounds rise along the mention ladder")
@@ -169,11 +208,15 @@ def _has(con, col):
 def m6(con, real):
     if not _has(con, "acc_bg_mention"):
         return False, "warehouse has no acc_bg_mention"
-    n, ok = con.execute("""SELECT count(*), count(*) FILTER (WHERE acc_bg_mention + acc_bt_mention + acc_bp_mention
-                                 = acc_ab + acc_b + acc_tb + acc_tbf)
+    n, ok, ok_all = con.execute("""SELECT count(*), count(*) FILTER (WHERE acc_bg_mention + acc_bt_mention + acc_bp_mention
+                                 = acc_ab + acc_b + acc_tb + acc_tbf),
+        count(*) FILTER (WHERE acc_bg_mention + acc_bt_mention + acc_bp_mention = acc_ab + acc_b + acc_tb + acc_tbf
+                           AND acc_bg + acc_bt + acc_bp - acc_bg_mention - acc_bt_mention - acc_bp_mention
+                               = acc_sansmention + acc_mention_non_renseignee)
         FROM core.formation_year WHERE acc_bg_mention IS NOT NULL AND acc_ab IS NOT NULL""").fetchone()
     share = 100 * ok / n if n else 0
-    return share >= 99, f"{ok}/{n} rows ({share:.2f} %); rows that break it get no interval (M4)"
+    return share >= 99, (f"mention half {ok}/{n} ({share:.2f} %); both halves {ok_all}/{n} "
+                         f"({100 * ok_all / max(1, n):.2f} %); campaigns breaking either get no interval (M4)")
 
 
 @check("M7 premise: acc_bg_mention <= acc_bg; pct_bg_mention is over acc_neobac (not acc_bg), as labelled")

@@ -1,4 +1,4 @@
-# Persona verification: Mathématiques + SES, mention Assez bien (2026-10-31T18:58:16+00:00)
+# Persona verification: Mathématiques + SES, mention Assez bien (2026-10-31T19:07:56+00:00)
 
 | check | result | detail |
 |---|---|---|
@@ -8,7 +8,7 @@
 | stage1 gate passes: Licence Sciences juridiques | pass | {"gate": "accessible", "share": 0.05679150781191598, "lift": 0.6941129549769374, "offer_rate": 0.6564091932235517} |
 | stage1 gate passes: BUT Service | pass | {"gate": "predilection", "share": 0.2320006941582247, "lift": 2.8355416783823757, "offer_rate": 0.5321720080562524} |
 | stage1 filtered: CPGE S | pass | {"gate": "atypique", "share": 0.0009533645825057599, "lift": 0.011652141896373116} |
-| taxonomy: MPSI and PCSI belong to the filtered CPGE S type | pass | {"MPSI": 498, "PCSI": 549} |
+| taxonomy: MPSI and PCSI belong to the filtered CPGE S type | pass | {"PCSI": 549, "MPSI": 498} |
 | stage1 national baseline = deduplicated 'Ensemble des bacheliers' row | pass | {"raw": [126650, 108362], "api": {"candidates": 126650, "offered": 120911, "accepted": 108362, "accepted_all": 1324414, "national_share": 0.08181882704350754, "offer_rate": 0.9546861429135413, "years": 4}} |
 | stage1 shares and offer rates within [0, 1] | pass | "" |
 | stage2 CPGE ECG: formations found | pass | 312 |

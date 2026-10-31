@@ -26,7 +26,7 @@ def db(tmp_path_factory):
 def test_worked_example():
     # 50 bac général (30 with a mention), 10 bac techno (4 with a mention); all-series ladder:
     # 24 sans, 14 AB, 10 B, 8 TB, 2 TBF, 2 unknown
-    c = {"acc_bg": 50, "acc_bg_mention": 30, "acc_bt_mention": 4, "acc_bp_mention": 0, "acc_sansmention": 24,
+    c = {"acc_bg": 50, "acc_bt": 10, "acc_bp": 0, "acc_bg_mention": 30, "acc_bt_mention": 4, "acc_bp_mention": 0, "acc_sansmention": 24,
          "acc_ab": 14, "acc_b": 10, "acc_tb": 8, "acc_tbf": 2, "acc_mention_non_renseignee": 2}
     # sans mention: p = 20 BG without a mention, of which up to 2 may be unknown -> [18, 20]
     assert J.bg_cdf_bounds("sansmention", c) == (18, 20)
@@ -61,3 +61,21 @@ def test_red_team_on_real_data():
         pytest.skip("warehouse predates acc_bg_mention")
     failed = [r for r in R.run(REAL_DB, real=True) if not r["ok"]]
     assert not failed, failed
+
+
+def test_review_cases_on_real_data():
+    """The two cases raised in review (PR #11), on the real warehouse."""
+    if not REAL_DB.exists():
+        pytest.skip("real warehouse not present")
+    c = duckdb.connect(str(REAL_DB), read_only=True)
+    if not c.execute("""SELECT count(*) FROM information_schema.columns
+                        WHERE table_name = 'formation_year' AND column_name = 'acc_bg_mention'""").fetchone()[0]:
+        pytest.skip("warehouse predates acc_bg_mention")
+
+    def get(cod, m):
+        t = c.execute("""SELECT r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
+                         WHERE cod_aff_form = ? LIMIT 1""", [cod]).fetchone()[0]
+        return next(f for f in J.stage2(c, "MATHS+SES", m, t)["formations"] if f["cod_aff_form"] == cod)
+    f = get("15987", "ab")                       # campaign bounds summed, not pooled margins
+    assert [round(v, 3) for v in f["bg"]["bounds"]] == [0.262, 0.429] and f["zone"] == "cible" and not f["uncertain"]
+    assert get("29223", "sansmention")["bg"]["campaigns"] == 3     # the contradictory campaign is left out

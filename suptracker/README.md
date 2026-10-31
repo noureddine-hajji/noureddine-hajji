@@ -296,7 +296,9 @@ where:
 - om is the number of admits of the other series holding a mention;
 - gm is the number of bac-général admits holding a mention.
 
-When the published margins contradict each other, no interval is shown.
+**Rules for pooling and consistency.**
+- **Pooling.** Bounds are computed **campaign by campaign** and their ends are added. Pooling the margins first would drop each campaign's own constraints; this was found in review, and on real data it gives strictly tighter intervals in thousands of cases.
+- **Consistency.** A campaign whose margins contradict each other is left out, with its admits. Both halves are checked: admits holding a mention, and admits without one.
 
 **What changes for the student.**
 - **Display.** "Mon parcours" shows the interval, which collapses to an exact value for cohorts that are all bac général. Each end is widened by Wilson 95 % sampling error.
@@ -304,14 +306,15 @@ When the published margins contradict each other, no interval is shown.
 - **Small cohorts.** Below 10 pooled bac-général admits, the all-series view is kept and labelled as such.
 
 **On real 2022–2025 data, about 27,300 formation × mention readings:**
-- the old all-series share was *incompatible* with the bac-général bounds in 28.8 % of them;
-- 547 zones change;
-- the median interval width is 1.2 points, and 62 % of intervals are at most 5 points wide.
+- the old all-series share was *incompatible* with the bac-général bounds in 30.6 % of them;
+- 524 zones change;
+- the median interval width is 0.9 point, and 63 % of intervals are at most 5 points wide.
 
-**Red team (`scripts/redteam_mentions.py`, 11 checks, run in CI by `tests/test_mentions.py`):**
+**Red team (`scripts/redteam_mentions.py`, 12 checks, run in CI by `tests/test_mentions.py`):**
 - **Validity.** The bounds held on all 30,000 random tables.
 - **Sharpness.** Brute force over every consistent table reaches both bounds, on 400 small tables.
-- **Degenerate and inconsistent cases.** They are handled.
+- **Degenerate and inconsistent cases.** They are handled, including inconsistent no-mention margins (found in review).
+- **Pooling.** Pooled bounds equal the per-campaign reference, and are never wider than pooling the margins (found in review).
 - **Zones.** A zone marked certain holds over its whole interval.
 - **Monotonicity.** A better mention never ranks lower.
 - **Real-data premises.**
