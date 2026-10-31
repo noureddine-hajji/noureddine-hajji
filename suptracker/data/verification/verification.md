@@ -1,4 +1,4 @@
-# SIES ground-truth verification — 2026-10-31T18:19:29+00:00
+# SIES ground-truth verification — 2026-10-31T18:50:32+00:00
 
 ## Accounting identities
 
@@ -16,6 +16,10 @@
 | series_plus_at_eq_acc_tot | yes | 2023 | 13869 | 15 | 15 | 99.89 | 1 | upstream_inconsistency |
 | series_plus_at_eq_acc_tot | yes | 2024 | 14079 | 0 | 0 | 100.0 | 0 | pass |
 | series_plus_at_eq_acc_tot | yes | 2025 | 14252 | 0 | 0 | 100.0 | 0 | pass |
+| mention_by_series_eq_acc_neobac | diag | 2022 | 13644 | 356 | 356 | 97.39 | 12 | upstream_inconsistency |
+| mention_by_series_eq_acc_neobac | diag | 2023 | 13869 | 0 | 0 | 100.0 | 0 | pass |
+| mention_by_series_eq_acc_neobac | diag | 2024 | 14079 | 0 | 0 | 100.0 | 0 | pass |
+| mention_by_series_eq_acc_neobac | diag | 2025 | 14252 | 0 | 0 | 100.0 | 0 | pass |
 | series_eq_acc_term | diag | 2022 | 6277 | 6187 | 6187 | 1.43 | 236 | upstream_inconsistency |
 | series_eq_acc_term | diag | 2023 | 6322 | 6238 | 6238 | 1.33 | 243 | upstream_inconsistency |
 | series_eq_acc_term | diag | 2024 | 6327 | 6232 | 6232 | 1.5 | 238 | upstream_inconsistency |

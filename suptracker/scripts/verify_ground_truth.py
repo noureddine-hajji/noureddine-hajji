@@ -45,6 +45,10 @@ IDENTITIES = [
     ("series_eq_acc_neobac", SERIES_FIELDS, "acc_neobac", True),
     ("mentions_eq_acc_neobac", MENTION_FIELDS, "acc_neobac", True),
     ("series_plus_at_eq_acc_tot", (*SERIES_FIELDS, "acc_at"), "acc_tot", True),
+    # admits with a mention by series (+ without / unknown mention) add up to acc_neobac, i.e. the
+    # by-series counts of mentions equal the all-series count of AB..TBF (A3 relies on it)
+    ("mention_by_series_eq_acc_neobac", ("acc_bg_mention", "acc_bt_mention", "acc_bp_mention", "acc_sansmention",
+                                         "acc_mention_non_renseignee"), "acc_neobac", False),
     ("series_eq_acc_term", SERIES_FIELDS, "acc_term", False),
     ("mentions_eq_acc_term", MENTION_FIELDS, "acc_term", False),
 ]

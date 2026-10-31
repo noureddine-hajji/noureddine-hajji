@@ -288,34 +288,49 @@ def o19(con, real):
     return ok, f"guards present; {n} zero-admit rows carry published timing shares and are suppressed"
 
 
-@check("O20 every surface that shows options receives them (fiche, search results, comparator)")
+@check("O20 every surface that shows options receives them (fiche, search results, comparator, Mon parcours)")
 def o20(con, real):
     from fastapi.testclient import TestClient
+
+    from suptracker import api
+    from suptracker import journey as J
     path = one(con, "SELECT path FROM duckdb_databases() WHERE database_name = current_database()")[0]
-    cod, = one(con, """SELECT cod_aff_form FROM core.formation_year WHERE internat IN ('mixte','filles','garcons','oui')
-                       ORDER BY session DESC, cod_aff_form LIMIT 1""") or (None,)
-    if cod is None:
-        return False, "no formation with an internat in this warehouse"
+    # a formation with an internat that "Mon parcours" can list (latest campaign, mapped to a type)
+    row = one(con, """SELECT fy.cod_aff_form, r.spe_type_key FROM core.formation_year fy
+        JOIN core.taxonomy_link t USING (session, cod_aff_form) JOIN core.taxonomy_rule r USING (rule_id)
+        WHERE fy.internat IN ('mixte','filles','garcons','oui')
+          AND fy.session = (SELECT max(session) FROM core.formation_year)
+        ORDER BY fy.cod_aff_form LIMIT 1""")
+    if not row:
+        return False, "no listable formation with an internat in this warehouse"
+    cod, typ = row
     old = os.environ.get("SUPTRACKER_DB")
     os.environ["SUPTRACKER_DB"] = str(path)
-    from suptracker import api
     api._con.cache_clear()
     try:
         c = TestClient(api.app)
-        fiche = c.get(f"/api/formation/{cod}").json()["record"]
-        comp = c.get("/api/compare", params={"ids": cod}).json()["formations"][0]["record"]
-        res = c.get("/api/search", params={"q": cod}).json()["results"][0]
+        surfaces = {
+            "fiche": c.get(f"/api/formation/{cod}").json()["record"],
+            "comparator": c.get("/api/compare", params={"ids": cod}).json()["formations"][0]["record"],
+            "search": c.get("/api/search", params={"q": cod}).json()["results"][0],
+            "parcours": next((f for f in J.stage2(con, "MATHS+PC", "b", typ)["formations"]
+                              if f["cod_aff_form"] == cod), {}),
+        }
     finally:
         if old is None:
             os.environ.pop("SUPTRACKER_DB", None)
         else:
             os.environ["SUPTRACKER_DB"] = old
         api._con.cache_clear()
-    keys = ("internat", "distance", "amenag_sport", "amenag_art", "apprentissage")
-    missing = {name: [k for k in keys if k not in rec] for name, rec in
-               (("fiche", fiche), ("comparator", comp), ("search", res)) if any(k not in rec for k in keys)}
-    same = fiche["internat"] == comp.get("internat")
-    return not missing and same, f"missing {missing}" if missing else f"formation {cod}: internat '{comp['internat']}' everywhere"
+    need = {"fiche": OFFER_KEYS, "comparator": OFFER_KEYS, "search": OFFER_KEYS,
+            "parcours": ("internat", "distance", "apprentissage")}     # compact badges only there
+    missing = {n: [k for k in need[n] if k not in rec] for n, rec in surfaces.items() if any(k not in rec for k in need[n])}
+    same = len({rec.get("internat") for rec in surfaces.values()}) == 1
+    return not missing and same, (f"missing {missing}" if missing else
+                                  f"formation {cod}: internat '{surfaces['fiche']['internat']}' on all 4 surfaces")
+
+
+OFFER_KEYS = ("internat", "distance", "amenag_sport", "amenag_art", "apprentissage")
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

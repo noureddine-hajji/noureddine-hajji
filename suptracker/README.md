@@ -277,6 +277,53 @@ token `demo-token-0123456789`.
 
 O19 suppresses timing for the 617 zero-admit rows that SIES still publishes with 0 % shares. O20 checks that every surface (fiche, search, comparator) receives the options. A mutation test seeded 5 bugs in the search filters (apprenticeship filter back, wrong facet count, missing "filles", reordering, an "internat" query losing its filter). All 5 were caught.
 
+## Mention among bac-général admits (A3, "Mon parcours")
+
+**The problem.** A bac-général student was placed among *all* néo-bacheliers admitted, because SIES publishes the mention ladder for all series combined.
+
+**What SIES publishes, and what it does not.** It never publishes the mention × series table. It publishes only its margins:
+- the all-series ladder, from sans mention to TBF, plus "mention not reported";
+- how many admits of each series hold *a* mention: `acc_bg_mention`, `acc_bt_mention` and `acc_bp_mention`.
+
+**Partial identification.** The bac-général share is therefore partially identified, and `journey.bg_cdf_bounds` gives its sharp bounds. Let K be the number of bac-général admits with the student's mention or lower:
+
+    max(0, p − U) + max(0, A − om)  ≤  K  ≤  p + min(A, gm)
+
+where:
+- p is the number of bac-général admits without a mention;
+- U is the number of admits whose mention is not reported;
+- A is the number of admits, all series, whose mention runs from AB up to the student's;
+- om is the number of admits of the other series holding a mention;
+- gm is the number of bac-général admits holding a mention.
+
+**Rules for pooling and consistency.**
+- **Pooling.** Bounds are computed **campaign by campaign** and their ends are added. Pooling the margins first would drop each campaign's own constraints; this was found in review. In the random-table red team (M12), the per-campaign intervals are strictly tighter in 11,749 cases and never wider.
+- **Consistency.** A campaign whose margins contradict each other is left out, with its admits. Both halves are checked: admits holding a mention, and admits without one.
+
+**What changes for the student.**
+- **Display.** "Mon parcours" shows the interval, which collapses to an exact value for cohorts that are all bac général. Each end is widened by Wilson 95 % sampling error.
+- **Zone.** The zone uses the all-series share projected into the interval, that is, the closest value consistent with the data. It is flagged *incertain* if any value inside the widened interval would change it.
+- **Small cohorts.** Below 10 pooled bac-général admits, the all-series view is kept and labelled as such.
+
+**On real 2022–2025 data, about 27,300 formation × mention readings:**
+- the old all-series share was *incompatible* with the bac-général bounds in 30.6 % of them;
+- 524 zones change;
+- the median interval width is 0.9 point, and 63 % of intervals are at most 5 points wide.
+
+**Red team (`scripts/redteam_mentions.py`, 12 checks, run in CI by `tests/test_mentions.py`):**
+- **Validity.** The bounds held on all 30,000 random tables.
+- **Sharpness.** Brute force over every consistent table reaches both bounds, on 400 small tables.
+- **Degenerate and inconsistent cases.** They are handled, including inconsistent no-mention margins (found in review).
+- **Pooling.** Pooled bounds equal the per-campaign reference, and are never wider than pooling the margins (found in review).
+- **Zones.** A zone marked certain holds over its whole interval.
+- **Monotonicity.** A better mention never ranks lower.
+- **Real-data premises.**
+  - The by-series mention identity holds on 55,844 of 55,844 rows.
+  - `pct_bg_mention` is over `acc_neobac`, not `acc_bg`. This red-team finding corrected a wrong label, and the fixture, which had the same mistake.
+- **Display and method.** The interval display and the methodology text are checked.
+- **Mutation test.** Four seeded bugs were all caught. A fifth "bug" proved to be an equivalent mutant: a redundant constraint, now removed.
+- **Reference persona.** `verify_persona.py` also checks that each zone matches the rules, that the position used lies inside its bounds, and that the margin contains the bounds.
+
 ## Student positioning journey (`#/parcours`)
 
 This feature takes a general-bac student's Terminale specialty doublette, expected mention, home

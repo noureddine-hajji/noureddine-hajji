@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31T18:19:29+00:00",
+  "generated_at": "2026-10-31T18:50:32+00:00",
   "identities": [
     {
       "check": "series_eq_acc_neobac",
@@ -125,7 +125,7 @@
       "sample_violators": [
         "11735",
         "10204",
-        "2574",
+        "10369",
         "10598",
         "25368"
       ]
@@ -146,7 +146,7 @@
         "11783",
         "6736",
         "2000",
-        "35239"
+        "2406"
       ]
     },
     {
@@ -165,6 +165,64 @@
     {
       "check": "series_plus_at_eq_acc_tot",
       "primary": true,
+      "session": 2025,
+      "n_rows": 14252,
+      "n_evaluable": 14252,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mention_by_series_eq_acc_neobac",
+      "primary": false,
+      "session": 2022,
+      "n_rows": 13644,
+      "n_evaluable": 13644,
+      "n_violations": 356,
+      "n_violations_upstream": 356,
+      "max_abs_diff": 12,
+      "pct_ok": 97.39,
+      "status": "upstream_inconsistency",
+      "sample_violators": [
+        "10044",
+        "29229",
+        "12527",
+        "8064",
+        "62"
+      ]
+    },
+    {
+      "check": "mention_by_series_eq_acc_neobac",
+      "primary": false,
+      "session": 2023,
+      "n_rows": 13869,
+      "n_evaluable": 13869,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mention_by_series_eq_acc_neobac",
+      "primary": false,
+      "session": 2024,
+      "n_rows": 14079,
+      "n_evaluable": 14079,
+      "n_violations": 0,
+      "n_violations_upstream": 0,
+      "max_abs_diff": 0,
+      "pct_ok": 100.0,
+      "status": "pass",
+      "sample_violators": []
+    },
+    {
+      "check": "mention_by_series_eq_acc_neobac",
+      "primary": false,
       "session": 2025,
       "n_rows": 14252,
       "n_evaluable": 14252,
@@ -468,6 +526,11 @@
     },
     {
       "field": "pct_tbf",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_bg_mention",
       "n_out_of_bounds": 0,
       "status": "pass"
     },

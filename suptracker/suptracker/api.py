@@ -86,6 +86,19 @@ METHODOLOGY = {
         "pour tous les néo-bacheliers (général, technologique et professionnel), sans croisement avec la "
         "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
         "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
+    "journey_bg": (
+        "Vous êtes en bac général : vous êtes situé parmi les admis du bac général seulement. SIES ne publie pas "
+        "la répartition des mentions par série du bac, seulement le nombre d'admis de chaque série ayant une "
+        "mention, et la répartition des mentions toutes séries confondues. La part des bacheliers généraux "
+        "admis avec votre mention ou moins n'est donc connue qu'à un encadrement près : un encadrement exact, "
+        "car toute répartition compatible avec les chiffres publiés donne une valeur dans cet intervalle, et "
+        "les deux bornes sont atteintes par l'une d'elles. Quand la formation n'admet que des bacheliers "
+        "généraux, l'encadrement se réduit à une valeur exacte. La marge affichée ajoute l'incertitude "
+        "d'échantillonnage (Wilson à 95 %) à chaque borne. Pour la zone, la part toutes séries est ramenée "
+        "dans l'encadrement (la valeur la plus proche compatible avec les données), et la formation est "
+        "marquée incertaine si une valeur de la marge la placerait dans une autre zone. En dessous de 10 "
+        "admis bac général cumulés, ou si les chiffres publiés se contredisent, la part toutes séries est "
+        "affichée à la place."),
     "journey_zones": (
         "Hors-profil : moins de 2 % des admis ont votre mention ou moins. Ambitieux : taux d'accès "
         "inférieur à 30 %, ou votre mention se situe dans les 15 % inférieurs de la cohorte admise. "
