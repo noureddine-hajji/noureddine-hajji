@@ -164,6 +164,15 @@ Latency in-process: p50 about 3–6 ms, p95 under 15 ms; through the API, about 
 `tests/test_search.py` runs the gold set, both holdouts and the red team against the committed
 warehouse on every push.
 
+## Which version is live?
+
+- **Footer.** It shows the deployed commit (`VERCEL_GIT_COMMIT_SHA` on Vercel, `SUPTRACKER_COMMIT` in Docker), or the front-end fingerprint when no commit is known.
+- **`GET /api/version`.** It returns the commit, the branch, the environment, the asset fingerprint and the list of shipped features. It is never cached.
+- **Assets.** `app.js`, `stats.js` and `style.css` are referenced with a content fingerprint (`?v=…`), and the page itself is served `no-cache`. So a browser never keeps an old front-end after a deployment.
+- **CI guard.** `tests/test_release.py` fails if any shipped feature loses its entry point in the front-end.
+
+**If the site looks out of date**, compare the footer or `/api/version` with the latest commit of `main`. If they differ, open Vercel → Deployments: the Production deployment must come from branch `main`. Then redeploy it, or promote the latest `main` deployment.
+
 ## Audience measurement & dashboard (`#/stats`)
 
 First-party, privacy-first measurement (`suptracker/analytics.py`). It answers: who comes, from where,

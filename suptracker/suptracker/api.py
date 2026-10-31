@@ -15,7 +15,7 @@ from pathlib import Path
 import duckdb
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import analytics as A
@@ -608,6 +608,41 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b"]
+
+
+@lru_cache(maxsize=1)
+def _asset_version() -> str:
+    """Fingerprint of the front-end files: it changes with every release, so a browser never keeps
+    an old app.js after a deployment (the cause of 'features disappeared' after an update)."""
+    import hashlib
+    h = hashlib.sha256()
+    for name in ("app.js", "stats.js", "style.css", "index.html"):
+        h.update((STATIC / name).read_bytes())
+    return h.hexdigest()[:12]
+
+
+def _commit() -> str | None:
+    """The deployed commit (Vercel sets VERCEL_GIT_COMMIT_SHA; Docker can pass SUPTRACKER_COMMIT)."""
+    sha = os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("SUPTRACKER_COMMIT")
+    return sha[:7] if sha else None
+
+
+@app.get("/api/version")
+def version():
+    """What is live: commit, branch, front-end fingerprint and features. Never cached."""
+    return JSONResponse({"commit": _commit(), "branch": os.environ.get("VERCEL_GIT_COMMIT_REF"),
+                         "environment": os.environ.get("VERCEL_ENV"), "assets": _asset_version(),
+                         "features": FEATURES}, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    v = _asset_version()
+    html = (STATIC / "index.html").read_text()
+    for name in ("app.js", "stats.js", "style.css"):
+        html = html.replace(f'"/static/{name}"', f'"/static/{name}?v={v}"')
+    label = _commit() or v
+    html = html.replace("<!--version-->", f'<span class="muted">version {label}</span>')
+    # the page itself must never be cached: it is what points to the current asset fingerprint
+    return Response(html, media_type="text/html", headers={"Cache-Control": "no-cache"})
