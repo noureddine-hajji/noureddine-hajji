@@ -71,6 +71,16 @@ def _fixed_cohort(sm, ab, b, tb, tbf, bg, bt, bp):
             "pct_mention_nonrenseignee": 0, "pct_aca_orig": 50, "pct_etab_orig": 10, "pct_neobac": 100}
 
 
+def _series_mentions(rng: random.Random, c: dict) -> dict:
+    """Split the admits with a mention (AB..TBF) across series, within each series' size."""
+    m = sum(c.get(k, 0) for k in ("acc_ab", "acc_b", "acc_tb", "acc_tbf"))
+    bg = min(c["acc_bg"], rng.randint(max(0, m - c["acc_bt"] - c["acc_bp"]), m))
+    bt = min(c["acc_bt"], m - bg)
+    bp = m - bg - bt
+    return {"acc_bg_mention": bg, "acc_bt_mention": bt, "acc_bp_mention": bp,
+            "pct_bg_mention": round(100.0 * bg / c["acc_bg"]) if c["acc_bg"] else None}
+
+
 def _timing(rng: random.Random, acc_tot: int) -> dict:
     """Cumulative offer timing, as published: counts and SIES-rounded shares of acc_tot."""
     d = rng.randint(0, acc_tot)
@@ -127,7 +137,7 @@ def _row(rng, year, cod, etab, track, lib_comp="", acc_tot=None, pool=None):
         nb_pc = rng.randint(0, capa)
         voe_tot, voe_tot_f = nb_pp + nb_pc, rng.randint(0, nb_pp + nb_pc)
     nb_cla = rng.randint(capa, nb_pp)
-    return {
+    row = {
         "session": year, "cod_uai": uai, "cod_aff_form": str(cod), "g_ea_lib_vx": name,
         "contrat_etab": "Public", "dep": dep, "dep_lib": ville, "region_etab_aff": "Région",
         "acad_mies": aca, "ville_etab": ville, "select_form": "formation sélective",
@@ -143,6 +153,8 @@ def _row(rng, year, cod, etab, track, lib_comp="", acc_tot=None, pool=None):
                            f"afficherFicheFormation?g_ta_cod={cod}&typeBac=0&originePc=0"),
         **_cohort(rng, acc_tot),
     }
+    row.update(_series_mentions(rng, row))
+    return row
 
 
 def make_raw(raw_dir: Path, seed: int = 7) -> dict:
@@ -195,6 +207,7 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
             r = _row(rng, y, c, e, track)
             r.update(cohort)
             r.update(_timing(rng, cohort["acc_tot"]))
+            r.update(_series_mentions(rng, r))
             r.update({"taux_acces_ens": taux, "capa_fin": cohort["acc_tot"] + 2,
                       "lib_grp1": "Tous les candidats", "ran_grp1": 400, "lib_grp2": None, "ran_grp2": None})
             for i, (lib, ran) in enumerate(groups or [], start=1):
