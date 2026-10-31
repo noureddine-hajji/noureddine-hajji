@@ -100,17 +100,21 @@ def s3(con, real):
     return bad <= 0.01 * max(1, n), f"{bad}/{n} inconsistent rows"
 
 
-@check("S4 estimated access: bounded, equal to the official rate when the series does as well as everyone, monotone")
+@check("S4 estimated access: bounded, = official rate when the series does as well, undefined stays undefined")
 def s4(con, real):
     mem = duckdb.connect()
     mem.execute("""CREATE TABLE fy AS SELECT * FROM (VALUES
         (60.0, 50, 100, 0, 50, 100, 0),     -- series as successful as all: estimate = official
         (60.0, 50, 100, 0, 25, 100, 0),     -- half as successful: 30
         (90.0, 50, 100, 0, 100, 100, 0),    -- twice as successful: capped at 100
-        (60.0, 50, 100, 0, 0, 100, 0))      -- never proposed: 0
+        (60.0, 50, 100, 0, 0, 100, 0),      -- never proposed: 0
+        (0.0, 0, 100, 0, 0, 29, 0),         -- nobody proposed at all: undefined, NOT 100 (review)
+        (NULL, 50, 100, 0, 50, 100, 0),     -- no official rate: undefined
+        (60.0, 50, 100, 0, 5, 0, 0))        -- no series candidate: undefined
         t(taux_acces_ens, prop_tot, nb_voe_pp, nb_voe_pc, prop_tot_bt, nb_voe_pp_bt, nb_voe_pc_bt)""")
-    got = [round(r[0], 6) for r in mem.execute(f"SELECT {J.series_access_sql('bt')} FROM fy").fetchall()]
-    return got == [60.0, 30.0, 100.0, 0.0], f"{got}"
+    got = [None if r[0] is None else round(r[0], 6)
+           for r in mem.execute(f"SELECT {J.series_access_sql('bt')} FROM fy").fetchall()]
+    return got == [60.0, 30.0, 100.0, 0.0, None, None, None], f"{got}"
 
 
 @check("S5 units: stage 1 counts people (admits), never sums candidates across formations")
@@ -248,6 +252,19 @@ def s12(con, real):
     bad = [(k, g, d.get(k)) for d, k, g in want if d.get(k) != g]
     not_pred = [k for k in ("pass", "licence l as") if bp.get(k) == "predilection"]
     return not bad and not not_pred, f"mismatch {bad}; PASS / L.AS predilection for bac pro: {not_pred}"
+
+
+@check("S13 no zone without a rate: a formation whose (estimated) access is unknown is never sécurité / cible / ambitieux")
+def s13(con, real):
+    types = [r[0] for r in con.execute("SELECT DISTINCT spe_type_key FROM core.taxonomy_rule").fetchall()]
+    bad, n = [], 0
+    for t in types:
+        for se, d in (("bg", "MATHS+SES"), ("bt", None), ("bp", None)):
+            for f in J.stage2(con, d, "tb", t, serie=se)["formations"]:
+                n += 1
+                if f["taux_acces_ens"] is None and f["zone"] in ("securite", "cible", "ambitieux", "hors_profil"):
+                    bad.append((se, t, f["cod_aff_form"], f["zone"]))
+    return not bad, f"{len(bad)} zoned without a rate {bad[:3]}" if bad else f"{n} readings, none zoned without a rate"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

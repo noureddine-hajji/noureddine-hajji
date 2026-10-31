@@ -227,7 +227,9 @@ def series_access_sql(serie: str, alias: str = "fy") -> str:
     The proposal rate itself is not comparable with the zone thresholds, which are set on the
     taux d'accès: it counts proposals actually sent, fewer than candidates in a position to get one."""
     all_rate = f"1.0 * {alias}.prop_tot / nullif({alias}.nb_voe_pp + coalesce({alias}.nb_voe_pc, 0), 0)"
-    return f"least(100.0, {alias}.taux_acces_ens * ({series_rate_sql(serie, alias)} / 100.0) / nullif({all_rate}, 0))"
+    est = f"{alias}.taux_acces_ens * ({series_rate_sql(serie, alias)} / 100.0) / nullif({all_rate}, 0)"
+    # DuckDB's least() skips NULLs (least(100, NULL) = 100): an undefined estimate must stay unknown
+    return f"CASE WHEN ({est}) IS NULL THEN NULL ELSE least(100.0, {est}) END"
 
 
 def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None,

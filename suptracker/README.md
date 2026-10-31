@@ -353,6 +353,8 @@ The gates are the same as for bac général.
 - **Composition wording.** `part_terminale_*` is never called an access rate again.
 - **Counts.** Series counts are consistent.
 - **Estimated access.** It is bounded, equals the official rate when the series does as well as everyone, and is monotone.
+- **Undefined estimates.** An undefined estimate stays undefined: DuckDB's `least(100, NULL)` returns 100. Found in review: a formation with no proposal at all read as "100 %, sécurité".
+- **No zone without a rate.** On real data, 39,525 readings, and none is zoned without a rate.
 - **Units.** Stage 1 counts people, not vœux.
 - **No false closure.** Licence de droit: 0 of 270 closed. The techno CPGE (TSI, TB, TPC) come out sécurité or cible, and MPSI never does.
 - **Fragile rates.** A rate over fewer than 20 candidates never sets a zone.
