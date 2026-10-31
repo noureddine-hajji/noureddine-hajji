@@ -12,7 +12,8 @@ Stage 2   CPGE ECG is stratified: its most selective classes sit in ambitieux /
           sécurité.
 Maths     For every formation of the checked types: CDF recomputed independently from
           core.formation_year; 0 <= CDF <= 1; Wilson interval brackets it; exact-mention
-          share <= CDF; CDF monotone in the mention ladder; zone recomputed from the rules.
+          share <= CDF; CDF monotone in the mention ladder; zone recomputed from the rules (on the
+          bac-général position when it is bounded, which must lie inside its bounds).
 No ecological inference: Stage-2 indicators are identical for two different doublettes
           (only the calling group may differ), so Stage 2 never multiplies the national
           doublette table into establishment figures; no output field is a probability.
@@ -146,7 +147,17 @@ def run(con, persona=PERSONA) -> Report:
                 if any(a is not None and b is not None and a > b + 1e-12 for a, b in zip(seq, seq[1:])):
                     probs.append(f"cdf not monotone in mention: {seq}")
                 if f["zone"] != "non_ouvert":
-                    expect = J.classify_zone(f["taux_acces_ens"], f["cdf"], lo, hi)["zone"]
+                    # A3: the zone uses the bac-général position when it can be bounded
+                    b = f.get("bg")
+                    if b:
+                        lo_b, hi_b = b["bounds"]
+                        if not (lo_b - 1e-12 <= b["cdf_used"] <= hi_b + 1e-12):
+                            probs.append("bac-général position outside its bounds")
+                        if not (b["ci"][0] <= lo_b + 1e-12 and hi_b <= b["ci"][1] + 1e-12):
+                            probs.append("sampling margin does not contain the bounds")
+                        expect = J.classify_zone(f["taux_acces_ens"], b["cdf_used"], *b["ci"])["zone"]
+                    else:
+                        expect = J.classify_zone(f["taux_acces_ens"], f["cdf"], lo, hi)["zone"]
                     if expect != f["zone"]:
                         probs.append(f"zone {f['zone']} != rules {expect}")
             if probs:

@@ -300,6 +300,70 @@ def wilson(k: float, n: float, z: float = 1.959964) -> tuple[float | None, float
     return lo, hi
 
 
+def bg_cdf_bounds(mention: str, c: dict) -> tuple[int, int] | None:
+    """Sharp bounds on K = number of bac-général admits whose mention is <= `mention`.
+
+    SIES publishes the mention ladder for all néo-bacheliers (acc_sansmention ... acc_tbf, plus
+    acc_mention_non_renseignee) and, by series, only how many admits hold *a* mention
+    (acc_bg_mention, acc_bt_mention, acc_bp_mention). The bac-général row of the mention x series
+    table is therefore partially identified. With
+        g  = acc_bg, gm = acc_bg_mention, p = g - gm (bac général without a mention, or unknown),
+        om = acc_bt_mention + acc_bp_mention (other series holding a mention),
+        A  = all-series admits with a mention from AB up to `mention`,
+        U  = admits whose mention is not reported,
+    every table consistent with the published margins satisfies
+        max(0, p - U) + x_lo  <=  K  <=  p + x_hi
+    with x_lo = max(0, A - om) and x_hi = min(A, gm) (bac-général admits holding a
+    mention between AB and `mention`); admits whose mention is not reported may hold any mention.
+    The bounds are sharp: both ends are reached by some table (checked by brute force in
+    scripts/redteam_mentions.py). Returns None when the counts needed are missing.
+    """
+    keys = ("acc_bg", "acc_bg_mention", "acc_bt_mention", "acc_bp_mention", "acc_sansmention",
+            "acc_ab", "acc_b", "acc_tb", "acc_tbf", "acc_mention_non_renseignee")
+    if any(c.get(k) is None for k in keys) or mention not in MENTIONS:
+        return None
+    g, gm = c["acc_bg"], c["acc_bg_mention"]
+    if not g or gm > g:
+        return None
+    p, om, u = g - gm, c["acc_bt_mention"] + c["acc_bp_mention"], c["acc_mention_non_renseignee"]
+    ladder = MENTIONS[1:]                        # ab, b, tb, tbf
+    if gm + om != sum(c[f"acc_{m}"] for m in ladder):
+        return None                              # the margins contradict each other upstream
+    upto = ladder[: ladder.index(mention) + 1] if mention != "sansmention" else ()
+    a = sum(c[f"acc_{m}"] for m in upto)
+    # gm - above would be a second lower bound, but it equals a - om once gm + om = a + above
+    # (checked above): one constraint, stated once
+    x_lo, x_hi = max(0, a - om), min(a, gm)
+    if x_lo > x_hi:                              # margins inconsistent upstream: say nothing
+        return None
+    return max(0, p - u) + x_lo, p + x_hi
+
+
+MIN_BG_FOR_BOUNDS = 10    # below this many bac-général admits (pooled), keep the all-series view
+
+
+def bg_position(mention: str, margins: dict, cdf_all: float | None) -> dict | None:
+    """Where a bac-général student's mention sits among bac-général admits (A3).
+
+    `bounds`: identified interval of the share (exact consequence of the published counts);
+    `ci`: that interval widened by 95 % Wilson sampling error at each end;
+    `cdf_used`: the all-series share projected into the identified interval (the closest value
+    consistent with what is known about bac-général admits), used for the zone.
+    """
+    b = bg_cdf_bounds(mention, margins)
+    g = margins.get("acc_bg") or 0
+    if b is None or g < MIN_BG_FOR_BOUNDS:
+        return None
+    k_lo, k_hi = b
+    lo, hi = k_lo / g, k_hi / g
+    ci_lo, ci_hi = wilson(k_lo, g)[0], wilson(k_hi, g)[1]
+    used = None if cdf_all is None else min(max(cdf_all, lo), hi)
+    return {"bounds": [lo, hi], "ci": [ci_lo, ci_hi], "width": hi - lo, "n": g,
+            "cdf_used": used if used is not None else (lo + hi) / 2,
+            "projected": cdf_all is not None and not (lo <= cdf_all <= hi),
+            "share_with_mention": margins["acc_bg_mention"] / g}
+
+
 # Portfolio zones (thresholds are part of the method and shown in the UI).
 ZONE_RULES = {
     "hors_profil_cdf": 0.02,     # < 2% of admits hold the expected mention or lower
@@ -447,6 +511,10 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
     known = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in MENTIONS)
     cum = " + ".join(f"coalesce(fy.acc_{m}, 0)" for m in upto)
     spe = tuple(dkey.split("+")) if dkey else None
+    bg_keys = ("acc_bg", "acc_bg_mention", "acc_bt_mention", "acc_bp_mention", "acc_sansmention",
+               "acc_ab", "acc_b", "acc_tb", "acc_tbf", "acc_mention_non_renseignee")
+    complete = " AND ".join(f"fy.{k} IS NOT NULL" for k in bg_keys)
+    bg_sums = ", ".join(f"sum(fy.{k}) FILTER (WHERE {complete}) AS m_{k}" for k in bg_keys)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     rows = con.execute(f"""
     WITH target AS (
@@ -459,6 +527,9 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
       SELECT l.lineage_id,
              sum({known}) AS n_known, sum({cum}) AS k_cum, sum(coalesce(fy.acc_{mention}, 0)) AS k_exact,
              sum(fy.acc_neobac) AS neobac, sum(fy.acc_bg) AS bg, sum(fy.acc_brs) AS brs,
+             -- A3: the margins of the mention x series table, summed only over campaigns that publish
+             -- all of them (a campaign missing one would break the identity the bounds rest on)
+             {bg_sums},
              count(*) AS years,
              list({{'session': fy.session, 'taux_acces_ens': fy.taux_acces_ens,
                    'cdf': ({cum}) / nullif({known}, 0), 'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
@@ -467,19 +538,27 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
            t.select_form, t.taux_acces_ens, t.acc_bg, t.acc_neobac, t.pct_aca_orig, t.lat, t.lon, t.fiche_url,
            t.lib_grp1, t.ran_grp1, t.lib_grp2, t.ran_grp2, t.lib_grp3, t.ran_grp3, t.subwish_flag,
-           h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend
+           h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend,
+           {", ".join(f"h.m_{k}" for k in bg_keys)}
     FROM target t JOIN hist h USING (lineage_id)
     ORDER BY t.taux_acces_ens NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",
             "lib_grp1", "ran_grp1", "lib_grp2", "ran_grp2", "lib_grp3", "ran_grp3", "subwish_flag",
-            "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend"]
+            "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend",
+            *(f"m_{k}" for k in bg_keys)]
     out = []
     for r in rows:
         x = dict(zip(cols, r))
         n, k = x["n_known"] or 0, x["k_cum"] or 0
         cdf = k / n if n else None
         lo, hi = wilson(k, n)
+        margins = {k_: x.pop(f"m_{k_}") for k_ in bg_keys}
+        bg = bg_position(mention, margins, cdf)
+        if bg:                                   # A3: the bac-général view replaces the all-series one
+            cdf_zone, lo_zone, hi_zone = bg["cdf_used"], bg["ci"][0], bg["ci"][1]
+        else:
+            cdf_zone, lo_zone, hi_zone = cdf, lo, hi
         eligible = open_to_general(x, spe)
         pct_bg = (x["bg"] / x["neobac"]) if x["neobac"] else None
         if eligible is not False and pct_bg is not None and pct_bg < MIN_GENERAL_SHARE:
@@ -487,6 +566,7 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
         x.update({
             "open_to_general": eligible,
             "cdf": cdf, "cdf_ci": [lo, hi], "exact_share": (x["k_exact"] / n) if n else None,
+            "bg": bg,
             "pct_bg": pct_bg,
             "pct_boursiers": (x["brs"] / x["neobac"]) if x["neobac"] else None,
             "small_cohort": (x["acc_bg_latest"] or 0) < 10,
@@ -495,7 +575,7 @@ def stage2(con, dkey: str, mention: str, type_key_: str, academie: str | None = 
             "limited_comparability": x["neobac"] and (x["bg"] or 0) / x["neobac"] < 0.5,
             "home_academie": bool(academie) and x["academie"] == academie,
             "non_selective": x["select_form"] == "formation non sélective",
-            **(classify_zone(x["taux_acces_ens"], cdf, lo, hi) if eligible is not False
+            **(classify_zone(x["taux_acces_ens"], cdf_zone, lo_zone, hi_zone) if eligible is not False
                else {"zone": "non_ouvert", "uncertain": False}),
             "group": student_group(x, spe, sex),
         })

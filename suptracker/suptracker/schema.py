@@ -121,7 +121,9 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("pct_b", "DOUBLE", stage="indicator", label="% Bien"),
     F("pct_tb", "DOUBLE", stage="indicator", label="% Très bien"),
     F("pct_tbf", "DOUBLE", stage="indicator", label="% Très bien félicitations"),
-    F("pct_bg_mention", "DOUBLE", stage="indicator", label="% de mentions parmi les admis bac général"),
+    # careful: SIES divides by all néo-bacheliers admitted (acc_neobac), not by acc_bg
+    F("pct_bg_mention", "DOUBLE", stage="indicator",
+      label="% d'admis bacheliers généraux avec mention, sur l'ensemble des néo-bacheliers admis"),
     F("pct_acc_debutpp", "DOUBLE", stage="indicator",
       label="% d'admis ayant reçu leur proposition à l'ouverture de la phase principale"),
     F("pct_acc_datebac", "DOUBLE", stage="indicator", label="% d'admis ayant reçu leur proposition avant le bac"),

@@ -78,7 +78,8 @@ def _series_mentions(rng: random.Random, c: dict) -> dict:
     bt = min(c["acc_bt"], m - bg)
     bp = m - bg - bt
     return {"acc_bg_mention": bg, "acc_bt_mention": bt, "acc_bp_mention": bp,
-            "pct_bg_mention": round(100.0 * bg / c["acc_bg"]) if c["acc_bg"] else None}
+            # like SIES: over all néo-bacheliers admitted, not over the bac-général admits
+            "pct_bg_mention": round(100.0 * bg / c["acc_neobac"]) if c["acc_neobac"] else None}
 
 
 def _timing(rng: random.Random, acc_tot: int) -> dict:
