@@ -211,6 +211,7 @@ async function viewFormation(cod, session) {
     </div></div>
   ${offerCard(r)}
   ${timingCard(r, d.history)}
+  <div id="planb"></div>
   <h2 style="font-size:16px">Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
   <div class="grid3">
     ${stageCard("1 · Candidatures (vœux)", ["voe_tot", "nb_voe_pp", "nb_voe_pc", "voe_tot_f"], r, r.subwish_flag ? "Sous-vœu : effectifs partagés, non additionnables. " + tip("subwish") : "Unité : vœux, pas candidats uniques.")}
@@ -230,7 +231,48 @@ async function viewFormation(cod, session) {
       <td>${h.link_to_next ? lineageBadge(h.link_to_next) : `<span class="muted small">—</span>`}</td><td class="num">${fmt(h.acc_tot)}</td><td class="num">${pct(h.taux_acces_ens)}</td></tr>`).join("")}
   </table></div></div>${feedbackBox("fiche")}`;
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
+  loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
+}
+
+// ---- Plan B: same programme elsewhere, more accessible for the student's profile -------------
+const WHY = { zone: "zone plus favorable", acces: "nettement plus accessible" };
+async function loadPlanB(cod, includePaid = false) {
+  const box = document.getElementById("planb");
+  if (!box) return;
+  const p = store.get("profile", null);
+  const prof = p || { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "" };
+  const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
+  const qs = new URLSearchParams({ serie, mention: prof.mention || "ab" });
+  if (serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
+  if (prof.academie) qs.set("academie", prof.academie);
+  if (includePaid) qs.set("include_paid", "true");
+  let d;
+  try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) { box.innerHTML = ""; return; }
+  // the user may have navigated meanwhile: only the card this request was made for may be filled,
+  // otherwise a late answer for formation A would rebind the toggle of formation B's card
+  if (document.getElementById("planb") !== box || !box.isConnected) return;
+  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(prof.spe1 || "MATHS")} + ${esc(prof.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}`;
+  const head = `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
+    <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/parcours">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon parcours »</a>.</p>`;
+  const paidToggle = d.hidden_paid || d.include_paid ? `<label class="small"><input type="checkbox" id="pbpaid" ${d.include_paid ? "checked" : ""}> Inclure le privé hors contrat / enseignement supérieur privé (frais de scolarité possibles)${d.hidden_paid ? ` · ${fmt(d.hidden_paid)} masqué(s)` : ""}</label>` : "";
+  let body;
+  if (d.status === "deja_accessible") body = `<div class="info">Bonne nouvelle : pour votre profil, cette formation est déjà un vœu de sécurité.</div>`;
+  else if (d.status === "non_disponible") body = `<p class="muted small">Plan B indisponible : ${esc(d.reason)}.</p>`;
+  else if (!d.alternatives.length) body = `<p class="muted small">Aucune formation de la même filière n'est plus accessible pour votre profil d'après les données 2022–2025.</p>`;
+  else {
+    body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : <span class="badge" style="border-color:${ZONES[d.target.zone].color};color:${ZONES[d.target.zone].color}">${ZONES[d.target.zone].label}</span> · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
+    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">Votre mention ou moins</th><th class="num">Distance de la formation visée</th></tr>
+    ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(a.academie)})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
+      <td><span class="badge" style="border-color:${ZONES[a.zone].color};color:${ZONES[a.zone].color}">${ZONES[a.zone].label}</span><div class="muted small">${WHY[a.why] || ""}</div></td>
+      <td class="num">${fmt(a.taux_acces_ens)} %</td>
+      <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
+      <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td></tr>`).join("")}</table></div>
+    <p class="muted small">Parts d'admis des campagnes passées, pas des chances d'admission. Vérifiez chaque fiche Parcoursup.</p>`;
+  }
+  box.innerHTML = `<div class="card">${head}${body}${paidToggle ? `<div class="toolbar">${paidToggle}</div>` : ""}</div>`;
+  const t = box.querySelector("#pbpaid");
+  if (t) t.onchange = () => loadPlanB(cod, t.checked);
 }
 
 function offerCard(r) {

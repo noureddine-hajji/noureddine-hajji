@@ -324,6 +324,41 @@ where:
 - **Mutation test.** Four seeded bugs were all caught. A fifth "bug" proved to be an equivalent mutant: a redundant constraint, now removed.
 - **Reference persona.** `verify_persona.py` also checks that each zone matches the rules, that the position used lies inside its bounds, and that the margin contains the bounds.
 
+## Plan B: the same programme elsewhere, more accessible (formation page)
+
+Each formation page shows, for the student's profile (series, specialties for bac général, mention, académie, stored with "Mon parcours"), up to 6 formations of the **same detailed programme** that are more accessible for that profile. The engine is the "Mon parcours" one (`journey.stage2`); `suptracker/planb.py` adds the selection rules.
+
+**What counts as more accessible.** A suggestion qualifies in one of two ways:
+- it is in a **strictly better zone**, and not uncertain;
+- or it is in a zone at least as good, with access **at least 15 points higher** and a mention position that is not worse.
+
+**What is never suggested.**
+- **Unreliable readings.** Formations that are closed to the series, fragile or tiny (fewer than 20 series candidates or fewer than 10 admits), or unreadable.
+- **The same applicant pool.** Schools of the same concours commun, since they share one pool of candidates.
+- **More than 2 per establishment.**
+- **Fee-charging private institutions, by default.** "Privé enseignement supérieur" and "privé hors contrat" may charge substantial fees, so they appear only if the student ticks a box, then flagged *frais possibles*. The number hidden is shown. Public and "privé sous contrat d'association" are always eligible.
+
+**Order.** Suggestions come from the student's académie first, then by distance from the target (haversine on the formation coordinates).
+
+**Already accessible.** A target that is already a safe choice gets no plan B, and the page says so.
+
+**Libellés.** `search.clean_complement` stripped nothing when the establishment name itself contains " - " (for example, "Université Lumière - Lyon 2"). This was found while building Plan B and is fixed for search too. Plan B also shows `detail_forma`, which is often the only thing that tells two parcours of one programme apart.
+
+**Red team (`scripts/redteam_planb.py`, run in CI by `tests/test_planb.py`).** It covers:
+- independent re-derivation from "Mon parcours" that each suggestion is more accessible;
+- same programme;
+- no unreadable formation;
+- no fee-charging private institution by default, with an exact hidden count;
+- never the target or its concours pool, and at most 2 per establishment;
+- académie-then-distance order, and determinism;
+- safe targets get no plan B;
+- API validation;
+- no promise wording, and escaping;
+- the libellé fix;
+- latency;
+- usefulness on selective targets;
+- no navigation race: a late answer never fills or rebinds another formation's card (found in review).
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

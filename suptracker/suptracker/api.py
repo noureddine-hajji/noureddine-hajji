@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from . import analytics as A
 from . import config
 from . import journey as J
+from . import planb as PB
 from . import search as S
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
@@ -113,6 +114,16 @@ METHODOLOGY = {
         "marquée incertaine si une valeur de la marge la placerait dans une autre zone. En dessous de 10 "
         "admis bac général cumulés, ou si les chiffres publiés se contredisent, la part toutes séries est "
         "affichée à la place."),
+    "planb": (
+        "Plan B : les formations de la même filière détaillée (même intitulé de programme), placées pour votre "
+        "profil avec la méthode de « Mon parcours ». Une formation est proposée si elle est dans une zone plus "
+        "favorable que la formation visée (et pas incertaine), ou dans une zone au moins égale avec un accès "
+        "supérieur d'au moins 15 points sans position de mention moins bonne. Sont écartées : les formations "
+        "fermées à votre série, les lectures fragiles (moins de 20 candidats de votre série, moins de 10 admis), "
+        "les écoles du même concours commun (même vivier de candidats) et, par défaut, les établissements privés "
+        "hors contrat ou d'enseignement supérieur privé, qui peuvent demander des frais de scolarité élevés. Au "
+        "plus 2 propositions par établissement ; ordre : votre académie, puis la distance à la formation visée. "
+        "Ce sont des parts d'admis des années passées, pas des chances d'admission."),
     "journey_zones": (
         "Hors-profil : moins de 2 % des admis ont votre mention ou moins. Ambitieux : taux d'accès "
         "inférieur à 30 %, ou votre mention se situe dans les 15 % inférieurs de la cohorte admise. "
@@ -513,6 +524,24 @@ def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTask
         raise HTTPException(422, str(exc)) from exc
     bg.add_task(A.record, "journey", {"stage": "stage2"}, _hdrs(request))
     return res
+
+
+@app.get("/api/planb/{cod}")
+def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+          serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
+          academie: str | None = Query(None, max_length=80), include_paid: bool = False):
+    """Plan B: the same programme elsewhere, more accessible for the student's profile."""
+    _journey_ready()
+    if not cod.isdigit() or len(cod) > 9:
+        raise HTTPException(422, "code formation invalide")
+    if serie == "bg" and (not spe1 or not spe2):
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
+    dkey = _dkey(spe1, spe2) if serie == "bg" else None
+    try:
+        return PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=mention, academie=academie or None,
+                         include_paid=include_paid)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
 
 
 @app.get("/api/continuity")
