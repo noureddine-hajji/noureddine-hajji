@@ -6,3 +6,4 @@ Dockerfile
 docker-entrypoint.sh
 Makefile
 requirements-pipeline.txt
+data/analytics/

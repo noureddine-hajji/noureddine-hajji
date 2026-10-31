@@ -164,6 +164,78 @@ Latency in-process: p50 about 3–6 ms, p95 under 15 ms; through the API, about 
 `tests/test_search.py` runs the gold set, both holdouts and the red team against the committed
 warehouse on every push.
 
+## Audience measurement & dashboard (`#/stats`)
+
+First-party, privacy-first measurement (`suptracker/analytics.py`). It answers: who comes, from where,
+what students search, what they **do not find**, which pages help them, and whether the app breaks.
+
+**What is measured.** Page views by section, distinct visitors, searches (with the masked query),
+searches with no result, formations consulted, clicks to the official Parcoursup fiche, use of
+"Mon parcours", 👍/👎 feedback with a closed list of reasons, device class, traffic source, and JS
+and server errors.
+
+**What is never stored.** No cookie, no identifier, no IP address, no user agent and no free text
+other than the search query. A visitor is a daily pseudonym, HMAC(salt, day | IP | browser), that
+rotates every day, so the unit is the *visitor-day*. Only aggregated daily counters are kept (400
+days). Queries are folded, and emails, URLs and digit runs are masked. A query or a fiche appears on
+the dashboard only once **k = 3** distinct visitor-days produced it. Do-Not-Track and GPC are
+honoured, and bots are filtered.
+
+**Dashboard.**
+- Insights in plain language, each with an action.
+- Six KPIs with deltas against the previous period. Counts use an exact-test approximation and
+  rates a two-proportion z-test, with a **Holm correction** so noise is not reported as a change.
+  Rates carry Wilson 95 % intervals.
+- Daily small multiples over the Parcoursup calendar, with crosshair, keyboard reading and a table
+  view.
+- The student funnel: visit → search → fiche → click to Parcoursup.
+- Satisfaction per page with intervals, and feedback reasons.
+- The "not found" queries, each linking to its reproduction: they are the next gold-set cases for
+  the search engine.
+- Top formations, sources and devices.
+- A measurement-quality panel, and CSV export.
+
+### Set it up on Vercel (5 minutes)
+
+1. **Storage.** In the Vercel project, go to **Storage** → **Create** → **Upstash for Redis** (free
+   tier) and connect it to the project. It injects `KV_REST_API_URL` and `KV_REST_API_TOKEN`
+   (`UPSTASH_REDIS_REST_URL`/`_TOKEN` work too). Without it, the counters go to `/tmp`, which is wiped
+   on every cold start, and the dashboard says so.
+2. **Environment variables** (Settings → Environment Variables):
+   - `SUPTRACKER_STATS_TOKEN`: a long random value, at least 16 characters. It opens `#/stats`. Without
+     it, the dashboard is disabled.
+   - `SUPTRACKER_ANALYTICS_SALT`: another long random value, kept secret. Without it, a visitor can
+     be counted once per server instance.
+   - Optional: `SUPTRACKER_ANALYTICS=off` disables all measurement.
+3. **Redeploy.** Then open `https://<your-site>/#/stats` and paste the token. It stays in the tab
+   only (sessionStorage).
+
+Generate the secrets with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+
+**Docker / local.** Counters go to a SQLite file under the data directory (`$SUPTRACKER_DATA/analytics`, i.e. the `/data` volume in Docker), or `SUPTRACKER_ANALYTICS_DIR`.
+`make demo-stats` seeds 90 invented days into `/tmp/st-demo` and serves the dashboard with the
+token `demo-token-0123456789`.
+
+### Red team (`scripts/redteam_analytics.py`, run in CI by `tests/test_analytics.py`)
+
+| # | Attack or promise | Result |
+|---|---|---|
+| R1–R3 | Oversized, malformed, out-of-list or extra-field payloads | 413/422, only an `invalid` counter |
+| R4 | PII in queries (email, phone, address, URL), IP and UA | nothing stored (full store dump scanned) |
+| R5–R6 | Do-Not-Track / GPC; bots, curl, headless browsers | nothing recorded but a counter |
+| R7 | Counter inflation by one client | daily budget per pseudonym |
+| R8 | Revealing a rare query by repeating it | k-anonymity counts *distinct* visitors |
+| R9 | Dashboard access | 503 without a strong token, 401 otherwise, token never in URL, `no-store` |
+| R10–R11 | Cardinality floods (queries, spoofed referrers) | capped per day / closed list of sources |
+| R12 | Store down | the app keeps answering (fail-open); dashboard 502 |
+| R13–R14 | Pseudonym linkability; ballot stuffing | rotates daily; one vote per page and day |
+| R15 | Stored XSS through queries | every stored text is escaped (static check plus mutation test) |
+| R16 | Latency overhead on `/api/search` | about +3 ms (median of interleaved pairs) |
+| R17 | Redis (Upstash, Lua) path vs SQLite path | identical dashboards (fakeredis + lupa) |
+| R18–R20 | Statistics (Wilson, z-test, Holm); empty period; side-effect-free reads | pass |
+| R21 | No proxy header (direct uvicorn, Docker) | visitors told apart by socket address, which a client cannot forge |
+| R22 | Outbound click with no recorded view (past midnight, lost beacon) | funnel stays nested, rates stay in [0, 1] |
+
 ## Student positioning journey (`#/parcours`)
 
 This feature takes a general-bac student's Terminale specialty doublette, expected mention, home
