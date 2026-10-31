@@ -103,3 +103,14 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 .hv { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .feedback { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .feedback button.small, button.small { padding: 4px 10px; font-size: 13px; }
+/* offer options & offer timing */
+.badge.offer { border-color: var(--accent); color: var(--ink); }
+.offer-list { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; }
+.tbar { display: flex; height: 16px; margin: 12px 0 6px; border-radius: 0 4px 4px 0; overflow: hidden; background: var(--range); }
+.tseg { display: block; height: 100%; }
+.tseg + .tseg { box-shadow: inset 2px 0 0 var(--surface); }
+.legend i.tseg { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.t1 { background: var(--t1); } .t2 { background: var(--t2); } .t3 { background: var(--t3); } .t4 { background: var(--t4); }
+:root { --t1: #163a8a; --t2: #4a7ce0; --t3: #a3bdf0; --t4: #dde2ea; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --t1: #b8cbff; --t2: #7096ec; --t3: #3e5794; --t4: #2c323b; } }
+:root[data-theme="dark"] { --t1: #b8cbff; --t2: #7096ec; --t3: #3e5794; --t4: #2c323b; }

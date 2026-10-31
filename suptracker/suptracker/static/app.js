@@ -105,7 +105,24 @@ const lineageBadge = (c) => c === "inferred_uai_track_match"
   : `<span class="badge exact" title="Même (cod_uai, cod_aff_form)">exact</span>`;
 
 // ---- views -----------------------------------------------------------------
-const INTERP_LABEL = { lieu: "Lieu", sigle: "Reconnu", "corrigé": "Corrigé", "approché": "Mot approché", "ignoré": "Ignoré", uai: "Établissement (UAI)" };
+const INTERP_LABEL = { option: "Option", lieu: "Lieu", sigle: "Reconnu", "corrigé": "Corrigé", "approché": "Mot approché", "ignoré": "Ignoré", uai: "Établissement (UAI)" };
+// ---- offer options (cartographie Parcoursup) and offer timing ---------------------------------
+const OPT_LABEL = { internat: "Internat", apprentissage: "Apprentissage", distance: "À distance", sport: "Sportifs de haut niveau", art: "Artistes de haut niveau" };
+const OPT_ICON = { internat: "🏠", apprentissage: "🛠", distance: "💻", sport: "🏅", art: "🎨" };
+const INTERNAT_LABEL = { mixte: "Internat filles et garçons", filles: "Internat filles", garcons: "Internat garçons", oui: "Internat" };
+function offerList(r) {
+  const out = [];
+  if (INTERNAT_LABEL[r.internat]) out.push(["internat", INTERNAT_LABEL[r.internat]]);
+  if (r.apprentissage === true) out.push(["apprentissage", "En apprentissage"]);
+  if (r.distance === "partielle") out.push(["distance", "Enseignement partiellement à distance"]);
+  if (r.distance === "totale") out.push(["distance", "Enseignement à distance"]);
+  if (r.amenag_sport === true) out.push(["sport", "Aménagements pour sportifs de haut niveau"]);
+  if (r.amenag_art === true) out.push(["art", "Aménagements pour artistes de haut niveau"]);
+  return out;
+}
+// compact (search results): sport / art arrangements are declared by ~40 % of formations, so they
+// would be noise in a result list; they stay on the fiche
+const offerBadges = (r, compact = false) => offerList(r).filter(([k]) => !compact || !["sport", "art"].includes(k)).map(([k, t]) => `<span class="badge offer" title="${esc(t)}"><span aria-hidden="true">${OPT_ICON[k]}</span> ${esc(k === "distance" ? t.replace("Enseignement ", "") : OPT_LABEL[k])}</span>`).join("");
 const FILI_LABEL = { Licence_Las: "Licence L.AS", "Ecole d'Ingénieur": "École d'ingénieurs", "Ecole de Commerce": "École de commerce", "Autre formation": "Autres formations" };
 
 function searchHash(q, params) {
@@ -123,11 +140,14 @@ async function viewSearch(q, rawParams) {
   const P = Object.fromEntries(new URLSearchParams(rawParams || ""));
   const near = store.get("profile", {}).academie || "";
   const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: 40 });
-  for (const k of ["fili", "academie", "selective"]) if (P[k]) qs.set(k, P[k]);
+  for (const k of ["fili", "academie", "selective", "options"]) if (P[k]) qs.set(k, P[k]);
   if (near) qs.set("near", near);
   const d = await api(`/api/search?${qs}`);
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
-  const go = (patch) => searchHash(q, { fili: P.fili, academie: P.academie, selective: P.selective, ...patch, offset: patch.offset || 0 });
+  const go = (patch) => searchHash(q, { fili: P.fili, academie: P.academie, selective: P.selective, options: P.options, ...patch, offset: patch.offset || 0 });
+  const activeOpts = (P.options || "").split(",").filter((o) => OPT_LABEL[o]);
+  const fromQuery = d.interpretation.filter((i) => i.type === "option").map((i) => i.value);
+  const toggleOpt = (o) => { const a = activeOpts.includes(o) ? activeOpts.filter((x) => x !== o) : [...activeOpts, o]; return go({ options: a.join(",") }); };
   const chip = (label, href, active) => `<a class="badge${active ? " exact" : ""}" href="${esc(href)}">${esc(label)}</a>`;
   const facets = d.facets || {};
   const off = +(P.offset || 0);
@@ -137,6 +157,9 @@ async function viewSearch(q, rawParams) {
     ${d.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("")}
     ${d.total === 0 ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou une ville.</p>` : ""}
     ${(facets.fili || []).length > 1 || P.fili ? `<div class="toolbar"><span class="small muted">Type :</span>${chip("Tous", go({ fili: "" }), !P.fili)}${(facets.fili || []).map((f) => chip(`${FILI_LABEL[f.value] || f.value} (${f.count})`, go({ fili: f.value }), P.fili === f.value)).join("")}</div>` : ""}
+    ${(facets.options || []).some((o) => o.count || o.active) ? `<div class="toolbar" aria-label="Options de la formation"><span class="small muted">Options :</span>${facets.options.filter((o) => o.count || o.active).map((o) => fromQuery.includes(o.value) && !activeOpts.includes(o.value)
+      ? `<span class="badge exact" title="Déduit de votre recherche : retirez le mot pour l'enlever">${OPT_ICON[o.value]} ${esc(OPT_LABEL[o.value])} (${o.count})</span>`
+      : chip(`${OPT_ICON[o.value]} ${OPT_LABEL[o.value]} (${o.count})`, toggleOpt(o.value), o.active)).join("")}</div>` : ""}
     ${(facets.academie || []).length > 1 || P.academie || (facets.selectivite || []).length > 1 || P.selective ? `<div class="toolbar">
       ${(facets.academie || []).length > 1 || P.academie ? `<label class="small">Académie <select id="facad"><option value="">Toutes</option>${(facets.academie || []).slice().sort((a, b) => a.value.localeCompare(b.value, "fr")).map((a) => `<option value="${esc(a.value)}" ${P.academie === a.value ? "selected" : ""}>${esc(a.value)} (${a.count})</option>`).join("")}</select></label>` : ""}
       ${(facets.selectivite || []).length > 1 || P.selective ? `<label class="small">Sélectivité <select id="fsel"><option value="">Toutes</option>${(facets.selectivite || []).map((f) => { const v = f.value === "formation sélective" ? "true" : "false"; return `<option value="${v}" ${P.selective === v ? "selected" : ""}>${f.value === "formation sélective" ? "Sélectives" : "Non sélectives"} (${f.count})</option>`; }).join("")}</select></label>` : ""}
@@ -145,7 +168,7 @@ async function viewSearch(q, rawParams) {
         <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
         ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
         <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span><span class="badge">${r.session}</span>
-        <span class="badge">${r.lineage_years} campagne(s)</span>${lineageBadge(r.lineage_confidence)}
+        <span class="badge">${r.lineage_years} campagne(s)</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}
         ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
       </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
     ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + 40 }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + 80))}) →</a></p>` : ""}
@@ -186,6 +209,8 @@ async function viewFormation(cod, session) {
       <div><div class="muted small">Terminales générales en position d'admis (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div></div>
       <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div></div>
     </div></div>
+  ${offerCard(r)}
+  ${timingCard(r, d.history)}
   <h2 style="font-size:16px">Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
   <div class="grid3">
     ${stageCard("1 · Candidatures (vœux)", ["voe_tot", "nb_voe_pp", "nb_voe_pc", "voe_tot_f"], r, r.subwish_flag ? "Sous-vœu : effectifs partagés, non additionnables. " + tip("subwish") : "Unité : vœux, pas candidats uniques.")}
@@ -206,6 +231,47 @@ async function viewFormation(cod, session) {
   </table></div></div>${feedbackBox("fiche")}`;
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
+}
+
+function offerCard(r) {
+  const list = offerList(r);
+  if (!r.carto_session && !list.length) return "";
+  const src = r.carto_session ? `cartographie Parcoursup ${r.carto_session}` : "libellé SIES";
+  return `<div class="card"><h2>Bon à savoir ${tip("offer")}</h2>
+    ${list.length ? `<ul class="offer-list">${list.map(([k, t]) => `<li><span aria-hidden="true">${OPT_ICON[k]}</span> ${esc(t)}</li>`).join("")}</ul>`
+      : `<p class="muted small">Ni internat, ni apprentissage, ni enseignement à distance, ni aménagement pour sportifs ou artistes de haut niveau ne sont signalés.</p>`}
+    ${INTERNAT_LABEL[r.internat] ? `<p class="small muted">${r.acc_internat != null ? `${fmt(r.acc_internat)} admis logés à l'internat en ${r.session}${r.nb_voe_pp_internat ? ` (${fmt(r.nb_voe_pp_internat)} candidatures avec demande d'internat)` : ""}. ` : ""}L'internat de l'établissement ne garantit pas une place : elle se demande avec le vœu.</p>` : ""}
+    <p class="small muted">Source : ${esc(src)}. Ces informations décrivent l'offre telle qu'elle est publiée aujourd'hui ; vérifiez-les sur la fiche Parcoursup.</p></div>`;
+}
+
+// Offer timing: the three published shares are cumulative milestones of the main phase.
+const TIMING = [["pct_acc_debutpp", "à l'ouverture de la phase principale"], ["pct_acc_datebac", "avant les résultats du bac"], ["pct_acc_finpp", "avant la fin de la phase principale"]];
+function timingBar(r) {
+  const v = TIMING.map(([k]) => r[k]);
+  if (v.some((x) => x == null)) return "";
+  const cuts = [0, ...v.map((x) => Math.max(0, Math.min(100, x))), 100];
+  const cls = ["t1", "t2", "t3", "t4"];
+  const lab = ["dès l'ouverture", "entre l'ouverture et le bac", "après le bac, avant la fin de la phase principale", "après la fin de la phase principale (phase complémentaire, désistements tardifs)"];
+  let segs = "";
+  for (let i = 0; i < 4; i++) {
+    const w = Math.max(0, cuts[i + 1] - cuts[i]);
+    if (w > 0) segs += `<span class="tseg ${cls[i]}" style="width:${w}%" title="${fmt(w)} % des admis : proposition ${lab[i]}"></span>`;
+  }
+  return `<div class="tbar" role="img" aria-label="${TIMING.map(([k, l]) => `${fmt(r[k])} % ${l}`).join(", ")}">${segs}</div>
+    <div class="legend"><span><i class="tseg t1"></i>dès l'ouverture</span><span><i class="tseg t2"></i>avant le bac</span><span><i class="tseg t3"></i>avant la fin de la phase principale</span><span><i class="tseg t4"></i>après la phase principale</span></div>`;
+}
+function timingCard(r, history) {
+  if (r.pct_acc_debutpp == null) return "";
+  const later = 100 - r.pct_acc_debutpp;
+  const yrs = history.filter((h) => h.pct_acc_debutpp != null);
+  return `<div class="card"><h2>Quand arrivent les propositions ? ${tip("timing")}</h2>
+    ${r.low_n_flag ? `<div class="warn">⚠ Seulement ${fmt(r.acc_tot)} admis : ces parts reposent sur très peu d'élèves.</div>` : ""}
+    <div class="grid3">${TIMING.map(([k, l]) => `<div><div class="big">${pct(r[k])}</div><div class="muted small">des admis ${r.session} avaient reçu leur proposition ${l}</div></div>`).join("")}</div>
+    ${timingBar(r)}
+    ${later >= 10 ? `<p class="info">Ne pas avoir de proposition le premier jour n'est pas un refus : en ${r.session}, <strong>${fmt(later)} %</strong> des admis de cette formation ont reçu la leur plus tard, au fil des places libérées.</p>` : `<p class="info">Ici, presque tous les admis (${pct(r.pct_acc_debutpp)}) avaient leur proposition dès l'ouverture : les listes d'attente bougent peu.</p>`}
+    ${yrs.length > 1 ? `<div class="scroll"><table><tr><th>Session</th>${TIMING.map(([, l]) => `<th class="num">${esc(l)}</th>`).join("")}<th class="num">Admis</th></tr>
+      ${yrs.map((h) => `<tr><td>${h.session}</td>${TIMING.map(([k]) => `<td class="num">${pct(h[k])}</td>`).join("")}<td class="num">${fmt(h.acc_tot)}${h.low_n_flag ? " ⚠" : ""}</td></tr>`).join("")}</table></div>` : ""}
+  </div>`;
 }
 
 const SERIES = [{ key: "acc_bg", name: "Bac général" }, { key: "acc_bt", name: "Bac techno" }, { key: "acc_bp", name: "Bac pro" }];
@@ -257,7 +323,9 @@ async function viewCompare() {
     ["Admis", (f) => fmt(f.record.acc_tot) + (f.record.low_n_flag ? " ⚠" : "")],
     ["% TB + TBF", (f) => pct(metric(f, "pct_tb_tbf").value)], ["% boursiers", (f) => pct(f.record.pct_bours)],
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
-    ["% même académie", (f) => pct(f.record.pct_aca_orig)], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
+    ["% même académie", (f) => pct(f.record.pct_aca_orig)],
+    ["Proposition dès l'ouverture " + tip("timing"), (f) => pct(f.record.pct_acc_debutpp)],
+    ["Options", (f) => offerBadges(f.record) || '<span class="muted small">—</span>'], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
   ];
   const series = F.map((f) => { const by = Object.fromEntries(f.history.map((h) => [h.session, h.taux_acces_ens])); return { name: `${f.record.g_ea_lib_vx} · ${f.record.fil_lib_voe_acc}`, values: years.map((y) => by[y] ?? null) }; });
   $view.innerHTML = `<div class="card"><h2>Comparateur</h2><div class="scroll"><table>

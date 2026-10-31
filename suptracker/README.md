@@ -236,6 +236,47 @@ token `demo-token-0123456789`.
 | R21 | No proxy header (direct uvicorn, Docker) | visitors told apart by socket address, which a client cannot forge |
 | R22 | Outbound click with no recorded view (past midnight, lost beacon) | funnel stays nested, rates stay in [0, 1] |
 
+## Offer timing and offer options (A2, A4)
+
+**When do offers arrive? (fiche → "Quand arrivent les propositions ?")**
+- **What is shown.** The official SIES shares `pct_acc_debutpp`, `pct_acc_datebac` and `pct_acc_finpp`, shown as they are. They are the share of admits who had their offer at the opening of the main phase, before the baccalauréat results, and before the end of the main phase.
+- **How the shares behave.** They are cumulative. Verified on the real 2022–2025 data:
+  - 0 non-monotonic rows out of 55,844;
+  - every row is consistent with `acc_tot` as the denominator (all admits, complementary phase included).
+
+  The last segment of the bar is therefore "after the main phase".
+- **What the student reads.** A 4-year table and a plain sentence: "not having an offer on day one is not a refusal: X % of the admits got theirs later". A low-n warning appears below 10 admits.
+
+**Options ("Bon à savoir", search filters, comparator)**
+- **Source.** The latest Parcoursup cartographie listing, decoded from the `int` and `amg` fields: internat (girls and boys / girls / boys), teaching fully or partly at a distance, and arrangements for high-level athletes or artists. The listing session is shown with each item.
+- **Phrasing.** "avec internat" in a query becomes the internat filter.
+- **Facets.** Option counts are exact: each one is what a click returns, whatever else is active.
+- **Not offered: apprenticeship.**
+  - **Why.** The SIES statistics stopped listing apprenticeship programmes after 2022: 302, then 12, 5 and 3 in 2025, against about 16,700 in the cartographie. A filter would wrongly suggest that almost none exist.
+  - **Instead.** A query mentioning apprenticeship or alternance gets a note that points to Parcoursup's own filter.
+  - **What stays.** The badge remains on the few fiches concerned, also read from the SIES label.
+- **Not claimed: disability support.** The data has no such field (`amg` covers distance teaching and sport or art arrangements only). The methodology points to the référent handicap listed on each Parcoursup fiche.
+
+**Red team (`scripts/redteam_offer.py`, 18 checks, run in CI by `tests/test_offer.py`).** It covers:
+- closed domains;
+- parity between the SQL decoder and its Python twin;
+- cumulative and bounded timing;
+- shares consistent with counts;
+- latest listing wins;
+- coverage (14,250 of 14,252);
+- plausibility (internat: CPGE 78 % vs licence 0 %);
+- exact facets in 3 filter contexts;
+- filters that never reorder results and combine as AND;
+- hostile options refused;
+- compatibility with older warehouses;
+- no raw or unescaped text;
+- no reading as a chance of admission;
+- no disability claim;
+- no misleading filter;
+- student phrasing.
+
+A mutation test seeded 5 bugs in the search filters (apprenticeship filter back, wrong facet count, missing "filles", reordering, an "internat" query losing its filter). All 5 were caught.
+
 ## Student positioning journey (`#/parcours`)
 
 This feature takes a general-bac student's Terminale specialty doublette, expected mention, home
