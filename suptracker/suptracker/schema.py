@@ -92,6 +92,15 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("acc_tbf", "BIGINT", stage="admitted", label="Très bien avec félicitations"),
     F("acc_aca_orig", "BIGINT", stage="admitted", label="Admis de la même académie"),
     F("acc_internat", "BIGINT", stage="admitted", label="Admis en internat"),
+    # offer timing (cumulative): proposal received at the opening of the main phase, before the
+    # baccalauréat results, before the end of the main phase
+    F("acc_debutpp", "BIGINT", stage="admitted",
+      label="Admis ayant reçu leur proposition à l'ouverture de la phase principale"),
+    F("acc_datebac", "BIGINT", stage="admitted", label="Admis ayant reçu leur proposition avant le bac"),
+    F("acc_finpp", "BIGINT", stage="admitted",
+      label="Admis ayant reçu leur proposition avant la fin de la phase principale"),
+    F("nb_voe_pp_internat", "BIGINT", stage="candidates", label="Candidatures en phase principale avec internat"),
+    F("nb_cla_pp_internat", "BIGINT", stage="ranked_offered", label="Classés en phase principale avec internat"),
     # --- official SIES pre-computed shares / indicators ------------------------
     F("pct_f", "DOUBLE", stage="indicator", label="% d'admises"),
     F("pct_bours", "DOUBLE", "pct_brs", stage="indicator", label="% de boursiers (néo-bacheliers)"),
@@ -108,6 +117,11 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("pct_b", "DOUBLE", stage="indicator", label="% Bien"),
     F("pct_tb", "DOUBLE", stage="indicator", label="% Très bien"),
     F("pct_tbf", "DOUBLE", stage="indicator", label="% Très bien félicitations"),
+    F("pct_acc_debutpp", "DOUBLE", stage="indicator",
+      label="% d'admis ayant reçu leur proposition à l'ouverture de la phase principale"),
+    F("pct_acc_datebac", "DOUBLE", stage="indicator", label="% d'admis ayant reçu leur proposition avant le bac"),
+    F("pct_acc_finpp", "DOUBLE", stage="indicator",
+      label="% d'admis ayant reçu leur proposition avant la fin de la phase principale"),
     F("taux_acces_ens", "DOUBLE", "taux_acces", stage="indicator",
       label="Taux d'accès (phase principale)"),
     F("part_terminale_generale_en_position_admis_pp", "DOUBLE", "part_acces_gen", stage="indicator",
