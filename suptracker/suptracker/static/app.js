@@ -261,9 +261,10 @@ function timingBar(r) {
     <div class="legend"><span><i class="tseg t1"></i>dès l'ouverture</span><span><i class="tseg t2"></i>avant le bac</span><span><i class="tseg t3"></i>avant la fin de la phase principale</span><span><i class="tseg t4"></i>après la phase principale</span></div>`;
 }
 function timingCard(r, history) {
-  if (r.pct_acc_debutpp == null) return "";
+  // SIES publishes 0 % shares for cohorts with no admits: nothing can be said about their timing
+  if (r.pct_acc_debutpp == null || !(r.acc_tot > 0)) return "";
   const later = 100 - r.pct_acc_debutpp;
-  const yrs = history.filter((h) => h.pct_acc_debutpp != null);
+  const yrs = history.filter((h) => h.pct_acc_debutpp != null && h.acc_tot > 0);
   return `<div class="card"><h2>Quand arrivent les propositions ? ${tip("timing")}</h2>
     ${r.low_n_flag ? `<div class="warn">⚠ Seulement ${fmt(r.acc_tot)} admis : ces parts reposent sur très peu d'élèves.</div>` : ""}
     <div class="grid3">${TIMING.map(([k, l]) => `<div><div class="big">${pct(r[k])}</div><div class="muted small">des admis ${r.session} avaient reçu leur proposition ${l}</div></div>`).join("")}</div>
@@ -324,7 +325,7 @@ async function viewCompare() {
     ["% TB + TBF", (f) => pct(metric(f, "pct_tb_tbf").value)], ["% boursiers", (f) => pct(f.record.pct_bours)],
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
     ["% même académie", (f) => pct(f.record.pct_aca_orig)],
-    ["Proposition dès l'ouverture " + tip("timing"), (f) => pct(f.record.pct_acc_debutpp)],
+    ["Proposition dès l'ouverture " + tip("timing"), (f) => (f.record.acc_tot > 0 ? pct(f.record.pct_acc_debutpp) : "—")],
     ["Options", (f) => offerBadges(f.record) || '<span class="muted small">—</span>'], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
   ];
   const series = F.map((f) => { const by = Object.fromEntries(f.history.map((h) => [h.session, h.taux_acces_ens])); return { name: `${f.record.g_ea_lib_vx} · ${f.record.fil_lib_voe_acc}`, values: years.map((y) => by[y] ?? null) }; });

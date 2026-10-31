@@ -185,7 +185,8 @@ def readyz():
 
 SUMMARY_COLS = """fy.session, fy.cod_aff_form, fy.cod_uai, fy.g_ea_lib_vx, fy.ville_etab, fy.fili,
   fy.form_lib_voe_acc, fy.fil_lib_voe_acc, fy.lib_for_voe_ins, fy.lib_comp_voe_ins, fy.acc_tot,
-  fy.taux_acces_ens, fy.subwish_flag, fy.low_n_flag, l.lineage_id, l.lineage_confidence, l.lineage_years"""
+  fy.taux_acces_ens, fy.subwish_flag, fy.low_n_flag, l.lineage_id, l.lineage_confidence, l.lineage_years,
+  fy.carto_session, fy.apprentissage, fy.internat, fy.distance, fy.amenag_sport, fy.amenag_art"""
 
 
 def _warm_search_index():
@@ -312,6 +313,7 @@ def formation(cod: str, session: int | None = None):
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers)}
 
 
+OFFER = ("carto_session", "apprentissage", "internat", "distance", "amenag_sport", "amenag_art")
 DECOMP = ("series_sum_mismatch", "mention_sum_mismatch", "acc_tot", "acc_term", "acc_neobac", "acc_at", *SERIES_FIELDS, *MENTION_FIELDS, "acc_brs",
           "acc_tot_f", "pct_f", "pct_bours", "pct_aca_orig", "pct_etab_orig", "pct_bg", "pct_bt", "pct_bp",
           "pct_tb", "pct_tbf", "taux_acces_ens", "part_terminale_generale_en_position_admis_pp",
@@ -348,7 +350,7 @@ def compare(ids: str, session: int | None = None):
         out.append({"record": {k: f["record"].get(k) for k in
                                ("session", "cod_aff_form", "g_ea_lib_vx", "ville_etab", "fil_lib_voe_acc",
                                 "lib_comp_voe_ins", "lineage_id", "lineage_confidence", "fiche_url",
-                                *DECOMP)},
+                                *DECOMP, *OFFER)},
                     "peers": f["peers"], "history": f["history"], "warnings": f["warnings"]})
     return {"formations": out}
 

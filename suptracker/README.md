@@ -257,7 +257,7 @@ token `demo-token-0123456789`.
   - **What stays.** The badge remains on the few fiches concerned, also read from the SIES label.
 - **Not claimed: disability support.** The data has no such field (`amg` covers distance teaching and sport or art arrangements only). The methodology points to the référent handicap listed on each Parcoursup fiche.
 
-**Red team (`scripts/redteam_offer.py`, 18 checks, run in CI by `tests/test_offer.py`).** It covers:
+**Red team (`scripts/redteam_offer.py`, 20 checks, run in CI by `tests/test_offer.py`).** It covers:
 - closed domains;
 - parity between the SQL decoder and its Python twin;
 - cumulative and bounded timing;
@@ -275,7 +275,7 @@ token `demo-token-0123456789`.
 - no misleading filter;
 - student phrasing.
 
-A mutation test seeded 5 bugs in the search filters (apprenticeship filter back, wrong facet count, missing "filles", reordering, an "internat" query losing its filter). All 5 were caught.
+O19 suppresses timing for the 617 zero-admit rows that SIES still publishes with 0 % shares. O20 checks that every surface (fiche, search, comparator) receives the options. A mutation test seeded 5 bugs in the search filters (apprenticeship filter back, wrong facet count, missing "filles", reordering, an "internat" query losing its filter). All 5 were caught.
 
 ## Student positioning journey (`#/parcours`)
 

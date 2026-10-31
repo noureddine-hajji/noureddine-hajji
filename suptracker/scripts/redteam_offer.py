@@ -278,6 +278,46 @@ def o16(con, real):
         f"{len(claims)} disability claim(s) in the UI" if claims else "no claim; methodology points to the référent handicap"
 
 
+@check("O19 empty cohorts say nothing: zero-admit rows never draw a timing card, row or comparator cell")
+def o19(con, real):
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    card = js[js.index("function timingCard"):js.index("function timingCard") + 900]
+    ok = "acc_tot > 0" in card.split("const later")[0] and "h.acc_tot > 0" in card
+    ok &= "f.record.acc_tot > 0 ? pct(f.record.pct_acc_debutpp)" in js
+    n, = one(con, "SELECT count(*) FROM core.formation_year WHERE acc_tot = 0 AND pct_acc_debutpp IS NOT NULL")
+    return ok, f"guards present; {n} zero-admit rows carry published timing shares and are suppressed"
+
+
+@check("O20 every surface that shows options receives them (fiche, search results, comparator)")
+def o20(con, real):
+    from fastapi.testclient import TestClient
+    path = one(con, "SELECT path FROM duckdb_databases() WHERE database_name = current_database()")[0]
+    cod, = one(con, """SELECT cod_aff_form FROM core.formation_year WHERE internat IN ('mixte','filles','garcons','oui')
+                       ORDER BY session DESC, cod_aff_form LIMIT 1""") or (None,)
+    if cod is None:
+        return False, "no formation with an internat in this warehouse"
+    old = os.environ.get("SUPTRACKER_DB")
+    os.environ["SUPTRACKER_DB"] = str(path)
+    from suptracker import api
+    api._con.cache_clear()
+    try:
+        c = TestClient(api.app)
+        fiche = c.get(f"/api/formation/{cod}").json()["record"]
+        comp = c.get("/api/compare", params={"ids": cod}).json()["formations"][0]["record"]
+        res = c.get("/api/search", params={"q": cod}).json()["results"][0]
+    finally:
+        if old is None:
+            os.environ.pop("SUPTRACKER_DB", None)
+        else:
+            os.environ["SUPTRACKER_DB"] = old
+        api._con.cache_clear()
+    keys = ("internat", "distance", "amenag_sport", "amenag_art", "apprentissage")
+    missing = {name: [k for k in keys if k not in rec] for name, rec in
+               (("fiche", fiche), ("comparator", comp), ("search", res)) if any(k not in rec for k in keys)}
+    same = fiche["internat"] == comp.get("internat")
+    return not missing and same, f"missing {missing}" if missing else f"formation {cod}: internat '{comp['internat']}' everywhere"
+
+
 def run(db: Path, real: bool = False) -> list[dict]:
     os.environ.setdefault("SUPTRACKER_ANALYTICS", "off")
     S._CACHE.clear()
