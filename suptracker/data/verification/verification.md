@@ -1,4 +1,4 @@
-# SIES ground-truth verification — 2026-10-23T08:20:52+00:00
+# SIES ground-truth verification — 2026-10-31T18:19:29+00:00
 
 ## Accounting identities
 
@@ -46,6 +46,24 @@
 ## Bounds
 
 All SIES shares within [0, 100].
+
+## Offer timing (diagnostic)
+
+| session | evaluable | non-monotonic counts | acc_finpp > acc_tot | non-monotonic shares | shares = count / acc_tot (%) | shares = count / acc_pp (%) | acc_finpp = acc_pp | acc_finpp = acc_tot | status |
+|---|---|---|---|---|---|---|---|---|---|
+| 2022 | 13644 | 0 | 0 | 0 | 100.0 | 51.1 | 3786 | 3670 | pass |
+| 2023 | 13869 | 0 | 0 | 0 | 100.0 | 48.2 | 3436 | 3154 | pass |
+| 2024 | 14079 | 0 | 0 | 0 | 100.0 | 51.7 | 3534 | 3508 | pass |
+| 2025 | 14252 | 0 | 0 | 0 | 100.0 | 56.2 | 4042 | 3866 | pass |
+
+## Offer attributes from the cartographie (diagnostic)
+
+| session | formations | with cartographie | apprentissage | internat | distance | sport HN | art HN |
+|---|---|---|---|---|---|---|---|
+| 2022 | 13644 | 13639 | 302 | 759 | 990 | 5056 | 3951 |
+| 2023 | 13869 | 13786 | 12 | 768 | 1003 | 5164 | 4049 |
+| 2024 | 14079 | 14032 | 5 | 768 | 1009 | 5346 | 4231 |
+| 2025 | 14252 | 14250 | 3 | 772 | 989 | 5521 | 4407 |
 
 ## Structure
 

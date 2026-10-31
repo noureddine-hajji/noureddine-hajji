@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-23T08:20:52+00:00",
+  "generated_at": "2026-10-31T18:19:29+00:00",
   "identities": [
     {
       "check": "series_eq_acc_neobac",
@@ -69,7 +69,7 @@
         "29229",
         "12527",
         "8064",
-        "9497"
+        "62"
       ]
     },
     {
@@ -124,10 +124,10 @@
       "status": "upstream_inconsistency",
       "sample_violators": [
         "11735",
-        "27461",
+        "10204",
         "2574",
-        "2229",
-        "11733"
+        "10598",
+        "25368"
       ]
     },
     {
@@ -142,11 +142,11 @@
       "pct_ok": 99.89,
       "status": "upstream_inconsistency",
       "sample_violators": [
-        "35239",
-        "10454",
-        "11252",
-        "9803",
-        "11525"
+        "33058",
+        "11783",
+        "6736",
+        "2000",
+        "35239"
       ]
     },
     {
@@ -472,6 +472,21 @@
       "status": "pass"
     },
     {
+      "field": "pct_acc_debutpp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_acc_datebac",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
+      "field": "pct_acc_finpp",
+      "n_out_of_bounds": 0,
+      "status": "pass"
+    },
+    {
       "field": "taux_acces_ens",
       "n_out_of_bounds": 0,
       "status": "pass"
@@ -508,6 +523,106 @@
     {
       "check": "links_one_to_one",
       "violations": 0
+    }
+  ],
+  "timing": [
+    {
+      "session": 2022,
+      "n_evaluable": 13644,
+      "non_monotonic": 0,
+      "finpp_gt_acc_tot": 0,
+      "pct_non_monotonic": 0,
+      "n_pct": 13509,
+      "pct_match_acc_tot": 100.0,
+      "pct_match_acc_pp": 51.1,
+      "finpp_eq_acc_pp": 3786,
+      "finpp_eq_acc_tot": 3670,
+      "n_with_admits": 13457,
+      "status": "pass"
+    },
+    {
+      "session": 2023,
+      "n_evaluable": 13869,
+      "non_monotonic": 0,
+      "finpp_gt_acc_tot": 0,
+      "pct_non_monotonic": 0,
+      "n_pct": 13731,
+      "pct_match_acc_tot": 100.0,
+      "pct_match_acc_pp": 48.2,
+      "finpp_eq_acc_pp": 3436,
+      "finpp_eq_acc_tot": 3154,
+      "n_with_admits": 13602,
+      "status": "pass"
+    },
+    {
+      "session": 2024,
+      "n_evaluable": 14079,
+      "non_monotonic": 0,
+      "finpp_gt_acc_tot": 0,
+      "pct_non_monotonic": 0,
+      "n_pct": 13914,
+      "pct_match_acc_tot": 100.0,
+      "pct_match_acc_pp": 51.7,
+      "finpp_eq_acc_pp": 3534,
+      "finpp_eq_acc_tot": 3508,
+      "n_with_admits": 13837,
+      "status": "pass"
+    },
+    {
+      "session": 2025,
+      "n_evaluable": 14252,
+      "non_monotonic": 0,
+      "finpp_gt_acc_tot": 0,
+      "pct_non_monotonic": 0,
+      "n_pct": 14073,
+      "pct_match_acc_tot": 100.0,
+      "pct_match_acc_pp": 56.2,
+      "finpp_eq_acc_pp": 4042,
+      "finpp_eq_acc_tot": 3866,
+      "n_with_admits": 14015,
+      "status": "pass"
+    }
+  ],
+  "offer": [
+    {
+      "session": 2022,
+      "n": 13644,
+      "with_carto": 13639,
+      "apprentissage": 302,
+      "internat": 759,
+      "distance": 990,
+      "sport": 5056,
+      "art": 3951
+    },
+    {
+      "session": 2023,
+      "n": 13869,
+      "with_carto": 13786,
+      "apprentissage": 12,
+      "internat": 768,
+      "distance": 1003,
+      "sport": 5164,
+      "art": 4049
+    },
+    {
+      "session": 2024,
+      "n": 14079,
+      "with_carto": 14032,
+      "apprentissage": 5,
+      "internat": 768,
+      "distance": 1009,
+      "sport": 5346,
+      "art": 4231
+    },
+    {
+      "session": 2025,
+      "n": 14252,
+      "with_carto": 14250,
+      "apprentissage": 3,
+      "internat": 772,
+      "distance": 989,
+      "sport": 5521,
+      "art": 4407
     }
   ],
   "continuity": [
