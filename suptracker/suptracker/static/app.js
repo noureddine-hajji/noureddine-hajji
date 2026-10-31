@@ -249,7 +249,9 @@ async function loadPlanB(cod, includePaid = false) {
   if (includePaid) qs.set("include_paid", "true");
   let d;
   try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) { box.innerHTML = ""; return; }
-  if (!document.getElementById("planb")) return;          // the user navigated away meanwhile
+  // the user may have navigated meanwhile: only the card this request was made for may be filled,
+  // otherwise a late answer for formation A would rebind the toggle of formation B's card
+  if (document.getElementById("planb") !== box || !box.isConnected) return;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(prof.spe1 || "MATHS")} + ${esc(prof.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}`;
   const head = `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
     <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/parcours">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon parcours »</a>.</p>`;
@@ -269,7 +271,7 @@ async function loadPlanB(cod, includePaid = false) {
     <p class="muted small">Parts d'admis des campagnes passées, pas des chances d'admission. Vérifiez chaque fiche Parcoursup.</p>`;
   }
   box.innerHTML = `<div class="card">${head}${body}${paidToggle ? `<div class="toolbar">${paidToggle}</div>` : ""}</div>`;
-  const t = document.getElementById("pbpaid");
+  const t = box.querySelector("#pbpaid");
   if (t) t.onchange = () => loadPlanB(cod, t.checked);
 }
 

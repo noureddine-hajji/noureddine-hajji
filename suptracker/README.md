@@ -356,7 +356,8 @@ Each formation page shows, for the student's profile (series, specialties for ba
 - no promise wording, and escaping;
 - the libellé fix;
 - latency;
-- usefulness on selective targets.
+- usefulness on selective targets;
+- no navigation race: a late answer never fills or rebinds another formation's card (found in review).
 
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 

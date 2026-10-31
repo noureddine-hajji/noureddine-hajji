@@ -260,6 +260,17 @@ def b13(con, real):
     return not wrong and applied, f"wrong verdicts {wrong}; rule applied in plan_b: {applied}"
 
 
+@check("B14 a late answer never fills or rebinds another formation's card (navigation race)")
+def b14(con, real):
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    i = js.index("async function loadPlanB")
+    block = js[i: js.index("function offerCard", i)]
+    after = block[block.index("await api("):]
+    guard = re.search(r'getElementById\("planb"\) !== box', after) is not None
+    scoped = 'box.querySelector("#pbpaid")' in after and 'document.getElementById("pbpaid")' not in after
+    return guard and scoped, f"identity guard after the request: {guard}; toggle looked up inside the card: {scoped}"
+
+
 def run(db: Path, real: bool = False) -> list[dict]:
     con = duckdb.connect(str(db), read_only=True)
     out = []
