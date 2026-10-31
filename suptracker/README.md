@@ -297,7 +297,7 @@ where:
 - gm is the number of bac-général admits holding a mention.
 
 **Rules for pooling and consistency.**
-- **Pooling.** Bounds are computed **campaign by campaign** and their ends are added. Pooling the margins first would drop each campaign's own constraints; this was found in review, and on real data it gives strictly tighter intervals in thousands of cases.
+- **Pooling.** Bounds are computed **campaign by campaign** and their ends are added. Pooling the margins first would drop each campaign's own constraints; this was found in review. In the random-table red team (M12), the per-campaign intervals are strictly tighter in 11,749 cases and never wider.
 - **Consistency.** A campaign whose margins contradict each other is left out, with its admits. Both halves are checked: admits holding a mention, and admits without one.
 
 **What changes for the student.**
