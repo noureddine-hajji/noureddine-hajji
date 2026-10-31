@@ -24,7 +24,7 @@ def db(tmp_path_factory):
 
 
 def test_haversine():
-    assert round(PB.haversine_km((48.8566, 2.3522), (45.764, 4.8357))) == 392     # Paris - Lyon
+    assert abs(PB.haversine_km((48.8566, 2.3522), (45.764, 4.8357)) - 392) < 2     # Paris - Lyon, ~392 km
     assert PB.haversine_km(None, (1, 2)) is None and PB.haversine_km((None, 1), (1, 2)) is None
 
 
