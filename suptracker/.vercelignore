@@ -7,3 +7,4 @@ docker-entrypoint.sh
 Makefile
 requirements-pipeline.txt
 data/analytics/
+data/probe/
