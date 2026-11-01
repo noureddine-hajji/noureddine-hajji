@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T08:35:17+00:00",
+  "generated_at": "2026-11-01T12:59:08+00:00",
   "identities": [
     {
       "check": "series_eq_acc_neobac",
@@ -124,10 +124,10 @@
       "status": "upstream_inconsistency",
       "sample_violators": [
         "11735",
-        "10204",
-        "23431",
-        "31322",
-        "2229"
+        "27461",
+        "259",
+        "25368",
+        "23431"
       ]
     },
     {
@@ -142,11 +142,11 @@
       "pct_ok": 99.89,
       "status": "upstream_inconsistency",
       "sample_violators": [
-        "35239",
-        "10454",
-        "11252",
-        "9803",
-        "11525"
+        "33058",
+        "11783",
+        "2000",
+        "25105",
+        "35239"
       ]
     },
     {
