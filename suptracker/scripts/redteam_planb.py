@@ -260,15 +260,126 @@ def b13(con, real):
     return not wrong and applied, f"wrong verdicts {wrong}; rule applied in plan_b: {applied}"
 
 
+APP_JS = ROOT / "suptracker" / "static" / "app.js"
+
+
+def _planb_block(js: str) -> str:
+    i = js.index("async function loadPlanB")
+    return js[i: js.index("function offerCard", i)]
+
+
+def _parcours_block(js: str) -> str:
+    i = js.index("async function viewParcours")
+    return js[i: js.index("// ---- audience measurement", i)]
+
+
+def ui_race(js: str) -> tuple[bool, str]:
+    """A late answer (other formation, superseded toggle, closed row) never fills or rebinds a box."""
+    block = _planb_block(js)
+    before, after = block.split("await api(", 1)
+    stamped = re.search(r"box\.dataset\.req = req", before) is not None and "++planbSeq" in before
+    guard = re.search(r"if \(!box\.isConnected \|\| box\.dataset\.req !== req\) return;", after) is not None
+    scoped = 'box.querySelector("[data-pbpaid]")' in after and "getElementById(\"pbpaid\")" not in block
+    return stamped and guard and scoped, f"request stamped before the call: {stamped}; guard after it: {guard}; toggle looked up inside the box: {scoped}"
+
+
+def ui_parcours(js: str) -> tuple[bool, str]:
+    """'Voir un plan B' in Mon parcours: only on ambitious rows, the page's own profile, escaped, under its row."""
+    blk = _parcours_block(js)
+    m = re.search(r"const PLANB_ZONES = \[([^\]]*)\]", js)
+    zones = sorted(re.findall(r'"(\w+)"', m.group(1))) if m else None
+    gated = re.search(r'\$\{PLANB_ZONES\.includes\(f\.zone\) \? `<button type="button" data-planb="\$\{esc\(f\.cod_aff_form\)\}"', blk) is not None
+    profile = "profile: { ...p, serie }" in blk and "inline: true" in blk
+    toggle = 'classList.contains("planb-row")' in blk and "open.remove()" in blk and 'setAttribute("aria-expanded"' in blk
+    pin_esc = 'data-pbpin="${esc(a.cod_aff_form)}"' in _planb_block(js)
+    ok = zones == ["ambitieux", "hors_profil"] and gated and profile and toggle and pin_esc
+    return ok, (f"zones {zones}; button gated and escaped: {gated}; page profile (validated series) passed: {profile}; "
+                f"opens and closes under its row: {toggle}; pin code escaped: {pin_esc}")
+
+
 @check("B14 a late answer never fills or rebinds another formation's card (navigation race)")
 def b14(con, real):
-    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
-    i = js.index("async function loadPlanB")
-    block = js[i: js.index("function offerCard", i)]
-    after = block[block.index("await api("):]
-    guard = re.search(r'getElementById\("planb"\) !== box', after) is not None
-    scoped = 'box.querySelector("#pbpaid")' in after and 'document.getElementById("pbpaid")' not in after
-    return guard and scoped, f"identity guard after the request: {guard}; toggle looked up inside the card: {scoped}"
+    return ui_race(APP_JS.read_text())
+
+
+@check("B15 'Mon parcours': the button is only on ambitious rows, uses the page's profile and opens under its row")
+def b15(con, real):
+    return ui_parcours(APP_JS.read_text())
+
+
+@check("B16 'Mon parcours' and Plan B agree: an ambitious row is never 'déjà accessible' and keeps its zone")
+def b16(con, real):
+    """The button promises a plan B for the row's formation: the Plan B it opens must read that
+    formation with the same zone as the row (same profile, same engine), and must not answer
+    that it is already a safe choice."""
+    types = {}
+    for cod in sample_targets(con, n=12, seed=11):
+        t = con.execute("""SELECT r.spe_type_key FROM core.taxonomy_link l JOIN core.taxonomy_rule r USING (rule_id)
+            WHERE l.cod_aff_form = ? AND l.session = (SELECT max(session) FROM core.formation_year)""", [cod]).fetchone()
+        if t and t[0]:
+            types[t[0]] = 1
+    bad, n = [], 0
+    for prof in PROFILES:
+        for tkey in list(types)[:6]:
+            rows = J.stage2(con, prof.get("dkey"), prof["mention"], tkey, prof.get("academie"), serie=prof["serie"])["formations"]
+            amb = [f for f in rows if f["zone"] in ("ambitieux", "hors_profil")][:3]
+            for f in amb:
+                n += 1
+                r = PB.plan_b(con, f["cod_aff_form"], **prof)
+                tz = r["target"]["zone"] if r.get("target") else None
+                if r["status"] == "deja_accessible" or (r["status"] != "non_disponible" and tz != f["zone"]):
+                    bad.append((f["cod_aff_form"], f["zone"], r["status"], tz))
+    return not bad, f"{len(bad)}/{n} disagree {bad[:3]}" if bad else f"{n} ambitious rows: same zone, never 'déjà accessible'"
+
+
+# Seeded bugs: each must be caught by the check named next to it.
+UI_MUTANTS = [
+    ("drop the late-answer guard", "if (!box.isConnected || box.dataset.req !== req) return;", "", ui_race),
+    ("stamp the box after the request", "  box.dataset.req = req;\n", "", ui_race),
+    ("toggle looked up on the whole page", 'box.querySelector("[data-pbpaid]")', 'document.getElementById("pbpaid")', ui_race),
+    ("button on every row", "${PLANB_ZONES.includes(f.zone) ? `<button", "${true ? `<button", ui_parcours),
+    ("button also on safe rows", 'const PLANB_ZONES = ["ambitieux", "hors_profil"];', 'const PLANB_ZONES = ["ambitieux", "hors_profil", "securite"];', ui_parcours),
+    ("unescaped code in the button", 'data-planb="${esc(f.cod_aff_form)}"', 'data-planb="${f.cod_aff_form}"', ui_parcours),
+    ("stored profile instead of the page's", "profile: { ...p, serie }", "profile: store.get(\"profile\")", ui_parcours),
+    ("unescaped code in the pin button", 'data-pbpin="${esc(a.cod_aff_form)}"', 'data-pbpin="${a.cod_aff_form}"', ui_parcours),
+]
+
+
+@check("B17 mutation test: every seeded UI bug and every seeded rule bug is caught")
+def b17(con, real):
+    js = APP_JS.read_text()
+    missed = []
+    for name, old, new, fn in UI_MUTANTS:
+        if old not in js:
+            missed.append(f"{name} (pattern gone)")
+            continue
+        if fn(js.replace(old, new, 1))[0]:
+            missed.append(name)
+    # rule mutants, on a small sample: B1 re-derives the rule independently and must notice
+    saved = (PB.SAME_ZONE_ACCESS_GAIN, PB.why_better, os.environ.get("REDTEAM_PLANB_N"))
+    orig = PB.why_better
+    rule_mutants = [
+        ("+15 points threshold dropped", dict(gain=-100.0)),
+        ("uncertain zone accepted", dict(fn=lambda t, c: "zone" if PB.ZONE_RANK[c["zone"]] > PB.ZONE_RANK.get(t["zone"], 9) else orig(t, c))),
+    ]
+    try:
+        os.environ["REDTEAM_PLANB_N"] = "8"
+        for name, m in rule_mutants:
+            _RUNS.clear()
+            PB.SAME_ZONE_ACCESS_GAIN = m.get("gain", saved[0])
+            PB.why_better = m.get("fn", orig)
+            if b1(con, real)[0] and b3(con, real)[0]:
+                missed.append(name)
+            PB.SAME_ZONE_ACCESS_GAIN, PB.why_better = saved[0], orig
+    finally:
+        PB.SAME_ZONE_ACCESS_GAIN, PB.why_better = saved[0], orig
+        _RUNS.clear()
+        if saved[2] is None:
+            os.environ.pop("REDTEAM_PLANB_N", None)
+        else:
+            os.environ["REDTEAM_PLANB_N"] = saved[2]
+    n = len(UI_MUTANTS) + len(rule_mutants)
+    return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

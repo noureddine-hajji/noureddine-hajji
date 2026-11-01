@@ -368,6 +368,74 @@ Each formation page shows, for the student's profile (series, specialties for ba
 - usefulness on selective targets;
 - no navigation race: a late answer never fills or rebinds another formation's card (found in review).
 
+### "Voir un plan B" in "Mon parcours"
+
+In the positioning table of "Mon parcours", every **ambitious** or **hors profil** row has a *Voir un plan B* button. Rows that are already *cible* or *sécurité* have none, since a plan B is only useful for a hard target.
+
+- **Where it opens.** The plan B opens under the row. It stays pinned to the visible part of the wide table, so it reads on a phone without scrolling sideways. A second click closes it.
+- **Profile.** It uses the profile shown on the page, with the series validated, not a stored copy.
+- **Pinning.** Each suggestion can be pinned to the simulated wish list directly, and the list audit updates in place.
+- **Late answers.** Every request stamps its box. Only the latest request for a box still on the page may fill it, so a late answer, a superseded paid-private toggle or a closed row is dropped (this also fixes the same race on the formation page's toggle).
+
+The red team adds four checks:
+- **B15:** the button is only on ambitious rows, uses the page's profile, is escaped and opens and closes under its row.
+- **B16:** on real data, the Plan B opened from an ambitious row reads that formation in the **same zone** as the row and never answers "déjà accessible".
+- **B14 (updated):** the stamp is set before the request and checked after it.
+- **B17, mutation test:** eight seeded UI bugs and two seeded rule bugs (the +15-point threshold dropped, an uncertain zone accepted) must each be caught.
+
+## Success in licence (B1, formation page)
+
+Each **public licence** page shows how the students who entered L1 in the same **university and broad discipline** fared. The source is SIES Note Flash 2025-29, *Tableaux réussite et passage par discipline et établissement*.
+
+**Getting the source.** The ministry site rejects automated downloads, so the owner downloads the Excel file and commits it under `data/sources/sies_reussite_licence*.xlsx`. The warehouse build (`success.attach`) reads it, and the data workflow's fingerprint includes it, so a new file triggers a rebuild. The `suptracker-data` workflow also has a `probe_page` mode, which downloads and commits the files linked from an official page so a new source can be inspected first.
+
+**What SIES publishes (checked on the real file).**
+- **Granularity.** 70 universities × 5 broad disciplines: droit and science politique; économie and AES; arts, lettres, langues and SHS; sciences and santé; STAPS. Nothing is published per formation, so the page says the figures cover *all* the university's L1 entrants in that discipline, not this licence alone.
+- **Three cohorts:**
+  - the year after L1 for 2023 entrants: passage to L2, repeat, reorientation, exit (a partition of the entrants, within 1);
+  - licence in 3 years for 2021 entrants;
+  - licence in 3 or 4 years for 2020 entrants.
+- **Expected rate and value added.** Each indicator has an observed rate, a *simulated* rate (what the entrants' profile would give at national rates) and a *value added* equal to observed minus simulated, exactly.
+- **Masks.** Small cohorts are masked (`ns`), and some cells are `nd` or `.`. They are stored as NULL, never 0, and shown as "petit effectif, non publié". Rows under 100 entrants are flagged.
+- **Name quirks.**
+  - A university's discipline rows can carry a shorter name than its total row: "UNIVERSITE TOULOUSE 1" under "UNIVERSITE TOULOUSE 1 (CAPITOLE)". Rows are therefore grouped by block.
+  - Its total row can be named differently in another sheet ("INST NATIONAL UNIVERSITAIRE" for "INU CHAMPOLLION"). These are aliased.
+- **National reference.** Of the two national rows, the universities add up to *Inscriptions principales*, not *Etudiants*, so that row is the national reference for the same discipline.
+
+**Linking a Parcoursup licence.**
+- **University.** The SIES file has no establishment code, so links are made by name, through one explicit rule per university. A Parcoursup establishment is linked only if exactly one rule matches. The tricky cases are:
+  - an Université de Montpellier antenna in Perpignan or Nîmes;
+  - Paris 1, 3 and 13, Sorbonne Université, Paris 2's Melun antenna;
+  - Lyon 1, 2 and 3; Rennes and Rennes 2; Bordeaux and Bordeaux Montaigne.
+  - Paris-Saclay campuses that SIES may count under Évry or Versailles stay **unlinked**, as do INALCO, Sciences Po, lycées and private institutions.
+  - Coverage: 97 % of public licences.
+- **Discipline.** The licence's programme (`fil_lib_voe_acc`) maps to one of the five disciplines. Double or cross-field licences (MIASHS, droit-économie, sciences sanitaires et sociales…) get no figure rather than a guess.
+
+**What is shown.** For each cohort:
+- the university's rate;
+- the expected rate with its gap ("écart", in points);
+- the national rate for the same discipline;
+- a bar of what became of the entrants one year later, for the university and for France.
+
+The page says these are past cohorts, not chances of success, and that the gap to the expected rate does not rank universities.
+
+**Red team (`scripts/redteam_success.py`, run in CI by `tests/test_success.py`).** The workbook is re-read independently and the B1 tables are rebuilt in memory. The checks are:
+- **S1.** SIES identities: discipline sums, universities = *Inscriptions principales*, partition, value added = observed − simulated, rate = count / entrants.
+- **S2.** Stored = published, cell by cell (8,689 cells), and masked cells stay NULL.
+- **S3.** The national reference.
+- **S4.** Every university has a rule, a label and all three cohorts.
+- **S5.** A truth table of hard names, no double link, only public licences, coverage.
+- **S6.** The discipline map.
+- **S7.** The page block shows the right university, discipline and national rows; no block for non-licences; private licences are out of scope.
+- **S8.** UI escaping and wording.
+- **S9.** The methodology text.
+- **S10.** The published warehouse equals a fresh rebuild.
+- **S11.** A mutation test: 15 seeded bugs, all caught. Among them: `ns` read as 0, `Etudiants` as the national row, rows grouped by their short name, Psychologie filed under droit, an unanchored Perpignan rule, Paris-Saclay taking its Évry campus, a typographic apostrophe dropped before folding.
+
+The red team found two real link bugs while B1 was built, both now fixed:
+- "Campus d’Evry" was folded to "devry", so it was linked to Paris-Saclay.
+- The Guyancourt campus of Paris-Saclay was linked to UVSQ.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

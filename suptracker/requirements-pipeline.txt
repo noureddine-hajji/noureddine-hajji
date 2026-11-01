@@ -7,3 +7,4 @@ pytest>=8
 # Red team of the analytics Redis path (scripts/redteam_analytics.py R17)
 fakeredis>=2.26
 lupa>=2.2
+openpyxl>=3.1

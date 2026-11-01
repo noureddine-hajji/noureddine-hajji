@@ -23,6 +23,7 @@ from . import config
 from . import journey as J
 from . import planb as PB
 from . import search as S
+from . import success as SU
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -150,6 +151,18 @@ METHODOLOGY = {
         "pour sportifs ou artistes de haut niveau. Elles décrivent l'offre actuelle, pas une campagne passée. "
         "L'apprentissage est aussi lu dans l'intitulé SIES. Les aménagements pour les candidats en situation de "
         "handicap ne figurent pas dans ces données : chaque fiche Parcoursup indique le référent handicap."),
+    "success": (
+        "Réussite en licence : chiffres publiés par le SIES (ministère de l'Enseignement supérieur) pour "
+        "l'ensemble des néo-bacheliers inscrits en première année de licence d'une université dans une grande "
+        "discipline (droit ; économie-AES ; arts, lettres, langues et sciences humaines ; sciences-santé ; "
+        "STAPS). Ils ne portent pas sur cette seule licence, et ne sont pas publiés formation par formation. "
+        "Trois cohortes : le devenir un an après l'entrée en L1 (passage en L2, redoublement, réorientation, "
+        "sortie de l'enseignement supérieur), la licence obtenue en 3 ans, et en 3 ou 4 ans. Les taux sont "
+        "repris tels quels. Le taux attendu (« simulé » par le SIES) est celui qu'on observerait si les inscrits "
+        "réussissaient comme la moyenne nationale des étudiants de même profil ; l'écart (« valeur ajoutée ») "
+        "se lit avec prudence et ne classe pas les universités. La référence nationale porte sur la même "
+        "discipline. Les petits effectifs sont masqués par le SIES (« ns ») ou signalés ici en dessous de 100 "
+        "inscrits. Ce sont des résultats de cohortes passées, pas des chances de réussite."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -348,7 +361,8 @@ def formation(cod: str, session: int | None = None):
     order = list(PEER_METRICS)
     peers.sort(key=lambda p: order.index(p["metric"]))
     return {"record": rec, "stages": _grouped(rec), "peers": peers,
-            "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers)}
+            "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers),
+            "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
 
 
 OFFER = ("carto_session", "apprentissage", "internat", "distance", "amenag_sport", "amenag_art")
@@ -608,7 +622,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success"]
 
 
 @lru_cache(maxsize=1)

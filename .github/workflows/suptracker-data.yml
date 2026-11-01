@@ -4,6 +4,15 @@
 name: suptracker-data
 on:
   workflow_dispatch:
+    inputs:
+      probe_page:
+        description: "Probe mode: HTML page whose linked files are downloaded and committed to data/probe/ (no warehouse build)"
+        required: false
+        default: ""
+      probe_pattern:
+        description: "Probe mode: regex matched against each link"
+        required: false
+        default: "\\.(xlsx|xls|csv|ods)(\\?|$)"
   schedule:
     - cron: "17 3 1 * *"   # monthly; SIES republishes rarely
 permissions:
@@ -12,7 +21,36 @@ concurrency:
   group: suptracker-data
   cancel-in-progress: false
 jobs:
+  # Brings a new official source into the repository for inspection before an ingestion is
+  # designed (the SIES hosts are blocked in the development sandbox).
+  probe:
+    if: inputs.probe_page != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Download linked files
+        env:
+          PAGE: ${{ inputs.probe_page }}
+          PATTERN: ${{ inputs.probe_pattern }}
+        run: python scripts/probe_source.py "$PAGE" "$PATTERN" data/probe
+      - name: Commit probe
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/probe
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Probe source files ($(date -u +%Y-%m-%d))"
+          git push
   build-data:
+    if: inputs.probe_page == '' || inputs.probe_page == null
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -54,7 +92,7 @@ jobs:
           # Commit only when the SIES inputs or the pipeline code changed: the warehouse
           # is a 40+ MB binary, and an identical rebuild must not grow the git history.
           fp=$( { jq -r '.[].sha256' data/raw/manifest.json | sort; \
-                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml; } | sha256sum | cut -d' ' -f1 )
+                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources; } | sha256sum | cut -d' ' -f1 )
           if [ -f data/fingerprint.txt ] && [ "$(cat data/fingerprint.txt)" = "$fp" ]; then
             echo "SIES exports and pipeline unchanged since the last published warehouse"; exit 0
           fi
