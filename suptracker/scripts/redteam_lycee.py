@@ -244,8 +244,13 @@ def ui_card(js: str) -> tuple[bool, str]:
     badge = re.search(r"p\.lycee && f\.cod_uai === p\.lycee\.uai \?", js) is not None
     here = "p.lycee.uai !== r.cod_uai" in blk
     pick = 'data-lyc="${esc(l.uai)}">${esc(l.nom)}' in js and '${esc(l.commune)}</span></button>' in js
-    ok = not raw and words and not promise and me and badge and here and pick
-    return ok, f"unescaped {raw[:3]}; context wording {words}; promises {promise}; Maths expertes note {me}; same-lycée badge gated {badge}; fiche note gated {here}; picker escaped {pick}"
+    # picking or removing the lycée submits the form as it stands (pending edits kept, found in review)
+    i_p = js.index("lq.oninput")
+    wiring = js[i_p: js.index("$view.querySelectorAll(\"[data-gate]\")", i_p)]
+    keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and "lycee: lyc }" in js)
+    ok = not raw and words and not promise and me and badge and here and pick and keeps
+    return ok, (f"unescaped {raw[:3]}; context wording {words}; promises {promise}; Maths expertes note {me}; same-lycée badge gated {badge}; "
+                f"fiche note gated {here}; picker escaped {pick}; picking keeps pending form edits {keeps}")
 
 
 @check("Y8 the lycée card escapes what it prints, says it is context, and badges only the student's own lycée")
@@ -271,6 +276,8 @@ UI_MUTANTS = [
     ("context wording dropped", "ne modifie pas", "change", ui_card),
     ("picker name unescaped", 'data-lyc="${esc(l.uai)}">${esc(l.nom)}', 'data-lyc="${esc(l.uai)}">${l.nom}', ui_card),
     ("same-lycée note on every fiche", "p.lycee.uai !== r.cod_uai", "false", ui_card),
+    ("picking a lycée rebuilds the profile from storage", "lyc = null; document.getElementById(\"pf\").requestSubmit();",
+     "store.set(\"profile\", { ...store.get(\"profile\", p), lycee: null }); viewParcours();", ui_card),
     ("lycée sent to the server", 'api("/api/lycees")', 'api(`/api/lycees?uai=${p.lycee && p.lycee.uai}`)', ui_privacy),
 ]
 

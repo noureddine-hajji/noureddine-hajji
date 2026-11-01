@@ -747,12 +747,15 @@ async function viewParcours() {
   }
   const ser = document.querySelector('#pf [name="serie"]');
   if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
+  // the lycée picked or removed goes through the same submit as "Explorer": edits made in the form
+  // before picking it (specialties, mention...) are kept, never replaced by the stored profile
+  let lyc = p.lycee || null;
   document.getElementById("pf").onsubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const np = { serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
       mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier"),
-      maths_expertes: !!fd.get("maths_expertes"), lycee: p.lycee || null };
+      maths_expertes: !!fd.get("maths_expertes"), lycee: lyc };
     if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
     if (!np.academie) store.set("onlyHome", false);
     store.set("profile", np); viewParcours();
@@ -768,16 +771,16 @@ async function viewParcours() {
       lres.querySelectorAll("[data-lyc]").forEach((b) => {
         b.onclick = () => {
           const l = LYC.byUai[b.dataset.lyc];
-          const np = { ...store.get("profile", p), lycee: { uai: l.uai, nom: l.nom, commune: l.commune } };
-          if (l.academie && JV.academies.includes(l.academie)) np.academie = l.academie;   // académie follows the lycée
-          store.set("profile", np);
-          viewParcours();
+          lyc = { uai: l.uai, nom: l.nom, commune: l.commune };
+          const sel = document.querySelector('#pf [name="academie"]');
+          if (sel && l.academie && JV.academies.includes(l.academie)) sel.value = l.academie;   // académie follows the lycée
+          document.getElementById("pf").requestSubmit();
         };
       });
     };
   }
   const lc = document.getElementById("lyc-clear");
-  if (lc) lc.onclick = () => { store.set("profile", { ...store.get("profile", p), lycee: null }); viewParcours(); };
+  if (lc) lc.onclick = () => { lyc = null; document.getElementById("pf").requestSubmit(); };
   $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
   $view.querySelectorAll("[data-type]").forEach((el) => { el.onclick = async () => { store.set("drill", { type: el.dataset.type, label: el.dataset.label }); await viewParcours(); document.getElementById("stage3")?.scrollIntoView({ behavior: "smooth" }); }; });
   const af = document.getElementById("allf"); if (af) af.onclick = () => { store.set("allFilieres", !allF); viewParcours(); };
