@@ -324,6 +324,39 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
     ]
     pd.DataFrame(register).to_parquet(raw_dir / "etablissements.parquet", index=False)
     plan["paysage"] = {"transition": ("OLDP1", "PARIS"), "uai": ("LYONX", "LYON1"), "carto": ("1102", "PARIS")}
+    # Sprint 4 lycée files, real column names and quirks: three school years, numbers as text, an LP
+    # without GT-track IPS, a private lycée, an académie with no Parcoursup offer; IVAL with a
+    # truncated académie label, old sessions and a negative value added. The Bordeaux lycée hosts
+    # synthetic BTS formations (same-lycée share).
+    ips = []
+    for rentree in ("2023-2024", "2024-2025", "2025-2026"):
+        for uai, nom, com, aca, typ, sect, gt, et in (
+                ("0331234C", "LYCEE EXEMPLE BORDEAUX", "BORDEAUX", "BORDEAUX", "LPO", "public", "112.4", "110.1"),
+                ("0131234E", "LYCEE EXEMPLE MARSEILLE", "MARSEILLE", "AIX-MARSEILLE", "LEGT", "privé sous contrat", "131.0", "131.0"),
+                ("0339876P", "LYCEE PROFESSIONNEL EXEMPLE", "MERIGNAC", "BORDEAUX", "LP", "public", None, "84.2"),
+                ("9750001A", "LYCEE EXEMPLE SAINT-PIERRE", "SAINT-PIERRE", "ST PIERRE ET MIQUELON", "LPO", "public", "99.0", "98.0")):
+            if uai == "0339876P" and rentree == "2023-2024":
+                continue
+            row = {"rentree_scolaire": rentree, "academie": aca, "nom_de_la_commune": com, "uai": uai,
+                   "nom_de_l_etablissement": nom, "secteur": sect, "type_de_lycee": typ, "ips_voie_gt": gt,
+                   "ips_voie_pro": "90.0" if typ != "LEGT" else None, "ips_etab": et, "ecart_type_etablissement": "30.1"}
+            for lvl, base in (("national", 100.0), ("academique", 101.0)):
+                for t in ("legt", "lpo", "lp"):
+                    for sk, bonus in (("public", 0.0), ("prive", 15.0)):
+                        row[f"ips_{lvl}_{t}_{sk}"] = base + {"legt": 15, "lpo": 3, "lp": -12}[t] + bonus
+            ips.append(row)
+    pd.DataFrame(ips).to_parquet(raw_dir / "ips_lycees.parquet", index=False)
+    ival = []
+    for year in (2012, 2023, 2024, 2025):
+        for uai, aca, va in (("0331234C", "BORDEAUX", -3.0), ("0131234E", "AIX-MARSEILLE", 4.0), ("0130000Z", "AIX-MARSEILLE", 1.0)):
+            if uai == "0130000Z" and year != 2012:      # a lycée closed long ago
+                continue
+            ival.append({"annee": f"{year}-01-01", "uai": uai, "libelle_academie": "NORMAIE" if uai == "0331234C" else aca,
+                         "presents_total": 25 if uai == "0131234E" else 60 if year == 2023 else 250, "taux_reu_total": 92.0, "va_reu_total": va,
+                         "taux_men_total": 60.0, "va_men_total": va / 2, "taux_acces_2nde": 85.0, "va_acces_2nde": -1.0})
+    df = pd.DataFrame(ival)
+    df["annee"] = pd.to_datetime(df["annee"]).dt.date
+    df.to_parquet(raw_dir / "ival_lycees_gt.parquet", index=False)
     return plan
 
 

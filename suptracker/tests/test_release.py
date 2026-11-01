@@ -22,6 +22,7 @@ FEATURE_ENTRY_POINTS = {
     "licence_success": ("app.js", "function successCard"),
     "glossary": ("app.js", "function viewGlossaire"),
     "reliability": ("app.js", "function fiabBadge"),
+    "lycee_profile": ("app.js", "function lyceeCard"),
 }
 
 

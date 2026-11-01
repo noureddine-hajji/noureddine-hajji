@@ -497,6 +497,43 @@ The *Glossaire* page lists the sources for students, including the planned ones 
 - a test blind spot: the red team read the thresholds it was testing from the module itself;
 - the Brest label (now *Université de Bretagne Occidentale*).
 
+## The student's lycée (sprint 4, "Mon parcours")
+
+In "Mon parcours", the student can pick their lycée (optional). The page then shows a **"Ton lycée, en contexte"** card, and the académie follows from the lycée. The page says the lycée **does not change the positioning**: no open dataset crosses Parcoursup admissions with the lycée of origin.
+
+**Sources.** Both come from the Education ministry portal and are ingested by the data workflow (`config.Dataset.base`):
+- *IPS des lycées*: rentrée 2023 and later;
+- *IVAL des lycées GT*.
+
+**What the data showed.**
+- **IPS:**
+  - one row per lycée and school year (3 rentrées, ~3,650 lycées), with numbers stored as text;
+  - the GT-track IPS is empty for vocational lycées;
+  - the reference IPS (académie, France) is published per lycée **type** (LEGT, LPO, LP) and **sector**, so the card compares each lycée to the average of its own type and sector.
+- **IVAL:**
+  - sessions 2012–2025, ~2,300 lycées; the card shows the 3 latest bac sessions of the file;
+  - value added is often negative (2,596 rows on 2023–2025);
+  - the académie label is **truncated** ("NORMAIE", "CLERMONT-FERRA"), so the académie always comes from the IPS file. It maps to the Parcoursup académie by name, except Saint-Pierre-et-Miquelon and Wallis-et-Futuna, which have no Parcoursup offer.
+- **The one lycée effect SIES publishes** is `pct_etab_orig`, the share of a formation's admits who came from that same establishment: 26 % on average for BTS and 10 % for CPGE hosted in lycées. When a formation is in the student's lycée, both "Mon parcours" and the formation page say so, with that official share.
+
+**Maths expertes.** It can be ticked with a maths specialty. The page says Parcoursup data do not publish Terminale options, so the option does not change the positioning.
+
+**Reliability.** The IVAL rows carry the A/B/C grade of `evidence.grade`, computed by the server: headcount present at the bac, session age, official UAI.
+
+**Privacy.** `/api/lycees` sends the whole list (3,662 lycées, ~170 kB gzipped, cacheable) and takes **no parameter**. The page searches it locally, so the chosen lycée stays in the browser and never reaches the server or the audience measure.
+
+**Red team (`scripts/redteam_lycee.py`, run in CI by `tests/test_lycee.py`).** The checks are:
+- **Y1.** Latest school year, values equal to the raw file.
+- **Y2.** IPS references of the lycée's own type and sector.
+- **Y3.** Académie mapping, with a truth table; IVAL's truncated labels are never used.
+- **Y4.** The 3 latest IVAL sessions equal the raw file, and negative value added is kept.
+- **Y5.** The list is served whole, without parameter and cacheable, with server-side grades re-derived independently.
+- **Y6.** Privacy: no API call or audience event carries the lycée.
+- **Y7.** The same-lycée share equals the official field.
+- **Y8.** UI escaping and wording; the same-lycée badge appears only for the student's own lycée.
+- **Y9.** Methodology and glossary.
+- **Y10.** Mutation test: 11 seeded bugs, all caught.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

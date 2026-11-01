@@ -34,10 +34,10 @@ SOURCES = (
      "url": "https://www.enseignementsup-recherche.gouv.fr/fr/parcours-et-reussite-en-licence-les-resultats-de-la-session-2024-100331"},
     # ---------------------------------------------------------------- roadmap (sprints 4-8)
     {"key": "ips_lycees", "title": "Indices de position sociale des lycées (à partir de 2023)", "producer": "MENJ-DEPP",
-     "access": "planned", "granularity": "lycée", "keys": ("uai",), "feeds": ("profil_lycee",), "status": "prevu", "sprint": 4,
+     "access": "ods", "datasets": ("ips_lycees",), "granularity": "lycée", "keys": ("uai",), "feeds": ("profil_lycee",), "status": "en_ligne", "sprint": 4,
      "licence": LICENCE_OUVERTE, "url": "https://www.data.gouv.fr/datasets/ips-lycees-a-partir-de-2023"},
-    {"key": "ival_lycees", "title": "Indicateurs de valeur ajoutée des lycées (GT et pro)", "producer": "MENJ-DEPP",
-     "access": "planned", "granularity": "lycée", "keys": ("uai",), "feeds": ("profil_lycee",), "status": "prevu", "sprint": 4,
+    {"key": "ival_lycees", "title": "Indicateurs de valeur ajoutée des lycées d'enseignement général et technologique", "producer": "MENJ-DEPP",
+     "access": "ods", "datasets": ("ival_lycees_gt",), "granularity": "lycée", "keys": ("uai",), "feeds": ("profil_lycee",), "status": "en_ligne", "sprint": 4,
      "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/indicateurs-de-valeur-ajoutee-des-lycees-denseignement-general-et-technologique-2"},
     {"key": "monmaster", "title": "MonMaster 2023-2025 : vœux et réponses des établissements", "producer": "MESR-SIES",

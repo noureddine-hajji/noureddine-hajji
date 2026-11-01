@@ -25,6 +25,7 @@ from . import planb as PB
 from . import search as S
 from . import success as SU
 from . import glossary as G
+from . import evidence as EV
 from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
@@ -172,6 +173,15 @@ METHODOLOGY = {
         "nom de l'établissement. C (fragile) : moins de 30 personnes. Un chiffre masqué par le producteur n'a ni note ni "
         "valeur. La fiabilité ne dit pas si le chiffre est bon ou mauvais pour vous : elle dit à quel point il est "
         "solide. Chaque étape du parcours décrit une population différente : les chiffres ne se multiplient pas entre eux."),
+    "lycee": (
+        "Ton lycée, en contexte. L'indice de position sociale (IPS, ministère de l'Éducation nationale) résume le milieu "
+        "social des élèves d'un lycée : plus il est élevé, plus il est favorisé en moyenne. Il est comparé aux lycées du même "
+        "type (général et technologique, polyvalent, professionnel) et du même secteur (public, privé sous contrat), dans "
+        "l'académie et en France. La valeur ajoutée (IVAL) compare les résultats du lycée au bac (réussite, mentions, accès "
+        "de la seconde au bac) à ceux qu'on attendrait vu le profil de ses élèves. Ce sont des indicateurs du lycée, pas de "
+        "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
+        "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
+        "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -551,6 +561,31 @@ def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTask
     return res
 
 
+LYCEE_FIELDS = ("uai", "nom", "commune", "academie", "academie_ips", "type", "secteur", "ips_etab", "ips_gt",
+                "ips_national", "ips_academique", "rentree")
+IVAL_FIELDS = ("session", "presents_total", "taux_reu_total", "va_reu_total", "taux_men_total", "va_men_total",
+               "taux_acces_2nde", "va_acces_2nde")
+
+
+@app.get("/api/lycees")
+def lycees():
+    """Sprint 4: every lycée with its context (IPS, IVAL), sent whole so the student's choice of
+    lycée never reaches the server: the page searches and reads it locally. No parameter on purpose."""
+    try:
+        rows = _con().cursor().execute(f"SELECT {', '.join(LYCEE_FIELDS)} FROM ref.lycee ORDER BY uai").fetchall()
+        ival = _con().cursor().execute(f"SELECT uai, {', '.join(IVAL_FIELDS)} FROM ref.lycee_ival ORDER BY uai, session DESC").fetchall()
+    except duckdb.Error:   # warehouse built before sprint 4
+        rows, ival = [], []
+    by = {}
+    for r in ival:
+        v = dict(zip(IVAL_FIELDS, r[1:]))
+        # same fixed rules as every other figure (evidence.grade): headcount, session age, official id (UAI)
+        g, _ = EV.grade(v["taux_reu_total"], v["presents_total"], v["session"], "identifiant")
+        by.setdefault(r[0], []).append([*r[1:], g])
+    body = {"fields": LYCEE_FIELDS, "rows": [list(r) for r in rows], "ival_fields": (*IVAL_FIELDS, "fiabilite"), "ival": by}
+    return JSONResponse(body, headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/planb/{cod}")
 def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
           serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
@@ -633,7 +668,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile"]
 
 
 @lru_cache(maxsize=1)

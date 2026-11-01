@@ -15,6 +15,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     `journey.py` ("Mon parcours"), `planb.py`, `analytics.py`, `success.py` (B1).
   - **Foundation (sprint 3):** `referentiel.py` (Paysage ids, register, successions), `evidence.py`
     (maillon + A/B/C reliability), `sources.py` (source register), `glossary.py` (A5).
+  - **Lycée (sprint 4):** `lycee.py` (IPS + IVAL from the Education ministry portal, `config.Dataset.base`).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -103,6 +104,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     two establishments never votes.
   - Every journey figure is a `evidence.maillon` with a rule-based grade; the chain is never multiplied.
   - Every dataset is in `sources.py` (red team F9 fails otherwise).
+- **Lycée profile (sprint 4).**
+  - The lycée is CONTEXT only: no open data crosses admissions with the lycée of origin, so it never
+    changes a positioning. The one published lycée effect is `pct_etab_orig` (formation in the lycée).
+  - IPS references are per lycée type × sector; IVAL's académie label is truncated: use the IPS one.
+  - Privacy: `/api/lycees` takes no parameter and is searched in the browser; the lycée is never sent.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -121,9 +127,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Plan B (formation page) and its "Voir un plan B" button in "Mon parcours";
   - B1 success in licence (formation page), from the SIES workbook in `suptracker/data/sources/`;
   - sprint 3 foundation: Paysage register and successions, reliability grades, source register, glossary;
+  - sprint 4 lycée profile: IPS/IVAL context card, académie from the lycée, Maths expertes, same-lycée share;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 4: lycée profile (IPS, IVAL, académie, Maths expertes noted, `pct_etab_orig`/`pct_aca_orig`);
   - sprint 5: calibrated accessibility index (back-tested, never a probability);
   - sprint 6: success beyond licence (BUT, master: owner uploads the SIES files);
   - sprint 7: gateways (B1 "Réorientations" sheet, MonMaster);
