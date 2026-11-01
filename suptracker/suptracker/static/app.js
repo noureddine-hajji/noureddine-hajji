@@ -934,6 +934,9 @@ async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
   trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
+  // every navigation invalidates the render marker: only the view that sets it again may still be
+  // filled by a late async answer (the lycée suggestion of a search, found in review)
+  delete $view.dataset.rendered;
   try {
     if (a === "stats") return await viewStats(b);
     if (a === "s") return await viewSearch(b || "", c || "");
