@@ -46,6 +46,12 @@ GLOSSARY = {
                        "avec prudence et ne classe pas les universités.", "success"),
     "fiabilite": ("Fiabilité (A, B, C)", "Une note qui dit à quel point un chiffre est solide (nombre de personnes, ancienneté "
                   "de la cohorte, façon de relier les sources). Elle ne dit pas si le chiffre est bon ou mauvais pour toi.", "fiabilite"),
+    "ips": ("Indice de position sociale (IPS)", "Un indice publié par le ministère de l'Éducation nationale qui résume le milieu "
+            "social des élèves d'un lycée (profession des parents). Plus il est élevé, plus il est favorisé en moyenne. C'est un "
+            "indicateur du lycée, pas le tien.", "lycee"),
+    "va_lycee": ("Valeur ajoutée d'un lycée", "L'écart entre les résultats du lycée au bac (réussite, mentions, accès de la "
+                 "seconde au bac) et ceux qu'on attendrait vu le profil de ses élèves. Un chiffre positif veut dire que le lycée "
+                 "fait mieux qu'attendu.", "lycee"),
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer ta liste, calculé à partir des admis des "

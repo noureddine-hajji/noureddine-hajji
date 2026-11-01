@@ -641,6 +641,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
            {"NULL" if serie == "bg" else series_rate_sql(serie, "t")} AS s_rate,
            t.lib_grp1, t.ran_grp1, t.lib_grp2, t.ran_grp2, t.lib_grp3, t.ran_grp3, t.subwish_flag,
            t.internat, t.distance, t.apprentissage, t.contrat_etab, t.fili, t.form_lib_voe_acc, t.detail_forma,
+           t.cod_uai, t.pct_etab_orig,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
     ORDER BY taux NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
@@ -649,6 +650,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "taux_acces_all", "acc_serie_latest", "serie_candidates", "serie_proposal_rate",
             "lib_grp1", "ran_grp1", "lib_grp2", "ran_grp2", "lib_grp3", "ran_grp3", "subwish_flag",
             "internat", "distance", "apprentissage", "contrat_etab", "fili", "form_lib_voe_acc", "detail_forma",
+            "cod_uai", "pct_etab_orig",
             "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend", "bg_margins", "s_sum"]
     out = []
     for r in rows:
