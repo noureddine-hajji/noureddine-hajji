@@ -17,6 +17,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     (maillon + A/B/C reliability), `sources.py` (source register), `glossary.py` (A5).
   - **Lycée (sprint 4):** `lycee.py` (IPS + IVAL from the Education ministry portal, `config.Dataset.base`).
   - **Repère (sprint 5):** `calibration.py` (next-campaign ranges, hold-out 2025, zone stability).
+  - **Beyond licence (sprint 6):** `poursuite.py` (BUT per university, master per university × discipline, national margins).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -116,6 +117,14 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - The method is fixed before the hold-out: predictor chosen on 2024, ranges from the 2023-2024 errors.
   - Zone stability is shown for bac général only. It is measured with the zone the page shows
     (`calibration.zone_of`, which calls `journey.zone_reading`, also used by stage 2): never the all-series reading.
+- **Success beyond licence (sprint 6).**
+  - BUT figures are per UNIVERSITY (no IUT, no specialty); specialty, series and mention rates are national margins,
+    never crossed. Master figures are per university × B1 discipline and cover every M1 entrant, not this licence's graduates.
+  - The reference is "Inscriptions principales" (BUT, master). Masked below 100 (BUT) and 50 (master) entrants.
+  - Workbooks are recognised by content (`poursuite.detect`); every SIES spelling maps to a B1 name via `NAME_ALIASES`.
+  - IUT links: `BUT_SITE_OVERRIDES` (IUT de Nîmes → Montpellier, owner-confirmed; only over an id with no BUT row), then
+    the Paysage id, then `BUT_NAME_RULES` (IUT de Toulouse → Toulouse 3); the Polynesia antenna stays unlinked.
+  - The student's profile picks national rows in the browser: it is never sent.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -137,9 +146,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - sprint 4 lycée profile: IPS/IVAL context card, académie from the lycée, Maths expertes, same-lycée share,
     "C'est ton lycée ?" from the search bar;
   - sprint 5 repère: calibrated next-campaign ranges and zone stability in "Mon parcours";
+  - sprint 6 success beyond licence: BUT card (per university + national margins), "après la licence : le master" card;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 6: success beyond licence (BUT, master: owner uploads the SIES files);
   - sprint 7: gateways (B1 "Réorientations" sheet, MonMaster);
   - sprint 8: insertion (InserSup, Inserjeunes, Céreq national adequacy, Onisep jobs);
   - sprint 9: evidence-chain comparator, shareable list (A6), B5 CROUS, user tests; sprint 10: scale.

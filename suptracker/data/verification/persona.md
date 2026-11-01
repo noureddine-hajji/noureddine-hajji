@@ -1,4 +1,4 @@
-# Persona verification: Mathématiques + SES, mention Assez bien (2026-11-01T19:23:16+00:00)
+# Persona verification: Mathématiques + SES, mention Assez bien (2026-11-01T21:50:57+00:00)
 
 | check | result | detail |
 |---|---|---|
@@ -13,7 +13,7 @@
 | stage1 shares and offer rates within [0, 1] | pass | "" |
 | stage2 CPGE ECG: formations found | pass | 312 |
 | stage2 CPGE ECG: selective half has a lower CDF than the accessible half | pass | {"median_cdf_selective": 0.06385869565217392, "median_cdf_accessible": 0.45227272727272727} |
-| stage2 CPGE ECG: most selective decile is ambitieux / hors-profil | pass | [["Lycée Henri IV", 3.0, "hors_profil"], ["Lycée Henri IV", 4.0, "hors_profil"], ["Lycée Henri IV", 6.0, "hors_profil"], ["Lycée des métiers René Cassin", 6.0, "ambitieux"], ["Lycée Henri IV", 6.0, "hors_profil"]] |
+| stage2 CPGE ECG: most selective decile is ambitieux / hors-profil | pass | [["Lycée Henri IV", 3.0, "hors_profil"], ["Lycée Henri IV", 4.0, "hors_profil"], ["Lycée des métiers René Cassin", 6.0, "ambitieux"], ["Lycée Henri IV", 6.0, "hors_profil"], ["Lycée Henri IV", 6.0, "hors_profil"]] |
 | stage2 CPGE ECG: some classes are cible / sécurité | pass | "" |
 | stage2 Licence Pluri Sciences économiques - Gestion: majority cible / sécurité | pass | 0.77 |
 | maths invariants on every formation of the checked types | pass | [] |

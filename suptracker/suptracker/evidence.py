@@ -20,6 +20,7 @@ REFERENCE_YEAR = 2025          # latest Parcoursup campaign in the warehouse
 GRANULARITY = {   # code -> what the student reads
     "formation": "cette formation",
     "universite_x_discipline": "l'université, même grande discipline",
+    "universite": "l'université, toutes spécialités",
     "national": "France entière",
 }
 LINKS = ("identifiant", "nom", "aucun")

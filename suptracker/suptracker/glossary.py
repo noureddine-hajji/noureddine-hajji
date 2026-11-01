@@ -55,6 +55,11 @@ GLOSSARY = {
     "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
                "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
                "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
+    "but": ("BUT (bachelor universitaire de technologie)", "Un diplôme en 3 ans préparé dans un IUT (institut universitaire de "
+            "technologie), qui fait partie d'une université. Les chiffres de réussite publiés par le SIES sont donnés par "
+            "université, toutes spécialités confondues.", "but"),
+    "master": ("Master (M1, M2)", "Le diplôme en 2 ans après la licence (bac + 5). Les chiffres de réussite en master portent sur "
+               "tous les étudiants entrés en M1 dans l'université et la discipline, d'où qu'ils viennent.", "master"),
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer ta liste, calculé à partir des admis des "

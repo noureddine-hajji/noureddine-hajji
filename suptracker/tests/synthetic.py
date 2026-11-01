@@ -448,3 +448,158 @@ def make_success_xlsx(path: Path) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
     return plan
+
+
+# --------------------------------------------------------------------------- sprint 6 workbooks
+POURSUITE_ALIASES = {"UNIV EXEMPLE LYON (EPE)": "UNIVERSITE EXEMPLE LYON", "UNIVERSITE EXEMPLE PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)",
+                     "UNIVERSITE EXEMPLE PARIS (EPE)": "UNIVERSITE EXEMPLE PARIS (CITE)"}
+POURSUITE_PAYSAGE = {"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)", "LYON1": "UNIVERSITE EXEMPLE LYON"}
+POURSUITE_RULES = {r"^lycee exemple marseille": "UNIVERSITE EXEMPLE NORD"}
+
+
+def make_poursuite_xlsx(d: Path) -> dict:
+    """The five sprint-6 workbooks with the real files' layout and quirks: titles in A1, "Retour au
+    sommaire", national "Etudiants" (not additive) and "Inscriptions principales" (= sum) rows, "ns"
+    below 100 entrants, (EPE) spellings, discipline rows carrying a shorter name than their block's
+    total row, a newline inside a discipline label, trailing spaces in specialty labels, footers."""
+    import openpyxl
+    d.mkdir(parents=True, exist_ok=True)
+    plan = {}
+
+    def wb_with(sheets):
+        wb = openpyxl.Workbook()
+        wb.active.title = "Sommaire"
+        wb.active.append(["Sommaire"])
+        for title, rows in sheets:
+            ws = wb.create_sheet(title)
+            for r in rows:
+                ws.append(list(r))
+        return wb
+
+    # BUT per university: (row name, entrants, graduates in 3 years, simulated, continuation %, master, commerce, ingé)
+    but = [("UNIVERSITE EXEMPLE PARIS (CITE)", 400, 240, 55.0, 70.0, 30.0, 20.0, 10.0),
+           ("UNIV EXEMPLE LYON (EPE)", 300, 150, 52.0, 60.0, 20.0, 15.0, 12.0),
+           ("UNIVERSITE EXEMPLE NORD", 60, 30, None, None, None, None, None)]          # < 100: "ns"
+    n, k = sum(b[1] for b in but), sum(b[2] for b in but)
+    head = ["Nom établissement", "Premières\ninscriptions\nen 2021", "Réussite\nen 3 ans", "Réussite\nen 3 ans\nTaux\nobservé",
+            "Réussite\nen 3 ans\nTaux\nsimulé", "Réussite\nen 3 ans\nValeur\najoutée\n(en\npoints)"]
+    rows = [["Réussite au BUT des bacheliers 2021 inscrits pour la première fois en première année de BUT en 2021, par établissement"],
+            ["Champ : Universités, France entière"], ["Source: MESRE-SIES, système d'information SISE"], ["Retour au sommaire"], head,
+            ["Etudiants", n - 5, k - 3, 100 * (k - 3) / (n - 5), ".", "."], ["Inscriptions principales", n, k, 100 * k / n, ".", "."]]
+    for name, e, g, sim, *_ in but:
+        rows.append([name, e, *(["ns"] * 4 if e < 100 else [g, round(100 * g / e, 1), sim, round(round(100 * g / e, 1) - sim, 1)])])
+    rows += [[], ["ns : résultat non significatif, en raison d'effectifs trop faibles."]]
+    ph = ["Nom établissement", "Effectif", "Répartition des\ndiplômés (%)", "Poursuite d'études\n(%)", "Dont Master\n(%)",
+          "Dont école de commerce\n(%)", "Dont école d'ingénieurs \n(%)"]
+    prow = [["Poursuites d’études en 2024 des bacheliers 2021 inscrits pour la première fois en première année de BUT en 2021 et diplômés en trois ans, par établissement"],
+            ["Champ : Universités, France entière"], ["Source: MESRE-SIES, système d'information SISE"], ["Retour au sommaire"], ph,
+            ["Ensemble", k, 100, 65.0, 25.0, 17.0, 11.0]]
+    for name, e, g, sim, c, m, co, ing in but:
+        prow.append([name, g, 100 * g / k, *(["ns"] * 4 if g < 100 else [c, m, co, ing])])
+    p = d / "nf-sies-test-but-etab.xlsx"
+    wb_with([("Définitions et méthodologie", [["Définitions et méthodologie"], ["Retour au sommaire"]]),
+             ("Effectif BUT 2021", [["Effectifs"], [], [], [], ["Retour au sommaire"], ["Nom établissement", "Total"]]),
+             ("Réussite BUT établissements", rows), ("Poursuite diplômés 3ans", prow)]).save(p)
+    plan["but_etab"] = p
+    plan["but"] = {"n": n, "k": k, "rows": but}
+
+    t1 = [["Tableau 1 - Réussite au BUT en trois ans selon la filière et la mention de baccalauréat des bacheliers 2021 inscrits en première année à la rentrée 2021 (en %)"],
+          ["Retour au sommaire"], [], ["Série de baccalauréat", "Part des inscrits", "Taux de passage en 2ème année", "Taux de passage en 3ème année", "Taux de réussite en 3 ans"],
+          ["Ensemble bac général*", 57.7, 81.2, 64.7, 62.4], ["dont MATHS / PHY_CHI", 16.1, 79.8, 60.9, 58.7],
+          ["dont MATHS / SES", 5.9, 87.9, 67.3, 65.2], ["Ensemble bac technologique", 41.0, 59.1, 47.9, 44.9],
+          ["dont STMG (1)", 20.8, 62.8, 50.2, 46.9], ["dont autres bac techno.", 20.2, 55.3, 45.4, 42.9],
+          ["Ensemble bac professionnel", 1.3, 53.8, 40.8, 37.7], ["Mention obtenue"], ["Très bien", 4.4, 86.0, 68.0, 66.4],
+          ["Bien", 28.1, 83.0, 66.1, 64.2], ["Assez bien", 47.3, 71.5, 57.6, 54.9], ["Passable 1er groupe", 17.9, 53.3, 42.9, 39.6],
+          ["Passable 2nd groupe", 0.6, 33.9, 24.1, 18.6], ["Inconnue", 1.7, 67.6, 52.7, 49.7], ["Ensemble", 100, 71.8, 57.5, 100 * k / n],
+          ["*Les taux sont présentés lorsque la combinaison de spécialités représente plus de 1 % des inscrits."]]
+    t2 = [["Tableau 2 - Réussite au BUT en trois ans selon la spécialité d'inscription des bacheliers 2021 à la rentrée 2021 (en %)"],
+          ["Retour au sommaire"], [], ["Spécialité", "Part des inscrits", "Taux de passage en 2ème année", "Taux de passage en 3ème année", "Taux de réussite en 3 ans"],
+          ["Secteur de la production", 40.0, 68.5, 55.0, 53.1], ["Génie mécanique et productique ", 6.3, 70.3, 57.2, 54.5],
+          ["Statistique et informatique décisionnelle", 1.0, 72.9, 54.8, 53.0], ["Secteur des services", 60.0, 74.0, 59.2, 56.2],
+          ["Gestion des entreprises et des administrations ", 17.7, 71.5, 52.9, 51.1], ["Ensemble", 100, 71.8, 57.5, 100 * k / n],
+          ["Source : MESRE-SIES, système d'information SISE"]]
+    p = d / "nf-sies-test-but-nat.xlsx"
+    wb_with([("Définitions et méthodologie", [["x"]]), ("Tableau 1", t1), ("Tableau 2", t2)]).save(p)
+    plan["but_nat"] = p
+
+    # master per university x discipline: block total name, discipline-row name, {discipline: (entrants, success, simulated)}
+    blocks = [("UNIVERSITE EXEMPLE PARIS (EPE)", "UNIVERSITE EXEMPLE PARIS",
+               {"Droit, sc. politiques": (300, 240, 78.0), "Sciences-santé": (200, 150, 80.0), "STAPS": (40, 30, None)}),
+              ("UNIVERSITE EXEMPLE NORD", "UNIVERSITE EXEMPLE NORD", {"Droit, sc. politiques": (150, 105, 75.0)})]
+
+    def mtab(title, head, line):
+        out = [[title], ["retour au sommaire"], [], head]
+        nat = {}
+        for _, _, discs in blocks:
+            for dname, (e, s, _) in discs.items():
+                nat.setdefault(dname, [0, 0])
+                nat[dname][0] += e
+                nat[dname][1] += s
+        te, ts = sum(v[0] for v in nat.values()), sum(v[1] for v in nat.values())
+        for natname, shift in (("Etudiants", -3), ("Inscriptions principales", 0)):
+            out.append(line("Toutes disciplines", natname, te + shift, ts + shift, None, national=True))
+            for dname, (e, s) in nat.items():
+                out.append(line(dname, natname, e + shift, s + shift, None, national=True))
+            out.append([])
+        for total, short, discs in blocks:
+            e_, s_ = sum(v[0] for v in discs.values()), sum(v[1] for v in discs.values())
+            out.append(line("Toutes disciplines", total, e_, s_, 76.0))
+            for dname, (e, s, sim) in discs.items():
+                out.append(line(dname, short, e, s, sim))
+        out += [[], ["Champ : Universités-établissements assimilés, France entière"]]
+        return out
+
+    def l1(disc, name, e, s, sim, national=False):
+        if e < 100:
+            return [disc, name, e, "ns", "ns", "ns", "ns"]
+        obs = round(100 * s / e, 1)
+        return [disc, name, e, s, obs, "." if national else sim, "." if national else round(obs - sim, 1)]
+
+    def l3(disc, name, e, s, sim, national=False):
+        disc = disc.replace("Droit, sc. politiques", "Droit, Sc.\npolitiques")
+        if e < 100:
+            return [disc, name, e] + ["ns"] * 16
+        obs = round(100 * s / e, 1)
+        rest = 100 - obs
+        red, reo, sortie = round(rest * 0.5, 1), round(rest * 0.2, 1), None
+        sortie = round(100 - obs - red - reo, 1)
+        return [disc, name, e, s, obs, "." if national else sim, "." if national else round(obs - sim, 1),
+                round(e * red / 100), red, round(e * reo / 100), reo, 0, 0.0, 0, 0.0, 0, 0.0, round(e * sortie / 100), sortie]
+
+    h1 = ["Disciplines en M1", "Nom établissement", "Effectif 2021", "Réussite à 2 ou 3 ans", "Taux observé", "Taux simulé", "Valeur ajoutée (en points)"]
+    h3 = ["Discipline", "Etablissement d'inscription en M1", "Premières inscriptions en M1", "Passage\nen M2", "Passage\nen M2\nTaux\nobservé",
+          "Passage\nen M2\nTaux\nsimulé", "Passage en M2 Valeur ajoutée (en points)", "Redoublement en M1", "Taux de redoublement en M1 ",
+          "Réorientation à l'université", "Taux de réorientation à l'université", "Réorientation en école d'ingénieur ou ENS",
+          "Taux de réorientation en école d'ingénieur ou ENS", "Réorientation en école de management", "Taux de réorientation en école de management ",
+          "Autres réorientations", "Taux autres réorientations\n", "Sorties", "Taux de sortie "]
+    p = d / "nf-sies-test-master-etab.xlsx"
+    wb_with([("Méthodologie", [["Méthodologie"]]),
+             ("Tableau 1", mtab("Tableau 1 - Réussite en 2 ou 3 ans par discipline et établissement des étudiants inscrits pour la première fois en M1 en 2021", h1, l1)),
+             ("Tableau 2", [["Tableau 2 - Réussite en 2 ans par discipline et établissement des étudiants inscrits pour la première fois en M1 en 2022"]]),
+             ("Tableau 3", mtab("Tableau 3 - Devenir en 2024-2025 des étudiants inscrits pour la première fois en M1 en 2023", h3, l3))]).save(p)
+    plan["master_etab"] = p
+    plan["master"] = blocks
+
+    t3 = [["Tableau 3 - Poursuite en master universitaire des diplômés de licence générale (en %)"], ["retour au sommaire"], [],
+          ["Discipline de LG", "Poursuite en master des diplômés de LG"], [None, "diplômés 2021", "diplômés 2022", "diplômés 2023", "diplômés 2024"],
+          ["Droit, sciences politiques", 68.6, 71.4, 75.2, 79.5], ["Sciences-santé", 67.5, 66.5, 68.9, 67.8],
+          ["Sciences et techniques des activités physiques et sportives (STAPS)", 45, 44.6, 49, 50.9], ["Ensemble", 57.8, 57.6, 60.8, 63.3],
+          ["Source : MESRE-SIES, système d'information sur le suivi de l'étudiant (SISE)"]]
+    p = d / "nf-sies-test-master-nat.xlsx"
+    wb_with([("Tableau 1", [["Tableau 1 - Réussite en master universitaire en deux ou trois ans"]]), ("Tableau 3", t3)]).save(p)
+    plan["master_nat"] = p
+
+    ch = [["Parcours et réussite en licence et en master universitaire des bacheliers 2017 inscrits en L1 à la rentrée 2017"], ["retour au sommaire"], [],
+          ["Caractéristiques                   des étudiants", "Part des inscrits", "Réussite en licence en 3 ou 4 ans",
+           "Passage en master après 3 ou 4 ans d'études", "Réussite au master après 5 ou 6 ans d'études", "Réussite au master après 5, 6 ans ou 7 ans d'études"],
+          ["Homme", 40.8, 38.4, 24.7, 19.4, 22.7], ["Femme", 59.2, 51.6, 34.8, 28.5, 32.1], ["Type de baccalauréat"],
+          ["Général", 80.3, 54.1, 36.5, 29.7, 33.7], ["Technologique", 13.3, 17.6, 8.8, 6.2, 7.9], ["Professionnel", 6.4, 6.4, 3, 1.6, 2.2],
+          ["Mention obtenue au baccalauréat"], ["Très bien", 6, 78.9, 62.1, 54.9, 58.2], ["Assez bien", 27, 55.3, 37.1, 30.3, 34.3],
+          ["Passable premier groupe", 36.5, 34.7, 20.2, 15.2, 18.5], ["Discipline de L1"], ["Droit, sciences politiques", 18.7, 49.7, 38.5, 33.3, 37.6],
+          ["SVT", 5.6, 47.1, 32.6, 28.5, 32.8], ["Ensemble", 100, 46.2, 30.7, 24.8, 28.3], ["Source : MESRE-SIES"]]
+    p = d / "nf-sies-test-master-chain.xlsx"
+    wb_with([("Méthodologie", [["Méthodologie"]]), ("Tableau 1", [["Poursuite d'études en 2024-2025 des diplômés 2024 de licence générale"]]),
+             ("Tableau 2", ch)]).save(p)
+    plan["master_chain"] = p
+    plan["sources"] = {k: plan[k] for k in ("but_etab", "but_nat", "master_etab", "master_nat", "master_chain")}
+    return plan

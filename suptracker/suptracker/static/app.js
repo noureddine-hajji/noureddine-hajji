@@ -213,6 +213,8 @@ async function viewFormation(cod, session) {
   ${offerCard(r)}
   ${timingCard(r, d.history)}
   ${successCard(d.success)}
+  ${masterCard(d.master)}
+  ${butCard(d.but)}
   ${lyceeHere(r)}
   <div id="planb"></div>
   <h2 style="font-size:16px">Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
@@ -303,7 +305,7 @@ const SU_MASK = { ns: "petit effectif, non publié", nd: "non disponible", na: "
 const SU_DEVENIR = [["taux", "passage en L2", "s-pass"], ["taux_redoublement", "redoublement", "s-red"],
   ["taux_reorientation", "réorientation", "s-reo"], ["taux_sortie", "sortie de l'enseignement supérieur", "s-out"]];
 const pc1d = (v) => `${Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
-const suVal = (row, key) => (row && row[key] != null ? `${pc1d(row[key])} %` : row && row.masked && row.masked[key] ? `<span class="muted small">${SU_MASK[row.masked[key]] || "—"}</span>` : "—");
+const suVal = (row, key) => (row && row[key] != null ? `${pc1d(row[key])}\u00a0%` : row && row.masked && row.masked[key] ? `<span class="muted small">${SU_MASK[row.masked[key]] || "—"}</span>` : "—");
 function suBar(row) {
   if (!row || SU_DEVENIR.some(([k]) => row[k] == null)) return "";
   return `<div class="sbar" role="img" aria-label="${SU_DEVENIR.map(([k, l]) => `${l} ${fmt(row[k], 1)} %`).join(", ")}">${SU_DEVENIR.map(([k, l, c]) => `<span class="${c}" style="width:${Math.max(0, Math.min(100, row[k]))}%" title="${l} : ${fmt(row[k], 1)} %"></span>`).join("")}</div>`;
@@ -341,6 +343,102 @@ function successCard(s) {
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("success")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
     ${bars}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), tableaux par établissement et discipline. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
+}
+
+// ---- Sprint 6: success beyond licence (BUT per university; master per university x discipline) ----
+// The student's profile stays in the browser: the page picks the national rows that match it.
+const MENTION_ROW = { sansmention: "passable1", ab: "ab", b: "b", tb: "tb" };
+const MENTION_TXT = { passable1: "passable (1er groupe)", ab: "assez bien", b: "bien", tb: "très bien" };
+const SERIE_TXT = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" };
+function profileRows(rows, kind) {
+  // kind "but": rows of BUT Tableau 1 (dim serie|mention); kind "chaine": the 2017 L1 cohort (dim bac|mention)
+  const p = store.get("profile", null) || {};
+  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
+  const men = MENTION_ROW[p.mention] || "ab";
+  const sdim = kind === "but" ? "serie" : "bac";
+  const pick = (dim, code) => (rows || []).find((r) => r.dim === dim && r.code === code);
+  let s = pick(sdim, serie), sLabel = SERIE_TXT[serie], note = "";
+  const code = (x) => typeof x === "string" && /^[A-Z]{2,7}$/.test(x);     // journey.SPECIALTIES codes
+  if (kind === "but" && serie === "bg") {
+    if (code(p.spe1) && code(p.spe2) && p.spe1 !== p.spe2) {
+      const d = pick("serie", `bg:${[p.spe1, p.spe2].sort().join("+")}`);
+      if (d) { s = d; sLabel = `bac général ${esc(p.spe1)} + ${esc(p.spe2)}`; }
+      else note = "ta doublette n'est pas publiée à part (moins de 1 % des inscrits) : ligne de l'ensemble du bac général";
+    }
+  }
+  return { serie: s, serieLabel: sLabel, mention: pick("mention", men), mentionLabel: `mention ${MENTION_TXT[men]}`,
+    ensemble: pick("ensemble", "ensemble"), note };
+}
+const statusCard = (title, x, more, src) => `<div class="card"><h2>${title}</h2><p class="small muted">${x.etab_label ? `${esc(x.etab_label)} : ` : ""}${esc(x.reason || "non publié")}.</p>${more}
+  <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash ${src}. Résultats de cohortes passées, pas des chances de réussite.</p></div>`;
+const expCell = (u) => (u && u.taux_simule != null && u.va != null
+  ? `${pc1d(u.taux_simule)}\u00a0%<div class="muted small">écart ${u.va > 0 ? "+" : ""}${pc1d(u.va)}\u00a0pt</div>` : `<span class="muted small">—</span>`);
+function butCard(b) {
+  if (!b) return "";
+  const head = `Réussite en BUT ${tip("but")}`;
+  const R = b.kinds && b.kinds.reussite3, P = b.kinds && b.kinds.poursuite, NR = b.national.reussite3, NP = b.national.poursuite;
+  const pr = profileRows(b.profil, "but");
+  const prof = [[pr.serieLabel, pr.serie], [pr.mentionLabel, pr.mention]].filter(([, r]) => r)
+    .map(([l, r]) => `<tr><td>${l}</td><td class="num">${suVal(r, "passage2")}</td><td class="num"><strong>${suVal(r, "taux")}</strong></td></tr>`).join("");
+  const spe = b.specialite ? `<p class="small">En France, en <strong>${esc(b.specialite.label)}</strong> : <strong>${suVal(b.specialite, "taux")}</strong> des inscrits ont obtenu leur BUT en 3 ans (passage en 2e année : ${suVal(b.specialite, "passage2")} ; entrés en ${esc(b.specialite.cohort)}).</p>` : "";
+  const profBox = prof ? `<h3 class="small">Selon le profil de bac, en France (toutes spécialités, entrés en ${esc((pr.serie || pr.mention).cohort)})</h3>
+    <div class="scroll"><table><tr><th>Profil</th><th class="num">Passage en 2e année</th><th class="num">BUT en 3 ans</th></tr>${prof}</table></div>
+    <p class="muted small">Deux lignes séparées : le SIES ne croise pas la série et la mention.${pr.note ? ` ${esc(pr.note)}.` : ""}</p>` : "";
+  if (!R && !P) return statusCard(head, b, `${spe}${profBox}`, "2025-26");
+  const rows = [];
+  if (R) rows.push(`<tr><td>BUT obtenu en 3 ans<div class="muted small">entrés en ${esc(R.cohort)}${R.inscrits != null ? ` · ${fmt(R.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(R.maillon)}</div></td>
+      <td class="num"><strong>${suVal(R, "taux")}</strong></td><td class="num">${expCell(R)}</td><td class="num">${suVal(NR, "taux")}</td></tr>`);
+  if (P) rows.push(`<tr><td>Poursuite d'études l'année suivante<div class="muted small">diplômés en 3 ans${P.n_diplomes != null ? ` · ${fmt(P.n_diplomes)} diplômés` : ""}</div><div class="fiab-row">${fiabBadge(P.maillon)}</div></td>
+      <td class="num"><strong>${suVal(P, "taux_poursuite")}</strong></td><td class="num"><span class="muted small">—</span></td><td class="num">${suVal(NP, "taux_poursuite")}</td></tr>`);
+  const after = P && P.taux_master != null ? `<p class="small">Après le BUT, parmi les diplômés de l'université : master ${suVal(P, "taux_master")}, école de commerce ${suVal(P, "taux_commerce")}, école d'ingénieurs ${suVal(P, "taux_ingenieur")}${NP ? ` <span class="muted">(France : ${suVal(NP, "taux_master")}, ${suVal(NP, "taux_commerce")}, ${suVal(NP, "taux_ingenieur")})</span>` : ""}.</p>` : "";
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small"><strong>${esc(b.etab_label)}</strong> · toutes spécialités de BUT. Chiffres de <strong>tous les néo-bacheliers inscrits en 1re année de BUT</strong> dans l'université : le SIES ne les publie ni par IUT, ni par spécialité.${R && R.small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
+    <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("but")}</th><th class="num">France</th></tr>${rows.join("")}</table></div>
+    ${after}${spe}${profBox}
+    <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-26. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
+}
+const M2_DEVENIR = [["taux", "passage en M2", "s-pass"], ["taux_redoublement", "redoublement en M1", "s-red"],
+  ["reo", "réorientation", "s-reo"], ["taux_sortie", "sortie", "s-out"]];
+function m2Parts(r) {
+  // the four published reorientation shares are added up for the bar (the table keeps them apart)
+  const reo = ["taux_reo_univ", "taux_reo_ingenieur", "taux_reo_management", "taux_reo_autres"];
+  if (!r || reo.some((k) => r[k] == null) || r.taux == null || r.taux_redoublement == null || r.taux_sortie == null) return null;
+  return { taux: r.taux, taux_redoublement: r.taux_redoublement, reo: reo.reduce((a, k) => a + r[k], 0), taux_sortie: r.taux_sortie };
+}
+function m2Bar(r) {
+  const x = m2Parts(r);
+  if (!x) return "";
+  return `<div class="sbar" role="img" aria-label="${M2_DEVENIR.map(([k, l]) => `${l} ${fmt(x[k], 1)} %`).join(", ")}">${M2_DEVENIR.map(([k, l, c]) => `<span class="${c}" style="width:${Math.max(0, Math.min(100, x[k]))}%" title="${l} : ${fmt(x[k], 1)} %"></span>`).join("")}</div>`;
+}
+const M_KINDS = [["passage_m2", "Passage en M2 en un an", "entrés en M1 en"], ["reussite23", "Master obtenu en 2 ou 3 ans", "entrés en M1 en"]];
+function masterCard(m) {
+  if (!m) return "";
+  const head = `Et après la licence : le master ${tip("master")}`;
+  const pr = profileRows(m.chaine, "chaine");
+  const chain = [[pr.serieLabel, pr.serie], [pr.mentionLabel, pr.mention], ["tous les bacheliers", pr.ensemble]].filter(([, r]) => r)
+    .map(([l, r]) => `<tr><td>${l}</td><td class="num">${suVal(r, "licence34")}</td><td class="num">${suVal(r, "passage_master")}</td><td class="num"><strong>${suVal(r, "master567")}</strong></td></tr>`).join("");
+  const chainBox = chain ? `<h3 class="small">Le parcours complet, en France : bacheliers ${esc((pr.ensemble || pr.serie).cohort)} entrés en L1 ${tip("master")}</h3>
+    <div class="scroll"><table><tr><th>Profil</th><th class="num">Licence en 3 ou 4 ans</th><th class="num">Entrée en master</th><th class="num">Master en 5 à 7 ans</th></tr>${chain}</table></div>
+    <p class="muted small">Une cohorte suivie de bout en bout (pas une multiplication de taux). Lignes séparées : le SIES ne croise pas le type de bac et la mention.</p>` : "";
+  const pl = (m.poursuite_lg || []).filter((r) => r.code === (m.discipline || "toutes")).sort((a, b) => a.cohort - b.cohort);
+  const plBox = pl.length ? `<p class="small">En France, ${m.discipline ? `en ${esc(m.discipline_label)}` : "toutes disciplines"}, part des diplômés de licence inscrits en master l'année suivante : ${pl.map((r) => `<span class="nowrap">${esc(r.cohort)} <strong>${suVal(r, "taux")}</strong></span>`).join(" · ")}.</p>` : "";
+  if (!m.kinds || !Object.keys(m.kinds).length) return statusCard(head, m, `${plBox}${chainBox}`, "2025-30");
+  const rows = M_KINDS.map(([k, label, when]) => {
+    const u = m.kinds[k], n = m.national[k];
+    if (!u && !n) return "";
+    return `<tr><td>${label}<div class="muted small">${when} ${esc((u || n).cohort)}${u && u.inscrits != null ? ` · ${fmt(u.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(u && u.maillon)}</div></td>
+      <td class="num"><strong>${suVal(u, "taux")}</strong></td><td class="num">${expCell(u)}</td><td class="num">${suVal(n, "taux")}</td></tr>`;
+  }).join("");
+  const P = m.kinds.passage_m2, N = m.national.passage_m2, x = m2Parts(P), xn = m2Parts(N);
+  const bars = x ? `<div class="su-devenir"><div class="small">Un an après l'entrée en M1 (inscrits en ${esc(P.cohort)})</div>
+      <div class="su-line"><span class="small muted">Université</span>${m2Bar(P)}</div>
+      ${xn ? `<div class="su-line"><span class="small muted">France</span>${m2Bar(N)}</div>` : ""}
+      <div class="legend"><span class="muted">Université :</span>${M2_DEVENIR.map(([k, l, c]) => `<span><i class="${c}"></i>${l} ${pc1d(x[k])} %</span>`).join("")}${xn ? `<span class="muted">France : ${M2_DEVENIR.map(([k]) => `${pc1d(xn[k])} %`).join(" · ")}</span>` : ""}</div></div>` : "";
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small"><strong>${esc(m.etab_label)}</strong> · ${esc(m.discipline_label)}. Chiffres de <strong>tous les étudiants entrés en M1</strong> de cette grande discipline dans l'université, d'où qu'ils viennent : ce ne sont pas les diplômés de cette licence.${Object.values(m.kinds).some((k) => k.small) ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
+    <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("master")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
+    ${bars}${plBox}${chainBox}
+    <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-30. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
 }
 
 function offerCard(r) {
