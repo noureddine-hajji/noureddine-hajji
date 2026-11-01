@@ -23,6 +23,7 @@ FEATURE_ENTRY_POINTS = {
     "glossary": ("app.js", "function viewGlossaire"),
     "reliability": ("app.js", "function fiabBadge"),
     "lycee_profile": ("app.js", "function lyceeCard"),
+    "repere": ("app.js", "function repereCell"),
 }
 
 
