@@ -176,7 +176,7 @@ async function viewSearch(q, rawParams) {
     ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
   </div>${feedbackBox("search")}`;
   $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
-  suggestLycee(q, `s:${q}:${rawParams || ""}`);
+  suggestLycee(q, $view.dataset.rendered);
   const fa = document.getElementById("facad"); if (fa) fa.onchange = () => { location.hash = go({ academie: fa.value }); };
   const fs = document.getElementById("fsel"); if (fs) fs.onchange = () => { location.hash = go({ selective: fs.value }); };
 }

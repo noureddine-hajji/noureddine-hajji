@@ -250,7 +250,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and "lycee: lyc }" in js)
     # a search naming a lycée offers to set it as the profile's lycée: escaped, local, race-guarded
     sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in js
-            and 'suggestLycee(q, `s:${q}:${rawParams || ""}`)' in js)
+            and "suggestLycee(q, $view.dataset.rendered);" in js)
     ok = not raw and words and not promise and me and badge and here and pick and keeps and sugg
     return ok, (f"unescaped {raw[:3]}; context wording {words}; promises {promise}; Maths expertes note {me}; same-lycée badge gated {badge}; "
                 f"fiche note gated {here}; picker escaped {pick}; picking keeps pending form edits {keeps}; search suggestion escaped and guarded {sugg}")
