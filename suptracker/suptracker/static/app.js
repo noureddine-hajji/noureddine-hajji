@@ -211,6 +211,7 @@ async function viewFormation(cod, session) {
     </div></div>
   ${offerCard(r)}
   ${timingCard(r, d.history)}
+  ${successCard(d.success)}
   <div id="planb"></div>
   <h2 style="font-size:16px">Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
   <div class="grid3">
@@ -291,6 +292,46 @@ async function loadPlanB(cod, opts = {}) {
       el.onclick = () => { const a = d.alternatives.find((x) => x.cod_aff_form === el.dataset.pbpin); if (a) opts.onPin(a); };
     });
   }
+}
+
+// ---- B1: success in licence, per university x broad discipline (SIES, not per formation) -----
+const SU_KINDS = [["passage", "Passage en L2 en un an", "entrés en L1 en"], ["reussite3", "Licence obtenue en 3 ans", "entrés en L1 en"],
+  ["reussite34", "Licence obtenue en 3 ou 4 ans", "entrés en L1 en"]];
+const SU_MASK = { ns: "petit effectif, non publié", nd: "non disponible", na: "—", vide: "—", texte: "—", type: "—" };
+const SU_DEVENIR = [["taux", "passage en L2", "s-pass"], ["taux_redoublement", "redoublement", "s-red"],
+  ["taux_reorientation", "réorientation", "s-reo"], ["taux_sortie", "sortie de l'enseignement supérieur", "s-out"]];
+const pc1d = (v) => `${Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+const suVal = (row, key) => (row && row[key] != null ? `${pc1d(row[key])} %` : row && row.masked && row.masked[key] ? `<span class="muted small">${SU_MASK[row.masked[key]] || "—"}</span>` : "—");
+function suBar(row) {
+  if (!row || SU_DEVENIR.some(([k]) => row[k] == null)) return "";
+  return `<div class="sbar" role="img" aria-label="${SU_DEVENIR.map(([k, l]) => `${l} ${fmt(row[k], 1)} %`).join(", ")}">${SU_DEVENIR.map(([k, l, c]) => `<span class="${c}" style="width:${Math.max(0, Math.min(100, row[k]))}%" title="${l} : ${fmt(row[k], 1)} %"></span>`).join("")}</div>`;
+}
+function successCard(s) {
+  if (!s) return "";
+  const head = `<h2>Réussite en licence ${tip("success")}</h2>`;
+  if (!s.kinds || !Object.keys(s.kinds).length) {
+    return `<div class="card">${head}<p class="small muted">${s.etab_label ? `${esc(s.etab_label)} : ` : ""}${esc(s.reason || "non publié")}.</p></div>`;
+  }
+  const P = s.kinds.passage, N = s.national.passage;
+  const small = Object.values(s.kinds).some((k) => k.small);
+  const rows = SU_KINDS.map(([k, label, when]) => {
+    const u = s.kinds[k], n = s.national[k];
+    if (!u && !n) return "";
+    const coh = (u || n).cohort;
+    const exp = u && u.taux_simule != null && u.va != null
+      ? `${pc1d(u.taux_simule)} %<div class="muted small">écart ${u.va > 0 ? "+" : ""}${pc1d(u.va)} pt</div>` : `<span class="muted small">—</span>`;
+    return `<tr><td>${label}<div class="muted small">${when} ${esc(coh)}${u && u.inscrits != null ? ` · ${fmt(u.inscrits)} inscrits` : ""}</div></td>
+      <td class="num"><strong>${suVal(u, "taux")}</strong></td><td class="num">${exp}</td><td class="num">${suVal(n, "taux")}</td></tr>`;
+  }).join("");
+  const bars = P && suBar(P) ? `<div class="su-devenir"><div class="small">Un an après l'entrée en L1 (inscrits en ${esc(P.cohort)})</div>
+      <div class="su-line"><span class="small muted">Université</span>${suBar(P)}</div>
+      ${N && suBar(N) ? `<div class="su-line"><span class="small muted">France</span>${suBar(N)}</div>` : ""}
+      <div class="legend"><span class="muted">Université :</span>${SU_DEVENIR.map(([k, l, c]) => `<span><i class="${c}"></i>${l} ${pc1d(P[k])} %</span>`).join("")}${N ? `<span class="muted">France : ${SU_DEVENIR.map(([k]) => `${pc1d(N[k])} %`).join(" · ")}</span>` : ""}</div></div>` : "";
+  return `<div class="card">${head}
+    <p class="small"><strong>${esc(s.etab_label)}</strong> · ${esc(s.discipline_label)}. Chiffres de <strong>tous les néo-bacheliers inscrits en L1</strong> de cette grande discipline dans l'université, pas seulement de cette licence.${small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
+    <div class="scroll"><table><tr><th>Indicateur</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("success")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
+    ${bars}
+    <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), tableaux par établissement et discipline. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
 }
 
 function offerCard(r) {

@@ -86,6 +86,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - At most 2 per establishment; académie, then distance.
   - Fee-charging private institutions ("Privé enseignement supérieur" / "hors contrat") only on
     request, flagged.
+- **B1 success in licence.**
+  - Figures are per university × broad discipline (never per formation), and the page says so.
+  - The national reference is the "Inscriptions principales" row, never "Etudiants".
+  - Universities are linked by name, one explicit rule each; a site that is ambiguous stays unlinked.
+  - Masked cells (`ns`, `nd`, `.`) are NULL, never 0.
+  - The ministry site rejects automated downloads: the owner commits the workbook.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -101,15 +107,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - analytics and the `/#/stats` dashboard;
   - A2 offer timing, A4 offer options, A3 bac-général mention bounds;
   - B4 bac techno and pro journey;
-  - Plan B (formation page);
+  - Plan B (formation page) and its "Voir un plan B" button in "Mon parcours";
+  - B1 success in licence (formation page), from the SIES workbook in `suptracker/data/sources/`;
   - release guards (versioned assets, `/api/version`).
 - **Next (sprint 2):**
-  - **B1, success in first year.** Data.gouv "Parcours et réussite des bacheliers inscrits pour la
-    première fois en licence / DUT". Check first whether it is national only, and if so show it as
-    "moyenne nationale", never as per-university.
   - **B5, CROUS housing near each formation.** CNOUS "Logements étudiants" dataset on data.gouv.fr.
   - **A5, student mode and glossary.**
-  - Optional: a "Voir un plan B" button next to each ambitious formation in "Mon parcours".
 - **Later (sprint 3):** B2 InserSup (insertion and salary), A6 shareable wish list.
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly

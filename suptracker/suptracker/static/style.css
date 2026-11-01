@@ -120,3 +120,10 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 .planb-row > td { background: var(--bg); padding: 0; }
 .planb-inline { position: sticky; left: 0; max-width: min(900px, calc(100vw - 72px)); padding: 10px 12px; border-left: 3px solid var(--c2); }
 .planb-title { font-size: 14px; margin: 0 0 6px; }
+/* B1: devenir after L1, a partition of the entrants (published rates) */
+.sbar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line); flex: 1; min-width: 0; }
+.sbar span { display: block; height: 100%; }
+.s-pass { background: var(--c3); } .s-red { background: var(--c5); } .s-reo { background: var(--c1); } .s-out { background: var(--c6); }
+.su-devenir { margin: 10px 0 4px; }
+.su-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.su-line > span:first-child { width: 72px; flex: none; }

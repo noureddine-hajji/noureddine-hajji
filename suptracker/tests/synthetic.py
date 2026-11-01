@@ -294,3 +294,93 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
     ]
     pd.DataFrame(carto).to_parquet(raw_dir / "cartographie.parquet", index=False)
     return plan
+
+
+# ---------------------------------------------------------------- B1: SIES licence success workbook
+SUCCESS_TABLE = {"UNIVERSITE EXEMPLE PARIS (CITE)": r"^universite exemple paris", "UNIVERSITE EXEMPLE NORD": r"exemple nord"}
+
+
+def make_success_xlsx(path: Path) -> dict:
+    """A workbook with the real file's layout and quirks: title + 'Retour au sommaire' + header rows,
+    the two national blocks ("Etudiants", then "Inscriptions principales" = sum of universities),
+    a university whose discipline rows carry a shorter name than its total row, masked cells
+    ("ns", "nd", "."), a newline inside a discipline label, and footers."""
+    import openpyxl
+    unis = {  # name of the total row, name of the discipline rows, {discipline: entrants}
+        "UNIVERSITE EXEMPLE PARIS (CITE)": ("UNIVERSITE EXEMPLE PARIS", {"Droit, Sc. politiques": 400, "Sciences-santé": 300, "STAPS": 60}),
+        "UNIVERSITE EXEMPLE NORD": ("UNIVERSITE EXEMPLE NORD", {"Droit, Sc. politiques": 200, "Arts, lettres, langues, SHS": 90}),
+    }
+    rates = {"Droit, Sc. politiques": (50.0, 45.0, 25.0, 12.0), "Sciences-santé": (40.0, 44.0, 30.0, 15.0),
+             "STAPS": (55.0, 50.0, 20.0, 10.0), "Arts, lettres, langues, SHS": (45.0, 47.0, 28.0, 11.0)}
+    wb = openpyxl.Workbook()
+    wb.active.title = "Sommaire"
+    wb.active.append(["Tableaux par discipline et établissement - Sommaire"])
+    plan = {"rows": {}}
+
+    def block(ws, kind, total_name, short, discs, national=False):
+        tot = {"n": 0}
+        lines = []
+        for d, n in discs.items():
+            obs, sim, red, reo = rates[d]
+            masked = kind != "passage" and n < 100           # SIES masks success below ~100 entrants
+            if kind == "passage":
+                p, r_, o = round(n * obs / 100), round(n * red / 100), round(n * reo / 100)
+                s_ = n - p - r_ - o
+                va = "." if national else round(round(100 * p / n, 1) - sim, 1)
+                sim_v = "." if national else sim
+                line = [short, d.replace(", ", ",\n", 1) if d.startswith("Droit") else d, n, p, round(100 * p / n, 1), sim_v, va,
+                        p, round(100 * p / n, 1), 0, 0.0, r_, round(100 * r_ / n, 1), r_, round(100 * r_ / n, 1),
+                        o, round(100 * o / n, 1), s_, round(100 * s_ / n, 1)]
+            elif kind == "reussite3":
+                k = round(n * (obs - 10) / 100)
+                line = [short, d, n] + (["ns"] * 5 if masked else [k, round(100 * k / n, 1), "." if national else sim - 10,
+                                                                   "." if national else round(round(100 * k / n, 1) - (sim - 10), 1), 0.5])
+            else:
+                k3, k4 = round(n * (obs - 12) / 100), round(n * 8 / 100)
+                line = [short, d, n] + (["ns"] * 11 if masked else [
+                    k3, round(100 * k3 / n, 1), "." if national else sim - 12, "." if national else round(round(100 * k3 / n, 1) - (sim - 12), 1), 0.4,
+                    k4, round(100 * k4 / n, 1), k3 + k4, round(100 * (k3 + k4) / n, 1), "." if national else sim - 4,
+                    "." if national else round(round(100 * (k3 + k4) / n, 1) - (sim - 4), 1)])
+            lines.append(line)
+            tot["n"] += n
+            plan["rows"][(kind, total_name, d)] = line
+        n = tot["n"]
+        total = [total_name, "Toutes disciplines", n] + ["nd"] * (len(lines[0]) - 3)
+        ws.append(total)
+        for line in lines:
+            ws.append(line)
+        ws.append([])
+
+    sheets = {
+        "passage": ("Devenir cohorte 2023 VA", "Devenir en 2024-2025 des néo-bacheliers inscrits en licence à la rentrée 2023 selon établissement et discipline en L1",
+                    ["Nom établissement en L1", "Discipline en L1", "Inscrits en L1", "Passage en L2", "Taux de passage en L2", "Taux de passage en L2 simulé",
+                     "Passage en L2 - Valeur Ajoutée (en points)", "Dont passage strict", "Taux de passage strict", "Dont passage en MMOPK (LAS)",
+                     "Taux de passage en MMOPK", "Redoublement en L1", "Taux de redoublement en L1", "Dont redoublement strict", "Taux de redoublement strict",
+                     "Réorientation", "Taux de réorientation", "Sortie de l'enseignement supérieur", "Taux de sortie de l'enseignement supérieur"]),
+        "reussite3": ("Réussite 3ans discip VA", "Réussite en licence en 3 ans des néo-bacheliers inscrits en licence en 2021 qui n'ont pas changé de discipline - corrigé",
+                      ["Nom établissement en L1", "Discipline en L1", "Inscrits en L1 ", "Réussite en 3 ans", "Taux de réussite à 3 ans", "Taux simulé",
+                       "Valeur ajoutée (en points)", "Passage en MMOPK (%)"]),
+        "reussite34": ("Réussite 3ou4ans discip VA", "Réussite en licence en 3 ou 4 ans des néo-bacheliers inscrits en licence en 2020 qui n'ont pas changé de discipline",
+                       ["Nom établissement en L1", "Discipline en L1", "Inscrits en L1", "Réussite en 3 ans", "Réussite en 3 ans (taux observé)",
+                        "Réussite en 3 ans \n(taux simulé)", "Valeur ajoutée réussite en 3 ans (en points)", "Passage en MMOPK en 3 ans (%)", "Réussite en 4 ans",
+                        "Réussite en 4 ans (taux observé)", "Réussite en 3 ou 4 ans", "Réussite en 3 ou 4 ans (taux observé)", "Réussite en 3 ou 4 ans \n(taux simulé)",
+                        "Valeur ajoutée réussite en 3 ou 4 ans (en points)"]),
+    }
+    alld = {}
+    for _, (_, ds) in unis.items():
+        for d, n in ds.items():
+            alld[d] = alld.get(d, 0) + n
+    for kind, (title, long_title, header) in sheets.items():
+        ws = wb.create_sheet(title)
+        ws.append([long_title])
+        ws.append(["Retour au sommaire"])
+        ws.append(header)
+        block(ws, kind, "Etudiants", "Etudiants", {d: n - 5 for d, n in alld.items()}, national=True)
+        block(ws, kind, "Inscriptions principales", "Inscriptions principales", alld, national=True)
+        for name, (short, ds) in unis.items():
+            block(ws, kind, name, short, ds)
+        ws.append(["ns : résultat non significatif du fait de faibles effectifs"])
+        ws.append(["Source : MESRE-SIES"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(path)
+    return plan

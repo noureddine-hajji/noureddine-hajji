@@ -19,6 +19,7 @@ FEATURE_ENTRY_POINTS = {
     "series_journey": ("app.js", "function stage1SeriesMatrix"),
     "plan_b": ("app.js", "async function loadPlanB"),
     "plan_b_parcours": ("app.js", "data-planb="),
+    "licence_success": ("app.js", "function successCard"),
 }
 
 
