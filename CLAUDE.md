@@ -122,7 +122,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     never crossed. Master figures are per university × B1 discipline and cover every M1 entrant, not this licence's graduates.
   - The reference is "Inscriptions principales" (BUT, master). Masked below 100 (BUT) and 50 (master) entrants.
   - Workbooks are recognised by content (`poursuite.detect`); every SIES spelling maps to a B1 name via `NAME_ALIASES`.
-  - IUT links: Paysage id, then `BUT_NAME_RULES` (IUT de Toulouse → Toulouse 3); Nîmes and Polynesia stay unlinked.
+  - IUT links: `BUT_SITE_OVERRIDES` (IUT de Nîmes → Montpellier, owner-confirmed; only over an id with no BUT row), then
+    the Paysage id, then `BUT_NAME_RULES` (IUT de Toulouse → Toulouse 3); the Polynesia antenna stays unlinked.
   - The student's profile picks national rows in the browser: it is never sent.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.

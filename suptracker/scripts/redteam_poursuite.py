@@ -39,7 +39,7 @@ BUT_TRUTH = {
     "I.U.T de Toulouse": "UNIVERSITE TOULOUSE 3 (PAUL SABATIER)",
     "I.U.T de Toulouse - Antenne de Castres": "UNIVERSITE TOULOUSE 3 (PAUL SABATIER)",
     "I.U.T de Toulouse - Antenne d'Auch": "UNIVERSITE TOULOUSE 3 (PAUL SABATIER)",
-    "I.U.T de Nîmes": None,                       # its id is Nîmes', which has no BUT row: never guessed
+    "I.U.T de Nîmes": "UNIVERSITE MONTPELLIER",   # an IUT of Montpellier carrying the id of Nîmes (owner-confirmed)
     "IUT de Bordeaux - Antenne de Polynésie Française": None,
     "Institut Supérieur Saint-Denis": None,       # private
 }
@@ -73,7 +73,8 @@ def fold(s):
 
 class Ctx:
     def __init__(self, db: Path, sources: dict, real: bool = False, aliases=None, paysage=None, rules=None, b1=None,
-                 but_truth=None, spe_truth=None):
+                 but_truth=None, spe_truth=None, overrides=None):
+        self.overrides = overrides
         self.db, self.real, self.sources = db, real, {k: Path(v) for k, v in sources.items()}
         self.but_truth = BUT_TRUTH if but_truth is None else but_truth
         self.spe_truth = SPECIALTY_TRUTH if spe_truth is None else spe_truth
@@ -108,7 +109,8 @@ class Ctx:
                 discipline VARCHAR, programme VARCHAR, matches VARCHAR, lien VARCHAR, id_paysage VARCHAR)""")
             if self.b1_links:
                 con.executemany("INSERT INTO core.licence_success_link VALUES (?, ?, ?, ?, ?, ?, ?, ?)", self.b1_links)
-        self.counts = P.build(con, self.sources, paysage_table=self.paysage, name_rules=self.rules, aliases=self.aliases)
+        self.counts = P.build(con, self.sources, paysage_table=self.paysage, name_rules=self.rules, aliases=self.aliases,
+                              overrides=self.overrides)
         self.con = con
 
     def q(self, sql, args=()):
@@ -327,15 +329,19 @@ def p5(c: Ctx):
     for l in links:
         f = names[l["cod_aff_form"]]
         pid = ids.get(l["cod_aff_form"])
+        site = [u for rx, u in (P.BUT_SITE_OVERRIDES if c.overrides is None else c.overrides).items() if re.search(rx, fold(f[2]))]
+        forced = len(site) == 1 and by_id.get(pid) not in known
         if f[5] != "Public":
             want = None
+        elif forced:
+            want = site[0]
         elif pid is not None:
             want = by_id.get(pid)
         else:
             hits = [u for rx, u in (c.rules or P.BUT_NAME_RULES).items() if re.search(rx, fold(f[2]))]
             want = hits[0] if len(hits) == 1 else None
         want = want if want in known else None
-        if l["etab"] != want or (want and l["lien"] != ("identifiant" if pid else "nom")):
+        if l["etab"] != want or (want and l["lien"] != ("identifiant" if pid and not forced else "nom")):
             bad.append((l["cod_aff_form"], f[2], l["etab"], want))
     truth = []
     for name, want in c.but_truth.items():
@@ -352,6 +358,11 @@ def p5(c: Ctx):
         public = [l for l in links if names[l["cod_aff_form"]][5] == "Public"]
         if sum(1 for l in public if l["etab"]) < 0.98 * len(public):
             truth.append(("coverage", sum(1 for l in public if l["etab"]), len(public)))
+    # an override may only replace an id that names a university with no BUT row
+    ov = P.BUT_SITE_OVERRIDES if c.overrides is None else c.overrides
+    truth += [("override over a usable id", names[l["cod_aff_form"]][2]) for l in links
+              if any(re.search(rx, fold(names[l["cod_aff_form"]][2])) for rx in ov)
+              and by_id.get(ids.get(l["cod_aff_form"])) in known]
     spe_missing = [l["programme"] for l in links if l["specialite"] is None]
     spe_known = {r[0] for r in c.q("SELECT code FROM core.poursuite_national WHERE source_kind = 'but_nat' AND dim = 'specialite'")}
     spe_bad = [(p, P.specialty_of(p, spe_known), w) for p, w in c.spe_truth.items() if P.specialty_of(p, spe_known) != w]
@@ -496,6 +507,7 @@ def p10(c: Ctx):
         if old not in js or ui(js.replace(old, new, 1))[0]:
             missed.append(name)
     saved = {"num": P._num, "aliases": dict(P.NAME_ALIASES), "rules": dict(P.BUT_NAME_RULES), "spe": dict(P.SPECIALTY_ALIASES),
+             "site": dict(P.BUT_SITE_OVERRIDES), "c_overrides": c.overrides,
              "pm": P.parse_master_etab, "pb": P.parse_but_etab, "mf": P.master_for_formation, "c_aliases": c.aliases,
              "c_rules": c.rules, "c_paysage": c.paysage}
 
@@ -541,6 +553,7 @@ def p10(c: Ctx):
         ("discipline rows not grouped by block", lambda: setattr(P, "parse_master_etab", no_blocks), (p1, p2, p3)),
         ("site guessed by a loose name rule", lambda: (setattr(c, "rules", {r"exemple": next(iter(c.paysage.values()))}) if c.rules
                                                       else P.BUT_NAME_RULES.update({r"i\.?u\.?t": "UNIVERSITE MONTPELLIER"})), (p5,)),
+        ("site override dropped", lambda: (setattr(c, "overrides", {}), P.BUT_SITE_OVERRIDES.clear()), (p5,)),
         ("specialty renamed wrongly", lambda: P.SPECIALTY_ALIASES.update({"science des donnees": "informatique",
                                                                            "genie mecanique et productique": "gestion des entreprises et des administrations"}), (p5,)),
         ("master block off B1's discipline", lambda: setattr(P, "master_for_formation", other_discipline), (p6,)),
@@ -557,6 +570,8 @@ def p10(c: Ctx):
             P.NAME_ALIASES.clear(), P.NAME_ALIASES.update(saved["aliases"])
             P.BUT_NAME_RULES.clear(), P.BUT_NAME_RULES.update(saved["rules"])
             P.SPECIALTY_ALIASES.clear(), P.SPECIALTY_ALIASES.update(saved["spe"])
+            P.BUT_SITE_OVERRIDES.clear(), P.BUT_SITE_OVERRIDES.update(saved["site"])
+            c.overrides = saved["c_overrides"]
             c.aliases, c.rules, c.paysage = saved["c_aliases"], saved["c_rules"], saved["c_paysage"]
         if not caught:
             missed.append(name)

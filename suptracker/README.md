@@ -603,7 +603,8 @@ Facts checked on the real files before coding:
 - **BUT → university.**
   - The Paysage id comes first: 792 of 820 formations link this way.
   - The IUT de Toulouse has no id in the register; one explicit rule links its 20 formations to Toulouse 3 (grade B).
-  - The IUT de Nîmes and the Polynesia antenna carry the id of a university with no BUT row. They stay unlinked rather than guessed.
+  - The IUT de Nîmes is a component of the Université de Montpellier (confirmed by the owner), but its formations carry the id of the Université de Nîmes, which has no BUT row. An explicit site override links its 5 formations to Montpellier (grade B). An override is allowed only where the id names a university with no BUT row, and the red team checks this.
+  - The Polynesia antenna of the IUT de Bordeaux carries the id of a university with no BUT row and stays unlinked rather than guessed. In total, 817 of 820 formations are linked.
   - On real data, the B1 name rules and the id agree on all 116 formations where both apply.
 - **BUT → specialty.** Every Parcoursup BUT programme (36 labels) maps to one of the 24 SIES specialties. The "parcours …" suffix is dropped, and there are 3 explicit aliases, among them "Science des données", the 2024 name of STID.
 - **Licence → master.** The master card uses exactly the B1 link (university, discipline).
@@ -613,7 +614,7 @@ Facts checked on the real files before coding:
 - **National rows.** National rows are references and carry no grade.
 - **No multiplication.** No figure is multiplied by another.
 
-**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 10/10 checks pass and 16/16 mutants are caught.
+**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 10/10 checks pass and 17/17 mutants are caught.
 - **P1.** Independent re-read of every cell: 6,637 cells, 0 differ. Masked cells are NULL, never 0. The committed warehouse equals a fresh build.
 - **P2.** Every block maps to one B1 university, with no collision inside a table.
 - **P3.** Identities:
@@ -623,13 +624,13 @@ Facts checked on the real files before coding:
   - BUT graduates equal the BUT successes;
   - the national tables agree with each other.
 - **P4.** The masking rule holds at the measured thresholds.
-- **P5.** BUT links: truth table of the hard sites, id vs name rules, 100 % of programmes mapped to a specialty, and a specialty truth table.
+- **P5.** BUT links: truth table of the hard sites (Toulouse, Nîmes → Montpellier, Polynesia), no override over a usable id, id vs name rules, 100 % of programmes mapped to a specialty, and a specialty truth table.
 - **P6.** The licence → master link is B1's for all 3,202 linked licences.
 - **P7.** The API blocks match the warehouse, with grades by the fixed rules and the out-of-scope cases handled.
 - **P8.** National margins: doublettes use the journey's specialty codes, and the chain is ordered.
 - **P9.** The page escapes every stored string, keeps the wording card by card, never multiplies rates, and keeps the profile in the browser with its values validated.
 - **P10, mutation test.**
-  - Data mutants: "Etudiants" as the reference, masked as 0, an alias collision, discipline rows not grouped by block, a loose IUT rule, a wrong specialty alias, the master block off B1's discipline.
+  - Data mutants: "Etudiants" as the reference, masked as 0, an alias collision, discipline rows not grouped by block, a loose IUT rule, the Nîmes override dropped, a wrong specialty alias, the master block off B1's discipline.
   - UI mutants: escaping (3), wording (2), a multiplied chain, the profile sent to the server, the stored series trusted, the card not wired.
 
 **UI check (Playwright):** light, dark and mobile, including an unlinked IUT. 0 JS errors, no horizontal scroll.

@@ -112,6 +112,14 @@ def canonical(name: str, aliases: dict[str, str] | None = None) -> str:
 BUT_NAME_RULES = {
     r"^i\.?u\.?t\.? de toulouse\b": "UNIVERSITE TOULOUSE 3 (PAUL SABATIER)",
 }
+# Sites whose Paysage id names another establishment than the university the IUT belongs to: the
+# rule wins over the id (lien = "nom", graded B). Allowed only where the id points to a university
+# with no BUT row (red team P5 checks it), so a usable id is never overridden.
+# The IUT de Nîmes is a component of the Université de Montpellier (confirmed by the owner); its
+# Parcoursup formations carry the id of the Université de Nîmes, which has no IUT in the SIES table.
+BUT_SITE_OVERRIDES = {
+    r"^i\.?u\.?t\.? de nimes\b": "UNIVERSITE MONTPELLIER",
+}
 
 # Parcoursup BUT programme (fil_lib_voe_acc, folded, alphanumeric only, "parcours ..." removed)
 # -> SIES specialty (Tableau 2). Explicit aliases for the spellings that differ.
@@ -425,7 +433,8 @@ MASTER_KEYS = ("kind", "cohort", "etab", "etab_row", "block_row", "discipline", 
 
 
 def build(con, sources: dict[str, Path] | None = None, paysage_table: dict[str, str] | None = None,
-          name_rules: dict[str, str] | None = None, aliases: dict[str, str] | None = None) -> dict:
+          name_rules: dict[str, str] | None = None, aliases: dict[str, str] | None = None,
+          overrides: dict[str, str] | None = None) -> dict:
     """core.but_success, core.master_success, core.poursuite_national, core.but_success_link.
     Returns counts (empty tables without sources)."""
     src = find_sources() if sources is None else sources
@@ -473,13 +482,17 @@ def build(con, sources: dict[str, Path] | None = None, paysage_table: dict[str, 
                                               WHERE source_kind = 'but_nat' AND dim = 'specialite'""").fetchall()}
     by_id = paysage_table or SU.PAYSAGE_SIES
     rules = name_rules or BUT_NAME_RULES
+    site = BUT_SITE_OVERRIDES if overrides is None else overrides
     links = []
     for cod, etab, prog, contrat in con.execute("""SELECT cod_aff_form, g_ea_lib_vx, fil_lib_voe_acc, contrat_etab
             FROM core.formation_year WHERE session = ? AND fili = 'BUT'""", [latest]).fetchall():
         pid = ids.get(cod)
         uni, lien = None, None
+        forced = [u for rx, u in site.items() if re.search(rx, fold(etab))]
         if contrat == "Public":
-            if pid is not None:
+            if len(forced) == 1 and by_id.get(pid) not in known_etab:
+                uni, lien = forced[0], "nom"
+            elif pid is not None:
                 uni, lien = by_id.get(pid), "identifiant"
             else:
                 hits = [u for rx, u in rules.items() if re.search(rx, fold(etab))]

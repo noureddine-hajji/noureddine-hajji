@@ -34,7 +34,10 @@ def _ctx_kw(b1):
     return {"aliases": POURSUITE_ALIASES, "paysage": POURSUITE_PAYSAGE, "rules": POURSUITE_RULES,
             "b1": (b1, SUCCESS_TABLE, B1_PAYSAGE),
             # synthetic truth tables: the lycée with no id and no rule stays unlinked, the rule links Marseille
+            # Lille's id names a school with no BUT row: the site override links it to Nord (cf. IUT de Nîmes)
+            "overrides": {r"^ecole d'ingenieurs exemple lille": "UNIVERSITE EXEMPLE NORD"},
             "but_truth": {"Lycée Exemple Bordeaux": None, "Lycée Exemple Marseille": "UNIVERSITE EXEMPLE NORD",
+                          "École d'ingénieurs Exemple Lille": "UNIVERSITE EXEMPLE NORD",
                           "Université Exemple Paris": "UNIVERSITE EXEMPLE PARIS (CITE)"},
             "spe_truth": {"Génie mécanique et productique": "genie mecanique et productique",
                           "Gestion des entreprises et des administrations": "gestion des entreprises et des administrations"}}
