@@ -71,7 +71,7 @@ def ingest(raw_dir: Path = config.RAW_DIR, only: set[str] | None = None, force: 
             continue
         last_err: Exception | None = None
         for ods_id in ds.ods_ids:
-            url = config.parquet_export_url(ods_id)
+            url = config.parquet_export_url(ods_id, ds.base)
             print(f"[get ] {ds.key} <- {url}")
             try:
                 _download(url, dest)
