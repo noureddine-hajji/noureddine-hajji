@@ -12,15 +12,18 @@ from pathlib import Path
 
 import duckdb
 
-from . import config, crosswalk, harmonize, indicators, calibration, journey, lycee, referentiel, success
+from . import config, crosswalk, harmonize, indicators, calibration, journey, lycee, poursuite, referentiel, success
 from .ingest import load_manifest
 
 
 _SOURCE = object()
 
 
-def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, success_source=_SOURCE) -> Path:
-    """success_source: the SIES licence success workbook (B1); default data/sources/, None to skip."""
+def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, success_source=_SOURCE,
+          poursuite_sources=_SOURCE) -> Path:
+    """success_source: the SIES licence success workbook (B1); default data/sources/, None to skip.
+    poursuite_sources: {kind: path} of the sprint-6 BUT and master workbooks; default: detected in
+    data/sources/, None to skip."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = db_path.with_suffix(".building")
     tmp.unlink(missing_ok=True)
@@ -39,12 +42,15 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         calibration.build_calibration(con)
         src = success.source_path() if success_source is _SOURCE else success_source
         success.attach(con, src)
+        pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
+        poursuite.build(con, pou)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
-        con.execute("INSERT INTO meta.build VALUES ('built_at', ?), ('manifest', ?), ('years', ?), ('success_source', ?)", [
+        con.execute("INSERT INTO meta.build VALUES ('built_at', ?), ('manifest', ?), ('years', ?), ('success_source', ?), ('poursuite_sources', ?)", [
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             json.dumps(load_manifest(raw_dir), ensure_ascii=False),
             json.dumps(list(config.YEARS)),
             src.name if src else "",
+            json.dumps({k: Path(v).name for k, v in sorted(pou.items())}),
         ])
         con.execute("CHECKPOINT")
     finally:

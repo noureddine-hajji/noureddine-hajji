@@ -322,7 +322,8 @@ def s7(c: Ctx):
 
 def _card(js: str) -> str:
     i = js.index("// ---- B1: success in licence")
-    return js[i: js.index("function offerCard", i)]
+    end = js.find("// ---- Sprint 6", i)        # the sprint-6 cards follow: their code must not satisfy B1's checks
+    return js[i: end if end > 0 else js.index("function offerCard", i)]
 
 
 def ui_card(js: str) -> tuple[bool, str]:

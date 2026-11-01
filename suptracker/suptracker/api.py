@@ -24,6 +24,7 @@ from . import journey as J
 from . import planb as PB
 from . import search as S
 from . import success as SU
+from . import poursuite as PO
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
@@ -167,6 +168,27 @@ METHODOLOGY = {
         "se lit avec prudence et ne classe pas les universités. La référence nationale porte sur la même "
         "discipline. Les petits effectifs sont masqués par le SIES (« ns ») ou signalés ici en dessous de 100 "
         "inscrits. Ce sont des résultats de cohortes passées, pas des chances de réussite."),
+    "but": (
+        "Réussite en BUT : chiffres publiés par le SIES (ministère de l'Enseignement supérieur) pour les néo-bacheliers "
+        "2021 inscrits en première année de BUT. Par établissement, le SIES ne publie qu'un taux par université, toutes "
+        "spécialités et tous IUT confondus : il ne porte pas sur ce seul BUT. La réussite est attribuée à l'université "
+        "d'inscription en première année, même si le diplôme a été obtenu ailleurs. Le taux attendu (« simulé ») tient "
+        "compte du profil des inscrits (sexe, âge, série et mention au bac, origine sociale, spécialité de BUT) ; l'écart "
+        "(« valeur ajoutée ») se lit avec prudence et ne classe pas les universités. Rien n'est publié en dessous de 100 "
+        "inscrits. Les taux par spécialité, par série et spécialités du bac, et par mention sont nationaux, et ce sont des "
+        "marges : le SIES ne les croise pas (aucun taux « maths-SES avec mention assez bien » n'existe). La poursuite "
+        "d'études porte sur les diplômés en 3 ans, inscrits dans le supérieur l'année suivante. Ce sont des résultats de "
+        "cohortes passées, pas des chances de réussite."),
+    "master": (
+        "Et après la licence : chiffres publiés par le SIES pour les étudiants inscrits pour la première fois en master 1 "
+        "(M1) dans l'université, dans la même grande discipline que cette licence. Ils portent sur tous les entrants en "
+        "M1, d'où qu'ils viennent, et pas sur les diplômés de cette licence : le site ne les multiplie pas avec la "
+        "réussite en licence. Deux cohortes : le devenir un an après l'entrée en M1 (passage en M2, redoublement, "
+        "réorientations, sortie), et le master obtenu en 2 ou 3 ans. Taux attendu et écart se lisent comme pour la "
+        "licence. En référence nationale : la part des diplômés de licence qui s'inscrivent en master l'année suivante, "
+        "et le parcours complet des bacheliers 2017 entrés en L1 (licence en 3 ou 4 ans, master en 5 à 7 ans), selon le "
+        "type de bac ou la mention, jamais les deux à la fois. Ce sont des résultats de cohortes passées, pas des "
+        "chances de réussite."),
     "fiabilite": (
         "Fiabilité d'un chiffre, notée par des règles fixes, les mêmes partout sur le site. A (solide) : au moins 100 "
         "personnes, une cohorte de 3 ans au plus, un rattachement par l'identifiant officiel de l'établissement "
@@ -393,7 +415,9 @@ def formation(cod: str, session: int | None = None):
     peers.sort(key=lambda p: order.index(p["metric"]))
     return {"record": rec, "stages": _grouped(rec), "peers": peers,
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers),
-            "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
+            "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
+            "but": PO.but_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
+            "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
 
 
 OFFER = ("carto_session", "apprentissage", "internat", "distance", "amenag_sport", "amenag_art")
@@ -679,7 +703,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success"]
 
 
 @lru_cache(maxsize=1)

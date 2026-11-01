@@ -570,6 +570,70 @@ In "Mon parcours", the student can pick their lycée (optional). The page then s
 - **K8, mutation test:** 10 seeded bugs, all caught: the hold-out leaking into its own history, 90 % quantiles announced as 80 %, the predictor chosen on the hold-out, a same-year "stability", a stability measured on the all-series zone instead of the displayed one, unclipped ranges, and UI bugs.
 - **K9.** For every zone stage 2 shows (three formation types, two mentions), the back-test classifier gives the same zone and *incertain* flag.
 
+## Success beyond licence: BUT and master (sprint 6, formation page)
+
+**What the student sees.**
+- **On a BUT page, a "Réussite en BUT" card** shows:
+  - the share of the university's BUT entrants who got the diploma in 3 years, with the rate expected from their profile and the national rate;
+  - what the graduates did the next year: continuation, and the shares in master, business school and engineering school;
+  - the national rate of the BUT's specialty;
+  - two national rows matching the student's profile, read from the browser: their bac series (with their général doublette when SIES publishes it) and their mention.
+- **On a licence page, an "Et après la licence : le master" card** shows:
+  - for the same university and discipline as B1: the M1 → M2 transition with the full outcome bar, and the master obtained in 2 or 3 years, each with the expected and national rates;
+  - nationally: the share of licence graduates entering master each year from 2021 to 2024, and the 2017 L1 cohort followed to master, by the student's bac type and by their mention.
+
+**Data (`suptracker/poursuite.py`).** Five SIES workbooks that the owner commits under `data/sources/`:
+- **The files:**
+  - BUT: NF 2025-26, "Tableaux par établissement" and "Tableaux réussite en IUT";
+  - master: NF 2025-30, "Réussite et passage par discipline et établissement", "Réussite en master" and "Poursuites d'études en master".
+- **Recognition:** each file is recognised by its sheets and table titles, not by its name. The B1 licence workbook is not mistaken for one of them.
+
+Facts checked on the real files before coding:
+- **BUT is per university only.** No IUT, no specialty. Success is credited to the university of first enrolment. Nothing is published below 100 entrants.
+- **Specialty, series and mention are national.** They are margins: SIES never crosses them, so "MATHS+SES with Assez bien" does not exist. The page shows separate rows and says so.
+- **Master is per university × the five B1 disciplines.** The population is every M1 entrant, wherever they come from, not the graduates of this licence. Nothing is published below 50 entrants (measured: the largest masked cohort is 46, the smallest published is 50).
+- **National reference.** The universities add up to "Inscriptions principales", which is therefore the reference, exactly as in B1. "Etudiants" counts a person once and does not add up.
+- **Names.** The same university is spelled differently from one table to the next ("CY CERGY PARIS UNIVERSITE (EPE)", "CY CERGY UNIVERSITE"). Discipline rows can carry a shorter name than their block. Rows are grouped by block, and every spelling maps to the B1 university through `NAME_ALIASES`.
+- **Two published quirks, shown as is.**
+  - At Grenoble, the seven M1 outcome shares add up to 99.0 % (alsh) and 99.5 % (all disciplines).
+  - The 2017 chain's "master in 5 to 7 years" can exceed "entered master after 3 or 4 years" (L1 SVT: 32.8 vs 32.6), because some students enter master later.
+- **Two national sources disagree.** The continuation of licence graduates into master differs between the two national files (droit 2024: 78.3 vs 79.5, different groupings). The page uses the "Réussite en master" table, which has the five B1 disciplines and four years.
+
+**Links.**
+- **BUT → university.**
+  - The Paysage id comes first: 792 of 820 formations link this way.
+  - The IUT de Toulouse has no id in the register; one explicit rule links its 20 formations to Toulouse 3 (grade B).
+  - The IUT de Nîmes and the Polynesia antenna carry the id of a university with no BUT row. They stay unlinked rather than guessed.
+  - On real data, the B1 name rules and the id agree on all 116 formations where both apply.
+- **BUT → specialty.** Every Parcoursup BUT programme (36 labels) maps to one of the 24 SIES specialties. The "parcours …" suffix is dropped, and there are 3 explicit aliases, among them "Science des données", the 2024 name of STID.
+- **Licence → master.** The master card uses exactly the B1 link (university, discipline).
+
+**Reliability.**
+- **Grades.** Every university figure is an `evidence.maillon` with a new granularity, "l'université, toutes spécialités". The cohorts (2021) are more than 3 years old, so they are graded B at best.
+- **National rows.** National rows are references and carry no grade.
+- **No multiplication.** No figure is multiplied by another.
+
+**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 10/10 checks pass and 16/16 mutants are caught.
+- **P1.** Independent re-read of every cell: 6,637 cells, 0 differ. Masked cells are NULL, never 0. The committed warehouse equals a fresh build.
+- **P2.** Every block maps to one B1 university, with no collision inside a table.
+- **P3.** Identities:
+  - the universities add up to "Inscriptions principales", and disciplines add up to their block;
+  - rates equal counts, and VA = observed − simulated;
+  - the M1 outcomes partition the entrants (Grenoble listed);
+  - BUT graduates equal the BUT successes;
+  - the national tables agree with each other.
+- **P4.** The masking rule holds at the measured thresholds.
+- **P5.** BUT links: truth table of the hard sites, id vs name rules, 100 % of programmes mapped to a specialty, and a specialty truth table.
+- **P6.** The licence → master link is B1's for all 3,202 linked licences.
+- **P7.** The API blocks match the warehouse, with grades by the fixed rules and the out-of-scope cases handled.
+- **P8.** National margins: doublettes use the journey's specialty codes, and the chain is ordered.
+- **P9.** The page escapes every stored string, keeps the wording card by card, never multiplies rates, and keeps the profile in the browser with its values validated.
+- **P10, mutation test.**
+  - Data mutants: "Etudiants" as the reference, masked as 0, an alias collision, discipline rows not grouped by block, a loose IUT rule, a wrong specialty alias, the master block off B1's discipline.
+  - UI mutants: escaping (3), wording (2), a multiplied chain, the profile sent to the server, the stored series trusted, the card not wired.
+
+**UI check (Playwright):** light, dark and mobile, including an unlinked IUT. 0 JS errors, no horizontal scroll.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.
