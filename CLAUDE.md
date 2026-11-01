@@ -16,6 +16,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Foundation (sprint 3):** `referentiel.py` (Paysage ids, register, successions), `evidence.py`
     (maillon + A/B/C reliability), `sources.py` (source register), `glossary.py` (A5).
   - **Lycée (sprint 4):** `lycee.py` (IPS + IVAL from the Education ministry portal, `config.Dataset.base`).
+  - **Repère (sprint 5):** `calibration.py` (next-campaign ranges, hold-out 2025, zone stability).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -109,6 +110,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     changes a positioning. The one published lycée effect is `pct_etab_orig` (formation in the lycée).
   - IPS references are per lycée type × sector; IVAL's académie label is truncated: use the IPS one.
   - Privacy: `/api/lycees` takes no parameter and is searched in the browser; the lycée is never sent.
+- **Repère (sprint 5).**
+  - Never a probability: only next-campaign RANGES of published indicators, with the hold-out coverage
+    printed as measured (76.6 % / 76.5 % for a nominal 80 %), never hard-coded.
+  - The method is fixed before the hold-out: predictor chosen on 2024, ranges from the 2023-2024 errors.
+  - Zone stability is shown for bac général only. It is measured with the zone the page shows
+    (`calibration.zone_of`, which calls `journey.zone_reading`, also used by stage 2): never the all-series reading.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -127,10 +134,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Plan B (formation page) and its "Voir un plan B" button in "Mon parcours";
   - B1 success in licence (formation page), from the SIES workbook in `suptracker/data/sources/`;
   - sprint 3 foundation: Paysage register and successions, reliability grades, source register, glossary;
-  - sprint 4 lycée profile: IPS/IVAL context card, académie from the lycée, Maths expertes, same-lycée share;
+  - sprint 4 lycée profile: IPS/IVAL context card, académie from the lycée, Maths expertes, same-lycée share,
+    "C'est ton lycée ?" from the search bar;
+  - sprint 5 repère: calibrated next-campaign ranges and zone stability in "Mon parcours";
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 5: calibrated accessibility index (back-tested, never a probability);
   - sprint 6: success beyond licence (BUT, master: owner uploads the SIES files);
   - sprint 7: gateways (B1 "Réorientations" sheet, MonMaster);
   - sprint 8: insertion (InserSup, Inserjeunes, Céreq national adequacy, Onisep jobs);

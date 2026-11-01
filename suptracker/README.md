@@ -536,6 +536,40 @@ In "Mon parcours", the student can pick their lycée (optional). The page then s
 - **Y9.** Methodology and glossary.
 - **Y10.** Mutation test: 11 seeded bugs, all caught.
 
+## Next-campaign "repère": calibrated ranges, back-tested (sprint 5, "Mon parcours")
+
+**Why not a probability.** Open data cannot calibrate a chance of admission: SIES publishes the mentions of *admits*, never those of *candidates*. What can be calibrated honestly is how the published indicators move from one campaign to the next. For each formation and the student's mention, the "Mon parcours" table therefore shows a **repère for the next campaign**:
+- an 80 % range for the official access rate;
+- for bac général, an 80 % range for the share of admits with the student's mention or lower (all series);
+- for bac général, how often the row's zone was confirmed the next campaign in comparable cases.
+
+**What the data showed (`suptracker/calibration.py`).**
+- **Access rate:** it moves about ±9–10 points a year. 2025 shifted down: a 10th-percentile change of −21 points, against −15 in earlier years.
+- **Share of admits:** it is stable in large formations (mean error 4.7 points at 100+ admits) and noisy in small ones (13.8 points under 30). The ranges are therefore set per stratum: selectivity × number of past campaigns for the access rate, admits headcount for the share.
+
+**Method, fixed before looking at the hold-out.**
+- **Point forecast of the access rate:** among last campaign, mean of the last two, and mean of all, the predictor with the lowest error on 2024 (mean of the last two; on 2024 it ties with the overall mean).
+- **Point forecast of the share:** counts pooled over every campaign, as "Mon parcours" does.
+- **Ranges:** the point forecast plus the 10th–90th percentiles of the errors on the 2023 and 2024 transitions.
+- **Hold-out:** 2025 is forecast without being seen. **76.6 %** of the 2025 access rates and **76.5 %** of the shares fell in their 80 % range. The page prints these figures as they are, read from the data, never hard-coded.
+- **Served ranges:** the ranges served for 2026 use the errors of every transition, 2025 included.
+
+**Zone stability.**
+- **How it is measured:** the zone computed from campaigns up to *Y* − 1 is compared with the zone the next campaign alone gives. Both use the reading the page shows for bac général: the all-series share is projected into the bac-général bounds when they are usable (`journey.zone_reading`, shared by stage 2 and `calibration.zone_of`). Formations closed to bac général in practice are left out, like on the page.
+- **Results:** zones not flagged *incertain* held 79–81 % of the time (95 % for "hors profil"); zones flagged *incertain* held 53–73 %. This confirms the *incertain* flag after the fact.
+- **Scope:** it is shown only for bac général, because bac techno and pro zones use an estimated series access that is not comparable.
+
+**Red team (`scripts/redteam_calibration.py`, run in CI by `tests/test_calibration.py`).** The checks are:
+- **K1.** An independent numpy re-implementation of the hold-out gives the published coverage exactly.
+- **K2.** The predictor is chosen on 2024 only.
+- **K3.** The served ranges stay within bounds and contain the point; their width equals the stratum's error range; only current formations get one.
+- **K4.** Pooled shares.
+- **K5.** Zone stability is re-derived independently (bac-général bounds summed campaign by campaign) on the next campaign alone; uncertain zones are less stable.
+- **K6.** The API attaches the right forecast and stability.
+- **K7.** The page reads the coverage from the data, says it is not a chance, and gates the series-specific parts.
+- **K8, mutation test:** 10 seeded bugs, all caught: the hold-out leaking into its own history, 90 % quantiles announced as 80 %, the predictor chosen on the hold-out, a same-year "stability", a stability measured on the all-series zone instead of the displayed one, unclipped ranges, and UI bugs.
+- **K9.** For every zone stage 2 shows (three formation types, two mentions), the back-test classifier gives the same zone and *incertain* flag.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

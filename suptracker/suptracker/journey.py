@@ -461,6 +461,20 @@ def series_position(serie: str, mention: str, margins: list[dict], cdf_all: floa
             "projected": cdf_all is not None and not (lo <= cdf_all <= hi)}
 
 
+def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict]) -> dict:
+    """The mention share a zone is read from, shared by stage2 and the sprint-5 back-test so the
+    stability printed next to a zone is measured with the very method that set it.
+    k / n: pooled all-series admits with the mention or lower / with a known mention;
+    margins: one dict of BG_KEYS counts per campaign. When the series bounds are usable (A3/B4),
+    the student's series replaces the all-series view."""
+    cdf = k / n if n else None
+    lo, hi = wilson(k, n)
+    spos = series_position(serie, mention, margins, cdf)
+    if spos:
+        return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": spos, "cdf_zone": spos["cdf_used"], "ci_zone": tuple(spos["ci"])}
+    return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": None, "cdf_zone": cdf, "ci_zone": (lo, hi)}
+
+
 # Portfolio zones (thresholds are part of the method and shown in the UI).
 ZONE_RULES = {
     "hors_profil_cdf": 0.02,     # < 2% of admits hold the expected mention or lower
@@ -656,13 +670,9 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
     for r in rows:
         x = dict(zip(cols, r))
         n, k = x["n_known"] or 0, x["k_cum"] or 0
-        cdf = k / n if n else None
-        lo, hi = wilson(k, n)
-        spos = series_position(serie, mention, x.pop("bg_margins") or [], cdf)
-        if spos:                                 # A3/B4: the student's series replaces the all-series view
-            cdf_zone, lo_zone, hi_zone = spos["cdf_used"], spos["ci"][0], spos["ci"][1]
-        else:
-            cdf_zone, lo_zone, hi_zone = cdf, lo, hi
+        rd = zone_reading(serie, mention, k, n, x.pop("bg_margins") or [])
+        cdf, (lo, hi), spos = rd["cdf"], rd["cdf_ci"], rd["spos"]
+        cdf_zone, lo_zone, hi_zone = rd["cdf_zone"], *rd["ci_zone"]
         eligible = open_to_series(x, spe, serie)
         pct_bg = (x["bg"] / x["neobac"]) if x["neobac"] else None
         pct_serie = (x["s_sum"] / x["neobac"]) if x["neobac"] else None

@@ -52,6 +52,9 @@ GLOSSARY = {
     "va_lycee": ("Valeur ajoutée d'un lycée", "L'écart entre les résultats du lycée au bac (réussite, mentions, accès de la "
                  "seconde au bac) et ceux qu'on attendrait vu le profil de ses élèves. Un chiffre positif veut dire que le lycée "
                  "fait mieux qu'attendu.", "lycee"),
+    "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
+               "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
+               "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer ta liste, calculé à partir des admis des "

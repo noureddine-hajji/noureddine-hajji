@@ -26,6 +26,7 @@ from . import search as S
 from . import success as SU
 from . import glossary as G
 from . import evidence as EV
+from . import calibration as CAL
 from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
@@ -182,6 +183,15 @@ METHODOLOGY = {
         "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
         "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
         "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+    "repere": (
+        "Repère pour la prochaine campagne : deux fourchettes et une stabilité, calculées sur les campagnes 2022 à 2025. "
+        "Fourchette du taux d'accès officiel et fourchette de la part d'admis ayant ta mention ou moins (tous bacs confondus), "
+        "à 80 % : la méthode a été réglée sur 2023 et 2024, puis testée sur 2025 sans l'avoir vue ; la part des vraies "
+        "valeurs 2025 tombées dans leur fourchette est affichée telle quelle. Les fourchettes sont plus larges pour les "
+        "petites formations et pour celles qui ont peu d'historique. La stabilité dit dans combien de cas comparables la zone "
+        "(sécurité, cible, ambitieux, hors profil) a été confirmée l'année suivante ; elle est mesurée avec la même lecture "
+        "que la zone affichée pour le bac général (part des admis bac général encadrée par les chiffres publiés). Ce ne sont pas des chances d'admission : "
+        "les données publiques ne donnent pas les mentions des candidats, seulement celles des admis."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -557,6 +567,7 @@ def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTask
         res = J.stage2(_con().cursor(), dkey, mention, type, academie, sex, serie=serie)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    CAL.attach(_con().cursor(), res, mention)
     bg.add_task(A.record, "journey", {"stage": "stage2"}, _hdrs(request))
     return res
 
@@ -668,7 +679,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere"]
 
 
 @lru_cache(maxsize=1)
