@@ -91,7 +91,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **B1 success in licence.**
   - Figures are per university × broad discipline (never per formation), and the page says so.
   - The national reference is the "Inscriptions principales" row, never "Etudiants".
-  - Universities are linked by name, one explicit rule each; a site that is ambiguous stays unlinked.
+  - Universities are linked by **Paysage id** first (`success.SIES_PAYSAGE`); the name rules (one explicit
+    rule per university, an ambiguous site stays unlinked) are only the fallback for formations without an
+    id, graded B, and an independent cross-check in the red team.
   - Masked cells (`ns`, `nd`, `.`) are NULL, never 0.
   - The ministry site rejects automated downloads: the owner commits the workbook.
 - **Foundation (sprint 3).**
@@ -110,7 +112,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 
-## Status (2026-10-31)
+## Status (2026-11-01)
 - **Live in `main`:**
   - search 2.0;
   - analytics and the `/#/stats` dashboard;
