@@ -51,7 +51,7 @@ HASH_FIELD_CAP = 5000           # max distinct queries / fiches per day (cardina
 MAX_BODY = 2048
 MAX_QUERY = 80
 
-ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats")
+ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats", "glossaire")
 DEVICES = ("mobile", "tablet", "desktop")
 FEEDBACK_PAGES = ("fiche", "parcours", "search")
 FEEDBACK_REASONS = ("utile", "introuvable", "incomprehensible", "manque_info", "erreur_donnees", "lent")

@@ -306,6 +306,13 @@ function suBar(row) {
   if (!row || SU_DEVENIR.some(([k]) => row[k] == null)) return "";
   return `<div class="sbar" role="img" aria-label="${SU_DEVENIR.map(([k, l]) => `${l} ${fmt(row[k], 1)} %`).join(", ")}">${SU_DEVENIR.map(([k, l, c]) => `<span class="${c}" style="width:${Math.max(0, Math.min(100, row[k]))}%" title="${l} : ${fmt(row[k], 1)} %"></span>`).join("")}</div>`;
 }
+// Reliability of one link of the evidence chain (graded server-side by fixed rules: evidence.py)
+const FIAB_LABEL = { A: "solide", B: "à nuancer", C: "fragile" };
+function fiabBadge(m) {
+  if (!m || !m.fiabilite) return '<span class="muted small">—</span>';
+  const g = ["A", "B", "C"].includes(m.fiabilite) ? m.fiabilite : "C";
+  return `<span class="badge fiab fiab-${g}" title="${esc((m.raisons || []).join(" ; "))}">${g} · ${FIAB_LABEL[g]}</span>`;
+}
 function successCard(s) {
   if (!s) return "";
   const head = `<h2>Réussite en licence ${tip("success")}</h2>`;
@@ -320,7 +327,7 @@ function successCard(s) {
     const coh = (u || n).cohort;
     const exp = u && u.taux_simule != null && u.va != null
       ? `${pc1d(u.taux_simule)} %<div class="muted small">écart ${u.va > 0 ? "+" : ""}${pc1d(u.va)} pt</div>` : `<span class="muted small">—</span>`;
-    return `<tr><td>${label}<div class="muted small">${when} ${esc(coh)}${u && u.inscrits != null ? ` · ${fmt(u.inscrits)} inscrits` : ""}</div></td>
+    return `<tr><td>${label}<div class="muted small">${when} ${esc(coh)}${u && u.inscrits != null ? ` · ${fmt(u.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(u && u.maillon)}</div></td>
       <td class="num"><strong>${suVal(u, "taux")}</strong></td><td class="num">${exp}</td><td class="num">${suVal(n, "taux")}</td></tr>`;
   }).join("");
   const bars = P && suBar(P) ? `<div class="su-devenir"><div class="small">Un an après l'entrée en L1 (inscrits en ${esc(P.cohort)})</div>
@@ -329,7 +336,7 @@ function successCard(s) {
       <div class="legend"><span class="muted">Université :</span>${SU_DEVENIR.map(([k, l, c]) => `<span><i class="${c}"></i>${l} ${pc1d(P[k])} %</span>`).join("")}${N ? `<span class="muted">France : ${SU_DEVENIR.map(([k]) => `${pc1d(N[k])} %`).join(" · ")}</span>` : ""}</div></div>` : "";
   return `<div class="card">${head}
     <p class="small"><strong>${esc(s.etab_label)}</strong> · ${esc(s.discipline_label)}. Chiffres de <strong>tous les néo-bacheliers inscrits en L1</strong> de cette grande discipline dans l'université, pas seulement de cette licence.${small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
-    <div class="scroll"><table><tr><th>Indicateur</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("success")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
+    <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("success")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
     ${bars}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), tableaux par établissement et discipline. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
 }
@@ -721,6 +728,32 @@ async function viewParcours() {
   const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
 }
 
+// ---- A5 glossary (V1) and the source register ---------------------------------------------
+const ACCESS_LABEL = { ods: "téléchargée automatiquement", owner_upload: "fichier déposé (site du producteur fermé aux robots)", planned: "prévue" };
+function viewGlossaire(q) {
+  const G = (META && META.glossary) || [], S = (META && META.sources) || [];
+  const norm = (x) => String(x || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const draw = (term) => {
+    const t = norm(term);
+    const hits = G.filter((g) => !t || norm(g.terme).includes(t) || norm(g.definition).includes(t));
+    document.getElementById("gl-list").innerHTML = hits.length ? hits.map((g) => `<div class="gl-item" id="g-${esc(g.key)}"><h3>${esc(g.terme)}</h3><p>${esc(g.definition)}</p>${g.methode && META.methodology[g.methode] ? `<details><summary class="small">Méthode détaillée</summary><p class="small muted">${esc(META.methodology[g.methode])}</p></details>` : ""}</div>`).join("")
+      : `<p class="muted">Aucun terme ne correspond.</p>`;
+  };
+  $view.innerHTML = `<div class="card"><h2>Glossaire</h2>
+    <p class="small muted">Les mots de Parcoursup et des statistiques du site, expliqués simplement.</p>
+    <input id="gl-q" type="search" placeholder="Chercher un mot (vœu, mention, taux d'accès…)" aria-label="Chercher dans le glossaire" value="${esc(q)}" class="gl-q">
+    <div id="gl-list"></div></div>
+  <div class="card"><h2>Sources des données</h2>
+    <p class="small muted">Chaque chiffre du site vient d'une de ces sources publiques. Les sources « prévues » arriveront dans les prochaines étapes du parcours.</p>
+    <div class="scroll"><table><tr><th>Source</th><th>Producteur</th><th>Précision</th><th>Statut</th></tr>
+    ${S.map((s) => `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)} ↗</a>` : esc(s.title)}<div class="muted small">${esc(ACCESS_LABEL[s.access] || "")}</div></td>
+      <td>${esc(s.producer)}</td><td>${esc(s.granularity)}</td>
+      <td>${s.status === "en_ligne" ? '<span class="badge exact">en ligne</span>' : `<span class="badge">prévue${s.sprint ? ` · étape ${esc(s.sprint)}` : ""}</span>`}</td></tr>`).join("")}</table></div></div>`;
+  const inp = document.getElementById("gl-q");
+  inp.oninput = () => draw(inp.value);
+  draw(q);
+}
+
 // ---- audience measurement (no cookie, no identifier: see /#/stats → Méthode) ---------
 const PRIVACY_OFF = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
 function track(t, props = {}) {
@@ -782,7 +815,7 @@ document.addEventListener("click", (e) => {
 
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
-  qualite: "qualite", parcours: "parcours", stats: "stats" };
+  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire" };
 async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
@@ -796,6 +829,7 @@ async function route() {
     if (a === "specialites") return await viewSpecialites(b, c);
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
+    if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
   } catch (e) {
     $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`;

@@ -436,6 +436,67 @@ The red team found two real link bugs while B1 was built, both now fixed:
 - "Campus d’Evry" was folded to "devry", so it was linked to Paris-Saclay.
 - The Guyancourt campus of Paris-Saclay was linked to UVSQ.
 
+## Data foundation: establishment register, reliability, sources, glossary (sprint 3)
+
+This is the base the next sprints build on: success, gateways and insertion are all keyed by establishment.
+
+**Paysage ids.** SIES publishes, on every Parcoursup campaign, the Paysage id of a formation's parent establishment (the university of a UFR or an antenna) and of its component. `core.formation_year` now carries both. What the data showed:
+- **Coverage.** The id is filled for about 96–98 % of public licences, BUT and PASS in 2022–2024. It is rare for lycée formations (BTS, CPGE: 15–25 %).
+- **2025 is empty.** The id is **empty in the 2025 export**. `ref.formation_etablissement` fills it from the cartographie, then from the same formation's previous campaign, and records the source of every id.
+
+**Register and successions.**
+- **Register.** The MESR register *Principaux établissements d'enseignement supérieur* (245 rows, ingested by the data workflow) gives `ref.etablissement`.
+- **Mergers and renamings.** Merged or renamed universities appear in older campaigns under a former id. `ref.succession` derives the successor from the data, in two ways:
+  - **transition:** the same formation moves to a register id the next campaign;
+  - **UAI vote:** the old id's formations are listed under a UAI that the register gives, as current or former UAI, to one establishment.
+- **Rules.** A succession needs 80 % of the evidence and at least 5 formations. A former UAI shared by two establishments names neither, so it is ignored (Antilles-Guyane, and one shared by Polynésie and Nouvelle-Calédonie).
+- **Found this way:** Bourgogne → Bourgogne Europe, Franche-Comté → Marie et Louis Pasteur, Brest → Bretagne Occidentale, Montpellier 3 → Paul-Valéry, Saint-Étienne → Jean Monnet, Toulouse III → Université de Toulouse, Rennes 1 → Université de Rennes, Toulouse 1 → Capitole, Nîmes.
+
+**Coverage (2025).** 93 % of public licences and 97 % of public BUT reach the register.
+
+**B1 on ids.** The 70 SIES universities map to Paysage ids (`success.SIES_PAYSAGE`, checked against the register).
+- **The id comes first.** On the 2,966 formations that both methods link, the id and the name rules **never disagree**.
+- **Ambiguous campuses.** The id settles the Paris-Saclay campuses that the name rules left unlinked: they go to Évry or UVSQ.
+- **Fallback.** Formations without any id (new in 2025) keep the name rule, and their figures are graded B.
+
+**Maillon and reliability (`evidence.py`).** Every figure of a journey step travels in one envelope: value, national and expected references, granularity, population, cohort, headcount, source, link method and caveat. Reliability is graded by fixed rules:
+- **A:** at least 100 people, a cohort 3 years old at most, an official id;
+- **B:** fewer than 100 people, an older cohort, or a link by name;
+- **C:** fewer than 30 people;
+- **no grade:** a masked value.
+
+The chain is never multiplied into one score: each step describes a different population. B1 shows the grade, with its reasons, under each indicator.
+
+**Source register (`sources.py`).** Every dataset is listed with:
+- producer and access (`ods`, `owner_upload` or `planned`);
+- granularity, keys and what it feeds;
+- status, and the sprint for planned sources.
+
+The *Glossaire* page lists the sources for students, including the planned ones (IPS, IVAL, MonMaster, InserSup, Inserjeunes).
+
+**A5 glossary (V1, `#/glossaire`).** 22 Parcoursup and statistics terms in plain French, searchable. Each term links to the detailed method when there is one.
+
+**Red team (`scripts/redteam_referentiel.py`, run in CI by `tests/test_referentiel.py`).** The links are rebuilt in memory and each rule is re-derived independently in Python. The checks are:
+- **F1.** Register integrity; shared UAIs never vote.
+- **F2.** SIES's own id kept; the 2025 fill order.
+- **F3.** Successions re-derived with the red team's own thresholds.
+- **F4.** Succession plausibility by name.
+- **F5.** Coverage.
+- **F6.** The SIES → Paysage table.
+- **F7.** B1 by id vs by name, and link labels.
+- **F8.** Grades re-derived everywhere they are served.
+- **F9.** Source register ↔ ingested datasets and committed files.
+- **F10.** Glossary methods, wording and escaping.
+- **F11.** The badge.
+- **F12.** The published warehouse equals a fresh rebuild.
+- **F14.** Known mergers resolve to the right current establishment.
+- **F13, mutation test:** 11 seeded bugs, all caught.
+
+**What it found while being written:**
+- the register's shared former UAIs;
+- a test blind spot: the red team read the thresholds it was testing from the module itself;
+- the Brest label (now *Université de Bretagne Occidentale*).
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

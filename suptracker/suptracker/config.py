@@ -50,6 +50,8 @@ DATASETS: tuple[Dataset, ...] = (
         "specialites",
     ),
     Dataset("cartographie", ("fr-esr-cartographie_formations_parcoursup",), "cartographie"),
+    # MESR register of the main higher-education establishments (Paysage id, UAI, type, sector)
+    Dataset("etablissements", ("fr-esr-principaux-etablissements-enseignement-superieur",), "reference"),
 )
 
 

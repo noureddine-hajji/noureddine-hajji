@@ -40,6 +40,10 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("cod_aff_form", "VARCHAR", "g_ta_cod", "code_aff_form", label="Code d'affectation de la formation"),
     F("g_ea_lib_vx", "VARCHAR", "etablissement", "lib_etab", label="Établissement"),
     F("contrat_etab", "VARCHAR", "statut_etab", label="Statut de l'établissement"),
+    # Paysage identifiers (MESR establishment register), published by SIES on every campaign: the
+    # parent establishment (the university of a UFR or an antenna) and the component.
+    F("etablissement_id_paysage", "VARCHAR", label="Identifiant Paysage de l'établissement de rattachement"),
+    F("composante_id_paysage", "VARCHAR", label="Identifiant Paysage de la composante"),
     F("dep", "VARCHAR", "code_departemental", label="Département"),
     F("dep_lib", "VARCHAR", label="Département (libellé)"),
     F("region_etab_aff", "VARCHAR", "region", label="Région"),
