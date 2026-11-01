@@ -635,6 +635,51 @@ Facts checked on the real files before coding:
 
 **UI check (Playwright):** light, dark and mobile, including an unlinked IUT. 0 JS errors, no horizontal scroll.
 
+## Gateways: reorientation after L1 and the university's masters (sprint 7, formation page)
+
+**What the student sees.**
+- **On a licence page, a "Passerelles" card** shows, for the same university and discipline as B1:
+  - **after the L1:** the share of L1 entrants who change course the next year, and where they go: outside the university (BTS in apprenticeship or not, CPGE, business or engineering school) or at the university (BUT, nursing diploma), against France;
+  - **after the licence:** the university's masters in this discipline on MonMaster:
+    - offers, admitted students and applications (labelled as vœux);
+    - the share of admitted students already enrolled at the university, with France as reference;
+    - where the admitted students came from;
+    - the largest master mentions.
+- **On a BUT page, one line:** how many BUT graduates the university's masters admitted, against France.
+
+**Data (`suptracker/passerelles.py`), checked on real data before the design.**
+- **Reorientation sheet** (B1 workbook, NF 2025-29, 2023 entrants):
+  - every rate is a share of the **L1 entrants**, not of the reoriented students;
+  - reoriented = hors université + à l'université, exactly for every university;
+  - the published detail is **not exhaustive**, and the page says so; nothing is computed by difference;
+  - masked below 100 entrants (largest masked cohort 95, smallest published 101);
+  - the universities add up to "Inscriptions principales"; on that national row, hors + université exceeds the total by 1 to 3 students (multiple enrolments);
+  - one spelling differs from B1's ("UNIVERSITE PARIS 13 SORBONNE PARIS NORD", explicit alias);
+  - where both are published, entrants and reoriented equal B1's "Devenir" table.
+- **MonMaster** (SIES open data, ingested by the data workflow):
+  - 2024 and 2025 sessions; the 2023 file has another layout and no "admitted from the same establishment" field;
+  - one row per offer (`ifc`: programme × site × apprenticeship), unique per session;
+  - identities hold on every row: origins add up to the admitted students, main + complementary phase = total, the funnel never grows, published percentages = counts; nothing is masked;
+  - **units:** applications summed over programmes are vœux; admitted students are people;
+  - **never a chance:** no proposals / applications ratio is shown.
+- **Link.**
+  - Masters are tied to a licence through B1's university (its Paysage id, 69 of the 70 universities found in MonMaster) and the broad discipline (`MASTER_DISCIPLINE`).
+  - MEEF masters (teaching, open to every licence) are kept apart; mixed droit-éco-AES and theology masters get no discipline.
+
+**Red team (`scripts/redteam_passerelles.py`, run in CI by `tests/test_passerelles.py`).** On the real data, 8/8 checks pass and 13/13 mutants are caught.
+- **Q1.** The reorientation sheet is re-read cell by cell (5,292 cells, 0 differ). Masked cells are NULL, never 0. The warehouse equals a fresh build.
+- **Q2.** Identities, masking at 100, the entrants' sum, the cross-check with the "Devenir" table, and every block a B1 university.
+- **Q3.** MonMaster staging: 16,257 offers, totals = raw, origins = admitted students, funnel.
+- **Q4.** Every discipline label is mapped explicitly; truth table; MEEF never in a discipline.
+- **Q5.** Masters aggregates are re-derived from the raw rows with pandas for every university × discipline pair (295 pairs, 277 with masters).
+- **Q6.** The API rows and grades follow the fixed rules; out-of-scope cases are handled; BUT → master counts are re-derived.
+- **Q7.** The page escapes stored strings and keeps the wording. It shows no proposal ratio and no remainder by difference.
+- **Q8, mutation test.**
+  - Data mutants: "Etudiants" as the national row, masked as 0, no block grouping, MEEF in its listed discipline, a mixed master guessed as droit, masters not restricted to the university.
+  - UI mutants: escaping (2), the vœux caveat, the incomplete-detail caveat, a proposal ratio, a remainder, the card not wired.
+
+**UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.

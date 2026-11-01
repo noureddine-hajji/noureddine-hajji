@@ -445,9 +445,85 @@ def make_success_xlsx(path: Path) -> dict:
             block(ws, kind, name, short, ds)
         ws.append(["ns : résultat non significatif du fait de faibles effectifs"])
         ws.append(["Source : MESRE-SIES"])
+    # sprint 7: where the reoriented went (same entrants and reorientations as the "Devenir" sheet; the
+    # Nord university's total row carries another spelling, as Paris 13 does in the real sheet)
+    ws = wb.create_sheet("Réorientations - cohorte 2023")
+    ws.append(["Détail des formations suivies en 2024-2025 par les néo-bacheliers inscrits en licence à la rentrée 2023 et réorientés à la rentrée 2024 selon établissement et discipline en L1 - corrigé"])
+    ws.append(["Retour au sommaire"])
+    ws.append(["Nom établissement en L1", "Discipline en L1", "Inscrits en L1\n(rappel)", "Réorientation\n(rappel)", "Taux de réorientation\n(rappel)",
+               "Dont réorientation hors université", "Taux de réorientation hors université", "Dont réorientation en CPGE", "Taux de réorientation en CPGE",
+               "Dont réorientation en STS en apprentissage", "Taux de réorientation en STS en apprentissage", "Dont réorientation en STS hors apprentissage",
+               "Taux de réorientation en STS hors apprentissage", "Dont réorientation en école de commerce", "Taux de réorientation en école de commerce",
+               "Dont réorientation en école d'ingénieur", "Taux de réorientation en école d'ingénieur", "Dont réorientation à l'université",
+               "Taux de réorientation à l'université", "Dont réorientation en DUT/BUT", "Taux de réorientation en DUT/BUT",
+               "Dont réorientation en DE Infirmier", "Taux de réorientation en DE Infirmier"])
+
+    def reo_line(name, d, n):
+        o = round(n * rates[d][3] / 100)
+        if n < 100:
+            return [name, d, n] + ["ns"] * 20
+        hors = round(o * 0.6)
+        univ = o - hors
+        parts = [hors, 0, round(hors * 0.3), round(hors * 0.3), round(hors * 0.1), 0, univ, round(univ * 0.4), round(univ * 0.2)]
+        line = [name, d, n, o, round(100 * o / n, 1)]
+        for x in parts:
+            line += [x, round(100 * x / n, 1)]
+        return line
+
+    plan["reo"] = {}
+    for total, (short, ds) in [("Etudiants", ("Etudiants", {d: n - 5 for d, n in alld.items()})),
+                               ("Inscriptions principales", ("Inscriptions principales", alld)),
+                               *[(("UNIVERSITE EXEMPLE NORD (SITE)" if k == "UNIVERSITE EXEMPLE NORD" else k), v) for k, v in unis.items()]]:
+        n_all = sum(ds.values())
+        tot = [total, "Toutes disciplines", n_all] + ["ns"] * 20 if n_all < 100 else None
+        lines = [reo_line(short, d, n) for d, n in ds.items()]
+        if tot is None:
+            num = [sum(l[i] for l in lines if not isinstance(l[3], str)) for i in range(3, 23, 2)]
+            tot = [total, "Toutes disciplines", n_all]
+            for x in num:
+                tot += [x, round(100 * x / n_all, 1)]
+        ws.append(tot)
+        for l in lines:
+            ws.append(l)
+            plan["reo"][(total, l[1])] = l
+        ws.append([])
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
     return plan
+
+
+REO_SYN_ALIASES = {"UNIVERSITE EXEMPLE NORD (SITE)": "UNIVERSITE EXEMPLE NORD"}
+PASSERELLES_PAYSAGE = {"UNIVERSITE EXEMPLE PARIS (CITE)": "PARIS", "UNIVERSITE EXEMPLE NORD": "NORD1"}
+
+
+def make_monmaster_raw(raw_dir: Path) -> dict:
+    """monmaster_2024_2025.parquet with the real column names: programmes of the Paris university (droit,
+    sciences, a MEEF master filed under "Sciences humaines et sociales", a mixed droit-éco one), one of
+    another establishment, two sessions. Origins add up to the admits; candidates split main/complementary."""
+    import pandas as pd
+    rows = []
+    offers = [  # id, ifc, mention, disci_lib, disci_master, can_pp, can_pc, prop, accept, etab, origins (lg3, lp3, but3, master, autre, noninscri)
+        ("PARIS", "P-DROIT-1", "DROIT PRIVE", "Droit, sciences politiques", "Droit et sc. politiques", 900, 10, 120, 40, 22, (34, 0, 1, 2, 1, 2)),
+        ("PARIS", "P-DROIT-2", "DROIT DES AFFAIRES", "Droit, sciences politiques", "Droit et sc. politiques", 1500, 0, 200, 60, 20, (50, 2, 3, 1, 2, 2)),
+        ("PARIS", "P-SCI-1", "CHIMIE", "Sciences fondamentales et applications", "Sc. fondamentales et appliquées (dont STAPS)", 200, 5, 60, 25, 15, (20, 1, 2, 0, 1, 1)),
+        ("PARIS", "P-MEEF", "MEEF PREMIER DEGRE", "Sciences humaines et sociales", "MEEF", 400, 0, 90, 50, 10, (40, 0, 0, 5, 2, 3)),
+        ("PARIS", "P-MIX", "DROIT ECONOMIE GESTION", "Pluridisciplinaire droit, sciences économiques, AES", "Economie, gestion et AES", 300, 0, 50, 20, 5, (18, 0, 0, 1, 0, 1)),
+        ("NORD1", "N-DROIT-1", "DROIT PUBLIC", "Droit, sciences politiques", "Droit et sc. politiques", 600, 20, 90, 30, 12, (25, 1, 0, 1, 1, 2)),
+    ]
+    for session in ("2024", "2025"):
+        for pid, ifc, mention, dl, dm, cpp, cpc, prop, acc, etab, orig in offers:
+            shift = 0 if session == "2025" else -2
+            o = list(orig)
+            o[0] += shift
+            r = {"session": session, "ifc": f"{ifc}-{session}", "id_paysage": pid, "id_paysage_actuel": pid, "eta_nom": f"Etablissement {pid}",
+                 "inm": mention[:6], "mention": mention, "parcours": "Parcours", "alternance": "0", "disci_lib": dl, "disci_master": dm,
+                 "n_can_pp": cpp, "n_can_pc": cpc, "n_prop_total": prop, "n_accept_total": acc + shift, "n_accept_etab": etab}
+            for k, v in zip(("lg3", "lp3", "but3", "master", "autre", "noninscri"), o):
+                r[f"n_accept_{k}_total"] = v
+            rows.append(r)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_parquet(raw_dir / "monmaster_2024_2025.parquet", index=False)
+    return {"offers": offers}
 
 
 # --------------------------------------------------------------------------- sprint 6 workbooks

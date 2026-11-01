@@ -214,6 +214,7 @@ async function viewFormation(cod, session) {
   ${timingCard(r, d.history)}
   ${successCard(d.success)}
   ${masterCard(d.master)}
+  ${passerellesCard(d.passerelles)}
   ${butCard(d.but)}
   ${lyceeHere(r)}
   <div id="planb"></div>
@@ -390,11 +391,13 @@ function butCard(b) {
       <td class="num"><strong>${suVal(R, "taux")}</strong></td><td class="num">${expCell(R)}</td><td class="num">${suVal(NR, "taux")}</td></tr>`);
   if (P) rows.push(`<tr><td>Poursuite d'études l'année suivante<div class="muted small">diplômés en 3 ans${P.n_diplomes != null ? ` · ${fmt(P.n_diplomes)} diplômés` : ""}</div><div class="fiab-row">${fiabBadge(P.maillon)}</div></td>
       <td class="num"><strong>${suVal(P, "taux_poursuite")}</strong></td><td class="num"><span class="muted small">—</span></td><td class="num">${suVal(NP, "taux_poursuite")}</td></tr>`);
+  const MB = b.masters_but3, mbu = MB && MB.universite;
+  const but3 = MB ? `<p class="small">Passerelle vers le master : en ${esc(MB.session)}, ${mbu ? `les masters de l'université ont admis <strong>${fmt(mbu.n_accept_but3)}</strong> titulaires d'un BUT (${pcs(mbu.part_but3)} de leurs admis) ; ` : ""}en France, ${pcs(MB.france.part_but3)} des admis en master venaient d'un BUT (MonMaster).</p>` : "";
   const after = P && P.taux_master != null ? `<p class="small">Après le BUT, parmi les diplômés de l'université : master ${suVal(P, "taux_master")}, école de commerce ${suVal(P, "taux_commerce")}, école d'ingénieurs ${suVal(P, "taux_ingenieur")}${NP ? ` <span class="muted">(France : ${suVal(NP, "taux_master")}, ${suVal(NP, "taux_commerce")}, ${suVal(NP, "taux_ingenieur")})</span>` : ""}.</p>` : "";
   return `<div class="card"><h2>${head}</h2>
     <p class="small"><strong>${esc(b.etab_label)}</strong> · toutes spécialités de BUT. Chiffres de <strong>tous les néo-bacheliers inscrits en 1re année de BUT</strong> dans l'université : le SIES ne les publie ni par IUT, ni par spécialité.${R && R.small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("but")}</th><th class="num">France</th></tr>${rows.join("")}</table></div>
-    ${after}${spe}${profBox}
+    ${after}${but3}${spe}${profBox}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-26. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
 }
 const M2_DEVENIR = [["taux", "passage en M2", "s-pass"], ["taux_redoublement", "redoublement en M1", "s-red"],
@@ -439,6 +442,47 @@ function masterCard(m) {
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("master")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
     ${bars}${plBox}${chainBox}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-30. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
+}
+
+// ---- Sprint 7: gateways (reorientation after L1, the university's masters on MonMaster) ----
+const REO_LINES = [["taux_hors_univ", "hors de l'université", 0], ["taux_sts_app", "BTS en apprentissage", 1], ["taux_sts", "BTS hors apprentissage", 1],
+  ["taux_cpge", "classe préparatoire (CPGE)", 1], ["taux_commerce", "école de commerce", 1], ["taux_ingenieur", "école d'ingénieurs", 1],
+  ["taux_univ", "à l'université, hors licence", 0], ["taux_but", "BUT", 1], ["taux_infirmier", "diplôme d'État d'infirmier", 1]];
+const ORIG_LABEL = { lg3: "L3 de licence générale", but3: "BUT (3e année)", lp3: "licence professionnelle", master: "déjà en master",
+  autre: "autre formation", noninscri: "non inscrits l'année d'avant" };
+const pcs = (v) => (v == null ? "—" : `${pc1d(v)}\u00a0%`);
+function reoTable(r, n) {
+  const rows = REO_LINES.map(([k, l, sub]) => `<tr><td${sub ? ' class="sub"' : ""}>${sub ? "dont " : ""}${l}</td><td class="num">${suVal(r, k)}</td><td class="num">${suVal(n, k)}</td></tr>`).join("");
+  return `<div class="scroll"><table><tr><th>Sur 100 inscrits en L1 · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">France, même discipline</th></tr>
+    <tr><td><strong>Se réorientent l'année suivante</strong><div class="muted small">entrés en L1 en ${esc(r.cohort)}${r.inscrits != null ? ` · ${fmt(r.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(r.maillon)}</div></td>
+      <td class="num"><strong>${suVal(r, "taux_reorientation")}</strong></td><td class="num">${suVal(n, "taux_reorientation")}</td></tr>${rows}</table></div>
+    <p class="muted small">Ce sont des parts des inscrits en L1, pas des réorientés. Le détail publié n'est pas complet : les autres réorientés suivent des formations que le SIES ne détaille pas.</p>`;
+}
+function mastersBox(p) {
+  const m = p.masters, f = p.masters_france;
+  if (!m) return `<p class="small muted">MonMaster ne recense pas de master de cette université dans cette grande discipline.</p>`;
+  const orig = Object.keys(ORIG_LABEL).filter((o) => m.parts_origine[o] != null && m.origines[o] > 0)
+    .map((o) => `<span class="nowrap">${ORIG_LABEL[o]} ${pcs(m.parts_origine[o])}</span>`).join(" · ");
+  const ment = (m.mentions || []).map((x) => `<tr><td>${esc(x.mention)}</td><td class="num">${fmt(x.n_can)}</td><td class="num"><strong>${fmt(x.n_accept)}</strong></td><td class="num">${fmt(x.n_accept_etab)}</td></tr>`).join("");
+  return `<p class="small">En ${esc(m.session)}, ${fmt(m.n_offres)} formations de master (${fmt(m.n_mentions)} mentions) : <strong>${fmt(m.n_accept)} admis</strong> pour ${fmt(m.n_can)} candidatures (des vœux : une même personne postule à plusieurs masters).</p>
+    <p class="small"><strong>${pcs(m.part_etab)}</strong> des admis étaient déjà inscrits dans cette université${f ? ` <span class="muted">(France, même discipline : ${pcs(f.part_etab)})</span>` : ""}. ${fiabBadge(m.maillon)}</p>
+    <p class="small">D'où venaient les admis : ${orig}.</p>
+    ${ment ? `<div class="scroll"><table><tr><th>Mention (les plus grandes)</th><th class="num">Vœux</th><th class="num">Admis</th><th class="num">Déjà à l'univ.</th></tr>${ment}</table></div>` : ""}
+    ${p.meef ? `<p class="small muted">Masters de l'enseignement (MEEF) de l'université, ouverts à toutes les licences : ${fmt(p.meef.n_accept)} admis en ${esc(p.meef.session)}.</p>` : ""}
+    <p class="muted small">Parts calculées à partir des effectifs publiés par MonMaster. Ce sont des admis passés, pas des chances d'admission.</p>`;
+}
+function passerellesCard(p) {
+  if (!p) return "";
+  const head = `Passerelles : changer de voie, entrer en master ${tip("passerelles")}`;
+  if (p.status !== "ok") return statusCard(head, p, "", "2025-29 et MonMaster");
+  const r = p.reorientation, n = p.reorientation_france;
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small"><strong>${esc(p.etab_label)}</strong> · ${esc(p.discipline_label)}. Chiffres de toute la grande discipline dans l'université, pas seulement de cette licence.</p>
+    <h3 class="small">Après la L1 : ceux qui changent de voie</h3>
+    ${r ? reoTable(r, n) : `<p class="small muted">Non publié pour cette université et cette discipline.</p>`}
+    <h3 class="small">Après la licence : les masters de l'université dans cette discipline (MonMaster)</h3>
+    ${mastersBox(p)}
+    <p class="muted small">Sources : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-29 (réorientations) et MonMaster (candidatures et admissions en master). Résultats passés, pas des chances de réussite ou d'admission.</p></div>`;
 }
 
 function offerCard(r) {
