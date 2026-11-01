@@ -12,7 +12,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     assembles the warehouse.
   - **Schema:** `schema.py` (VOEUX_FIELDS, aliases, labels; add a field here to ingest it).
   - **Serving and features:** `api.py` (FastAPI + METHODOLOGY texts), `search.py` (search engine),
-    `journey.py` ("Mon parcours"), `planb.py`, `analytics.py`.
+    `journey.py` ("Mon parcours"), `planb.py`, `analytics.py`, `success.py` (B1).
+  - **Foundation (sprint 3):** `referentiel.py` (Paysage ids, register, successions), `evidence.py`
+    (maillon + A/B/C reliability), `sources.py` (source register), `glossary.py` (A5).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -92,6 +94,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Universities are linked by name, one explicit rule each; a site that is ambiguous stays unlinked.
   - Masked cells (`ns`, `nd`, `.`) are NULL, never 0.
   - The ministry site rejects automated downloads: the owner commits the workbook.
+- **Foundation (sprint 3).**
+  - Link sources by **Paysage id** (`ref.formation_etablissement.id_resolu`), never by name when an id exists.
+    The 2025 SIES export has EMPTY ids: they come from the cartographie, then the previous campaign.
+  - Successions are data-derived (transition or UAI vote, ≥ 80 % and ≥ 5 formations); a UAI shared by
+    two establishments never votes.
+  - Every journey figure is a `evidence.maillon` with a rule-based grade; the chain is never multiplied.
+  - Every dataset is in `sources.py` (red team F9 fails otherwise).
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -109,11 +118,15 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - B4 bac techno and pro journey;
   - Plan B (formation page) and its "Voir un plan B" button in "Mon parcours";
   - B1 success in licence (formation page), from the SIES workbook in `suptracker/data/sources/`;
+  - sprint 3 foundation: Paysage register and successions, reliability grades, source register, glossary;
   - release guards (versioned assets, `/api/version`).
-- **Next (sprint 2):**
-  - **B5, CROUS housing near each formation.** CNOUS "Logements étudiants" dataset on data.gouv.fr.
-  - **A5, student mode and glossary.**
-- **Later (sprint 3):** B2 InserSup (insertion and salary), A6 shareable wish list.
+- **Roadmap (decision-support plan, agreed with the owner):**
+  - sprint 4: lycée profile (IPS, IVAL, académie, Maths expertes noted, `pct_etab_orig`/`pct_aca_orig`);
+  - sprint 5: calibrated accessibility index (back-tested, never a probability);
+  - sprint 6: success beyond licence (BUT, master: owner uploads the SIES files);
+  - sprint 7: gateways (B1 "Réorientations" sheet, MonMaster);
+  - sprint 8: insertion (InserSup, Inserjeunes, Céreq national adequacy, Onisep jobs);
+  - sprint 9: evidence-chain comparator, shareable list (A6), B5 CROUS, user tests; sprint 10: scale.
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly
   from Vercel's own branch `vercel/install-and-configure-vercel-w-9i0tca` (PR #9, closed unmerged),

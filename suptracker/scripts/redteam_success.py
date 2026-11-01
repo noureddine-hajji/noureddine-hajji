@@ -96,8 +96,8 @@ def check(name):
 class Ctx:
     """The workbook re-read independently, and B1 tables rebuilt in memory."""
 
-    def __init__(self, db: Path, xlsx: Path, table: dict | None, real: bool):
-        self.db, self.xlsx, self.table, self.real = db, xlsx, table, real
+    def __init__(self, db: Path, xlsx: Path, table: dict | None, real: bool, paysage: dict | None = None):
+        self.db, self.xlsx, self.table, self.real, self.paysage = db, xlsx, table, real, paysage
         self.raw = read_raw(xlsx)
         self.rebuild()
 
@@ -106,6 +106,10 @@ class Ctx:
         latest = src.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
         forms = src.execute("""SELECT session, cod_aff_form, g_ea_lib_vx, fil_lib_voe_acc, fili, contrat_etab
                                FROM core.formation_year WHERE session = ?""", [latest]).fetchall()
+        has_ref = bool(src.execute("""SELECT count(*) FROM information_schema.tables
+            WHERE table_schema = 'ref' AND table_name = 'formation_etablissement'""").fetchone()[0])
+        self.ref_ids = (src.execute("""SELECT session, cod_aff_form, id_resolu FROM ref.formation_etablissement
+                                       WHERE session = ?""", [latest]).fetchall() if has_ref else [])
         self.has_stored = bool(src.execute("""SELECT count(*) FROM information_schema.tables
             WHERE table_schema = 'core' AND table_name = 'licence_success_link'""").fetchone()[0])
         self.stored_links = (src.execute("SELECT cod_aff_form, etab, discipline FROM core.licence_success_link").fetchall()
@@ -116,7 +120,11 @@ class Ctx:
         con.execute("""CREATE TABLE core.formation_year (session INTEGER, cod_aff_form VARCHAR, g_ea_lib_vx VARCHAR,
                        fil_lib_voe_acc VARCHAR, fili VARCHAR, contrat_etab VARCHAR)""")
         con.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?)", forms)
-        self.n_linked = SU.attach(con, self.xlsx, self.table)
+        if self.ref_ids:   # sprint 3: B1 links by Paysage id first, as the warehouse build does
+            con.execute("CREATE SCHEMA ref")
+            con.execute("CREATE TABLE ref.formation_etablissement (session INTEGER, cod_aff_form VARCHAR, id_resolu VARCHAR)")
+            con.executemany("INSERT INTO ref.formation_etablissement VALUES (?, ?, ?)", self.ref_ids)
+        self.n_linked = SU.attach(con, self.xlsx, self.table, self.paysage)
         self.con, self.latest, self.forms = con, latest, forms
 
 
@@ -420,8 +428,8 @@ def s11(c: Ctx):
     return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
 
 
-def run(db: Path, xlsx: Path, table: dict | None = None, real: bool = False) -> list[dict]:
-    c = Ctx(db, xlsx, table, real)
+def run(db: Path, xlsx: Path, table: dict | None = None, real: bool = False, paysage: dict | None = None) -> list[dict]:
+    c = Ctx(db, xlsx, table, real, paysage)
     out = []
     for fn in CHECKS:
         try:

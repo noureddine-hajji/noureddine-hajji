@@ -24,6 +24,8 @@ from . import journey as J
 from . import planb as PB
 from . import search as S
 from . import success as SU
+from . import glossary as G
+from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -163,6 +165,13 @@ METHODOLOGY = {
         "se lit avec prudence et ne classe pas les universités. La référence nationale porte sur la même "
         "discipline. Les petits effectifs sont masqués par le SIES (« ns ») ou signalés ici en dessous de 100 "
         "inscrits. Ce sont des résultats de cohortes passées, pas des chances de réussite."),
+    "fiabilite": (
+        "Fiabilité d'un chiffre, notée par des règles fixes, les mêmes partout sur le site. A (solide) : au moins 100 "
+        "personnes, une cohorte de 3 ans au plus, un rattachement par l'identifiant officiel de l'établissement "
+        "(Paysage). B (à nuancer) : moins de 100 personnes, une cohorte plus ancienne, ou un rattachement fait par le "
+        "nom de l'établissement. C (fragile) : moins de 30 personnes. Un chiffre masqué par le producteur n'a ni note ni "
+        "valeur. La fiabilité ne dit pas si le chiffre est bon ou mauvais pour vous : elle dit à quel point il est "
+        "solide. Chaque étape du parcours décrit une population différente : les chiffres ne se multiplient pas entre eux."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -264,6 +273,8 @@ def meta():
         "built_at": b.get("built_at"),
         "manifest": json.loads(b.get("manifest", "{}")),
         "methodology": METHODOLOGY,
+        "glossary": G.as_list(),
+        "sources": SRC.public_view(),
         "fields": {f.name: {"label": f.label, "stage": f.stage} for f in VOEUX_FIELDS},
         "peer_metrics": {k: {"label": v[2], "needs_n": v[1], "higher_is_more_selective": v[3]}
                          for k, v in PEER_METRICS.items()},
@@ -622,7 +633,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability"]
 
 
 @lru_cache(maxsize=1)

@@ -27,8 +27,10 @@ import unicodedata
 from pathlib import Path
 
 from . import config
+from . import evidence as E
 
 SOURCE_GLOB = "sies_reussite_licence*.xlsx"
+ETAPE = {"passage": "passage_l2", "reussite3": "licence_3_ans", "reussite34": "licence_3_ou_4_ans"}
 NATIONAL = "__national__"
 NATIONAL_ROW = "Inscriptions principales"   # the universities add up to this row, not to "Etudiants"
 SKIPPED_ROWS = ("Etudiants",)
@@ -159,6 +161,85 @@ SIES_ALIASES = {
 }
 
 
+# SIES university -> Paysage id of the establishment (MESR register). Derived from the formations
+# both methods link (2,966 agree, 0 disagree on the 2025 warehouse) and checked against the register
+# by scripts/redteam_referentiel.py. The Paysage id is the primary link; the name rules above are
+# the fallback for formations without an id (new in 2025) and an independent cross-check.
+SIES_PAYSAGE = {
+    'CUFR MAYOTTE': 'pVJpw',
+    'CY CERGY UNIVERSITE': 'RS4WF',
+    'INU CHAMPOLLION': 'Hm42K',
+    'LE MANS UNIVERSITE': '9xlel',
+    'SORBONNE UNIVERSITE': 'bxPQe',
+    'UNIV. CLERMONT AUVERGNE (EPE)': 'K4lR3',
+    'UNIVERSITE  BREST': 'e2uv7',
+    'UNIVERSITE AIX-MARSEILLE': 'xJdyB',
+    'UNIVERSITE AMIENS': '8j5s2',
+    'UNIVERSITE ANGERS': 'IXHyv',
+    'UNIVERSITE ANTILLES': 'z3hdL',
+    'UNIVERSITE ARTOIS': 'BWbvP',
+    'UNIVERSITE AVIGNON': 'vxHYt',
+    'UNIVERSITE BORDEAUX 3': 'Mz90U',
+    'UNIVERSITE BRETAGNE SUD': '5tVy4',
+    'UNIVERSITE CORSE': 'NLCOF',
+    'UNIVERSITE COTE AZUR': 's3t8T',
+    'UNIVERSITE DE BESANCON': '6b2we',
+    'UNIVERSITE DE BORDEAUX': '90I54',
+    'UNIVERSITE DE CAEN NORMANDIE': 'p25Q3',
+    'UNIVERSITE DE LORRAINE': 't6Cq5',
+    'UNIVERSITE DE RENNES (RENNES 1)': '91D9w',
+    'UNIVERSITE DE ROUEN NORMANDIE': 'G4572',
+    'UNIVERSITE DE TOULON': 'C701f',
+    'UNIVERSITE DIJON': 'l9qwd',
+    'UNIVERSITE EVRY VAL D ESSONNE': 'RN4E6',
+    'UNIVERSITE GRENOBLE-ALPES': 'Y7ch7',
+    'UNIVERSITE GUSTAVE EIFFEL': '3Z5e6',
+    'UNIVERSITE GUYANE': 'hy4EW',
+    'UNIVERSITE LA REUNION': 'cEt92',
+    'UNIVERSITE LA ROCHELLE': 'atbEK',
+    'UNIVERSITE LE HAVRE NORMANDIE': 'LsQ24',
+    'UNIVERSITE LILLE': 'U8a0v',
+    'UNIVERSITE LIMOGES': 'nkbwh',
+    'UNIVERSITE LITTORAL': 'yH19Y',
+    'UNIVERSITE LYON 1 (CLAUDE BERNARD)': 'etBz7',
+    'UNIVERSITE LYON 2 (LUMIERE)': 'CUBKB',
+    'UNIVERSITE LYON 3 (JEAN MOULIN)': '7Gzub',
+    'UNIVERSITE MONTPELLIER': 'evv7S',
+    'UNIVERSITE MONTPELLIER 3': 'rwz11',
+    'UNIVERSITE MULHOUSE': 'OJZ4a',
+    'UNIVERSITE NANTES': 'qUCQp',
+    'UNIVERSITE NIMES': 'klrvr',
+    'UNIVERSITE NOUVELLE-CALEDONIE': 'Z2FY5',
+    'UNIVERSITE ORLEANS': 'HCBvW',
+    'UNIVERSITE PARIS 1 (PANTHEON SORBONNE)': '6G2TU',
+    'UNIVERSITE PARIS 13 (SORBONNE PARIS NORD)': 'cqyN7',
+    'UNIVERSITE PARIS 2 (PANTHEON ASSAS)': 'TWBzp',
+    'UNIVERSITE PARIS 3 (SORBONNE NOUVELLE)': '8k883',
+    'UNIVERSITE PARIS 8 (VINCENNES SAINT-DENIS)': 'Uxr7Z',
+    'UNIVERSITE PARIS CITE': '5cZyU',
+    'UNIVERSITE PARIS NANTERRE': 'g6rwB',
+    'UNIVERSITE PARIS SACLAY': 'G2qA7',
+    'UNIVERSITE PARIS SCIENCES LETTRES': 'PpsCQ',
+    'UNIVERSITE PARIS-EST CRETEIL': 'vb71K',
+    'UNIVERSITE PAU': 'Mz286',
+    'UNIVERSITE PERPIGNAN': 'n1W55',
+    'UNIVERSITE POITIERS': 'hlX1r',
+    'UNIVERSITE POLYNESIE FRANCAISE': 'zepT6',
+    'UNIVERSITE POLYTECHNIQUE DES HAUTS DE FRANCE': 'EW53M',
+    'UNIVERSITE REIMS': '57OsX',
+    'UNIVERSITE RENNES 2': 'ti37C',
+    'UNIVERSITE SAINT ETIENNE': '5gqzw',
+    'UNIVERSITE SAVOIE MONT BLANC': 'zCa4j',
+    'UNIVERSITE STRASBOURG': '4k25D',
+    'UNIVERSITE TOULOUSE 1 (CAPITOLE)': 'gap5Q',
+    'UNIVERSITE TOULOUSE 2 (JEAN JAURES)': 'HqAYu',
+    'UNIVERSITE TOULOUSE 3 (PAUL SABATIER)': '9hqpm',
+    'UNIVERSITE TOURS': 'cqkij',
+    'UNIVERSITE VERSAILLES ST QUENTIN': 'V13Pk',
+}
+PAYSAGE_SIES = {v: k for k, v in SIES_PAYSAGE.items()}
+
+
 # Display names of the SIES universities (the SIES file has upper-case, accent-free names).
 UNIVERSITY_LABEL = {
     'CUFR MAYOTTE': 'Université de Mayotte',
@@ -167,7 +248,7 @@ UNIVERSITY_LABEL = {
     'LE MANS UNIVERSITE': 'Le Mans Université',
     'SORBONNE UNIVERSITE': 'Sorbonne Université',
     'UNIV. CLERMONT AUVERGNE (EPE)': 'Université Clermont Auvergne',
-    'UNIVERSITE  BREST': 'Université de Brest',
+    'UNIVERSITE  BREST': 'Université de Bretagne Occidentale (Brest)',
     'UNIVERSITE AIX-MARSEILLE': 'Aix-Marseille Université',
     'UNIVERSITE AMIENS': 'Université de Picardie Jules Verne (Amiens)',
     'UNIVERSITE ANGERS': "Université d'Angers",
@@ -362,7 +443,7 @@ def discipline_of(programme: str | None) -> str | None:
     return PROGRAMME_DISCIPLINE.get(programme or "")
 
 
-def attach(con, path: Path | None, table: dict[str, str] | None = None) -> int:
+def attach(con, path: Path | None, table: dict[str, str] | None = None, paysage_table: dict[str, str] | None = None) -> int:
     """Build core.licence_success (published rows) and core.licence_success_link (formation ->
     university, discipline). Returns the number of linked formations (0 without a source)."""
     con.execute("CREATE SCHEMA IF NOT EXISTS core")
@@ -374,7 +455,7 @@ def attach(con, path: Path | None, table: dict[str, str] | None = None) -> int:
         masked VARCHAR, source VARCHAR)""")
     con.execute("""CREATE OR REPLACE TABLE core.licence_success_link (
         session INTEGER, cod_aff_form VARCHAR, etab VARCHAR, discipline VARCHAR, programme VARCHAR,
-        matches VARCHAR)""")
+        matches VARCHAR, lien VARCHAR, id_paysage VARCHAR)""")
     if path is None or not Path(path).exists():
         return 0
     import json
@@ -385,16 +466,28 @@ def attach(con, path: Path | None, table: dict[str, str] | None = None) -> int:
     con.executemany(f"INSERT INTO core.licence_success VALUES ({', '.join('?' * (len(keys) + 2))})",
                     [[r.get(k) for k in keys] + [json.dumps(r["masked"], sort_keys=True), Path(path).name] for r in rows])
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+    has_ref = con.execute("""SELECT count(*) FROM information_schema.tables WHERE table_schema = 'ref'
+                             AND table_name = 'formation_etablissement'""").fetchone()[0]
+    ids = dict(con.execute("""SELECT cod_aff_form, id_resolu FROM ref.formation_etablissement
+                              WHERE session = ? AND id_resolu IS NOT NULL""", [latest]).fetchall()) if has_ref else {}
     forms = con.execute(f"""SELECT cod_aff_form, g_ea_lib_vx, fil_lib_voe_acc FROM core.formation_year
         WHERE session = ? AND contrat_etab = 'Public' AND fili IN {LICENCE_FILI}""", [latest]).fetchall()
     known = {r["etab"] for r in rows}
+    by_id = paysage_table or PAYSAGE_SIES
     links = []
     for cod, etab, prog in forms:
         uni, hits = university_of(etab, table)
+        pid = ids.get(cod)
+        lien = None
+        if pid is not None:
+            # the official id decides: it also settles sites the name rules leave ambiguous
+            uni, lien = by_id.get(pid), "identifiant"
+        elif uni is not None:
+            lien = "nom"
         if uni is not None and uni not in known:
-            uni = None
-        links.append([latest, cod, uni, discipline_of(prog), prog, "|".join(hits)])
-    con.executemany("INSERT INTO core.licence_success_link VALUES (?, ?, ?, ?, ?, ?)", links)
+            uni, lien = None, None
+        links.append([latest, cod, uni, discipline_of(prog), prog, "|".join(hits), lien if uni else None, pid])
+    con.executemany("INSERT INTO core.licence_success_link VALUES (?, ?, ?, ?, ?, ?, ?, ?)", links)
     return sum(1 for x in links if x[2])
 
 
@@ -418,7 +511,7 @@ def for_formation(con, cod: str, fili: str | None, contrat: str | None) -> dict 
     if fili not in LICENCE_FILI:
         return None
     try:
-        link = con.execute("""SELECT etab, discipline, programme FROM core.licence_success_link
+        link = con.execute("""SELECT etab, discipline, programme, lien FROM core.licence_success_link
                               WHERE cod_aff_form = ? ORDER BY session DESC LIMIT 1""", [cod]).fetchone()
         n_rows = con.execute("SELECT count(*) FROM core.licence_success").fetchone()[0]
     except Exception:  # noqa: BLE001 - older warehouse without the B1 tables
@@ -431,8 +524,8 @@ def for_formation(con, cod: str, fili: str | None, contrat: str | None) -> dict 
     if link is None or link[0] is None:
         return {**base, "status": "non_rattachee",
                 "reason": "cet établissement n'a pas pu être rattaché avec certitude à une université des tableaux SIES"}
-    etab, disc, _ = link
-    out = {**base, "status": "ok", "etab": etab, "etab_label": UNIVERSITY_LABEL.get(etab, etab), "discipline": disc,
+    etab, disc, _, lien = link
+    out = {**base, "status": "ok", "lien": lien or "nom", "etab": etab, "etab_label": UNIVERSITY_LABEL.get(etab, etab), "discipline": disc,
            "discipline_label": DISCIPLINES[disc][1] if disc else None}
     if disc is None:
         out["status"] = "discipline_non_classee"
@@ -445,6 +538,13 @@ def for_formation(con, cod: str, fili: str | None, contrat: str | None) -> dict 
             u = _row(con, kind, etab, disc)
             if u:
                 out["kinds"][kind] = u
+    for kind, u in out["kinds"].items():
+        n = out["national"].get(kind) or {}
+        u["maillon"] = E.maillon(
+            ETAPE[kind], u["taux"], france=n.get("taux"), attendu=u["taux_simule"], granularite="universite_x_discipline",
+            population="néo-bacheliers inscrits en L1", cohorte=u["cohort"], effectif=u["inscrits"],
+            source="SIES, Note Flash 2025-29", lien=out["lien"],
+            avertissement="tous les inscrits de cette grande discipline dans l'université, pas seulement cette licence")
     if disc and not out["kinds"]:
         out["status"] = "non_publie"
         out["reason"] = "le SIES ne publie pas cette discipline pour cette université"

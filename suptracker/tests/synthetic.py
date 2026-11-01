@@ -241,6 +241,16 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
                 r[f"lib_grp{i}"], r[f"ran_grp{i}"] = lib, ran
             rows.append(r)
         df = pd.DataFrame(rows)
+        # Paysage ids as SIES publishes them: filled 2022-2024, EMPTY in 2025; Paris changes id in 2023
+        # (a renaming seen as a transition), the Lyon IUT keeps a former id that only its UAI resolves
+        # (the register lists that UAI as former UAI of LYON1); lycées carry none.
+        # Two traps for the succession rules: "SPLIT" is carried by two lycées whose UAIs the register
+        # gives (as former UAIs) to two different establishments, half and half (no succession); "TINY1"
+        # is carried by a single formation (too little evidence).
+        ids = {"0751234A": "OLDP1" if y == 2022 else "PARIS", "0691234B": "LYONX", "0591234D": "LILLE",
+               "0331234C": "SPLIT", "0131234E": "SPLIT", "0311234F": "TINY1"}
+        df["etablissement_id_paysage"] = None if y == 2025 else df.cod_uai.map(ids)
+        df["composante_id_paysage"] = None
         # synthetic schema drift between vintages
         if y == 2022:
             df.columns = [c.upper() for c in df.columns]
@@ -292,7 +302,28 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
         {"gta": "1103", "annee": 2026, "etab_gps": None, "fiche": fiche.format(1103),
          "app": "", "int": "Etablissements avec internat pour filles", "amg": "Enseignement à distance"},
     ]
+    for c in carto:   # the cartographie carries the current Paysage id (fills the empty 2025 export)
+        c["etablissement_id_paysage"] = "PARIS" if c["gta"] in ("1100", "1102") else None
+        c["composante_id_paysage"] = None
     pd.DataFrame(carto).to_parquet(raw_dir / "cartographie.parquet", index=False)
+    register = [  # MESR "Principaux établissements" layout (subset of columns)
+        {"etablissement_id_paysage": "PARIS", "uai": "0751234A", "anciens_codes_uai": None, "uo_lib": "Université Exemple Paris",
+         "type_d_etablissement": "Université", "secteur_d_etablissement": "public", "aca_nom": "Paris"},
+        {"etablissement_id_paysage": "LYON1", "uai": "0699999Z", "anciens_codes_uai": "0691234B;0690000X",
+         "uo_lib": "Université Exemple Lyon", "type_d_etablissement": "Université", "secteur_d_etablissement": "public", "aca_nom": "Lyon"},
+        {"etablissement_id_paysage": "LILLE", "uai": "0591234D", "anciens_codes_uai": None, "uo_lib": "École d'ingénieurs Exemple Lille",
+         "type_d_etablissement": "École", "secteur_d_etablissement": "public", "aca_nom": "Lille"},
+        {"etablissement_id_paysage": "BORD1", "uai": "0339999Z", "anciens_codes_uai": "0331234C", "uo_lib": "Université Exemple Bordeaux",
+         "type_d_etablissement": "Université", "secteur_d_etablissement": "public", "aca_nom": "Bordeaux"},
+        {"etablissement_id_paysage": "MARS1", "uai": "0139999Z", "anciens_codes_uai": "0131234E", "uo_lib": "Université Exemple Marseille",
+         "type_d_etablissement": "Université", "secteur_d_etablissement": "public", "aca_nom": "Aix-Marseille"},
+        {"etablissement_id_paysage": "TOUL1", "uai": "0319999Z", "anciens_codes_uai": "0311234F", "uo_lib": "Université Exemple Toulouse",
+         "type_d_etablissement": "Université", "secteur_d_etablissement": "public", "aca_nom": "Toulouse"},
+        {"etablissement_id_paysage": "PRIVE", "uai": "0759999Z", "anciens_codes_uai": None, "uo_lib": "École privée Exemple",
+         "type_d_etablissement": "École", "secteur_d_etablissement": "privé", "aca_nom": "Paris"},
+    ]
+    pd.DataFrame(register).to_parquet(raw_dir / "etablissements.parquet", index=False)
+    plan["paysage"] = {"transition": ("OLDP1", "PARIS"), "uai": ("LYONX", "LYON1"), "carto": ("1102", "PARIS")}
     return plan
 
 

@@ -221,7 +221,7 @@ CARTO_RULES = {
     "internat": [("int",), ("internat",)],
     "amenagement": [("amg",), ("amenagement",)],
 }
-CARTO_COLS = """cod_aff_form VARCHAR, fiche_url VARCHAR, lat DOUBLE, lon DOUBLE, carto_session BIGINT,
+CARTO_COLS = """cod_aff_form VARCHAR, fiche_url VARCHAR, lat DOUBLE, lon DOUBLE, carto_session BIGINT, etablissement_id_paysage VARCHAR, composante_id_paysage VARCHAR,
   apprentissage BOOLEAN, internat VARCHAR, distance VARCHAR, amenag_sport BOOLEAN, amenag_art BOOLEAN"""
 
 
@@ -266,10 +266,13 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
     if not m["cod_aff_form"]:
         raise RuntimeError("cartographie: no formation id column (gta / g_ta_cod) found")
     g = f"CAST({q(m['geo'])} AS VARCHAR)" if m["geo"] else "NULL"
+
+    def pays(col):   # Paysage ids (sprint 3 register); absent from older or synthetic exports
+        return f"nullif(trim(CAST({q(col)} AS VARCHAR)), '')" if col in cols else "NULL::VARCHAR"
     order = _num(m["year"]) + " DESC NULLS LAST" if m["year"] else "1"
     con.execute(f"""
     CREATE OR REPLACE TABLE core.cartographie AS
-    SELECT cod_aff_form, fiche_url, lat, lon, carto_session,
+    SELECT cod_aff_form, fiche_url, lat, lon, carto_session, etablissement_id_paysage, composante_id_paysage,
       CASE WHEN app_raw IS NULL THEN NULL ELSE contains(app_raw, 'apprentissage') END AS apprentissage,
       CASE WHEN int_raw IS NULL THEN NULL WHEN NOT contains(int_raw, 'internat') THEN 'non'
            WHEN contains(int_raw, 'filles') AND contains(int_raw, 'garcons') THEN 'mixte'
@@ -287,6 +290,8 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
              {f"TRY_CAST({_num(m['year'])} AS BIGINT)" if m['year'] else 'NULL::BIGINT'} AS carto_session,
              {_fold(m['apprentissage'])} AS app_raw, {_fold(m['internat'])} AS int_raw,
              {_fold(m['amenagement'])} AS amg_raw,
+             {pays('etablissement_id_paysage')} AS etablissement_id_paysage,
+             {pays('composante_id_paysage')} AS composante_id_paysage,
              row_number() OVER (PARTITION BY {_text(m['cod_aff_form'], True)} ORDER BY {order}) AS rn
       FROM read_parquet('{path}')) WHERE rn = 1 AND cod_aff_form IS NOT NULL
     """)

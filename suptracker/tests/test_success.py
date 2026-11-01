@@ -67,7 +67,7 @@ def test_block_for_a_formation(syn):
 def test_red_team_on_synthetic(syn):
     import redteam_success as R
     db, xlsx, _ = syn
-    failed = [r for r in R.run(db, xlsx, SUCCESS_TABLE) if not r["ok"]]
+    failed = [r for r in R.run(db, xlsx, SUCCESS_TABLE, paysage={"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"}) if not r["ok"]]
     assert not failed, failed
 
 

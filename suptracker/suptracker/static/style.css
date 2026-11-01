@@ -127,3 +127,14 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 .su-devenir { margin: 10px 0 4px; }
 .su-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .su-line > span:first-child { width: 72px; flex: none; }
+/* reliability of one evidence link (A solid, B to qualify, C fragile) */
+.badge.fiab { white-space: nowrap; }
+.fiab-A { border-color: var(--c3); color: var(--c3); }
+.fiab-B { border-color: var(--c5); color: var(--c5); }
+.fiab-C { border-color: var(--c2); color: var(--c2); }
+/* A5 glossary */
+.gl-q { width: 100%; max-width: 480px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; margin: 6px 0 10px; }
+.gl-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.gl-item h3 { font-size: 15px; margin: 0 0 4px; }
+.gl-item p { margin: 0 0 4px; }
+.fiab-row { margin-top: 4px; }
