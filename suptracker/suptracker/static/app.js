@@ -176,6 +176,7 @@ async function viewSearch(q, rawParams) {
     ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
   </div>${feedbackBox("search")}`;
   $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
+  suggestLycee(q, `s:${q}:${rawParams || ""}`);
   const fa = document.getElementById("facad"); if (fa) fa.onchange = () => { location.hash = go({ academie: fa.value }); };
   const fs = document.getElementById("fsel"); if (fs) fs.onchange = () => { location.hash = go({ selective: fs.value }); };
 }
@@ -585,6 +586,33 @@ function lyceeHere(r) {
   const p = store.get("profile", null);
   if (!p || !p.lycee || p.lycee.uai !== r.cod_uai) return "";
   return `<div class="info">Cette formation est dans ton lycée${r.pct_etab_orig != null ? ` : ${fmt(r.pct_etab_orig)} % de ses admis en ${esc(r.session)} venaient de ce même lycée (indicateur officiel)` : ""}. ${tip("lycee")}</div>`;
+}
+// A search that names a lycée ("lycée valbonne") is often a student looking for THEIR lycée, not for
+// the formations it hosts: offer to set it as the profile's lycée. Matching runs in the browser on
+// the full list, so the lycée still never reaches the server.
+async function suggestLycee(q, marker) {
+  const words = lycFold(q).split(" ");
+  if (!words.some((w) => w.startsWith("lyc"))) return;
+  try { await loadLycees(); } catch (_) { return; }
+  if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
+  const rest = words.filter((w) => w && !w.startsWith("lyc")).join(" ");
+  const hits = rest ? lycSearch(rest).slice(0, 3) : [];
+  if (!hits.length) return;
+  const box = document.createElement("div");
+  box.className = "card lyc-suggest";
+  box.innerHTML = `<h2>C'est ton lycée ?</h2><p class="small muted">Choisis-le pour ton profil : il s'affichera en contexte dans « Mon parcours » (il reste dans ton navigateur). Les formations post-bac de ce lycée sont listées plus bas.</p>
+    <div class="lyc-res">${hits.map((l) => `<button type="button" data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie ? ` (${esc(l.academie)})` : ""}</span> → Le choisir comme mon lycée</button>`).join("")}</div>`;
+  $view.prepend(box);
+  box.querySelectorAll("[data-suggest]").forEach((b) => {
+    b.onclick = () => {
+      const l = LYC.byUai[b.dataset.suggest];
+      const prof = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
+      prof.lycee = { uai: l.uai, nom: l.nom, commune: l.commune };
+      if (l.academie) prof.academie = l.academie;
+      store.set("profile", prof);
+      location.hash = "#/parcours";
+    };
+  });
 }
 function mathsExpertesNote(p, serie) {
   return serie === "bg" && p.maths_expertes && (p.spe1 === "MATHS" || p.spe2 === "MATHS")
