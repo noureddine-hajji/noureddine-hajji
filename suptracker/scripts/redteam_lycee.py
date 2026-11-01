@@ -248,9 +248,14 @@ def ui_card(js: str) -> tuple[bool, str]:
     i_p = js.index("lq.oninput")
     wiring = js[i_p: js.index("$view.querySelectorAll(\"[data-gate]\")", i_p)]
     keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and "lycee: lyc }" in js)
-    ok = not raw and words and not promise and me and badge and here and pick and keeps
+    # a search naming a lycée offers to set it as the profile's lycée: escaped, local, race-guarded
+    sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in js
+            and "suggestLycee(q, $view.dataset.rendered);" in js
+            # the marker is cleared on every navigation, so a late suggestion never lands on another page
+            and re.search(r"async function route\(\) \{[\s\S]{0,900}delete \$view\.dataset\.rendered;", js) is not None)
+    ok = not raw and words and not promise and me and badge and here and pick and keeps and sugg
     return ok, (f"unescaped {raw[:3]}; context wording {words}; promises {promise}; Maths expertes note {me}; same-lycée badge gated {badge}; "
-                f"fiche note gated {here}; picker escaped {pick}; picking keeps pending form edits {keeps}")
+                f"fiche note gated {here}; picker escaped {pick}; picking keeps pending form edits {keeps}; search suggestion escaped and guarded {sugg}")
 
 
 @check("Y8 the lycée card escapes what it prints, says it is context, and badges only the student's own lycée")
@@ -278,6 +283,10 @@ UI_MUTANTS = [
     ("same-lycée note on every fiche", "p.lycee.uai !== r.cod_uai", "false", ui_card),
     ("picking a lycée rebuilds the profile from storage", "lyc = null; document.getElementById(\"pf\").requestSubmit();",
      "store.set(\"profile\", { ...store.get(\"profile\", p), lycee: null }); viewParcours();", ui_card),
+    ("search suggestion without its navigation guard", "if ($view.dataset.rendered !== marker) return;", "", ui_card),
+    ("render marker kept across navigations", "  delete $view.dataset.rendered;\n", "", ui_card),
+    ("search suggestion name unescaped", '<strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie',
+     '<strong>${l.nom}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie', ui_card),
     ("lycée sent to the server", 'api("/api/lycees")', 'api(`/api/lycees?uai=${p.lycee && p.lycee.uai}`)', ui_privacy),
 ]
 

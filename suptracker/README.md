@@ -520,6 +520,8 @@ In "Mon parcours", the student can pick their lycée (optional). The page then s
 
 **Reliability.** The IVAL rows carry the A/B/C grade of `evidence.grade`, computed by the server: headcount present at the bac, session age, official UAI.
 
+**From the search bar.** A search that names a lycée ("lycée valbonne") still lists the formations that lycée hosts, but first asks **"C'est ton lycée ?"** and offers to set it as the profile's lycée in one click. The click keeps the rest of the profile, sets the académie and opens "Mon parcours". The match runs in the browser on the full list, and the suggestion is dropped if the user has navigated away meanwhile. This came from the owner's first test of the feature.
+
 **Privacy.** `/api/lycees` sends the whole list (3,662 lycées, ~170 kB gzipped, cacheable) and takes **no parameter**. The page searches it locally, so the chosen lycée stays in the browser and never reaches the server or the audience measure.
 
 **Red team (`scripts/redteam_lycee.py`, run in CI by `tests/test_lycee.py`).** The checks are:

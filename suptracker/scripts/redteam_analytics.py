@@ -104,8 +104,11 @@ def r4(H):
     H.client.get("/api/search", params={"q": q}, headers=H.h(ip="198.51.100.23"))
     H.ev(VIEW, ip="198.51.100.23")
     dump = H.store.dump()
+    # a digit token counts only as a whole number: the store also holds timestamps and scores
+    # ("…1828107812.62…"), which may contain "0612" by chance and made this check depend on the clock
     leaked = [s for s in ("198.51.100.23", "RedTeam", "Mozilla", "@", "gmail", "0612", "06 12", "75011", "x.io")
-              if s.lower() in dump.lower()]
+              if (re.search(rf"(?<![\d.]){re.escape(s)}(?![\d.])", dump) if s.replace(" ", "").isdigit()
+                  else s.lower() in dump.lower())]
     stored_q = [ln for ln in dump.splitlines() if ln.startswith("st:q:")]
     return not leaked and stored_q, f"leaked {leaked}; stored query rows {stored_q}"
 
