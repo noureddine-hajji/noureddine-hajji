@@ -555,8 +555,8 @@ In "Mon parcours", the student can pick their lycée (optional). The page then s
 - **Served ranges:** the ranges served for 2026 use the errors of every transition, 2025 included.
 
 **Zone stability.**
-- **How it is measured:** the zone computed from campaigns up to *Y* − 1 is compared with the zone the next campaign alone gives.
-- **Results:** zones not flagged *incertain* held 77–80 % of the time (95 % for "hors profil"); zones flagged *incertain* held 49–73 %. This confirms the *incertain* flag after the fact.
+- **How it is measured:** the zone computed from campaigns up to *Y* − 1 is compared with the zone the next campaign alone gives. Both use the reading the page shows for bac général: the all-series share is projected into the bac-général bounds when they are usable (`journey.zone_reading`, shared by stage 2 and `calibration.zone_of`). Formations closed to bac général in practice are left out, like on the page.
+- **Results:** zones not flagged *incertain* held 79–81 % of the time (95 % for "hors profil"); zones flagged *incertain* held 53–73 %. This confirms the *incertain* flag after the fact.
 - **Scope:** it is shown only for bac général, because bac techno and pro zones use an estimated series access that is not comparable.
 
 **Red team (`scripts/redteam_calibration.py`, run in CI by `tests/test_calibration.py`).** The checks are:
@@ -564,10 +564,11 @@ In "Mon parcours", the student can pick their lycée (optional). The page then s
 - **K2.** The predictor is chosen on 2024 only.
 - **K3.** The served ranges stay within bounds and contain the point; their width equals the stratum's error range; only current formations get one.
 - **K4.** Pooled shares.
-- **K5.** Zone stability is re-derived on the next campaign alone; uncertain zones are less stable.
+- **K5.** Zone stability is re-derived independently (bac-général bounds summed campaign by campaign) on the next campaign alone; uncertain zones are less stable.
 - **K6.** The API attaches the right forecast and stability.
 - **K7.** The page reads the coverage from the data, says it is not a chance, and gates the series-specific parts.
-- **K8, mutation test:** 9 seeded bugs, all caught: the hold-out leaking into its own history, 90 % quantiles announced as 80 %, the predictor chosen on the hold-out, a same-year "stability", unclipped ranges, and UI bugs.
+- **K8, mutation test:** 10 seeded bugs, all caught: the hold-out leaking into its own history, 90 % quantiles announced as 80 %, the predictor chosen on the hold-out, a same-year "stability", a stability measured on the all-series zone instead of the displayed one, unclipped ranges, and UI bugs.
+- **K9.** For every zone stage 2 shows (three formation types, two mentions), the back-test classifier gives the same zone and *incertain* flag.
 
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 

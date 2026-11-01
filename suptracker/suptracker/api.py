@@ -189,7 +189,8 @@ METHODOLOGY = {
         "à 80 % : la méthode a été réglée sur 2023 et 2024, puis testée sur 2025 sans l'avoir vue ; la part des vraies "
         "valeurs 2025 tombées dans leur fourchette est affichée telle quelle. Les fourchettes sont plus larges pour les "
         "petites formations et pour celles qui ont peu d'historique. La stabilité dit dans combien de cas comparables la zone "
-        "(sécurité, cible, ambitieux, hors profil) a été confirmée l'année suivante. Ce ne sont pas des chances d'admission : "
+        "(sécurité, cible, ambitieux, hors profil) a été confirmée l'année suivante ; elle est mesurée avec la même lecture "
+        "que la zone affichée pour le bac général (part des admis bac général encadrée par les chiffres publiés). Ce ne sont pas des chances d'admission : "
         "les données publiques ne donnent pas les mentions des candidats, seulement celles des admis."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "

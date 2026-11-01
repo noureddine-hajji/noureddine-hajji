@@ -174,29 +174,51 @@ def k4(c: Ctx):
     return not bad and n > 0, f"{n} forecasts checked, {len(bad)} differ {bad[:2]}"
 
 
+def ref_zone(years, sessions, m, taux):
+    """Independent re-derivation of the bac-général zone stage 2 shows: pooled mention share,
+    per-campaign series bounds summed, Wilson at each end, all-series share clipped into the bounds."""
+    if taux is None:
+        return None
+    rows = [years[s] for s in sessions]
+    p, n = ref_cdf([r["counts"] for r in rows], m)
+    if not n:
+        return None
+    neo = sum(r["neobac"] or 0 for r in rows)
+    if neo and sum(r["margins"]["acc_bg"] or 0 for r in rows) / neo < 0.05:
+        return None
+    lo, hi = J.wilson(p * n, n)
+    k_lo = k_hi = g = 0
+    for r in rows:
+        b = J.series_cdf_bounds("bg", m, r["margins"])
+        if b is not None:
+            k_lo, k_hi, g = k_lo + b[0], k_hi + b[1], g + r["margins"]["acc_bg"]
+    if g >= 10:
+        p = min(max(p, k_lo / g), k_hi / g)
+        lo, hi = J.wilson(k_lo, g)[0], J.wilson(k_hi, g)[1]
+    return J.classify_zone(taux, p, lo, hi)
+
+
 def ref_persistence(data):
     out = defaultdict(lambda: [0, 0])
     for t in (2024, 2025):
         for years in data.values():
-            if t not in years or t - 1 not in years or years[t - 1]["taux"] is None or years[t]["taux"] is None:
+            if t not in years or t - 1 not in years:
                 continue
             hist = [s for s in sorted(years) if s < t]
             for m in J.MENTIONS[:4]:
-                p, n = ref_cdf([years[s]["counts"] for s in hist], m)
-                if not n:
+                z = ref_zone(years, hist, m, years[t - 1]["taux"])
+                if z is None or z["zone"] not in ("securite", "cible", "ambitieux", "hors_profil"):
                     continue
-                lo, hi = J.wilson(p * n, n)
-                z = J.classify_zone(years[t - 1]["taux"], p, lo, hi)
-                ob, _ = ref_cdf([years[t]["counts"]], m)
-                if ob is None:
+                o = ref_zone(years, [t], m, years[t]["taux"])
+                if o is None:
                     continue
                 k = (z["zone"], bool(z["uncertain"]))
                 out[k][0] += 1
-                out[k][1] += J._zone(years[t]["taux"], ob) == z["zone"]
+                out[k][1] += o["zone"] == z["zone"]
     return {k: (n, cc / n) for k, (n, cc) in out.items()}
 
 
-@check("K5 zone stability re-derived independently: next campaign alone, never the same year")
+@check("K5 zone stability re-derived independently (bac-général reading): next campaign alone, never the same year")
 def k5(c: Ctx):
     ref = ref_persistence(c.small)
     got = C.zone_persistence(c.small)
@@ -265,14 +287,15 @@ UI_MUTANTS = [
 ]
 
 
-@check("K8 mutation test: leakage, wrong quantiles, predictor on the hold-out, unclipped ranges, same-year stability and UI bugs are caught")
+@check("K8 mutation test: leakage, wrong quantiles, predictor on the hold-out, unclipped ranges, same-year or all-series stability and UI bugs are caught")
 def k8(c: Ctx):
     missed = []
     js = APP_JS.read_text()
     for name, old, new in UI_MUTANTS:
         if old not in js or ui(js.replace(old, new, 1))[0]:
             missed.append(name)
-    saved = {"errors": C.errors, "qlo": C.Q_LO, "qhi": C.Q_HI, "choose": C.choose_predictor, "persist": C.zone_persistence}
+    saved = {"errors": C.errors, "qlo": C.Q_LO, "qhi": C.Q_HI, "choose": C.choose_predictor, "persist": C.zone_persistence,
+             "zone_of": C.zone_of}
     pred, _ = ref_predictor(c.small)
     ref = ref_coverage(c.small, pred)
 
@@ -301,6 +324,14 @@ def k8(c: Ctx):
         out = saved["persist"](data, targets)
         return {k: (n, 1.0) for k, (n, r) in out.items()}
 
+    def all_series(years, sessions, m, taux):     # Codex finding: the all-series reading, not the page's
+        if taux is None:
+            return None
+        p, n = C.cdf_of([years[x]["counts"] for x in sessions], m)
+        if p is None:
+            return None
+        return J.classify_zone(taux, p, *J.wilson(p * n, n))
+
     def coverage_of(bt):
         return {m: bt["coverage"][m]["*"][1] for m in ("taux", "cdf")}
 
@@ -309,6 +340,7 @@ def k8(c: Ctx):
         ("90 % quantiles announced as 80 %", lambda: (setattr(C, "Q_LO", 0.05), setattr(C, "Q_HI", 0.95)), "coverage"),
         ("predictor chosen on the hold-out", lambda: setattr(C, "choose_predictor", choose_on_holdout), "predictor"),
         ("stability measured on the same year", lambda: setattr(C, "zone_persistence", same_year), "persistence"),
+        ("stability measured on the all-series zone", lambda: setattr(C, "zone_of", all_series), "displayed"),
     ]
     for name, apply, what in data_mutants:
         try:
@@ -317,6 +349,8 @@ def k8(c: Ctx):
                 p, _ = C.choose_predictor(c.small)
                 got = coverage_of(C.backtest(c.small, p))
                 caught = any(abs(got[m] - ref[m][1]) > 1e-9 for m in got)
+            elif what == "displayed":
+                caught = not k9(c)[0]
             elif what == "predictor":
                 caught = C.choose_predictor(c.small)[0] != ref_predictor(c.small)[0]
             else:
@@ -328,6 +362,7 @@ def k8(c: Ctx):
         finally:
             C.errors, C.Q_LO, C.Q_HI, C.choose_predictor, C.zone_persistence = (saved["errors"], saved["qlo"], saved["qhi"],
                                                                                  saved["choose"], saved["persist"])
+            C.zone_of = saved["zone_of"]
         if not caught:
             missed.append(name)
     # unclipped ranges: K3's bound check must reject a served table with a negative lower bound
@@ -343,6 +378,28 @@ def k8(c: Ctx):
         c.forecast = f0
     n = len(UI_MUTANTS) + len(data_mutants) + 1
     return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
+
+
+@check("K9 the stability is measured on the zone the page shows (bac-général reading of stage 2)")
+def k9(c: Ctx):
+    con = duckdb.connect(str(c.db), read_only=True)
+    types = [r[0] for r in con.execute("""SELECT r.spe_type_key FROM core.taxonomy_link l JOIN core.taxonomy_rule r USING (rule_id)
+        WHERE l.session = (SELECT max(session) FROM core.formation_year) GROUP BY 1 ORDER BY count(*) DESC LIMIT 3""").fetchall()]
+    latest = max(s for y in c.data.values() for s in y)
+    by_cod = {y[latest]["cod"]: y for y in c.data.values() if latest in y}
+    bad, n = [], 0
+    for t in types:
+        for m in ("sansmention", "b"):
+            for x in J.stage2(con, "MATHS+SES", m, t)["formations"]:
+                if x["zone"] not in C.ZONES_WITH_REPERE:
+                    continue
+                years = by_cod[x["cod_aff_form"]]
+                z = C.zone_of(years, sorted(years), m, years[latest]["taux"])
+                n += 1
+                if z is None or (z["zone"], z["uncertain"]) != (x["zone"], x["uncertain"]):
+                    bad.append((x["cod_aff_form"], m, x["zone"], z and z["zone"]))
+    con.close()
+    return n > 0 and not bad, f"{n} displayed zones re-read by the back-test classifier, {len(bad)} differ {bad[:3]}"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

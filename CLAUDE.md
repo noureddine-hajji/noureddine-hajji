@@ -114,7 +114,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Never a probability: only next-campaign RANGES of published indicators, with the hold-out coverage
     printed as measured (76.6 % / 76.5 % for a nominal 80 %), never hard-coded.
   - The method is fixed before the hold-out: predictor chosen on 2024, ranges from the 2023-2024 errors.
-  - Zone stability is shown for bac général only (all-series reading).
+  - Zone stability is shown for bac général only. It is measured with the zone the page shows
+    (`calibration.zone_of`, which calls `journey.zone_reading`, also used by stage 2): never the all-series reading.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.

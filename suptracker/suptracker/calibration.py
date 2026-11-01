@@ -53,15 +53,21 @@ def size_bucket(n: float | None) -> str:
 
 
 def load(con) -> dict:
-    """{lineage_id: {session: row}} with the official access rate and the mention counts."""
+    """{lineage_id: {session: row}} with the official access rate, the mention counts and the
+    margins of the mention x series table (for the bac-général zone, as "Mon parcours" reads it)."""
     cols = ", ".join(f"fy.acc_{m}" for m in J.MENTIONS)
-    rows = con.execute(f"""SELECT l.lineage_id, fy.session, fy.cod_aff_form, fy.taux_acces_ens, fy.select_form, {cols}
+    marg = ", ".join(f"fy.{k}" for k in J.BG_KEYS)
+    rows = con.execute(f"""SELECT l.lineage_id, fy.session, fy.cod_aff_form, fy.taux_acces_ens, fy.select_form,
+                                  fy.acc_neobac, {cols}, {marg}
                            FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)""").fetchall()
     out = defaultdict(dict)
+    nm = len(J.MENTIONS)
     for r in rows:
-        lid, s, cod, t, sel, *acc = r
+        lid, s, cod, t, sel, neo, *rest = r
+        acc, mg = rest[:nm], rest[nm:]
         counts = dict(zip(J.MENTIONS, [a or 0 for a in acc]))
-        out[lid][s] = {"cod": cod, "taux": t, "selective": sel == "formation sélective", "counts": counts}
+        out[lid][s] = {"cod": cod, "taux": t, "selective": sel == "formation sélective", "counts": counts,
+                       "margins": dict(zip(J.BG_KEYS, mg)), "neobac": neo}
     return out
 
 
@@ -154,9 +160,29 @@ def backtest(data: dict, predictor: str, calib: tuple = CALIBRATION_TARGETS, tar
             "coverage": {m: {k: (n, inside / n, err / n) for k, (n, inside, err) in v.items()} for m, v in rep.items()}}
 
 
+def zone_of(years: dict, sessions: list[int], mention: str, taux: float | None) -> dict | None:
+    """The bac-général zone "Mon parcours" shows (journey.stage2, serie='bg') for a formation whose
+    campaigns `sessions` are known and whose latest access rate is `taux`: pooled mention counts,
+    projected into the bac-général bounds when they are usable (journey.zone_reading). None when
+    stage 2 shows no zone with a repère (no rate, no known mention, closed to bac général in practice)."""
+    if taux is None:
+        return None
+    rows = [years[s] for s in sessions]
+    k = sum(sum(r["counts"][x] for x in J.MENTIONS[: J.MENTIONS.index(mention) + 1]) for r in rows)
+    n = sum(sum(r["counts"][x] for x in J.MENTIONS) for r in rows)
+    if not n:
+        return None
+    neo = sum(r["neobac"] or 0 for r in rows)
+    bg = sum(r["margins"].get("acc_bg") or 0 for r in rows)
+    if neo and bg / neo < J.MIN_GENERAL_SHARE:
+        return None                       # stage 2 marks it "non ouvert": no repère, no stability
+    rd = J.zone_reading("bg", mention, k, n, [r["margins"] for r in rows])
+    return J.classify_zone(taux, rd["cdf_zone"], *rd["ci_zone"])
+
+
 def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
-    """How often the zone of "Mon parcours" (all-series reading: latest access rate, pooled mention
-    share, Wilson margin) was confirmed by the next campaign alone, per (zone, uncertain)."""
+    """How often the bac-général zone of "Mon parcours" (zone_of: the same reading as the page) was
+    confirmed by the next campaign alone, per (zone, uncertain)."""
     out = defaultdict(lambda: [0, 0])
     for t in targets:
         for lid, years in data.items():
@@ -164,21 +190,16 @@ def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
                 continue
             hist = [s for s in sorted(years) if s < t]
             prev, nxt = years[t - 1], years[t]
-            if prev["taux"] is None or nxt["taux"] is None:
-                continue
             for m in MENTIONS:
-                k = sum(sum(years[s]["counts"][x] for x in J.MENTIONS[: J.MENTIONS.index(m) + 1]) for s in hist)
-                n = sum(sum(years[s]["counts"][x] for x in J.MENTIONS) for s in hist)
-                if not n:
+                z = zone_of(years, hist, m, prev["taux"])
+                if z is None or z["zone"] not in ZONES_WITH_REPERE:
                     continue
-                lo, hi = J.wilson(k, n)
-                z = J.classify_zone(prev["taux"], k / n, lo, hi)
-                obs, _ = cdf_of([nxt["counts"]], m)
-                if obs is None:
+                o = zone_of(years, [t], m, nxt["taux"])
+                if o is None:
                     continue
                 key = (z["zone"], bool(z["uncertain"]))
                 out[key][0] += 1
-                out[key][1] += J._zone(nxt["taux"], obs) == z["zone"]
+                out[key][1] += o["zone"] == z["zone"]
     return {k: (n, c / n) for k, (n, c) in out.items() if n}
 
 

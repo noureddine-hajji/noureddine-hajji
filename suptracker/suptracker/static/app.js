@@ -627,8 +627,8 @@ function repereCell(f, serie) {
   if (!r) return '<span class="muted">—</span>';
   const acc = r.taux_lo != null ? `accès ${pct0(r.taux_lo)}–${pct0(r.taux_hi)}${serie !== "bg" ? " <span class=\"muted\">(tous candidats)</span>" : ""}` : "";
   const pos = serie === "bg" && r.cdf_lo != null ? `<div>ta mention ou moins ${pct0(100 * r.cdf_lo)}–${pct0(100 * r.cdf_hi)} <span class="muted">(tous bacs)</span></div>` : "";
-  // the confirmation rate was measured on the all-series reading: only comparable for bac général,
-  // whose zone uses the same mention ladder (bac techno and pro use an estimated series access)
+  // the confirmation rate was measured with the bac-général reading of the zone (calibration.zone_of):
+  // only comparable for bac général (bac techno and pro use an estimated series access)
   const conf = serie === "bg" && r.zone_confirmed != null ? `<div class="muted">zone confirmée l'année suivante dans ${pct0(100 * r.zone_confirmed)} des cas comparables</div>` : "";
   return `<div>${acc}</div>${pos}${conf}`;
 }
