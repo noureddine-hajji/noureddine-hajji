@@ -25,6 +25,7 @@ from . import planb as PB
 from . import search as S
 from . import success as SU
 from . import poursuite as PO
+from . import passerelles as PA
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
@@ -189,6 +190,17 @@ METHODOLOGY = {
         "et le parcours complet des bacheliers 2017 entrés en L1 (licence en 3 ou 4 ans, master en 5 à 7 ans), selon le "
         "type de bac ou la mention, jamais les deux à la fois. Ce sont des résultats de cohortes passées, pas des "
         "chances de réussite."),
+    "passerelles": (
+        "Passerelles : deux sources du ministère de l'Enseignement supérieur (SIES). 1) Après la L1 : parmi les néo-bacheliers "
+        "entrés en L1 dans l'université et la grande discipline de cette licence, la part qui s'inscrit l'année suivante dans "
+        "une autre formation que la licence, et vers quoi : hors de l'université (BTS, classe préparatoire, écoles de "
+        "commerce ou d'ingénieurs) ou à l'université (BUT, diplôme d'infirmier). Ce sont des parts des inscrits en L1 ; le "
+        "détail publié n'est pas complet. 2) Les masters de l'université dans cette grande discipline, d'après MonMaster (la "
+        "plateforme nationale de candidature en master) : candidatures, admis et origine des admis. Les candidatures sont "
+        "des vœux : une même personne postule à plusieurs masters, on ne peut donc pas en tirer une chance d'admission. La "
+        "part des admis déjà inscrits dans l'université et la répartition par origine sont calculées à partir des effectifs "
+        "publiés. Les masters de l'enseignement (MEEF), ouverts à toutes les licences, sont comptés à part. Ce sont des "
+        "résultats passés, pas des chances."),
     "fiabilite": (
         "Fiabilité d'un chiffre, notée par des règles fixes, les mêmes partout sur le site. A (solide) : au moins 100 "
         "personnes, une cohorte de 3 ans au plus, un rattachement par l'identifiant officiel de l'établissement "
@@ -416,8 +428,17 @@ def formation(cod: str, session: int | None = None):
     return {"record": rec, "stages": _grouped(rec), "peers": peers,
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers),
             "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
-            "but": PO.but_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
-            "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
+            "but": _but_block(rec),
+            "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
+            "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
+
+
+def _but_block(rec: dict) -> dict | None:
+    """Sprint 6 BUT card, plus (sprint 7) the BUT 3 graduates admitted in the university's masters."""
+    b = PO.but_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))
+    if b is not None:
+        b["masters_but3"] = PA.for_but(_con().cursor(), b.get("etab"))
+    return b
 
 
 OFFER = ("carto_session", "apprentissage", "internat", "distance", "amenag_sport", "amenag_art")
@@ -703,7 +724,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles"]
 
 
 @lru_cache(maxsize=1)

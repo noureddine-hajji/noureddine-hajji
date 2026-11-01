@@ -18,6 +18,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Lycée (sprint 4):** `lycee.py` (IPS + IVAL from the Education ministry portal, `config.Dataset.base`).
   - **Repère (sprint 5):** `calibration.py` (next-campaign ranges, hold-out 2025, zone stability).
   - **Beyond licence (sprint 6):** `poursuite.py` (BUT per university, master per university × discipline, national margins).
+  - **Gateways (sprint 7):** `passerelles.py` (reorientation detail after L1, MonMaster per university × discipline).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -125,6 +126,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - IUT links: `BUT_SITE_OVERRIDES` (IUT de Nîmes → Montpellier, owner-confirmed; only over an id with no BUT row), then
     the Paysage id, then `BUT_NAME_RULES` (IUT de Toulouse → Toulouse 3); the Polynesia antenna stays unlinked.
   - The student's profile picks national rows in the browser: it is never sent.
+- **Gateways (sprint 7).**
+  - Reorientation rates are shares of L1 ENTRANTS; the published destinations are not exhaustive: never compute a
+    remainder. Masked below 100 entrants. Link through B1's (university, discipline).
+  - MonMaster (2024-2025; 2023 has another layout): applications summed over programmes are vœux, admits are people;
+    never show a proposals / applications ratio. MEEF masters are kept apart; mixed droit-éco or theology get no discipline.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -147,9 +153,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     "C'est ton lycée ?" from the search bar;
   - sprint 5 repère: calibrated next-campaign ranges and zone stability in "Mon parcours";
   - sprint 6 success beyond licence: BUT card (per university + national margins), "après la licence : le master" card;
+  - sprint 7 gateways: reorientation after L1 and the university's masters (MonMaster) on licence pages, BUT → master line;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 7: gateways (B1 "Réorientations" sheet, MonMaster);
   - sprint 8: insertion (InserSup, Inserjeunes, Céreq national adequacy, Onisep jobs);
   - sprint 9: evidence-chain comparator, shareable list (A6), B5 CROUS, user tests; sprint 10: scale.
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`

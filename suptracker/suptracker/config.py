@@ -58,6 +58,9 @@ DATASETS: tuple[Dataset, ...] = (
     # Sprint 4, lycée profile (Education ministry portal): social position index and value added
     Dataset("ips_lycees", ("fr-en-ips-lycees-ap2023",), "lycee", base=EDU_ODS_BASE),
     Dataset("ival_lycees_gt", ("fr-en-indicateurs-de-resultat-des-lycees-gt_v2",), "lycee", base=EDU_ODS_BASE),
+    # Sprint 7, gateways: MonMaster applications and admissions per master programme (SIES portal)
+    Dataset("monmaster_2024_2025", ("fr-esr-mon_master",), "master"),
+    Dataset("monmaster_2023", ("fr-esr-mon_master_2023",), "master"),
 )
 
 
