@@ -24,6 +24,9 @@ LINK_MIN_SCORE = 0.60         # label similarity floor for the secondary linker
 LINK_MIN_MARGIN = 0.10        # best candidate must beat runner-up by this much
 
 
+ONISEP_DL = "https://api.opendata.onisep.fr/downloads/"
+
+
 @dataclass(frozen=True)
 class Dataset:
     key: str                  # local name (raw/<key>.parquet)
@@ -31,6 +34,8 @@ class Dataset:
     kind: str                 # "voeux" | "specialites" | "cartographie" | "reference" | "lycee"
     year: int | None = None
     base: str | None = None   # ODS portal; None = the SIES portal
+    url: str | None = None    # a direct file (csv or zip of xml) instead of an ODS export
+    optional: bool = False    # a failed download is reported, not fatal (an external host must not block the refresh)
 
 
 DATASETS: tuple[Dataset, ...] = (
@@ -67,6 +72,11 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("inserjeunes_cfa", ("fr-en-inserjeunes-cfa-formation_fine",), "insertion", base=EDU_ODS_BASE),
     # Sprint 9, B5: the CROUS residences (CNOUS feeds, republished by the ministry's portal)
     Dataset("crous_logement", ("fr_crous_logement_france_entiere",), "vie_etudiante"),
+    # Sprint 8 follow-up: Onisep formations and jobs (ODbL), direct files from the Onisep open-data API
+    Dataset("onisep_formations", (), "metiers", url=ONISEP_DL + "5fa591127f501/5fa591127f501.csv", optional=True),
+    Dataset("onisep_metiers", (), "metiers", url=ONISEP_DL + "5fa5949243f97/5fa5949243f97.csv", optional=True),
+    Dataset("onisep_fiches_formations", (), "metiers", url=ONISEP_DL + "5fe07a9ecc960/5fe07a9ecc960.zip", optional=True),
+    Dataset("onisep_fiches_metiers", (), "metiers", url=ONISEP_DL + "5fe0808a2da6f/5fe0808a2da6f.zip", optional=True),
 )
 
 

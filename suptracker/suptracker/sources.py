@@ -10,6 +10,7 @@ obtained, at what granularity, through which keys, and what it feeds.
 from __future__ import annotations
 
 LICENCE_OUVERTE = "Licence Ouverte / Open Licence 2.0"
+ODBL = "Open Database License (ODbL) 1.0"
 
 SOURCES = (
     {"key": "parcoursup", "title": "Parcoursup 2022-2025 : vœux et réponses des établissements", "producer": "MESR-SIES",
@@ -65,13 +66,17 @@ SOURCES = (
      "access": "ods", "datasets": ("inserjeunes_lycee", "inserjeunes_cfa"), "granularity": "établissement × formation",
      "keys": ("uai",), "feeds": ("insertion",), "status": "en_ligne", "sprint": 8, "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/inserjeunes-voie-professionnelle-scolaire-par-etablissement-relevant-du-ministere-de-leducation-nationale-et-formation-fine"},
+    {"key": "onisep", "title": "Onisep : formations initiales, fiches formations et fiches métiers (Idéo)", "producer": "Onisep",
+     "access": "download", "datasets": ("onisep_formations", "onisep_metiers", "onisep_fiches_formations", "onisep_fiches_metiers"),
+     "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers",), "status": "en_ligne",
+     "sprint": 8, "licence": ODBL, "url": "https://opendata.onisep.fr/2-les-donnees.htm"},
     {"key": "crous_logement", "title": "Logements étudiants du réseau des CROUS", "producer": "CNOUS / MESR",
      "access": "ods", "datasets": ("crous_logement",), "granularity": "résidence (coordonnées GPS)",
      "keys": ("lat", "lon"), "feeds": ("crous",), "status": "en_ligne", "sprint": 9, "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/ensemble-des-logements-proposes-aux-etudiants-par-le-reseau-des-crous"},
 )
 
-ACCESS = ("ods", "owner_upload", "planned")
+ACCESS = ("ods", "download", "owner_upload", "planned")
 STATUS = ("en_ligne", "prevu")
 
 
