@@ -57,13 +57,14 @@ SOURCES = (
      "keys": ("etablissement",), "feeds": ("passerelles",), "status": "en_ligne", "sprint": 7, "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/monmaster-2024-2025-voeux-de-poursuite-detudes-et-de-reorientation-en-master-et-reponses-des-etablissements"},
     {"key": "insersup", "title": "InserSup : insertion professionnelle des diplômés", "producer": "MESR-SIES",
-     "access": "planned", "granularity": "établissement × diplôme × discipline", "keys": ("uai", "etablissement_id_paysage"),
-     "feeds": ("insertion",), "status": "prevu", "sprint": 8, "licence": LICENCE_OUVERTE,
+     "access": "ods", "datasets": ("insersup",), "granularity": "établissement × diplôme × discipline",
+     "keys": ("uai", "etablissement_id_paysage"), "feeds": ("insertion",), "status": "en_ligne", "sprint": 8,
+     "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/insertion-professionnelle-des-diplomes-des-etablissements-denseignement-superieur-dispositif-insersup"},
     {"key": "inserjeunes", "title": "Inserjeunes : insertion des sortants de la voie professionnelle (BTS inclus)", "producer": "MENJ-DEPP / DARES",
-     "access": "planned", "granularity": "établissement × formation", "keys": ("uai",), "feeds": ("insertion",), "status": "prevu",
-     "sprint": 8, "licence": LICENCE_OUVERTE,
-     "url": "https://www.data.gouv.fr/datasets/inserjeunes-voie-professionnelle-scolaire-par-etablissement-relevant-du-ministere-de-leducation-nationale"},
+     "access": "ods", "datasets": ("inserjeunes_lycee", "inserjeunes_cfa"), "granularity": "établissement × formation",
+     "keys": ("uai",), "feeds": ("insertion",), "status": "en_ligne", "sprint": 8, "licence": LICENCE_OUVERTE,
+     "url": "https://www.data.gouv.fr/datasets/inserjeunes-voie-professionnelle-scolaire-par-etablissement-relevant-du-ministere-de-leducation-nationale-et-formation-fine"},
 )
 
 ACCESS = ("ods", "owner_upload", "planned")

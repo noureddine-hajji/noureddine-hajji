@@ -61,6 +61,10 @@ DATASETS: tuple[Dataset, ...] = (
     # Sprint 7, gateways: MonMaster applications and admissions per master programme (SIES portal)
     Dataset("monmaster_2024_2025", ("fr-esr-mon_master",), "master"),
     Dataset("monmaster_2023", ("fr-esr-mon_master_2023",), "master"),
+    # Sprint 8, insertion: university graduates (SIES) and vocational diplomas, BTS included (DEPP)
+    Dataset("insersup", ("fr-esr-insersup",), "insertion"),
+    Dataset("inserjeunes_lycee", ("fr-en-inserjeunes-lycee_pro-formation-fine",), "insertion", base=EDU_ODS_BASE),
+    Dataset("inserjeunes_cfa", ("fr-en-inserjeunes-cfa-formation_fine",), "insertion", base=EDU_ODS_BASE),
 )
 
 
