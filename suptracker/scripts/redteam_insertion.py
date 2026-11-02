@@ -223,7 +223,8 @@ def i4(c: Ctx):
           for r in c.rows("insersup")}
     n = 0
     for r in df.to_dict("records"):
-        pid = r.get("id_paysage_actuel") or r["id_paysage"]
+        cur = r.get("id_paysage_actuel")
+        pid = cur if isinstance(cur, str) and cur else r["id_paysage"]     # pandas gives NaN (truthy) for a missing id
         s = st.get((pid, r["type_diplome_long"], r["diplome"], r["libelle_diplome"], r["etablissement"], r["sectdis_lib"], r["discipli_lib"], r["promo"]))
         if s is None:
             bad.append(("missing", pid, r["diplome"], r["promo"]))

@@ -19,6 +19,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Repère (sprint 5):** `calibration.py` (next-campaign ranges, hold-out 2025, zone stability).
   - **Beyond licence (sprint 6):** `poursuite.py` (BUT per university, master per university × discipline, national margins).
   - **Gateways (sprint 7):** `passerelles.py` (reorientation detail after L1, MonMaster per university × discipline).
+  - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -131,6 +132,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     remainder. Masked below 100 entrants. Link through B1's (university, discipline).
   - MonMaster (2024-2025; 2023 has another layout): applications summed over programmes are vœux, admits are people;
     never show a proposals / applications ratio. MEEF masters are kept apart; mixed droit-éco or theology get no discipline.
+- **Insertion (sprint 8).**
+  - Inserjeunes (BTS, lycées and CFA, "cumul 2023-2024"): continuing + employed 6 months + other = 100; employment rates are
+    among the LEAVERS. A BTS links to its OWN establishment (UAI) and normalised label; options are shown apart, never averaged;
+    renamed BTS get no figure. No headcount is published: no reliability grade.
+  - InserSup (master, BUT, LP): rates among the leavers, `nd` = NULL, pooled classes flagged `*` (< 20 leavers), served at
+    18 months, latest class per diploma. No discipline aggregate exists per university: masters are listed one by one.
+  - Only a profile and the usable rows are staged (`insertion.KEEP`): the warehouse must stay under 95 MB.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -140,7 +148,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 
-## Status (2026-11-01)
+## Status (2026-11-02)
 - **Live in `main`:**
   - search 2.0;
   - analytics and the `/#/stats` dashboard;
@@ -154,9 +162,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - sprint 5 repère: calibrated next-campaign ranges and zone stability in "Mon parcours";
   - sprint 6 success beyond licence: BUT card (per university + national margins), "après la licence : le master" card;
   - sprint 7 gateways: reorientation after L1 and the university's masters (MonMaster) on licence pages, BUT → master line;
+  - sprint 8 insertion: Inserjeunes on BTS pages, InserSup on licence (masters) and BUT pages;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 8: insertion (InserSup, Inserjeunes, Céreq national adequacy, Onisep jobs);
+  - sprint 8 follow-up (not shipped yet): Céreq national adequacy, Onisep jobs;
   - sprint 9: evidence-chain comparator, shareable list (A6), B5 CROUS, user tests; sprint 10: scale.
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly
