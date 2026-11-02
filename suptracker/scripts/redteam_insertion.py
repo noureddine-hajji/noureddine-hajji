@@ -241,7 +241,7 @@ def i4(c: Ctx):
     return n > 0 and not bad and len(st) == len(df), f"{n} values compared, {len(bad)} differ {bad[:3]}; stored {len(st)} vs staged {len(df)}"
 
 
-@check("I5 InserSup identities: employment rate = employed / leavers, rates within [0, 100], salary quartiles ordered, pooling flag = two classes")
+@check("I5 InserSup identities: employment rate = employed / leavers, stable rate = stable / salaried employed, rates within [0, 100], salary quartiles ordered, pooling flag = two classes")
 def i5(c: Ctx):
     bad, quirks = [], []
     for r in c.rows("insersup"):
@@ -265,7 +265,19 @@ def i5(c: Ctx):
                 bad.append(("quartiles", r["diplome"], h))
         if r["pooled"] != (len(I.promo_years(r["promo"])) > 1):
             bad.append(("pooled", r["promo"]))
-    return not bad, f"{len(bad)} broken {bad[:3]}; published stable rates above 100 % (not served) {len(quirks)} {quirks[:2]}"
+    st = c.staged.get("insersup")
+    n_st = 0
+    if st is not None and f"nb_sortants_en_emploi_stable_{H}" in st:
+        for s_, e_, t_ in zip(st[f"nb_sortants_en_emploi_stable_{H}"], st[f"nb_sortants_en_emploi_sal_fr_{H}"], st[f"tx_sortants_en_emploi_stable_{H}"]):
+            s_, e_, t_ = num(s_), num(e_), num(t_)
+            if None in (s_, e_, t_) or not e_:
+                continue
+            n_st += 1
+            if abs(100 * s_ / e_ - t_) > 0.06:      # the stable rate is among the SALARIED EMPLOYED, not the leavers
+                bad.append(("stable denominator", s_, e_, t_))
+    if not n_st:
+        bad.append(("stable denominator", "no row with both counts"))
+    return not bad, f"{len(bad)} broken {bad[:3]}; stable rate = stable / salaried on {n_st} rows; published stable rates above 100 % (not served) {len(quirks)} {quirks[:2]}"
 
 
 def ref_latest(rows, pid, typ, disc=None, diplome_all=False, parts=None, year=None, old=None):
@@ -389,7 +401,9 @@ def ui(js: str) -> tuple[bool, str]:
         raw.append("withheld masters not listed")
     words = {"function insertionCard(": ("ont quitté les études", "pas des chances", "publiées séparément", "ne publie pas de taux par discipline",
                                          "ne publie pas les effectifs"),
-             "const INS_NOTE": ("ont quitté les études", "Emploi salarié en France", "pas des chances")}
+             "const INS_NOTE": ("ont quitté les études", "Emploi salarié en France", "pas des chances",
+                                "emploi stable est une part de ceux qui ont un emploi salarié"),
+             "const INS_HEAD": ("Emploi stable, parmi ceux en emploi salarié",)}
     wording = all(w in fn_body(js, f) for f, ws in words.items() for w in ws)
     averaged = re.findall(r"\.reduce\(|Math\.(?:max|min)\([^)]*tx_|/\s*x\.rows\.length|/\s*x\.masters\.length", blk)
     wired = "${insertionCard(d.insertion)}" in js and "${butInsertion(b.insertion)}" in js
@@ -409,6 +423,7 @@ UI_MUTANTS = [
     ("leavers caveat dropped", "Taux parmi les diplômés qui ont quitté les études (ceux qui continuent ne sont pas comptés). ", ""),
     ("options averaged", 'const rows = x.rows.map(', 'const avg = x.rows.reduce((a, r) => a + (r.taux_emploi_6 || 0), 0) / x.rows.length; const rows = x.rows.map('),
     ("card not wired", "${insertionCard(d.insertion)}", ""),
+    ("stable rate's denominator (the salaried employed) dropped", "Emploi stable, parmi ceux en emploi salarié</th>", "dont emploi stable</th>"),
     ("unescaped withheld master label", "`master ${esc(l)}`", "`master ${l}`"),
 ]
 

@@ -687,7 +687,7 @@ Facts checked on the real files before coding:
   - the share of final-year students who continue their studies, who are employed 6 months later and in other situations;
   - the employment rates at 6, 12 and 24 months, among those who left their studies;
   - when Parcoursup groups options that Inserjeunes publishes separately, one row per option, never averaged.
-- **On a licence page,** the masters of the same university and discipline as B1 (InserSup): salaried employment in France and stable employment 18 months after the diploma, against all the university's masters and France.
+- **On a licence page,** the masters of the same university and discipline as B1 (InserSup): salaried employment in France 18 months after the diploma (among leavers) and stable employment (among those in salaried employment, as SIES publishes it), against all the university's masters and France.
 - **On a BUT page,** the same figures for the specialty in the university, all its BUT, and France.
 
 **Data (`suptracker/insertion.py`), checked on real data before the design.**
@@ -697,7 +697,7 @@ Facts checked on the real files before coding:
   - The formation code is part of the key (one establishment can publish the same label twice).
   - No headcount is published, so no reliability grade is given.
 - **InserSup** (SIES): graduates, every gender, nationality and regime, per establishment (Paysage id) and per diploma (master mention, BUT specialty, LP), plus the total per diploma type.
-  - Rates are among the graduates who left their studies ("sortants"). `nd` is NULL, never 0.
+  - The employment rate is among the graduates who left their studies ("sortants"); the stable-employment rate is among those in salaried employment (stable jobs / salaried, exact on all 24,952 rows with both counts; found by Codex's review). `nd` is NULL, never 0.
   - Fewer than 20 leavers: two classes are pooled (flag `*`).
   - The served horizon is 18 months, the latest published for every recent class; the latest class is served per diploma.
   - **Merged universities.** SIES keeps the former establishments' UAIs with their old classes (Paris Cité 2019 next to 2024). A diploma is therefore keyed by Paysage id, diploma, label and sector, never by UAI.
@@ -709,13 +709,13 @@ Facts checked on the real files before coding:
 - **BTS link.** Same UAI, plus a normalised label (accents, small words, plural, "1re année commune"). Statuses: ok 3,530, options 386, establishment absent 694, not published 247, not found 494.
   - Renamed or new BTS (CIEL, Banque…) have no exit cohort under their new name: no figure rather than the old diploma's.
 
-**Red team (`scripts/redteam_insertion.py`, run in CI by `tests/test_insertion.py`).** On the real data, 9/9 checks pass and 16/16 mutants are caught.
+**Red team (`scripts/redteam_insertion.py`, run in CI by `tests/test_insertion.py`).** On the real data, 9/9 checks pass and 17/17 mutants are caught.
 - **I1–I2.** Inserjeunes rows are re-read value by value; masked = NULL; the partition and the leaver identity hold.
 - **I3.** BTS link: same establishment only, options apart, renamed BTS never linked, truth table, coverage at least 75 %.
-- **I4–I5.** InserSup staging re-derived with the full key (1,516,086 values, 0 differ); identities, bounds, ordered quartiles, pooling flag.
+- **I4–I5.** InserSup staging re-derived with the full key (1,516,086 values, 0 differ); identities (employment among leavers, stable jobs among the salaried employed), bounds, ordered quartiles, pooling flag.
 - **I6–I7.** Licence and BUT blocks: B1's university and discipline, MEEF apart, latest class per diploma, totals and France.
 - **I8.** The page escapes stored strings and keeps the wording (leavers, salaried in France, not chances, options apart); nothing is averaged.
-- **I9, mutation test.** Oldest class served, a former UAI's old class served, a closed diploma served, `nd` as 0, masked value as 0, a link across establishments, a renamed BTS key, MEEF in a discipline, the staging filter dropped, and 7 UI mutants.
+- **I9, mutation test.** Oldest class served, a former UAI's old class served, a closed diploma served, `nd` as 0, masked value as 0, a link across establishments, a renamed BTS key, MEEF in a discipline, the staging filter dropped, and 8 UI mutants (one drops the stable rate's denominator).
 
 **UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
 

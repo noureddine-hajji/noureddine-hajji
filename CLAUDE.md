@@ -136,7 +136,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Inserjeunes (BTS, lycées and CFA, "cumul 2023-2024"): continuing + employed 6 months + other = 100; employment rates are
     among the LEAVERS. A BTS links to its OWN establishment (UAI) and normalised label; options are shown apart, never averaged;
     renamed BTS get no figure. No headcount is published: no reliability grade.
-  - InserSup (master, BUT, LP): rates among the leavers, `nd` = NULL, pooled classes flagged `*` (< 20 leavers), served at
+  - InserSup (master, BUT, LP): employment rates among the leavers, the STABLE rate among the salaried employed (say so), `nd` = NULL, pooled classes flagged `*` (< 20 leavers), served at
     18 months, latest class per diploma. No discipline aggregate exists per university: masters are listed one by one.
     A diploma is (Paysage id, diploma, label, sector), NEVER the UAI: merged universities keep their former UAIs with old classes.
     Only the latest national class is served (closed diplomas counted, not shown); several parts that year = no figure.

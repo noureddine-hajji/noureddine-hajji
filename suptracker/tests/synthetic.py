@@ -731,8 +731,11 @@ def make_insertion_raw(raw_dir: Path) -> dict:
             r[f"flag_{h}"] = flag
             r[f"nb_sortants_en_emploi_sal_fr_{h}"] = None if late or h == 6 else (str(round(n * emp / 100)) if emp is not None else "nd")
             r[f"tx_sortants_en_emploi_sal_fr_{h}"] = None if late else (str(round(100 * round(n * emp / 100) / n, 2)) if emp is not None else "nd")
-            r[f"tx_sortants_en_emploi_stable_{h}"] = None if late else (str(stable) if stable is not None else "nd")
-            r[f"nb_sortants_en_emploi_stable_{h}"] = None
+            # the stable rate is among the salaried employed (as SIES publishes it), not among the leavers
+            e_ = round(n * emp / 100) if emp is not None else None
+            s_ = round(e_ * stable / 100) if e_ and stable is not None else None
+            r[f"tx_sortants_en_emploi_stable_{h}"] = None if late else (str(round(100 * s_ / e_, 2)) if s_ is not None else "nd")
+            r[f"nb_sortants_en_emploi_stable_{h}"] = None if late or s_ is None else str(s_)
             for q in (1, 2, 3):
                 r[f"salaire_q{q}_{h}"] = None if late else ("nd" if q2 == "nd" else str(int(q2) + (q - 2) * 300))
         return r

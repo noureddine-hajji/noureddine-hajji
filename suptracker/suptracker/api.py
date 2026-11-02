@@ -209,7 +209,7 @@ METHODOLOGY = {
         "Quand un BTS a plusieurs options publiées séparément, chacune garde ses chiffres. Un BTS rénové ou nouveau n'a pas "
         "encore de sortants : pas de chiffre. Pour une licence ou un BUT, InserSup (ministère de l'Enseignement supérieur) donne, "
         "pour chaque master (ou spécialité de BUT) de l'université, la part des diplômés sortis des études en emploi salarié en "
-        "France 18 mois après, et la part d'emploi stable ; le ministère ne publie pas de taux par discipline. Moins de 20 "
+        "France 18 mois après, et, parmi ceux qui ont un emploi salarié, la part en emploi stable ; le ministère ne publie pas de taux par discipline. Moins de 20 "
         "sortants : deux promotions sont réunies. Les petits effectifs sont masqués. Ce sont des résultats de promotions "
         "passées, pas des chances d'emploi."),
     "fiabilite": (
