@@ -26,6 +26,7 @@ from . import search as S
 from . import success as SU
 from . import poursuite as PO
 from . import passerelles as PA
+from . import insertion as INS
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
@@ -201,6 +202,16 @@ METHODOLOGY = {
         "part des admis déjà inscrits dans l'université et la répartition par origine sont calculées à partir des effectifs "
         "publiés. Les masters de l'enseignement (MEEF), ouverts à toutes les licences, sont comptés à part. Ce sont des "
         "résultats passés, pas des chances."),
+    "insertion": (
+        "Insertion professionnelle : deux sources officielles. Pour un BTS, Inserjeunes (ministère de l'Éducation nationale) "
+        "donne, dans l'établissement même, la part des élèves de dernière année qui poursuivent leurs études et la part de ceux "
+        "qui ont quitté les études et sont en emploi salarié en France 6, 12 et 24 mois après (deux années de sortie réunies). "
+        "Quand un BTS a plusieurs options publiées séparément, chacune garde ses chiffres. Un BTS rénové ou nouveau n'a pas "
+        "encore de sortants : pas de chiffre. Pour une licence ou un BUT, InserSup (ministère de l'Enseignement supérieur) donne, "
+        "pour chaque master (ou spécialité de BUT) de l'université, la part des diplômés sortis des études en emploi salarié en "
+        "France 18 mois après, et la part d'emploi stable ; le ministère ne publie pas de taux par discipline. Moins de 20 "
+        "sortants : deux promotions sont réunies. Les petits effectifs sont masqués. Ce sont des résultats de promotions "
+        "passées, pas des chances d'emploi."),
     "fiabilite": (
         "Fiabilité d'un chiffre, notée par des règles fixes, les mêmes partout sur le site. A (solide) : au moins 100 "
         "personnes, une cohorte de 3 ans au plus, un rattachement par l'identifiant officiel de l'établissement "
@@ -430,7 +441,15 @@ def formation(cod: str, session: int | None = None):
             "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "but": _but_block(rec),
             "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
-            "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))}
+            "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
+            "insertion": _insertion_block(rec)}
+
+
+def _insertion_block(rec: dict) -> dict | None:
+    """Sprint 8: BTS (Inserjeunes, this establishment) or licence (InserSup, the university's masters)."""
+    con = _con().cursor()
+    return (INS.for_bts(con, rec["cod_aff_form"], rec.get("fili"))
+            or INS.for_licence(con, rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")))
 
 
 def _but_block(rec: dict) -> dict | None:
@@ -438,6 +457,7 @@ def _but_block(rec: dict) -> dict | None:
     b = PO.but_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab"))
     if b is not None:
         b["masters_but3"] = PA.for_but(_con().cursor(), b.get("etab"))
+        b["insertion"] = INS.for_but(_con().cursor(), b.get("etab"), (b.get("specialite") or {}).get("code"), b.get("lien"))
     return b
 
 
@@ -724,7 +744,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion"]
 
 
 @lru_cache(maxsize=1)

@@ -64,6 +64,8 @@ GLOSSARY = {
                       "un BUT ou une école. Les chiffres du site disent combien d'inscrits en L1 l'ont fait, et vers quoi.", "passerelles"),
     "monmaster": ("MonMaster", "La plateforme nationale de candidature en master (comme Parcoursup après le bac). Ses chiffres "
                   "comptent des candidatures (vœux) et des admis, formation par formation.", "passerelles"),
+    "insertion": ("Insertion professionnelle", "Ce que deviennent les diplômés après leurs études : la part en emploi salarié en France "
+                  "quelques mois après, parmi ceux qui ont quitté les études. Ceux qui continuent leurs études ne sont pas comptés.", "insertion"),
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer ta liste, calculé à partir des admis des "

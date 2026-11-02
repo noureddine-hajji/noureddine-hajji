@@ -39,11 +39,11 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         journey.build_journey(con)
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
-        insertion.build_raw(con, raw_dir)
         calibration.build_calibration(con)
         src = success.source_path() if success_source is _SOURCE else success_source
         success.attach(con, src)
         passerelles.build(con, raw_dir, reo_source=src)
+        insertion.build(con, raw_dir)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
