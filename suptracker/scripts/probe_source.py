@@ -52,8 +52,11 @@ def main(page: str, pattern: str, out: str) -> None:
                           "sha256": hashlib.sha256(body).hexdigest()})
             print(f"{name}: {len(body)} bytes")
     (dest / "index.json").write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding="utf-8")
+    # every link of the page, so that a download without a file extension (or behind a button) can be found
+    (dest / "links.json").write_text(json.dumps(sorted(set(urljoin(page, h) for h in hrefs)), indent=1, ensure_ascii=False),
+                                     encoding="utf-8")
     if not index:
-        sys.exit("no file matched")
+        print("no file matched: page.html and links.json are committed for inspection")
 
 
 if __name__ == "__main__":
