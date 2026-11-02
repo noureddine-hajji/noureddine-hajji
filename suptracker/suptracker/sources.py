@@ -65,6 +65,10 @@ SOURCES = (
      "access": "ods", "datasets": ("inserjeunes_lycee", "inserjeunes_cfa"), "granularity": "établissement × formation",
      "keys": ("uai",), "feeds": ("insertion",), "status": "en_ligne", "sprint": 8, "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/inserjeunes-voie-professionnelle-scolaire-par-etablissement-relevant-du-ministere-de-leducation-nationale-et-formation-fine"},
+    {"key": "crous_logement", "title": "Logements étudiants du réseau des CROUS", "producer": "CNOUS / MESR",
+     "access": "ods", "datasets": ("crous_logement",), "granularity": "résidence (coordonnées GPS)",
+     "keys": ("lat", "lon"), "feeds": ("crous",), "status": "en_ligne", "sprint": 9, "licence": LICENCE_OUVERTE,
+     "url": "https://www.data.gouv.fr/datasets/ensemble-des-logements-proposes-aux-etudiants-par-le-reseau-des-crous"},
 )
 
 ACCESS = ("ods", "owner_upload", "planned")

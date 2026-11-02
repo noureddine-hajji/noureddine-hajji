@@ -65,6 +65,8 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("insersup", ("fr-esr-insersup",), "insertion"),
     Dataset("inserjeunes_lycee", ("fr-en-inserjeunes-lycee_pro-formation-fine",), "insertion", base=EDU_ODS_BASE),
     Dataset("inserjeunes_cfa", ("fr-en-inserjeunes-cfa-formation_fine",), "insertion", base=EDU_ODS_BASE),
+    # Sprint 9, B5: the CROUS residences (CNOUS feeds, republished by the ministry's portal)
+    Dataset("crous_logement", ("fr_crous_logement_france_entiere",), "vie_etudiante"),
 )
 
 
