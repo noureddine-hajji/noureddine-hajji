@@ -30,6 +30,7 @@ def build_raw(con, raw_dir: Path = config.RAW_DIR) -> dict:
         path = Path(raw_dir) / f"{key}.parquet"
         if not path.exists():
             con.execute(f"CREATE TABLE IF NOT EXISTS ref.{key}_sample (_absent BOOLEAN)")
+            con.execute(f"CREATE TABLE IF NOT EXISTS ref.{key} (_absent BOOLEAN)")
             out[key] = None
             continue
         src = f"read_parquet('{path}')"
@@ -42,5 +43,17 @@ def build_raw(con, raw_dir: Path = config.RAW_DIR) -> dict:
             con.execute("INSERT INTO ref.insertion_profile VALUES (?, ?, ?, ?, ?, ?, ?)",
                         [key, n, col, typ, nn, nd, json.dumps(top, ensure_ascii=False)])
         con.execute(f"CREATE OR REPLACE TABLE ref.{key}_sample AS SELECT * FROM {src} USING SAMPLE reservoir({SAMPLE_ROWS} ROWS) REPEATABLE (42)")
+        con.execute(f"CREATE OR REPLACE TABLE ref.{key} AS SELECT * FROM {src} WHERE {KEEP[key]}")
         out[key] = n
     return out
+
+
+# The rows the feature can use (the rest would only be breakdowns a student page never shows)
+KEEP = {
+    # graduates, every gender / nationality / regime, aggregated over diplomas and sectors (per
+    # establishment x diploma type x discipline, national rows included)
+    "insersup": """obtention_diplome = 'diplômé' AND genre = 'ensemble' AND nationalite = 'ensemble'
+                   AND regime_inscription = 'ensemble' AND diplome = 'all' AND sectdis = 'all'""",
+    "inserjeunes_lycee": "type_diplome = 'BTS'",
+    "inserjeunes_cfa": "type_diplome = 'BTS'",
+}
