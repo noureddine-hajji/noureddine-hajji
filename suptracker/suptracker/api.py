@@ -30,6 +30,7 @@ from . import insertion as INS
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
+from . import prevision as PV
 from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
@@ -228,6 +229,15 @@ METHODOLOGY = {
         "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
         "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
         "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+    "prevision": (
+        "Prévision pour la campagne suivante (la dernière publiée + 1) : pour chaque indicateur publié avec au moins deux "
+        "campagnes d'historique, une fourchette à 80 %. Le point de départ est la moyenne des deux dernières campagnes, la "
+        "dernière, ou la moyenne de toutes, celle qui s'est le moins trompée en 2024. La largeur de la fourchette vient des "
+        "erreurs passées de formations de même taille : elle est plus large pour les petites formations. La méthode a été "
+        "réglée sur 2024, puis testée sur 2025 sans l'avoir vue : pour chaque indicateur, la part des vraies valeurs 2025 "
+        "tombées dans leur fourchette est affichée telle quelle (l'objectif est 80 %). Le taux d'accès reprend la fourchette "
+        "du repère de Mon parcours. Chaque fourchette est calculée séparément : les trois parts de terminales n'ont pas à "
+        "faire 100 % ensemble. C'est une estimation, pas un chiffre officiel, et jamais une chance d'admission."),
     "repere": (
         "Repère pour la prochaine campagne : deux fourchettes et une stabilité, calculées sur les campagnes 2022 à 2025. "
         "Fourchette du taux d'accès officiel et fourchette de la part d'admis ayant ta mention ou moins (tous bacs confondus), "
@@ -442,7 +452,8 @@ def formation(cod: str, session: int | None = None):
             "but": _but_block(rec),
             "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
-            "insertion": _insertion_block(rec)}
+            "insertion": _insertion_block(rec),
+            "prevision": PV.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -744,7 +755,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision"]
 
 
 @lru_cache(maxsize=1)

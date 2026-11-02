@@ -55,6 +55,10 @@ GLOSSARY = {
     "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
                "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
                "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
+    "prevision": ("Prévision (fourchette n+1)", "Pour la prochaine campagne, l'intervalle où devrait se trouver un indicateur "
+                  "publié (taux d'accès, admis, part des terminales générales...), d'après les campagnes passées. Elle est "
+                  "testée sur l'année 2025, cachée pendant le réglage : on affiche combien de vraies valeurs sont tombées dedans. "
+                  "C'est une estimation, pas une chance d'admission.", "prevision"),
     "but": ("BUT (bachelor universitaire de technologie)", "Un diplôme en 3 ans préparé dans un IUT (institut universitaire de "
             "technologie), qui fait partie d'une université. Les chiffres de réussite publiés par le SIES sont donnés par "
             "université, toutes spécialités confondues.", "but"),

@@ -680,6 +680,49 @@ Facts checked on the real files before coding:
 
 **UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
 
+## Next-campaign forecast of every indicator (formation page)
+
+**What the student sees.**
+- Under the three headline indicators of a formation page, a "Prévision 2026" line:
+  - the access rate;
+  - the share of terminales générales among the candidates called in the main phase;
+  - the number of admits.
+- A "Prévision 2026" card lists every forecast indicator in three groups: access and called candidates, volumes (vœux, ranked, proposals, admits, capacity), and the admits' profile. Each row shows:
+  - the 2025 published value;
+  - the 2026 range at 80 %;
+  - the share of 2025 values that fell inside their range when the method was tested.
+- An indicator tested below 75 % is flagged "moins fiable".
+- A past campaign's page shows no forecast.
+
+**Method (`suptracker/prevision.py`), the sprint-5 "repère" generalised, checked on real data first.**
+- **Which formations.** A formation needs at least 2 campaigns with a value. It must be in the latest campaign. For the access rate, the count is of campaigns with a published rate, not sprint 5's campaign count (found by Codex's review).
+- **Point forecast.** The last campaign, the mean of the last two, or the mean of all, chosen per indicator on 2024. The mean of the last two wins everywhere, except capacity (the last campaign).
+- **80 % range.** The 10th and 90th percentiles of the past errors, per stratum: size of the last campaign × campaigns of history.
+  - Rates use errors in points and are clipped to [0, 100].
+  - Counts use proportional errors (`log((y + 1) / (hat + 1))`) and are rounded outwards to whole numbers.
+- **Hold-out.** The method is set on 2024 and tested on 2025 without seeing it. The served 2026 ranges use the errors of 2024 and 2025.
+- **Access rate.** It is not re-forecast: its range is sprint 5's (`mart.forecast`), so "Mon parcours" and the formation page agree.
+- **Zero-admit campaigns.** Their admits' shares (`pct_*`) are 0 % by convention. They are ignored, never forecast from or for.
+- **What the hold-out showed (2025).**
+  - Coverage is measured on the range the page SHOWS: counts are rounded outwards to whole numbers, so they cover more than the nominal 80 %. Admits reach 86 %, admits by bac 92 % and vœux 84 %. The admits' profile is at 78-81 % (found by Codex's review).
+  - The share of terminales générales among called candidates reaches only 70 % and is flagged.
+  - The ranges are wide for small formations. For the access rate, about ±8 points for 100+ admits and -18/+16 points under 30. For admits, ×0.88-1.08 at 100+ and ×0.67-1.50 under 30.
+  - The forecast beats "same as last year" only slightly.
+- **Size.** 384,000 rows add 5.5 MB to the warehouse.
+
+**Red team (`scripts/redteam_prevision.py`, run in CI by `tests/test_prevision.py`).** On the real data, 7/7 checks pass and 17/17 mutants are caught.
+- **P1.** Independent re-implementation (own SQL loader, numpy quantiles, own strata and bounds). For all 29 indicators, the predictor chosen on 2024 and the 2025 coverage equal the report.
+- **P2.** All 383,581 served ranges are re-derived (point, bounds, last value, campaigns). Counts are whole, rates are within [0, 100].
+- **P3.** No admits' share is forecast for a zero-admit campaign.
+- **P4.** The 13,292 access-rate ranges equal sprint 5's, each with two published rates, and so does its coverage.
+- **P5.** The API serves only the latest campaign's page, in order, with the fragile flag.
+- **P6.** The page escapes labels, reads every figure from the data, and never says "chance".
+- **P7, mutation test.** Two edge formations are injected so every mutant can bite: a zero-admit latest campaign, and a formation that stopped.
+  - Data mutants: hold-out leakage, predictor and ranges set on the hold-out, additive count ranges, unclipped rates, one campaign served, strata without size, 90 % instead of 80 %, zero-admit shares used, stopped formations forecast, coverage tested on the unrounded interval.
+  - UI mutants: the card not wired, a headline line not wired, an unescaped label, a hard-coded level, the caveat dropped, the flag dropped, a probability wording.
+
+**UI check (Playwright):** light, dark and mobile, plus a past campaign. 0 JS errors, no horizontal page scroll.
+
 ## Professional insertion (sprint 8, formation page)
 
 **What the student sees.**

@@ -206,10 +206,11 @@ async function viewFormation(cod, session) {
   ${d.warnings.map((w) => `<div class="warn">⚠ ${esc(w.text)}</div>`).join("")}
   <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
     <div class="grid3">
-      <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div></div>
-      <div><div class="muted small">Part des terminales générales parmi les candidats appelés (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div></div>
-      <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div></div>
+      <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div>${pvLine(d.prevision, "taux_acces_ens")}</div>
+      <div><div class="muted small">Part des terminales générales parmi les candidats appelés (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
+      <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
+  ${previsionCard(d.prevision)}
   ${offerCard(r)}
   ${timingCard(r, d.history)}
   ${successCard(d.success)}
@@ -484,6 +485,34 @@ function passerellesCard(p) {
     <h3 class="small">Après la licence : les masters de l'université dans cette discipline (MonMaster)</h3>
     ${mastersBox(p)}
     <p class="muted small">Sources : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-29 (réorientations) et MonMaster (candidatures et admissions en master). Résultats passés, pas des chances de réussite ou d'admission.</p></div>`;
+}
+
+// ---- Prévision n+1: calibrated ranges of every published indicator with a history (never a probability) ----
+const PV_GROUPS = [["acces", "Accès et candidats appelés"], ["volumes", "Volumes : vœux, classés, admis"], ["admis", "Profil des admis"]];
+const pvVal = (i, v) => (v == null ? "—" : i.kind === "taux" ? `${fmt(v, 1)}\u00a0%` : fmt(v));
+const pvRange = (i) => `${pvVal(i, i.lo)} à ${pvVal(i, i.hi)}`;
+const pvCov = (i) => (i.coverage == null ? "non testée" : `${fmt(100 * i.coverage, 0)}\u00a0% dans la fourchette en ${i.holdout_year}`);
+function pvLine(p, key) {
+  const i = p && p.indicators.find((x) => x.indicator === key);
+  if (!i) return "";
+  return `<div class="small">Prévision ${esc(p.target)} : <strong class="nowrap">${pvRange(i)}</strong> ${tip("prevision")}${i.fragile ? ' <span class="muted">(fourchette moins fiable)</span>' : ""}</div>`;
+}
+function previsionCard(p) {
+  if (!p || !p.indicators.length) return "";
+  p.indicators.forEach((i) => { i.holdout_year = p.holdout; });
+  const block = ([g, title], open) => {
+    const its = p.indicators.filter((i) => i.group === g);
+    if (!its.length) return "";
+    const rows = its.map((i) => `<tr><td>${esc(label(i.indicator))}</td><td class="num">${pvVal(i, i.last)}</td>
+      <td class="num"><strong class="nowrap">${pvRange(i)}</strong></td>
+      <td class="small">${pvCov(i)}${i.fragile ? " · <strong>moins fiable</strong>" : ""}</td></tr>`).join("");
+    return `<details ${open ? "open" : ""}><summary><strong>${esc(title)}</strong> (${its.length})</summary><div class="scroll"><table>
+      <tr><th>Indicateur</th><th class="num">${esc(p.last_session)} publié</th><th class="num">${esc(p.target)} estimé (fourchette à ${fmt(100 * p.level, 0)}\u00a0%)</th><th>Testé sur ${esc(p.holdout)}</th></tr>${rows}</table></div></details>`;
+  };
+  return `<div class="card"><h2>Prévision ${esc(p.target)} ${tip("prevision")}</h2>
+    <p class="small">Fourchettes estimées pour la campagne ${esc(p.target)} à partir des campagnes passées de cette formation. La méthode a été réglée sur ${esc(p.calibration)} puis testée sur ${esc(p.holdout)} sans l'avoir vue : la dernière colonne dit combien de vraies valeurs ${esc(p.holdout)} sont tombées dans leur fourchette (objectif ${fmt(100 * p.level, 0)}\u00a0%).</p>
+    ${PV_GROUPS.map((g, k) => block(g, k === 0)).join("")}
+    <p class="muted small">Ce sont des estimations, pas des chiffres officiels, et jamais des chances d'admission. Chaque fourchette est calculée séparément. Les petites formations ont des fourchettes plus larges.</p></div>`;
 }
 
 // ---- Sprint 8: insertion (BTS: Inserjeunes, this establishment; licence: InserSup, the university's masters) ----
