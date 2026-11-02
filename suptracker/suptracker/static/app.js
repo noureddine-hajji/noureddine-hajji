@@ -518,10 +518,12 @@ function insertionCard(x) {
   const dupM = twice(x.masters, "libelle");
   const ms = x.masters.slice(0, 10).map((m) => insRow(`Master ${esc(m.libelle)}${dupM(m) ? ` <span class="muted small">(${esc(m.sectdis_lib)})</span>` : ""}`, m)).join("");
   const more = x.masters.length > 10 ? `<p class="muted small">… et ${fmt(x.masters.length - 10)} autres masters de cette discipline.</p>` : "";
+  const old = x.anciens ? `<p class="muted small">${fmt(x.anciens)} ancien${x.anciens > 1 ? "s" : ""} diplôme${x.anciens > 1 ? "s" : ""} sans promotion ${esc(x.annee)} (fermé${x.anciens > 1 ? "s" : ""} ou renommé${x.anciens > 1 ? "s" : ""}, par exemple avant une fusion d'universités) non affiché${x.anciens > 1 ? "s" : ""}.</p>` : "";
+  const parts = (x.en_parties || []).length ? `<p class="muted small">Publiés en plusieurs parties pour la dernière promotion, donc sans chiffre unique : ${x.en_parties.map((l) => `master ${esc(l)}`).join(", ")}.</p>` : "";
   return `<div class="card"><h2>${head}</h2>
     <p class="small">Après un master de <strong>${esc(x.etab_label)}</strong> en ${esc(x.discipline_label)} : chaque master avec ses propres chiffres (le ministère ne publie pas de taux par discipline).</p>
     <div class="scroll"><table>${INS_HEAD}${ms}
-      ${insRow("<strong>Tous les masters de l'université</strong>", x.total)}${insRow("<strong>Tous les masters, France</strong>", x.france)}</table></div>${more}
+      ${insRow("<strong>Tous les masters de l'université</strong>", x.total)}${insRow("<strong>Tous les masters, France</strong>", x.france)}</table></div>${more}${parts}${old}
     <p class="muted small">${INS_NOTE}</p>
     <p class="muted small">Source : InserSup (ministère de l'Enseignement supérieur, SIES).</p></div>`;
 }

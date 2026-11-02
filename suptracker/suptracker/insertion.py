@@ -262,16 +262,34 @@ def for_bts(con, cod: str, fili: str | None) -> dict | None:
     return out
 
 
-def _latest(rows):
-    """For each diploma, the row of its most recent graduating class with an 18-month figure."""
-    best = {}
+def _latest(rows, parts=None):
+    """For each diploma, the row of its most recent graduating class with an 18-month figure.
+
+    A diploma is (Paysage id, diploma, label, sector), NOT the UAI: after a merger SIES keeps the
+    former establishments' UAIs with their old classes (Paris Cité 2019 next to 2024), which must never
+    be served as the university's figure. When the latest class is published in several parts (two
+    UAIs the same year), there is no single figure: the diploma is withheld and listed in `parts`."""
+    groups = {}
     for r in rows:
         if r[f"nb_sortants_{SERVED_HORIZON}"] is None and r["masked"].get(f"nb_sortants_{SERVED_HORIZON}") is None:
             continue
-        k = (r["id_paysage"], r["diplome"], r["libelle"], r["etablissement"], r["sectdis_lib"])
-        if k not in best or (r["last_year"] or 0) > (best[k]["last_year"] or 0):
-            best[k] = r
-    return list(best.values())
+        groups.setdefault((r["id_paysage"], r["diplome"], r["libelle"], r["sectdis_lib"]), []).append(r)
+    out = []
+    for g in groups.values():
+        y = max(r["last_year"] or 0 for r in g)
+        top = [r for r in g if (r["last_year"] or 0) == y]
+        if len(top) == 1:
+            out.append(top[0])
+        elif parts is not None:
+            parts.append(top[0])
+    return out
+
+
+def _current(rows, year):
+    """Only the diplomas of the latest class published nationally (`year`): a diploma whose last class is
+    older was closed or renamed (former universities before a merger, the pre-2020 master nomenclature),
+    and its old figures are not shown as the university's current offer."""
+    return [r for r in rows if year is not None and r["last_year"] == year]
 
 
 def _grade(r, lien):
@@ -298,16 +316,24 @@ def for_licence(con, cod: str, fili: str | None, contrat: str | None, paysage: d
         return out
     pid = (SU.SIES_PAYSAGE if paysage is None else paysage).get(etab)
     rows = _rows(con, "SELECT * FROM core.insersup WHERE id_paysage = ? AND type_diplome = 'Master LMD'", [pid]) if pid else []
-    ms = sorted(_latest([r for r in rows if r["diplome"] != "all" and r["discipline"] == disc]),
-                key=lambda r: (-(r[f"nb_sortants_{SERVED_HORIZON}"] or 0), r["libelle"] or ""))
+    nat = _latest(_rows(con, "SELECT * FROM core.insersup WHERE id_paysage = 'all' AND type_diplome = 'Master LMD' AND diplome = 'all'", []))
+    out["france"] = nat[0] if nat else None
+    year = out["france"]["last_year"] if out["france"] else None
+    parts = []
+    every = _latest([r for r in rows if r["diplome"] != "all" and r["discipline"] == disc], parts)
+    ms = sorted(_current(every, year), key=lambda r: (-(r[f"nb_sortants_{SERVED_HORIZON}"] or 0), r["libelle"] or ""))
     for r in ms:
         r["maillon"] = _grade(r, lien)
     out["masters"] = ms
-    tot = _latest([r for r in rows if r["diplome"] == "all"])
-    out["total"] = tot[0] if tot else None
-    nat = _latest(_rows(con, "SELECT * FROM core.insersup WHERE id_paysage = 'all' AND type_diplome = 'Master LMD' AND diplome = 'all'", []))
-    out["france"] = nat[0] if nat else None
-    if not ms:
+    cur_parts = _current(parts, year)
+    # closed or renamed diplomas (last class before `year`, published whole or in parts): counted, not shown
+    out["anciens"] = len(every) - len(ms) + len(parts) - len(cur_parts)
+    out["annee"] = year
+    parts = cur_parts
+    out["en_parties"] = sorted({r["libelle"] or "" for r in parts})
+    tot = _current(_latest([r for r in rows if r["diplome"] == "all"]), year)
+    out["total"] = tot[0] if len(tot) == 1 else None     # several parts, or no class this year: no single university figure
+    if not ms and not parts:
         out.update(status="non_publie", reason="InserSup ne publie pas de master de cette discipline pour cette université")
     return out
 
@@ -319,13 +345,17 @@ def for_but(con, etab: str | None, specialite: str | None, lien: str | None = No
     pid = (SU.SIES_PAYSAGE if paysage is None else paysage).get(etab) if etab else None
     rows = _rows(con, "SELECT * FROM core.insersup WHERE type_diplome = 'Bachelor universitaire de technologie' AND id_paysage IN (?, 'all')",
                  [pid or "-"])
-    def pick(pid_, spe):
+    def pick(pid_, spe, year=None):
         c = [r for r in rows if r["id_paysage"] == pid_ and ((spe is None and r["diplome"] == "all")
              or (spe is not None and r["diplome"] != "all" and PO._key(r["libelle"]) == spe))]
         c = _latest(c)
+        if year is not None:
+            c = _current(c, year)               # a specialty or total without the latest national class: not shown
         return c[0] if len(c) == 1 else None    # published in several parts (sites, sectors): no single figure
-    out = {"specialite": pick(pid, specialite) if pid and specialite else None, "total": pick(pid, None) if pid else None,
-           "france_specialite": pick("all", specialite) if specialite else None, "france": pick("all", None)}
+    france = pick("all", None)
+    year = france["last_year"] if france else None
+    out = {"specialite": pick(pid, specialite, year) if pid and specialite else None, "total": pick(pid, None, year) if pid else None,
+           "france_specialite": pick("all", specialite, year) if specialite else None, "france": france}
     for k in ("specialite", "total"):
         if out[k]:
             out[k]["maillon"] = _grade(out[k], lien)

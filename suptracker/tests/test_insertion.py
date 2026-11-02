@@ -53,6 +53,7 @@ def test_blocks(syn):
     assert [x["libelle"] for x in m["masters"]] == ["DROIT PRIVE", "DROIT PUBLIC"] and m["masters"][0]["promo"] == "2024"
     assert m["masters"][1]["tx_sortants_en_emploi_sal_fr_18"] is None and m["masters"][1]["masked"]["tx_sortants_en_emploi_sal_fr_18"] == "nd"
     assert m["total"]["tx_sortants_en_emploi_sal_fr_18"] == 68.0 and m["france"]["id_paysage"] == "all"
+    assert m["total"]["etablissement"] == "0751234A" and m["en_parties"] == ["DROIT DES AFFAIRES"] and m["anciens"] == 2   # former UAI never served
     u = I.for_but(c.con, "UNIVERSITE EXEMPLE PARIS (CITE)", PO._key("Gestion des entreprises et des administrations"), paysage=INSERTION_PAYSAGE)
     assert u["specialite"]["diplome"] == "B1" and u["france_specialite"]["id_paysage"] == "all"
 

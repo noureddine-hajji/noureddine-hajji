@@ -718,11 +718,11 @@ def make_insertion_raw(raw_dir: Path) -> dict:
 
     H = (6, 12, 18, 24, 30)
 
-    def isr(pid, uo, typ, dip, lib, disc, promo, n, emp, stable, flag=None, keep=True, genre="ensemble", q2="nd"):
+    def isr(pid, uo, typ, dip, lib, disc, promo, n, emp, stable, flag=None, keep=True, genre="ensemble", q2="nd", uai="0751234A"):
         r = {"date_jeu": "2026_S1", "reg_nom": "X", "aca_nom": "X", "uo_lib": uo, "uo_lib_actuel": uo, "id_paysage": pid,
              "id_paysage_actuel": pid, "type_diplome_long": typ, "diplome": dip, "libelle_diplome": lib, "discipli_lib": disc,
              "sectdis": "all" if dip == "all" else "36", "sectdis_lib": "Tous secteurs" if dip == "all" else "Secteur exemple",
-             "etablissement": "all" if pid == "all" else "0751234A", "source": "insersup", "obtention_diplome": "diplômé" if keep else "ensemble",
+             "etablissement": "all" if pid == "all" else uai, "source": "insersup", "obtention_diplome": "diplômé" if keep else "ensemble",
              "genre": genre, "nationalite": "ensemble", "regime_inscription": "ensemble", "promo": promo}
         for h in H:
             late = h >= 24 and promo.endswith("2024")
@@ -748,6 +748,17 @@ def make_insertion_raw(raw_dir: Path) -> dict:
             isr("PARIS", P, "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 200, 65.0, 68.0),
             isr("all", "National", "Bachelor universitaire de technologie", "B1", "GESTION DES ENTREPRISES ET DES ADMINISTRATIONS", "Sciences économiques, gestion", "2024", 1400, 64.0, 70.0),
             isr("all", "National", "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 11000, 69.0, 70.0),
+            # a merged university: SIES keeps the former UAI with its old classes (never served), and a master whose
+            # latest class is published in two parts (two UAIs the same year: withheld, listed)
+            isr("PARIS", P, "Master LMD", "all", "Tout master LMD", "Toutes disciplines", "2019", 500, 50.0, 50.0, uai="0750000Z"),
+            isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2019", 70, 40.0, 40.0, uai="0750000Z"),
+            isr("PARIS", P, "Master LMD", "M4", "DROIT DES AFFAIRES", "Droit, sciences politiques", "2024", 30, 75.0, 70.0),
+            isr("PARIS", P, "Master LMD", "M4", "DROIT DES AFFAIRES", "Droit, sciences politiques", "2024", 25, 77.0, 72.0, uai="0750000Z"),
+            # a closed master (pre-merger nomenclature): its last class is 2019, it is counted, never shown
+            isr("PARIS", P, "Master LMD", "M9", "DROIT, ECONOMIE, GESTION : DROIT", "Droit, sciences politiques", "2019", 60, 55.0, 50.0, uai="0750000Z"),
+            # a closed master published in two parts in its last class: counted once, never shown
+            isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 30, 60.0, 50.0),
+            isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 25, 62.0, 52.0, uai="0750000Z"),
             # dropped by the staging: a breakdown by gender, and all leavers (not only graduates)
             isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 40, 10.0, 10.0, genre="femme"),
             isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 120, 10.0, 10.0, keep=False)]

@@ -138,6 +138,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     renamed BTS get no figure. No headcount is published: no reliability grade.
   - InserSup (master, BUT, LP): rates among the leavers, `nd` = NULL, pooled classes flagged `*` (< 20 leavers), served at
     18 months, latest class per diploma. No discipline aggregate exists per university: masters are listed one by one.
+    A diploma is (Paysage id, diploma, label, sector), NEVER the UAI: merged universities keep their former UAIs with old classes.
+    Only the latest national class is served (closed diplomas counted, not shown); several parts that year = no figure.
   - Only a profile and the usable rows are staged (`insertion.KEEP`): the warehouse must stay under 95 MB.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.

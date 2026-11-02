@@ -268,9 +268,11 @@ def i5(c: Ctx):
     return not bad, f"{len(bad)} broken {bad[:3]}; published stable rates above 100 % (not served) {len(quirks)} {quirks[:2]}"
 
 
-def ref_latest(rows, pid, typ, disc=None, diplome_all=False):
-    """Independent: per diploma, the row with the greatest last year among those with an 18-month leavers figure."""
-    best = {}
+def ref_latest(rows, pid, typ, disc=None, diplome_all=False, parts=None, year=None, old=None):
+    """Independent: per diploma (diploma, label, sector; any UAI of the university, since merged universities
+    keep their former UAIs with old classes), the rows of the greatest last year with an 18-month leavers
+    figure; served only when that class has a single row, otherwise the diploma goes to `parts`."""
+    years = {}
     for r in rows:
         if r["id_paysage"] != pid or r["type_diplome"] != typ or (r["diplome"] == "all") != diplome_all:
             continue
@@ -279,32 +281,60 @@ def ref_latest(rows, pid, typ, disc=None, diplome_all=False):
         if r[f"nb_sortants_{H}"] is None and json.loads(r["masked"]).get(f"nb_sortants_{H}") is None:
             continue
         y = max(int(x) for x in re.findall(r"\d{4}", r["promo"]))
-        k = (r["diplome"], r["libelle"], r["etablissement"], r["sectdis_lib"])
-        if k not in best or y > best[k][0]:
-            best[k] = (y, r)
-    return {k: v[1] for k, v in best.items()}
+        years.setdefault((r["diplome"], r["libelle"], r["sectdis_lib"]), []).append((y, r))
+    out = {}
+    for k, ys in years.items():
+        last = max(y for y, _ in ys)
+        if year is not None and last != year:      # closed or renamed: no class in the latest national year
+            if old is not None:
+                old.append(k)
+            continue
+        top = [r for y, r in ys if y == last]
+        if len(top) == 1:
+            out[k] = top[0]
+        elif parts is not None:
+            parts.append(k)
+    return out
 
 
-@check("I6 licence block: the university of B1's link, its masters of this discipline only (MEEF apart), the latest class per master, totals and France")
+def nat_year(rows, typ):
+    """Independent: the latest class of the national total with an 18-month figure."""
+    ys = [max(int(x) for x in re.findall(r"\d{4}", r["promo"])) for r in rows
+          if r["id_paysage"] == "all" and r["type_diplome"] == typ and r["diplome"] == "all" and r[f"nb_sortants_{H}"] is not None]
+    return max(ys) if ys else None
+
+
+@check("I6 licence block: the university of B1's link, its masters of this discipline only (MEEF apart), the latest national class only (closed diplomas counted), across the university's UAIs, parts withheld, totals and France")
 def i6(c: Ctx):
     rows = c.rows("insersup")
     pmap = c.paysage or SU.SIES_PAYSAGE
     links = c.q("SELECT cod_aff_form, etab, discipline FROM core.licence_success_link WHERE etab IS NOT NULL AND discipline IS NOT NULL")
     seen, bad, n = set(), [], 0
+    year = nat_year(rows, "Master LMD")
+    by = {}
+    for r in rows:
+        by.setdefault(r["id_paysage"], []).append(r)
     for cod, etab, disc in links:
         if (etab, disc) in seen:
             continue
         seen.add((etab, disc))
         b = I.for_licence(c.con, cod, "Licence", "Public", paysage=c.paysage)
         n += 1
-        want = ref_latest(rows, pmap.get(etab), "Master LMD", disc)
-        got = {(m["diplome"], m["libelle"], m["etablissement"], m["sectdis_lib"]): m for m in b["masters"]}
+        parts, old = [], []
+        want = ref_latest(by.get(pmap.get(etab), []), pmap.get(etab), "Master LMD", disc, parts=parts, year=year, old=old)
+        if b.get("anciens") != len(old):
+            bad.append((etab, disc, "anciens", b.get("anciens"), len(old)))
+        got = {(m["diplome"], m["libelle"], m["sectdis_lib"]): m for m in b["masters"]}
+        if len(got) != len(b["masters"]) or sorted(b.get("en_parties") or []) != sorted({k[1] or "" for k in parts}):
+            bad.append((etab, disc, "parts"))
         if set(got) != set(want) or any(got[d]["promo"] != want[d]["promo"] for d in want):
             bad.append((etab, disc, sorted(set(got) ^ set(want))[:3]))
         if any(m["discipline"] in ("meef", None) or m["type_diplome"] != "Master LMD" for m in b["masters"]):
             bad.append((etab, disc, "foreign master"))
-        tot = ref_latest(rows, pmap.get(etab), "Master LMD", diplome_all=True)
-        if (b["total"] or {}).get("promo") != (next(iter(tot.values()))["promo"] if tot else None):
+        tot = ref_latest(by.get(pmap.get(etab), []), pmap.get(etab), "Master LMD", diplome_all=True, year=year)
+        want_tot = next(iter(tot.values())) if len(tot) == 1 else None
+        if ((b["total"] or {}).get("promo"), (b["total"] or {}).get("etablissement")) != \
+                ((want_tot or {}).get("promo"), (want_tot or {}).get("etablissement")):
             bad.append((etab, "total"))
         if b["france"] and b["france"]["id_paysage"] != "all":
             bad.append((etab, "france"))
@@ -322,11 +352,16 @@ def i7(c: Ctx):
     pmap = c.paysage or SU.SIES_PAYSAGE
     pairs = set(c.q("SELECT DISTINCT etab, specialite FROM core.but_success_link WHERE etab IS NOT NULL")) if c.but_links is not None else set()
     bad, n = [], 0
+    year = nat_year(rows, "Bachelor universitaire de technologie")
+    by = {}
+    for r in rows:
+        by.setdefault(r["id_paysage"], []).append(r)
     for etab, spe in sorted(pairs, key=str)[:200]:
         b = I.for_but(c.con, etab, spe, paysage=c.paysage)
         n += 1
         pid = pmap.get(etab)
-        cand = [r for r in ref_latest(rows, pid, "Bachelor universitaire de technologie").values() if PO._key(r["libelle"]) == spe]
+        cand = [r for r in ref_latest(by.get(pid, []), pid, "Bachelor universitaire de technologie", year=year).values()
+                if PO._key(r["libelle"]) == spe]
         want = cand[0]["diplome"] if len(cand) == 1 else None      # several parts: no single figure
         if (b["specialite"] or {}).get("diplome") != want:
             bad.append((etab, spe, (b["specialite"] or {}).get("diplome"), want))
@@ -347,6 +382,11 @@ def ui(js: str) -> tuple[bool, str]:
     safe = ("esc(", "isv(", "pc1d(", "fmt(", "fiabBadge(", "promoTxt(", "insRow(", "tip(")
     raw = [m for m in re.findall(r"\$\{((?:(?!\$\{)[^}])*)\}", blk)
            if re.search(r"\.(?:libelle|libelle_formation|etab_label|discipline_label|reason|promo|voie|annee|code|sectdis_lib)\b", m) and not m.lstrip().startswith(safe)]
+    j = blk.find("x.en_parties.map(")       # the withheld masters' labels: every interpolation in the callback escaped
+    cb = blk[j: blk.find(".join(", j)] if j >= 0 else ""
+    raw += [m for m in re.findall(r"\$\{((?:(?!\$\{)[^}])*)\}", cb) if not m.lstrip().startswith(safe)]
+    if j < 0:
+        raw.append("withheld masters not listed")
     words = {"function insertionCard(": ("ont quitté les études", "pas des chances", "publiées séparément", "ne publie pas de taux par discipline",
                                          "ne publie pas les effectifs"),
              "const INS_NOTE": ("ont quitté les études", "Emploi salarié en France", "pas des chances")}
@@ -369,17 +409,18 @@ UI_MUTANTS = [
     ("leavers caveat dropped", "Taux parmi les diplômés qui ont quitté les études (ceux qui continuent ne sont pas comptés). ", ""),
     ("options averaged", 'const rows = x.rows.map(', 'const avg = x.rows.reduce((a, r) => a + (r.taux_emploi_6 || 0), 0) / x.rows.length; const rows = x.rows.map('),
     ("card not wired", "${insertionCard(d.insertion)}", ""),
+    ("unescaped withheld master label", "`master ${esc(l)}`", "`master ${l}`"),
 ]
 
 
-@check("I9 mutation test: oldest class served, 'nd' as 0, link across establishments, renamed BTS given old figures, MEEF in a discipline, staging filter dropped, UI bugs")
+@check("I9 mutation test: oldest class served, former UAI served, closed diploma served, 'nd' as 0, link across establishments, renamed BTS given old figures, MEEF in a discipline, staging filter dropped, UI bugs")
 def i9(c: Ctx):
     missed = []
     js = APP_JS.read_text()
     for name, old, new in UI_MUTANTS:
         if old not in js or ui(js.replace(old, new, 1))[0]:
             missed.append(name)
-    saved = {"latest": I._latest, "num": I._num, "links": I.build_bts_links, "key": I.bts_key, "disc": dict(PA.MASTER_DISCIPLINE),
+    saved = {"latest": I._latest, "current": I._current, "num": I._num, "links": I.build_bts_links, "key": I.bts_key, "disc": dict(PA.MASTER_DISCIPLINE),
              "keep": dict(I.KEEP), "staged": dict(c.staged)}
 
     def oldest(rows):
@@ -387,6 +428,16 @@ def i9(c: Ctx):
         for r in rows:
             k = (r["id_paysage"], r["diplome"])
             if k not in best or (r["last_year"] or 0) < (best[k]["last_year"] or 0):
+                best[k] = r
+        return list(best.values())
+
+    def per_uai(rows, parts=None):
+        best = {}
+        for r in rows:
+            if r[f"nb_sortants_{H}"] is None and r["masked"].get(f"nb_sortants_{H}") is None:
+                continue
+            k = (r["id_paysage"], r["diplome"], r["libelle"], r["etablissement"], r["sectdis_lib"])
+            if k not in best or (r["last_year"] or 0) > (best[k]["last_year"] or 0):
                 best[k] = r
         return list(best.values())
 
@@ -414,6 +465,8 @@ def i9(c: Ctx):
 
     mutants = [   # (name, apply before the rebuild, SQL applied after it, checks that must fail)
         ("oldest graduating class served", lambda: setattr(I, "_latest", oldest), None, (i6,)),
+        ("a merged university's former UAI served with its old class", lambda: setattr(I, "_latest", per_uai), None, (i6,)),
+        ("closed or renamed diplomas served with their old class", lambda: setattr(I, "_current", lambda rows, year: list(rows)), None, (i6,)),
         # InserSup's 'nd' go through the SQL insert, Inserjeunes values through _num: seed both
         ("'nd' stored as 0 (InserSup)", lambda: None,
          "UPDATE core.insersup SET tx_sortants_en_emploi_sal_fr_18 = 0 WHERE masked LIKE '%tx_sortants_en_emploi_sal_fr_18%'", (i4,)),
@@ -424,17 +477,20 @@ def i9(c: Ctx):
          "UPDATE core.insersup SET discipline = 'alsh', type_diplome = 'Master LMD' WHERE type_diplome = 'Master MEEF'", (i4, i6)),
         ("staging filter dropped (a gender breakdown kept)", no_filter, None, (i4,)),
     ]
+    serving = ("oldest graduating class served", "a merged university's former UAI served with its old class",
+               "closed or renamed diplomas served with their old class")      # they patch serving code only: no rebuild
     for name, apply, post, checks in mutants:
         try:
             apply()
-            c.rebuild()
+            if name not in serving:
+                c.rebuild()
             if post:
                 c.con.execute(post)
             caught = any(not ch(c)[0] for ch in checks)
         except Exception:  # noqa: BLE001 - a crash is a catch
             caught = True
         finally:
-            I._latest, I._num, I.build_bts_links, I.bts_key = saved["latest"], saved["num"], saved["links"], saved["key"]
+            I._latest, I._current, I._num, I.build_bts_links, I.bts_key = saved["latest"], saved["current"], saved["num"], saved["links"], saved["key"]
             PA.MASTER_DISCIPLINE.clear(), PA.MASTER_DISCIPLINE.update(saved["disc"])
             c.staged = dict(saved["staged"])
         if not caught:
