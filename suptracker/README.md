@@ -709,13 +709,13 @@ Facts checked on the real files before coding:
 - **BTS link.** Same UAI, plus a normalised label (accents, small words, plural, "1re année commune"). Statuses: ok 3,530, options 386, establishment absent 694, not published 247, not found 494.
   - Renamed or new BTS (CIEL, Banque…) have no exit cohort under their new name: no figure rather than the old diploma's.
 
-**Red team (`scripts/redteam_insertion.py`, run in CI by `tests/test_insertion.py`).** On the real data, 9/9 checks pass and 17/17 mutants are caught.
+**Red team (`scripts/redteam_insertion.py`, run in CI by `tests/test_insertion.py`).** On the real data, 9/9 checks pass and 18/18 mutants are caught.
 - **I1–I2.** Inserjeunes rows are re-read value by value; masked = NULL; the partition and the leaver identity hold.
 - **I3.** BTS link: same establishment only, options apart, renamed BTS never linked, truth table, coverage at least 75 %.
 - **I4–I5.** InserSup staging re-derived with the full key (1,516,086 values, 0 differ); identities (employment among leavers, stable jobs among the salaried employed), bounds, ordered quartiles, pooling flag.
-- **I6–I7.** Licence and BUT blocks: B1's university and discipline, MEEF apart, latest class per diploma, totals and France.
+- **I6–I7.** Licence and BUT blocks: B1's university and discipline, MEEF apart, latest class per diploma, totals and France. InserSup spells BUT specialties as Parcoursup does ("Science des données", former STID): sprint 6's `SPECIALTY_ALIASES` apply, and all 24 specialties keep their national row (found by Codex's review).
 - **I8.** The page escapes stored strings and keeps the wording (leavers, salaried in France, not chances, options apart); nothing is averaged.
-- **I9, mutation test.** Oldest class served, a former UAI's old class served, a closed diploma served, `nd` as 0, masked value as 0, a link across establishments, a renamed BTS key, MEEF in a discipline, the staging filter dropped, and 8 UI mutants (one drops the stable rate's denominator).
+- **I9, mutation test.** Oldest class served, a former UAI's old class served, a closed diploma served, BUT aliases ignored, `nd` as 0, masked value as 0, a link across establishments, a renamed BTS key, MEEF in a discipline, the staging filter dropped, and 8 UI mutants (one drops the stable rate's denominator).
 
 **UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
 

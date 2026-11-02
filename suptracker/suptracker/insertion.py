@@ -338,6 +338,13 @@ def for_licence(con, cod: str, fili: str | None, contrat: str | None, paysage: d
     return out
 
 
+def _spe(label):
+    """InserSup BUT specialty label -> the sprint-6 specialty key. InserSup spells specialties as Parcoursup does
+    ("Science des données", "Science et génie des matériaux"...): the same explicit aliases apply."""
+    k = PO._key(label)
+    return PO.SPECIALTY_ALIASES.get(k, k)
+
+
 def for_but(con, etab: str | None, specialite: str | None, lien: str | None = None, paysage: dict | None = None) -> dict | None:
     """InserSup block of a BUT page: the BUT specialty at the university, its total, France."""
     if not _ready(con, "core.insersup"):
@@ -347,7 +354,7 @@ def for_but(con, etab: str | None, specialite: str | None, lien: str | None = No
                  [pid or "-"])
     def pick(pid_, spe, year=None):
         c = [r for r in rows if r["id_paysage"] == pid_ and ((spe is None and r["diplome"] == "all")
-             or (spe is not None and r["diplome"] != "all" and PO._key(r["libelle"]) == spe))]
+             or (spe is not None and r["diplome"] != "all" and _spe(r["libelle"]) == spe))]
         c = _latest(c)
         if year is not None:
             c = _current(c, year)               # a specialty or total without the latest national class: not shown

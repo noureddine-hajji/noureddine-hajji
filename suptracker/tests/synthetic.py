@@ -751,6 +751,9 @@ def make_insertion_raw(raw_dir: Path) -> dict:
             isr("PARIS", P, "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 200, 65.0, 68.0),
             isr("all", "National", "Bachelor universitaire de technologie", "B1", "GESTION DES ENTREPRISES ET DES ADMINISTRATIONS", "Sciences économiques, gestion", "2024", 1400, 64.0, 70.0),
             isr("all", "National", "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 11000, 69.0, 70.0),
+            # a BUT specialty spelled as Parcoursup spells it (the SIES success table keeps the former STID name)
+            isr("PARIS", P, "Bachelor universitaire de technologie", "B2", "SCIENCE DES DONNEES", "Sciences fondamentales et applications", "2024", 25, 70.0, 75.0),
+            isr("all", "National", "Bachelor universitaire de technologie", "B2", "SCIENCE DES DONNEES", "Sciences fondamentales et applications", "2024", 900, 72.0, 74.0),
             # a merged university: SIES keeps the former UAI with its old classes (never served), and a master whose
             # latest class is published in two parts (two UAIs the same year: withheld, listed)
             isr("PARIS", P, "Master LMD", "all", "Tout master LMD", "Toutes disciplines", "2019", 500, 50.0, 50.0, uai="0750000Z"),

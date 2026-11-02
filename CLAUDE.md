@@ -140,6 +140,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     18 months, latest class per diploma. No discipline aggregate exists per university: masters are listed one by one.
     A diploma is (Paysage id, diploma, label, sector), NEVER the UAI: merged universities keep their former UAIs with old classes.
     Only the latest national class is served (closed diplomas counted, not shown); several parts that year = no figure.
+    InserSup BUT labels go through `poursuite.SPECIALTY_ALIASES` (Parcoursup spellings, Science des données = STID).
   - Only a profile and the usable rows are staged (`insertion.KEEP`): the warehouse must stay under 95 MB.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.

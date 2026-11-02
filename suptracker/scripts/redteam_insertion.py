@@ -17,6 +17,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -309,6 +310,18 @@ def ref_latest(rows, pid, typ, disc=None, diplome_all=False, parts=None, year=No
     return out
 
 
+# Independent, explicit: InserSup BUT spellings -> the SIES success-table specialty (checked on the real labels)
+RT_SPE_ALIAS = {"science des donnees": "statistique et informatique decisionnelle",      # BUT SD = former STID
+                "science et genie des materiaux": "sciences et genie des materiaux",
+                "metiers de la transition et de l efficacite energetiques": "metiers de la transition et de l efficacite energetique"}
+
+
+def rt_spe(label):
+    k = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", unicodedata.normalize("NFKD", str(label or "").lower())
+                                 .encode("ascii", "ignore").decode())).strip()
+    return RT_SPE_ALIAS.get(k, k)
+
+
 def nat_year(rows, typ):
     """Independent: the latest class of the national total with an 18-month figure."""
     ys = [max(int(x) for x in re.findall(r"\d{4}", r["promo"])) for r in rows
@@ -358,7 +371,7 @@ def i6(c: Ctx):
     return n > 0 and not bad and not meef, f"{n} university x discipline blocks, {len(bad)} wrong {bad[:2]}; MEEF in a discipline {meef}"
 
 
-@check("I7 BUT block: the sprint-6 university and specialty, the specialty row by its key, university and national totals")
+@check("I7 BUT block: the sprint-6 university and specialty, the specialty row by its key (InserSup spellings aliased), university and national totals")
 def i7(c: Ctx):
     rows = c.rows("insersup")
     pmap = c.paysage or SU.SIES_PAYSAGE
@@ -373,13 +386,18 @@ def i7(c: Ctx):
         n += 1
         pid = pmap.get(etab)
         cand = [r for r in ref_latest(by.get(pid, []), pid, "Bachelor universitaire de technologie", year=year).values()
-                if PO._key(r["libelle"]) == spe]
+                if rt_spe(r["libelle"]) == spe]
         want = cand[0]["diplome"] if len(cand) == 1 else None      # several parts: no single figure
         if (b["specialite"] or {}).get("diplome") != want:
             bad.append((etab, spe, (b["specialite"] or {}).get("diplome"), want))
         if b["france"] and (b["france"]["id_paysage"] != "all" or b["france"]["diplome"] != "all"):
             bad.append((etab, "france"))
-    return not bad, f"{n} BUT blocks, {len(bad)} wrong {bad[:3]}"
+    # every specialty (not only the sampled pairs) keeps its national row when InserSup publishes one under any spelling
+    nat = {rt_spe(r["libelle"]) for r in ref_latest(by.get("all", []), "all", "Bachelor universitaire de technologie", year=year).values()}
+    specs = {s for _, s in pairs if s}
+    lost = sorted(s for s in specs if s in nat and not I.for_but(c.con, None, s, paysage=c.paysage)["france_specialite"])
+    bad += [("national specialty lost", s) for s in lost]
+    return not bad, f"{n} BUT blocks, {len(specs & nat)}/{len(specs)} specialties with a national row, {len(bad)} wrong {bad[:3]}"
 
 
 def fn_body(js: str, name: str) -> str:
@@ -428,14 +446,14 @@ UI_MUTANTS = [
 ]
 
 
-@check("I9 mutation test: oldest class served, former UAI served, closed diploma served, 'nd' as 0, link across establishments, renamed BTS given old figures, MEEF in a discipline, staging filter dropped, UI bugs")
+@check("I9 mutation test: oldest class served, former UAI served, closed diploma served, BUT aliases ignored, 'nd' as 0, link across establishments, renamed BTS given old figures, MEEF in a discipline, staging filter dropped, UI bugs")
 def i9(c: Ctx):
     missed = []
     js = APP_JS.read_text()
     for name, old, new in UI_MUTANTS:
         if old not in js or ui(js.replace(old, new, 1))[0]:
             missed.append(name)
-    saved = {"latest": I._latest, "current": I._current, "num": I._num, "links": I.build_bts_links, "key": I.bts_key, "disc": dict(PA.MASTER_DISCIPLINE),
+    saved = {"latest": I._latest, "current": I._current, "spe_alias": dict(PO.SPECIALTY_ALIASES), "num": I._num, "links": I.build_bts_links, "key": I.bts_key, "disc": dict(PA.MASTER_DISCIPLINE),
              "keep": dict(I.KEEP), "staged": dict(c.staged)}
 
     def oldest(rows):
@@ -482,6 +500,7 @@ def i9(c: Ctx):
         ("oldest graduating class served", lambda: setattr(I, "_latest", oldest), None, (i6,)),
         ("a merged university's former UAI served with its old class", lambda: setattr(I, "_latest", per_uai), None, (i6,)),
         ("closed or renamed diplomas served with their old class", lambda: setattr(I, "_current", lambda rows, year: list(rows)), None, (i6,)),
+        ("BUT specialty aliases ignored (InserSup spelling)", lambda: PO.SPECIALTY_ALIASES.clear(), None, (i7,)),
         # InserSup's 'nd' go through the SQL insert, Inserjeunes values through _num: seed both
         ("'nd' stored as 0 (InserSup)", lambda: None,
          "UPDATE core.insersup SET tx_sortants_en_emploi_sal_fr_18 = 0 WHERE masked LIKE '%tx_sortants_en_emploi_sal_fr_18%'", (i4,)),
@@ -493,7 +512,7 @@ def i9(c: Ctx):
         ("staging filter dropped (a gender breakdown kept)", no_filter, None, (i4,)),
     ]
     serving = ("oldest graduating class served", "a merged university's former UAI served with its old class",
-               "closed or renamed diplomas served with their old class")      # they patch serving code only: no rebuild
+               "closed or renamed diplomas served with their old class", "BUT specialty aliases ignored (InserSup spelling)")      # they patch serving code only: no rebuild
     for name, apply, post, checks in mutants:
         try:
             apply()
@@ -507,6 +526,7 @@ def i9(c: Ctx):
         finally:
             I._latest, I._current, I._num, I.build_bts_links, I.bts_key = saved["latest"], saved["current"], saved["num"], saved["links"], saved["key"]
             PA.MASTER_DISCIPLINE.clear(), PA.MASTER_DISCIPLINE.update(saved["disc"])
+            PO.SPECIALTY_ALIASES.clear(), PO.SPECIALTY_ALIASES.update(saved["spe_alias"])
             c.staged = dict(saved["staged"])
         if not caught:
             missed.append(name)

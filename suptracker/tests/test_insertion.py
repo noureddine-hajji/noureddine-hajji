@@ -31,7 +31,9 @@ def syn(tmp_path_factory):
     SU.attach(con, d / "b1.xlsx", SUCCESS_TABLE, paysage_table={"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"})
     con.execute("""CREATE OR REPLACE TABLE core.but_success_link AS SELECT 2025 AS session, '1101' AS cod_aff_form,
                    'UNIVERSITE EXEMPLE PARIS (CITE)' AS etab, 'gestion des entreprises et des administrations' AS specialite,
-                   'Gestion des entreprises et des administrations' AS programme, 'identifiant' AS lien, 'PARIS' AS id_paysage""")
+                   'Gestion des entreprises et des administrations' AS programme, 'identifiant' AS lien, 'PARIS' AS id_paysage
+                   UNION ALL SELECT 2025, '1199', 'UNIVERSITE EXEMPLE PARIS (CITE)', 'statistique et informatique decisionnelle',
+                   'Science des données', 'identifiant', 'PARIS'""")
     con.close()
     return db
 
@@ -56,6 +58,8 @@ def test_blocks(syn):
     assert m["total"]["etablissement"] == "0751234A" and m["en_parties"] == ["DROIT DES AFFAIRES"] and m["anciens"] == 2   # former UAI never served
     u = I.for_but(c.con, "UNIVERSITE EXEMPLE PARIS (CITE)", PO._key("Gestion des entreprises et des administrations"), paysage=INSERTION_PAYSAGE)
     assert u["specialite"]["diplome"] == "B1" and u["france_specialite"]["id_paysage"] == "all"
+    sd = I.for_but(c.con, "UNIVERSITE EXEMPLE PARIS (CITE)", "statistique et informatique decisionnelle", paysage=INSERTION_PAYSAGE)
+    assert sd["specialite"]["diplome"] == "B2" and sd["france_specialite"]["diplome"] == "B2"     # InserSup spelling aliased
 
 
 def test_red_team_on_synthetic(syn):
