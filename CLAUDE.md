@@ -20,6 +20,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Beyond licence (sprint 6):** `poursuite.py` (BUT per university, master per university × discipline, national margins).
   - **Gateways (sprint 7):** `passerelles.py` (reorientation detail after L1, MonMaster per university × discipline).
   - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
+  - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -142,6 +143,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     Only the latest national class is served (closed diplomas counted, not shown); several parts that year = no figure.
     InserSup BUT labels go through `poursuite.SPECIALTY_ALIASES` (Parcoursup spellings, Science des données = STID).
   - Only a profile and the usable rows are staged (`insertion.KEEP`): the warehouse must stay under 95 MB.
+- **Prévision n+1 (formation page).**
+  - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
+  - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as
+    measured, flagged "moins fiable" below 75 %); served ranges use 2024 + 2025 errors. At least 2 campaigns of history,
+    only formations in the latest campaign, only on the latest campaign's page.
+  - Rates: errors in points, clipped to [0, 100]. Counts: proportional errors, rounded outwards. Zero-admit campaigns'
+    `pct_*` are ignored. The access rate is NOT re-forecast: it is sprint 5's `mart.forecast` range (both pages agree).
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
@@ -166,6 +174,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - sprint 6 success beyond licence: BUT card (per university + national margins), "après la licence : le master" card;
   - sprint 7 gateways: reorientation after L1 and the university's masters (MonMaster) on licence pages, BUT → master line;
   - sprint 8 insertion: Inserjeunes on BTS pages, InserSup on licence (masters) and BUT pages;
+  - prévision n+1 on the formation page: calibrated 2026 ranges of every indicator with a history;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up (not shipped yet): Céreq national adequacy, Onisep jobs;
