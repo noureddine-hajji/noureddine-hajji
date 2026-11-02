@@ -680,6 +680,40 @@ Facts checked on the real files before coding:
 
 **UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
 
+## Does the job match the training? (sprint 8 follow-up, Céreq, formation page)
+
+**What the student sees.** A card "Le métier correspond-il à la formation ?" on the formation page. It compares the group of the diploma the formation prepares with all leavers. For a licence, it adds the master of the same field ("si tu poursuis"). The rows:
+- the share of the employed who say their job matches their training, 6 and 3 years after leaving;
+- the share employed at their skill level (3 years);
+- the employment rate (among all leavers);
+- open-ended jobs, managers and intermediate professions (among the employed);
+- the median monthly income.
+
+Each row states its denominator. A BUT page explains why it has no figure.
+
+**Data (`suptracker/cereq.py`), checked on the real file before the design.**
+- **Source.** The Céreq Génération 2017 survey: 746,000 young people who left initial education in 2016-2017, surveyed in 2020 (25,000 respondents) and 2023 (8,750). The file comes from the "chiffres clés par diplôme" data visualisation. A button of an interactive application produces it, so no robot can fetch it: the owner commits it under `data/sources/`, and it is recognised by its content.
+- **Granularity.** About twenty groups of HIGHEST diploma, national, nested by level and broad field. Every group adds up to its parent (±1), and every distribution to 100 (±2).
+- **The adequacy indicator.** `correspondance_ok` is declared by the employed at 3 and 6 years. `competence_ok` is published at 3 years only.
+- **Population.** A national figure for everyone whose highest diploma is in the group, not this formation's students. Someone who goes on studying joins another group, and the page says so.
+- **Link: one fixed rule per filière.**
+  - **BTS.** Industrial or tertiary by the NSF field of the diploma: digits 7-9 of the Inserjeunes MEFSTAT11 code, digits 4-6 of a CFD code, matched on the same BTS title or its options, in any establishment. NSF 200-255 is industrial, 300-345 tertiary. On real data, 84 % of BTS get a field. The others (renamed BTS such as SIO, CIEL, Banque) get the bac+2 total.
+  - **Licence.** The B1 discipline gives humanities-law-management or sciences. The card shows bac+3/4, plus the master of the same field.
+  - **Other filières.** IFSI and EFTS map to health and social work. Engineering and business schools map to their own group. Scientific CPGE map to engineering schools, ECG/ECT to business schools.
+  - **No figure.** BUT (created in 2021, absent from the 2017 cohort), PASS, literary CPGE and other formations get none.
+
+**Red team (`scripts/redteam_cereq.py`, run in CI by `tests/test_cereq.py`).** On the real data, 6/6 checks pass and 12/12 mutants are caught.
+- **C1.** The workbook is re-read cell by cell: 86 rows × 16 indicators, 0 differ.
+- **C2.** Hierarchy sums and partitions hold; `competence_ok` is published at 3 years only.
+- **C3.** The link of all 14,252 formations of the latest campaign is re-derived with the red team's own rules, plus a truth table of real BTS titles.
+- **C4.** The API serves the stored values; the reference is all leavers; "si tu poursuis" appears for licences only.
+- **C5.** The page escapes stored strings and states every denominator and caveat; published shares are never summed.
+- **C6, mutation test.** NSF read at the wrong digits (a bug made and caught during development), sides swapped, BUT given the old DUT figures, discipline ignored, horizons swapped, a neighbouring column read, an unpublished value stored as 0, and 5 UI mutants.
+
+**UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
+
+**Onisep (jobs linked to a formation):** not shipped. The Onisep open-data site was in maintenance (403) when the data workflow tried; the ingestion is ready and optional.
+
 ## Next-campaign forecast of every indicator (formation page)
 
 **What the student sees.**

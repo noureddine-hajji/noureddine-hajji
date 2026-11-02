@@ -29,6 +29,7 @@ FEATURE_ENTRY_POINTS = {
     "passerelles": ("app.js", "function passerellesCard"),
     "insertion": ("app.js", "function insertionCard"),
     "prevision": ("app.js", "function previsionCard"),
+    "cereq": ("app.js", "function cereqCard"),
 }
 
 
@@ -39,7 +40,7 @@ def test_every_feature_is_still_shipped():
 
 def test_every_feature_is_wired():
     js = (STATIC / "app.js").read_text()
-    assert "${butCard(d.but)}" in js and "${masterCard(d.master)}" in js and "${passerellesCard(d.passerelles)}" in js and "${insertionCard(d.insertion)}" in js and "${previsionCard(d.prevision)}" in js
+    assert "${butCard(d.but)}" in js and "${masterCard(d.master)}" in js and "${passerellesCard(d.passerelles)}" in js and "${insertionCard(d.insertion)}" in js and "${previsionCard(d.prevision)}" in js and "${cereqCard(d.cereq)}" in js
     assert "loadPlanB(r.cod_aff_form)" in js and "${timingCard(r, d.history)}" in js and "${offerCard(r)}" in js
     assert 'if (a === "stats") return await viewStats(b)' in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()

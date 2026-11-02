@@ -770,3 +770,69 @@ def make_insertion_raw(raw_dir: Path) -> dict:
             isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 120, 10.0, 10.0, keep=False)]
     pd.DataFrame(rows).to_parquet(raw_dir / "insersup.parquet", index=False)
     return {"lycee": lyc, "cfa": cfa, "insersup": rows}
+
+
+CEREQ_LEAVES = {   # code -> weighted leavers (the real file's hierarchy: specialty leaves under groups under levels)
+    200: 91000, 312: 38000, 313: 33000, 322: 52000, 323: 75000, 332: 12000, 333: 27000, 340: 68000,
+    412: 23000, 413: 56000, 420: 23000, 432: 19000, 433: 14000, 442: 38000, 443: 5000,
+    512: 83000, 513: 26000, 522: 23000, 523: 23000, 532: 7000, 533: 7000,
+}
+CEREQ_HEAD = {
+    3: ["Code", "Libelle_Menu", "Libelle complet", "eff_pond_g1", "pct_col", "taux_emploi", "part_chomage", "part_autre",
+        "taux_chomage", "eff_pond_g2", "taux_edi", "eff_pond_g3", "part_tps_partiel", "eff_pond_g4", "revenu_travail",
+        "eff_pond_g5", "pos_cadres", "pos_prof_int", "pos_emp_ouv_q", "pos_emp_ouv_nq", "pos_autres", "eff_pond_g6",
+        "sec_industries_btp", "sec_commerce", "sec_administration", "sec_a_services", "sec_autres", "eff_pond_g7",
+        "traj_1", "traj_2", "traj_3", "traj_7", "eff_pond_g8", "correspondance_ok", "competence_ok"],
+    6: ["Code", "Libelle_Menu", "Libelle complet", "eff_pond_g1", "pct_col", "taux_emploi", "part_chomage", "part_autre",
+        "taux_chomage", "taux_edi", "eff_pond_g2", "part_tps_partiel", "eff_pond_g3", "revenu_travail", "eff_pond_g4",
+        "pos_cadres", "pos_prof_int", "pos_emp_ouv_q", "pos_emp_ouv_nq", "pos_autres", "eff_pond_g5", "sec_industries_btp",
+        "sec_commerce", "sec_administration", "sec_a_services", "sec_autres", "eff_pond_g6", "traj_1", "traj_2", "traj_3",
+        "traj_4", "traj_7", "eff_pond_g7", "correspondance_ok"],
+}
+
+
+def make_cereq_xlsx(path: Path) -> dict:
+    """A Céreq 'données par diplôme' workbook with the real layout (two information sheets, Données_3ans and
+    Données_6ans, the 3-year sheet alone carrying competence_ok) and consistent values: every group is the sum
+    of its children, every distribution adds up to 100, the unemployment rate = unemployed / active."""
+    import openpyxl
+    parents = {100: (200, 300, 400, 500), 300: (310, 320, 330, 340), 400: (410, 420, 430, 440), 500: (510, 520, 530)}
+    for g in (310, 320, 330, 410, 430, 440, 510, 520, 530):
+        parents[g + 1] = (g + 2, g + 3)
+        parents[g] = (g + 2, g + 3)
+    eff = dict(CEREQ_LEAVES)
+
+    def n(code):
+        if code not in eff:
+            eff[code] = sum(n(k) for k in parents[code])
+        return eff[code]
+    for code in parents:
+        n(code)
+    wb = openpyxl.Workbook()
+    wb.active.title = "Information_3ans"
+    wb.create_sheet("Information_6ans")
+    out = {}
+    for h in (3, 6):
+        ws = wb.create_sheet(f"Données_{h}ans")
+        ws.append(CEREQ_HEAD[h])
+        for code in sorted(eff):
+            level = code // 100
+            e = min(95, 50 + 9 * level + (code % 10) + (3 if h == 6 else 0))
+            u = max(1, (100 - e) // 2)
+            cad = min(90, 2 + 18 * max(0, level - 3) + (code % 7))
+            pi = min(100 - cad - 3, 20 + (code % 9))
+            row = {"Code": code, "Libelle_Menu": f"Groupe {code}", "Libelle complet": f"Diplômes du groupe {code}",
+                   "eff_pond_g1": eff[code], "pct_col": round(100 * eff[code] / eff[100], 1), "taux_emploi": e, "part_chomage": u,
+                   "part_autre": 100 - e - u, "taux_chomage": round(100 * u / (e + u)), "taux_edi": 60 + level * 5,
+                   "part_tps_partiel": 10, "revenu_travail": 1200 + 150 * level, "pos_cadres": cad, "pos_prof_int": pi,
+                   "pos_emp_ouv_q": 2, "pos_emp_ouv_nq": 1, "pos_autres": 100 - cad - pi - 3,
+                   "sec_industries_btp": 20, "sec_commerce": 20, "sec_administration": 20, "sec_a_services": 30, "sec_autres": 10,
+                   "traj_1": 30, "traj_2": 20, "traj_3": 10, "traj_4": 10, "traj_7": 10,
+                   "correspondance_ok": 40 + 8 * level - (h == 3), "competence_ok": 70 + level}
+            for k in CEREQ_HEAD[h]:
+                if k.startswith("eff_pond_g") and k != "eff_pond_g1":
+                    row[k] = round(eff[code] * e / 100)
+            ws.append([row.get(k) for k in CEREQ_HEAD[h]])
+            out[(h, code)] = row
+    wb.save(path)
+    return out

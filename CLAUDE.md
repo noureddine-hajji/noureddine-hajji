@@ -20,6 +20,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Beyond licence (sprint 6):** `poursuite.py` (BUT per university, master per university × discipline, national margins).
   - **Gateways (sprint 7):** `passerelles.py` (reorientation detail after L1, MonMaster per university × discipline).
   - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
+  - **Céreq (sprint 8 follow-up):** `cereq.py` (training-job match by highest diploma, national; owner-uploaded workbook).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
@@ -143,6 +144,15 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     Only the latest national class is served (closed diplomas counted, not shown); several parts that year = no figure.
     InserSup BUT labels go through `poursuite.SPECIALTY_ALIASES` (Parcoursup spellings, Science des données = STID).
   - Only a profile and the usable rows are staged (`insertion.KEEP`): the warehouse must stay under 95 MB.
+- **Céreq (sprint 8 follow-up).**
+  - Génération 2017, national, by group of HIGHEST diploma (not this formation's students; whoever goes on joins another
+    group). `correspondance_ok` (3 and 6 years) and `competence_ok` (3 years only) are among the EMPLOYED and self-declared;
+    the employment rate is among ALL leavers. Say each denominator. Never sum the published job categories.
+  - The file comes from a button of the Céreq data visualisation: the owner commits it under data/sources/ (detected by content).
+  - Link per filière: BTS by the NSF of the diploma (MEFSTAT11 digits 7-9, CFD digits 4-6, same title or its options,
+    any establishment); licence by B1 discipline (+ master "si tu poursuis"); IFSI/EFTS health-social; schools; CPGE sci ->
+    engineering, ECG/ECT -> business. BUT (absent from the 2017 cohort), PASS, literary CPGE, others: no figure.
+  - Onisep (jobs) is ingested optionally (`download` access); its site was in maintenance: not shipped yet.
 - **Prévision n+1 (formation page).**
   - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
   - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as
@@ -178,7 +188,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - prévision n+1 on the formation page: calibrated 2026 ranges of every indicator with a history;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 8 follow-up (not shipped yet): Céreq national adequacy, Onisep jobs;
+  - sprint 8 follow-up: Céreq card shipped; Onisep jobs waiting for the Onisep site (retry scheduled);
   - sprint 9: evidence-chain comparator, shareable list (A6), B5 CROUS, user tests; sprint 10: scale.
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly

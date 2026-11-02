@@ -55,6 +55,9 @@ GLOSSARY = {
     "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
                "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
                "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
+    "cereq": ("Lien formation-emploi (Céreq)", "La part des jeunes en emploi qui disent que leur emploi correspond à leur "
+              "formation, quelques années après la fin de leurs études, d'après l'enquête Génération du Céreq. C'est un "
+              "chiffre national, pour tous ceux dont c'est le plus haut diplôme, pas pour une formation précise.", "cereq"),
     "prevision": ("Prévision (fourchette n+1)", "Pour la prochaine campagne, l'intervalle où devrait se trouver un indicateur "
                   "publié (taux d'accès, admis, part des terminales générales...), d'après les campagnes passées. Elle est "
                   "testée sur l'année 2025, cachée pendant le réglage : on affiche combien de vraies valeurs sont tombées dedans. "

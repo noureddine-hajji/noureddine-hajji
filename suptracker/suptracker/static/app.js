@@ -217,6 +217,7 @@ async function viewFormation(cod, session) {
   ${masterCard(d.master)}
   ${passerellesCard(d.passerelles)}
   ${insertionCard(d.insertion)}
+  ${cereqCard(d.cereq)}
   ${butCard(d.but)}
   ${lyceeHere(r)}
   <div id="planb"></div>
@@ -513,6 +514,44 @@ function previsionCard(p) {
     <p class="small">Fourchettes estimées pour la campagne ${esc(p.target)} à partir des campagnes passées de cette formation. La méthode a été réglée sur ${esc(p.calibration)} puis testée sur ${esc(p.holdout)} sans l'avoir vue : la dernière colonne dit combien de vraies valeurs ${esc(p.holdout)} sont tombées dans leur fourchette (objectif ${fmt(100 * p.level, 0)}\u00a0%).</p>
     ${PV_GROUPS.map((g, k) => block(g, k === 0)).join("")}
     <p class="muted small">Ce sont des estimations, pas des chiffres officiels, et jamais des chances d'admission. Chaque fourchette est calculée séparément. Les petites formations ont des fourchettes plus larges.</p></div>`;
+}
+
+// ---- Sprint 8 follow-up: does the job match the training? (Céreq Génération 2017, national, by highest diploma) ----
+const CQ_ROWS = [   // [horizon, indicator, label, denominator]
+  ["a6ans", "correspondance_ok", "Emploi en lien avec la formation, 6 ans après", "parmi ceux en emploi, déclaré par eux"],
+  ["a3ans", "correspondance_ok", "Emploi en lien avec la formation, 3 ans après", "parmi ceux en emploi, déclaré par eux"],
+  ["a3ans", "competence_ok", "Employés à leur niveau de compétence, 3 ans après", "parmi ceux en emploi, déclaré par eux"],
+  ["a6ans", "taux_emploi", "En emploi, 6 ans après", "parmi tous les sortants"],
+  ["a6ans", "taux_edi", "Emploi à durée indéterminée (CDI, fonctionnaire, à son compte)", "parmi ceux en emploi, 6 ans après"],
+  ["a6ans", "pos_cadres", "Cadres", "parmi ceux en emploi, 6 ans après"],
+  ["a6ans", "pos_prof_int", "Professions intermédiaires", "parmi ceux en emploi, 6 ans après"],
+  ["a6ans", "revenu_travail", "Revenu mensuel médian (net, primes incluses)", "ceux en emploi, 6 ans après"],
+];
+const cqVal = (g, h, k) => {
+  const v = g && g.valeurs && g.valeurs[h] ? g.valeurs[h][k] : null;
+  return v == null ? '<span class="muted small">—</span>' : k === "revenu_travail" ? `${fmt(v)}\u00a0€` : `${fmt(v)}\u00a0%`;
+};
+const CQ_RULE = {
+  bts_inconnu: "La spécialité de ce BTS (industrielle ou tertiaire) n'est pas connue : chiffres de l'ensemble des bac+2.",
+  licence_sans_discipline: "La discipline de cette licence n'est pas connue : chiffres de toutes les licences.",
+  cpge_scientifique: "Chiffres des diplômés d'écoles d'ingénieurs, où entrent la plupart des élèves de cette classe.",
+  cpge_economique: "Chiffres des diplômés d'écoles de commerce, où entrent la plupart des élèves de cette classe.",
+};
+function cereqCard(c) {
+  if (!c) return "";
+  const head = `Le métier correspond-il à la formation ? ${tip("cereq")}`;
+  if (c.status !== "ok") {
+    return c.regle === "but_absent_de_la_generation_2017" ? `<div class="card"><h2>${head}</h2><p class="small muted">Pas de chiffre : le BUT a été créé en 2021, il n'existait pas pour les jeunes sortis d'études en 2017 qu'interroge le Céreq.</p></div>` : "";
+  }
+  const cols = [c.groupe, c.suite, c.ensemble].filter(Boolean);
+  const note = CQ_RULE[c.regle] ? " " + esc(CQ_RULE[c.regle]) : "";
+  const th = cols.map((g, i) => `<th class="num">${i === 0 ? "Ce diplôme" : g === c.suite ? "Si tu poursuis" : "Tous les sortants"}<div class="muted small">${esc(g.label)}</div></th>`).join("");
+  const rows = CQ_ROWS.map(([h, k, l, den]) => `<tr><td>${esc(l)}<div class="muted small">${esc(den)}</div></td>${cols.map((g) => `<td class="num">${cqVal(g, h, k)}</td>`).join("")}</tr>`).join("");
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small">Jeunes sortis d'études en ${esc(c.generation)} <strong>dont c'est le plus haut diplôme</strong>, France entière, interrogés en ${esc(c.enquetes[3])} et ${esc(c.enquetes[6])} (enquête Génération du Céreq).${note}</p>
+    <div class="scroll"><table><tr><th></th>${th}</tr>${rows}</table></div>
+    <p class="muted small">Ce ne sont pas les élèves de cette formation : quelqu'un qui poursuit ses études rejoint un autre groupe. Le lien entre la formation et l'emploi est déclaré par les jeunes en emploi. Ce sont des résultats passés, pas des chances d'emploi.</p>
+    <p class="muted small">Source : Céreq, enquête Génération 2017, chiffres clés par diplôme.</p></div>`;
 }
 
 // ---- Sprint 8: insertion (BTS: Inserjeunes, this establishment; licence: InserSup, the university's masters) ----
