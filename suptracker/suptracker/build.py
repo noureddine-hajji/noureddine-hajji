@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import config, cereq, crosswalk, crous, harmonize, indicators, calibration, insertion, journey, lycee, onisep, passerelles, poursuite, prevision, referentiel, success
+from . import config, cereq, crosswalk, harmonize, indicators, calibration, insertion, journey, lycee, onisep, passerelles, poursuite, prevision, referentiel, success
 from .ingest import load_manifest
 
 
@@ -45,7 +45,6 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         success.attach(con, src)
         passerelles.build(con, raw_dir, reo_source=src)
         insertion.build(con, raw_dir)
-        crous.build(con, raw_dir)
         onisep.build(con, raw_dir)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}

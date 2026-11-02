@@ -70,8 +70,6 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("insersup", ("fr-esr-insersup",), "insertion"),
     Dataset("inserjeunes_lycee", ("fr-en-inserjeunes-lycee_pro-formation-fine",), "insertion", base=EDU_ODS_BASE),
     Dataset("inserjeunes_cfa", ("fr-en-inserjeunes-cfa-formation_fine",), "insertion", base=EDU_ODS_BASE),
-    # Sprint 9, B5: the CROUS residences (CNOUS feeds, republished by the ministry's portal)
-    Dataset("crous_logement", ("fr_crous_logement_france_entiere",), "vie_etudiante"),
     # Sprint 8 follow-up: Onisep formations and jobs (ODbL), direct files from the Onisep open-data API
     Dataset("onisep_formations", (), "metiers", url=ONISEP_DL + "5fa591127f501/5fa591127f501.csv", optional=True),
     Dataset("onisep_metiers", (), "metiers", url=ONISEP_DL + "5fa5949243f97/5fa5949243f97.csv", optional=True),

@@ -76,10 +76,6 @@ SOURCES = (
      "access": "download", "datasets": ("onisep_formations", "onisep_metiers", "onisep_fiches_formations", "onisep_fiches_metiers"),
      "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers",), "status": "en_ligne",
      "sprint": 8, "licence": ODBL, "url": "https://opendata.onisep.fr/2-les-donnees.htm"},
-    {"key": "crous_logement", "title": "Logements étudiants du réseau des CROUS", "producer": "CNOUS / MESR",
-     "access": "ods", "datasets": ("crous_logement",), "granularity": "résidence (coordonnées GPS)",
-     "keys": ("lat", "lon"), "feeds": ("crous",), "status": "en_ligne", "sprint": 9, "licence": LICENCE_OUVERTE,
-     "url": "https://www.data.gouv.fr/datasets/ensemble-des-logements-proposes-aux-etudiants-par-le-reseau-des-crous"},
 )
 
 ACCESS = ("ods", "download", "owner_upload", "planned")
