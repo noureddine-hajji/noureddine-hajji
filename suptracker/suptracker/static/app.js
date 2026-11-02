@@ -215,6 +215,7 @@ async function viewFormation(cod, session) {
   ${successCard(d.success)}
   ${masterCard(d.master)}
   ${passerellesCard(d.passerelles)}
+  ${insertionCard(d.insertion)}
   ${butCard(d.but)}
   ${lyceeHere(r)}
   <div id="planb"></div>
@@ -397,7 +398,7 @@ function butCard(b) {
   return `<div class="card"><h2>${head}</h2>
     <p class="small"><strong>${esc(b.etab_label)}</strong> · toutes spécialités de BUT. Chiffres de <strong>tous les néo-bacheliers inscrits en 1re année de BUT</strong> dans l'université : le SIES ne les publie ni par IUT, ni par spécialité.${R && R.small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("but")}</th><th class="num">France</th></tr>${rows.join("")}</table></div>
-    ${after}${but3}${spe}${profBox}
+    ${after}${but3}${butInsertion(b.insertion)}${spe}${profBox}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-26. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
 }
 const M2_DEVENIR = [["taux", "passage en M2", "s-pass"], ["taux_redoublement", "redoublement en M1", "s-red"],
@@ -483,6 +484,55 @@ function passerellesCard(p) {
     <h3 class="small">Après la licence : les masters de l'université dans cette discipline (MonMaster)</h3>
     ${mastersBox(p)}
     <p class="muted small">Sources : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-29 (réorientations) et MonMaster (candidatures et admissions en master). Résultats passés, pas des chances de réussite ou d'admission.</p></div>`;
+}
+
+// ---- Sprint 8: insertion (BTS: Inserjeunes, this establishment; licence: InserSup, the university's masters) ----
+const H = 18;   // the horizon served: the latest one published for every recent class
+const isv = (r, k) => (r && r[k] != null ? `${pc1d(r[k])}\u00a0%` : r && r.masked && r.masked[k] === "nd" ? '<span class="muted small">masqué</span>' : '<span class="muted small">—</span>');
+const promoTxt = (r) => (r ? `diplômés ${esc(String(r.promo || "").replace(",", " et "))}${r.pooled ? " (deux promotions réunies : moins de 20 sortants)" : ""}` : "");
+function insRow(label, r) {
+  if (!r) return "";
+  return `<tr><td>${label}<div class="muted small">${promoTxt(r)}${r[`nb_sortants_${H}`] != null ? ` · ${fmt(r[`nb_sortants_${H}`])} sortis des études` : ""}</div>${r.maillon ? `<div class="fiab-row">${fiabBadge(r.maillon)}</div>` : ""}</td>
+    <td class="num"><strong>${isv(r, `tx_sortants_en_emploi_sal_fr_${H}`)}</strong></td><td class="num">${isv(r, `tx_sortants_en_emploi_stable_${H}`)}</td></tr>`;
+}
+const INS_HEAD = `<tr><th>Diplômés · fiabilité ${tip("fiabilite")}</th><th class="num">En emploi salarié en France, ${H} mois après</th><th class="num">Emploi stable, parmi ceux en emploi salarié</th></tr>`;
+const INS_NOTE = `Taux parmi les diplômés qui ont quitté les études (ceux qui continuent ne sont pas comptés). L'emploi stable est une part de ceux qui ont un emploi salarié, pas de tous les diplômés sortis. Emploi salarié en France seulement. Ce sont des résultats de promotions passées, pas des chances d'emploi.`;
+function insertionCard(x) {
+  if (!x) return "";
+  const head = `Insertion professionnelle ${tip("insertion")}`;
+  if (x.rows) {                     // BTS (Inserjeunes)
+    if (!x.rows.length) return `<div class="card"><h2>${head}</h2><p class="small muted">${esc(x.reason || "non publié")}.</p>
+      <p class="muted small">Source : Inserjeunes (ministère de l'Éducation nationale, DEPP).</p></div>`;
+    const dupB = {}; x.rows.forEach((r) => { dupB[r.libelle_formation] = (dupB[r.libelle_formation] || 0) + 1; });
+    const rows = x.rows.map((r) => `<tr><td>${esc(r.libelle_formation)}<div class="muted small">${esc(r.voie)}${dupB[r.libelle_formation] > 1 ? ` · code de formation ${esc(r.code)}` : ""}</div></td>
+      <td class="num">${isv(r, "taux_poursuite")}</td><td class="num"><strong>${isv(r, "taux_emploi_6")}</strong></td><td class="num">${isv(r, "taux_emploi_12")}</td><td class="num">${isv(r, "taux_emploi_24")}</td></tr>`).join("");
+    return `<div class="card"><h2>${head}</h2>
+      <p class="small">Dans <strong>cet établissement</strong>, élèves de dernière année de ce BTS (${esc(String(x.annee || "").replace("cumul", "sortis en"))}).${x.status === "options" ? " Le BTS a plusieurs options, publiées séparément : chacune garde ses propres chiffres." : ""}</p>
+      <div class="scroll"><table><tr><th>Formation</th><th class="num">Poursuivent leurs études</th><th class="num">En emploi 6 mois après</th><th class="num">12 mois</th><th class="num">24 mois</th></tr>${rows}</table></div>
+      <p class="muted small">Les taux d'emploi portent sur ceux qui ont quitté les études ; la poursuite d'études, sur tous les élèves de dernière année. Emploi salarié en France. Les petits effectifs sont masqués par le ministère, qui ne publie pas les effectifs. Ce sont des résultats passés, pas des chances d'emploi.</p>
+      <p class="muted small">Source : Inserjeunes (ministère de l'Éducation nationale, DEPP).</p></div>`;
+  }
+  if (x.status !== "ok") return `<div class="card"><h2>${head}</h2><p class="small muted">${x.etab_label ? `${esc(x.etab_label)} : ` : ""}${esc(x.reason || "non publié")}.</p></div>`;
+  // a diploma published in several parts (sectors, sites) keeps each part, named by its sector
+  const twice = (arr, k) => { const c = {}; arr.forEach((r) => { c[r[k]] = (c[r[k]] || 0) + 1; }); return (r) => c[r[k]] > 1; };
+  const dupM = twice(x.masters, "libelle");
+  const ms = x.masters.slice(0, 10).map((m) => insRow(`Master ${esc(m.libelle)}${dupM(m) ? ` <span class="muted small">(${esc(m.sectdis_lib)})</span>` : ""}`, m)).join("");
+  const more = x.masters.length > 10 ? `<p class="muted small">… et ${fmt(x.masters.length - 10)} autres masters de cette discipline.</p>` : "";
+  const old = x.anciens ? `<p class="muted small">${fmt(x.anciens)} ancien${x.anciens > 1 ? "s" : ""} diplôme${x.anciens > 1 ? "s" : ""} sans promotion ${esc(x.annee)} (fermé${x.anciens > 1 ? "s" : ""} ou renommé${x.anciens > 1 ? "s" : ""}, par exemple avant une fusion d'universités) non affiché${x.anciens > 1 ? "s" : ""}.</p>` : "";
+  const parts = (x.en_parties || []).length ? `<p class="muted small">Publiés en plusieurs parties pour la dernière promotion, donc sans chiffre unique : ${x.en_parties.map((l) => `master ${esc(l)}`).join(", ")}.</p>` : "";
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small">Après un master de <strong>${esc(x.etab_label)}</strong> en ${esc(x.discipline_label)} : chaque master avec ses propres chiffres (le ministère ne publie pas de taux par discipline).</p>
+    <div class="scroll"><table>${INS_HEAD}${ms}
+      ${insRow("<strong>Tous les masters de l'université</strong>", x.total)}${insRow("<strong>Tous les masters, France</strong>", x.france)}</table></div>${more}${parts}${old}
+    <p class="muted small">${INS_NOTE}</p>
+    <p class="muted small">Source : InserSup (ministère de l'Enseignement supérieur, SIES).</p></div>`;
+}
+function butInsertion(i) {
+  if (!i || !(i.specialite || i.total || i.france)) return "";
+  return `<h3 class="small">Insertion après le BUT ${tip("insertion")}</h3><div class="scroll"><table>${INS_HEAD}
+    ${insRow("Cette spécialité dans l'université", i.specialite)}${insRow("Tous les BUT de l'université", i.total)}
+    ${insRow("Cette spécialité, France", i.france_specialite)}${insRow("Tous les BUT, France", i.france)}</table></div>
+    <p class="muted small">${INS_NOTE} Après un BUT, la plupart des diplômés poursuivent leurs études : ces taux portent sur ceux qui sont partis travailler. Source : InserSup (SIES).</p>`;
 }
 
 function offerCard(r) {

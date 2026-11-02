@@ -679,3 +679,94 @@ def make_poursuite_xlsx(d: Path) -> dict:
     plan["master_chain"] = p
     plan["sources"] = {k: plan[k] for k in ("but_etab", "but_nat", "master_etab", "master_nat", "master_chain")}
     return plan
+
+
+# --------------------------------------------------------------------------- sprint 8 insertion sources
+INSERTION_PAYSAGE = {"UNIVERSITE EXEMPLE PARIS (CITE)": "PARIS"}
+
+
+def make_insertion_raw(raw_dir: Path) -> dict:
+    """insersup / inserjeunes_lycee / inserjeunes_cfa parquet files with the real column names.
+    Inserjeunes: Bordeaux publishes "comptabilité et gestion" (exact) and "systèmes numériques" by option
+    (two rows, one masked), plus an older pooled year; Marseille is an apprenticeship centre (CFA) for
+    comptabilité; Lille publishes another BTS only; Paris is absent. InserSup: the Paris university's
+    masters (two droit mentions, one pooled with a masked rate; a sciences one; a MEEF), its total, its
+    BUT GEA and BUT total, the national rows, and rows the staging must drop (by gender, not graduated)."""
+    import pandas as pd
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    def ij(annee, uai, lib, form, pours, emp6part, t6, t12, t24, extra=None):
+        autres = None if pours is None else 100 - pours - emp6part
+        return {"annee": annee, "uai": uai, "libelle": lib, "region": "X", "type_diplome": "BTS", "libelle_formation": form,
+                "duree_formation": 2, "diplome_renove_ou_nouveau": "non",
+                "part_en_poursuite_d_etudes": None if pours is None else str(pours),
+                "part_en_emploi_6_mois_apres_la_sortie": None if pours is None else str(emp6part),
+                "part_des_autres_situations": None if autres is None else str(autres),
+                "taux_poursuite_etudes": None if pours is None else float(pours), "taux_emploi_6_mois": t6, "taux_emploi_12_mois": t12,
+                "taux_emploi_18_mois": None, "taux_emploi_24_mois": t24, **(extra or {})}
+    lyc = [ij("cumul 2023-2024", "0331234C", "Lycée Exemple Bordeaux", "comptabilite et gestion", 40, 36, 60.0, 70.0, 75.0),
+           ij("cumul 2022-2023", "0331234C", "Lycée Exemple Bordeaux", "comptabilite et gestion", 30, 42, 60.0, 65.0, 70.0),
+           ij("cumul 2023-2024", "0331234C", "Lycée Exemple Bordeaux", "systemes numeriques option a informatique et reseaux", 50, 25, 50.0, 60.0, None),
+           ij("cumul 2023-2024", "0331234C", "Lycée Exemple Bordeaux", "systemes numeriques option b electronique et communications", None, 0, None, None, None),
+           ij("cumul 2023-2024", "0591234D", "École Exemple Lille", "banque conseiller de clientele particuliers", 20, 56, 70.0, 75.0, 80.0)]
+    cfa = [{**ij("cumul 2023-2024", "0131234E", "CFA Exemple Marseille", "comptabilite et gestion", 10, 72, 80.0, 82.0, 85.0),
+            "code_formation_apprentissage": "32031", "part_contrats_apprentissage_interrompus": "12"}]
+    for r in lyc:
+        r["code_formation_mefstat11"] = "3"
+    pd.DataFrame(lyc).to_parquet(raw_dir / "inserjeunes_lycee.parquet", index=False)
+    pd.DataFrame(cfa).to_parquet(raw_dir / "inserjeunes_cfa.parquet", index=False)
+
+    H = (6, 12, 18, 24, 30)
+
+    def isr(pid, uo, typ, dip, lib, disc, promo, n, emp, stable, flag=None, keep=True, genre="ensemble", q2="nd", uai="0751234A"):
+        r = {"date_jeu": "2026_S1", "reg_nom": "X", "aca_nom": "X", "uo_lib": uo, "uo_lib_actuel": uo, "id_paysage": pid,
+             "id_paysage_actuel": pid, "type_diplome_long": typ, "diplome": dip, "libelle_diplome": lib, "discipli_lib": disc,
+             "sectdis": "all" if dip == "all" else "36", "sectdis_lib": "Tous secteurs" if dip == "all" else "Secteur exemple",
+             "etablissement": "all" if pid == "all" else uai, "source": "insersup", "obtention_diplome": "diplômé" if keep else "ensemble",
+             "genre": genre, "nationalite": "ensemble", "regime_inscription": "ensemble", "promo": promo}
+        for h in H:
+            late = h >= 24 and promo.endswith("2024")
+            r[f"nb_sortants_{h}"] = None if late else n
+            r[f"nb_poursuivants_{h}"] = None if late else "3"
+            r[f"flag_{h}"] = flag
+            r[f"nb_sortants_en_emploi_sal_fr_{h}"] = None if late or h == 6 else (str(round(n * emp / 100)) if emp is not None else "nd")
+            r[f"tx_sortants_en_emploi_sal_fr_{h}"] = None if late else (str(round(100 * round(n * emp / 100) / n, 2)) if emp is not None else "nd")
+            # the stable rate is among the salaried employed (as SIES publishes it), not among the leavers
+            e_ = round(n * emp / 100) if emp is not None else None
+            s_ = round(e_ * stable / 100) if e_ and stable is not None else None
+            r[f"tx_sortants_en_emploi_stable_{h}"] = None if late else (str(round(100 * s_ / e_, 2)) if s_ is not None else "nd")
+            r[f"nb_sortants_en_emploi_stable_{h}"] = None if late or s_ is None else str(s_)
+            for q in (1, 2, 3):
+                r[f"salaire_q{q}_{h}"] = None if late else ("nd" if q2 == "nd" else str(int(q2) + (q - 2) * 300))
+        return r
+    P = "UNIVERSITE EXEMPLE PARIS"
+    rows = [isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2023", 80, 70.0, 60.0),
+            isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 90, 72.0, 65.0),
+            isr("PARIS", P, "Master LMD", "M2", "DROIT PUBLIC", "Droit, sciences politiques", "2023,2024", 12, None, None, flag="*"),
+            isr("PARIS", P, "Master LMD", "M3", "MATHEMATIQUES", "Sciences fondamentales et applications", "2024", 40, 80.0, 70.0),
+            isr("PARIS", P, "Master MEEF", "E1", "MEEF PREMIER DEGRE", "Sciences humaines et sociales", "2024", 50, 95.0, 90.0),
+            isr("PARIS", P, "Master LMD", "all", "Tout master LMD", "Toutes disciplines", "2024", 600, 68.0, 66.0),
+            isr("all", "National", "Master LMD", "all", "Tout master LMD", "Toutes disciplines", "2024", 80000, 65.0, 66.0),
+            isr("PARIS", P, "Bachelor universitaire de technologie", "B1", "GESTION DES ENTREPRISES ET DES ADMINISTRATIONS", "Sciences économiques, gestion", "2024", 30, 60.0, 70.0),
+            isr("PARIS", P, "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 200, 65.0, 68.0),
+            isr("all", "National", "Bachelor universitaire de technologie", "B1", "GESTION DES ENTREPRISES ET DES ADMINISTRATIONS", "Sciences économiques, gestion", "2024", 1400, 64.0, 70.0),
+            isr("all", "National", "Bachelor universitaire de technologie", "all", "Tout BUT", "Toutes disciplines", "2024", 11000, 69.0, 70.0),
+            # a BUT specialty spelled as Parcoursup spells it (the SIES success table keeps the former STID name)
+            isr("PARIS", P, "Bachelor universitaire de technologie", "B2", "SCIENCE DES DONNEES", "Sciences fondamentales et applications", "2024", 25, 70.0, 75.0),
+            isr("all", "National", "Bachelor universitaire de technologie", "B2", "SCIENCE DES DONNEES", "Sciences fondamentales et applications", "2024", 900, 72.0, 74.0),
+            # a merged university: SIES keeps the former UAI with its old classes (never served), and a master whose
+            # latest class is published in two parts (two UAIs the same year: withheld, listed)
+            isr("PARIS", P, "Master LMD", "all", "Tout master LMD", "Toutes disciplines", "2019", 500, 50.0, 50.0, uai="0750000Z"),
+            isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2019", 70, 40.0, 40.0, uai="0750000Z"),
+            isr("PARIS", P, "Master LMD", "M4", "DROIT DES AFFAIRES", "Droit, sciences politiques", "2024", 30, 75.0, 70.0),
+            isr("PARIS", P, "Master LMD", "M4", "DROIT DES AFFAIRES", "Droit, sciences politiques", "2024", 25, 77.0, 72.0, uai="0750000Z"),
+            # a closed master (pre-merger nomenclature): its last class is 2019, it is counted, never shown
+            isr("PARIS", P, "Master LMD", "M9", "DROIT, ECONOMIE, GESTION : DROIT", "Droit, sciences politiques", "2019", 60, 55.0, 50.0, uai="0750000Z"),
+            # a closed master published in two parts in its last class: counted once, never shown
+            isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 30, 60.0, 50.0),
+            isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 25, 62.0, 52.0, uai="0750000Z"),
+            # dropped by the staging: a breakdown by gender, and all leavers (not only graduates)
+            isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 40, 10.0, 10.0, genre="femme"),
+            isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 120, 10.0, 10.0, keep=False)]
+    pd.DataFrame(rows).to_parquet(raw_dir / "insersup.parquet", index=False)
+    return {"lycee": lyc, "cfa": cfa, "insersup": rows}

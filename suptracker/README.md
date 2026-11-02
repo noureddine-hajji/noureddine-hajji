@@ -680,6 +680,45 @@ Facts checked on the real files before coding:
 
 **UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
 
+## Professional insertion (sprint 8, formation page)
+
+**What the student sees.**
+- **On a BTS page, an "Insertion professionnelle" card** for the BTS of this establishment (Inserjeunes):
+  - the share of final-year students who continue their studies, who are employed 6 months later and in other situations;
+  - the employment rates at 6, 12 and 24 months, among those who left their studies;
+  - when Parcoursup groups options that Inserjeunes publishes separately, one row per option, never averaged.
+- **On a licence page,** the masters of the same university and discipline as B1 (InserSup): salaried employment in France 18 months after the diploma (among leavers) and stable employment (among those in salaried employment, as SIES publishes it), against all the university's masters and France.
+- **On a BUT page,** the same figures for the specialty in the university, all its BUT, and France.
+
+**Data (`suptracker/insertion.py`), checked on real data before the design.**
+- **Inserjeunes** (DEPP, lycées and CFA, two datasets): the latest pooled years "cumul 2023-2024".
+  - Continuing + employed at 6 months + other = 100 on every published row.
+  - The employment rates are among the leavers: `taux_emploi_6 = part_emploi / (100 − poursuite)`, within rounding.
+  - The formation code is part of the key (one establishment can publish the same label twice).
+  - No headcount is published, so no reliability grade is given.
+- **InserSup** (SIES): graduates, every gender, nationality and regime, per establishment (Paysage id) and per diploma (master mention, BUT specialty, LP), plus the total per diploma type.
+  - The employment rate is among the graduates who left their studies ("sortants"); the stable-employment rate is among those in salaried employment (stable jobs / salaried, exact on all 24,952 rows with both counts; found by Codex's review). `nd` is NULL, never 0.
+  - Fewer than 20 leavers: two classes are pooled (flag `*`).
+  - The served horizon is 18 months, the latest published for every recent class; the latest class is served per diploma.
+  - **Merged universities.** SIES keeps the former establishments' UAIs with their old classes (Paris Cité 2019 next to 2024). A diploma is therefore keyed by Paysage id, diploma, label and sector, never by UAI.
+    - Only diplomas with a class in the latest national year are shown; closed or renamed ones are counted in a note.
+    - A diploma or university total published in several parts that year gets no single figure (found by Codex's review).
+  - SIES publishes no discipline aggregate per university, so masters are listed one by one.
+  - Some stable-employment rates above 100 % exist at 24–30 months (SIES quirk); they are not served.
+- **Size.** The full sources weigh about 130 MB. The warehouse stores a column profile (`ref.insertion_profile`) and only the rows a page can use.
+- **BTS link.** Same UAI, plus a normalised label (accents, small words, plural, "1re année commune"). Statuses: ok 3,530, options 386, establishment absent 694, not published 247, not found 494.
+  - Renamed or new BTS (CIEL, Banque…) have no exit cohort under their new name: no figure rather than the old diploma's.
+
+**Red team (`scripts/redteam_insertion.py`, run in CI by `tests/test_insertion.py`).** On the real data, 9/9 checks pass and 18/18 mutants are caught.
+- **I1–I2.** Inserjeunes rows are re-read value by value; masked = NULL; the partition and the leaver identity hold.
+- **I3.** BTS link: same establishment only, options apart, renamed BTS never linked, truth table, coverage at least 75 %.
+- **I4–I5.** InserSup staging re-derived with the full key (1,516,086 values, 0 differ); identities (employment among leavers, stable jobs among the salaried employed), bounds, ordered quartiles, pooling flag.
+- **I6–I7.** Licence and BUT blocks: B1's university and discipline, MEEF apart, latest class per diploma, totals and France. InserSup spells BUT specialties as Parcoursup does ("Science des données", former STID): sprint 6's `SPECIALTY_ALIASES` apply, and all 24 specialties keep their national row (found by Codex's review).
+- **I8.** The page escapes stored strings and keeps the wording (leavers, salaried in France, not chances, options apart); nothing is averaged.
+- **I9, mutation test.** Oldest class served, a former UAI's old class served, a closed diploma served, BUT aliases ignored, `nd` as 0, masked value as 0, a link across establishments, a renamed BTS key, MEEF in a discipline, the staging filter dropped, and 8 UI mutants (one drops the stable rate's denominator).
+
+**UI check (Playwright):** light, dark and mobile. 0 JS errors, no horizontal scroll.
+
 ## Bac technologique and bac professionnel students (B4, "Mon parcours")
 
 "Mon parcours" now serves every series. The student picks *bac général*, *technologique* or *professionnel*; techno and pro students do not pick specialties.
