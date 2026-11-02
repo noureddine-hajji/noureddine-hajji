@@ -14,12 +14,12 @@ from . import config
 RAW = ("insersup", "inserjeunes_lycee", "inserjeunes_cfa")
 
 
-SAMPLE_ROWS = 3000      # the full sources are ~130 MB together: only a profile and a sample are staged
+# the full sources are ~130 MB together: only a profile and the rows a page can use are staged
 
 
 def build_raw(con, raw_dir: Path = config.RAW_DIR) -> dict:
     """ref.insertion_profile (one row per source x column: type, nulls, distinct values, the most
-    frequent values) and ref.<key>_sample (a reproducible sample). The full sources would push the
+    frequent values) and ref.<key> (the rows a page can use, KEEP). The full sources would push the
     committed warehouse over GitHub's 100 MB file limit. Kept as is when the raw files are absent."""
     import json
     con.execute("CREATE SCHEMA IF NOT EXISTS ref")
@@ -29,7 +29,6 @@ def build_raw(con, raw_dir: Path = config.RAW_DIR) -> dict:
     for key in RAW:
         path = Path(raw_dir) / f"{key}.parquet"
         if not path.exists():
-            con.execute(f"CREATE TABLE IF NOT EXISTS ref.{key}_sample (_absent BOOLEAN)")
             con.execute(f"CREATE TABLE IF NOT EXISTS ref.{key} (_absent BOOLEAN)")
             out[key] = None
             continue
@@ -42,7 +41,7 @@ def build_raw(con, raw_dir: Path = config.RAW_DIR) -> dict:
             top = con.execute(f"SELECT CAST({q} AS VARCHAR), count(*) c FROM {src} GROUP BY 1 ORDER BY c DESC LIMIT 25").fetchall()
             con.execute("INSERT INTO ref.insertion_profile VALUES (?, ?, ?, ?, ?, ?, ?)",
                         [key, n, col, typ, nn, nd, json.dumps(top, ensure_ascii=False)])
-        con.execute(f"CREATE OR REPLACE TABLE ref.{key}_sample AS SELECT * FROM {src} USING SAMPLE reservoir({SAMPLE_ROWS} ROWS) REPEATABLE (42)")
+        con.execute(f"DROP TABLE IF EXISTS ref.{key}_sample")
         con.execute(f"CREATE OR REPLACE TABLE ref.{key} AS SELECT * FROM {src} WHERE {KEEP[key]}")
         out[key] = n
     return out
@@ -53,7 +52,9 @@ KEEP = {
     # graduates, every gender / nationality / regime, aggregated over diplomas and sectors (per
     # establishment x diploma type x discipline, national rows included)
     "insersup": """obtention_diplome = 'diplômé' AND genre = 'ensemble' AND nationalite = 'ensemble'
-                   AND regime_inscription = 'ensemble' AND diplome = 'all' AND sectdis = 'all'""",
+                   AND regime_inscription = 'ensemble'
+                   AND (diplome = 'all' OR type_diplome_long IN ('Master LMD', 'Master MEEF',
+                        'Bachelor universitaire de technologie', 'Licence professionnelle'))""",
     "inserjeunes_lycee": "type_diplome = 'BTS'",
     "inserjeunes_cfa": "type_diplome = 'BTS'",
 }
