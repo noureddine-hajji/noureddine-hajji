@@ -46,6 +46,50 @@ def _download(url: str, dest: Path, retries: int = 4) -> None:
         delay *= 2
 
 
+def _read_csv(path: Path):
+    """A producer CSV of unknown delimiter and encoding, every column as text (no type guessing)."""
+    import csv
+
+    import pandas as pd
+    raw = path.read_bytes()
+    enc = "utf-8-sig"
+    try:
+        head = raw[:65536].decode(enc)
+    except UnicodeDecodeError:
+        enc, head = "latin-1", raw[:65536].decode("latin-1")
+    sep = csv.Sniffer().sniff(head.splitlines()[0], delimiters=";,\t|").delimiter
+    return pd.read_csv(path, sep=sep, dtype=str, encoding=enc, keep_default_na=False, na_values=[""])
+
+
+def _xml_records(path: Path):
+    """A zip of XML files as one row per record (each direct child of a file's root), the record kept as XML text."""
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    import pandas as pd
+    rows = []
+    with zipfile.ZipFile(path) as z:
+        for name in z.namelist():
+            if not name.lower().endswith(".xml"):
+                continue
+            root = ET.fromstring(z.read(name))
+            for i, el in enumerate(root):
+                rows.append({"file": name, "idx": i, "tag": el.tag, "xml": ET.tostring(el, encoding="unicode")})
+    return pd.DataFrame(rows, columns=["file", "idx", "tag", "xml"])
+
+
+def _ingest_file(ds, raw_dir: Path, dest: Path) -> dict:
+    """Download a direct file and convert it to raw/<key>.parquet (text columns, as published)."""
+    ext = ds.url.rsplit(".", 1)[-1].lower()
+    src = raw_dir / f"{ds.key}.{ext}"
+    print(f"[get ] {ds.key} <- {ds.url}")
+    _download(ds.url, src)
+    df = _xml_records(src) if ext == "zip" else _read_csv(src)
+    df.to_parquet(dest, index=False)
+    return {"url": ds.url, "kind": ds.kind, "year": ds.year, "bytes": src.stat().st_size, "sha256": _sha256(src),
+            "rows": len(df), "columns": len(df.columns), "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+
+
 def _sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fh:
@@ -70,6 +114,15 @@ def ingest(raw_dir: Path = config.RAW_DIR, only: set[str] | None = None, force: 
             print(f"[skip] {ds.key} already present")
             continue
         last_err: Exception | None = None
+        if ds.url:
+            try:
+                manifest[ds.key] = _ingest_file(ds, raw_dir, dest)
+            except Exception as exc:  # noqa: BLE001
+                if not ds.optional:
+                    raise RuntimeError(f"could not ingest {ds.key}: {exc}") from exc
+                print(f"[warn] optional {ds.key} not ingested: {exc}", file=sys.stderr)
+                manifest.setdefault(ds.key, {})["error"] = str(exc)[:300]
+            continue
         for ods_id in ds.ods_ids:
             url = config.parquet_export_url(ods_id, ds.base)
             print(f"[get ] {ds.key} <- {url}")
