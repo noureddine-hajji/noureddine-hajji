@@ -76,6 +76,9 @@ PREVISION_COLS = ("cod_aff_form", "lineage_id", "target", "indicator", "last_ses
 REPORT_COLS = ("indicator", "kind", "predictor", "target", "holdout", "n", "coverage", "mae", "naive_mae")
 
 
+ERR = lambda e: e[1]               # noqa: E731 - the error in an errors() tuple
+
+
 def admits_share(col: str) -> bool:
     return col.startswith("pct_")
 
@@ -132,7 +135,8 @@ def history(years: dict, col: str, target: int) -> tuple[list[float], float | No
     return vals, (years[past[-1]]["n"] if past else None)
 
 
-def errors(data: dict, col: str, target: int, predictor: str) -> list[tuple[str, float]]:
+def errors(data: dict, col: str, target: int, predictor: str) -> list[tuple[str, float, float, float]]:
+    """(stratum, error, observed value, point forecast) of forecasting `target` from the campaigns before it."""
     kind, out = KIND[col], []
     for years in data.values():
         if target not in years or years[target][col] is None:
@@ -140,7 +144,8 @@ def errors(data: dict, col: str, target: int, predictor: str) -> list[tuple[str,
         vals, n_last = history(years, col, target)
         if len(vals) < MIN_HIST:
             continue
-        out.append((stratum(n_last, len(vals)), error(kind, years[target][col], point(vals, predictor))))
+        hat = point(vals, predictor)
+        out.append((stratum(n_last, len(vals)), error(kind, years[target][col], hat), years[target][col], hat))
     return out
 
 
@@ -148,23 +153,31 @@ def choose_predictor(data: dict, col: str) -> str:
     mae = {}
     for p in PREDICTORS:
         es = errors(data, col, CALIBRATION_TARGET, p)
-        mae[p] = sum(abs(e) for _, e in es) / len(es) if es else float("inf")
+        mae[p] = sum(abs(e[1]) for e in es) / len(es) if es else float("inf")
     return min(PREDICTORS, key=lambda p: (mae[p], PREDICTORS.index(p)))
 
 
 def holdout(data: dict, col: str, predictor: str) -> dict:
     """Ranges set on the calibration year, applied to the hold-out year never seen."""
-    rr = CAL.ranges(errors(data, col, CALIBRATION_TARGET, predictor))
+    kind = KIND[col]
+    rr = CAL.ranges(errors(data, col, CALIBRATION_TARGET, predictor), val=ERR)
     ho = errors(data, col, HOLDOUT, predictor)
     if not ho or "*" not in rr:
         return {"n": 0, "coverage": None, "mae": None, "naive_mae": None}
     inside = 0
-    for st, e in ho:
+    for st, _, obs, hat in ho:
         lo, hi, _, _ = CAL.pick(rr, st)
-        inside += lo - EPS <= e <= hi + EPS      # whole-number data put many errors exactly on a bound: inside
+        inside += covered(kind, obs, hat, lo, hi)
     naive = errors(data, col, HOLDOUT, "derniere")
-    return {"n": len(ho), "coverage": inside / len(ho), "mae": sum(abs(e) for _, e in ho) / len(ho),
-            "naive_mae": sum(abs(e) for _, e in naive) / len(naive) if naive else None}
+    return {"n": len(ho), "coverage": inside / len(ho), "mae": sum(abs(e[1]) for e in ho) / len(ho),
+            "naive_mae": sum(abs(e[1]) for e in naive) / len(naive) if naive else None}
+
+
+def covered(kind: str, obs: float, hat: float, lo: float, hi: float) -> bool:
+    """Is the observed value inside the range the page SHOWS (counts rounded outwards, rates clipped)? A value on a
+    bound is inside; EPS guards float noise."""
+    b_lo, b_hi = bounds(kind, hat, lo, hi)
+    return b_lo - EPS <= obs <= b_hi + EPS
 
 
 def compute(data: dict, latest: int) -> tuple[list, list]:
@@ -176,7 +189,7 @@ def compute(data: dict, latest: int) -> tuple[list, list]:
         pred = choose_predictor(data, col)
         h = holdout(data, col, pred)
         rep.append((col, kind, pred, target, HOLDOUT, h["n"], h["coverage"], h["mae"], h["naive_mae"]))
-        rr = CAL.ranges(errors(data, col, CALIBRATION_TARGET, pred) + errors(data, col, HOLDOUT, pred))
+        rr = CAL.ranges(errors(data, col, CALIBRATION_TARGET, pred) + errors(data, col, HOLDOUT, pred), val=ERR)
         if "*" not in rr:
             continue
         for lid, years in data.items():
@@ -210,12 +223,16 @@ def build(con) -> dict:
     out = {r[0]: r[6] for r in rep}
     target = latest + 1
     # the access rate: sprint 5's ranges, so both pages agree (same campaign count rule as the other indicators)
+    # sprint 5's n_hist counts campaigns, with or without a published rate: count the published rates here
+    n_rates = {lid: sum(1 for y in years.values() if y[FROM_SPRINT5] is not None) for lid, years in data.items()}
     for r in con.execute("""SELECT DISTINCT f.cod_aff_form, f.lineage_id, f.target, fy.session, fy.taux_acces_ens, f.taux_hat,
-                                   f.taux_lo, f.taux_hi, f.taux_stratum, f.n_hist, f.predictor
+                                   f.taux_lo, f.taux_hi, f.taux_stratum, f.predictor
                             FROM mart.forecast f JOIN core.formation_year fy ON fy.cod_aff_form = f.cod_aff_form AND fy.session = f.target - 1
-                            WHERE f.taux_hat IS NOT NULL AND f.n_hist >= ? AND fy.taux_acces_ens IS NOT NULL""", [MIN_HIST]).fetchall():
-        cod, lid, tg, s, last, hat, lo, hi, st, n, pred = r
-        rows.append((cod, lid, tg, FROM_SPRINT5, s, last, hat, lo, hi, st, n, pred))
+                            WHERE f.taux_hat IS NOT NULL AND fy.taux_acces_ens IS NOT NULL""").fetchall():
+        cod, lid, tg, s, last, hat, lo, hi, st, pred = r
+        n = n_rates.get(lid, 0)
+        if n >= MIN_HIST:
+            rows.append((cod, lid, tg, FROM_SPRINT5, s, last, hat, lo, hi, st, n, pred))
     cov = con.execute("""SELECT n, coverage, mae, predictor FROM mart.calibration_report
                          WHERE phase = 'holdout' AND metric = 'taux' AND stratum = '*'""").fetchall()
     cov = cov[0] if cov else None

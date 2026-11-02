@@ -146,10 +146,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **Prévision n+1 (formation page).**
   - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
   - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as
-    measured, flagged "moins fiable" below 75 %); served ranges use 2024 + 2025 errors. At least 2 campaigns of history,
+    measured on the range SHOWN, rounded counts included, flagged "moins fiable" below 75 %); served ranges use 2024 + 2025 errors. At least 2 campaigns of history,
     only formations in the latest campaign, only on the latest campaign's page.
   - Rates: errors in points, clipped to [0, 100]. Counts: proportional errors, rounded outwards. Zero-admit campaigns'
-    `pct_*` are ignored. The access rate is NOT re-forecast: it is sprint 5's `mart.forecast` range (both pages agree).
+    `pct_*` are ignored. The access rate is NOT re-forecast: it is sprint 5's `mart.forecast` range (both pages agree), served only with two
+    PUBLISHED rates (sprint 5's n_hist counts campaigns, rate or not).
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.

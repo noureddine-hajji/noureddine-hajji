@@ -129,13 +129,14 @@ def ref_errors(data, col, target, p):
         vals = [years[s][col] for s in past if years[s][col] is not None]
         if len(vals) < REF_MIN_HIST:
             continue
-        out.append((ref_stratum(years[past[-1]]["_n"], len(vals)), ref_err(col, years[target][col], ref_point(vals, p))))
+        hat = ref_point(vals, p)
+        out.append((ref_stratum(years[past[-1]]["_n"], len(vals)), ref_err(col, years[target][col], hat), years[target][col], hat))
     return out
 
 
 def ref_ranges(errs, level=REF_LEVEL):
     by = defaultdict(list)
-    for st, e in errs:
+    for st, e, *_ in errs:
         by[st].append(e)
         by["*"].append(e)
     q = ((1 - level) / 2 * 100, (1 + level) / 2 * 100)
@@ -147,7 +148,7 @@ def ref_pick(rr, st):
 
 
 def ref_predictor(data, col):
-    mae = {p: (lambda es: sum(abs(e) for _, e in es) / len(es) if es else float("inf"))(ref_errors(data, col, REF_CALIB, p)) for p in REF_PRED}
+    mae = {p: (lambda es: sum(abs(e) for _, e, *_ in es) / len(es) if es else float("inf"))(ref_errors(data, col, REF_CALIB, p)) for p in REF_PRED}
     return min(REF_PRED, key=lambda p: (mae[p], REF_PRED.index(p)))
 
 
@@ -157,7 +158,11 @@ def ref_report(data, col):
     ho = ref_errors(data, col, REF_HOLDOUT, p)
     if not ho or "*" not in rr:
         return p, 0, None
-    inside = sum(1 for st, e in ho if ref_pick(rr, st)[0] - 1e-9 <= e <= ref_pick(rr, st)[1] + 1e-9)   # a value on the bound is inside
+    # membership in the range the page SHOWS (counts rounded outwards to whole numbers, rates clipped); a value on a bound is inside
+    inside = 0
+    for st, e, obs, hat in ho:
+        b_lo, b_hi = ref_bounds(col, hat, *ref_pick(rr, st))
+        inside += b_lo - 1e-9 <= obs <= b_hi + 1e-9
     return p, len(ho), inside / len(ho)
 
 
@@ -270,12 +275,16 @@ def p4(c: Ctx):
     t = c.stored[c.stored.indicator == "taux_acces_ens"]
     s5 = {cod: (h, lo, hi) for cod, h, lo, hi, n in c.sprint5 if n >= REF_MIN_HIST}
     got = {r.cod_aff_form: (r.hat, r.lo, r.hi) for r in t.itertuples()}
-    cur = {years[c.latest]["_cod"] for years in c.ref.values() if c.latest in years and years[c.latest]["taux_acces_ens"] is not None}
-    want = {k: v for k, v in s5.items() if k in cur}
+    # the formation needs two campaigns with a PUBLISHED access rate (sprint 5's n_hist counts campaigns, rate or not)
+    nrate = {years[c.latest]["_cod"]: sum(1 for y in years.values() if y["taux_acces_ens"] is not None)
+             for years in c.ref.values() if c.latest in years and years[c.latest]["taux_acces_ens"] is not None}
+    want = {k: v for k, v in s5.items() if nrate.get(k, 0) >= REF_MIN_HIST}
+    bad_n = [r.cod_aff_form for r in t.itertuples() if r.n_hist != nrate.get(r.cod_aff_form)]
     bad = [k for k in set(got) | set(want) if k not in got or k not in want or not all(close(a, b) for a, b in zip(got[k], want[k]))]
     rep = c.report[c.report.indicator == "taux_acces_ens"] if c.report is not None else None
     cov_ok = bool(c.cal) and rep is not None and len(rep) == 1 and close(float(rep.coverage.iloc[0]), c.cal[0][0])
-    return not bad and cov_ok and len(got) > 0, f"{len(got)} access-rate ranges, {len(bad)} differ from sprint 5 {bad[:2]}; coverage as sprint 5 {cov_ok}"
+    return not bad and not bad_n and cov_ok and len(got) > 0, (f"{len(got)} access-rate ranges, {len(bad)} differ from sprint 5 or lack two "
+                                                              f"published rates {bad[:2]}; campaign count wrong {len(bad_n)}; coverage as sprint 5 {cov_ok}")
 
 
 @check("P5 API: only on the latest campaign's page, indicators in order, fragile = coverage below 75 %, nothing for a past campaign")
@@ -350,7 +359,7 @@ def p7(c: Ctx):
             missed.append(name)
     keys = c.small_keys
     want, want_rep = ref_all(c, keys)
-    saved = {k: getattr(PV, k) for k in ("errors", "CALIBRATION_TARGET", "bounds", "MIN_HIST", "point", "stratum", "Q_LO")}
+    saved = {k: getattr(PV, k) for k in ("errors", "CALIBRATION_TARGET", "bounds", "MIN_HIST", "point", "stratum", "Q_LO", "covered")}
     saved_mod = c.mod
     cal_q = (CAL.Q_LO, CAL.Q_HI)
 
@@ -391,6 +400,8 @@ def p7(c: Ctx):
         ("90 % ranges instead of 80 %", lambda: (setattr(CAL, "Q_LO", 0.05), setattr(CAL, "Q_HI", 0.95))),
         ("zero-admit campaigns' 0 % shares used", keep_zero),
         ("formations absent from the latest campaign forecast", lambda: setattr(PV, "compute", stale)),
+        ("coverage tested on the unrounded interval, not the range shown",
+         lambda: setattr(PV, "covered", lambda kind, obs, hat, lo, hi: lo - 1e-9 <= PV.error(kind, obs, hat) <= hi + 1e-9)),
     ]
     for name, apply in mutants:
         try:
