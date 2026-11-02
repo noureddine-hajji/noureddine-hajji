@@ -60,6 +60,10 @@ GLOSSARY = {
             "université, toutes spécialités confondues.", "but"),
     "master": ("Master (M1, M2)", "Le diplôme en 2 ans après la licence (bac + 5). Les chiffres de réussite en master portent sur "
                "tous les étudiants entrés en M1 dans l'université et la discipline, d'où qu'ils viennent.", "master"),
+    "reorientation": ("Réorientation", "Changer de formation après une année, par exemple quitter la licence après la L1 pour un BTS, "
+                      "un BUT ou une école. Les chiffres du site disent combien d'inscrits en L1 l'ont fait, et vers quoi.", "passerelles"),
+    "monmaster": ("MonMaster", "La plateforme nationale de candidature en master (comme Parcoursup après le bac). Ses chiffres "
+                  "comptent des candidatures (vœux) et des admis, formation par formation.", "passerelles"),
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer ta liste, calculé à partir des admis des "

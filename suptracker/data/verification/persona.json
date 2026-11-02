@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T21:50:57+00:00",
+  "generated_at": "2026-11-01T23:43:24+00:00",
   "persona": {
     "doublette": "MATHS+SES",
     "mention": "ab"
@@ -125,14 +125,14 @@
           "hors_profil"
         ],
         [
-          "Lycée des métiers René Cassin",
-          6.0,
-          "ambitieux"
-        ],
-        [
           "Lycée Henri IV",
           6.0,
           "hors_profil"
+        ],
+        [
+          "Lycée des métiers René Cassin",
+          6.0,
+          "ambitieux"
         ],
         [
           "Lycée Henri IV",

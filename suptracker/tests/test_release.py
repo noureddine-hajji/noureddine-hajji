@@ -26,6 +26,7 @@ FEATURE_ENTRY_POINTS = {
     "repere": ("app.js", "function repereCell"),
     "but_success": ("app.js", "function butCard"),
     "master_success": ("app.js", "function masterCard"),
+    "passerelles": ("app.js", "function passerellesCard"),
 }
 
 
@@ -36,7 +37,7 @@ def test_every_feature_is_still_shipped():
 
 def test_every_feature_is_wired():
     js = (STATIC / "app.js").read_text()
-    assert "${butCard(d.but)}" in js and "${masterCard(d.master)}" in js
+    assert "${butCard(d.but)}" in js and "${masterCard(d.master)}" in js and "${passerellesCard(d.passerelles)}" in js
     assert "loadPlanB(r.cod_aff_form)" in js and "${timingCard(r, d.history)}" in js and "${offerCard(r)}" in js
     assert 'if (a === "stats") return await viewStats(b)' in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()
