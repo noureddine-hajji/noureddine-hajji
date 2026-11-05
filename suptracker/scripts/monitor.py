@@ -54,11 +54,17 @@ def checks(base: str, max_s: float, fetch=get) -> list[tuple[str, bool, str]]:
     add("search", st == 200 and res and dt < max_s, f"{st}, {len(res)} results in {dt:.1f}s")
     if res:
         cod = res[0]["cod_aff_form"]
+        # Vercel's CDN consumes s-maxage and strips it from what the client sees (Codex review): ask twice and read its
+        # client-visible verdict (x-vercel-cache: HIT / STALE on the second answer); off Vercel, read Cache-Control.
+        fetch(base, f"/api/formation/{cod}", 30)
         st, h, body, dt = fetch(base, f"/api/formation/{cod}", 30)
-        add("formation page", st == 200 and dt < max_s and "s-maxage" in h.get("cache-control", ""),
-            f"{st} in {dt:.1f}s, {h.get('cache-control')}")
+        shared = h.get("x-vercel-cache", "").upper() in ("HIT", "STALE") if "x-vercel-cache" in h else "s-maxage" in h.get("cache-control", "")
+        add("formation page (shared-cached)", st == 200 and dt < max_s and shared,
+            f"{st} in {dt:.1f}s, x-vercel-cache {h.get('x-vercel-cache')}, {h.get('cache-control')}")
+        fetch(base, f"/api/voeux?serie=bt&ids={cod}", 30)
         st, h, body, dt = fetch(base, f"/api/voeux?serie=bt&ids={cod}", 30)
-        add("Mes vœux never shared-cached", st == 200 and h.get("cache-control") == "no-store", f"{st}, {h.get('cache-control')}")
+        add("Mes vœux never shared-cached", st == 200 and h.get("cache-control") == "no-store"
+            and h.get("x-vercel-cache", "").upper() not in ("HIT", "STALE"), f"{st}, {h.get('cache-control')}, x-vercel-cache {h.get('x-vercel-cache')}")
     st, h, body, dt = fetch(base, "/api/journey/stage2?spe1=MATHS&spe2=SES&mention=ab&type=licence%20sciences%20juridiques", 60)
     add("Mon parcours positioning", st == 200 and dt < max_s * 2, f"{st} in {dt:.1f}s")
     return out

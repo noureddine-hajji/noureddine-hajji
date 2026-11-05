@@ -735,7 +735,7 @@ Each row states its denominator. A BUT page explains why it has no figure.
   - readiness;
   - that the page points to the live assets, and that they are immutable;
   - search;
-  - a formation page (shared-cached) and "Mes vœux" (never shared-cached);
+  - a formation page (shared-cached) and "Mes vœux" (never shared-cached). Each is asked twice and judged on Vercel's client-visible `x-vercel-cache` (HIT/STALE), because Vercel consumes `s-maxage` and strips it from the response (Codex review); off Vercel, the monitor reads `Cache-Control`;
   - the positioning, with time limits.
 
   The monitor sends `DNT: 1` and a robot user agent, so it is never counted in the audience. A red run makes GitHub e-mail the owner.
@@ -747,7 +747,7 @@ Each row states its denominator. A BUT page explains why it has no figure.
 - **S4.** On 13,910 real rows: the dropped fields are never read by the page, no zone changes, and no printed number changes. The printing is reproduced exactly as the browser does it (`toLocaleString` rounds the exact binary value half away from zero).
   - The first version rounded without the guard. The red team found 78 printed numbers that would have changed (74.4 % shown as 74.5 %), which led to the guard.
 - **S5.** Plan B and "Mes vœux" keep full rows; the page sends both counts; hostile beacons are rejected; the dashboard key is written; the server no longer records.
-- **S6.** Workflows: CI on push only for `main`, stale runs cancelled, every timed red team serial, the monitor scheduled. The monitor passes against the app and fails on a site that is down, serves an old front-end, has non-immutable assets or shares "Mes vœux".
+- **S6.** Workflows: CI on push only for `main`, stale runs cancelled, every timed red team serial, the monitor scheduled. The monitor passes against the app and behind a simulated Vercel CDN that strips `s-maxage` (the first version failed there, found by Codex), and fails on a site that is down, where Vercel never caches the formation or serves "Mes vœux" from its cache, serves an old front-end, has non-immutable assets or shares "Mes vœux".
 - **S7, mutation test.**
   - Cache policy: search or "Mes vœux" shared-cached, a route without a policy, errors cached, assets immutable whatever their version.
   - Lighter answers: a read field dropped, coarse rounding, rounding without the guard.

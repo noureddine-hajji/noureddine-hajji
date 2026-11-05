@@ -293,15 +293,32 @@ def s6(c: Ctx):
     import monitor as M
     ok, d = ci_ok(CI.read_text(), MON.read_text())
     good = M.checks("http://x", 8, fetch=fake_site(c))
+    seen = set()
+
+    def vercel(p, st, h, b):
+        """Vercel's CDN: s-maxage consumed and stripped; x-vercel-cache MISS then HIT for what the policy shares."""
+        cc = h.get("cache-control", "")
+        shared = "s-maxage" in cc
+        h = {**h, "cache-control": ", ".join(x for x in cc.split(", ") if not x.startswith(("s-maxage", "stale-while")))}
+        h["x-vercel-cache"] = ("HIT" if p in seen else "MISS") if shared else "BYPASS"
+        seen.add(p)
+        return st, h, b
+    on_vercel = M.checks("http://x", 8, fetch=fake_site(c, vercel))
+    vercel_ok = all(x[1] for x in on_vercel)
+    seen.clear()
     breaks = {
         "down": lambda p, st, h, b: (503, h, b),
+        "Vercel never caches the formation": lambda p, st, h, b: (st, {**h, "x-vercel-cache": "BYPASS", "cache-control": "public, max-age=300"}, b)
+        if p.startswith("/api/formation") else (st, h, b),
+        "Vercel serves Mes vœux from its cache": lambda p, st, h, b: (st, {**h, "x-vercel-cache": "HIT"}, b) if p.startswith("/api/voeux") else (st, h, b),
         "old front-end": lambda p, st, h, b: (st, h, b.replace(b"app.js?v=", b"app.js?v=0")) if p == "/" else (st, h, b),
         "assets not immutable": lambda p, st, h, b: (st, {**h, "cache-control": "public, max-age=300"}, b) if p.startswith("/static") else (st, h, b),
         "list shared-cached": lambda p, st, h, b: (st, {**h, "cache-control": CACHE.PUBLIC}, b) if p.startswith("/api/voeux") else (st, h, b),
     }
     missed = [k for k, br in breaks.items() if all(x[1] for x in M.checks("http://x", 8, fetch=fake_site(c, br)))]
     all_good = all(x[1] for x in good)
-    return ok and all_good and not missed, d + f"; monitor passes on the app {all_good} {[x for x in good if not x[1]]}; broken sites not caught {missed}"
+    return ok and all_good and vercel_ok and not missed, d + (f"; monitor passes on the app {all_good} {[x for x in good if not x[1]]}; "
+                                                          f"behind Vercel's CDN (s-maxage stripped) {vercel_ok} {[x for x in on_vercel if not x[1]]}; broken sites not caught {missed}")
 
 
 CI_MUTANTS = [
