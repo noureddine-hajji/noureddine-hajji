@@ -367,6 +367,11 @@ def validate_client_event(e: dict) -> tuple[str, dict]:
         if page not in FEEDBACK_PAGES or vote not in ("up", "down") or (reason is not None and reason not in FEEDBACK_REASONS):
             raise Rejected("feedback")
         return t, {"page": page, "vote": vote, "reason": reason}
+    if t == "journey":                 # sprint 10: sent by "Mon parcours" (its answers are CDN-cached)
+        st = e.get("stage")
+        if st not in ("stage1", "stage2"):
+            raise Rejected("journey")
+        return t, {"stage": st}
     if t == "jserr":
         r = e.get("route")
         return t, {"route": r if r in ROUTES else "home"}

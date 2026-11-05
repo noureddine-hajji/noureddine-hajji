@@ -22,6 +22,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
   - **Céreq (sprint 8 follow-up):** `cereq.py` (training-job match by highest diploma, national; owner-uploaded workbook).
   - **Onisep (sprint 8 follow-up):** `onisep.py` (jobs a diploma leads to, national, by title; owner-uploaded Idéo XML).
+  - **Scale (sprint 10):** `cache.py` (one HTTP cache policy per route), `journey.public_stage2` (lighter answers), `scripts/monitor.py`.
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -56,7 +57,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
    - a **mutation test**: seed bugs and check each is caught. Strengthen the red team until it is.
 4. **Test and look.**
    - `tests/test_<feature>.py` runs the red team on the synthetic fixture and on the real warehouse
-     (skip if absent). `python -m pytest -q` must pass; it takes about 3–4 min with real data.
+     (skip if absent). `python -m pytest -q -n auto --dist loadfile` must pass (pytest-xdist), then `tests/test_analytics.py` alone.
    - Check the UI with Playwright (preinstalled; `require('playwright')`): light, dark and mobile,
      0 JS errors, no horizontal scroll. Look at the screenshots.
 5. **Ship.**
@@ -161,6 +162,14 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Link by national title: BTS same title or all its options; BUT specialty without parcours; licence mention (never a
     licence pro); IFSI = DE infirmier; EFTS = the named DE. Other filières: no card.
   - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
+- **Scale (sprint 10).**
+  - Every route has a policy in `cache.py` (red team S1). A route that records an audience event or carries a personal list is
+    NEVER shared-cached (`no-store`); only 200 answers are cached; assets are immutable only with the live `?v=` fingerprint.
+  - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
+  - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
+    (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
+  - CI: push on `main` only, branches through their PR, stale runs cancelled, `pytest -n auto --dist loadfile`, analytics (R16 timing) serial.
+  - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
 - **Mes vœux (sprint 11).**
   - Zones come from `journey.stage2(..., only=codes)`: the same row as the full type, hence the zone of "Mon parcours" and
     Plan B (red team V1-V2). Never a frozen zone: the list is re-read for the current profile.
@@ -205,7 +214,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
-  - sprint 9: removed at the owner's request (2026-11-02); next: sprint 10 (scale).
+  - sprint 9: removed at the owner's request (2026-11-02); sprint 10 (scale) on the branch; next: sprint 12 (job → formations).
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly
   from Vercel's own branch `vercel/install-and-configure-vercel-w-9i0tca` (PR #9, closed unmerged),

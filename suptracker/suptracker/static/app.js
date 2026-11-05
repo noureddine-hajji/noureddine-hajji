@@ -1032,6 +1032,9 @@ async function viewParcours() {
   const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
   const drill = store.get("drill", null);
   const s2 = s1 && drill ? await api(`/api/journey/stage2?${sq}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
+  // sprint 10: the positioning answers are served by the CDN, so the page sends the audience count itself
+  if (s1) track("journey", { stage: "stage1" });
+  if (s2) track("journey", { stage: "stage2" });
   const W = voeux.get();
   const onlyHome = !!p.academie && store.get("onlyHome", false);   // never filter without an académie
   const F = s2 ? s2.formations.filter((f) => f.zone !== "non_ouvert" && (!onlyHome || f.home_academie)) : [];
