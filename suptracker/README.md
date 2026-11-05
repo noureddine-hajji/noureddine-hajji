@@ -712,6 +712,62 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## From a job to the formations (sprint 12, `#/metiers`)
+
+**What the student sees.** A "Métiers" page in the menu. The student types a job and the matching Onisep jobs appear as they type. Matching is insensitive to accents and case, and works on masculine and feminine forms and on the Onisep synonyms: "infirmière", "gestionnaire de paie", "développeur web" all find a job. When no job contains every word, the closest ones are shown and labelled as such.
+
+A job page lists:
+- the diplomas whose Onisep sheet cites the job, from the lowest level to the highest, each flagged "accessible avec ce diplôme" or "après une poursuite d'études";
+- under each diploma, the Parcoursup formations of the latest campaign that prepare it, with access rate, places and "Ajouter à mes vœux";
+- "Mon académie seulement" as an option: the académie stays in the browser.
+
+From a formation page, each job of the "Les métiers visés" card has a "formations" link. The job page then shows that formation first ("la formation que tu regardais"), even beyond the 40 rows displayed.
+
+**Design (`suptracker/metiers.py`, `GET /api/metiers`, `GET /api/metier/{id}`).**
+- **The jobs card read backwards.** Same Onisep sheets, same link (`onisep.match`), same access flag. Both pages always agree; red team M3 checks it both ways.
+- **The diploma level now comes from the matched Onisep sheet itself** (`onisep.sheet_level`), not from the filière. The sprint-8 card assumed every BTS was bac+2, but the BTS orthoprothésiste and podo-orthésiste last 3 years ("bac + 3"). On those pages a bac+3 job was wrongly shown "après une poursuite d'études". Fixed for both pages; the filière's usual level is only a fallback.
+- **All of a job's codes and labels are kept.** The Onisep parsing keeps every ROME code of a job (34 jobs have several; up to 4) and every masculine, feminine and synonym label: `core.onisep_metier_rome`, `core.onisep_metier_libelle`.
+- **Privacy.** The catalogue (1,124 jobs, 51 KB compressed) is sent whole by a route that takes no parameter and is searched in the browser: what a student looks for never reaches the server. Both routes are public and cached by the CDN; no audience event is recorded beyond the page view.
+- **Wording.** The list is national: an establishment is listed because it prepares the diploma, not because its students do the job. It is not a promise of a job. Formations are listed by académie and town, never by chances.
+- **Coverage on real data.**
+  - 981 of the 1,124 jobs are linked to at least one diploma; 331 of them reach Parcoursup formations.
+  - The other 650 are reached only through diplomas outside Parcoursup (masters, engineering and other schools, CAP…), and their page says so.
+  - 143 jobs have no diploma at all.
+
+**Upkeep.**
+- **Source register.** Every file committed for the Horizon 2030 sprints is registered with the new status `depose`, its sprint and its role (source, context, or cross-check only), so red team F9 stays green.
+  - The status means "committed, not ingested yet".
+  - The sources page shows "déposée, pas encore intégrée · étape N".
+  - A pattern that matches no committed file is now caught.
+- **Monitor.** It retries twice, 2 s apart, when the CDN is still filling right after a deployment. An answer never served from the cache stays red.
+- **Deployment.** `data/sources/` was already outside the Vercel bundle (`.vercelignore`); red team M7 now guards it.
+
+**Red team (`scripts/redteam_metiers.py`, run in CI by `tests/test_metiers.py`).** On the real data, 8/8 checks pass and 16/16 mutants are caught.
+- **M1.** The raw XML is re-read: every ROME code and every label.
+- **M2.** 97 job pages are re-derived from the raw links: diplomas, formations, flags, status, order.
+- **M3.** 322 job ↔ formation pairs are checked both ways.
+- **M4.** The page's own JavaScript runs under Node:
+  - truth queries, typed with and without accents;
+  - accent and case invariance;
+  - close matches never outranking full ones;
+  - hostile queries.
+- **M5.** API: no parameter, cache headers, malformed ids, no audience event.
+- **M6.** Page: escaping, noopener, wording, ODbL credit, race guard, the formation the student came from pinned, wiring.
+- **M7.** Upkeep.
+- **M8, mutation test.**
+  - Page: unescaped strings, noopener, the three caveats, the race guard, the pin, the card's link.
+  - Search: accents kept, synonyms ignored, an empty query matching everything.
+  - Data and deployment: inverted flag, a dropped formation, the filière's level instead of the sheet's, `data/sources` back in the bundle.
+
+The first red-team run found:
+- the 3-year BTS level bug;
+- the formation a student came from lost at rank 86 of 86;
+- an all-words-only search that found nothing for "développeur web";
+- a misleading "après le bac+3" for school diplomas such as aide-soignant;
+- literal combining characters in the accent-stripping regex, which hid the mutant meant to test it.
+
+**UI check (Playwright):** search and job pages in light, dark and mobile; the link from a formation card; no request carries the query. 0 JS errors, no horizontal page scroll.
+
 ## Scale: CDN cache, lighter answers, one CI run, live monitoring (sprint 10)
 
 **Measured first (real warehouse, before the sprint).**

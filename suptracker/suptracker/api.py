@@ -24,6 +24,7 @@ from . import journey as J
 from . import planb as PB
 from . import voeux as VX
 from . import cache as CACHE
+from . import metiers as MT
 from . import search as S
 from . import success as SU
 from . import poursuite as PO
@@ -233,6 +234,14 @@ METHODOLOGY = {
         "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
         "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
         "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+    "metier_formations": (
+        "Pour un métier, la page liste les diplômes dont la fiche Onisep (Idéo, licence ODbL) cite ce métier, du moins "
+        "élevé au plus élevé, puis les formations Parcoursup de la dernière campagne qui préparent ces diplômes. C'est la "
+        "carte « Les métiers visés » lue à l'envers : les deux pages disent toujours la même chose. Pour chaque diplôme, "
+        "l'Onisep donne le niveau d'études minimum du métier : s'il est plus élevé que celui du diplôme, le métier demande "
+        "une poursuite d'études. La liste est nationale : un établissement figure parce qu'il prépare le diplôme, pas parce "
+        "que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi, et les formations ne sont pas classées "
+        "par chances d'admission. La recherche se fait dans ton navigateur : ce que tu cherches n'est pas envoyé au site."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -746,6 +755,24 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
         raise HTTPException(422, str(exc)) from None
 
 
+@app.get("/api/metiers")
+def metiers():
+    """Sprint 12: every Onisep job with its search labels, sent whole so the page searches it locally: what a student
+    looks for never reaches the server. No parameter on purpose."""
+    return MT.catalogue(_con().cursor())
+
+
+@app.get("/api/metier/{met_id}")
+def metier(met_id: str):
+    """Sprint 12: one job, its diplomas and the Parcoursup formations preparing them (the formation card read backwards)."""
+    if not MT.MET_ID.match(met_id):
+        raise HTTPException(422, "identifiant de métier invalide")
+    d = MT.detail(_con().cursor(), met_id)
+    if d is None:
+        raise HTTPException(404, "métier inconnu")
+    return d
+
+
 @app.get("/api/continuity")
 def continuity():
     return {"anchor": config.LATEST_YEAR, "rows": continuity_report(_con().cursor())}
@@ -810,7 +837,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations"]
 
 
 @lru_cache(maxsize=1)

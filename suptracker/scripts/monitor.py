@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 
 UA = "SupTrackerMonitor/1.0 (+uptime check; bot)"
+RETRIES, PAUSE = 2, 2.0
 
 
 def get(base: str, path: str, timeout: float) -> tuple[int, dict, bytes, float]:
@@ -56,9 +57,15 @@ def checks(base: str, max_s: float, fetch=get) -> list[tuple[str, bool, str]]:
         cod = res[0]["cod_aff_form"]
         # Vercel's CDN consumes s-maxage and strips it from what the client sees (Codex review): ask twice and read its
         # client-visible verdict (x-vercel-cache: HIT / STALE on the second answer); off Vercel, read Cache-Control.
+        # right after a deployment the CDN may still be filling: up to RETRIES more asks, PAUSE seconds apart; an answer
+        # that is never served from the cache stays red (sprint 12, first live run after PR #28)
         fetch(base, f"/api/formation/{cod}", 30)
-        st, h, body, dt = fetch(base, f"/api/formation/{cod}", 30)
-        shared = h.get("x-vercel-cache", "").upper() in ("HIT", "STALE") if "x-vercel-cache" in h else "s-maxage" in h.get("cache-control", "")
+        for attempt in range(RETRIES + 1):
+            st, h, body, dt = fetch(base, f"/api/formation/{cod}", 30)
+            shared = h.get("x-vercel-cache", "").upper() in ("HIT", "STALE") if "x-vercel-cache" in h else "s-maxage" in h.get("cache-control", "")
+            if shared or st != 200 or attempt == RETRIES:
+                break
+            time.sleep(PAUSE)
         add("formation page (shared-cached)", st == 200 and dt < max_s and shared,
             f"{st} in {dt:.1f}s, x-vercel-cache {h.get('x-vercel-cache')}, {h.get('cache-control')}")
         fetch(base, f"/api/voeux?serie=bt&ids={cod}", 30)

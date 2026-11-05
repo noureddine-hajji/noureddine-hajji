@@ -55,6 +55,9 @@ GLOSSARY = {
     "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
                "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
                "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
+    "du_metier_aux_formations": ("Du métier aux formations", "Pour un métier, les diplômes qui y mènent d'après l'Onisep et les "
+                                 "formations Parcoursup qui préparent ces diplômes. La liste est nationale : ce n'est pas "
+                                 "une promesse d'emploi.", "metier_formations"),
     "mes_voeux": ("Mes vœux", "Ta liste de formations (10 au maximum, comme sur Parcoursup), relue pour ton profil actuel : "
                   "chaque vœu reçoit sa zone, et la liste est lue avec des règles simples qui comptent les zones. Ce ne "
                   "sont pas des chances d'admission.", "voeux"),

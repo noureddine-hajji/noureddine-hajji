@@ -869,13 +869,18 @@ def make_onisep_zips(d: Path) -> dict:
         mx = "".join(f"<metier><id>{m}</id><nom_metier>{escape(dict((j[0], j[1]) for j in jobs)[m])}</nom_metier></metier>" for m in mids)
         fx.append(f"<formation><identifiant>{fid}</identifiant><libelle_complet>{escape(lib)}</libelle_complet>"
                   f"<type_Formation><type_formation_libelle>{typ}</type_formation_libelle></type_Formation>"
-                  f"<niveau_certification>niveau 5</niveau_certification><niveau_etudes><libelle>bac + 2</libelle></niveau_etudes>"
+                  f"<niveau_certification>niveau 5</niveau_certification><niveau_etudes><libelle>{'bac + 2' if typ.startswith('brevet') else 'bac + 3'}</libelle></niveau_etudes>"
                   f"<descriptif><![CDATA[<p>texte</p>]]></descriptif><metiers_formation>{mx}</metiers_formation></formation>")
     fx.append("</formations>")
     jx = ['<?xml version="1.0" encoding="UTF-8"?><metiers xmlns:exsl="http://exslt.org/common">']
     for mid, nom, lvl in jobs:
-        jx.append(f"<metier><identifiant>{mid}</identifiant><nom_metier>{escape(nom)}</nom_metier>"
-                  f"<romesV3><romeV3>M1203</romeV3></romesV3><competences><![CDATA[<h5>x</h5>]]></competences>"
+        extra = {"MET.1": ("<libelle_feminin>comptable</libelle_feminin><libelle_masculin>comptable</libelle_masculin>"
+                           "<synonymes><synonyme><nom_metier>gestionnaire de paie</nom_metier><libelle_feminin>gestionnaire de paie"
+                           "</libelle_feminin></synonyme></synonymes>"),
+                 "MET.3": "<libelle_feminin>administratrice réseaux</libelle_feminin>"}.get(mid, "")
+        romes = "<romeV3>M1801</romeV3><romeV3>I1401</romeV3>" if mid == "MET.3" else "<romeV3>M1203</romeV3>"
+        jx.append(f"<metier><identifiant>{mid}</identifiant><nom_metier>{escape(nom)}</nom_metier>{extra}"
+                  f"<romesV3>{romes}</romesV3><competences><![CDATA[<h5>x</h5>]]></competences>"
                   f"<niveau_acces_min><libelle>{escape(lvl)}</libelle></niveau_acces_min></metier>")
     jx.append("</metiers>")
     out = {}
