@@ -306,8 +306,10 @@ def ui(js: str) -> tuple[bool, str]:
         ('$view.dataset.rendered = "metiers:loading";' in b and 'if ($view.dataset.rendered !== "metiers:loading") return;' in b)
     pinned = "const mine = x.formations.filter((f) => f.cod_aff_form === from);" in b and "40 + mine.length" in b
     wired = ('if (a === "metiers") return await viewMetiers(' in js and 'href="#/metiers/${esc(j.id)}/${esc(m.cod || "")}"' in js)
-    ok = not raw and not blank and words and race and pinned and wired
-    return ok, f"unescaped {raw[:3]}; links without noopener {len(blank)}; wording {words}; race guard {race}; came-from formation pinned {pinned}; wired {wired}"
+    # every browser-storage access is guarded: a privacy setting that blocks storage throws (Codex, sprint 12)
+    unguarded = [ln.strip()[:60] for ln in b.splitlines() if re.search(r"\b(?:session|local)Storage\.", ln) and "try {" not in ln]
+    ok = not raw and not blank and words and race and pinned and wired and not unguarded
+    return ok, f"unescaped {raw[:3]}; links without noopener {len(blank)}; wording {words}; race guard {race}; came-from formation pinned {pinned}; wired {wired}; unguarded storage {unguarded}"
 
 
 @check("M6 page: escaping, noopener, wording, credit, race guard, the formation the student came from always shown, wiring")
@@ -345,6 +347,7 @@ UI_MUTANTS = [
     ("ranking caveat dropped", "Les formations sont rangées par académie et par ville, pas par chances d'admission.", ""),
     ("privacy note dropped", "La recherche se fait dans ton navigateur : ce que tu tapes n'est pas envoyé au site. ", ""),
     ("navigation race unguarded", "if ($view.dataset.rendered !== marker) return;", ""),
+    ("stored query read unguarded", 'try { q0 = sessionStorage.getItem("metierQ") || ""; } catch (_) { /* storage blocked: start empty (Codex) */ }', 'q0 = sessionStorage.getItem("metierQ") || "";'),
     ("catalogue load race unguarded", 'if ($view.dataset.rendered !== "metiers:loading") return;', ""),
     ("came-from formation not pinned", "40 + mine.length", "40"),
     ("formation card no longer links the job page", 'href="#/metiers/${esc(j.id)}/${esc(m.cod || "")}"', 'href="#/metiers/${esc(j.id)}"'),

@@ -1348,7 +1348,8 @@ async function viewMetiers(id, from = "") {
     METIERS = METIERS || cat;
     if ($view.dataset.rendered !== "metiers:loading") return;
   }
-  const q0 = sessionStorage.getItem("metierQ") || "";
+  let q0 = "";
+  try { q0 = sessionStorage.getItem("metierQ") || ""; } catch (_) { /* storage blocked: start empty (Codex) */ }
   $view.innerHTML = `<div class="card"><h1>Du métier aux formations ${tip("du_metier_aux_formations")}</h1>
     <p class="small">Cherche un métier : la page montre les diplômes qui y mènent d'après l'Onisep, puis les formations Parcoursup qui les préparent.</p>
     <input id="mq" class="wide" type="search" placeholder="Ex. infirmière, comptable, développeur web…" value="${esc(q0)}" autocomplete="off" aria-label="Métier recherché">
