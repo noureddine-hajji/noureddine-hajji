@@ -229,7 +229,9 @@ def v4(c: Ctx):
 
 def block(js: str) -> str:
     i = js.index("// ---- Sprint 11: \"Mes vœux\"")
-    return js[i: js.index("// ---- router", i)]
+    # the block ends at the NEXT top-level section, not at the router: a later view sharing a line (the navigation
+    # guard) must not stand in for this one (sprint 12: the "Métiers" block hid the "Mes vœux" race mutant)
+    return js[i: js.index("\n// ---- ", i + 1)]
 
 
 def ui(js: str) -> tuple[bool, str]:
@@ -282,7 +284,7 @@ def v6(c: Ctx):
     missed = []
     js = APP_JS.read_text()
     i = js.index("// ---- Sprint 11: \"Mes vœux\"")
-    j = js.index("// ---- router", i)
+    j = js.index("\n// ---- ", i + 1)
     for name, old, new in UI_MUTANTS:
         # a mutant is seeded in the "Mes vœux" block when it is there (other views share some lines)
         mut = js[:i] + js[i:j].replace(old, new, 1) + js[j:] if old in js[i:j] else js.replace(old, new, 1)

@@ -287,7 +287,9 @@ def m5(c: Ctx):
 
 def block(js: str) -> str:
     i = js.index("// ---- Sprint 12: \"Du métier aux formations\"")
-    return js[i: js.index("// ---- router", i)]
+    # the block ends at the NEXT top-level section, not at the router: a later view sharing a line (the navigation
+    # guard) must not stand in for this one (sprint 12: the "Métiers" block hid the "Mes vœux" race mutant)
+    return js[i: js.index("\n// ---- ", i + 1)]
 
 
 def ui(js: str) -> tuple[bool, str]:
@@ -355,7 +357,8 @@ SEARCH_MUTANTS = [
 def m8(c: Ctx):
     missed = []
     js = APP_JS.read_text()
-    i, j = js.index("// ---- Sprint 12: \"Du métier aux formations\""), js.index("// ---- router", js.index("// ---- Sprint 12"))
+    i = js.index("// ---- Sprint 12: \"Du métier aux formations\"")
+    j = js.index("\n// ---- ", i + 1)
     for name, old, new in UI_MUTANTS:
         mut = js[:i] + js[i:j].replace(old, new, 1) + js[j:] if old in js[i:j] else js.replace(old, new, 1)
         if old not in js or ui(mut)[0]:
