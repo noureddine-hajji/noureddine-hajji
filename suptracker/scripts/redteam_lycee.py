@@ -234,6 +234,16 @@ def y7(c: Ctx):
     return n > 0 and not bad, f"{n} rows over {types}, {len(bad)} differ {bad[:3]}"
 
 
+def _fn(js: str, head: str) -> str:
+    """The body of one top-level function: a guard elsewhere in app.js ("Mes vœux" has the same line) must
+    not stand in for this one."""
+    i = js.find(head)
+    if i < 0:
+        return ""
+    j = js.find("\n}\n", i)
+    return js[i: j if j > 0 else len(js)]
+
+
 def ui_card(js: str) -> tuple[bool, str]:
     i = js.index("// ---- Sprint 4: the student's lycée")
     blk = js[i: js.index("function stage1Matrix", i)] if "function stage1Matrix" in js[i:] else js[i: i + 9000]
@@ -249,7 +259,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     wiring = js[i_p: js.index("$view.querySelectorAll(\"[data-gate]\")", i_p)]
     keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and "lycee: lyc }" in js)
     # a search naming a lycée offers to set it as the profile's lycée: escaped, local, race-guarded
-    sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in js
+    sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in _fn(js, "async function suggestLycee(")
             and "suggestLycee(q, $view.dataset.rendered);" in js
             # the marker is cleared on every navigation, so a late suggestion never lands on another page
             and re.search(r"async function route\(\) \{[\s\S]{0,900}delete \$view\.dataset\.rendered;", js) is not None)

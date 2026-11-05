@@ -836,3 +836,53 @@ def make_cereq_xlsx(path: Path) -> dict:
             out[(h, code)] = row
     wb.save(path)
     return out
+
+
+def make_onisep_zips(d: Path) -> dict:
+    """Idéo-Fiches formations and Idéo-Fiches métiers as zipped XML, shaped like the Onisep files (namespace
+    declaration, nested types, a CDATA block): a BTS published by options, a BUT with a parcours in its title,
+    licence mentions, a licence professionnelle decoy that must never match a licence, jobs at every access level
+    and a hostile job name."""
+    import zipfile
+    from xml.sax.saxutils import escape
+    d.mkdir(parents=True, exist_ok=True)
+    forms = [  # id, label, type, jobs
+        ("FOR.1", "BTS comptabilité et gestion", "brevet de technicien supérieur", ["MET.1", "MET.2", "MET.5"]),
+        ("FOR.2", "BTS systèmes numériques option A informatique et réseaux", "brevet de technicien supérieur", ["MET.3", "MET.4"]),
+        ("FOR.3", "BTS systèmes numériques option B électronique et communications", "brevet de technicien supérieur", ["MET.4", "MET.6"]),
+        ("FOR.4", "BUT gestion des entreprises et des administrations parcours gestion comptable, fiscale et financière",
+         "bachelor universitaire de technologie", ["MET.1", "MET.2"]),
+        ("FOR.5", "licence mention droit", "licence", ["MET.7", "MET.8"]),
+        ("FOR.6", "licence mention mathématiques", "licence", ["MET.9"]),
+        ("FOR.7", "licence pro mention droit", "licence pro", ["MET.8"]),
+        ("FOR.8", "BUT génie civil - construction durable", "bachelor universitaire de technologie", ["MET.6"]),
+    ]
+    jobs = [  # id, name, minimum level
+        ("MET.1", "comptable", "bac + 2"), ("MET.2", "expert / e-comptable", "bac + 5"),
+        ("MET.3", "administrateur / trice réseaux", "bac + 2"), ("MET.4", "technicien / ne de maintenance", "bac ou équivalent"),
+        ("MET.5", "aide-comptable", "CAP ou équivalent"), ("MET.6", "conducteur / trice de travaux", "bac + 3"),
+        ("MET.7", "avocat / e <script>alert(1)</script>", "bac + 5"), ("MET.8", "juriste d'entreprise", "bac + 5"),
+        ("MET.9", "actuaire", "bac + 5"),
+    ]
+    fx = ['<?xml version="1.0" encoding="UTF-8"?><formations xmlns:exsl="http://exslt.org/common">']
+    for fid, lib, typ, mids in forms:
+        mx = "".join(f"<metier><id>{m}</id><nom_metier>{escape(dict((j[0], j[1]) for j in jobs)[m])}</nom_metier></metier>" for m in mids)
+        fx.append(f"<formation><identifiant>{fid}</identifiant><libelle_complet>{escape(lib)}</libelle_complet>"
+                  f"<type_Formation><type_formation_libelle>{typ}</type_formation_libelle></type_Formation>"
+                  f"<niveau_certification>niveau 5</niveau_certification><niveau_etudes><libelle>bac + 2</libelle></niveau_etudes>"
+                  f"<descriptif><![CDATA[<p>texte</p>]]></descriptif><metiers_formation>{mx}</metiers_formation></formation>")
+    fx.append("</formations>")
+    jx = ['<?xml version="1.0" encoding="UTF-8"?><metiers xmlns:exsl="http://exslt.org/common">']
+    for mid, nom, lvl in jobs:
+        jx.append(f"<metier><identifiant>{mid}</identifiant><nom_metier>{escape(nom)}</nom_metier>"
+                  f"<romesV3><romeV3>M1203</romeV3></romesV3><competences><![CDATA[<h5>x</h5>]]></competences>"
+                  f"<niveau_acces_min><libelle>{escape(lvl)}</libelle></niveau_acces_min></metier>")
+    jx.append("</metiers>")
+    out = {}
+    for kind, name, body in (("formations", "ONISEP-Fiches_Formations.zip", fx), ("metiers", "ONISEP-Fiches_Metiers.zip", jx)):
+        p = d / name
+        with zipfile.ZipFile(p, "w") as z:
+            z.writestr(f"Onisep_Ideo_{kind}.xml", "".join(body))
+        out[kind] = p
+    (d / "ONISEP-Metiers.csv").write_text("libellé métier;lien site onisep.fr\ncomptable;x\n")   # not a sheet: ignored
+    return out

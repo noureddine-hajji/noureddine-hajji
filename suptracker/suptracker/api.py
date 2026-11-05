@@ -22,6 +22,7 @@ from . import analytics as A
 from . import config
 from . import journey as J
 from . import planb as PB
+from . import voeux as VX
 from . import search as S
 from . import success as SU
 from . import poursuite as PO
@@ -31,6 +32,7 @@ from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
 from . import cereq as CQ
+from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
@@ -230,6 +232,21 @@ METHODOLOGY = {
         "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
         "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
         "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+    "voeux": (
+        "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
+        "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
+        "recalculée si tu changes de mention, de spécialités ou de série. La lecture de la liste ne fait que COMPTER ces "
+        "zones avec des règles fixes (par exemple : aucun vœu de sécurité sûr, plus de la moitié ambitieux, un vœu fermé à "
+        "ta série). Elle ne combine jamais les vœux en une chance d'être admis quelque part : les zones décrivent les admis "
+        "des campagnes passées et les vœux ne sont pas indépendants. Une sécurité « incertaine » ne compte pas comme sûre. "
+        "Sur Parcoursup, les vœux ne sont pas classés. Ta liste reste dans ton navigateur ; la page envoie les codes et ton "
+        "profil pour la lire, rien n'est enregistré ni compté sur le serveur."),
+    "metiers": (
+        "Les métiers auxquels prépare ce diplôme, d'après les fiches de l'Onisep (Idéo, licence ODbL). La liste est celle "
+        "du diplôme au niveau national, pas propre à cet établissement : un BTS ou un BUT est relié à la fiche Onisep du "
+        "même diplôme par son intitulé, une licence par sa mention, un IFSI ou une école du travail social par son diplôme "
+        "d'État. Pour chaque métier, l'Onisep donne le niveau d'études minimum pour y accéder : s'il est plus élevé que "
+        "ce diplôme, le métier demande une poursuite d'études. Ce n'est pas une promesse d'emploi."),
     "cereq": (
         "Le Céreq interroge les jeunes sortis d'études en 2017 (enquête Génération), 3 ans puis 6 ans après (en 2020 et en "
         "2023). Il publie les résultats par groupe de plus haut diplôme obtenu, pour la France entière : par exemple les "
@@ -464,7 +481,8 @@ def formation(cod: str, session: int | None = None):
             "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "insertion": _insertion_block(rec),
             "prevision": PV.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
-            "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -702,6 +720,23 @@ def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"
         raise HTTPException(404, str(exc)) from None
 
 
+@app.get("/api/voeux")
+def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+          serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
+          academie: str | None = Query(None, max_length=80)):
+    """Sprint 11, "Mes vœux": the student's list read for the current profile. No analytics event: the list
+    of formations a student considers is never counted or stored here."""
+    _journey_ready()
+    if serie == "bg" and (not spe1 or not spe2):
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
+    dkey = _dkey(spe1, spe2) if serie == "bg" else None
+    try:
+        return VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
+                           academie=academie or None)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
 @app.get("/api/continuity")
 def continuity():
     return {"anchor": config.LATEST_YEAR, "rows": continuity_report(_con().cursor())}
@@ -766,7 +801,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux"]
 
 
 @lru_cache(maxsize=1)

@@ -20,7 +20,8 @@ _SOURCE = object()
 
 
 def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, success_source=_SOURCE,
-          poursuite_sources=_SOURCE, cereq_source=_SOURCE) -> Path:
+          poursuite_sources=_SOURCE, cereq_source=_SOURCE,
+          onisep_sources=_SOURCE) -> Path:
     """success_source: the SIES licence success workbook (B1); default data/sources/, None to skip.
     poursuite_sources: {kind: path} of the sprint-6 BUT and master workbooks; default: detected in
     data/sources/, None to skip."""
@@ -45,7 +46,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         success.attach(con, src)
         passerelles.build(con, raw_dir, reo_source=src)
         insertion.build(con, raw_dir)
-        onisep.build(con, raw_dir)
+        onisep.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)

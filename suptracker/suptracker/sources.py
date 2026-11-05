@@ -73,7 +73,7 @@ SOURCES = (
      "status": "en_ligne", "sprint": 8, "licence": LICENCE_OUVERTE,
      "url": "https://www.cereq.fr/datavisualisation/insertion-professionnelle-des-jeunes/les-chiffres-cles-par-diplome"},
     {"key": "onisep", "title": "Onisep : formations initiales, fiches formations et fiches métiers (Idéo)", "producer": "Onisep",
-     "access": "download", "datasets": ("onisep_formations", "onisep_metiers", "onisep_fiches_formations", "onisep_fiches_metiers"),
+     "access": "owner_upload", "file_glob": "ONISEP-*",
      "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers",), "status": "en_ligne",
      "sprint": 8, "licence": ODBL, "url": "https://opendata.onisep.fr/2-les-donnees.htm"},
 )
