@@ -23,6 +23,7 @@ from . import config
 from . import journey as J
 from . import planb as PB
 from . import voeux as VX
+from . import cache as CACHE
 from . import search as S
 from . import success as SU
 from . import poursuite as PO
@@ -325,6 +326,17 @@ async def _count_server_errors(request: Request, call_next):
         raise
     if resp.status_code >= 500:
         A.record_server_error()
+    return resp
+
+
+@app.middleware("http")
+async def _cache_policy(request: Request, call_next):
+    """Sprint 10: one explicit Cache-Control per route (suptracker/cache.py)."""
+    resp = await call_next(request)
+    h = CACHE.header(request.method, request.url.path, request.query_params.get("v"), resp.status_code,
+                     _asset_version())
+    if h is not None:
+        resp.headers["Cache-Control"] = h
     return resp
 
 
@@ -643,24 +655,22 @@ def journey_vocab():
 
 
 @app.get("/api/journey/stage1")
-def journey_stage1(request: Request, bg: BackgroundTasks, spe1: str | None = None, spe2: str | None = None,
+def journey_stage1(spe1: str | None = None, spe2: str | None = None,
                    serie: str = Query("bg", pattern="^(bg|bt|bp)$")):
     _journey_ready()
     if serie != "bg":                    # B4: no specialties for bac technologique / professionnel
         res = J.stage1_series(_con().cursor(), serie)
-        bg.add_task(A.record, "journey", {"stage": "stage1"}, _hdrs(request))
         return res
     if not spe1 or not spe2:
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
     if not res["national"] or not res["national"]["candidates"]:
         raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
-    bg.add_task(A.record, "journey", {"stage": "stage1"}, _hdrs(request))
     return res
 
 
 @app.get("/api/journey/stage2")
-def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTasks,
+def journey_stage2(mention: str, type: str,
                    spe1: str | None = None, spe2: str | None = None,
                    serie: str = Query("bg", pattern="^(bg|bt|bp)$"),
                    academie: str | None = None, sex: str | None = Query(None, pattern="^[FM]$")):
@@ -673,8 +683,7 @@ def journey_stage2(mention: str, type: str, request: Request, bg: BackgroundTask
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     CAL.attach(_con().cursor(), res, mention)
-    bg.add_task(A.record, "journey", {"stage": "stage2"}, _hdrs(request))
-    return res
+    return J.public_stage2(res)
 
 
 LYCEE_FIELDS = ("uai", "nom", "commune", "academie", "academie_ips", "type", "secteur", "ips_etab", "ips_gt",

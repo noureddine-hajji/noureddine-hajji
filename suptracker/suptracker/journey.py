@@ -765,3 +765,40 @@ def stage1_series(con, serie: str) -> dict:
                     "access_median": access_median, "n_formations": n_form, "gate": gate})
     return {"serie": serie, "national": national, "filieres": out,
             "coverage": sum(f["destination_share"] or 0 for f in out)}
+
+
+# Sprint 10 (scale): what the "Mon parcours" page receives. A type can hold 3,000 formations (BTS services):
+# fields the page never reads are dropped and floats are rounded to 6 decimals (far below what is shown,
+# one decimal of a percent). The zones are computed BEFORE, on full precision; Plan B and "Mes vœux" use
+# stage2 itself, never this view (red team S4-S5).
+STAGE2_DROPPED = ("bg", "acc_bg_latest", "acc_neobac_latest", "acc_serie_latest", "serie_candidates", "form_lib_voe_acc",
+                  "detail_forma", "k_cum", "k_exact", "neobac", "brs", "open_to_general", "open_to_serie")
+PUBLIC_DECIMALS = 6
+
+
+def _near_tie(v: float) -> bool:
+    """True when rounding could change what the page prints: the value sits close to a half-step of one of the
+    printed forms (v with 0 or 1 decimal, 100 v with 0 or 1 decimal). Moving by at most 5e-7 cannot cross a
+    half-step farther than 1e-5 of a scaled unit away."""
+    import math
+    for scale in (1, 10, 100, 1000):
+        x = abs(v) * scale
+        if abs(x - math.floor(x) - 0.5) < 1e-5 * scale:
+            return True
+    return False
+
+
+def _round(o):
+    if isinstance(o, float):
+        r = round(o, PUBLIC_DECIMALS)
+        return o if _near_tie(o) else r          # guarded: the printed text never changes (red team S4)
+    if isinstance(o, (list, tuple)):
+        return [_round(x) for x in o]
+    if isinstance(o, dict):
+        return {k: _round(v) for k, v in o.items()}
+    return o
+
+
+def public_stage2(res: dict) -> dict:
+    return {**res, "formations": [{k: _round(v) for k, v in f.items() if k not in STAGE2_DROPPED}
+                                  for f in res["formations"]]}

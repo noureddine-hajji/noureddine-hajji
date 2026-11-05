@@ -1,0 +1,27 @@
+# Sprint 10: checks the LIVE site every 6 hours (scripts/monitor.py). A red run means the site is down, slow,
+# serving an old front-end or caching what it must not; GitHub e-mails the owner on failure.
+# Set the production address once: Settings > Secrets and variables > Actions > Variables > SUPTRACKER_URL.
+name: suptracker-monitor
+on:
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: suptracker/scripts
+      - name: Check the live site
+        env:
+          SUPTRACKER_URL: ${{ vars.SUPTRACKER_URL }}
+        run: |
+          if [ -z "$SUPTRACKER_URL" ]; then
+            echo "::warning::SUPTRACKER_URL is not set (Settings > Secrets and variables > Actions > Variables): nothing checked."
+            exit 0
+          fi
+          python suptracker/scripts/monitor.py "$SUPTRACKER_URL"
