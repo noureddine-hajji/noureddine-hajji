@@ -57,7 +57,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
    - a **mutation test**: seed bugs and check each is caught. Strengthen the red team until it is.
 4. **Test and look.**
    - `tests/test_<feature>.py` runs the red team on the synthetic fixture and on the real warehouse
-     (skip if absent). `python -m pytest -q -n auto --dist loadfile` must pass (pytest-xdist), then `tests/test_analytics.py` alone.
+     (skip if absent). `python -m pytest -q -n auto --dist loadfile` must pass (pytest-xdist), then the timed tests
+     (`tests/test_analytics.py tests/test_planb.py tests/test_search.py`) alone.
    - Check the UI with Playwright (preinstalled; `require('playwright')`): light, dark and mobile,
      0 JS errors, no horizontal scroll. Look at the screenshots.
 5. **Ship.**
@@ -168,7 +169,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled, `pytest -n auto --dist loadfile`, analytics (R16 timing) serial.
+  - CI: push on `main` only, branches through their PR, stale runs cancelled, `pytest -n auto --dist loadfile`; every red team that
+    calls `time.perf_counter()` (analytics, Plan B, search) runs in the serial step (red team S6 enforces it).
   - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
 - **Mes vœux (sprint 11).**
   - Zones come from `journey.stage2(..., only=codes)`: the same row as the full type, hence the zone of "Mon parcours" and

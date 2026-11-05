@@ -730,7 +730,7 @@ Each row states its denominator. A BUT page explains why it has no figure.
 - **CI.**
   - `main` runs on push; branches run through their pull request. A newer push cancels the older run.
   - The tests run in parallel (`pytest-xdist`, one file per worker), with a pip cache.
-  - The analytics test, which measures its own timing (R16), runs alone afterwards.
+  - The red teams that measure time (analytics R16, Plan B B11, search R12) run alone afterwards. The first CI run of this sprint ran Plan B in parallel and its p95 latency rose to 1.26 s; red team S6 now finds every red team that calls the clock and requires its test in the serial step.
 - **Live monitoring.** `.github/workflows/suptracker-monitor.yml` runs `scripts/monitor.py` every 6 hours against the repository variable `SUPTRACKER_URL`. It checks:
   - readiness;
   - that the page points to the live assets, and that they are immutable;
@@ -740,19 +740,19 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
   The monitor sends `DNT: 1` and a robot user agent, so it is never counted in the audience. A red run makes GitHub e-mail the owner.
 
-**Red team (`scripts/redteam_scale.py`, run in CI by `tests/test_scale.py`).** On the real data, 7/7 checks pass and 13/13 mutants are caught.
+**Red team (`scripts/redteam_scale.py`, run in CI by `tests/test_scale.py`).** On the real data, 7/7 checks pass and 14/14 mutants are caught.
 - **S1.** Every one of the 25 GET routes has a policy and a working sample request.
 - **S2.** Every route is CALLED with the audience recorder patched: the only route that records (search) is never shared-cached, and neither is "Mes vœux".
 - **S3.** Headers as served: errors, unknown routes and POST are `no-store`; assets are immutable only with the live fingerprint; no cached answer sets a cookie.
 - **S4.** On 13,910 real rows: the dropped fields are never read by the page, no zone changes, and no printed number changes. The printing is reproduced exactly as the browser does it (`toLocaleString` rounds the exact binary value half away from zero).
   - The first version rounded without the guard. The red team found 78 printed numbers that would have changed (74.4 % shown as 74.5 %), which led to the guard.
 - **S5.** Plan B and "Mes vœux" keep full rows; the page sends both counts; hostile beacons are rejected; the dashboard key is written; the server no longer records.
-- **S6.** Workflows: CI on push only for `main`, stale runs cancelled, the timing check serial, the monitor scheduled. The monitor passes against the app and fails on a site that is down, serves an old front-end, has non-immutable assets or shares "Mes vœux".
+- **S6.** Workflows: CI on push only for `main`, stale runs cancelled, every timed red team serial, the monitor scheduled. The monitor passes against the app and fails on a site that is down, serves an old front-end, has non-immutable assets or shares "Mes vœux".
 - **S7, mutation test.**
   - Cache policy: search or "Mes vœux" shared-cached, a route without a policy, errors cached, assets immutable whatever their version.
   - Lighter answers: a read field dropped, coarse rounding, rounding without the guard.
   - Audience: the page's count rejected.
-  - Workflows: CI on every branch push, no cancellation, the timing check in parallel, the monitor unscheduled.
+  - Workflows: CI on every branch push, no cancellation, the analytics or Plan B timing check in parallel, the monitor unscheduled.
 
 **UI check (Playwright):** "Mon parcours" on BTS services with the lighter answer (table, inline Plan B, adding to "Mes vœux"), in light, dark and mobile. 0 JS errors, no horizontal page scroll, and both `journey` beacons sent.
 

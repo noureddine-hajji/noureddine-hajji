@@ -250,15 +250,29 @@ def s5(c: Ctx):
                 f"dashboard key written {counted}; server still records {server_records}")
 
 
+def timed_test_files() -> list[str]:
+    """Test files whose red team measures time (a clock call): they must not share the runner with busy workers."""
+    out = []
+    for t in sorted((ROOT / "tests").glob("test_*.py")):
+        for mod in re.findall(r"(?:import |from |import_module\([\"'])(redteam_\w+)", t.read_text()):
+            src = ROOT / "scripts" / f"{mod}.py"
+            if src.exists() and re.search(r"time\.perf_counter\(\)", src.read_text()):
+                out.append(f"tests/{t.name}")
+                break
+    return out
+
+
 def ci_ok(ci: str, mon: str) -> tuple[bool, str]:
     push = re.search(r"push:\s*\n\s*branches:\s*\[main\]", ci) is not None
     pr = "pull_request:" in ci
     cancel = "cancel-in-progress: true" in ci
-    par = re.search(r"pytest -q -n auto --dist loadfile --ignore=tests/test_analytics\.py", ci) is not None
-    serial = re.search(r"run: python -m pytest -q tests/test_analytics\.py\s*$", ci, re.M) is not None
+    par = re.search(r"^\s*- run: python -m pytest -q -n auto --dist loadfile(.*)$", ci, re.M)
+    ser = re.search(r"^\s*- run: python -m pytest -q (tests/\S+(?: tests/\S+)*)\s*$", ci, re.M)
+    timed = timed_test_files()
+    serial = bool(par and ser) and all(f"--ignore={t}" in par.group(1) and t in ser.group(1).split() for t in timed)
     sched = re.search(r"schedule:\s*\n\s*- cron:", mon) is not None and "vars.SUPTRACKER_URL" in mon and "scripts/monitor.py" in mon
-    return all((push, pr, cancel, par, serial, sched)), (f"push only main {push}; PR {pr}; cancel stale {cancel}; parallel {par}; "
-                                                          f"timing check serial {serial}; monitor scheduled {sched}")
+    return all((push, pr, cancel, bool(par), serial, sched)), (f"push only main {push}; PR {pr}; cancel stale {cancel}; parallel {bool(par)}; "
+                                                                f"timed red teams {timed} serial {serial}; monitor scheduled {sched}")
 
 
 def fake_site(c: Ctx, break_=None):
@@ -294,6 +308,7 @@ CI_MUTANTS = [
     ("CI runs on every branch push again", "  push:\n    branches: [main]\n", "  push:\n"),
     ("stale runs not cancelled", "cancel-in-progress: true", "cancel-in-progress: false"),
     ("timing check run in parallel", " --ignore=tests/test_analytics.py", ""),
+    ("Plan B latency check run in parallel", " --ignore=tests/test_planb.py", ""),
 ]
 MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 */6 * * *\"\n", "")]
 
