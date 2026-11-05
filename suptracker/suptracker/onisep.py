@@ -132,7 +132,8 @@ def read_metier_extras(path: Path) -> tuple[list[tuple], list[tuple]]:
 def sheet_level(levels: list[str | None], fili: str | None = None) -> int | None:
     """The diploma level of the matched Onisep sheet(s), in years after the bac (the lowest when several differ);
     the filière's usual level only when no sheet states one."""
-    ranks = [r for r in (level_rank(x) for x in levels) if r is not None and r >= 0]
+    # CAP or below keep their (negative) rank: a CAP diploma is below the bac, not "level unknown" (Codex, sprint 12)
+    ranks = [r for r in (level_rank(x) for x in levels) if r is not None]
     return min(ranks) if ranks else LEVEL.get(fili)
 
 

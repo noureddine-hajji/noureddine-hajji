@@ -108,7 +108,7 @@ class Ctx:
                                  + rng.sample(ids, min(len(ids), 40 if real else len(ids)))))
 
     def ref_level(self, fids, fili):
-        ranks = [r for r in (rrank(self.sheet[f][1]) for f in fids if f in self.sheet) if r is not None and r >= 0]
+        ranks = [r for r in (rrank(self.sheet[f][1]) for f in fids if f in self.sheet) if r is not None]
         return min(ranks) if ranks else {"BTS": 2, "BUT": 3, "Licence": 3, "Licence_Las": 3, "IFSI": 3, "EFTS": 3}.get(fili)
 
 
@@ -156,8 +156,9 @@ def m2(c: Ctx):
         keys = [(x["niveau_rang"] if x["niveau_rang"] is not None else 99) for x in d["diplomes"]]
         if keys != sorted(keys):
             bad.append((mid, "order by level"))
-    # witness, true on any data: a diploma whose sheet says bac+3 is bac+3 even in a filière usually at bac+2 (3-year BTS)
-    if ON.sheet_level(["bac + 3"], "BTS") != 3:
+    # witnesses, true on any data: a diploma whose sheet says bac+3 is bac+3 even in a filière usually at bac+2 (3-year
+    # BTS); a CAP is below the bac (rank -1), never "unknown" (Codex: CAP métiers de la mode lost their flag and order)
+    if ON.sheet_level(["bac + 3"], "BTS") != 3 or ON.sheet_level(["CAP ou équivalent"]) != -1:
         bad.append(("witness", "sheet level"))
     return not bad and n > 0, f"{n} job pages, {len(bad)} wrong {bad[:3]}"
 
@@ -301,7 +302,8 @@ def ui(js: str) -> tuple[bool, str]:
     blank = re.findall(r'target="_blank"(?! rel="noopener")', b)
     words = all(w in b for w in ("Liste nationale", "pas parce que ses étudiants exercent ce métier", "pas une promesse d'emploi",
                                  "pas par chances d'admission", "n'est pas envoyé au site", "licence ODbL", "après une poursuite d'études"))
-    race = "if ($view.dataset.rendered !== marker) return;" in b
+    race = "if ($view.dataset.rendered !== marker) return;" in b and \
+        ('$view.dataset.rendered = "metiers:loading";' in b and 'if ($view.dataset.rendered !== "metiers:loading") return;' in b)
     pinned = "const mine = x.formations.filter((f) => f.cod_aff_form === from);" in b and "40 + mine.length" in b
     wired = ('if (a === "metiers") return await viewMetiers(' in js and 'href="#/metiers/${esc(j.id)}/${esc(m.cod || "")}"' in js)
     ok = not raw and not blank and words and race and pinned and wired
@@ -343,6 +345,7 @@ UI_MUTANTS = [
     ("ranking caveat dropped", "Les formations sont rangées par académie et par ville, pas par chances d'admission.", ""),
     ("privacy note dropped", "La recherche se fait dans ton navigateur : ce que tu tapes n'est pas envoyé au site. ", ""),
     ("navigation race unguarded", "if ($view.dataset.rendered !== marker) return;", ""),
+    ("catalogue load race unguarded", 'if ($view.dataset.rendered !== "metiers:loading") return;', ""),
     ("came-from formation not pinned", "40 + mine.length", "40"),
     ("formation card no longer links the job page", 'href="#/metiers/${esc(j.id)}/${esc(m.cod || "")}"', 'href="#/metiers/${esc(j.id)}"'),
 ]

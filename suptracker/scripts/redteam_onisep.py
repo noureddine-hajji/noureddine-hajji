@@ -189,7 +189,7 @@ def o3(c: Ctx):
     by = Counter()
     def ref_level(fili, fids):
         """The diploma level read from the raw sheets (lowest when several differ), the filière's usual one otherwise."""
-        ranks = [r for r in (rrank(c.ref["forms"][f][2]) for f in fids if f in c.ref["forms"]) if r is not None and r >= 0]
+        ranks = [r for r in (rrank(c.ref["forms"][f][2]) for f in fids if f in c.ref["forms"]) if r is not None]
         return min(ranks) if ranks else REF_LEVEL.get(fili)
     # every formation whose sheet departs from its filière's usual level is checked (3-year BTS: sprint 12 finding)
     odd = {cod for cod, (fili, _, fids, _) in c.links.items() if fids and ref_level(fili, fids) != REF_LEVEL.get(fili)}

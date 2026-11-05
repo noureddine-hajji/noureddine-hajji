@@ -1341,7 +1341,13 @@ let METIERS = null;
 const MT_ACCES = { direct: "accessible avec ce diplôme", poursuite: "après une poursuite d'études" };
 async function viewMetiers(id, from = "") {
   if (id) return viewMetier(id, /^\d{1,9}$/.test(from) ? from : "");
-  METIERS = METIERS || await api("/api/metiers");
+  if (!METIERS) {
+    // first visit: the catalogue may arrive after the user went elsewhere (Codex): only this view may still be filled
+    $view.dataset.rendered = "metiers:loading";
+    const cat = await api("/api/metiers");
+    METIERS = METIERS || cat;
+    if ($view.dataset.rendered !== "metiers:loading") return;
+  }
   const q0 = sessionStorage.getItem("metierQ") || "";
   $view.innerHTML = `<div class="card"><h1>Du métier aux formations ${tip("du_metier_aux_formations")}</h1>
     <p class="small">Cherche un métier : la page montre les diplômes qui y mènent d'après l'Onisep, puis les formations Parcoursup qui les préparent.</p>
