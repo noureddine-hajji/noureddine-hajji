@@ -712,6 +712,56 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## "Mes vœux": the student's list, read for the current profile (sprint 11, `#/voeux`)
+
+**What the student sees.** A "Mes vœux" page in the menu (with a counter) holds up to 10 formations, as on Parcoursup. A vœu is added from:
+- a formation page ("Ajouter à mes vœux");
+- the "Mon parcours" table or matrix;
+- a plan B.
+
+For the CURRENT profile (series, specialties, mention, académie of "Mon parcours"), each vœu shows:
+- its zone;
+- the access rate (official for bac général, "accès estimé pour ta série" for techno and pro);
+- where the student's mention sits among the admitted;
+- the places;
+- a "Voir un plan B" button.
+
+A "lecture de ta liste" counts the zones and prints fixed messages:
+- no sure safety vœu;
+- more than half ambitious or out of profile;
+- an out-of-profile vœu;
+- a vœu not open to the series;
+- vœux that cannot be placed;
+- no target vœu;
+- otherwise "balanced".
+
+The page says that Parcoursup vœux are not ranked, and that zones never combine into a chance of admission.
+
+**Red-team review of the previous list ("4 · Ma liste de vœux simulée" in "Mon parcours"), which this sprint replaces.**
+- Zones were frozen when a vœu was pinned: after a change of mention or specialties, the reading was stale.
+- An *uncertain* safety vœu counted as safe, while Plan B rejects it.
+- Vœux not open to the series raised no warning.
+- Bac techno and pro saw "Taux d'accès" over an estimated rate.
+- Vœux could only be added from "Mon parcours".
+
+The old list is migrated once, codes only, and re-read for the current profile.
+
+**Design (`suptracker/voeux.py`, `GET /api/voeux`).**
+- **Same zones as everywhere else.** Each vœu is placed by `journey.stage2` restricted to the listed codes (`only=`). Every row is computed from its own lineage, so the row is identical to the full type's row (red team V2) and 30× faster. A zone here is therefore the zone of "Mon parcours" and of Plan B.
+- **Coverage.** On real data, 93 % of the 2025 formations can be placed: all CPGE, BUT, IFSI, EFTS, PASS and schools, 99.6 % of BTS, 97.7 % of licences, and 46 % of "Autre formation". The others are "non situés", with the reason given.
+- **Counts only.** The reading only counts zones. Nothing is multiplied, and the page never shows a chance of getting at least one vœu: the vœux are not independent, and the zones describe past admitted cohorts. An uncertain safety vœu does not count as sure.
+- **Privacy.** The list stays in the browser (`localStorage`, codes only, validated, deduplicated, capped at 10). The page sends the codes and the profile, as "Mon parcours" and Plan B already do. The endpoint records no analytics event; only the page view "voeux" is counted, like any page.
+
+**Red team (`scripts/redteam_voeux.py`, run in CI by `tests/test_voeux.py`).** On the real data, 6/6 checks pass and 18/18 mutants are caught.
+- **V1.** 196 vœux × 4 profiles get exactly the full-type stage2 zone, uncertainty, rate and position, and Plan B's target zone.
+- **V2.** The `only` restriction changes no row.
+- **V3.** The reading is re-derived with the red team's own rules on 400 synthetic lists and the real ones; the counts add up.
+- **V4.** The API rejects hostile input: 11 codes, SQL-like or non-numeric codes, missing or equal specialties, an unknown mention or series. Duplicates are kept once, unknown codes are flagged, no analytics event is recorded, and the mention changes the zones.
+- **V5.** The page escapes every string and validates the stored list, guards against the navigation race, and has the wording (no chance, no ranking, privacy). It has a message for every rule and the wiring (menu, route, formation-page button, analytics route).
+- **V6, mutation test.** An uncertain safety counted as sure, "half" read as "more than half", closed vœux not flagged, the all-series position, duplicates kept, no cap, series ignored, mention frozen, and 10 UI mutants.
+
+**UI check (Playwright):** light, dark and mobile, with the old list migrated (one entry tampered) and vœux added from formation pages, "Mon parcours" and a plan B. 0 JS errors, no horizontal page scroll.
+
 ## The jobs a diploma leads to (sprint 8 follow-up, Onisep, formation page)
 
 **What the student sees.** A card "Les métiers visés" on BTS, BUT, licence, IFSI and EFTS pages. It lists the jobs Onisep links to the diploma, each with a link to its Onisep sheet. Each job is flagged "accessible avec ce diplôme" or "après une poursuite d'études", by comparing the job's minimum access level with the diploma's level (BTS bac+2; BUT, licence, IFSI, EFTS bac+3). Jobs with no published level get no flag. The card says that the list is national and belongs to the diploma, not to this establishment, that it is not a promise of a job, and credits "Source : Onisep, Idéo (licence ODbL)". When a diploma has several sheets (BTS options), the card says the jobs come from all of them.

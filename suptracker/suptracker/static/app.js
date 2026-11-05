@@ -31,6 +31,27 @@ const basket = {
   render() { document.getElementById("basket-count").textContent = this.get().length; },
 };
 
+// ---- sprint 11 "Mes vœux": the list stays in this browser (codes only) ------
+const voeux = {
+  MAX: 10,
+  // stored data is never trusted: codes only, digits, deduplicated, at most 10. The pre-sprint-11 list of
+  // "Mon parcours" ("wishlist", with zones frozen at pinning time) is migrated once, codes only.
+  get() {
+    let v;
+    try { v = JSON.parse(localStorage.getItem("voeux")); } catch (_) { v = null; }
+    if (!Array.isArray(v)) {
+      try { v = (JSON.parse(localStorage.getItem("wishlist")) || []).map((w) => w && w.cod_aff_form); } catch (_) { v = []; }
+      if (!Array.isArray(v)) v = [];
+    }
+    return [...new Set(v.filter((c) => typeof c === "string" && /^\d{1,9}$/.test(c)))].slice(0, this.MAX);
+  },
+  set(v) { try { localStorage.setItem("voeux", JSON.stringify(v)); } catch (_) { /* storage blocked */ } this.render(); },
+  has(cod) { return this.get().includes(cod); },
+  add(cod) { const v = this.get(); if (!v.includes(cod) && v.length < this.MAX) { v.push(cod); this.set(v); } return v.includes(cod); },
+  remove(cod) { this.set(this.get().filter((c) => c !== cod)); },
+  render() { const el = document.getElementById("voeux-count"); if (el) el.textContent = this.get().length; },
+};
+
 // ---- SVG primitives --------------------------------------------------------
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
 
@@ -199,6 +220,7 @@ async function viewFormation(cod, session) {
     <div class="toolbar" style="margin-top:8px">
       <label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Ajouter au comparateur"}</button>
+      ${voeuButton(r.cod_aff_form)}
       <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
       <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}
     </div>
@@ -243,6 +265,7 @@ async function viewFormation(cod, session) {
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
+  bindVoeuButton(() => viewFormation(cod, session));
 }
 
 // ---- Plan B: same programme elsewhere, more accessible for the student's profile -------------
@@ -278,7 +301,7 @@ async function loadPlanB(cod, opts = {}) {
     : `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
     <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/parcours">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon parcours »</a>.</p>`;
   const paidToggle = d.hidden_paid || d.include_paid ? `<label class="small"><input type="checkbox" data-pbpaid ${d.include_paid ? "checked" : ""}> Inclure le privé hors contrat / enseignement supérieur privé (frais de scolarité possibles)${d.hidden_paid ? ` · ${fmt(d.hidden_paid)} masqué(s)` : ""}</label>` : "";
-  const W = opts.onPin ? store.get("wishlist", []) : [];
+  const W = opts.onPin ? voeux.get() : [];
   let body;
   if (d.status === "deja_accessible") body = `<div class="info">Bonne nouvelle : pour votre profil, cette formation est déjà un vœu de sécurité.</div>`;
   else if (d.status === "non_disponible") body = `<p class="muted small">Plan B indisponible : ${esc(d.reason)}.</p>`;
@@ -290,7 +313,7 @@ async function loadPlanB(cod, opts = {}) {
       <td><span class="badge" style="border-color:${ZONES[a.zone].color};color:${ZONES[a.zone].color}">${ZONES[a.zone].label}</span><div class="muted small">${WHY[a.why] || ""}</div></td>
       <td class="num">${fmt(a.taux_acces_ens)} %</td>
       <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
-      <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td>${opts.onPin ? `<td><button type="button" class="small" data-pbpin="${esc(a.cod_aff_form)}">${W.some((w) => w.cod_aff_form === a.cod_aff_form) ? "épinglé" : "épingler"}</button></td>` : ""}</tr>`).join("")}</table></div>
+      <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td>${opts.onPin ? `<td><button type="button" class="small" data-pbpin="${esc(a.cod_aff_form)}">${W.includes(a.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button></td>` : ""}</tr>`).join("")}</table></div>
     <p class="muted small">Parts d'admis des campagnes passées, pas des chances d'admission. Vérifiez chaque fiche Parcoursup.</p>`;
   }
   box.innerHTML = `${opts.inline ? "" : '<div class="card">'}${head}${body}${paidToggle ? `<div class="toolbar">${paidToggle}</div>` : ""}${opts.inline ? "" : "</div>"}`;
@@ -999,25 +1022,6 @@ function spark(trend, key, scale = 1) {
   return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="${d}" fill="none" stroke="var(--c1)" stroke-width="1.5"/>${dots}<title>${years.map((y, i) => `${y} : ${vals[i] == null ? "n.d." : (scale === 1 ? pc1(vals[i]) : fmt(vals[i]) + " %")}`).join("\n")}</title></svg>`;
 }
 
-function wishAudit(W) {
-  const n = (z) => W.filter((w) => w.zone === z).length;
-  const msgs = [];
-  if (!W.length) return `<p class="muted">Épinglez des formations depuis la matrice ou le tableau (10 vœux au maximum sur Parcoursup).</p>`;
-  if (!n("securite")) msgs.push(["warn", "Aucun vœu de sécurité : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé."]);
-  if (n("ambitieux") + n("hors_profil") > W.length / 2) msgs.push(["warn", "Plus de la moitié de la liste est ambitieuse ou hors-profil."]);
-  if (n("hors_profil")) msgs.push(["warn", `${n("hors_profil")} vœu(x) hors-profil : moins de 2 % des admis avaient votre mention ou moins sur 2022–2025.`]);
-  if (!n("cible")) msgs.push(["info", "Aucun vœu cible pour l'instant."]);
-  if (!n("ambitieux")) msgs.push(["info", "Aucun vœu ambitieux : la liste peut viser plus haut sans se déséquilibrer."]);
-  if (W.length > 10) msgs.push(["warn", "Parcoursup limite la liste à 10 vœux (hors sous-vœux)."]);
-  if (!msgs.length) msgs.push(["info", "La liste combine des vœux de sécurité, cibles et ambitieux."]);
-  return `<div class="legend">${Object.entries(ZONES).filter(([k]) => !["indetermine", "non_ouvert"].includes(k)).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} : <strong>${n(k)}</strong></span>`).join("")}</div>
-    ${msgs.map(([t, m]) => `<div class="${t}">${esc(m)}</div>`).join("")}
-    <table><tr><th>Formation</th><th>Zone</th><th class="num">Taux d'accès</th><th class="num">Votre mention ou moins</th><th></th></tr>
-    ${W.map((w, i) => `<tr><td>${esc(w.etablissement)}<div class="muted small">${esc(w.filiere)} · ${esc(w.type_label)}</div></td><td><span class="badge" style="border-color:${ZONES[w.zone].color};color:${ZONES[w.zone].color}">${ZONES[w.zone].label}</span>${w.uncertain ? ' <span class="badge">incertain</span>' : ""}</td>
-      <td class="num">${fmt(w.taux_acces_ens)} %</td><td class="num">${pc1(w.cdf)}</td><td><button data-unpin="${i}" class="small">retirer</button></td></tr>`).join("")}</table>
-    <p class="muted small">Ces indicateurs décrivent les cohortes admises de 2022 à 2025 ; ce ne sont pas des probabilités d'admission individuelles. Les profils ont été enregistrés pour la mention visée au moment de l'épinglage.</p>`;
-}
-
 async function viewParcours() {
   JV = JV || await api("/api/journey/vocab");
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
@@ -1028,7 +1032,7 @@ async function viewParcours() {
   const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
   const drill = store.get("drill", null);
   const s2 = s1 && drill ? await api(`/api/journey/stage2?${sq}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
-  const W = store.get("wishlist", []);
+  const W = voeux.get();
   const onlyHome = !!p.academie && store.get("onlyHome", false);   // never filter without an académie
   const F = s2 ? s2.formations.filter((f) => f.zone !== "non_ouvert" && (!onlyHome || f.home_academie)) : [];
   const closed = s2 ? s2.formations.filter((f) => f.zone === "non_ouvert").length : 0;
@@ -1042,7 +1046,7 @@ async function viewParcours() {
   ${lyceeCard(p)}
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
-    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'épingler.${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
+    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
     <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}</div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
     ${repereNote(s2.calibration)}
@@ -1055,20 +1059,17 @@ async function viewParcours() {
       <td class="small">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
       ${s2.calibration ? `<td class="small">${repereCell(f, serie)}</td>` : ""}
       <td>${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
-      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.some((w) => w.cod_aff_form === f.cod_aff_form) ? "épinglé" : "épingler"}</button>${PLANB_ZONES.includes(f.zone) ? `<button type="button" data-planb="${esc(f.cod_aff_form)}" class="small planb-btn" aria-expanded="false">Voir un plan B</button>` : ""}</td></tr>`).join("")}
+      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.includes(f.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button>${PLANB_ZONES.includes(f.zone) ? `<button type="button" data-planb="${esc(f.cod_aff_form)}" class="small planb-btn" aria-expanded="false">Voir un plan B</button>` : ""}</td></tr>`).join("")}
     </table></div>${F.length > 80 ? `<p class="muted small">80 premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
     ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
-  <div class="card"><h2>4 · Ma liste de vœux simulée</h2><div id="wishlist">${wishAudit(W)}</div></div>${feedbackBox("parcours")}`;
+  <div class="card"><h2>4 · Mes vœux</h2><p id="wishlist">${W.length ? `${fmt(W.length)} vœu(x) dans ta liste.` : "Ta liste est vide : ajoute des formations depuis le tableau ou un plan B."} <a href="#/voeux">Voir la lecture de ma liste pour ce profil →</a></p>
+    <p class="muted small">La liste est relue pour ton profil actuel à chaque visite (${voeux.MAX} vœux au maximum sur Parcoursup).</p></div>${feedbackBox("parcours")}`;
 
   function pin(f, rerender = true) {
-    const list = store.get("wishlist", []);
-    if (!list.some((w) => w.cod_aff_form === f.cod_aff_form)) {
-      list.push({ cod_aff_form: f.cod_aff_form, etablissement: f.etablissement, filiere: f.filiere, type_label: drill.label,
-        zone: f.zone, uncertain: f.uncertain, taux_acces_ens: f.taux_acces_ens, cdf: pos(f) });
-      store.set("wishlist", list);
-    }
+    if (!voeux.add(f.cod_aff_form)) { alert(`${voeux.MAX} vœux au maximum : retire un vœu dans « Mes vœux » d'abord.`); return; }
     if (rerender) viewParcours();
   }
+
   const ser = document.querySelector('#pf [name="serie"]');
   if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
   // the lycée picked or removed goes through the same submit as "Explorer": edits made in the form
@@ -1122,19 +1123,15 @@ async function viewParcours() {
       el.setAttribute("aria-expanded", "true");
       const box = row.querySelector(".planb-inline");
       loadPlanB(el.dataset.planb, { box, profile: { ...p, serie }, inline: true, onPin: (a) => {
-        pin({ cod_aff_form: a.cod_aff_form, etablissement: a.etablissement, filiere: a.filiere, zone: a.zone,
-          uncertain: a.uncertain, taux_acces_ens: a.taux_acces_ens, cdf: a.position }, false);
+        pin({ cod_aff_form: a.cod_aff_form }, false);
         const b = box.querySelector(`[data-pbpin="${CSS.escape(a.cod_aff_form)}"]`);
-        if (b) b.textContent = "épinglé";
+        if (b && voeux.has(a.cod_aff_form)) b.textContent = "dans mes vœux";
         const list = document.getElementById("wishlist");
-        if (list) list.innerHTML = wishAudit(store.get("wishlist", []));
-        bindUnpin();
+        if (list) list.innerHTML = `${fmt(voeux.get().length)} vœu(x) dans ta liste. <a href="#/voeux">Voir la lecture de ma liste pour ce profil →</a>`;
       } });
     };
   });
   $view.querySelectorAll("[data-pin]").forEach((el) => { el.onclick = () => pin(F.find((f) => f.cod_aff_form === el.dataset.pin)); });
-  function bindUnpin() { $view.querySelectorAll("[data-unpin]").forEach((el) => { el.onclick = () => { const l = store.get("wishlist", []); l.splice(+el.dataset.unpin, 1); store.set("wishlist", l); viewParcours(); }; }); }
-  bindUnpin();
   const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
 }
 
@@ -1223,9 +1220,104 @@ document.addEventListener("click", (e) => {
   box.innerHTML = `<span class="muted small">Merci, c'est noté : ça nous aide à corriger.</span>`;
 });
 
+// ---- Sprint 11: "Mes vœux" (the list read for the CURRENT profile) ----------
+function voeuButton(cod) {
+  const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
+  return `<button type="button" data-voeu="${esc(cod)}" ${full ? `disabled title="${voeux.MAX} vœux au maximum sur Parcoursup"` : ""}>${inV ? "Retirer de mes vœux" : full ? "Mes vœux : liste pleine" : "Ajouter à mes vœux"}</button>`;
+}
+function bindVoeuButton(after) {
+  $view.querySelectorAll("[data-voeu]").forEach((el) => {
+    el.onclick = () => { voeux.has(el.dataset.voeu) ? voeux.remove(el.dataset.voeu) : voeux.add(el.dataset.voeu); after(); };
+  });
+}
+// messages: one fixed rule each, read from the server's counts (voeux.read_list); never a combined chance
+const VX_MSG = {
+  aucune_securite: "Aucun vœu de sécurité sûr dans ta liste : ajoute au moins une formation où la cohorte admise ressemble à ton profil et où le taux d'accès est élevé (le bouton « Voir un plan B » en propose).",
+  majorite_ambitieuse: "Plus de la moitié des vœux situés sont ambitieux ou hors-profil.",
+  hors_profil: "Au moins un vœu est hors-profil : moins de 2 % des admis 2022–2025 avaient ta mention ou moins.",
+  non_ouvert: "Au moins un vœu n'est pas ouvert à ta série (groupes d'appel, ou presque aucun admis de ta série) : vérifie la fiche Parcoursup.",
+  non_situe: "Certains vœux ne peuvent pas être situés pour ton profil (trop peu de candidats de ta série, formation non rattachée à une filière, ou absente de la dernière campagne).",
+  aucune_cible: "Aucun vœu cible pour l'instant.",
+  equilibree: "Ta liste combine des vœux de sécurité et des vœux cibles ou ambitieux.",
+};
+const VX_PLANB = ["ambitieux", "hors_profil", "cible"];
+async function viewVoeux() {
+  const ids = voeux.get();
+  const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
+  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
+  const mention = ["sansmention", "ab", "b", "tb"].includes(p.mention) ? p.mention : "ab";
+  const prof = { ...p, serie, mention };
+  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
+  const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
+    <p class="small">Lue pour ton profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p>
+    <p class="muted small">Ajoute des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de ta liste ne compte pas.</p></div>`;
+  if (!ids.length) {
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Ta liste est vide.</p></div>`;
+    $view.dataset.rendered = "voeux:0";
+    return;
+  }
+  const qs = new URLSearchParams({ ids: ids.join(","), serie, mention });
+  if (serie === "bg") { qs.set("spe1", p.spe1 || "MATHS"); qs.set("spe2", p.spe2 || "SES"); }
+  if (p.academie) qs.set("academie", p.academie);
+  const marker = `voeux:${qs}`;
+  $view.dataset.rendered = marker;
+  $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de ta liste…</p></div>`;
+  let d;
+  try { d = await api(`/api/voeux?${qs}`); } catch (e) {
+    if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
+    return;
+  }
+  if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
+  const L = d.lecture, z = L.zones;
+  const zoneBadge = (v) => v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>${v.uncertain ? ' <span class="badge">incertain</span>' : ""}` : '<span class="badge">non situé</span>';
+  const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour ta série";
+  const legend = [["securite", z.securite], ["cible", z.cible], ["ambitieux", z.ambitieux], ["hors_profil", z.hors_profil], ["non_ouvert", z.non_ouvert]]
+    .map(([k, n]) => `<span><i style="background:${ZONES[k].color}"></i>${ZONES[k].label} : <strong>${fmt(n)}</strong></span>`).join("")
+    + `<span><i style="background:var(--line)"></i>Non situés : <strong>${fmt(z.indetermine + z.non_situe)}</strong></span>`;
+  const rows = d.voeux.map((v) => {
+    const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">ton académie</span>' : ""}</div>`;
+    const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de ta série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}`;
+    const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
+    return `<tr><td>${name}</td><td>${zoneBadge(v)}${flags}</td>
+      <td class="num">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
+      <td class="num">${v.status === "ok" ? position : "—"}</td>
+      <td class="num">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
+      <td>${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
+  }).join("");
+  $view.innerHTML = `${head}
+  <div class="card"><h2>Lecture de ta liste</h2>
+    <div class="legend">${legend}</div>
+    ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
+    <p class="muted small">Ces repères comptent les zones de ta liste, une par vœu. Ils ne disent pas tes chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et tes vœux ne se combinent pas en une probabilité.</p></div>
+  <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
+    <div class="scroll"><table><tr><th>Formation</th><th>Zone pour ton profil</th><th class="num">${rate} ${d.session}</th><th class="num">Ta mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th><th></th></tr>
+    ${rows}</table></div>
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour ta série (taux d'accès officiel × taux de proposition de ta série / taux de proposition de tous), pas un taux officiel."} Vérifie chaque fiche Parcoursup.</p>
+    <p class="muted small">Ta liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et ton profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p></div>`;
+  $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
+  $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
+    el.onclick = () => {
+      const tr = el.closest("tr");
+      const open = tr.nextElementSibling && tr.nextElementSibling.classList.contains("planb-row");
+      if (open) { tr.nextElementSibling.remove(); el.textContent = "Voir un plan B"; el.setAttribute("aria-expanded", "false"); return; }
+      const row = document.createElement("tr");
+      row.className = "planb-row";
+      row.innerHTML = `<td colspan="${tr.children.length}"><div class="planb-inline" aria-live="polite"></div></td>`;
+      tr.after(row);
+      el.textContent = "Masquer le plan B";
+      el.setAttribute("aria-expanded", "true");
+      loadPlanB(el.dataset.vxplanb, { box: row.querySelector(".planb-inline"), profile: prof, inline: true, onPin: (a) => {
+        if (voeux.add(a.cod_aff_form)) viewVoeux();
+        else alert(`${voeux.MAX} vœux au maximum : retire un vœu d'abord.`);
+      } });
+    };
+  });
+}
+
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
-  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire" };
+  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux" };
 async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
@@ -1242,6 +1334,7 @@ async function route() {
     if (a === "specialites") return await viewSpecialites(b, c);
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
+    if (a === "voeux") return await viewVoeux();
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
   } catch (e) {
@@ -1257,5 +1350,5 @@ document.getElementById("search").onsubmit = (e) => {
 window.addEventListener("hashchange", route);
 (async () => {
   try { META = await api("/api/meta"); } catch (e) { $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`; return; }
-  basket.render(); route();
+  basket.render(); voeux.render(); route();
 })();

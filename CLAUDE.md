@@ -22,6 +22,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
   - **Céreq (sprint 8 follow-up):** `cereq.py` (training-job match by highest diploma, national; owner-uploaded workbook).
   - **Onisep (sprint 8 follow-up):** `onisep.py` (jobs a diploma leads to, national, by title; owner-uploaded Idéo XML).
+  - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
@@ -160,6 +161,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Link by national title: BTS same title or all its options; BUT specialty without parcours; licence mention (never a
     licence pro); IFSI = DE infirmier; EFTS = the named DE. Other filières: no card.
   - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
+- **Mes vœux (sprint 11).**
+  - Zones come from `journey.stage2(..., only=codes)`: the same row as the full type, hence the zone of "Mon parcours" and
+    Plan B (red team V1-V2). Never a frozen zone: the list is re-read for the current profile.
+  - The reading only COUNTS zones with fixed rules; an uncertain safety is not sure; never a combined chance of admission.
+    Parcoursup vœux are not ranked: no ordering.
+  - The list lives in localStorage (codes only, validated, deduplicated, max 10); `/api/voeux` records no analytics event.
 - **Prévision n+1 (formation page).**
   - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
   - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as
@@ -193,6 +200,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - sprint 7 gateways: reorientation after L1 and the university's masters (MonMaster) on licence pages, BUT → master line;
   - sprint 8 insertion: Inserjeunes on BTS pages, InserSup on licence (masters) and BUT pages;
   - prévision n+1 on the formation page: calibrated 2026 ranges of every indicator with a history;
+  - sprint 8 follow-up: Céreq and Onisep cards (Onisep: PR #27);
+  - sprint 11 "Mes vœux" (branch, after PR #27);
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;

@@ -615,9 +615,11 @@ def stage1(con, dkey: str) -> dict:
 
 # --------------------------------------------------------------------------- stage 2
 def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | None = None,
-           sex: str | None = None, limit: int = 4000, serie: str = "bg") -> dict:
+           sex: str | None = None, limit: int = 4000, serie: str = "bg", only: list[str] | None = None) -> dict:
     """Formations of one type for a student. serie='bg' (doublette `dkey` used for calling groups)
-    or 'bt' / 'bp' (B4: the series' official access rate, groups and mention position)."""
+    or 'bt' / 'bp' (B4: the series' official access rate, groups and mention position).
+    `only` (sprint 11, "Mes vœux"): restrict to these formation codes. Every row is computed from its
+    own lineage, so a restricted row is exactly the row of the full type (red team V2)."""
     if mention not in MENTIONS[:4]:
         raise ValueError(f"mention must be one of {MENTIONS[:4]}")
     if serie not in SERIES:
@@ -636,7 +638,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
       FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
       JOIN core.formation_year fy USING (session, cod_aff_form)
       JOIN core.lineage l USING (session, cod_aff_form)
-      WHERE t.session = $latest AND r.spe_type_key = $type),
+      WHERE t.session = $latest AND r.spe_type_key = $type
+        AND ($only IS NULL OR list_contains($only, fy.cod_aff_form))),
     hist AS (
       SELECT l.lineage_id,
              sum({known}) AS n_known, sum({cum}) AS k_cum, sum(coalesce(fy.acc_{mention}, 0)) AS k_exact,
@@ -658,7 +661,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
            t.cod_uai, t.pct_etab_orig,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
-    ORDER BY taux NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_}).fetchall()
+    ORDER BY taux NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_,
+                                                    "only": list(only) if only is not None else None}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",
             "taux_acces_all", "acc_serie_latest", "serie_candidates", "serie_proposal_rate",
