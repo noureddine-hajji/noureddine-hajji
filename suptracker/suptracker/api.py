@@ -31,6 +31,7 @@ from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
 from . import cereq as CQ
+from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
 from .crosswalk import EXACT, INFERRED, continuity_report
@@ -230,6 +231,12 @@ METHODOLOGY = {
         "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
         "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
         "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+    "metiers": (
+        "Les métiers auxquels prépare ce diplôme, d'après les fiches de l'Onisep (Idéo, licence ODbL). La liste est celle "
+        "du diplôme au niveau national, pas propre à cet établissement : un BTS ou un BUT est relié à la fiche Onisep du "
+        "même diplôme par son intitulé, une licence par sa mention, un IFSI ou une école du travail social par son diplôme "
+        "d'État. Pour chaque métier, l'Onisep donne le niveau d'études minimum pour y accéder : s'il est plus élevé que "
+        "ce diplôme, le métier demande une poursuite d'études. Ce n'est pas une promesse d'emploi."),
     "cereq": (
         "Le Céreq interroge les jeunes sortis d'études en 2017 (enquête Génération), 3 ans puis 6 ans après (en 2020 et en "
         "2023). Il publie les résultats par groupe de plus haut diplôme obtenu, pour la France entière : par exemple les "
@@ -464,7 +471,8 @@ def formation(cod: str, session: int | None = None):
             "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "insertion": _insertion_block(rec),
             "prevision": PV.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
-            "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -766,7 +774,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers"]
 
 
 @lru_cache(maxsize=1)

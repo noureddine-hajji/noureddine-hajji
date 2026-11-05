@@ -55,6 +55,8 @@ GLOSSARY = {
     "repere": ("Repère (fourchette)", "Pour la prochaine campagne, l'intervalle où devraient se trouver le taux d'accès et la "
                "part d'admis avec ta mention ou moins. Il est vérifié sur les années passées : on affiche combien de fois la vraie "
                "valeur est tombée dedans. Ce n'est pas une chance d'admission.", "repere"),
+    "metiers_onisep": ("Métiers visés (Onisep)", "Les métiers auxquels prépare un diplôme, d'après l'Onisep, avec le niveau "
+                       "d'études minimum pour y accéder. Certains demandent de poursuivre ses études après ce diplôme.", "metiers"),
     "cereq": ("Lien formation-emploi (Céreq)", "La part des jeunes en emploi qui disent que leur emploi correspond à leur "
               "formation, quelques années après la fin de leurs études, d'après l'enquête Génération du Céreq. C'est un "
               "chiffre national, pour tous ceux dont c'est le plus haut diplôme, pas pour une formation précise.", "cereq"),

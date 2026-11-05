@@ -218,6 +218,7 @@ async function viewFormation(cod, session) {
   ${passerellesCard(d.passerelles)}
   ${insertionCard(d.insertion)}
   ${cereqCard(d.cereq)}
+  ${metiersCard(d.metiers)}
   ${butCard(d.but)}
   ${lyceeHere(r)}
   <div id="planb"></div>
@@ -514,6 +515,21 @@ function previsionCard(p) {
     <p class="small">Fourchettes estimées pour la campagne ${esc(p.target)} à partir des campagnes passées de cette formation. La méthode a été réglée sur ${esc(p.calibration)} puis testée sur ${esc(p.holdout)} sans l'avoir vue : la dernière colonne dit combien de vraies valeurs ${esc(p.holdout)} sont tombées dans leur fourchette (objectif ${fmt(100 * p.level, 0)}\u00a0%).</p>
     ${PV_GROUPS.map((g, k) => block(g, k === 0)).join("")}
     <p class="muted small">Ce sont des estimations, pas des chiffres officiels, et jamais des chances d'admission. Chaque fourchette est calculée séparément. Les petites formations ont des fourchettes plus larges.</p></div>`;
+}
+
+// ---- Sprint 8 follow-up: the jobs a diploma leads to (Onisep Idéo, national, by diploma) ----
+const ON_ACCES = { direct: "accessible avec ce diplôme", poursuite: "après une poursuite d'études" };
+function metiersCard(m) {
+  if (!m) return "";
+  const head = `Les métiers visés ${tip("metiers")}`;
+  if (m.status !== "ok") return `<div class="card"><h2>${head}</h2><p class="small muted">L'Onisep ne publie pas de fiche pour ce diplôme : pas de liste de métiers.</p></div>`;
+  const dips = m.diplomes.map((d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.libelle)}</a>`).join(", ");
+  const li = m.metiers.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.nom)}</a>${j.acces ? ` <span class="muted small">· ${esc(ON_ACCES[j.acces])}${j.acces === "poursuite" && j.niveau_acces_min ? ` (${esc(j.niveau_acces_min)})` : ""}</span>` : ""}</li>`).join("");
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small">D'après la fiche Onisep du diplôme : ${dips}.${m.diplomes.length > 1 ? " Ce diplôme a plusieurs options ou parcours : métiers de toutes ses fiches." : ""}</p>
+    <ul class="small">${li}</ul>
+    <p class="muted small">Liste nationale du diplôme, pas propre à cet établissement. Le niveau d'accès vient de la fiche métier de l'Onisep. Ce n'est pas une promesse d'emploi.</p>
+    <p class="muted small">Source : Onisep, Idéo (licence ODbL).</p></div>`;
 }
 
 // ---- Sprint 8 follow-up: does the job match the training? (Céreq Génération 2017, national, by highest diploma) ----

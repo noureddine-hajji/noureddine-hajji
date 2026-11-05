@@ -21,6 +21,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Gateways (sprint 7):** `passerelles.py` (reorientation detail after L1, MonMaster per university × discipline).
   - **Insertion (sprint 8):** `insertion.py` (Inserjeunes BTS per establishment, InserSup per diploma).
   - **Céreq (sprint 8 follow-up):** `cereq.py` (training-job match by highest diploma, national; owner-uploaded workbook).
+  - **Onisep (sprint 8 follow-up):** `onisep.py` (jobs a diploma leads to, national, by title; owner-uploaded Idéo XML).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
@@ -152,7 +153,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Link per filière: BTS by the NSF of the diploma (MEFSTAT11 digits 7-9, CFD digits 4-6, same title or its options,
     any establishment); licence by B1 discipline (+ master "si tu poursuis"); IFSI/EFTS health-social; schools; CPGE sci ->
     engineering, ECG/ECT -> business. BUT (absent from the 2017 cohort), PASS, literary CPGE, others: no figure.
-  - Onisep (jobs) is ingested optionally (`download` access); its site was in maintenance: not shipped yet.
+- **Onisep jobs (sprint 8 follow-up).**
+  - Idéo-Fiches formations + Idéo-Fiches métiers, committed by the owner under data/sources/ (detected by XML root). ODbL:
+    credit "Source : Onisep, Idéo (licence ODbL)" on the card.
+  - The list is NATIONAL and belongs to the diploma, never to the establishment; never a promise of a job.
+  - Link by national title: BTS same title or all its options; BUT specialty without parcours; licence mention (never a
+    licence pro); IFSI = DE infirmier; EFTS = the named DE. Other filières: no card.
+  - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
 - **Prévision n+1 (formation page).**
   - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
   - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as
@@ -188,7 +195,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - prévision n+1 on the formation page: calibrated 2026 ranges of every indicator with a history;
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
-  - sprint 8 follow-up: Céreq card shipped; Onisep jobs waiting for the Onisep site (retry scheduled);
+  - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
   - sprint 9: removed at the owner's request (2026-11-02); next: sprint 10 (scale).
 - **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
   is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly

@@ -712,7 +712,29 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
-**Onisep (jobs linked to a formation):** not shipped. The Onisep open-data site was in maintenance (403) when the data workflow tried; the ingestion is ready and optional.
+## The jobs a diploma leads to (sprint 8 follow-up, Onisep, formation page)
+
+**What the student sees.** A card "Les métiers visés" on BTS, BUT, licence, IFSI and EFTS pages. It lists the jobs Onisep links to the diploma, each with a link to its Onisep sheet. Each job is flagged "accessible avec ce diplôme" or "après une poursuite d'études", by comparing the job's minimum access level with the diploma's level (BTS bac+2; BUT, licence, IFSI, EFTS bac+3). Jobs with no published level get no flag. The card says that the list is national and belongs to the diploma, not to this establishment, that it is not a promise of a job, and credits "Source : Onisep, Idéo (licence ODbL)". When a diploma has several sheets (BTS options), the card says the jobs come from all of them.
+
+**Data (`suptracker/onisep.py`), checked on the real files before the design.**
+- **Source.** Onisep Idéo open data: "Idéo-Fiches formations" (2,397 diploma sheets, 7,040 diploma → job links) and "Idéo-Fiches métiers" (1,124 jobs, with the minimum access level and ROME code). The Onisep site rejects robots, so the owner commits the zips under `data/sources/`. They are recognised by their XML root (`formations`, `metiers`), whatever the file name. The other two files (Métiers CSV, Actions de formation) are not used.
+- **Licence.** ODbL: the derived tables are shared under the same licence, with the attribution on the page.
+- **Link: by national diploma title, never by establishment.**
+  - **BTS.** Same title after normalisation; a BTS published by options takes all its options; a Parcoursup option falls back to the BTS without option.
+  - **BUT.** Same specialty, the parcours removed.
+  - **Licence.** Same mention, never a licence pro.
+  - **IFSI.** The state nursing diploma. **EFTS.** The state diploma named by the formation ("D.E Educateur Spécialisé" → diplôme d'État d'éducateur spécialisé).
+  - **Other filières** (CPGE, schools, PASS...) get no card.
+  - **Coverage** of the latest campaign: BTS 92.7 %, BUT 100 %, licence 91.3 %, IFSI and EFTS 100 %. A formation without a sheet says so.
+
+**Red team (`scripts/redteam_onisep.py`, run in CI by `tests/test_onisep.py`).** On the real data, 5/5 checks pass and 13/13 mutants are caught.
+- **O1.** The XML files are re-read independently: diplomas, links, jobs and access-level ranks.
+- **O2.** The link of all 14,252 formations of the latest campaign is re-derived with the red team's own normalisation, plus a truth table of real titles, a same-family check and coverage floors.
+- **O3.** The API serves the union of the matched sheets' jobs, and every access flag is re-derived.
+- **O4.** The page escapes every Onisep string and URL, external links carry `rel="noopener"`, the caveats and the ODbL credit are present.
+- **O5, mutation test.** A BTS borrowing a BUT or licence sheet, a licence pro linked to a licence, BTS options ignored, a BUT parcours kept, a wrong diploma level, "bac ou équivalent" left unparsed, the access flag inverted, and 6 UI mutants. Edge rows are injected so that every link mutant bites on any data.
+
+**UI check (Playwright):** BTS with options, licence, BUT, IFSI, EFTS and a BTS without a sheet, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
 ## Next-campaign forecast of every indicator (formation page)
 
