@@ -165,6 +165,12 @@ def match(idx: dict, fili: str | None, programme: str | None) -> tuple[list[str]
     return [], "filiere_sans_fiche"
 
 
+def _insert(con, table: str, rows: list[tuple]) -> None:
+    """DuckDB's executemany rejects an empty list: a missing jobs file (or an empty sheet) must not abort the build."""
+    if rows:
+        con.executemany(f"INSERT INTO {table} VALUES ({', '.join('?' * len(rows[0]))})", rows)
+
+
 def build(con, sources: dict | None = None) -> dict:
     """core.onisep_formation, core.onisep_metier, core.onisep_formation_metier and core.onisep_link.
     sources: {'formations': zip, 'metiers': zip}; default: detected in data/sources/; {} to skip."""
@@ -181,9 +187,9 @@ def build(con, sources: dict | None = None) -> dict:
         return {"formations": 0, "metiers": 0, "links": 0}
     forms, links = read_formations(Path(src["formations"]))
     mets = read_metiers(Path(src["metiers"])) if "metiers" in src else []
-    con.executemany("INSERT INTO core.onisep_formation VALUES (?, ?, ?, ?, ?)", forms)
-    con.executemany("INSERT INTO core.onisep_formation_metier VALUES (?, ?, ?)", links)
-    con.executemany("INSERT INTO core.onisep_metier VALUES (?, ?, ?, ?, ?)", [(i, n, lv, level_rank(lv), r) for i, n, lv, r in mets])
+    _insert(con, "core.onisep_formation", forms)
+    _insert(con, "core.onisep_formation_metier", links)
+    _insert(con, "core.onisep_metier", [(i, n, lv, level_rank(lv), r) for i, n, lv, r in mets])
     idx = index(forms)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     rows = []
@@ -192,7 +198,7 @@ def build(con, sources: dict | None = None) -> dict:
         fids, rule = match(idx, fili, prog)
         for fid in fids or [None]:
             rows.append((latest, cod, fili, prog, fid, rule))
-    con.executemany("INSERT INTO core.onisep_link VALUES (?, ?, ?, ?, ?, ?)", rows)
+    _insert(con, "core.onisep_link", rows)
     return {"formations": len(forms), "metiers": len(mets), "links": len({r[1] for r in rows if r[4]})}
 
 

@@ -78,3 +78,19 @@ def test_red_team_on_real_data():
     import redteam_onisep as R
     failed = [r for r in R.run(REAL_DB, real=True) if not r["ok"]]
     assert not failed, failed
+
+
+def test_build_without_the_jobs_file(tmp_path, syn):
+    """Codex finding: with the formations sheet alone, the build must go on (jobs listed, access level unknown)."""
+    db, src = syn
+    con = duckdb.connect(str(tmp_path / "w.duckdb"))
+    con.execute(f"ATTACH '{db}' AS src (READ_ONLY)")
+    con.execute("CREATE SCHEMA core")
+    con.execute("CREATE TABLE core.formation_year AS SELECT * FROM src.core.formation_year")
+    out = ON.build(con, {"formations": src["formations"]})
+    assert out["metiers"] == 0 and out["links"] > 0
+    cod = con.execute("SELECT cod_aff_form FROM core.onisep_link WHERE for_id = 'FOR.1' LIMIT 1").fetchone()[0]
+    b = ON.for_formation(con, cod)
+    assert {j["id"] for j in b["metiers"]} == {"MET.1", "MET.2", "MET.5"} and all(j["acces"] is None for j in b["metiers"])
+    assert {j["nom"] for j in b["metiers"]} >= {"comptable"}                  # names from the formations sheet
+    assert ON.build(con, {})["formations"] == 0
