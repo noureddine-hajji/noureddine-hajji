@@ -1405,10 +1405,50 @@ async function viewMetier(id, from = "") {
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
-    ${status}${d.diplomes.map(dip).join("")}${codesCard(d.codes)}`;
+    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${codesCard(d.codes)}`;
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Sprint 14: l'emploi du métier d'ici 2030 (Dares / France Stratégie) -----------
+// Published figures per job family (thousands), never a chance or a promise; the imbalance is shown as the range of
+// the 5 published scenarios and read with a fixed rule on its sign; no figure beyond 2030 (none is published).
+const M2030_LECTURE = {
+  debutants_insuffisants: "Dans les 5 scénarios, les jeunes débutants ne suffiraient pas à pourvoir les postes : le métier devrait aussi recruter d'autres profils (reconversions, mobilités).",
+  debutants_nombreux: "Dans les 5 scénarios, il y aurait plus de jeunes débutants que de postes à pourvoir : l'entrée dans le métier pourrait être plus disputée.",
+  incertain: "Selon les scénarios, l'écart change de sens : on ne peut pas conclure.",
+};
+function kPeople(k, signed = false) {
+  if (k === null || k === undefined) return "—";
+  if (Math.abs(k) < 0.5) return "moins de 500";
+  const v = fmt(Math.round(Math.abs(k)) * 1000);
+  return signed ? `${k < 0 ? "−" : "+"}${v}` : `${k < 0 ? "−" : ""}${v}`;
+}
+function emploi2030Card(fams) {
+  if (!Array.isArray(fams) || !fams.length) return "";
+  const one = (f) => {
+    const head = `<h3>${esc(f.fap87)} · ${esc(f.libelle || "")}</h3>`;
+    if (f.absent) return `${head}<p class="small muted">Pas de chiffre : ${esc(f.raison || "")}.</p>`;
+    const m = f.milliers || {}, p = f.parts || {}, d = f.desequilibre || {};
+    const pct = (x) => (x === null || x === undefined ? "" : ` (${fmt(x * 100)} % des emplois de 2019)`);
+    return `${head}
+      ${f.calcule ? `<p class="small warn">Le classeur ne publie ces familles qu'ensemble, au sein de leur domaine : chiffres calculés (domaine moins les familles publiées).</p>` : ""}
+      ${f.origine && f.origine.some((o) => o !== "onisep") ? `<p class="small muted">Famille trouvée à partir d'un code ROME retrouvé par le nom du métier (moins sûr, voir les codes officiels plus bas).</p>` : ""}
+      <p class="small">${kPeople(m.emploi_2019)} emplois en 2019${f.toutes_qualifications ? "" : " · une des familles possibles selon la qualification du poste"}.</p>
+      <div class="scroll"><table>
+        <tr><td>Postes à pourvoir entre 2019 et 2030</td><td class="num">${kPeople(m.postes)}${pct(p.postes)}</td></tr>
+        <tr><td class="muted small">dont départs en fin de carrière</td><td class="num small">${kPeople(m.departs)}</td></tr>
+        <tr><td class="muted small">dont créations nettes d'emploi</td><td class="num small">${kPeople(m.creations, true)}</td></tr>
+        <tr><td>Jeunes débutants attendus</td><td class="num">${kPeople(m.debutants)}</td></tr>
+        <tr><td>Écart postes − débutants, selon les 5 scénarios</td><td class="num">de ${kPeople(d.min, true)} à ${kPeople(d.max, true)} <span class="muted small">(référence ${kPeople(d.reference, true)})</span></td></tr>
+      </table></div>
+      ${f.lecture ? `<p class="small">${M2030_LECTURE[f.lecture]}</p>` : ""}`;
+  };
+  return `<div class="card"><h2>L'emploi dans ce métier d'ici 2030</h2>
+    <p class="muted small">Projection de la Dares et de France Stratégie par famille de métiers, sous hypothèses : ce n'est ni une prévision ni une promesse. Les chiffres sont ceux de toute la famille, pas seulement de ce métier.${fams.length > 1 ? " Ce métier relève de plusieurs familles selon la qualification du poste : chacune a ses chiffres." : ""}</p>
+    ${fams.map(one).join("")}
+    <p class="muted small">Aucune projection officielle par métier n'existe au-delà de 2030 : pas de chiffre pour 2035. Source : Dares et France Stratégie, « Les métiers en 2030 » (2022), projections 2019-2030, scénario de référence et 4 variantes. Licence Ouverte.</p></div>`;
 }
 
 // ---- Sprint 13: les codes officiels du métier (ROME -> FAP -> ISCO-08) --------

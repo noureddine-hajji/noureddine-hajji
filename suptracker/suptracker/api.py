@@ -256,6 +256,17 @@ METHODOLOGY = {
         "intitulés de profession de la Dares, puis parmi les appellations du ROME de France Travail : le code ainsi trouvé "
         "est signalé comme moins sûr, avec le nombre de métiers (dont l'Onisep donne le code) sur lesquels la méthode a été "
         "vérifiée et retrouve un bon code. Ce sont des codes, pas des chiffres sur l'emploi."),
+    "emploi_2030": (
+        "La Dares et France Stratégie ont projeté l'emploi de chaque famille de métiers entre 2019 et 2030 (« Les métiers "
+        "en 2030 », 2022). Pour chaque famille : les postes à pourvoir (départs en fin de carrière plus créations nettes "
+        "d'emploi, qui peuvent être négatives) et les jeunes débutants attendus. L'écart entre les deux est donné dans le "
+        "scénario de référence et dans quatre variantes (pré-crise, Covid+, bas-carbone, Covid+ et bas-carbone) : on montre "
+        "la fourchette. Si l'écart reste positif dans tous les scénarios, les jeunes débutants ne suffiraient pas à pourvoir "
+        "les postes : le métier recruterait aussi d'autres profils ; s'il reste négatif, il y aurait plus de débutants que "
+        "de postes ; sinon, on ne conclut pas. La famille vient des codes officiels du métier ; quand elle dépend de la "
+        "qualification du poste, chaque famille est montrée. Six familles d'ouvriers ne sont publiées qu'au sein de leur "
+        "domaine : leur groupe est calculé (domaine moins familles publiées). C'est une projection sous hypothèses, pas une "
+        "prévision ni une promesse. Aucune projection officielle par métier n'existe au-delà de 2030 : pas de chiffre pour 2035."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -851,7 +862,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030"]
 
 
 @lru_cache(maxsize=1)

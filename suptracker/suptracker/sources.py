@@ -84,7 +84,7 @@ SOURCES = (
     {"key": "metiers_2030", "title": "Les métiers en 2030 : projections par famille professionnelle (FAP-87)",
      "producer": "France Stratégie / Dares", "access": "owner_upload", "file_glob": "Les métiers en 2030*.xlsx",
      "granularity": "famille professionnelle FAP-2009 (87)", "keys": ("FAP-87",), "feeds": ("emploi_2030",),
-     "status": "depose", "sprint": 14, "role": "source", "licence": LICENCE_OUVERTE,
+     "status": "en_ligne", "sprint": 14, "role": "source", "licence": LICENCE_OUVERTE,
      "url": "https://dares.travail-emploi.gouv.fr/publication/les-metiers-en-2030-le-rapport-national"},
     {"key": "dares_fap", "title": "Familles professionnelles : nomenclature FAP-2021, passages ROME/PCS vers FAP, matrices de bascule FAP-2009 ↔ FAP-2021",
      "producer": "Dares", "access": "owner_upload",

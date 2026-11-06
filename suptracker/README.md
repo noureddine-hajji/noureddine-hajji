@@ -712,6 +712,44 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## Employment to 2030 (sprint 14, job page)
+
+The job page gets a card **"L'emploi dans ce métier d'ici 2030"** (`suptracker/emploi2030.py`, table
+`core.m2030_famille`). It comes from the Dares / France Stratégie projections "Les métiers en 2030" (2022), annex 4,
+synthesis tables A and B, committed by the owner.
+
+**What we checked on the real workbook first:**
+- 79 FAP-2009 families at the 87 level. For each: 2019 employment, and over 2019-2030 the net job creations,
+  end-of-career departures, positions to fill, young entrants, and the potential imbalance (positions − entrants) in
+  the reference scenario and in 4 variants. Every row satisfies creations + departures = positions and
+  positions − entrants = imbalance; table B is table A divided by 2019 employment.
+- Six worker families are only published inside their domain: D0Z + D3Z and F0Z..F3Z. Their group is the domain
+  minus its published families, which adds up on every column; it is shown as **calculated**. Craftsmen (K0Z) are
+  mixed with elected officials and clergy in "Autres": no figure.
+- There is no figure beyond 2030. No official projection per job exists for 2035, so the page says so and invents none.
+
+**On the page:**
+- A job reaches its families through its official codes (sprint 13): ROME → FAP-2009 → 87-group. When the family
+  depends on the qualification of the post, every family is shown with its own figures.
+- Figures are rounded to the thousand, with signs. The imbalance is shown as the range of the 5 scenarios, with the
+  reference value.
+- A fixed rule reads the range: positive in all scenarios = "les jeunes débutants ne suffiraient pas"; negative in
+  all = "plus de débutants que de postes"; otherwise "on ne peut pas conclure".
+- The card states that this is a projection under assumptions, not a forecast or a promise, and that the figures
+  belong to the whole family.
+- 906 of the 928 jobs with a usable ROME code get figures (97.6 %).
+
+**Red team** (`scripts/redteam_emploi2030.py`, run by `tests/test_emploi2030.py`): 7/7 checks and 15/15 mutants
+caught on real data.
+- **E1.** Values re-read with pandas; the identities are checked.
+- **E2.** The groups are re-derived; K0Z gets no figure.
+- **E3.** Serving: the families are exactly the job's 87-groups; the range and the reading rule are checked.
+- **E4.** Coverage.
+- **E5.** The card is run with Node on hostile data: escaped, wording, readings, rounding, signs, no 2035 figure.
+- **E6.** Upkeep.
+- **E7.** Mutation test: column order, group base, reference-only range, a single family picked, reading on one
+  scenario, unmapped groups, craftsmen given the "Autres" figure, and 8 page mutants.
+
 ## The official codes of a job (sprint 13, job page)
 
 Each job page (`#/metiers/<id>`) ends with a card **"Les codes officiels de ce métier"**. It is the job reference
