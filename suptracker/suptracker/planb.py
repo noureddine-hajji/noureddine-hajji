@@ -96,11 +96,11 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
     t_view = _view(target, None)
     if target["zone"] not in ZONE_RANK:
         return {**base, "status": "non_disponible", "target": t_view, "alternatives": [],
-                "reason": "la formation visée ne peut pas être située pour votre profil "
+                "reason": "la formation visée ne peut pas être située pour ton profil "
                           f"({target['zone'].replace('_', ' ')})"}
     if target["zone"] == "securite" and not target["uncertain"]:
         return {**base, "status": "deja_accessible", "target": t_view, "alternatives": [],
-                "reason": "la formation visée est déjà un vœu de sécurité pour votre profil"}
+                "reason": "la formation visée est déjà un vœu de sécurité pour ton profil"}
     here = (lat, lon)
     pool, hidden_paid = [], 0
     for c in res["formations"]:
@@ -129,7 +129,7 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
     return {**base, "status": "ok" if out else "aucune", "target": t_view, "alternatives": out,
             "n_candidates": len(pool), "hidden_paid": hidden_paid, "include_paid": include_paid,
             "type_key": type_key,
-            "reason": None if out else "aucune formation de la même filière n'est plus accessible pour votre profil"}
+            "reason": None if out else "aucune formation de la même filière n'est plus accessible pour ton profil"}
 
 
 def _view(f: dict, reason: str | None, km: float | None = None) -> dict:

@@ -19,7 +19,7 @@ GLOSSARY = {
                    "Ce n'est pas ta chance personnelle d'être admis.", "taux_acces_ens"),
     "neo_bachelier": ("Néo-bachelier", "Un élève qui passe le bac l'année de sa candidature (par opposition à un étudiant "
                       "déjà dans le supérieur qui se réoriente).", "mentions"),
-    "mention": ("Mention au bac", "Assez bien (12 à 14), bien (14 à 16), très bien (16 et plus). Les chiffres « avec votre "
+    "mention": ("Mention au bac", "Assez bien (12 à 14), bien (14 à 16), très bien (16 et plus). Les chiffres « avec ta "
                 "mention ou moins » décrivent les admis des années passées, pas une chance.", "journey_bg"),
     "doublette": ("Doublette de spécialités", "Les deux enseignements de spécialité gardés en Terminale (par exemple "
                   "Mathématiques + SES). Les options comme Mathématiques expertes ne font pas partie de la doublette et "

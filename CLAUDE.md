@@ -252,6 +252,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - `clean_complement` handles establishment names containing " - ".
 - **Analytics.** No IP, user agent or identifier; daily HMAC pseudonym; k = 3; DNT/GPC honoured;
   closed lists; fail-open.
+- **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (Chercher, Mon parcours, Métiers, Mes vœux, Plus), the
+  top menu only on wide screens; tutoiement in every student-facing text (no "vous/votre/vos", no "-ez" imperatives); no column
+  name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
+  "Filtrer" on a phone; home = three doors. Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

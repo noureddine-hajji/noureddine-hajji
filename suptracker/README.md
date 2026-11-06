@@ -712,6 +712,37 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## Interface for 16-20 year olds, phone first (UI lot 1)
+
+The app was re-read as a student on a phone (iPhone 13): the menu took a quarter of the first screen, the home page
+opened on column names (`voe_tot`, `nb_voe_pp`), search filters filled the first screen before any result, the tone
+mixed "vous" and "tu", and 83 of 121 controls on a formation page were under 32 px.
+
+**What changed:**
+- **Home page with three doors:** "Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
+  plus example searches. No technical note.
+- **Bottom tab bar on a phone:** Chercher, Mon parcours, Métiers, Mes vœux, and "Plus" (Comparateur, Spécialités,
+  Qualité des données, Glossaire). The current tab is marked (`aria-current`); counts hide at 0. The top menu stays on wide screens.
+- **Tutoiement everywhere** a student reads: page, method texts, glossary, server messages.
+- **No column names** in method texts or labels (the formation header says "n° Parcoursup", "code établissement").
+- **Touch targets of at least 44 px** on a phone; the small "i" buttons keep their look with a hidden 45 px zone.
+- **Search results first:** filters fold under "Filtrer" on a phone (open on wide screens); active filters stay visible
+  as removable chips. The first result moved from below the first screen to 242 px.
+
+The honesty rules are unchanged: no chance, no single score, ranges and parts d'admis.
+
+**Red team** (`scripts/redteam_ux.py`, run by `tests/test_ux.py`; `--browser` measures real phone screens with Playwright):
+8/8 checks, 14/14 mutants caught.
+- **X1.** No "vous / votre / vos" or vous-imperative in any student-facing text (the page script without comments,
+  the shell, method texts, glossary, server string constants).
+- **X2.** No column name in method texts, glossary or the home page.
+- **X3.** Navigation: the 4 main pages in the bottom bar, the 4 others under "Plus", every top-menu page reachable, the tab marked.
+- **X4.** The 44 px rule in the phone CSS; the "i" zone.
+- **X5.** Filters folded on a phone, open on a wide screen, active ones removable and escaped (run with Node).
+- **X6.** Home: three doors, escaped examples, no technical note (run with Node).
+- **X7.** `--browser`: 12 phone screens (light and dark): 0 JS errors, no horizontal scroll, every control ≥ 44 px,
+  the first search result on the first screen, no column name in the visible text.
+
 ## From the licence to the master, side by side (sprint 16, licence page)
 
 A licence page gets a card **"De la licence au master : chaque master côte à côte"** (`suptracker/licence_master.py`,

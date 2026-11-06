@@ -47,9 +47,9 @@ STATIC = Path(__file__).parent / "static"
 
 METHODOLOGY = {
     "funnel": (
-        "Les trois étapes ne se divisent pas entre elles. Les vœux (voe_tot, nb_voe_pp) comptent des "
-        "vœux, et non des personnes. Les classés et proposés (nb_cla_pp, prop_tot) comptent des candidats "
-        "classés ou ayant reçu une proposition. Les admis (acc_tot) comptent les candidats qui ont "
+        "Les trois étapes ne se divisent pas entre elles. Les vœux comptent des "
+        "vœux, et non des personnes. Les classés et les proposés comptent des candidats "
+        "classés ou ayant reçu une proposition. Les admis comptent les candidats qui ont "
         "accepté définitivement. Un candidat peut formuler jusqu'à 10 vœux (et des sous-vœux), donc les "
         "ratios entre étapes n'ont pas de sens statistique."),
     "taux_acces_ens": (
@@ -58,22 +58,22 @@ METHODOLOGY = {
         "dernier candidat appelé. Il est restreint à la phase principale parce que c'est la seule phase "
         "qui produit un classement unique et complet : les vœux de la phase complémentaire (et des "
         "procédures ultérieures) portent sur des places restantes, avec un vivier et un calendrier "
-        "différents. Diviser prop_tot par voe_tot mélangerait ces phases et compterait des vœux au lieu "
+        "différents. Diviser le nombre de propositions par le nombre de vœux mélangerait ces phases et compterait des vœux au lieu "
         "de candidats."),
     "part_terminale_generale_en_position_admis_pp": (
-        "Indicateur officiel SIES (part_acces_gen) : parmi les candidats de terminale en position de recevoir "
+        "Indicateur officiel SIES : parmi les candidats de terminale en position de recevoir "
         "une proposition en phase principale, la part de ceux qui viennent de terminale générale. C'est une "
         "composition, pas une chance d'accès : avec les parts techno et pro, elle fait 100 % (vérifié sur "
         "99,9 % des formations 2025). 100 % en CPGE scientifique veut dire que les candidats appelés étaient tous "
         "en terminale générale, pas que tous les candidats de terminale générale ont été appelés."),
     "serie_offer": (
-        "SIES ne publie pas de taux d'accès par série du bac. L'accès estimé pour votre série part du taux "
-        "d'accès officiel de la formation (tous candidats) et l'ajuste selon la réussite de votre série : il est "
-        "multiplié par le rapport entre le taux de proposition de votre série (candidats de votre série ayant reçu "
-        "une proposition, toutes phases, rapportés aux candidats de votre série) et celui de l'ensemble des "
+        "SIES ne publie pas de taux d'accès par série du bac. L'accès estimé pour ta série part du taux "
+        "d'accès officiel de la formation (tous candidats) et l'ajuste selon la réussite de ta série : il est "
+        "multiplié par le rapport entre le taux de proposition de ta série (candidats de ta série ayant reçu "
+        "une proposition, toutes phases, rapportés aux candidats de ta série) et celui de l'ensemble des "
         "candidats, puis plafonné à 100 %. C'est une estimation : elle suppose que l'écart entre séries est le "
-        "même pour l'accès que pour les propositions. Le taux de proposition de votre série et le taux d'accès "
-        "officiel sont affichés à côté. En dessous de 20 candidats de votre série, le taux est jugé fragile. "
+        "même pour l'accès que pour les propositions. Le taux de proposition de ta série et le taux d'accès "
+        "officiel sont affichés à côté. En dessous de 20 candidats de ta série, le taux est jugé fragile. "
         "SIES ne distingue pas les "
         "séries technologiques entre elles (STMG, STI2D, ST2S…) ni les spécialités du bac professionnel : "
         "« bac technologique » les regroupe toutes."),
@@ -86,12 +86,12 @@ METHODOLOGY = {
         "sexe, origine) sont très instables. La formation est exclue des distributions de référence de "
         "sa filière et aucun percentile ne lui est attribué."),
     "peers": (
-        "Les pairs sont les formations de la même filière détaillée (fil_lib_voe_acc) pour la même "
+        "Les pairs sont les formations de la même filière détaillée (même intitulé de programme) pour la même "
         "session. Le percentile est un rang médian (les ex-æquo partagent la position moyenne). La "
         f"distribution est jugée instable en dessous de {config.MIN_PEERS} pairs."),
     "lineage": (
-        f"{EXACT} : même couple (cod_uai, cod_aff_form) d'une campagne à l'autre. {INFERRED} : le code "
-        "formation a changé, et le lien a été inféré au sein du même établissement et de la même filière "
+        "Lien sûr : même établissement et même code de formation d'une campagne à l'autre. Lien déduit : le code "
+        "de la formation a changé, et le lien a été inféré au sein du même établissement et de la même filière "
         "agrégée, d'après la similarité des libellés (meilleur candidat mutuel, avec une marge minimale). "
         "Les cas ambigus ne sont jamais reliés."),
     "journey_stage1": (
@@ -109,18 +109,18 @@ METHODOLOGY = {
         "des admis bacheliers généraux. Les autres filières sont accessibles. En dessous de 100 candidats "
         "cumulés, l'effectif est jugé insuffisant."),
     "journey_cdf": (
-        "Part des admis ayant au plus votre mention : parmi les admis néo-bacheliers de la formation dont "
-        "la mention est connue, la part qui a une mention inférieure ou égale à la vôtre, cumulée sur la "
+        "Part des admis ayant au plus ta mention : parmi les admis néo-bacheliers de la formation dont "
+        "la mention est connue, la part qui a une mention inférieure ou égale à la tienne, cumulée sur la "
         "lignée 2022–2025. L'intervalle est un intervalle de Wilson à 95 %. SIES publie les mentions "
         "pour tous les néo-bacheliers (général, technologique et professionnel), sans croisement avec la "
         "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
         "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
     "journey_bg": (
-        "Vous êtes situé parmi les admis de votre série du bac seulement (général, technologique ou "
+        "Tu es placé parmi les admis de ta série du bac seulement (général, technologique ou "
         "professionnel). Les explications ci-dessous valent pour chaque série. SIES ne publie pas "
         "la répartition des mentions par série du bac, seulement le nombre d'admis de chaque série ayant une "
         "mention, et la répartition des mentions toutes séries confondues. La part des bacheliers généraux "
-        "admis avec votre mention ou moins n'est donc connue qu'à un encadrement près : un encadrement exact, "
+        "admis avec ta mention ou moins n'est donc connue qu'à un encadrement près : un encadrement exact, "
         "car toute répartition compatible avec les chiffres publiés donne une valeur dans cet intervalle, et "
         "les deux bornes sont atteintes par l'une d'elles. Quand la formation n'admet que des bacheliers "
         "généraux, l'encadrement se réduit à une valeur exacte. La marge affichée ajoute l'incertitude "
@@ -130,29 +130,29 @@ METHODOLOGY = {
         "admis bac général cumulés, ou si les chiffres publiés se contredisent, la part toutes séries est "
         "affichée à la place."),
     "planb": (
-        "Plan B : les formations de la même filière détaillée (même intitulé de programme), placées pour votre "
+        "Plan B : les formations de la même filière détaillée (même intitulé de programme), placées pour ton "
         "profil avec la méthode de « Mon parcours ». Une formation est proposée si elle est dans une zone plus "
         "favorable que la formation visée (et pas incertaine), ou dans une zone au moins égale avec un accès "
         "supérieur d'au moins 15 points sans position de mention moins bonne. Sont écartées : les formations "
-        "fermées à votre série, les lectures fragiles (moins de 20 candidats de votre série, moins de 10 admis), "
+        "fermées à ta série, les lectures fragiles (moins de 20 candidats de ta série, moins de 10 admis), "
         "les écoles du même concours commun (même vivier de candidats) et, par défaut, les établissements privés "
         "hors contrat ou d'enseignement supérieur privé, qui peuvent demander des frais de scolarité élevés. Au "
-        "plus 2 propositions par établissement ; ordre : votre académie, puis la distance à la formation visée. "
+        "plus 2 propositions par établissement ; ordre : ton académie, puis la distance à la formation visée. "
         "Ce sont des parts d'admis des années passées, pas des chances d'admission."),
     "journey_zones": (
-        "Hors-profil : moins de 2 % des admis ont votre mention ou moins. Ambitieux : taux d'accès "
-        "inférieur à 30 %, ou votre mention se situe dans les 15 % inférieurs de la cohorte admise. "
-        "Sécurité : taux d'accès d'au moins 70 % et au moins la moitié des admis avec votre mention ou "
+        "Hors-profil : moins de 2 % des admis ont ta mention ou moins. Ambitieux : taux d'accès "
+        "inférieur à 30 %, ou ta mention se situe dans les 15 % inférieurs de la cohorte admise. "
+        "Sécurité : taux d'accès d'au moins 70 % et au moins la moitié des admis avec ta mention ou "
         "moins. Cible : tous les autres cas. Une formation est marquée « incertaine » quand une valeur "
         "comprise dans l'intervalle à 95 % la placerait dans une autre zone."),
     "journey_groups": (
-        "Groupe d'appel : le groupe de classement Parcoursup (lib_grp1 à 3) qui s'applique à un bachelier "
+        "Groupe d'appel : le groupe de classement Parcoursup qui s'applique à un bachelier "
         "général, avec le rang du dernier candidat appelé dans ce groupe. Dans les données SIES 2022–2025, "
         "aucun groupe n'est découpé par enseignement de spécialité ; les groupes portent sur la série du "
         "bac, le sexe, le campus ou la voie CEP. Le rang du dernier appelé n'est pas une probabilité : la "
         "taille du groupe n'est pas publiée."),
     "timing": (
-        "Indicateurs officiels SIES repris tels quels (pct_acc_debutpp, pct_acc_datebac, pct_acc_finpp) : part "
+        "Indicateurs officiels SIES repris tels quels : part "
         "des admis ayant reçu leur proposition d'admission à l'ouverture de la phase principale, avant les "
         "résultats du baccalauréat, puis avant la fin de la phase principale. Les trois parts sont cumulées : "
         "chacune inclut la précédente. Le dénominateur est l'ensemble des admis de la formation, phase "
@@ -224,7 +224,7 @@ METHODOLOGY = {
         "personnes, une cohorte de 3 ans au plus, un rattachement par l'identifiant officiel de l'établissement "
         "(Paysage). B (à nuancer) : moins de 100 personnes, une cohorte plus ancienne, ou un rattachement fait par le "
         "nom de l'établissement. C (fragile) : moins de 30 personnes. Un chiffre masqué par le producteur n'a ni note ni "
-        "valeur. La fiabilité ne dit pas si le chiffre est bon ou mauvais pour vous : elle dit à quel point il est "
+        "valeur. La fiabilité ne dit pas si le chiffre est bon ou mauvais pour toi : elle dit à quel point il est "
         "solide. Chaque étape du parcours décrit une population différente : les chiffres ne se multiplient pas entre eux."),
     "lycee": (
         "Ton lycée, en contexte. L'indice de position sociale (IPS, ministère de l'Éducation nationale) résume le milieu "
@@ -345,9 +345,10 @@ METHODOLOGY = {
         "que la zone affichée pour le bac général (part des admis bac général encadrée par les chiffres publiés). Ce ne sont pas des chances d'admission : "
         "les données publiques ne donnent pas les mentions des candidats, seulement celles des admis."),
     "mentions": (
-        "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
+        "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
-        "exactement à acc_neobac, et non à acc_term. Les parts affichées sont celles publiées par SIES (pct_*). "
+        "exactement au nombre d'admis néo-bacheliers, et non au nombre d'admis venant de terminale. Les parts "
+        "affichées sont celles publiées par SIES. "
         "Quelques lignes de l'export SIES lui-même ne s'additionnent pas ; elles sont signalées."),
 }
 
@@ -412,7 +413,7 @@ async def _cache_policy(request: Request, call_next):
 @app.exception_handler(WarehouseMissing)
 def _warehouse_missing(_: Request, exc: WarehouseMissing):
     return JSONResponse({"detail": "Entrepôt de données en cours de construction ou absent. "
-                         "Réessayez dans quelques minutes."}, status_code=503)
+                         "Réessaie dans quelques minutes."}, status_code=503)
 
 
 @app.get("/healthz")
