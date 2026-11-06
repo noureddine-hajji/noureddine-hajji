@@ -242,6 +242,17 @@ METHODOLOGY = {
         "une poursuite d'études. La liste est nationale : un établissement figure parce qu'il prépare le diplôme, pas parce "
         "que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi, et les formations ne sont pas classées "
         "par chances d'admission. La recherche se fait dans ton navigateur : ce que tu cherches n'est pas envoyé au site."),
+    "referentiel_metiers": (
+        "Les codes officiels d'un métier servent à le relier aux statistiques de l'emploi. La fiche Onisep donne son ou ses "
+        "codes ROME (le répertoire des métiers de France Travail). La Dares publie le passage du code ROME vers sa famille "
+        "professionnelle (FAP-2021, et l'ancienne FAP-2009 qu'utilisent les projections « Les métiers en 2030 ») : pour "
+        "beaucoup de codes ROME, la famille dépend de la qualification du poste (ouvrier, employé, technicien, cadre, "
+        "indépendant…). On montre toutes les familles possibles, avec la qualification à laquelle chacune s'applique, sans "
+        "en choisir une pour toi. Les codes ISCO-08 (la classification internationale du BIT) viennent des intitulés de "
+        "profession : la Dares relie chaque intitulé à un code ROME, l'Insee code ce même intitulé en ISCO-08. Un métier a "
+        "donc souvent plusieurs codes ISCO possibles ; le nombre indiqué est celui des intitulés de profession derrière "
+        "chaque code, pas une part des emplois. Certains intitulés ne permettent qu'un code ISCO partiel (par exemple 21xx) : "
+        "il est signalé comme tel. Ce sont des codes, pas des chiffres sur l'emploi."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -837,7 +848,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers"]
 
 
 @lru_cache(maxsize=1)

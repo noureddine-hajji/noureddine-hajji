@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import config, cereq, crosswalk, harmonize, indicators, calibration, insertion, journey, lycee, onisep, passerelles, poursuite, prevision, referentiel, success
+from . import config, cereq, crosswalk, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
 from .ingest import load_manifest
 
 
@@ -21,7 +21,7 @@ _SOURCE = object()
 
 def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, success_source=_SOURCE,
           poursuite_sources=_SOURCE, cereq_source=_SOURCE,
-          onisep_sources=_SOURCE) -> Path:
+          onisep_sources=_SOURCE, nomen_sources=_SOURCE) -> Path:
     """success_source: the SIES licence success workbook (B1); default data/sources/, None to skip.
     poursuite_sources: {kind: path} of the sprint-6 BUT and master workbooks; default: detected in
     data/sources/, None to skip."""
@@ -48,6 +48,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         insertion.build(con, raw_dir)
         onisep.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)
+        nomenclatures.build(con, nomenclatures.find_sources() if nomen_sources is _SOURCE else nomen_sources)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")

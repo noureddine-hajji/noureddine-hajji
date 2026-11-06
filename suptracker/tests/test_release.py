@@ -33,6 +33,7 @@ FEATURE_ENTRY_POINTS = {
     "metiers": ("app.js", "function metiersCard"),
     "voeux": ("app.js", "async function viewVoeux"),
     "metier_formations": ("app.js", "async function viewMetier("),
+    "referentiel_metiers": ("app.js", "function codesCard("),
 }
 
 
@@ -49,6 +50,7 @@ def test_every_feature_is_wired():
     assert 'if (a === "voeux") return await viewVoeux()' in js and "${voeuButton(r.cod_aff_form)}" in js
     assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'href="#/metiers"' in (STATIC / "index.html").read_text()
     assert 'if (a === "metiers") return await viewMetiers(' in js
+    assert "${codesCard(d.codes)}" in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()
 
 

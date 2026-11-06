@@ -9,3 +9,5 @@ pytest-xdist>=3.5
 fakeredis>=2.26
 lupa>=2.2
 openpyxl>=3.1
+# Dares FAP-2009 table (.xls, sprint 13)
+xlrd>=2.0

@@ -1405,10 +1405,44 @@ async function viewMetier(id, from = "") {
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
-    ${status}${d.diplomes.map(dip).join("")}`;
+    ${status}${d.diplomes.map(dip).join("")}${codesCard(d.codes)}`;
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Sprint 13: les codes officiels du métier (ROME -> FAP -> ISCO-08) --------
+// Codes, not figures: every family a ROME code can lead to is listed with the qualification it applies to,
+// none is picked for the student; ISCO codes come with the number of job titles behind them, never a share.
+function qualifText(q) {
+  if (!q || q.toutes) return "toutes qualifications";
+  if (!q.libelles) return "selon la qualification du poste";
+  return `pour : ${q.libelles.map(esc).join(", ")}`;
+}
+function codesCard(codes) {
+  if (!Array.isArray(codes)) return "";
+  const head = `<h2>Les codes officiels de ce métier</h2>
+    <p class="muted small">Ils relient ce métier aux statistiques de l'emploi (projections à 2030, exposition à l'IA : prochaines étapes). Ce sont des codes, pas des chiffres sur l'emploi.</p>`;
+  if (!codes.length) return `<div class="card">${head}<p class="small">L'Onisep ne donne pas de code ROME pour ce métier : il n'est pas encore relié aux statistiques de l'emploi.</p></div>`;
+  const one = (c) => {
+    if (!c.connu) return `<h3>Code ROME ${esc(c.rome)}</h3><p class="small">Ce code n'est pas dans les tables de passage de la Dares.</p>`;
+    const fam = (xs, sub) => xs.length ? `<ul class="small">${xs.map((f) => `<li><strong>${esc(f.code)}</strong> ${esc(f.libelle || "")}${sub(f)} · <span class="muted">${qualifText(f.qualifications)}</span></li>`).join("")}</ul>`
+      : `<p class="small muted">Aucune famille dans la table de la Dares.</p>`;
+    const full = c.isco.filter((i) => i.precision === 4), part = c.isco.filter((i) => i.precision < 4);
+    const isco = !c.isco.length ? `<p class="small muted">Aucun code ISCO-08 trouvé par les intitulés de profession.</p>`
+      : `${full.length ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th class="num">Intitulés de profession</th></tr>
+        ${full.map((i) => `<tr><td>${esc(i.code)}</td><td>${esc(i.libelle || "")}<div class="muted small">${qualifText(i.qualifications)}</div></td><td class="num">${fmt(i.n_intitules)}</td></tr>`).join("")}</table></div>` : ""}
+        ${part.length ? `<p class="small muted">Codes partiels (l'intitulé ne permet pas d'aller jusqu'au groupe de base) : ${part.map((i) => `${esc(i.code.slice(0, i.precision))}${"x".repeat(4 - i.precision)} (${fmt(i.n_intitules)} intitulé${i.n_intitules > 1 ? "s" : ""})`).join(", ")}.</p>` : ""}`;
+    return `<h3>Fiche ROME ${esc(c.rome)} · ${esc(c.intitule || "")}</h3>
+      <p class="small"><strong>Famille professionnelle FAP-2021</strong> (Dares, table officielle code à code)</p>
+      ${fam(c.fap2021, (f) => f.fap86 ? ` <span class="muted">(${esc(f.fap86)} ${esc(f.libelle86 || "")})</span>` : "")}
+      <p class="small"><strong>Famille FAP-2009</strong>, celle des projections « Les métiers en 2030 » (Dares, table officielle code à code)</p>
+      ${fam(c.fap2009, (f) => f.libelle87 ? ` <span class="muted">(${esc(f.fap87)} ${esc(f.libelle87)})</span>` : "")}
+      <p class="small"><strong>Codes ISCO-08 possibles</strong> (classification internationale du BIT), retrouvés par les intitulés de profession : la Dares relie l'intitulé au code ROME, l'Insee le code en ISCO. Le nombre d'intitulés n'est pas une part des emplois.</p>
+      ${isco}`;
+  };
+  return `<div class="card">${head}${codes.map(one).join("")}
+    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés). Licence Ouverte.</p></div>`;
 }
 
 // ---- router ----------------------------------------------------------------

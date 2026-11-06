@@ -712,6 +712,56 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## The official codes of a job (sprint 13, job page)
+
+Each job page (`#/metiers/<id>`) ends with a card **"Les codes officiels de ce métier"**. It is the job reference
+that sprints 14 (employment to 2030) and 15 (AI task exposure) read their figures through. It shows codes, not
+figures about the job market.
+
+**Where each link comes from** (`suptracker/nomenclatures.py`, tables `core.nomen_*`, all from files the owner
+committed under `data/sources/`):
+
+| Link | Official table | Kind |
+| --- | --- | --- |
+| job → ROME | Onisep job sheet (every ROME code, sprint 12) | code to code |
+| ROME × qualification → FAP-2021 | Dares, `Table_passage_ROME_Qualif_to_FAP2021` | code to code |
+| ROME × qualification → FAP-2009 | Dares SAS program `passage_fap2009_romev3.txt` (the Dares xls is the cross-check) | code to code |
+| ROME × qualification → ISCO-08 | Dares PCS 2020 job titles joined by title to the Insee ISCO codification (G44) | through job titles |
+
+**What we checked on the real files first:**
+- **FAP families.** All 532 ROME codes are in the Dares table. For 282 of them the FAP-2021 family depends on the
+  qualification class (0 not specified, 1-3 workers, 4 independent, 5-6 employees, 7 technicians, 8 supervisors,
+  9 engineers and executives). Every family is shown with the classes it applies to; none is picked for the student.
+- **FAP-2009.** The SAS program and the Dares xls give the same 5,310 (ROME, qualification, family) rows. Their
+  qualification classes are France Travail's (4 = highly qualified worker), not the FAP-2021 ones: the page never
+  names them with FAP-2021 names.
+- **ISCO-08.** 97.1 % of the 107,050 Dares job titles find their Insee code. G44 codes a title per employment
+  status; the status follows the qualification class.
+  - A ROME code has several possible ISCO codes; each comes with the number of DISTINCT job titles behind it.
+    No weight is published along this path, so this count is never shown as a share of jobs.
+  - Some titles only allow a partial code (2100 = sub-major group 21). It is shown as `21xx`, with no label invented.
+- **Coverage.** Of the 1,124 Onisep jobs, 928 have a known ROME code. Per job, the median is 2 FAP-2021
+  families, 1 FAP-2009 family and 4 full ISCO codes. 193 jobs have no ROME code; the page says so.
+
+**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 7/7 checks and 17/17
+mutants caught on real data. Its first runs found two bugs: the Dares CSV files are Windows-1252, not Latin-1 (`’` and `œ`
+became invisible control characters), and the curly apostrophe was dropped before the join key was folded. No title in use
+carries either today, so the red team checks both with witness inputs.
+- **N1.** Every stored table equals the raw file re-read with pandas; FAP-2009 SAS = xls row for row.
+- **N2.** ROME → ISCO is re-derived independently (pandas merge, independent status rule): same 57,215 rows.
+- **N3.** Cross-check by another official path, ROME → FAP-2021 → PCS 2020 (Dares, probabilistic) → ISCO (Insee
+  matrix): the two ISCO sets meet for 97.6 % of ROME codes. The Dares title and ROME tables agree on the family for
+  99.8 % of rows.
+- **N4.** Serving: the qualification classes are covered exactly once; FAP-2009 classes carry no FAP-2021 name;
+  title counts are distinct; partial codes carry no label; odd and unknown codes are handled; each job page carries
+  the codes of its own ROME codes.
+- **N5.** The card is run with Node on hostile data: everything is escaped, no percentage, the wording is present.
+- **N6.** Upkeep: the source register, the methodology, `xlrd` in the pipeline requirements, a safe empty build,
+  the warehouse under 95 MB (72.9 MB).
+- **N7.** Mutation test: wrong status column, unfolded titles, the qualification-dependent FAP-2009 format ignored,
+  every code taken as a full unit group, non-distinct counts, wrong "toutes qualifications", families dropped,
+  a Latin-1 reading, a weaker fold, and 8 page mutants.
+
 ## From a job to the formations (sprint 12, `#/metiers`)
 
 **What the student sees.** A "Métiers" page in the menu. The student types a job and the matching Onisep jobs appear as they type. Matching is insensitive to accents and case, and works on masculine and feminine forms and on the Onisep synonyms: "infirmière", "gestionnaire de paie", "développeur web" all find a job. When no job contains every word, the closest ones are shown and labelled as such.
