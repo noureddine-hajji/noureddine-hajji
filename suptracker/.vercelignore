@@ -1,4 +1,4 @@
-data/raw/
+**/data/raw/
 tests/
 scripts/
 reports/
@@ -6,6 +6,6 @@ Dockerfile
 docker-entrypoint.sh
 Makefile
 requirements-pipeline.txt
-data/analytics/
-data/probe/
-data/sources/
+**/data/analytics/
+**/data/probe/
+**/data/sources/

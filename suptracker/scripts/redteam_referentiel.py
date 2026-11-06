@@ -326,14 +326,18 @@ def f9(c: Ctx):
     reg_ds = {d for s in SRC.SOURCES for d in s.get("datasets", ())}
     cfg = {d.key for d in config.DATASETS}
     files = [p.name for p in (ROOT / "data" / "sources").glob("*") if p.is_file()]
-    globs = [s["file_glob"] for s in SRC.SOURCES if s["access"] == "owner_upload"]
+    globs = [g for s in SRC.SOURCES if s["access"] == "owner_upload" for g in SRC.globs(s)]
     import fnmatch
     orphan_files = [f for f in files if not any(fnmatch.fnmatch(f, g) for g in globs)]
+    # a pattern that matches no committed file is a stale entry (sprint 12: "depose" files must really be there)
+    stale = [g for s in SRC.SOURCES if s["access"] == "owner_upload" for g in SRC.globs(s) if not any(fnmatch.fnmatch(f, g) for f in files)]
     bad = [s["key"] for s in SRC.SOURCES if s["access"] not in SRC.ACCESS or s["status"] not in SRC.STATUS
-           or (s["status"] == "prevu") != (s["access"] == "planned") or (s["status"] == "prevu" and not (s.get("sprint") and s.get("url")))]
+           or (s["status"] == "prevu") != (s["access"] == "planned") or (s["status"] == "prevu" and not (s.get("sprint") and s.get("url")))
+           or (s["status"] == "depose" and not (s["access"] == "owner_upload" and s.get("sprint") and s.get("role")))]
     keys = [k for k, n in Counter(s["key"] for s in SRC.SOURCES).items() if n > 1]
-    ok = cfg == reg_ds and not orphan_files and not bad and not keys
-    return ok, f"datasets not registered {sorted(cfg - reg_ds)}; registered but not ingested {sorted(reg_ds - cfg)}; unregistered files {orphan_files}; bad entries {bad}; duplicate keys {keys}"
+    ok = cfg == reg_ds and not orphan_files and not bad and not keys and (not c.real or not stale)
+    return ok, (f"datasets not registered {sorted(cfg - reg_ds)}; registered but not ingested {sorted(reg_ds - cfg)}; unregistered files {orphan_files}; "
+                f"bad entries {bad}; duplicate keys {keys}; patterns matching no file {stale}")
 
 
 def ui_glossary(js: str, html: str) -> tuple[bool, str]:

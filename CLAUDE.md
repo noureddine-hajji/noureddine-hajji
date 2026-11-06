@@ -23,6 +23,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Céreq (sprint 8 follow-up):** `cereq.py` (training-job match by highest diploma, national; owner-uploaded workbook).
   - **Onisep (sprint 8 follow-up):** `onisep.py` (jobs a diploma leads to, national, by title; owner-uploaded Idéo XML).
   - **Scale (sprint 10):** `cache.py` (one HTTP cache policy per route), `journey.public_stage2` (lighter answers), `scripts/monitor.py`.
+  - **Du métier aux formations (sprint 12):** `metiers.py` (job catalogue searched in the browser, job page = the jobs card read backwards).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -42,6 +43,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 ## Deploy
 - **Vercel** (FastAPI preset, root `suptracker`, entrypoint `suptracker.api:app`, slim `requirements.txt`).
   The production branch must be `main`.
+- **`.vercelignore` is read from the REPOSITORY root:** a pattern with an inner slash must start with `**/` (`data/sources/`
+  alone matched nothing and overflowed the 225 MB function limit); red team M7 simulates Vercel's reading.
 - **Live version check:** the footer and `GET /api/version` show the commit. Assets carry a
   `?v=<content hash>`.
 - **Analytics** use Upstash Redis (`KV_REST_API_URL` / `KV_REST_API_TOKEN`) plus
@@ -172,6 +175,14 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - CI: push on `main` only, branches through their PR, stale runs cancelled, `pytest -n auto --dist loadfile`; every red team that
     calls `time.perf_counter()` (analytics, Plan B, search) runs in the serial step (red team S6 enforces it).
   - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
+- **Du métier aux formations (sprint 12).**
+  - The job page is the formation jobs card read backwards (same sheets, same link, same flag): red team M3 checks both ways.
+  - The diploma level is the matched Onisep sheet's (`onisep.sheet_level`; 3-year BTS orthoprothésiste / podo-orthésiste are bac+3);
+    the filière's usual level is only a fallback.
+  - `/api/metiers` takes no parameter: the search runs in the browser (`metierMatch`, accent/case-insensitive, labels and synonyms;
+    a close match is shown as such and never outranks a full one). National list, no promise, no ranking by chances.
+- **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
+  registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**
   - Zones come from `journey.stage2(..., only=codes)`: the same row as the full type, hence the zone of "Mon parcours" and
     Plan B (red team V1-V2). Never a frozen zone: the list is re-read for the current profile.
@@ -216,9 +227,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
-  - sprint 9: removed at the owner's request (2026-11-02); sprint 10 (scale) on the branch; next: sprint 12 (job → formations).
-- **Open question for the owner:** the live site looked like it lacked sprint 1 and Plan B. `main`
-  is complete (verified in Chromium). Likely cause: a stale Vercel production deployment, possibly
-  from Vercel's own branch `vercel/install-and-configure-vercel-w-9i0tca` (PR #9, closed unmerged),
-  or a cached `app.js`. The owner was asked to check that Vercel → Deployments → Production comes
-  from `main` at the latest commit (the footer shows it).
+  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-12 done; next: sprint 13.
+- **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 6 hours).
+- **Horizon 2030 plan (agreed):** sprint 13 job reference (ROME → FAP 2009 / FAP 2021 → PCS → ISCO-08, official DARES and Insee
+  tables), 14 employment to 2030 (DARES Métiers 2030, scenarios as ranges), 15 AI task exposure (OIT 2025 + France Travail tags +
+  complementarity θ rebuilt from O*NET per the owner's guide, grade C; Felten AIOE still needed), 16 licence → master.
+  Never one composite score, never an average over a diploma's jobs: ranges and counts.

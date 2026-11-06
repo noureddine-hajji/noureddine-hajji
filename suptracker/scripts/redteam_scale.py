@@ -56,6 +56,10 @@ class Ctx:
         self.cod, self.type_key = con.execute("""SELECT fy.cod_aff_form, r.spe_type_key FROM core.formation_year fy
             JOIN core.taxonomy_link t USING (session, cod_aff_form) JOIN core.taxonomy_rule r USING (rule_id)
             WHERE fy.session = ? ORDER BY fy.cod_aff_form LIMIT 1""", [latest]).fetchone()
+        row = con.execute("SELECT min(met_id) FROM core.onisep_metier").fetchone() if con.execute(
+            "SELECT count(*) FROM information_schema.tables WHERE table_name = 'onisep_metier'").fetchone()[0] else None
+        self.met_id = (row and row[0]) or "MET.1"
+        self.has_jobs = bool(row and row[0])
         self.lineage = con.execute("SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? LIMIT 1", [self.cod]).fetchone()[0]
         big = con.execute("""SELECT r.spe_type_key, count(*) n FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
             WHERE t.session = ? GROUP BY 1 ORDER BY n DESC""", [latest]).fetchall()
@@ -76,6 +80,7 @@ class Ctx:
             "/api/journey/stage2": f"/api/journey/stage2?{bg}&mention=ab&type={self.type_key}",
             "/api/lycees": "/api/lycees", "/api/planb/{cod}": f"/api/planb/{c}?{bg}",
             "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/continuity": "/api/continuity",
+            "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
         }
@@ -117,7 +122,9 @@ def s1(c: Ctx):
         missing = [r for r in routes if r not in samples]
         nopol = [r for r in routes if r in samples and CACHE.policy(samples[r].split("?")[0]) is None]
         # persona and verification reports are produced for the real warehouse only (404 by design elsewhere)
-        ok_codes = lambda r: {200} if c.real or r not in ("/api/journey/persona", "/api/verification") else {200, 404}  # noqa: E731
+        # persona / verification reports exist for the real warehouse only; a job page needs the Onisep jobs (sprint 12)
+        ok_codes = lambda r: ({200, 404} if r == "/api/metier/{met_id}" and not c.has_jobs else  # noqa: E731
+                              {200} if c.real or r not in ("/api/journey/persona", "/api/verification") else {200, 404})
         bad = [(r, cl.get(samples[r]).status_code) for r in routes if r in samples and r != "/api/stats"
                and cl.get(samples[r]).status_code not in ok_codes(r)]
     return not missing and not nopol and not bad, f"{len(routes)} routes; no sample {missing}; no policy {nopol}; not 200 {bad}"
@@ -293,23 +300,27 @@ def s6(c: Ctx):
     import monitor as M
     ok, d = ci_ok(CI.read_text(), MON.read_text())
     good = M.checks("http://x", 8, fetch=fake_site(c))
-    seen = set()
+    seen = {}
+    M.PAUSE = 0           # no real waiting in the red team
 
     def vercel(p, st, h, b):
         """Vercel's CDN: s-maxage consumed and stripped; x-vercel-cache MISS then HIT for what the policy shares."""
         cc = h.get("cache-control", "")
         shared = "s-maxage" in cc
         h = {**h, "cache-control": ", ".join(x for x in cc.split(", ") if not x.startswith(("s-maxage", "stale-while")))}
-        h["x-vercel-cache"] = ("HIT" if p in seen else "MISS") if shared else "BYPASS"
-        seen.add(p)
+        # a freshly deployed CDN: the first THREE asks of a URL miss, then it hits (the monitor must retry, not alarm)
+        seen[p] = seen.get(p, 0) + 1
+        h["x-vercel-cache"] = ("HIT" if seen[p] > 3 else "MISS") if shared else "BYPASS"
         return st, h, b
     on_vercel = M.checks("http://x", 8, fetch=fake_site(c, vercel))
     vercel_ok = all(x[1] for x in on_vercel)
     seen.clear()
+    never = lambda p, st, h, b: (st, {**h, "x-vercel-cache": "MISS", "cache-control": "public, max-age=300"}, b) if p.startswith("/api/formation") else (st, h, b)  # noqa: E731
     breaks = {
         "down": lambda p, st, h, b: (503, h, b),
         "Vercel never caches the formation": lambda p, st, h, b: (st, {**h, "x-vercel-cache": "BYPASS", "cache-control": "public, max-age=300"}, b)
         if p.startswith("/api/formation") else (st, h, b),
+        "Vercel never serves the formation from its cache (MISS forever)": never,
         "Vercel serves Mes vœux from its cache": lambda p, st, h, b: (st, {**h, "x-vercel-cache": "HIT"}, b) if p.startswith("/api/voeux") else (st, h, b),
         "old front-end": lambda p, st, h, b: (st, h, b.replace(b"app.js?v=", b"app.js?v=0")) if p == "/" else (st, h, b),
         "assets not immutable": lambda p, st, h, b: (st, {**h, "cache-control": "public, max-age=300"}, b) if p.startswith("/static") else (st, h, b),

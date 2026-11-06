@@ -98,7 +98,8 @@ class Ctx:
 
     def _ref_tables(self):
         fr = rxml(self.sources["formations"])
-        forms = {f.findtext("identifiant"): (f.findtext("libelle_complet"), f.findtext("type_Formation/type_formation_libelle")) for f in fr}
+        forms = {f.findtext("identifiant"): (f.findtext("libelle_complet"), f.findtext("type_Formation/type_formation_libelle"),
+                                             f.findtext("niveau_etudes/libelle")) for f in fr}
         fm = {(f.findtext("identifiant"), m.findtext("id")) for f in fr for m in f.findall("metiers_formation/metier")}
         mets = {}
         if "metiers" in self.sources:
@@ -108,7 +109,7 @@ class Ctx:
 
     def ref_index(self):
         idx = {"BTS": {}, "BUT": {}, "LIC": {}, "DE": {}}
-        for fid, (lib, typ) in self.ref["forms"].items():
+        for fid, (lib, typ, _lvl) in self.ref["forms"].items():
             f, t = rfold(lib), typ or ""
             if t.startswith("brevet de technicien sup"):
                 fam, spec = "BTS", re.sub(r"^btsa? ", "", f)
@@ -186,8 +187,14 @@ def o3(c: Ctx):
     con = duckdb.connect(str(c.db), read_only=True)
     bad, n = [], 0
     by = Counter()
+    def ref_level(fili, fids):
+        """The diploma level read from the raw sheets (lowest when several differ), the filière's usual one otherwise."""
+        ranks = [r for r in (rrank(c.ref["forms"][f][2]) for f in fids if f in c.ref["forms"]) if r is not None]
+        return min(ranks) if ranks else REF_LEVEL.get(fili)
+    # every formation whose sheet departs from its filière's usual level is checked (3-year BTS: sprint 12 finding)
+    odd = {cod for cod, (fili, _, fids, _) in c.links.items() if fids and ref_level(fili, fids) != REF_LEVEL.get(fili)}
     for cod, (fili, prog, fids, rule) in c.links.items():
-        if by[rule] >= 30:
+        if by[rule] >= 30 and cod not in odd:
             continue
         by[rule] += 1
         b = ON.for_formation(con, cod)
@@ -200,7 +207,9 @@ def o3(c: Ctx):
         got = {j["id"] for j in b["metiers"]}
         if want != got:
             bad.append((cod, "jobs"))
-        lvl = REF_LEVEL.get(fili)
+        lvl = ref_level(fili, fids)
+        if b["niveau"] != lvl:
+            bad.append((cod, "level", b["niveau"], lvl))
         for j in b["metiers"]:
             r = rrank(c.ref["mets"].get(j["id"], (None, None))[1])
             exp = None if r is None or lvl is None else "direct" if r <= lvl else "poursuite"
@@ -209,7 +218,10 @@ def o3(c: Ctx):
         if {d["id"] for d in b["diplomes"]} != fids:
             bad.append((cod, "diplomas"))
     con.close()
-    return not bad and n > 0, f"{n} pages, {len(bad)} wrong {bad[:3]}"
+    # witness cases, true on any data: a 3-year BTS sheet is bac+3; a sheet stating no level falls back on the filière
+    if ON.sheet_level(["bac + 3"], "BTS") != 3 or ON.sheet_level([None], "BTS") != 2 or ON.sheet_level(["bac + 2", "bac + 3"], "BTS") != 2:
+        bad.append(("witness", "sheet level"))
+    return not bad and n > 0, f"{n} pages ({len(odd)} with a sheet level unusual for the filière), {len(bad)} wrong {bad[:3]}"
 
 
 def ui(js: str) -> tuple[bool, str]:
@@ -258,7 +270,7 @@ def o5(c: Ctx):
             ("RT-5", "Licence", "Agencement")]
     rows = c.latest_forms + edge
     want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
-    saved = {k: getattr(ON, k) for k in ("match", "index", "level_rank", "LEVEL", "key")}
+    saved = {k: getattr(ON, k) for k in ("match", "index", "level_rank", "LEVEL", "key", "sheet_level")}
 
     def links_now():
         idx = ON.index(forms)
@@ -319,12 +331,12 @@ def o5(c: Ctx):
             out[cod] = tuple(sorted((j["id"], j["acces"]) for j in b["metiers"])) if b and b["status"] == "ok" else None
         return out
     base = flags()
-    serve_mutants = [("BTS level counted as bac+1", lambda: setattr(ON, "LEVEL", {**saved["LEVEL"], "BTS": 1})),
+    serve_mutants = [("sheet level ignored (filière's usual level)", lambda: setattr(ON, "sheet_level", lambda lv, fili=None: saved["LEVEL"].get(fili))),
                      ("'bac ou équivalent' left unparsed", lambda: setattr(ON, "level_rank", lambda l: None if rfold(l).startswith("bac ou") else saved["level_rank"](l)))]
     for name, apply in serve_mutants:
         try:
             apply()
-            caught = flags() != base or name.startswith("'bac")      # a rank mutant acts at build time: check O1's rule directly
+            caught = flags() != base or name.startswith("'bac") or not o3(c)[0]   # a rank mutant acts at build time: O1's rule below
             if name.startswith("'bac"):
                 caught = any(ON.level_rank(v[1]) != rrank(v[1]) for v in c.ref["mets"].values())
         except Exception:  # noqa: BLE001

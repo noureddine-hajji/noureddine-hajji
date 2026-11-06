@@ -6,6 +6,10 @@ obtained, at what granularity, through which keys, and what it feeds.
 * "owner_upload" the producer's site rejects automated downloads: the owner commits the file under
                  data/sources/ (matching `file_glob`), the data workflow's fingerprint includes it;
 * "planned"      not ingested yet (roadmap); listed so the journey shows what is coming and why.
+
+`status`: "en_ligne" (served), "prevu" (planned, not obtained yet), "depose" (sprint 12: committed by the owner
+under data/sources/, NOT ingested yet; `sprint` says which sprint uses it, `role` whether it is a primary source
+or only a cross-check). `file_glob` is one pattern or a tuple of patterns.
 """
 from __future__ import annotations
 
@@ -76,13 +80,73 @@ SOURCES = (
      "access": "owner_upload", "file_glob": "ONISEP-*",
      "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers",), "status": "en_ligne",
      "sprint": 8, "licence": ODBL, "url": "https://opendata.onisep.fr/2-les-donnees.htm"},
+    # ---- Horizon 2030 (sprints 13-16): committed by the owner, not ingested yet (status "depose")
+    {"key": "metiers_2030", "title": "Les métiers en 2030 : projections par famille professionnelle (FAP-87)",
+     "producer": "France Stratégie / Dares", "access": "owner_upload", "file_glob": "Les métiers en 2030*.xlsx",
+     "granularity": "famille professionnelle FAP-2009 (87)", "keys": ("FAP-87",), "feeds": ("emploi_2030",),
+     "status": "depose", "sprint": 14, "role": "source", "licence": LICENCE_OUVERTE,
+     "url": "https://dares.travail-emploi.gouv.fr/publication/les-metiers-en-2030-le-rapport-national"},
+    {"key": "dares_fap", "title": "Familles professionnelles : nomenclature FAP-2021, passages ROME/PCS vers FAP, matrices de bascule FAP-2009 ↔ FAP-2021",
+     "producer": "Dares", "access": "owner_upload",
+     "file_glob": ("Dares_Table_passage_*", "Dares_Matrices_bascule_*", "Dares_Nomenclature_FAP2021*", "dares_nomenclature_fap2021.csv",
+                   "passage_fap2009_romev3.txt", "Table de correspondance PCS-2003, Rome-V3 vers Fap-2009.xls"),
+     "granularity": "ROME (+ qualification) / PCS → FAP", "keys": ("ROME", "PCS", "FAP"), "feeds": ("referentiel_metiers",),
+     "status": "depose", "sprint": 13, "role": "source", "licence": LICENCE_OUVERTE,
+     "url": "https://www.data.gouv.fr/datasets/la-nomenclature-des-familles-professionnelles-2021"},
+    {"key": "insee_pcs_isco", "title": "PCS 2020 : matrice PCS → ISCO-08, codification des libellés (G44), tables de passage PCS 2003 ↔ 2020",
+     "producer": "Insee", "access": "owner_upload",
+     "file_glob": ("Matrice_PCS_ISCO_*", "G44_Matrice_codification_ISCO*", "table_passage_20*.xlsx"),
+     "granularity": "profession (PCS 2020) / libellé → ISCO-08", "keys": ("PCS", "ISCO-08"), "feeds": ("referentiel_metiers",),
+     "status": "depose", "sprint": 13, "role": "source", "licence": LICENCE_OUVERTE, "url": "https://www.insee.fr/fr/information/6205275"},
+    {"key": "rome_tags", "title": "ROME 4.0 : étiquettes des fiches (transitions écologique, numérique, démographique ; cadre ; réglementé)",
+     "producer": "France Travail", "access": "owner_upload", "file_glob": "*fiches-rome*tag*.xlsx",
+     "granularity": "fiche ROME", "keys": ("ROME",), "feeds": ("taches_ia",), "status": "depose", "sprint": 15, "role": "source",
+     "licence": LICENCE_OUVERTE, "url": "https://www.data.gouv.fr/datasets/repertoire-operationnel-des-metiers-et-des-emplois-rome"},
+    {"key": "dares_tensions", "title": "Les tensions sur le marché du travail en 2025 (données et note méthodologique)",
+     "producer": "Dares", "access": "owner_upload", "file_glob": ("Dares Résultats_données_Les tensions*", "Note méthodologique sur l'analyse des tensions*"),
+     "granularity": "famille professionnelle FAP-2021 (30 métiers les plus en tension seulement)", "keys": ("FAP-228",),
+     "feeds": ("emploi_2030",), "status": "depose", "sprint": 14, "role": "contexte", "licence": LICENCE_OUVERTE,
+     "url": "https://dares.travail-emploi.gouv.fr/publication/les-tensions-sur-le-marche-du-travail-en-2024"},
+    {"key": "bmo", "title": "Besoins en main-d'œuvre 2025-2026 (classeur retravaillé : chiffres BMO ; son passage FAP → ISCO « à dire d'expert » n'est pas utilisé)",
+     "producer": "France Travail (retraitement du propriétaire)", "access": "owner_upload", "file_glob": "BMO_*.xlsx",
+     "granularity": "métier BMO (FAP-2021)", "keys": ("FAP-228",), "feeds": ("emploi_2030",), "status": "depose", "sprint": 14,
+     "role": "contexte", "licence": LICENCE_OUVERTE, "url": "https://statistiques.francetravail.org/bmo"},
+    {"key": "oit_genai", "title": "OIT : exposition des tâches à l'IA générative, indice affiné 2025 (WP 140), par ISCO-08",
+     "producer": "Organisation internationale du travail", "access": "owner_upload", "file_glob": "Final_Scores_ISCO08_Gmyrek*.xlsx",
+     "granularity": "tâche × ISCO-08 (4 chiffres)", "keys": ("ISCO-08",), "feeds": ("taches_ia",), "status": "depose", "sprint": 15,
+     "role": "source", "licence": "CC BY 4.0", "url": "https://github.com/pgmyrek/2025_GenAI_scores_ISCO08"},
+    {"key": "onet_complementarite", "title": "O*NET : contexte de travail et Job Zones (complémentarité humaine θ, méthode FMI reconstituée) et guide de calcul",
+     "producer": "U.S. Department of Labor / ETA", "access": "owner_upload",
+     "file_glob": ("work_context.csv", "job_zones.csv", "Guide_ONET_Work_Context_Job_Zones*.md"),
+     "granularity": "profession O*NET-SOC", "keys": ("O*NET-SOC",), "feeds": ("taches_ia",), "status": "depose", "sprint": 15,
+     "role": "source (reconstitution, fiabilité C)", "licence": "CC BY 4.0", "url": "https://www.onetcenter.org/database.html"},
+    {"key": "anthropic_aei", "title": "Anthropic Economic Index (juin 2026) : usage observé de Claude par tâche O*NET (fichiers bruts)",
+     "producer": "Anthropic", "access": "owner_upload", "file_glob": "data_documentation_claude_ai.zip",
+     "granularity": "tâche O*NET", "keys": ("O*NET-SOC",), "feeds": ("taches_ia",), "status": "depose", "sprint": 15,
+     "role": "usage observé d'un seul outil", "licence": "CC BY 4.0", "url": "https://huggingface.co/datasets/Anthropic/EconomicIndex"},
+    {"key": "passages_us_isco", "title": "Passages vers ISCO-08 : BLS ISCO-08 ↔ SOC 2010, ESCO ↔ O*NET (et ESCO ↔ NACE, non utilisé)",
+     "producer": "BLS / Commission européenne (ESCO)", "access": "owner_upload",
+     "file_glob": ("ISCO_SOC_Crosswalk.xls", "ONET_(Occupations)*.csv", "ESCO-NACE*.xlsx"),
+     "granularity": "profession", "keys": ("SOC 2010", "O*NET-SOC", "ISCO-08"), "feeds": ("taches_ia",), "status": "depose", "sprint": 15,
+     "role": "source", "licence": "domaine public / CC BY 4.0", "url": "https://www.bls.gov/soc/soccrosswalks.htm"},
+    {"key": "ia_classeurs_retravailles", "title": "Classeurs IA retravaillés (exposition OIT/FMI, passage Eloundou, AEI par tâche) : contrôle croisé seulement, jamais affichés",
+     "producer": "retraitement du propriétaire", "access": "owner_upload",
+     "file_glob": ("Exposition_IA_ISCO08_*", "Eloundou_SOC_ISCO08_*", "AEI_2026-06_*", "aei_2026-06-26_*", "README_AI_exposure*"),
+     "granularity": "ISCO-08 / tâche O*NET", "keys": ("ISCO-08", "O*NET-SOC"), "feeds": ("taches_ia",), "status": "depose", "sprint": 15,
+     "role": "contrôle croisé", "licence": "CC BY 4.0 (sources d'origine)", "url": None},
 )
 
 ACCESS = ("ods", "download", "owner_upload", "planned")
-STATUS = ("en_ligne", "prevu")
+STATUS = ("en_ligne", "prevu", "depose")
+
+
+def globs(s: dict) -> tuple:
+    """The file pattern(s) of an owner-uploaded source."""
+    g = s.get("file_glob")
+    return () if not g else (g,) if isinstance(g, str) else tuple(g)
 
 
 def public_view() -> list[dict]:
     """What the "Sources" page shows: no internal dataset keys."""
-    keep = ("key", "title", "producer", "access", "granularity", "feeds", "status", "sprint", "licence", "url")
+    keep = ("key", "title", "producer", "access", "granularity", "feeds", "status", "sprint", "role", "licence", "url")
     return [{k: s.get(k) for k in keep} for s in SOURCES]

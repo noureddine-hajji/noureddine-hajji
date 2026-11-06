@@ -547,7 +547,7 @@ function metiersCard(m) {
   const head = `Les métiers visés ${tip("metiers")}`;
   if (m.status !== "ok") return `<div class="card"><h2>${head}</h2><p class="small muted">L'Onisep ne publie pas de fiche pour ce diplôme : pas de liste de métiers.</p></div>`;
   const dips = m.diplomes.map((d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.libelle)}</a>`).join(", ");
-  const li = m.metiers.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.nom)}</a>${j.acces ? ` <span class="muted small">· ${esc(ON_ACCES[j.acces])}${j.acces === "poursuite" && j.niveau_acces_min ? ` (${esc(j.niveau_acces_min)})` : ""}</span>` : ""}</li>`).join("");
+  const li = m.metiers.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.nom)}</a> <a class="small" href="#/metiers/${esc(j.id)}/${esc(m.cod || "")}" title="Les formations qui préparent à ce métier">formations</a>${j.acces ? ` <span class="muted small">· ${esc(ON_ACCES[j.acces])}${j.acces === "poursuite" && j.niveau_acces_min ? ` (${esc(j.niveau_acces_min)})` : ""}</span>` : ""}</li>`).join("");
   return `<div class="card"><h2>${head}</h2>
     <p class="small">D'après la fiche Onisep du diplôme : ${dips}.${m.diplomes.length > 1 ? " Ce diplôme a plusieurs options ou parcours : métiers de toutes ses fiches." : ""}</p>
     <ul class="small">${li}</ul>
@@ -1158,7 +1158,7 @@ function viewGlossaire(q) {
     <div class="scroll"><table><tr><th>Source</th><th>Producteur</th><th>Précision</th><th>Statut</th></tr>
     ${S.map((s) => `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)} ↗</a>` : esc(s.title)}<div class="muted small">${esc(ACCESS_LABEL[s.access] || "")}</div></td>
       <td>${esc(s.producer)}</td><td>${esc(s.granularity)}</td>
-      <td>${s.status === "en_ligne" ? '<span class="badge exact">en ligne</span>' : `<span class="badge">prévue${s.sprint ? ` · étape ${esc(s.sprint)}` : ""}</span>`}</td></tr>`).join("")}</table></div></div>`;
+      <td>${s.status === "en_ligne" ? '<span class="badge exact">en ligne</span>' : `<span class="badge">${s.status === "depose" ? "déposée, pas encore intégrée" : "prévue"}${s.sprint ? ` · étape ${esc(s.sprint)}` : ""}</span>${s.status === "depose" && s.role ? `<div class="muted small">${esc(s.role)}</div>` : ""}`}</td></tr>`).join("")}</table></div></div>`;
   const inp = document.getElementById("gl-q");
   inp.oninput = () => draw(inp.value);
   draw(q);
@@ -1318,9 +1318,102 @@ async function viewVoeux() {
   });
 }
 
+// ---- Sprint 12: "Du métier aux formations" (the jobs card read backwards; the catalogue is searched here) ----
+// The search is a pure function (the red team runs it with Node on real queries): every word of the query must
+// start a word of one of the job's labels (name, masculine / feminine forms, synonyms), accents and case aside.
+const mfold = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function metierMatch(q, nom, labels) {
+  // every word found: 10 + bonuses; otherwise the number of words found (a close match, ranked below):
+  // "développeur web" still shows "développeur informatique" when no job has both words
+  const words = mfold(q).split(" ").filter((w) => w.length > 1);
+  if (!words.length) return 0;
+  let best = 0;
+  [nom, ...(labels || [])].forEach((lab, i) => {
+    const lw = mfold(lab).split(" ");
+    const found = words.filter((w) => lw.some((x) => x.startsWith(w))).length;
+    const first = lw.some((x) => x.startsWith(words[0])) ? 0.5 : 0;   // a close match keeping the first word typed comes first
+    const score = found === words.length ? 10 + (i === 0 ? 2 : 0) + (lw[0].startsWith(words[0]) ? 1 : 0) : found + first;
+    if (score > best) best = score;
+  });
+  return best;
+}
+let METIERS = null;
+const MT_ACCES = { direct: "accessible avec ce diplôme", poursuite: "après une poursuite d'études" };
+async function viewMetiers(id, from = "") {
+  if (id) return viewMetier(id, /^\d{1,9}$/.test(from) ? from : "");
+  if (!METIERS) {
+    // first visit: the catalogue may arrive after the user went elsewhere (Codex): only this view may still be filled
+    $view.dataset.rendered = "metiers:loading";
+    const cat = await api("/api/metiers");
+    METIERS = METIERS || cat;
+    if ($view.dataset.rendered !== "metiers:loading") return;
+  }
+  let q0 = "";
+  try { q0 = sessionStorage.getItem("metierQ") || ""; } catch (_) { /* storage blocked: start empty (Codex) */ }
+  $view.innerHTML = `<div class="card"><h1>Du métier aux formations ${tip("du_metier_aux_formations")}</h1>
+    <p class="small">Cherche un métier : la page montre les diplômes qui y mènent d'après l'Onisep, puis les formations Parcoursup qui les préparent.</p>
+    <input id="mq" class="wide" type="search" placeholder="Ex. infirmière, comptable, développeur web…" value="${esc(q0)}" autocomplete="off" aria-label="Métier recherché">
+    <p class="muted small">La recherche se fait dans ton navigateur : ce que tu tapes n'est pas envoyé au site. ${fmt(METIERS.rows.length)} métiers des fiches Onisep.</p>
+    <div id="mres"></div></div>`;
+  $view.dataset.rendered = "metiers";
+  const box = document.getElementById("mres"), input = document.getElementById("mq");
+  const run = () => {
+    const q = input.value;
+    try { sessionStorage.setItem("metierQ", q); } catch (_) { /* storage blocked */ }
+    const hits = METIERS.rows.map((r) => [metierMatch(q, r[1], r[5]), r]).filter(([s]) => s > 0)
+      .sort((a, b) => b[0] - a[0] || a[1][1].length - b[1][1].length || a[1][1].localeCompare(b[1][1], "fr")).slice(0, 30);
+    const close = hits.length && hits[0][0] < 10;               // no job has every word: closest ones, said so
+    box.innerHTML = !mfold(q) ? "" : !hits.length ? `<p class="muted">Aucun métier trouvé.</p>`
+      : `${close ? `<p class="muted small">Aucun métier ne contient tous ces mots : voici les plus proches.</p>` : ""}<ul class="small">${hits.filter(([sc]) => close || sc >= 10).map(([, r]) => `<li><a href="#/metiers/${esc(r[0])}">${esc(r[1])}</a> <span class="muted">· ${r[4] ? `${fmt(r[4])} formation(s) Parcoursup` : r[3] ? "diplômes hors Parcoursup (écoles, ou après un premier diplôme)" : "aucun diplôme relié par l'Onisep"}${r[2] ? ` · niveau minimum ${esc(r[2])}` : ""}</span></li>`).join("")}</ul>`;
+  };
+  input.oninput = run;
+  run();
+  input.focus();
+}
+async function viewMetier(id, from = "") {
+  const marker = `metier:${id}:${from}`;
+  $view.dataset.rendered = marker;
+  let d;
+  try { d = await api(`/api/metier/${encodeURIComponent(id)}`); } catch (e) {
+    if ($view.dataset.rendered === marker) $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`;
+    return;
+  }
+  if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
+  const p = store.get("profile", {}) || {};
+  const home = typeof p.academie === "string" ? p.academie : "";
+  const onlyHome = !!home && store.get("metierHome", false);           // the académie stays in the browser
+  const dip = (x) => {
+    // the formation the student came from is always shown, first (its page links here), whatever the filter or the cap
+    const mine = x.formations.filter((f) => f.cod_aff_form === from);
+    const rest = (onlyHome ? x.formations.filter((f) => f.academie === home) : x.formations).filter((f) => f.cod_aff_form !== from);
+    const rows = [...mine, ...rest];
+    const shown = rows.slice(0, 40 + mine.length);
+    const forms = !x.parcoursup ? `<p class="muted small">Diplôme hors Parcoursup (il se prépare après un premier diplôme, ou dans une école) : pas de formation listée ici.</p>`
+      : !rows.length ? `<p class="muted small">Aucune formation de ce diplôme dans ton académie.</p>`
+      : `<div class="scroll"><table><tr><th>Formation ${d.session}</th><th class="num">Taux d'accès</th><th class="num">Places</th><th></th></tr>
+        ${shown.map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>${f.cod_aff_form === from ? ' <span class="badge exact">la formation que tu regardais</span>' : ""}<div class="muted small">${esc(f.filiere)}${f.complement ? ` · ${esc(f.complement)}` : ""} · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</div></td>
+          <td class="num">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}</td><td class="num">${f.capa_fin != null ? fmt(f.capa_fin) : "—"}</td><td>${voeuButton(f.cod_aff_form)}</td></tr>`).join("")}</table></div>
+        ${rows.length > shown.length ? `<p class="muted small">${fmt(shown.length)} formations affichées sur ${fmt(rows.length)}${home && !onlyHome ? " : coche « mon académie seulement » pour resserrer" : ""}.</p>` : ""}`;
+    return `<div class="card"><h2><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.libelle)}</a></h2>
+      <p class="small">${esc(x.niveau || "niveau non précisé")}${x.acces ? ` · <strong>${esc(MT_ACCES[x.acces])}</strong>` : ""}${x.parcoursup ? ` · ${fmt(x.formations.length)} formation(s) Parcoursup` : ""}</p>${forms}</div>`;
+  };
+  const status = d.status === "sans_diplome" ? `<div class="info">L'Onisep ne relie aucune fiche diplôme à ce métier.</div>`
+    : d.status === "hors_parcoursup" ? `<div class="info">Les diplômes qui mènent à ce métier ne sont pas sur Parcoursup (ils se préparent après un premier diplôme, ou dans une école) : regarde leur fiche Onisep.</div>` : "";
+  $view.innerHTML = `<div class="card"><p class="small"><a href="#/metiers">← Autres métiers</a></p>
+    <h1>${esc(d.nom)}</h1>
+    <p class="small">${d.niveau_acces_min ? `Niveau d'études minimum (Onisep) : ${esc(d.niveau_acces_min)} · ` : ""}<a href="${esc(d.url)}" target="_blank" rel="noopener">Fiche métier Onisep ↗</a></p>
+    ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
+    <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
+    <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
+    ${status}${d.diplomes.map(dip).join("")}`;
+  const h = document.getElementById("mhome");
+  if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
+  bindVoeuButton(() => viewMetier(id, from));
+}
+
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
-  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux" };
+  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers" };
 async function route() {
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
@@ -1338,6 +1431,7 @@ async function route() {
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
     if (a === "voeux") return await viewVoeux();
+    if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
   } catch (e) {
