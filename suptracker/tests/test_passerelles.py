@@ -59,8 +59,9 @@ def test_blocks_for_a_licence_and_a_but(syn):
     cod = c.q("SELECT cod_aff_form FROM core.licence_success_link WHERE etab = 'UNIVERSITE EXEMPLE PARIS (CITE)' AND discipline = 'droit'")[0][0]
     b = PA.for_licence(c.con, cod, "Licence", "Public", paysage=PASSERELLES_PAYSAGE)
     assert b["status"] == "ok" and b["reorientation"]["taux_reorientation"] == 12.0
-    assert b["masters"]["n_accept"] == 100 and b["masters"]["n_offres"] == 2 and b["meef"]["n_accept"] == 50
-    assert b["masters_france"]["n_accept"] == 130                       # Paris 100 + Nord 30; MEEF and mixed excluded
+    # Paris droit: privé 40 + affaires 60 + propriété intellectuelle 15 (sprint 16's apostrophe case)
+    assert b["masters"]["n_accept"] == 115 and b["masters"]["n_offres"] == 3 and b["meef"]["n_accept"] == 50
+    assert b["masters_france"]["n_accept"] == 145                       # Paris 115 + Nord 30; MEEF and mixed excluded
     assert PA.for_licence(c.con, cod, "BUT", "Public") is None
     u = PA.for_but(c.con, "UNIVERSITE EXEMPLE PARIS (CITE)", paysage=PASSERELLES_PAYSAGE)
     assert u["universite"]["n_accept_but3"] == 6 and u["france"]["n_accept_but3"] == 6

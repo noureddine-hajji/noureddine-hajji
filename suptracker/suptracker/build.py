@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, ia_exposition, crosswalk, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
+from . import bmo, config, cereq, ia_exposition, crosswalk, licence_master, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
 from .ingest import load_manifest
 
 
@@ -52,6 +52,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         emploi2030.build(con, emploi2030.source_path() if m2030_source is _SOURCE else m2030_source)
         bmo.build(con, bmo.source_path() if bmo_source is _SOURCE else bmo_source)
         ia_exposition.build(con, ia_exposition.sources() if ia_sources is _SOURCE else ia_sources)
+        licence_master.build(con)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")

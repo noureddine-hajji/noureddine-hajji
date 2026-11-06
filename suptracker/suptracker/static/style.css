@@ -148,3 +148,11 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 .nowrap { white-space: nowrap; }
 td.sub { padding-left: 22px; color: var(--muted); }
 input.wide { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; margin: 6px 0; }
+/* sprint 16: on a phone, each master of the licence → master table becomes a stacked block, the column name before each value */
+@media (max-width: 720px) {
+  table.lm, table.lm tbody, table.lm tr, table.lm td { display: block; width: 100%; }
+  table.lm tr.lm-head { display: none; }
+  table.lm tr { border-bottom: 1px solid var(--line); padding: 6px 0; }
+  table.lm td { border: 0; padding: 2px 0; text-align: left; }
+  table.lm td[data-label]::before { content: attr(data-label) " : "; color: var(--muted); font-size: 12px; }
+}

@@ -29,6 +29,7 @@ from . import search as S
 from . import success as SU
 from . import poursuite as PO
 from . import passerelles as PA
+from . import licence_master as LM
 from . import insertion as INS
 from . import glossary as G
 from . import evidence as EV
@@ -291,6 +292,16 @@ METHODOLOGY = {
         "score publié par le FMI : O*NET a depuis fusionné deux niveaux de formation. Elle rejoint les codes ISCO par les "
         "tables officielles O*NET et BLS ; chaque code montre l'écart entre ses professions américaines, jamais une "
         "moyenne, et elle n'est jamais combinée avec la note de l'OIT."),
+    "licence_master": (
+        "Sur une page de licence, chaque master de l'université dans la même grande discipline (MonMaster, dernière "
+        "session) est montré côte à côte : les admis (des personnes) et les vœux (des candidatures additionnées, pas des "
+        "personnes), l'emploi salarié à 18 mois parmi les diplômés sortis des études (InserSup, même université, même "
+        "intitulé), et les métiers de la fiche nationale Onisep du master au même intitulé (deux règles d'orthographe "
+        "explicites : STAPS écrit en entier, « MEEF » retiré). Pour ces métiers, on donne l'écart entre la plus basse et la "
+        "plus haute note d'exposition des tâches à l'IA générative (OIT) et de complémentarité humaine (estimation "
+        "adaptée), jamais une moyenne, et le nombre de métiers selon la projection 2030 (règle fixe). Un repère n'apparaît "
+        "que si l'écart du master et celui des débouchés directs de la licence ne se chevauchent pas. Un master sans fiche "
+        "Onisep affiche « métiers non documentés ». Ce ne sont jamais des chances d'admission ou d'emploi."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -549,6 +560,7 @@ def formation(cod: str, session: int | None = None):
             "but": _but_block(rec),
             "master": PO.master_for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "passerelles": PA.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
+            "licence_master": LM.for_licence(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "insertion": _insertion_block(rec),
             "prevision": PV.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"]),
@@ -886,7 +898,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master"]
 
 
 @lru_cache(maxsize=1)
