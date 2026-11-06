@@ -239,6 +239,7 @@ async function viewFormation(cod, session) {
   ${masterCard(d.master)}
   ${passerellesCard(d.passerelles)}
   ${insertionCard(d.insertion)}
+  ${licenceMasterCard(d.licence_master)}
   ${cereqCard(d.cereq)}
   ${metiersCard(d.metiers)}
   ${butCard(d.but)}
@@ -510,6 +511,51 @@ function passerellesCard(p) {
     <h3 class="small">Après la licence : les masters de l'université dans cette discipline (MonMaster)</h3>
     ${mastersBox(p)}
     <p class="muted small">Sources : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-29 (réorientations) et MonMaster (candidatures et admissions en master). Résultats passés, pas des chances de réussite ou d'admission.</p></div>`;
+}
+
+// ---- Sprint 16: de la licence au master, chaque master côte à côte (MonMaster, InserSup, Onisep, sprints 13-15) ----
+// Per master mention of the university in this discipline: admits (people) and vœux, insertion at 18 months among the
+// LEAVERS, the jobs of its national Onisep sheet with the RANGES of their ILO score and θ and COUNTS per 2030 reading;
+// landmarks only when two ranges are disjoint; never an average, never a single score, never a chance.
+const LM_REPERE = {
+  ia_plus_bas: "Les métiers visés par ce master sont tous moins exposés à l'IA générative (OIT) que les débouchés directs de la licence.",
+  ia_plus_haut: "Les métiers visés par ce master sont tous plus exposés à l'IA générative (OIT) que les débouchés directs de la licence.",
+  complementarite_plus_haute: "Les métiers visés par ce master ont tous une complémentarité humaine plus haute que les débouchés directs de la licence.",
+  complementarite_plus_basse: "Les métiers visés par ce master ont tous une complémentarité humaine plus basse que les débouchés directs de la licence.",
+};
+function licenceMasterCard(x) {
+  if (!x) return "";
+  const head = `De la licence au master : chaque master côte à côte ${tip("licence_master")}`;
+  if (x.status !== "ok") return `<div class="card"><h2>${head}</h2><p class="small muted">${esc(x.reason || "")}</p></div>`;
+  const two = (v) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const span = (lo, hi) => (lo === null || lo === undefined ? "—" : two(lo) === two(hi) ? two(lo) : `${two(lo)} à ${two(hi)}`);
+  const c2030 = (c) => {
+    if (!c) return "—";
+    const parts = [[c.insuffisants, "où les débutants ne suffiraient pas"], [c.nombreux, "où les débutants seraient nombreux"], [c.incertain, "incertains"], [c.non_lu, "sans projection"]]
+      .filter(([n]) => n > 0).map(([n, l]) => `${fmt(n)} ${l}`);
+    return parts.join(" · ") || "—";
+  };
+  const row = (m) => {
+    const j = m.metiers, ins = m.insertion;
+    const jobs = j ? `<details><summary>${fmt(j.n_metiers)} métier${j.n_metiers > 1 ? "s" : ""}</summary><div class="small">${j.metiers.map((e) => `<a href="#/metiers/${esc(e.id)}">${esc(e.nom)}</a>`).join(" · ")}</div></details>${m.onisep && m.onisep.regle === "orthographe" ? '<div class="muted small">fiche Onisep reliée malgré une orthographe différente</div>' : ""}`
+      : '<span class="muted">métiers non documentés</span>';
+    const emploi = ins ? `${ins.taux_emploi === null || ins.taux_emploi === undefined ? '<span class="muted">taux non publié</span>' : pct(ins.taux_emploi)}<div class="muted small">${fmt(ins.sortants)} sortants${ins.regroupe ? ", promotions regroupées" : ""}</div>` : '<span class="muted">non publié</span>';
+    const rep = (m.reperes || []).map((r) => `<div class="small">${esc(LM_REPERE[r] || "")}</div>`).join("");
+    return `<tr><td><strong>${esc(m.mention)}</strong>${rep}</td><td class="num" data-label="Admis">${fmt(m.n_accept)}<div class="muted small">${fmt(m.n_can)} vœux</div></td>
+      <td class="num" data-label="Emploi salarié à 18 mois">${emploi}</td><td data-label="Métiers visés">${jobs}</td>
+      <td class="num" data-label="IA générative (OIT)">${j ? span(j.ilo_min, j.ilo_max) : "—"}</td>
+      <td class="num" data-label="Complémentarité humaine">${j ? span(j.theta_min, j.theta_max) : "—"}</td>
+      <td class="small" data-label="Emploi d'ici 2030">${j ? c2030(j.classes_2030) : "—"}</td></tr>`;
+  };
+  const lic = x.licence;
+  const licLine = lic ? `<p class="small">Débouchés directs de cette licence (fiche Onisep) : ${fmt(lic.n_metiers)} métier${lic.n_metiers > 1 ? "s" : ""}, exposition des tâches à l'IA générative de ${span(lic.ilo_min, lic.ilo_max)}, complémentarité humaine de ${span(lic.theta_min, lic.theta_max)}.</p>` : "";
+  return `<div class="card"><h2>${head}</h2>
+    <p class="small"><strong>${esc(x.etab_label)}</strong> · ${esc(x.discipline_label)} · masters de l'université dans cette discipline (MonMaster ${esc(x.session)}).</p>
+    ${licLine}
+    <div class="scroll"><table class="lm"><tr class="lm-head"><th>Master (mention)</th><th class="num">Admis</th><th class="num">Emploi salarié à 18 mois</th><th>Métiers visés</th>
+      <th class="num">IA générative (OIT)</th><th class="num">Complémentarité humaine</th><th>Emploi d'ici 2030 (nombre de métiers)</th></tr>
+      ${x.mentions.map(row).join("")}</table></div>
+    <p class="muted small">Admis : des personnes ; vœux : des candidatures additionnées sur les parcours, pas des personnes. Emploi salarié à 18 mois : parmi les diplômés qui ont quitté les études (InserSup, promotion ${esc(x.annee_insertion)}). Les métiers visés sont ceux de la fiche nationale Onisep du master, pas de cette université. Pour ces métiers, on donne l'écart entre la note la plus basse et la plus haute, jamais une moyenne, et le nombre de métiers selon la projection 2030 ; un métier exposé à l'IA est plus souvent transformé que remplacé, et la complémentarité humaine est une estimation adaptée. Un repère n'apparaît que si les deux écarts ne se chevauchent pas. Ce sont des résultats passés et des projections, pas des chances d'admission ou d'emploi. Sources : SIES (MonMaster, InserSup), Onisep (Idéo, licence ODbL), OIT 2025, O*NET, Dares / France Stratégie.</p></div>`;
 }
 
 // ---- Prévision n+1: calibrated ranges of every published indicator with a history (never a probability) ----

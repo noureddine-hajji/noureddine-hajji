@@ -712,6 +712,44 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## From the licence to the master, side by side (sprint 16, licence page)
+
+A licence page gets a card **"De la licence au master : chaque master côte à côte"** (`suptracker/licence_master.py`,
+tables `core.master_onisep` and `core.metier_axes`). For every master mention of the licence's university in the same
+B1 discipline (the sprint-7 link, MonMaster latest session), one row brings together what earlier sprints showed apart:
+- **MonMaster:** admits (people) and vœux (applications summed over programmes, not people); never a ratio of the two.
+- **InserSup (sprint 8):** the same university's master with the same title, latest national class: salaried employment
+  at 18 months among the leavers; pooled classes flagged; a master published in parts gets no figure; "taux non publié"
+  when masked.
+- **Onisep:** the jobs of the national master sheet with the same title ("master mention X"). The sheet belongs to the
+  diploma, not to this university.
+- **Sprints 13-15 for those jobs:** the RANGE of the ILO task scores and of θ over every code of every job, and the
+  COUNT of jobs per 2030 reading. A job's 2030 class is a fixed rule: every read family says "débutants insuffisants" →
+  insuffisants; every one says "débutants nombreux" → nombreux; otherwise incertain; no family read → sans projection.
+- **Landmarks** (fixed rules), only when two ranges are DISJOINT: the master's jobs vs the licence's own Onisep jobs
+  (ILO all below / all above; θ all above / all below). Overlapping ranges say nothing. Never an average, never a single score.
+
+**What we checked first:**
+- MonMaster mention ↔ Onisep sheet by national title: 200 of 315 mentions by exact title, plus 5 with two explicit
+  spelling rules ("STAPS:" written out, "(MEEF)" dropped) and 1 recovered by the red team (a curly apostrophe, see below).
+  Other mentions (MEEF 2nd degré, LLCER, droit pénal, ...) have no Onisep sheet: "métiers non documentés".
+- InserSup ↔ MonMaster at the same university by title: 85 % of the latest class's masters.
+- Per-job axes cost 58 ms each: they are computed once at build (`core.metier_axes`, about 1 min); a page answers in ~0.1 s.
+- Coverage: 298 of 330 sampled licences get the card; of 5,116 master rows, 81 % have documented jobs, 4,650 an insertion
+  figure, 230 a landmark.
+
+**Red team** (`scripts/redteam_licence_master.py`, run by `tests/test_licence_master.py`): 7/7 checks and 16/16 mutants
+caught on real data (a crash counts as missed).
+- **L1.** Mention → sheet re-derived with an independent normalisation. It caught a real bug: the curly apostrophe of
+  "… DE L’ESPACE" was dropped ("lespace"), so the mention lost its sheet; the key now treats it as a separator.
+- **L2.** Per-job axes re-derived from the job page for all 1,124 jobs.
+- **L3.** Serving re-derived on 114 licence cards (1,864 rows): mentions and counts, insertion, jobs, ranges, counts, landmarks.
+- **L4.** Coverage. **L5.** The card run with Node on hostile data (escaping, units, years without a thousands separator,
+  "taux non publié", wording). **L6.** Upkeep.
+- **L7.** Mutants: apostrophe dropped, spelling rules dropped, fuzzy prefix links, 2030 class from one family, θ range
+  cut, ILO range averaged, insertion from another university, landmark on overlapping ranges, and 8 page mutants.
+- On a phone the table becomes one block per master (`table.lm`), the column name before each value.
+
 ## Generative AI and the job's tasks (sprint 15, job page)
 
 The job page gets a card **"L'IA générative et les tâches du métier"** (`suptracker/ia_exposition.py`, tables

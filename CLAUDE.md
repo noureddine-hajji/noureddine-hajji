@@ -27,6 +27,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Job reference (sprint 13):** `nomenclatures.py` (ROME → FAP-2021 / FAP-2009 → ISCO-08, official Dares and Insee tables, `core.nomen_*`).
   - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page); `bmo.py` (BMO 2026 hiring intentions, short-term context).
   - **AI and tasks (sprint 15):** `ia_exposition.py` (ILO 2025 generative-AI exposure per ISCO-08 unit group, France Travail "transition numérique" tag, IMF human complementarity θ rebuilt from O*NET, job page).
+  - **Licence → master (sprint 16):** `licence_master.py` (each master of the licence's university side by side: MonMaster, InserSup, Onisep jobs with sprints 13-15 ranges and counts; `core.metier_axes` precomputed per job).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -219,6 +220,16 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     never by matching codes; per ISCO code the RANGE over its US occupations and their count, never an average, never combined with ILO.
   - C-AIOE is NOT computed: the Felten AIOE appendix is centred-reduced (negative values); needs a validated positive scale first.
 
+- **Licence → master (sprint 16).**
+  - Masters = MonMaster mentions of the licence's university (Paysage id) in the same B1 discipline, latest session (sprint 7 link).
+    Admits are people, vœux are not; never a ratio. Insertion = same university, same normalised title, latest national class,
+    unique (parts = no figure); a masked rate says "taux non publié".
+  - Jobs = the national Onisep "master mention X" sheet of the same title (`licence_master.key`: accents off, every other character
+    incl. ’ a separator, œ→oe); only two explicit spelling rules (STAPS written out, MEEF dropped); never fuzzy; no sheet = "métiers
+    non documentés"; the list belongs to the diploma, not the university.
+  - Over the jobs: RANGES of ILO and θ (min/max over every code), COUNTS per 2030 class (fixed rule: all read families agree, else
+    incertain); never an average or a single score. Landmarks only when the master's and the licence's ranges are disjoint.
+  - Per-job axes are precomputed at build (`core.metier_axes`, from `metiers.detail`): red team L2 re-derives all of them.
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**
@@ -265,7 +276,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
-  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; sprint 15 done (ILO, France Travail tag, θ; C-AIOE awaits a positive AIOE scale).
+  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; sprint 15 done (ILO, France Travail tag, θ; C-AIOE awaits a positive AIOE scale); sprint 16 licence → master done.
 - **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 6 hours).
 - **Horizon 2030 plan (agreed):** sprint 13 job reference (ROME → FAP 2009 / FAP 2021 → PCS → ISCO-08, official DARES and Insee
   tables), 14 employment to 2030 (DARES Métiers 2030, scenarios as ranges), 15 AI task exposure (OIT 2025 + France Travail tags +

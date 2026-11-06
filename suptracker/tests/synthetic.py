@@ -509,6 +509,11 @@ def make_monmaster_raw(raw_dir: Path) -> dict:
         ("PARIS", "P-MEEF", "MEEF PREMIER DEGRE", "Sciences humaines et sociales", "MEEF", 400, 0, 90, 50, 10, (40, 0, 0, 5, 2, 3)),
         ("PARIS", "P-MIX", "DROIT ECONOMIE GESTION", "Pluridisciplinaire droit, sciences économiques, AES", "Economie, gestion et AES", 300, 0, 50, 20, 5, (18, 0, 0, 1, 0, 1)),
         ("NORD1", "N-DROIT-1", "DROIT PUBLIC", "Droit, sciences politiques", "Droit et sc. politiques", 600, 20, 90, 30, 12, (25, 1, 0, 1, 1, 2)),
+        # sprint 16: a curly apostrophe (the Onisep title has a straight one) and an abbreviated STAPS mention
+        ("PARIS", "P-DROIT-3", "DROIT DE LA PROPRIETE INTELLECTUELLE, DU NUMERIQUE ET DE L’ESPACE", "Droit, sciences politiques",
+         "Droit et sc. politiques", 300, 0, 40, 15, 8, (13, 0, 0, 1, 0, 1)),
+        ("NORD1", "N-STAPS-1", "STAPS:ACTIVITE PHYSIQUE ADAPTEE ET SANTE", "Sciences fondamentales et applications",
+         "Sc. fondamentales et appliquées (dont STAPS)", 250, 0, 40, 20, 10, (17, 1, 0, 1, 0, 1)),
     ]
     for session in ("2024", "2025"):
         for pid, ifc, mention, dl, dm, cpp, cpc, prop, acc, etab, orig in offers:
@@ -765,6 +770,9 @@ def make_insertion_raw(raw_dir: Path) -> dict:
             # a closed master published in two parts in its last class: counted once, never shown
             isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 30, 60.0, 50.0),
             isr("PARIS", P, "Master LMD", "M8", "DROIT, ECONOMIE, GESTION : NOTARIAT", "Droit, sciences politiques", "2019", 25, 62.0, 52.0, uai="0750000Z"),
+            # sprint 16: another university's master whose title is one of Paris's MonMaster mentions (never Paris's figure)
+            isr("NORD1", "UNIVERSITE EXEMPLE NORD", "Master LMD", "M5", "DROIT DE LA PROPRIETE INTELLECTUELLE, DU NUMERIQUE ET DE L'ESPACE",
+                "Droit, sciences politiques", "2024", 35, 81.0, 75.0, uai="0591234Z"),
             # dropped by the staging: a breakdown by gender, and all leavers (not only graduates)
             isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 40, 10.0, 10.0, genre="femme"),
             isr("PARIS", P, "Master LMD", "M1", "DROIT PRIVE", "Droit, sciences politiques", "2024", 120, 10.0, 10.0, keep=False)]
@@ -856,6 +864,13 @@ def make_onisep_zips(d: Path) -> dict:
         ("FOR.6", "licence mention mathématiques", "licence", ["MET.9"]),
         ("FOR.7", "licence pro mention droit", "licence pro", ["MET.8"]),
         ("FOR.8", "BUT génie civil - construction durable", "bachelor universitaire de technologie", ["MET.6"]),
+        # sprint 16: national master sheets (a job shared with the licence keeps the ranges overlapping), the apostrophe
+        # and STAPS spellings, and a "mastère spécialisé" decoy titled like a master that must never be linked
+        ("FOR.20", "master mention droit privé", "master", ["MET.8", "MET.11"]),
+        ("FOR.21", "master mention droit de la propriété intellectuelle, du numérique et de l'espace", "master", ["MET.7"]),
+        ("FOR.22", "master mention sciences et techniques des activités physiques et sportives  : activité physique adaptée et santé",
+         "master", ["MET.4"]),
+        ("FOR.23", "master mention chimie", "mastère spécialisé", ["MET.9"]),
     ]
     jobs = [  # id, name, minimum level
         ("MET.1", "comptable", "bac + 2"), ("MET.2", "expert / e-comptable", "bac + 5"),
