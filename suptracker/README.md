@@ -712,6 +712,149 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## Hiring planned in 2026 (BMO, sprint 14 follow-up, job page)
+
+A second card, **"Les recrutements prévus en 2026"** (`suptracker/bmo.py`, table `core.bmo_metier`), gives the
+short-term context. It comes from France Travail's "Besoins en main-d'œuvre" survey: employers' declared hiring
+INTENTIONS for the year (not job offers, not hires), and how many they expect to be difficult. It says nothing
+about 2030.
+
+**What we checked first:**
+- **The data's finest level.** The owner's workbook keeps France Travail's open-data base at its finest level: job ×
+  employment area (× local committee in 2026), with "*" where a value below 5 is masked.
+- **Totals re-summed independently.** The France totals are re-summed here from those 53,786 cells, and equal the
+  workbook's own France sheet for all 217 jobs.
+- **Codes.** The jobs are FAP-2021 228 codes with the Dares labels, so a job reaches them through sprint 13's
+  FAP-2021 families.
+- **Masked cells.** 24 % of the 2026 project cells are masked and count as 0. Every total is therefore a floor
+  ("au moins"): 2.24 million published projects against about 2.3 million announced. In 2025 the published total
+  covers 98.7 % of France Travail's official figure.
+- **No 2025 comparison.** In 2026, areas are split into local committees, so more cells are masked and the floors fall
+  for that reason alone. A drop would be partly an artefact.
+
+**On the page:**
+- One row per FAP-228 family of the job (every family when it depends on the qualification).
+- Each row gives "au moins N" projects, the share expected to be difficult and the share seasonal, next to the all-jobs
+  shares (43 % and 32 %).
+- A share is flagged **fragile** when the masked cells could move it by more than 5 points, if each masked cell held
+  up to 4.
+- 878 of the 928 jobs with a usable ROME code get figures (94.6 %).
+
+**Red team** (`scripts/redteam_bmo.py`, run by `tests/test_bmo.py`): 7/7 checks and 12/12 mutants caught on real data.
+- **B1.** Sums re-derived with openpyxl from the basin cells; they equal both the stored table and the workbook's
+  France sheet.
+- **B2.** Consistency, codes and labels.
+- **B3.** Serving: families, shares, fragility, national reference.
+- **B4.** Coverage.
+- **B5.** The card is run with Node on hostile data: escaped, wording, floors, fragile badge, no 2025 comparison.
+- **B6.** Upkeep.
+- **B7.** Mutation test: masked cells counted as 5, 2025 served as 2026, wrong denominator, 341 code instead of its
+  228 parent, fragility never flagged, masking bound ignored, and 6 page mutants.
+
+## Employment to 2030 (sprint 14, job page)
+
+The job page gets a card **"L'emploi dans ce métier d'ici 2030"** (`suptracker/emploi2030.py`, table
+`core.m2030_famille`). It comes from the Dares / France Stratégie projections "Les métiers en 2030" (2022), annex 4,
+synthesis tables A and B, committed by the owner.
+
+**What we checked on the real workbook first:**
+- 79 FAP-2009 families at the 87 level. For each: 2019 employment, and over 2019-2030 the net job creations,
+  end-of-career departures, positions to fill, young entrants, and the potential imbalance (positions − entrants) in
+  the reference scenario and in 4 variants. Every row satisfies creations + departures = positions and
+  positions − entrants = imbalance; table B is table A divided by 2019 employment.
+- Six worker families are only published inside their domain: D0Z + D3Z and F0Z..F3Z. Their group is the domain
+  minus its published families, which adds up on every column; it is shown as **calculated**. Craftsmen (K0Z) are
+  mixed with elected officials and clergy in "Autres": no figure.
+- There is no figure beyond 2030. No official projection per job exists for 2035, so the page says so and invents none.
+
+**On the page:**
+- A job reaches its families through its official codes (sprint 13): ROME → FAP-2009 → 87-group. When the family
+  depends on the qualification of the post, every family is shown with its own figures.
+- Figures are rounded to the thousand, with signs. The imbalance is shown as the range of the 5 scenarios, with the
+  reference value.
+- A fixed rule reads the range: positive in all scenarios = "les jeunes débutants ne suffiraient pas"; negative in
+  all = "plus de débutants que de postes"; otherwise "on ne peut pas conclure".
+- The card states that this is a projection under assumptions, not a forecast or a promise, and that the figures
+  belong to the whole family.
+- 906 of the 928 jobs with a usable ROME code get figures (97.6 %).
+
+**Red team** (`scripts/redteam_emploi2030.py`, run by `tests/test_emploi2030.py`): 7/7 checks and 15/15 mutants
+caught on real data.
+- **E1.** Values re-read with pandas; the identities are checked.
+- **E2.** The groups are re-derived; K0Z gets no figure.
+- **E3.** Serving: the families are exactly the job's 87-groups; the range and the reading rule are checked.
+- **E4.** Coverage.
+- **E5.** The card is run with Node on hostile data: escaped, wording, readings, rounding, signs, no 2035 figure.
+- **E6.** Upkeep.
+- **E7.** Mutation test: column order, group base, reference-only range, a single family picked, reading on one
+  scenario, unmapped groups, craftsmen given the "Autres" figure, and 8 page mutants.
+
+## The official codes of a job (sprint 13, job page)
+
+Each job page (`#/metiers/<id>`) ends with a card **"Les codes officiels de ce métier"**. It is the job reference
+that sprints 14 (employment to 2030) and 15 (AI task exposure) read their figures through. It shows codes, not
+figures about the job market.
+
+**Where each link comes from** (`suptracker/nomenclatures.py`, tables `core.nomen_*`, all from files the owner
+committed under `data/sources/`):
+
+| Link | Official table | Kind |
+| --- | --- | --- |
+| job → ROME | Onisep job sheet (every ROME code, sprint 12) | code to code |
+| ROME × qualification → FAP-2021 | Dares, `Table_passage_ROME_Qualif_to_FAP2021` | code to code |
+| ROME × qualification → FAP-2009 | Dares SAS program `passage_fap2009_romev3.txt` (the Dares xls is the cross-check) | code to code |
+| ROME × qualification → ISCO-08 | Dares PCS 2020 job titles joined by title to the Insee ISCO codification (G44) | through job titles |
+
+**What we checked on the real files first:**
+- **FAP families.** All 532 ROME codes are in the Dares table. For 282 of them the FAP-2021 family depends on the
+  qualification class (0 not specified, 1-3 workers, 4 independent, 5-6 employees, 7 technicians, 8 supervisors,
+  9 engineers and executives). Every family is shown with the classes it applies to; none is picked for the student.
+- **FAP-2009.** The SAS program and the Dares xls give the same 5,310 (ROME, qualification, family) rows. Their
+  qualification classes are France Travail's (4 = highly qualified worker), not the FAP-2021 ones: the page never
+  names them with FAP-2021 names.
+- **ISCO-08.** 97.1 % of the 107,050 Dares job titles find their Insee code. G44 codes a title per employment
+  status; the status follows the qualification class.
+  - A ROME code has several possible ISCO codes; each comes with the number of DISTINCT job titles behind it.
+    No weight is published along this path, so this count is never shown as a share of jobs.
+  - Some titles only allow a partial code (2100 = sub-major group 21). It is shown as `21xx`, with no label invented.
+- **Coverage.** Of the 1,124 Onisep jobs, 928 have a known ROME code. Per job, the median is 2 FAP-2021
+  families, 1 FAP-2009 family and 4 full ISCO codes. 193 jobs have no ROME code; the page says so.
+
+**Jobs without an Onisep ROME code** (196, owner's choice: link them by their name).
+- A job name equal to a Dares job title gives that title's ROME code (30 jobs). Otherwise, a name equal to a France
+  Travail appellation (ROME tree, `*rome_arboprincipale*.xlsx`) gives its code (10 more jobs).
+- The tree is ROME 4.0 (1,923 sheets): only the 532 codes the Dares tables know are kept. A newer code would have no
+  FAP nor ISCO link.
+- Homonyms the owner reviewed (`nomenclatures.TITLE_LINK_OVERRIDES`, reason shown on the page): "énergéticien/ne" (a
+  boiler-room operator on its Onisep sheet) gets I1308 by its ROME appellations; "secrétaire des Affaires étrangères"
+  gets K1405 like "diplomate"; "économe de flux" stays unlinked (its ROME 4.0 sheet has no Dares link). Result: 27 jobs by
+  Dares title, 10 by appellation, 2 by reviewed analogy (39).
+- The Onisep code always wins; one method per job. These links are less sure and the page says so, with the
+  method's check measured at each build on the jobs whose Onisep code is known: Dares titles find a right code for
+  356 of 420 jobs, appellations for 341 of 382. Homonyms explain the misses (an "énergéticien" engineer matches the
+  well-being title).
+- 157 jobs stay unlinked (armed forces, State and Senate bodies, recent jobs whose ROME 4.0 code has no Dares link).
+
+**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 8/8 checks and 24/24
+mutants caught on real data (N8 re-derives the name links, checks the Onisep code always wins and the page flags them).
+Its first runs found two bugs: the Dares CSV files are Windows-1252, not Latin-1 (`’` and `œ`
+became invisible control characters), and the curly apostrophe was dropped before the join key was folded. No title in use
+carries either today, so the red team checks both with witness inputs.
+- **N1.** Every stored table equals the raw file re-read with pandas; FAP-2009 SAS = xls row for row.
+- **N2.** ROME → ISCO is re-derived independently (pandas merge, independent status rule): same 57,215 rows.
+- **N3.** Cross-check by another official path, ROME → FAP-2021 → PCS 2020 (Dares, probabilistic) → ISCO (Insee
+  matrix): the two ISCO sets meet for 97.6 % of ROME codes. The Dares title and ROME tables agree on the family for
+  99.8 % of rows.
+- **N4.** Serving: the qualification classes are covered exactly once; FAP-2009 classes carry no FAP-2021 name;
+  title counts are distinct; partial codes carry no label; odd and unknown codes are handled; each job page carries
+  the codes of its own ROME codes.
+- **N5.** The card is run with Node on hostile data: everything is escaped, no percentage, the wording is present.
+- **N6.** Upkeep: the source register, the methodology, `xlrd` in the pipeline requirements, a safe empty build,
+  the warehouse under 95 MB (72.9 MB).
+- **N7.** Mutation test: wrong status column, unfolded titles, the qualification-dependent FAP-2009 format ignored,
+  every code taken as a full unit group, non-distinct counts, wrong "toutes qualifications", families dropped,
+  a Latin-1 reading, a weaker fold, and 8 page mutants.
+
 ## From a job to the formations (sprint 12, `#/metiers`)
 
 **What the student sees.** A "Métiers" page in the menu. The student types a job and the matching Onisep jobs appear as they type. Matching is insensitive to accents and case, and works on masculine and feminine forms and on the Onisep synonyms: "infirmière", "gestionnaire de paie", "développeur web" all find a job. When no job contains every word, the closest ones are shown and labelled as such.

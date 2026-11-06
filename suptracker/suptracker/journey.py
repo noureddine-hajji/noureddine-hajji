@@ -661,7 +661,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
            t.cod_uai, t.pct_etab_orig,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
-    ORDER BY taux NULLS LAST LIMIT {int(limit)}""", {"latest": latest, "type": type_key_,
+    ORDER BY taux NULLS LAST, t.cod_aff_form LIMIT {int(limit)}""", {"latest": latest, "type": type_key_,
                                                     "only": list(only) if only is not None else None}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",

@@ -24,6 +24,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Onisep (sprint 8 follow-up):** `onisep.py` (jobs a diploma leads to, national, by title; owner-uploaded Idéo XML).
   - **Scale (sprint 10):** `cache.py` (one HTTP cache policy per route), `journey.public_stage2` (lighter answers), `scripts/monitor.py`.
   - **Du métier aux formations (sprint 12):** `metiers.py` (job catalogue searched in the browser, job page = the jobs card read backwards).
+  - **Job reference (sprint 13):** `nomenclatures.py` (ROME → FAP-2021 / FAP-2009 → ISCO-08, official Dares and Insee tables, `core.nomen_*`).
+  - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page); `bmo.py` (BMO 2026 hiring intentions, short-term context).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -181,6 +183,28 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     the filière's usual level is only a fallback.
   - `/api/metiers` takes no parameter: the search runs in the browser (`metierMatch`, accent/case-insensitive, labels and synonyms;
     a close match is shown as such and never outranks a full one). National list, no promise, no ranking by chances.
+- **Job reference (sprint 13).**
+  - ROME × qualification → FAP-2021 / FAP-2009 are official Dares code-to-code tables; when the family depends on the
+    qualification, every family is shown with its classes, none is picked. FAP-2009 classes are France Travail's
+    (4 = highly qualified worker): never named with FAP-2021 names. The SAS program is read; the xls is the cross-check.
+  - ROME → ISCO-08 goes through job TITLES (Dares titles × Insee G44, status column from the qualification class): several
+    codes per ROME, each with its count of DISTINCT titles, NEVER shown as a share of jobs. Partial codes (2100) show as 21xx.
+  - Codes, not figures: no grade, no percentage. Red team N3 cross-checks via PCS (Dares PCS → FAP, Insee PCS → ISCO).
+  - Jobs without a usable Onisep ROME code are linked by NAME (Dares title, else France Travail appellation, only ROME codes
+    the Dares tables know): the Onisep code always wins, one method per job, flagged "moins sûr" with the method's check
+    (right code for n of N jobs whose Onisep code is known) measured at build, never hard-coded. Red team N8.
+  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None).
+- **Employment to 2030 (sprint 14).**
+  - "Les métiers en 2030" annex 4 tables A/B, per FAP-2009 87-group (79 published): values as published, the
+    imbalance as the RANGE of the 5 scenarios plus the reference; a fixed sign rule reads it; never a chance or a promise.
+  - D0Z+D3Z and F0Z..F3Z are a CALCULATED group (domain minus published families), flagged; K0Z (craftsmen, in "Autres")
+    gets no figure. Every family of the job is shown (qualification), none picked; never averaged over a diploma's jobs.
+  - No figure beyond 2030: no official per-job projection exists for 2035 (a Cedefop ISCO forecast would need an upload).
+- **BMO 2026 (sprint 14 follow-up).**
+  - Employers' hiring INTENTIONS for one year, never offers, hires or a 2030 statement. Totals are re-summed from the basin
+    cells (masked "*" = 0), so they are FLOORS ("au moins"); a share is fragile when masked cells (each up to 4) could move it
+    by > 5 points. Linked through sprint 13's FAP-2021 families (228 parent). No 2025 comparison (2026 adds local committees,
+    more masking). The workbook's FAP → ISCO expert table and tension classes are not used.
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**
@@ -227,7 +251,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
-  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-12 done; next: sprint 13.
+  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; next: sprint 15.
 - **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 6 hours).
 - **Horizon 2030 plan (agreed):** sprint 13 job reference (ROME → FAP 2009 / FAP 2021 → PCS → ISCO-08, official DARES and Insee
   tables), 14 employment to 2030 (DARES Métiers 2030, scenarios as ranges), 15 AI task exposure (OIT 2025 + France Travail tags +

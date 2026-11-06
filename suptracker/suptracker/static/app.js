@@ -1405,10 +1405,114 @@ async function viewMetier(id, from = "") {
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
-    ${status}${d.diplomes.map(dip).join("")}`;
+    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${codesCard(d.codes)}`;
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Sprint 14 follow-up: les recrutements prévus en 2026 (enquête BMO de France Travail) -----
+// Employers' hiring INTENTIONS for one year: published cells summed (masked values below 5 count as 0, so totals are
+// floors: "au moins"); a share is flagged fragile when masked cells could move it by more than 5 points.
+function bmoCard(b) {
+  if (!b || !Array.isArray(b.familles) || !b.familles.length) return "";
+  const n = b.national || {};
+  const pct = (x) => (x === null || x === undefined ? "—" : `${fmt(x * 100)} %`);
+  const one = (f) => {
+    if (f.absent) return `<h3>${esc(f.code)}</h3><p class="small muted">Pas de chiffre BMO pour cette famille.</p>`;
+    // no 2025 comparison: in 2026 France Travail splits areas into local committees, so more cells are masked and
+    // the 2026 floors are lower for that reason alone (a drop would be partly an artefact)
+    return `<h3>${esc(f.code)} · ${esc(f.libelle || "")}</h3>
+      ${f.toutes_qualifications ? "" : `<p class="small muted">Une des familles possibles selon la qualification du poste.</p>`}
+      <div class="scroll"><table>
+        <tr><td>Recrutements envisagés en 2026, en France</td><td class="num">au moins ${fmt(f.projets)}</td></tr>
+        <tr><td>dont jugés difficiles par les employeurs</td><td class="num">${pct(f.part_difficile)}${f.fragile ? ' <span class="badge">fragile</span>' : ""} <span class="muted small">(tous métiers : ${pct(n.part_difficile)})</span></td></tr>
+        <tr><td>dont saisonniers</td><td class="num">${pct(f.part_saisonniere)} <span class="muted small">(tous métiers : ${pct(n.part_saisonniere)})</span></td></tr>
+      </table></div>`;
+  };
+  return `<div class="card"><h2>Les recrutements prévus en 2026</h2>
+    <p class="muted small">Intentions d'embauche déclarées par les employeurs pour cette année (enquête BMO) : ce ne sont ni des offres d'emploi ni des embauches, et cela ne dit rien de l'emploi en 2030. Les chiffres sont ceux de toute la famille de métiers.</p>
+    ${b.familles.map(one).join("")}
+    <p class="muted small">France Travail masque les valeurs inférieures à 5 : elles comptent pour 0, d'où « au moins ». Une part est « fragile » quand ces valeurs masquées pourraient la déplacer de plus de 5 points. Source : France Travail, enquête Besoins en main-d'œuvre 2026 et 2025, sommes des bassins d'emploi publiés. Licence Ouverte.</p></div>`;
+}
+
+// ---- Sprint 14: l'emploi du métier d'ici 2030 (Dares / France Stratégie) -----------
+// Published figures per job family (thousands), never a chance or a promise; the imbalance is shown as the range of
+// the 5 published scenarios and read with a fixed rule on its sign; no figure beyond 2030 (none is published).
+const M2030_LECTURE = {
+  debutants_insuffisants: "Dans les 5 scénarios, les jeunes débutants ne suffiraient pas à pourvoir les postes : le métier devrait aussi recruter d'autres profils (reconversions, mobilités).",
+  debutants_nombreux: "Dans les 5 scénarios, il y aurait plus de jeunes débutants que de postes à pourvoir : l'entrée dans le métier pourrait être plus disputée.",
+  incertain: "Selon les scénarios, l'écart change de sens : on ne peut pas conclure.",
+};
+function kPeople(k, signed = false) {
+  if (k === null || k === undefined) return "—";
+  if (Math.abs(k) < 0.5) return "moins de 500";
+  const v = fmt(Math.round(Math.abs(k)) * 1000);
+  return signed ? `${k < 0 ? "−" : "+"}${v}` : `${k < 0 ? "−" : ""}${v}`;
+}
+function emploi2030Card(fams) {
+  if (!Array.isArray(fams) || !fams.length) return "";
+  const one = (f) => {
+    const head = `<h3>${esc(f.fap87)} · ${esc(f.libelle || "")}</h3>`;
+    if (f.absent) return `${head}<p class="small muted">Pas de chiffre : ${esc(f.raison || "")}.</p>`;
+    const m = f.milliers || {}, p = f.parts || {}, d = f.desequilibre || {};
+    const pct = (x) => (x === null || x === undefined ? "" : ` (${fmt(x * 100)} % des emplois de 2019)`);
+    return `${head}
+      ${f.calcule ? `<p class="small warn">Le classeur ne publie ces familles qu'ensemble, au sein de leur domaine : chiffres calculés (domaine moins les familles publiées).</p>` : ""}
+      ${f.origine && f.origine.some((o) => o !== "onisep") ? `<p class="small muted">Famille trouvée à partir d'un code ROME retrouvé par le nom du métier (moins sûr, voir les codes officiels plus bas).</p>` : ""}
+      <p class="small">${kPeople(m.emploi_2019)} emplois en 2019${f.toutes_qualifications ? "" : " · une des familles possibles selon la qualification du poste"}.</p>
+      <div class="scroll"><table>
+        <tr><td>Postes à pourvoir entre 2019 et 2030</td><td class="num">${kPeople(m.postes)}${pct(p.postes)}</td></tr>
+        <tr><td class="muted small">dont départs en fin de carrière</td><td class="num small">${kPeople(m.departs)}</td></tr>
+        <tr><td class="muted small">dont créations nettes d'emploi</td><td class="num small">${kPeople(m.creations, true)}</td></tr>
+        <tr><td>Jeunes débutants attendus</td><td class="num">${kPeople(m.debutants)}</td></tr>
+        <tr><td>Écart postes − débutants, selon les 5 scénarios</td><td class="num">de ${kPeople(d.min, true)} à ${kPeople(d.max, true)} <span class="muted small">(référence ${kPeople(d.reference, true)})</span></td></tr>
+      </table></div>
+      ${f.lecture ? `<p class="small">${M2030_LECTURE[f.lecture]}</p>` : ""}`;
+  };
+  return `<div class="card"><h2>L'emploi dans ce métier d'ici 2030</h2>
+    <p class="muted small">Projection de la Dares et de France Stratégie par famille de métiers, sous hypothèses : ce n'est ni une prévision ni une promesse. Les chiffres sont ceux de toute la famille, pas seulement de ce métier.${fams.length > 1 ? " Ce métier relève de plusieurs familles selon la qualification du poste : chacune a ses chiffres." : ""}</p>
+    ${fams.map(one).join("")}
+    <p class="muted small">Aucune projection officielle par métier n'existe au-delà de 2030 : pas de chiffre pour 2035. Source : Dares et France Stratégie, « Les métiers en 2030 » (2022), projections 2019-2030, scénario de référence et 4 variantes. Licence Ouverte.</p></div>`;
+}
+
+// ---- Sprint 13: les codes officiels du métier (ROME -> FAP -> ISCO-08) --------
+// Codes, not figures: every family a ROME code can lead to is listed with the qualification it applies to,
+// none is picked for the student; ISCO codes come with the number of job titles behind them, never a share.
+function qualifText(q) {
+  if (!q || q.toutes) return "toutes qualifications";
+  if (!q.libelles) return "selon la qualification du poste";
+  return `pour : ${q.libelles.map(esc).join(", ")}`;
+}
+function codesCard(codes) {
+  if (!Array.isArray(codes)) return "";
+  const head = `<h2>Les codes officiels de ce métier</h2>
+    <p class="muted small">Ils relient ce métier aux statistiques de l'emploi (projections à 2030, exposition à l'IA : prochaines étapes). Ce sont des codes, pas des chiffres sur l'emploi.</p>`;
+  if (!codes.length) return `<div class="card">${head}<p class="small">L'Onisep ne donne pas de code ROME pour ce métier : il n'est pas encore relié aux statistiques de l'emploi.</p></div>`;
+  const one = (c) => {
+    if (!c.connu) return `<h3>Code ROME ${esc(c.rome)}</h3><p class="small">Ce code n'est pas dans les tables de passage de la Dares.</p>`;
+    const fam = (xs, sub) => xs.length ? `<ul class="small">${xs.map((f) => `<li><strong>${esc(f.code)}</strong> ${esc(f.libelle || "")}${sub(f)} · <span class="muted">${qualifText(f.qualifications)}</span></li>`).join("")}</ul>`
+      : `<p class="small muted">Aucune famille dans la table de la Dares.</p>`;
+    const full = c.isco.filter((i) => i.precision === 4), part = c.isco.filter((i) => i.precision < 4);
+    const isco = !c.isco.length ? `<p class="small muted">Aucun code ISCO-08 trouvé par les intitulés de profession.</p>`
+      : `${full.length ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th class="num">Intitulés de profession</th></tr>
+        ${full.map((i) => `<tr><td>${esc(i.code)}</td><td>${esc(i.libelle || "")}<div class="muted small">${qualifText(i.qualifications)}</div></td><td class="num">${fmt(i.n_intitules)}</td></tr>`).join("")}</table></div>` : ""}
+        ${part.length ? `<p class="small muted">Codes partiels (l'intitulé ne permet pas d'aller jusqu'au groupe de base) : ${part.map((i) => `${esc(i.code.slice(0, i.precision))}${"x".repeat(4 - i.precision)} (${fmt(i.n_intitules)} intitulé${i.n_intitules > 1 ? "s" : ""})`).join(", ")}.</p>` : ""}`;
+    // a code found from the job's name (the Onisep sheet gives none): said so, with the method's check in counts
+    const how = { intitule_dares: "un intitulé de profession de la Dares", appellation_rome: "une appellation du ROME (France Travail)" };
+    const k = c.controle || {};
+    const found = c.origine === "analogie" ? `<p class="small warn">Code choisi par analogie avec un métier voisin, la fiche Onisep ne donnant pas de code ROME : ${esc(c.motif || "")}.</p>`
+      : c.origine && c.origine !== "onisep" ? `<p class="small warn">Code retrouvé par le nom du métier, identique à ${how[c.origine] || "un intitulé"} : la fiche Onisep ne donne pas de code ROME. C'est moins sûr qu'un code donné par l'Onisep${k.n_metiers ? ` : sur ${fmt(k.n_metiers)} métiers dont l'Onisep donne le code, cette méthode retrouve un bon code pour ${fmt(k.n_ok)}` : ""}.</p>` : "";
+    return `<h3>Fiche ROME ${esc(c.rome)} · ${esc(c.intitule || "")}</h3>${found}
+      <p class="small"><strong>Famille professionnelle FAP-2021</strong> (Dares, table officielle code à code)</p>
+      ${fam(c.fap2021, (f) => f.fap86 ? ` <span class="muted">(${esc(f.fap86)} ${esc(f.libelle86 || "")})</span>` : "")}
+      <p class="small"><strong>Famille FAP-2009</strong>, celle des projections « Les métiers en 2030 » (Dares, table officielle code à code)</p>
+      ${fam(c.fap2009, (f) => f.libelle87 ? ` <span class="muted">(${esc(f.fap87)} ${esc(f.libelle87)})</span>` : "")}
+      <p class="small"><strong>Codes ISCO-08 possibles</strong> (classification internationale du BIT), retrouvés par les intitulés de profession : la Dares relie l'intitulé au code ROME, l'Insee le code en ISCO. Le nombre d'intitulés n'est pas une part des emplois.</p>
+      ${isco}`;
+  };
+  return `<div class="card">${head}${codes.map(one).join("")}
+    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés) ; France Travail (appellations du ROME, pour les métiers sans code Onisep). Licence Ouverte.</p></div>`;
 }
 
 // ---- router ----------------------------------------------------------------
