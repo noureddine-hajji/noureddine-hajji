@@ -712,6 +712,64 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## Generative AI and the job's tasks (sprint 15, job page)
+
+The job page gets a card **"L'IA générative et les tâches du métier"** (`suptracker/ia_exposition.py`, tables
+`core.ia_oit_isco` and `core.ia_rome_tag`). It comes from two files committed by the owner:
+- **ILO 2025** (Gmyrek, Berg et al., Working Paper 140, CC BY 4.0): 3,265 ISCO-08 tasks of 427 unit groups, each scored
+  0-1, and per group the PUBLISHED mean (2 decimals), standard deviation and exposure class (not exposed, minimal
+  exposure, exposed gradient 1 to 4);
+- **France Travail ROME 4.0 tags**: the "Transition numérique" tag per ROME sheet (Oui 213, Non 1,331, not assessed 379).
+
+**What we checked first:**
+- **Published values are served.** The published mean equals the rounded mean of the tasks for 98.8 % of codes (4 ties
+  at .005). One real upstream inconsistency: ISCO 7126 (0.18 published, its tasks average 0.15); we serve the published
+  value and the red team names it.
+- **The classes are not cut-offs of the mean alone.** The ILO class also uses the spread between tasks: the 4 exposed
+  gradients are ordered bands of the mean (G1 0.28-0.39 … G4 0.60-0.70), but two close means can get two classes. The
+  card says so.
+- **Coverage.** 389 of the 397 unit groups our jobs reach have an ILO score (missing: armed forces 0110 / 0210 / 0310,
+  1439, 3139, 3435, 5249, 7319). 913 of the 928 jobs with a usable ROME code get at least one score (98.4 %).
+
+**On the page:**
+- One row per 4-digit ISCO-08 code of the job (sprint 13, through job titles), main codes first, with the count of job
+  titles behind it, the ILO class and the published mean ("0,53"); a code without an ILO score says so.
+- The RANGE of the published means ("de 0,43 à 0,60 sur 1"), never an average, never a composite with sprint 14's figures.
+- The France Travail tag of each ROME sheet, as a fact.
+- The wording: a technical potential of the TASKS, not a forecast of job losses nor a risk for the student; an exposed
+  job is more often transformed than replaced.
+- **Human complementarity θ** (second part, `core.ia_theta_onet`, `core.ia_theta_lien`): the IMF method (Pizzinelli
+  et al. 2023) rebuilt from O*NET 31.0 per the owner's guide. 11 Work Context elements on the CX scale (1-5 → 0-100,
+  Degree of Automation reversed), 5 dimension means plus the Job Zone (20 × zone), θ = mean of the 6 dimensions.
+  - It is an ADAPTED estimate (reliability C), never the IMF 2023 score: O*NET 31.0 merged Job Zones 1 and 2 (code 2),
+    and the outdoor element is the guide's proxy (4.C.2.a.1.c).
+  - Data check: 911 occupations with 11/11 CX values, one per occupation × element; the 5 with a suppressed element get
+    no θ (906 left). The lowest is 51-9031 Hand Cutters and Trimmers (0.38), the IMF's own lowest occupation (0.31 there).
+  - It reaches ISCO-08 only through official tables: O*NET-SOC 2019 → SOC 2018 (O*NET), SOC 2018 → SOC 2010 (BLS,
+    November 2017), SOC 2010 → ISCO-08 (BLS). 1,380 links; 2 occupations the BLS maps only to 3-digit groups stay unlinked.
+  - 391 of the 397 unit groups our jobs reach get θ. Each code shows the RANGE over its US occupations and their count
+    (median width 0.05, at most 0.28), never an average, never combined with the ILO score.
+- **C-AIOE is not computed.** The Felten AIOE appendix (SOC 2010, registered) is centred-reduced (values down to −2.67);
+  the guide forbids the IMF correction on such a scale.
+
+**Red team** (`scripts/redteam_ia.py`, run by `tests/test_ia_exposition.py`): 9/9 checks and 25/25 mutants caught on real data
+(a mutant that crashes counts as missed).
+- **I1.** The ILO file re-read with openpyxl: stored mean, sd, class and task count; task means re-derived (only the
+  known 7126 differs); exposed gradients are ordered bands.
+- **I2.** Tags re-read: stored values equal; only Oui, Non or not assessed.
+- **I3.** Serving: exactly the job's 4-digit ISCO codes, published values, min / max range, no average, unscored codes
+  listed, main codes first.
+- **I4.** Coverage.
+- **I5.** The card is run with Node on hostile data: escaped, wording, two decimals, unscored codes, no alarming words.
+- **I6.** Upkeep: register, methodology, feature, warehouse size.
+- **I7.** Mutation test: re-computed means served, 2023 scores served as 2025, gradient shifted, Transition écologique
+  read as the digital tag, partial ISCO codes served, range collapsed to an average; for θ: automation not reversed,
+  outdoor element swapped, 12 variables weighted equally, Job Zone read on a 1-5 scale, suppressed elements kept, response
+  shares (CXP) read as scores, SOC 2018 code taken as SOC 2010, 3-digit groups padded, θ range collapsed; 10 page mutants.
+- **I8.** θ re-derived with the `csv` module from the guide's formula; plausibility against the IMF's lowest occupation.
+- **I9.** The official chain re-read with openpyxl and xlrd: stored links equal, 4-digit ISCO only.
+- `tests/test_ia_exposition.py` also checks the guide's worked example (θ = 415 / 600).
+
 ## Hiring planned in 2026 (BMO, sprint 14 follow-up, job page)
 
 A second card, **"Les recrutements prévus en 2026"** (`suptracker/bmo.py`, table `core.bmo_metier`), gives the

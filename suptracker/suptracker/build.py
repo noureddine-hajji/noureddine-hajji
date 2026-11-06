@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, crosswalk, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
+from . import bmo, config, cereq, ia_exposition, crosswalk, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
 from .ingest import load_manifest
 
 
@@ -21,7 +21,7 @@ _SOURCE = object()
 
 def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, success_source=_SOURCE,
           poursuite_sources=_SOURCE, cereq_source=_SOURCE,
-          onisep_sources=_SOURCE, nomen_sources=_SOURCE, m2030_source=_SOURCE, bmo_source=_SOURCE) -> Path:
+          onisep_sources=_SOURCE, nomen_sources=_SOURCE, m2030_source=_SOURCE, bmo_source=_SOURCE, ia_sources=_SOURCE) -> Path:
     """success_source: the SIES licence success workbook (B1); default data/sources/, None to skip.
     poursuite_sources: {kind: path} of the sprint-6 BUT and master workbooks; default: detected in
     data/sources/, None to skip."""
@@ -51,6 +51,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         nomenclatures.build(con, nomenclatures.find_sources() if nomen_sources is _SOURCE else nomen_sources)
         emploi2030.build(con, emploi2030.source_path() if m2030_source is _SOURCE else m2030_source)
         bmo.build(con, bmo.source_path() if bmo_source is _SOURCE else bmo_source)
+        ia_exposition.build(con, ia_exposition.sources() if ia_sources is _SOURCE else ia_sources)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
