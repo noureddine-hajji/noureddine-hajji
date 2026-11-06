@@ -423,7 +423,8 @@ def n7(c: Ctx):
     def rebuilt(apply):
         """Build the reference with a seeded bug into a copy of the warehouse, then run the data checks on it."""
         saved = {k: getattr(NM, k) for k in ("TITLE_LINK_OVERRIDES", "title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
-        tmp = Path(str(c.db) + ".mutant.duckdb")
+        import tempfile
+        tmp = Path(tempfile.gettempdir()) / f"nomen_mutant_{c.db.stem}.duckdb"   # never inside the repository
         try:
             apply()
             shutil.copy(c.db, tmp)
