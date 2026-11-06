@@ -252,7 +252,10 @@ METHODOLOGY = {
         "profession : la Dares relie chaque intitulé à un code ROME, l'Insee code ce même intitulé en ISCO-08. Un métier a "
         "donc souvent plusieurs codes ISCO possibles ; le nombre indiqué est celui des intitulés de profession derrière "
         "chaque code, pas une part des emplois. Certains intitulés ne permettent qu'un code ISCO partiel (par exemple 21xx) : "
-        "il est signalé comme tel. Ce sont des codes, pas des chiffres sur l'emploi."),
+        "il est signalé comme tel. Quand la fiche Onisep ne donne pas de code ROME, on cherche le nom du métier parmi les "
+        "intitulés de profession de la Dares, puis parmi les appellations du ROME de France Travail : le code ainsi trouvé "
+        "est signalé comme moins sûr, avec le nombre de métiers (dont l'Onisep donne le code) sur lesquels la méthode a été "
+        "vérifiée et retrouve un bon code. Ce sont des codes, pas des chiffres sur l'emploi."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "

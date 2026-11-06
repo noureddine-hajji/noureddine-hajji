@@ -88,6 +88,6 @@ def detail(con, met_id: str) -> dict | None:
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     return {"id": mid, "nom": nom, "niveau_acces_min": lvl, "niveau_rang": rank, "romes": romes, "session": latest,
             "url": ON.ONISEP_URL.format(kind="metier", id=mid),
-            "codes": NM.for_romes(con, romes),
+            "codes": NM.for_metier(con, mid, romes),
             "status": "ok" if n_form else "hors_parcoursup" if dips else "sans_diplome",
             "n_formations": n_form, "diplomes": dips}

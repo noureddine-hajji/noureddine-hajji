@@ -189,6 +189,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - ROME → ISCO-08 goes through job TITLES (Dares titles × Insee G44, status column from the qualification class): several
     codes per ROME, each with its count of DISTINCT titles, NEVER shown as a share of jobs. Partial codes (2100) show as 21xx.
   - Codes, not figures: no grade, no percentage. Red team N3 cross-checks via PCS (Dares PCS → FAP, Insee PCS → ISCO).
+  - Jobs without a usable Onisep ROME code are linked by NAME (Dares title, else France Travail appellation, only ROME codes
+    the Dares tables know): the Onisep code always wins, one method per job, flagged "moins sûr" with the method's check
+    (right code for n of N jobs whose Onisep code is known) measured at build, never hard-coded. Red team N8.
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**

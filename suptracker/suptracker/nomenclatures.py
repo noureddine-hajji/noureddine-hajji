@@ -213,9 +213,61 @@ def qualif_labels(path: Path) -> dict:
 
 
 # ------------------------------------------------------------------------- build
+ARBO_GLOB = "*rome_arboprincipale*.xlsx"     # France Travail ROME tree (its name carries the month of release)
+METHODS = ("intitule_dares", "appellation_rome")
+
+
 def find_sources(data_dir: Path | None = None) -> dict:
     d = data_dir or config.DATA_DIR / "sources"
-    return {k: d / f for k, f in FILES.items() if (d / f).exists()}
+    out = {k: d / f for k, f in FILES.items() if (d / f).exists()}
+    arbo = sorted(d.glob(ARBO_GLOB))
+    if arbo:
+        out["rome_arbo"] = arbo[-1]
+    return out
+
+
+def read_rome_appellations(path: Path, usable: set) -> dict:
+    """folded appellation (whole label and each of its masculine / feminine forms) -> ROME codes, kept only for the
+    codes the Dares tables know: the tree is ROME 4.0 (1,923 sheets) and its newer codes have no FAP nor ISCO link."""
+    import openpyxl
+    wb = openpyxl.load_workbook(str(path), read_only=True)
+    ws = next(w for w in wb.worksheets if w.title.lower().startswith("arbo"))
+    out = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        a, b, c, lab, ogr = ((str(x).strip() if x is not None else "") for x in (list(row) + [None] * 5)[:5])
+        rome = f"{a}{b}{c}"
+        if ogr and rome in usable:
+            for form in [lab, *lab.split(" / ")]:
+                if fold(form):
+                    out.setdefault(fold(form), set()).add(rome)
+    return out
+
+
+def title_links(jobs: dict, own: dict, usable: set, dares: dict, appellations: dict) -> tuple[list[tuple], list[tuple]]:
+    """ROME codes found from a job's NAME for the jobs whose Onisep sheet gives no usable ROME code.
+
+    jobs: met_id -> its labels (name, masculine, feminine, synonyms); own: met_id -> Onisep ROME codes. A label equal
+    to a Dares job title gives that title's ROME codes; only when no label does, a label equal to a France Travail
+    appellation gives its code. Returns (met_id, rome, method) rows and, per method, its check on the jobs whose
+    Onisep code is known: (method, jobs matched, jobs whose matched codes include an Onisep code)."""
+    rows, check = [], []
+    for method, index in zip(METHODS, (dares, appellations)):
+        n = ok = 0
+        for mid, labels in jobs.items():
+            found = set().union(*[index.get(fold(x), set()) for x in labels]) if labels else set()
+            mine = own.get(mid, set()) & usable
+            if mine and found:
+                n, ok = n + 1, ok + bool(found & mine)
+        check.append((method, n, ok))
+    for mid, labels in sorted(jobs.items()):
+        if own.get(mid, set()) & usable:
+            continue                                   # the Onisep code always wins
+        for method, index in zip(METHODS, (dares, appellations)):
+            found = set().union(*[index.get(fold(x), set()) for x in labels]) if labels else set()
+            if found:
+                rows += [(mid, r, method) for r in sorted(found)]
+                break
+    return rows, check
 
 
 def _put(con, table: str, rows) -> None:
@@ -245,6 +297,8 @@ def build(con, sources: dict | None = None) -> dict:
     con.execute("""CREATE OR REPLACE TABLE core.nomen_rome_isco (rome VARCHAR, qualif INTEGER, isco VARCHAR, precision INTEGER,
         intitule_id INTEGER)""")
     con.execute("CREATE OR REPLACE TABLE core.nomen_isco (isco VARCHAR, libelle VARCHAR)")
+    con.execute("CREATE OR REPLACE TABLE core.nomen_metier_rome_titre (met_id VARCHAR, rome VARCHAR, methode VARCHAR)")
+    con.execute("CREATE OR REPLACE TABLE core.nomen_titre_controle (methode VARCHAR, n_metiers INTEGER, n_ok INTEGER)")
     src = find_sources() if sources is None else sources
     need = ("rome_fap2021", "fap2021", "rome_fap2009", "fap2009_xls", "rome_qualif_xlsx", "libelles", "g44", "isco_labels")
     if any(k not in src for k in need):
@@ -260,7 +314,29 @@ def build(con, sources: dict | None = None) -> dict:
     _put(con, "core.nomen_isco", labels)
     rows, stats = rome_isco(read_libelles(src["libelles"]), read_g44(src["g44"]), {c for c, _ in labels})
     _put(con, "core.nomen_rome_isco", rows)
-    return {"rome": len(titles), "rome_isco": len(rows), **stats}
+    links = _build_title_links(con, src, set(titles))
+    return {"rome": len(titles), "rome_isco": len(rows), **stats, "metiers_par_intitule": links}
+
+
+def _build_title_links(con, src: dict, usable: set) -> int:
+    """Jobs without a usable Onisep ROME code, linked by their name (needs the Onisep tables, built before)."""
+    tabs = {t for (t,) in con.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'core'").fetchall()}
+    if not {"onisep_metier", "onisep_metier_libelle", "onisep_metier_rome"} <= tabs:
+        return 0
+    jobs = {}
+    for mid, lab in con.execute("""SELECT met_id, nom FROM core.onisep_metier UNION SELECT met_id, libelle FROM core.onisep_metier_libelle""").fetchall():
+        jobs.setdefault(mid, set()).add(lab)
+    own = {}
+    for mid, rome in con.execute("SELECT met_id, rome FROM core.onisep_metier_rome").fetchall():
+        own.setdefault(mid, set()).add(rome)
+    dares = {}
+    for title, _, rome in read_libelles(src["libelles"]):
+        dares.setdefault(fold(title), set()).add(rome)
+    appellations = read_rome_appellations(src["rome_arbo"], usable) if "rome_arbo" in src else {}
+    rows, check = title_links(jobs, own, usable, dares, appellations)
+    _put(con, "core.nomen_metier_rome_titre", rows)
+    _put(con, "core.nomen_titre_controle", [c for c in check if c[0] != "appellation_rome" or appellations])
+    return len({r[0] for r in rows})
 
 
 # ------------------------------------------------------------------------- serving
@@ -274,6 +350,24 @@ def _qualifs(qs: set, labels: dict | None) -> dict:
     qs = sorted(qs)
     return {"toutes": len(qs) == QUALIF_COUNT, "codes": qs,
             "libelles": None if labels is None else [labels.get(q, str(q)) for q in qs]}
+
+
+def for_metier(con, met_id: str, romes: list[str]) -> list[dict]:
+    """The codes of a job: its Onisep ROME codes; when none is usable, the codes found from its name, each flagged
+    with the method and that method's check on the jobs whose Onisep code is known (counts, never a probability)."""
+    codes = [dict(c, origine="onisep") for c in for_romes(con, romes)]
+    if any(c["connu"] for c in codes) or not _has(con):
+        return codes
+    try:
+        links = con.execute("SELECT rome, methode FROM core.nomen_metier_rome_titre WHERE met_id = ? ORDER BY rome", [met_id]).fetchall()
+        check = {m: (n, ok) for m, n, ok in con.execute("SELECT * FROM core.nomen_titre_controle").fetchall()}
+    except Exception:  # noqa: BLE001 - a warehouse built before the title links
+        return codes
+    how = dict(links)
+    for c in for_romes(con, [r for r, _ in links]):
+        n, ok = check.get(how[c["rome"]], (0, 0))
+        codes.append(dict(c, origine=how[c["rome"]], controle={"n_metiers": n, "n_ok": ok}))
+    return codes
 
 
 def for_romes(con, romes: list[str]) -> list[dict]:

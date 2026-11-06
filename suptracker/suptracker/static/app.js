@@ -1433,7 +1433,11 @@ function codesCard(codes) {
       : `${full.length ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th class="num">Intitulés de profession</th></tr>
         ${full.map((i) => `<tr><td>${esc(i.code)}</td><td>${esc(i.libelle || "")}<div class="muted small">${qualifText(i.qualifications)}</div></td><td class="num">${fmt(i.n_intitules)}</td></tr>`).join("")}</table></div>` : ""}
         ${part.length ? `<p class="small muted">Codes partiels (l'intitulé ne permet pas d'aller jusqu'au groupe de base) : ${part.map((i) => `${esc(i.code.slice(0, i.precision))}${"x".repeat(4 - i.precision)} (${fmt(i.n_intitules)} intitulé${i.n_intitules > 1 ? "s" : ""})`).join(", ")}.</p>` : ""}`;
-    return `<h3>Fiche ROME ${esc(c.rome)} · ${esc(c.intitule || "")}</h3>
+    // a code found from the job's name (the Onisep sheet gives none): said so, with the method's check in counts
+    const how = { intitule_dares: "un intitulé de profession de la Dares", appellation_rome: "une appellation du ROME (France Travail)" };
+    const k = c.controle || {};
+    const found = c.origine && c.origine !== "onisep" ? `<p class="small warn">Code retrouvé par le nom du métier, identique à ${how[c.origine] || "un intitulé"} : la fiche Onisep ne donne pas de code ROME. C'est moins sûr qu'un code donné par l'Onisep${k.n_metiers ? ` : sur ${fmt(k.n_metiers)} métiers dont l'Onisep donne le code, cette méthode retrouve un bon code pour ${fmt(k.n_ok)}` : ""}.</p>` : "";
+    return `<h3>Fiche ROME ${esc(c.rome)} · ${esc(c.intitule || "")}</h3>${found}
       <p class="small"><strong>Famille professionnelle FAP-2021</strong> (Dares, table officielle code à code)</p>
       ${fam(c.fap2021, (f) => f.fap86 ? ` <span class="muted">(${esc(f.fap86)} ${esc(f.libelle86 || "")})</span>` : "")}
       <p class="small"><strong>Famille FAP-2009</strong>, celle des projections « Les métiers en 2030 » (Dares, table officielle code à code)</p>
@@ -1442,7 +1446,7 @@ function codesCard(codes) {
       ${isco}`;
   };
   return `<div class="card">${head}${codes.map(one).join("")}
-    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés). Licence Ouverte.</p></div>`;
+    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés) ; France Travail (appellations du ROME, pour les métiers sans code Onisep). Licence Ouverte.</p></div>`;
 }
 
 // ---- router ----------------------------------------------------------------

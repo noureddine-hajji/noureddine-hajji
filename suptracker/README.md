@@ -743,8 +743,20 @@ committed under `data/sources/`):
 - **Coverage.** Of the 1,124 Onisep jobs, 928 have a known ROME code. Per job, the median is 2 FAP-2021
   families, 1 FAP-2009 family and 4 full ISCO codes. 193 jobs have no ROME code; the page says so.
 
-**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 7/7 checks and 17/17
-mutants caught on real data. Its first runs found two bugs: the Dares CSV files are Windows-1252, not Latin-1 (`’` and `œ`
+**Jobs without an Onisep ROME code** (196, owner's choice: link them by their name).
+- A job name equal to a Dares job title gives that title's ROME code (30 jobs). Otherwise, a name equal to a France
+  Travail appellation (ROME tree, `*rome_arboprincipale*.xlsx`) gives its code (10 more jobs).
+- The tree is ROME 4.0 (1,923 sheets): only the 532 codes the Dares tables know are kept. A newer code would have no
+  FAP nor ISCO link.
+- The Onisep code always wins; one method per job. These links are less sure and the page says so, with the
+  method's check measured at each build on the jobs whose Onisep code is known: Dares titles find a right code for
+  356 of 420 jobs, appellations for 341 of 382. Homonyms explain the misses (an "énergéticien" engineer matches the
+  well-being title).
+- 156 jobs stay unlinked (armed forces, State and Senate bodies, recent jobs whose ROME 4.0 code has no Dares link).
+
+**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 8/8 checks and 22/22
+mutants caught on real data (N8 re-derives the name links, checks the Onisep code always wins and the page flags them).
+Its first runs found two bugs: the Dares CSV files are Windows-1252, not Latin-1 (`’` and `œ`
 became invisible control characters), and the curly apostrophe was dropped before the join key was folded. No title in use
 carries either today, so the red team checks both with witness inputs.
 - **N1.** Every stored table equals the raw file re-read with pandas; FAP-2009 SAS = xls row for row.

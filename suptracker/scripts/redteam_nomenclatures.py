@@ -201,10 +201,11 @@ def n4(c: Ctx):
     sample = jobs if not c.real else jobs[:: max(1, len(jobs) // 150)]
     for mid, romes in sample:
         d = MT.detail(c.con, mid)
-        if d is None or d["codes"] != NM.for_romes(c.con, d["romes"]):
+        onisep = [{k: v for k, v in x.items() if k != "origine"} for x in (d or {}).get("codes", []) if x.get("origine") == "onisep"]
+        if d is None or onisep != NM.for_romes(c.con, d["romes"]):
             bad.append(f"{mid}: page codes ≠ its ROME codes")
             continue
-        for got, (rome, f21, isc) in zip([x for x in d["codes"] if x["connu"]], [x for x in ref_romes(c, romes) if x[1]]):
+        for got, (rome, f21, isc) in zip([x for x in onisep if x["connu"]], [x for x in ref_romes(c, romes) if x[1]]):
             qs = sorted(q for e in got["fap2021"] for q in e["qualifications"]["codes"])
             if qs != list(range(10)) or {e["code"]: e["qualifications"]["codes"] for e in got["fap2021"]} != f21:
                 bad.append(f"{mid} {rome}: FAP-2021 classes {qs}")
@@ -251,7 +252,9 @@ HOSTILE = [{"rome": "M1805", "intitule": "<script>alert(1)</script>", "connu": T
                       "qualifications": {"toutes": True, "codes": list(range(10)), "libelles": ["x"] * 10}},
                      {"code": "2100", "libelle": None, "precision": 2, "n_intitules": 5,
                       "qualifications": {"toutes": True, "codes": list(range(10)), "libelles": ["x"] * 10}}]},
-           {"rome": "A9999", "intitule": None, "connu": False, "fap2021": [], "fap2009": [], "isco": []}]
+           {"rome": "A9999", "intitule": None, "connu": False, "fap2021": [], "fap2009": [], "isco": []},
+           {"rome": "K1601", "intitule": "<script>x</script>", "connu": True, "origine": "intitule_dares", "controle": {"n_metiers": 420, "n_ok": 356},
+            "fap2021": [], "fap2009": [], "isco": []}]
 
 
 def render(js: str, payload) -> str | None:
@@ -279,8 +282,10 @@ def ui(js: str) -> tuple[bool, str]:
         html, empty, none = json.loads(out)
         leaks = re.findall(r"<(?:script|img|svg|iframe|marquee|b|i|u|em)\b", html)
         rendered = (not leaks and "%" not in html and "21xx" in html and "selon la qualification du poste" in html
+                    and "moins sûr qu'un code donné par l'Onisep" in html and "retrouve un bon code pour 356" in html
                     and "pas dans les tables de passage" in html and "pas de code ROME" in empty and none == "")
-        detail = f"raw tags {leaks[:3]}; percent sign {'%' in html}; partial code shown as 21xx {'21xx' in html}; empty list {('pas de code ROME' in empty)}"
+        detail = (f"raw tags {leaks[:3]}; percent sign {'%' in html}; partial code shown as 21xx {'21xx' in html}; empty list {('pas de code ROME' in empty)}; "
+                  f"name-based code flagged with its check {'moins sûr' in html and '356' in html}")
     wired = "${codesCard(d.codes)}" in js
     return words and rendered and wired, f"wording {words}; {detail}; wired {wired}"
 
@@ -296,9 +301,10 @@ def n6(c: Ctx):
 
     from suptracker import sources as SRC
     from suptracker.api import FEATURES, METHODOLOGY
-    online = [s for s in SRC.SOURCES if s["key"] in ("dares_fap", "insee_pcs_isco")]
-    reg = all(s["status"] == "en_ligne" for s in online) and all(
-        any(fnmatch.fnmatch(f, g) for s in online for g in SRC.globs(s)) for f in NM.FILES.values())
+    online = [s for s in SRC.SOURCES if s["key"] in ("dares_fap", "insee_pcs_isco", "rome_arbo")]
+    files = list(NM.FILES.values()) + ([c.src["rome_arbo"].name] if "rome_arbo" in c.src else [])
+    reg = len(online) == 3 and all(s["status"] == "en_ligne" for s in online) and all(
+        any(fnmatch.fnmatch(f, g) for s in online for g in SRC.globs(s)) for f in files)
     meth = "referentiel_metiers" in FEATURES and "pas une part des emplois" in METHODOLOGY.get("referentiel_metiers", "")
     req = "xlrd" in (ROOT / "requirements-pipeline.txt").read_text()
     e = duckdb.connect(":memory:")
@@ -310,6 +316,68 @@ def n6(c: Ctx):
     return ok, f"files registered and online {reg}; methodology and feature {meth}; xlrd in pipeline requirements {req}; empty build safe {empty}; warehouse {size:.1f} MB"
 
 
+def ref_title_links(c: Ctx):
+    """Independent re-derivation of the name-based links (pandas / openpyxl, the red team's own fold)."""
+    usable = {r for (r,) in c.con.execute("SELECT rome FROM core.nomen_rome").fetchall()}
+    jobs, own = {}, {}
+    for mid, lab in c.con.execute("SELECT met_id, nom FROM core.onisep_metier UNION SELECT met_id, libelle FROM core.onisep_metier_libelle").fetchall():
+        jobs.setdefault(mid, set()).add(rfold(lab))
+    for mid, rome in c.con.execute("SELECT met_id, rome FROM core.onisep_metier_rome").fetchall():
+        own.setdefault(mid, set()).add(rome)
+    t = c.titles.dropna(subset=["Rome"])
+    dares = {}
+    for title, rome in zip(t.Libelle_PCS2020, t.Rome):
+        dares.setdefault(rfold(title), set()).add(rome)
+    app = {}
+    if "rome_arbo" in c.src:
+        df = pd.read_excel(c.src["rome_arbo"], sheet_name=1, header=None, dtype=str).fillna("")
+        for a, b, cc, lab, ogr in df.iloc[1:, :5].itertuples(index=False):
+            rome = f"{a.strip()}{b.strip()}{cc.strip()}"
+            if ogr.strip() and rome in usable:
+                for form in [lab] + lab.split(" / "):
+                    if rfold(form):
+                        app.setdefault(rfold(form), set()).add(rome)
+    rows, check = set(), []
+    for method, idx in (("intitule_dares", dares), ("appellation_rome", app)):
+        hits = {m: set().union(*[idx.get(x, set()) for x in labs]) for m, labs in jobs.items()}
+        mine = {m: own.get(m, set()) & usable for m in jobs}
+        n = sum(1 for m in jobs if mine[m] and hits[m])
+        check.append((method, n, sum(1 for m in jobs if mine[m] and hits[m] & mine[m])))
+        for m in jobs:
+            if not mine[m] and hits[m] and not any(r[0] == m for r in rows):
+                rows |= {(m, r, method) for r in hits[m]}
+    if not app:
+        check = check[:1]
+    return rows, check, usable, own
+
+
+@check("N8 jobs without an Onisep code, linked by their name: re-derived, Onisep code always wins, method checked and shown")
+def n8(c: Ctx):
+    exp_rows, exp_check, usable, own = ref_title_links(c)
+    got_rows = c.table("SELECT met_id, rome, methode FROM core.nomen_metier_rome_titre")
+    got_check = sorted(c.table("SELECT * FROM core.nomen_titre_controle"))
+    override = sorted({m for m, _, _ in got_rows if own.get(m, set()) & usable})
+    unusable = sorted({r for _, r, _ in got_rows if r not in usable})
+    both = sorted(m for m in {m for m, _, _ in got_rows} if len({x for mm, _, x in got_rows if mm == m}) > 1)
+    bad = []
+    for mid in sorted({m for m, _, _ in got_rows})[:60]:
+        d = MT.detail(c.con, mid)
+        flagged = [x for x in d["codes"] if x["origine"] != "onisep"]
+        k = dict((m, (n, ok)) for m, n, ok in got_check)
+        if {x["rome"] for x in flagged} != {r for m, r, _ in got_rows if m == mid} or any(
+                (x["controle"]["n_metiers"], x["controle"]["n_ok"]) != k.get(x["origine"]) for x in flagged):
+            bad.append(mid)
+    linked = c.con.execute("SELECT DISTINCT met_id FROM core.onisep_metier_rome WHERE rome IN (SELECT rome FROM core.nomen_rome) LIMIT 40").fetchall()
+    bad += [m for (m,) in linked if any(x["origine"] != "onisep" for x in MT.detail(c.con, m)["codes"])]
+    sane = all(0 <= ok <= n for _, n, ok in got_check)
+    ok = (got_rows == exp_rows and got_check == sorted(exp_check) and not override and not unusable and not both and not bad and sane
+          and (len(got_rows) > 0 or not c.real))
+    return ok, (f"{len({m for m, _, _ in got_rows})} jobs linked by name, equal to the re-derivation {got_rows == exp_rows} "
+                f"(only stored {sorted(got_rows - exp_rows)[:2]}, only re-derived {sorted(exp_rows - got_rows)[:2]}); checks {got_check} "
+                f"= {sorted(exp_check)}; over an Onisep code {override[:3]}; codes outside the Dares tables {unusable[:3]}; "
+                f"jobs with both methods {both[:3]}; pages wrong {bad[:3]}")
+
+
 UI_MUTANTS = [
     ("unescaped FAP label", "${esc(f.libelle || \"\")}${sub(f)}", "${f.libelle || \"\"}${sub(f)}"),
     ("unescaped ISCO label", "<td>${esc(i.libelle || \"\")}<div", "<td>${i.libelle || \"\"}<div"),
@@ -319,6 +387,7 @@ UI_MUTANTS = [
     ("FAP-2009 classes named with FAP-2021 names", "if (!q.libelles) return \"selon la qualification du poste\";", "if (!q.libelles) return \"\";"),
     ("partial code printed as a full code", "${esc(i.code.slice(0, i.precision))}${\"x\".repeat(4 - i.precision)}", "${esc(i.code)}"),
     ("card not wired", "${codesCard(d.codes)}", ""),
+    ("name-based code not flagged", "const found = c.origine && c.origine !== \"onisep\" ?", "const found = false ?"),
 ]
 
 
@@ -339,7 +408,7 @@ def n7(c: Ctx):
 
     def rebuilt(apply):
         """Build the reference with a seeded bug into a copy of the warehouse, then run the data checks on it."""
-        saved = {k: getattr(NM, k) for k in ("ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
+        saved = {k: getattr(NM, k) for k in ("title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
         tmp = Path(str(c.db) + ".mutant.duckdb")
         try:
             apply()
@@ -350,7 +419,7 @@ def n7(c: Ctx):
             m = Ctx.__new__(Ctx)
             m.__dict__.update({k: v for k, v in c.__dict__.items() if k != "con"})
             m.db, m.con = tmp, ddb.connect(str(tmp), read_only=True)
-            caught = any(not fn(m)[0] for fn in (n1, n2, n4))
+            caught = any(not fn(m)[0] for fn in (n1, n2, n4, n8))
             m.con.close()
             return caught
         except Exception:  # noqa: BLE001
@@ -372,7 +441,29 @@ def n7(c: Ctx):
     def no_raq(path):
         return [r for r in orig_sas(path) if r[0] not in ("A1301", "A1204", "N3102")]
 
+    orig_tl, orig_app, orig_fm = NM.title_links, NM.read_rome_appellations, NM.for_metier
+
+    def overrides(jobs, own, usable, dares, app):
+        return orig_tl(jobs, {}, usable, dares, app)[0], orig_tl(jobs, own, usable, dares, app)[1]
+
+    def merged(jobs, own, usable, dares, app):
+        rows, chk = orig_tl(jobs, own, usable, dares, {k: v | app.get(k, set()) for k, v in dares.items()} if False else app)
+        extra, _ = orig_tl(jobs, own, usable, dares, {})
+        return sorted(set(rows) | {(m, r, "appellation_rome") for m, r, _ in extra}), chk
+
+    def hardcoded(con, mid, romes):
+        out = orig_fm(con, mid, romes)
+        for x in out:
+            if x.get("controle"):
+                x["controle"] = {"n_metiers": 100, "n_ok": 100}
+        return out
+
     data_mutants = [
+        ("name link applied over an Onisep code", lambda: setattr(NM, "title_links", overrides)),
+        ("ROME 4.0 codes without a Dares link kept", lambda: setattr(NM, "read_rome_appellations", lambda p, usable: orig_app(p, {
+            f"{a}{b:02d}{c:02d}" for a in "ABCDEFGHIJKLMN" for b in range(10, 50) for c in range(1, 50)}))),
+        ("both methods applied to one job", lambda: setattr(NM, "title_links", merged)),
+        ("method check hard-coded on the page", lambda: setattr(NM, "for_metier", hardcoded)),
         ("cadre status read for every qualification", lambda: setattr(NM, "QUALIF_STATUS", {q: ("ingcad_supv", "ingcad_nsupv") for q in range(10)})),
         ("titles joined without folding accents", lambda: setattr(NM, "fold", lambda s: str(s or "").strip())),
         ("curly apostrophe dropped before folding", lambda: setattr(NM, "fold", lambda s: " ".join(unicodedata.normalize("NFKD", str(s or ""))

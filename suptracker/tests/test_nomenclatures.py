@@ -16,7 +16,7 @@ from suptracker import nomenclatures as NM  # noqa: E402
 from synthetic import make_onisep_zips, make_raw  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
-HAVE_SOURCES = len(NM.find_sources()) == len(NM.FILES)
+HAVE_SOURCES = all(k in NM.find_sources() for k in NM.FILES)
 
 
 def test_sas_formats(tmp_path):
@@ -68,6 +68,7 @@ def _has(path):
     try:
         con = duckdb.connect(str(path), read_only=True)
         n = con.execute("SELECT count(*) FROM core.nomen_rome_isco").fetchone()[0]
+        con.execute("SELECT count(*) FROM core.nomen_metier_rome_titre").fetchone()   # name links (sprint 13 follow-up)
         con.close()
         return n > 0
     except Exception:  # noqa: BLE001
