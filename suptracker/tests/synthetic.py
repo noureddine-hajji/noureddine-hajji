@@ -864,6 +864,7 @@ def make_onisep_zips(d: Path) -> dict:
         ("MET.7", "avocat / e <script>alert(1)</script>", "bac + 5"), ("MET.8", "juriste d'entreprise", "bac + 5"),
         ("MET.9", "actuaire", "bac + 5"),
         ("MET.10", "généalogiste", "bac + 3"),       # no ROME code on its sheet: linked by its name (sprint 13)
+        ("MET.752", "énergéticien/ne", "bac ou équivalent"),   # a homonym the owner corrected (TITLE_LINK_OVERRIDES)
     ]
     fx = ['<?xml version="1.0" encoding="UTF-8"?><formations xmlns:exsl="http://exslt.org/common">']
     for fid, lib, typ, mids in forms:
@@ -879,7 +880,7 @@ def make_onisep_zips(d: Path) -> dict:
                            "<synonymes><synonyme><nom_metier>gestionnaire de paie</nom_metier><libelle_feminin>gestionnaire de paie"
                            "</libelle_feminin></synonyme></synonymes>"),
                  "MET.3": "<libelle_feminin>administratrice réseaux</libelle_feminin>"}.get(mid, "")
-        romes = "<romeV3>M1801</romeV3><romeV3>I1401</romeV3>" if mid == "MET.3" else "" if mid == "MET.10" else "<romeV3>M1203</romeV3>"
+        romes = "<romeV3>M1801</romeV3><romeV3>I1401</romeV3>" if mid == "MET.3" else "" if mid in ("MET.10", "MET.752") else "<romeV3>M1203</romeV3>"
         jx.append(f"<metier><identifiant>{mid}</identifiant><nom_metier>{escape(nom)}</nom_metier>{extra}"
                   f"<romesV3>{romes}</romesV3><competences><![CDATA[<h5>x</h5>]]></competences>"
                   f"<niveau_acces_min><libelle>{escape(lvl)}</libelle></niveau_acces_min></metier>")

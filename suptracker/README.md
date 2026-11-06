@@ -748,13 +748,17 @@ committed under `data/sources/`):
   Travail appellation (ROME tree, `*rome_arboprincipale*.xlsx`) gives its code (10 more jobs).
 - The tree is ROME 4.0 (1,923 sheets): only the 532 codes the Dares tables know are kept. A newer code would have no
   FAP nor ISCO link.
+- Homonyms the owner reviewed (`nomenclatures.TITLE_LINK_OVERRIDES`, reason shown on the page): "énergéticien/ne" (a
+  boiler-room operator on its Onisep sheet) gets I1308 by its ROME appellations; "secrétaire des Affaires étrangères"
+  gets K1405 like "diplomate"; "économe de flux" stays unlinked (its ROME 4.0 sheet has no Dares link). Result: 27 jobs by
+  Dares title, 10 by appellation, 2 by reviewed analogy (39).
 - The Onisep code always wins; one method per job. These links are less sure and the page says so, with the
   method's check measured at each build on the jobs whose Onisep code is known: Dares titles find a right code for
   356 of 420 jobs, appellations for 341 of 382. Homonyms explain the misses (an "énergéticien" engineer matches the
   well-being title).
-- 156 jobs stay unlinked (armed forces, State and Senate bodies, recent jobs whose ROME 4.0 code has no Dares link).
+- 157 jobs stay unlinked (armed forces, State and Senate bodies, recent jobs whose ROME 4.0 code has no Dares link).
 
-**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 8/8 checks and 22/22
+**Red team** (`scripts/redteam_nomenclatures.py`, run by `tests/test_nomenclatures.py`): 8/8 checks and 24/24
 mutants caught on real data (N8 re-derives the name links, checks the Onisep code always wins and the page flags them).
 Its first runs found two bugs: the Dares CSV files are Windows-1252, not Latin-1 (`’` and `œ`
 became invisible control characters), and the curly apostrophe was dropped before the join key was folded. No title in use

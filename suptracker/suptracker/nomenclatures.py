@@ -215,6 +215,15 @@ def qualif_labels(path: Path) -> dict:
 # ------------------------------------------------------------------------- build
 ARBO_GLOB = "*rome_arboprincipale*.xlsx"     # France Travail ROME tree (its name carries the month of release)
 METHODS = ("intitule_dares", "appellation_rome")
+# Owner-confirmed (2026-11-06): name links a homonym got wrong. A code replaces the name link (method "analogie",
+# with its reason shown on the page); None removes it (the job stays unlinked).
+TITLE_LINK_OVERRIDES = {
+    "MET.752": ("I1308", "l'énergéticien de la fiche Onisep est un conducteur de chaufferie ; « énergéticien » et « conducteur "
+                         "de chaufferie » sont des appellations de cette fiche ROME"),
+    "MET.301": ("K1405", "même corps diplomatique que « diplomate » et « ambassadeur », que l'Onisep relie à cette fiche ROME"),
+    "MET.60": (None, "les intitulés trouvés sont des homonymes (flux logistiques, bien-être) ; le ROME 4.0 classe ce métier "
+                     "dans une fiche que les tables de la Dares ne relient pas encore"),
+}
 
 
 def find_sources(data_dir: Path | None = None) -> dict:
@@ -248,7 +257,8 @@ def title_links(jobs: dict, own: dict, usable: set, dares: dict, appellations: d
 
     jobs: met_id -> its labels (name, masculine, feminine, synonyms); own: met_id -> Onisep ROME codes. A label equal
     to a Dares job title gives that title's ROME codes; only when no label does, a label equal to a France Travail
-    appellation gives its code. Returns (met_id, rome, method) rows and, per method, its check on the jobs whose
+    appellation gives its code; TITLE_LINK_OVERRIDES (owner-confirmed) replaces or removes a homonym's link. Returns
+    (met_id, rome, method, reason) rows and, per method, its check on the jobs whose
     Onisep code is known: (method, jobs matched, jobs whose matched codes include an Onisep code)."""
     rows, check = [], []
     for method, index in zip(METHODS, (dares, appellations)):
@@ -262,10 +272,15 @@ def title_links(jobs: dict, own: dict, usable: set, dares: dict, appellations: d
     for mid, labels in sorted(jobs.items()):
         if own.get(mid, set()) & usable:
             continue                                   # the Onisep code always wins
+        if mid in TITLE_LINK_OVERRIDES:                # owner-confirmed correction of a homonym
+            rome, why = TITLE_LINK_OVERRIDES[mid]
+            if rome in usable:
+                rows.append((mid, rome, "analogie", why))
+            continue
         for method, index in zip(METHODS, (dares, appellations)):
             found = set().union(*[index.get(fold(x), set()) for x in labels]) if labels else set()
             if found:
-                rows += [(mid, r, method) for r in sorted(found)]
+                rows += [(mid, r, method, None) for r in sorted(found)]
                 break
     return rows, check
 
@@ -297,7 +312,7 @@ def build(con, sources: dict | None = None) -> dict:
     con.execute("""CREATE OR REPLACE TABLE core.nomen_rome_isco (rome VARCHAR, qualif INTEGER, isco VARCHAR, precision INTEGER,
         intitule_id INTEGER)""")
     con.execute("CREATE OR REPLACE TABLE core.nomen_isco (isco VARCHAR, libelle VARCHAR)")
-    con.execute("CREATE OR REPLACE TABLE core.nomen_metier_rome_titre (met_id VARCHAR, rome VARCHAR, methode VARCHAR)")
+    con.execute("CREATE OR REPLACE TABLE core.nomen_metier_rome_titre (met_id VARCHAR, rome VARCHAR, methode VARCHAR, motif VARCHAR)")
     con.execute("CREATE OR REPLACE TABLE core.nomen_titre_controle (methode VARCHAR, n_metiers INTEGER, n_ok INTEGER)")
     src = find_sources() if sources is None else sources
     need = ("rome_fap2021", "fap2021", "rome_fap2009", "fap2009_xls", "rome_qualif_xlsx", "libelles", "g44", "isco_labels")
@@ -359,14 +374,15 @@ def for_metier(con, met_id: str, romes: list[str]) -> list[dict]:
     if any(c["connu"] for c in codes) or not _has(con):
         return codes
     try:
-        links = con.execute("SELECT rome, methode FROM core.nomen_metier_rome_titre WHERE met_id = ? ORDER BY rome", [met_id]).fetchall()
+        links = con.execute("SELECT rome, methode, motif FROM core.nomen_metier_rome_titre WHERE met_id = ? ORDER BY rome", [met_id]).fetchall()
         check = {m: (n, ok) for m, n, ok in con.execute("SELECT * FROM core.nomen_titre_controle").fetchall()}
     except Exception:  # noqa: BLE001 - a warehouse built before the title links
         return codes
-    how = dict(links)
-    for c in for_romes(con, [r for r, _ in links]):
-        n, ok = check.get(how[c["rome"]], (0, 0))
-        codes.append(dict(c, origine=how[c["rome"]], controle={"n_metiers": n, "n_ok": ok}))
+    how = {r: (m, why) for r, m, why in links}
+    for c in for_romes(con, [r for r, _, _ in links]):
+        method, why = how[c["rome"]]
+        n, ok = check.get(method, (0, 0))
+        codes.append(dict(c, origine=method, controle={"n_metiers": n, "n_ok": ok}, motif=why))
     return codes
 
 

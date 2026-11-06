@@ -40,6 +40,8 @@ from suptracker import metiers as MT  # noqa: E402
 from suptracker import nomenclatures as NM  # noqa: E402
 
 APP_JS = ROOT / "suptracker" / "static" / "app.js"
+# the owner's homonym corrections, copied at import: a mutant that empties the module's list must not empty this one
+OWNER_OVERRIDES = dict(NM.TITLE_LINK_OVERRIDES)
 CHECKS = []
 
 
@@ -253,6 +255,8 @@ HOSTILE = [{"rome": "M1805", "intitule": "<script>alert(1)</script>", "connu": T
                      {"code": "2100", "libelle": None, "precision": 2, "n_intitules": 5,
                       "qualifications": {"toutes": True, "codes": list(range(10)), "libelles": ["x"] * 10}}]},
            {"rome": "A9999", "intitule": None, "connu": False, "fap2021": [], "fap2009": [], "isco": []},
+           {"rome": "K1405", "intitule": "x", "connu": True, "origine": "analogie", "motif": "<img src=x onerror=alert(2)> voisin",
+            "controle": {"n_metiers": 0, "n_ok": 0}, "fap2021": [], "fap2009": [], "isco": []},
            {"rome": "K1601", "intitule": "<script>x</script>", "connu": True, "origine": "intitule_dares", "controle": {"n_metiers": 420, "n_ok": 356},
             "fap2021": [], "fap2009": [], "isco": []}]
 
@@ -283,6 +287,7 @@ def ui(js: str) -> tuple[bool, str]:
         leaks = re.findall(r"<(?:script|img|svg|iframe|marquee|b|i|u|em)\b", html)
         rendered = (not leaks and "%" not in html and "21xx" in html and "selon la qualification du poste" in html
                     and "moins sûr qu'un code donné par l'Onisep" in html and "retrouve un bon code pour 356" in html
+                    and "par analogie avec un métier voisin" in html and "voisin" in html
                     and "pas dans les tables de passage" in html and "pas de code ROME" in empty and none == "")
         detail = (f"raw tags {leaks[:3]}; percent sign {'%' in html}; partial code shown as 21xx {'21xx' in html}; empty list {('pas de code ROME' in empty)}; "
                   f"name-based code flagged with its check {'moins sûr' in html and '356' in html}")
@@ -344,8 +349,11 @@ def ref_title_links(c: Ctx):
         n = sum(1 for m in jobs if mine[m] and hits[m])
         check.append((method, n, sum(1 for m in jobs if mine[m] and hits[m] & mine[m])))
         for m in jobs:
-            if not mine[m] and hits[m] and not any(r[0] == m for r in rows):
-                rows |= {(m, r, method) for r in hits[m]}
+            if not mine[m] and hits[m] and m not in OWNER_OVERRIDES and not any(r[0] == m for r in rows):
+                rows |= {(m, r, method, None) for r in hits[m]}
+    for m, (rome, why) in OWNER_OVERRIDES.items():      # the owner's list is an input, applied as written
+        if m in jobs and not (own.get(m, set()) & usable) and rome in usable:
+            rows.add((m, rome, "analogie", why))
     if not app:
         check = check[:1]
     return rows, check, usable, own
@@ -354,25 +362,30 @@ def ref_title_links(c: Ctx):
 @check("N8 jobs without an Onisep code, linked by their name: re-derived, Onisep code always wins, method checked and shown")
 def n8(c: Ctx):
     exp_rows, exp_check, usable, own = ref_title_links(c)
-    got_rows = c.table("SELECT met_id, rome, methode FROM core.nomen_metier_rome_titre")
+    got_rows = c.table("SELECT met_id, rome, methode, motif FROM core.nomen_metier_rome_titre")
+    # every owner override is applied as written: a code replaces the name link, None leaves the job unlinked
+    over_bad = [m for m, (rome, _) in OWNER_OVERRIDES.items()
+                if c.real and {(r, x) for mm, r, x, _ in got_rows if mm == m} != ({(rome, "analogie")} if rome else set())]
     got_check = sorted(c.table("SELECT * FROM core.nomen_titre_controle"))
-    override = sorted({m for m, _, _ in got_rows if own.get(m, set()) & usable})
-    unusable = sorted({r for _, r, _ in got_rows if r not in usable})
-    both = sorted(m for m in {m for m, _, _ in got_rows} if len({x for mm, _, x in got_rows if mm == m}) > 1)
+    override = sorted({r[0] for r in got_rows if own.get(r[0], set()) & usable})
+    unusable = sorted({r[1] for r in got_rows if r[1] not in usable})
+    both = sorted(m for m in {r[0] for r in got_rows} if len({r[2] for r in got_rows if r[0] == m}) > 1)
     bad = []
-    for mid in sorted({m for m, _, _ in got_rows})[:60]:
+    for mid in sorted({r[0] for r in got_rows})[:60]:
         d = MT.detail(c.con, mid)
         flagged = [x for x in d["codes"] if x["origine"] != "onisep"]
         k = dict((m, (n, ok)) for m, n, ok in got_check)
-        if {x["rome"] for x in flagged} != {r for m, r, _ in got_rows if m == mid} or any(
-                (x["controle"]["n_metiers"], x["controle"]["n_ok"]) != k.get(x["origine"]) for x in flagged):
+        if {x["rome"] for x in flagged} != {r[1] for r in got_rows if r[0] == mid} or any(
+                (x["controle"]["n_metiers"], x["controle"]["n_ok"]) != k.get(x["origine"], (0, 0))
+                or (x["origine"] == "analogie") != bool(x.get("motif")) for x in flagged):
             bad.append(mid)
     linked = c.con.execute("SELECT DISTINCT met_id FROM core.onisep_metier_rome WHERE rome IN (SELECT rome FROM core.nomen_rome) LIMIT 40").fetchall()
     bad += [m for (m,) in linked if any(x["origine"] != "onisep" for x in MT.detail(c.con, m)["codes"])]
     sane = all(0 <= ok <= n for _, n, ok in got_check)
     ok = (got_rows == exp_rows and got_check == sorted(exp_check) and not override and not unusable and not both and not bad and sane
+          and not over_bad
           and (len(got_rows) > 0 or not c.real))
-    return ok, (f"{len({m for m, _, _ in got_rows})} jobs linked by name, equal to the re-derivation {got_rows == exp_rows} "
+    return ok, (f"owner overrides not applied {over_bad}; {len({r[0] for r in got_rows})} jobs linked by name, equal to the re-derivation {got_rows == exp_rows} "
                 f"(only stored {sorted(got_rows - exp_rows)[:2]}, only re-derived {sorted(exp_rows - got_rows)[:2]}); checks {got_check} "
                 f"= {sorted(exp_check)}; over an Onisep code {override[:3]}; codes outside the Dares tables {unusable[:3]}; "
                 f"jobs with both methods {both[:3]}; pages wrong {bad[:3]}")
@@ -387,7 +400,8 @@ UI_MUTANTS = [
     ("FAP-2009 classes named with FAP-2021 names", "if (!q.libelles) return \"selon la qualification du poste\";", "if (!q.libelles) return \"\";"),
     ("partial code printed as a full code", "${esc(i.code.slice(0, i.precision))}${\"x\".repeat(4 - i.precision)}", "${esc(i.code)}"),
     ("card not wired", "${codesCard(d.codes)}", ""),
-    ("name-based code not flagged", "const found = c.origine && c.origine !== \"onisep\" ?", "const found = false ?"),
+    ("analogy reason unescaped", "${esc(c.motif || \"\")}", "${c.motif || \"\"}"),
+    ("name-based code not flagged", ": c.origine && c.origine !== \"onisep\" ?", ": false ?"),
 ]
 
 
@@ -408,7 +422,7 @@ def n7(c: Ctx):
 
     def rebuilt(apply):
         """Build the reference with a seeded bug into a copy of the warehouse, then run the data checks on it."""
-        saved = {k: getattr(NM, k) for k in ("title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
+        saved = {k: getattr(NM, k) for k in ("TITLE_LINK_OVERRIDES", "title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
         tmp = Path(str(c.db) + ".mutant.duckdb")
         try:
             apply()
@@ -449,7 +463,7 @@ def n7(c: Ctx):
     def merged(jobs, own, usable, dares, app):
         rows, chk = orig_tl(jobs, own, usable, dares, {k: v | app.get(k, set()) for k, v in dares.items()} if False else app)
         extra, _ = orig_tl(jobs, own, usable, dares, {})
-        return sorted(set(rows) | {(m, r, "appellation_rome") for m, r, _ in extra}), chk
+        return sorted(set(rows) | {(m, r, "appellation_rome", None) for m, r, *_ in extra}), chk
 
     def hardcoded(con, mid, romes):
         out = orig_fm(con, mid, romes)
@@ -460,6 +474,7 @@ def n7(c: Ctx):
 
     data_mutants = [
         ("name link applied over an Onisep code", lambda: setattr(NM, "title_links", overrides)),
+        ("owner's homonym corrections ignored", lambda: setattr(NM, "TITLE_LINK_OVERRIDES", {})),
         ("ROME 4.0 codes without a Dares link kept", lambda: setattr(NM, "read_rome_appellations", lambda p, usable: orig_app(p, {
             f"{a}{b:02d}{c:02d}" for a in "ABCDEFGHIJKLMN" for b in range(10, 50) for c in range(1, 50)}))),
         ("both methods applied to one job", lambda: setattr(NM, "title_links", merged)),

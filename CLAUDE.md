@@ -192,6 +192,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Jobs without a usable Onisep ROME code are linked by NAME (Dares title, else France Travail appellation, only ROME codes
     the Dares tables know): the Onisep code always wins, one method per job, flagged "moins sûr" with the method's check
     (right code for n of N jobs whose Onisep code is known) measured at build, never hard-coded. Red team N8.
+  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None).
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**
