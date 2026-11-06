@@ -43,6 +43,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 ## Deploy
 - **Vercel** (FastAPI preset, root `suptracker`, entrypoint `suptracker.api:app`, slim `requirements.txt`).
   The production branch must be `main`.
+- **`.vercelignore` is read from the REPOSITORY root:** a pattern with an inner slash must start with `**/` (`data/sources/`
+  alone matched nothing and overflowed the 225 MB function limit); red team M7 simulates Vercel's reading.
 - **Live version check:** the footer and `GET /api/version` show the commit. Assets carry a
   `?v=<content hash>`.
 - **Analytics** use Upstash Redis (`KV_REST_API_URL` / `KV_REST_API_TOKEN`) plus

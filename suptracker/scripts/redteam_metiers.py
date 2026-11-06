@@ -322,8 +322,52 @@ def m6(c: Ctx):
     return ok and extra, d + f"; nav, analytics route, feature, method {extra}"
 
 
+def _ignore_rx(pattern: str) -> re.Pattern | None:
+    """One .vercelignore line as gitignore reads it. Vercel applies it to paths from the REPOSITORY root
+    (its build log lists "/suptracker/scripts/..."), so a pattern with an inner slash is anchored there."""
+    p = pattern.strip()
+    if not p or p.startswith(("#", "!")):
+        return None
+    p = p.rstrip("/")
+    anchored = "/" in p
+    p = p.lstrip("/")
+    rx = ""
+    i = 0
+    while i < len(p):
+        if p.startswith("**/", i):
+            rx += "(?:.*/)?"
+            i += 3
+        elif p.startswith("**", i):
+            rx += ".*"
+            i += 2
+        elif p[i] == "*":
+            rx += "[^/]*"
+            i += 1
+        elif p[i] == "?":
+            rx += "[^/]"
+            i += 1
+        else:
+            rx += re.escape(p[i])
+            i += 1
+    return re.compile(("^" if anchored else "^(?:.*/)?") + rx + "$")
+
+
+def vercel_ignored(path: str, text: str) -> bool:
+    """Whether Vercel drops `path` (from the repository root): the file or one of its folders matches a line."""
+    rxs = [r for r in (_ignore_rx(x) for x in text.splitlines()) if r]
+    parts = path.strip("/").split("/")
+    return any(r.match("/".join(parts[:k])) for r in rxs for k in range(1, len(parts) + 1))
+
+
+BUNDLE_OUT = ("data/sources", "data/probe")          # owner uploads and probes: never read when serving
+BUNDLE_IN = ("data/suptracker.duckdb", "suptracker/api.py", "suptracker/static/app.js", "requirements.txt")
+
+
 def deploy_ok(text: str) -> bool:
-    return any(line.strip().rstrip("/") == "data/sources" for line in text.splitlines())
+    """Every committed file of BUNDLE_OUT is dropped and the serving files are kept, read as Vercel reads it."""
+    base = ROOT.name
+    out = [f"{base}/{d}/{p.name}" for d in BUNDLE_OUT for p in (ROOT / d).glob("*") if p.is_file()]
+    return bool(out) and all(vercel_ignored(f, text) for f in out) and not any(vercel_ignored(f"{base}/{f}", text) for f in BUNDLE_IN)
 
 
 @check("M7 upkeep: data/sources stays out of the Vercel bundle; every committed source file is registered")
@@ -409,9 +453,13 @@ def m8(c: Ctx):
                 setattr(ON, k, v)
         if not caught:
             missed.append(name)
-    if deploy_ok("data/raw/\ntests/\n"):
-        missed.append("data/sources back in the Vercel bundle")
-    n = len(UI_MUTANTS) + (len(SEARCH_MUTANTS) if c.real and shutil.which("node") else 0) + len(mutants) + 1
+    vi = (ROOT / ".vercelignore").read_text()
+    for name, text in [("data/sources back in the Vercel bundle", vi.replace("**/data/sources/", "")),
+                       ("ignore rule anchored at suptracker/ (the PR #29 bundle overflow)", vi.replace("**/data/", "data/")),
+                       ("whole data folder ignored (warehouse dropped)", vi + "\n**/data/\n")]:
+        if deploy_ok(text):
+            missed.append(name)
+    n = len(UI_MUTANTS) + (len(SEARCH_MUTANTS) if c.real and shutil.which("node") else 0) + len(mutants) + 3
     return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
 
 
