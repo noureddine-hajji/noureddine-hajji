@@ -176,7 +176,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled, `pytest -n auto --dist loadfile`; every red team that
+  - CI: push on `main` only, branches through their PR, stale runs cancelled, 60-min limit (a run with the real-data red teams takes ~37 min), `pytest -n auto --dist loadfile`; every red team that
     calls `time.perf_counter()` (analytics, Plan B, search) runs in the serial step (red team S6 enforces it).
   - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
 - **Du métier aux formations (sprint 12).**
