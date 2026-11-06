@@ -25,7 +25,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Scale (sprint 10):** `cache.py` (one HTTP cache policy per route), `journey.public_stage2` (lighter answers), `scripts/monitor.py`.
   - **Du métier aux formations (sprint 12):** `metiers.py` (job catalogue searched in the browser, job page = the jobs card read backwards).
   - **Job reference (sprint 13):** `nomenclatures.py` (ROME → FAP-2021 / FAP-2009 → ISCO-08, official Dares and Insee tables, `core.nomen_*`).
-  - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page).
+  - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page); `bmo.py` (BMO 2026 hiring intentions, short-term context).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -200,6 +200,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - D0Z+D3Z and F0Z..F3Z are a CALCULATED group (domain minus published families), flagged; K0Z (craftsmen, in "Autres")
     gets no figure. Every family of the job is shown (qualification), none picked; never averaged over a diploma's jobs.
   - No figure beyond 2030: no official per-job projection exists for 2035 (a Cedefop ISCO forecast would need an upload).
+- **BMO 2026 (sprint 14 follow-up).**
+  - Employers' hiring INTENTIONS for one year, never offers, hires or a 2030 statement. Totals are re-summed from the basin
+    cells (masked "*" = 0), so they are FLOORS ("au moins"); a share is fragile when masked cells (each up to 4) could move it
+    by > 5 points. Linked through sprint 13's FAP-2021 families (228 parent). No 2025 comparison (2026 adds local committees,
+    more masking). The workbook's FAP → ISCO expert table and tension classes are not used.
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
 - **Mes vœux (sprint 11).**

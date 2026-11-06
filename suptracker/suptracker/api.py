@@ -267,6 +267,15 @@ METHODOLOGY = {
         "qualification du poste, chaque famille est montrée. Six familles d'ouvriers ne sont publiées qu'au sein de leur "
         "domaine : leur groupe est calculé (domaine moins familles publiées). C'est une projection sous hypothèses, pas une "
         "prévision ni une promesse. Aucune projection officielle par métier n'existe au-delà de 2030 : pas de chiffre pour 2035."),
+    "bmo_2026": (
+        "Les recrutements prévus en 2026 viennent de l'enquête Besoins en main-d'œuvre (BMO) de France Travail : chaque "
+        "année, les employeurs déclarent combien de recrutements ils envisagent, et lesquels ils pensent difficiles. Ce sont "
+        "des intentions, pas des offres d'emploi ni des embauches, pour une seule année : elles ne disent rien de l'emploi "
+        "en 2030. Les chiffres sont additionnés ici à partir des bassins d'emploi publiés ; France Travail masque les "
+        "valeurs inférieures à 5, comptées pour 0 : un total est donc un minimum (« au moins »). Une part (difficile, "
+        "saisonnière) est calculée sur les cases publiées ; quand les cases masquées pourraient la déplacer de plus de 5 "
+        "points, elle est signalée comme fragile. La famille vient des codes officiels du métier (FAP-2021) ; quand elle "
+        "dépend de la qualification du poste, chaque famille est montrée."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -862,7 +871,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026"]
 
 
 @lru_cache(maxsize=1)

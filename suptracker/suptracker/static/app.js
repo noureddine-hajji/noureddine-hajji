@@ -1405,10 +1405,35 @@ async function viewMetier(id, from = "") {
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
-    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${codesCard(d.codes)}`;
+    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${codesCard(d.codes)}`;
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Sprint 14 follow-up: les recrutements prévus en 2026 (enquête BMO de France Travail) -----
+// Employers' hiring INTENTIONS for one year: published cells summed (masked values below 5 count as 0, so totals are
+// floors: "au moins"); a share is flagged fragile when masked cells could move it by more than 5 points.
+function bmoCard(b) {
+  if (!b || !Array.isArray(b.familles) || !b.familles.length) return "";
+  const n = b.national || {};
+  const pct = (x) => (x === null || x === undefined ? "—" : `${fmt(x * 100)} %`);
+  const one = (f) => {
+    if (f.absent) return `<h3>${esc(f.code)}</h3><p class="small muted">Pas de chiffre BMO pour cette famille.</p>`;
+    // no 2025 comparison: in 2026 France Travail splits areas into local committees, so more cells are masked and
+    // the 2026 floors are lower for that reason alone (a drop would be partly an artefact)
+    return `<h3>${esc(f.code)} · ${esc(f.libelle || "")}</h3>
+      ${f.toutes_qualifications ? "" : `<p class="small muted">Une des familles possibles selon la qualification du poste.</p>`}
+      <div class="scroll"><table>
+        <tr><td>Recrutements envisagés en 2026, en France</td><td class="num">au moins ${fmt(f.projets)}</td></tr>
+        <tr><td>dont jugés difficiles par les employeurs</td><td class="num">${pct(f.part_difficile)}${f.fragile ? ' <span class="badge">fragile</span>' : ""} <span class="muted small">(tous métiers : ${pct(n.part_difficile)})</span></td></tr>
+        <tr><td>dont saisonniers</td><td class="num">${pct(f.part_saisonniere)} <span class="muted small">(tous métiers : ${pct(n.part_saisonniere)})</span></td></tr>
+      </table></div>`;
+  };
+  return `<div class="card"><h2>Les recrutements prévus en 2026</h2>
+    <p class="muted small">Intentions d'embauche déclarées par les employeurs pour cette année (enquête BMO) : ce ne sont ni des offres d'emploi ni des embauches, et cela ne dit rien de l'emploi en 2030. Les chiffres sont ceux de toute la famille de métiers.</p>
+    ${b.familles.map(one).join("")}
+    <p class="muted small">France Travail masque les valeurs inférieures à 5 : elles comptent pour 0, d'où « au moins ». Une part est « fragile » quand ces valeurs masquées pourraient la déplacer de plus de 5 points. Source : France Travail, enquête Besoins en main-d'œuvre 2026 et 2025, sommes des bassins d'emploi publiés. Licence Ouverte.</p></div>`;
 }
 
 // ---- Sprint 14: l'emploi du métier d'ici 2030 (Dares / France Stratégie) -----------

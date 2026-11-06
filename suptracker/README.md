@@ -712,6 +712,45 @@ Each row states its denominator. A BUT page explains why it has no figure.
 
 **UI check (Playwright):** BTS, licence, CPGE, BUT and an unknown-field BTS, in light, dark and mobile. 0 JS errors, no horizontal page scroll.
 
+## Hiring planned in 2026 (BMO, sprint 14 follow-up, job page)
+
+A second card, **"Les recrutements prévus en 2026"** (`suptracker/bmo.py`, table `core.bmo_metier`), gives the
+short-term context. It comes from France Travail's "Besoins en main-d'œuvre" survey: employers' declared hiring
+INTENTIONS for the year (not job offers, not hires), and how many they expect to be difficult. It says nothing
+about 2030.
+
+**What we checked first:**
+- **The data's finest level.** The owner's workbook keeps France Travail's open-data base at its finest level: job ×
+  employment area (× local committee in 2026), with "*" where a value below 5 is masked.
+- **Totals re-summed independently.** The France totals are re-summed here from those 53,786 cells, and equal the
+  workbook's own France sheet for all 217 jobs.
+- **Codes.** The jobs are FAP-2021 228 codes with the Dares labels, so a job reaches them through sprint 13's
+  FAP-2021 families.
+- **Masked cells.** 24 % of the 2026 project cells are masked and count as 0. Every total is therefore a floor
+  ("au moins"): 2.24 million published projects against about 2.3 million announced. In 2025 the published total
+  covers 98.7 % of France Travail's official figure.
+- **No 2025 comparison.** In 2026, areas are split into local committees, so more cells are masked and the floors fall
+  for that reason alone. A drop would be partly an artefact.
+
+**On the page:**
+- One row per FAP-228 family of the job (every family when it depends on the qualification).
+- Each row gives "au moins N" projects, the share expected to be difficult and the share seasonal, next to the all-jobs
+  shares (43 % and 32 %).
+- A share is flagged **fragile** when the masked cells could move it by more than 5 points, if each masked cell held
+  up to 4.
+- 878 of the 928 jobs with a usable ROME code get figures (94.6 %).
+
+**Red team** (`scripts/redteam_bmo.py`, run by `tests/test_bmo.py`): 7/7 checks and 12/12 mutants caught on real data.
+- **B1.** Sums re-derived with openpyxl from the basin cells; they equal both the stored table and the workbook's
+  France sheet.
+- **B2.** Consistency, codes and labels.
+- **B3.** Serving: families, shares, fragility, national reference.
+- **B4.** Coverage.
+- **B5.** The card is run with Node on hostile data: escaped, wording, floors, fragile badge, no 2025 comparison.
+- **B6.** Upkeep.
+- **B7.** Mutation test: masked cells counted as 5, 2025 served as 2026, wrong denominator, 341 code instead of its
+  228 parent, fragility never flagged, masking bound ignored, and 6 page mutants.
+
 ## Employment to 2030 (sprint 14, job page)
 
 The job page gets a card **"L'emploi dans ce métier d'ici 2030"** (`suptracker/emploi2030.py`, table
