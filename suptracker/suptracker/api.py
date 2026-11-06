@@ -284,9 +284,13 @@ METHODOLOGY = {
         "avec sa note moyenne publiée et son gradient, et la page donne l'écart entre le plus bas et le plus haut, jamais "
         "une moyenne. C'est un potentiel technique des tâches, pas une prévision de pertes d'emplois ni un risque pour "
         "toi : l'OIT souligne qu'un métier exposé est plus souvent transformé que remplacé. France Travail indique en plus "
-        "si la fiche ROME du métier est liée à la transition numérique. La complémentarité humaine (méthode du FMI) "
-        "n'est pas encore affichée : il manque une table officielle pour relier les métiers américains O*NET aux codes "
-        "ISCO."),
+        "si la fiche ROME du métier est liée à la transition numérique. La complémentarité humaine reprend la méthode du "
+        "FMI (Pizzinelli et al., 2023) sur les données américaines O*NET 31.0 : six traits du métier (communication, "
+        "responsabilité, conditions physiques, criticité des décisions, travail peu routinier, durée de formation), notés de "
+        "0 à 100 et moyennés à poids égaux, donnent une note de 0 à 1. C'est une estimation adaptée (fiabilité C), pas le "
+        "score publié par le FMI : O*NET a depuis fusionné deux niveaux de formation. Elle rejoint les codes ISCO par les "
+        "tables officielles O*NET et BLS ; chaque code montre l'écart entre ses professions américaines, jamais une "
+        "moyenne, et elle n'est jamais combinée avec la note de l'OIT."),
     "voeux": (
         "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "

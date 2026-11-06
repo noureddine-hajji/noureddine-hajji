@@ -26,7 +26,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Du métier aux formations (sprint 12):** `metiers.py` (job catalogue searched in the browser, job page = the jobs card read backwards).
   - **Job reference (sprint 13):** `nomenclatures.py` (ROME → FAP-2021 / FAP-2009 → ISCO-08, official Dares and Insee tables, `core.nomen_*`).
   - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page); `bmo.py` (BMO 2026 hiring intentions, short-term context).
-  - **AI and tasks (sprint 15, first part):** `ia_exposition.py` (ILO 2025 generative-AI exposure per ISCO-08 unit group, France Travail "transition numérique" tag, job page).
+  - **AI and tasks (sprint 15):** `ia_exposition.py` (ILO 2025 generative-AI exposure per ISCO-08 unit group, France Travail "transition numérique" tag, IMF human complementarity θ rebuilt from O*NET, job page).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -206,14 +206,18 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     cells (masked "*" = 0), so they are FLOORS ("au moins"); a share is fragile when masked cells (each up to 4) could move it
     by > 5 points. Linked through sprint 13's FAP-2021 families (228 parent). No 2025 comparison (2026 adds local committees,
     more masking). The workbook's FAP → ISCO expert table and tension classes are not used.
-- **AI exposure (sprint 15, first part).**
+- **AI exposure (sprint 15).**
   - ILO 2025 (Gmyrek et al., CC BY 4.0): the PUBLISHED mean, sd and class per ISCO-08 unit group are served as they are; the red
     team re-derives the task means (known upstream inconsistency: 7126 only). The class also uses the spread: never re-cut it from the mean.
   - Reached through sprint 13's 4-digit ISCO codes only (partial 21xx codes get no score); every code shown with its titles count;
     the RANGE of the means, never an average, never a composite with sprint 14/BMO figures. A technical potential of TASKS, never
     a forecast of job losses, a risk for the student or a chance.
   - France Travail's "Transition numérique" tag per ROME sheet as a fact (Oui / Non / not assessed); never the ecological column.
-  - θ (IMF complementarity) is NOT served until the official O*NET-SOC 2019 -> SOC 2010 crosswalk is deposited; Felten AIOE is still missing.
+  - θ (IMF complementarity, `theta_onet31_adapte`): O*NET 31.0, 11 CX elements -> 0-100, automation reversed, 6 dimensions at equal
+    weight, Job Zone x 20 (4 groups, codes 2-5); always "estimation adaptée", reliability C, never the IMF 2023 score. A suppressed or
+    missing element = no θ. ISCO only through official tables (O*NET 2019 -> SOC 2018 -> BLS SOC 2010 -> BLS ISCO-08, 4 digits only),
+    never by matching codes; per ISCO code the RANGE over its US occupations and their count, never an average, never combined with ILO.
+  - C-AIOE is NOT computed: the Felten AIOE appendix is centred-reduced (negative values); needs a validated positive scale first.
 
 - **Sources committed for later sprints.** Status `depose` (owner_upload, `sprint` and `role` required): a file in data/sources is
   registered before any code uses it; processed workbooks (composite indices, expert crosswalks) are `contrôle croisé` only.
@@ -261,7 +265,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - release guards (versioned assets, `/api/version`).
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
-  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; sprint 15 first part (ILO + France Travail tag) done, θ awaits the O*NET crosswalk.
+  - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; sprint 15 done (ILO, France Travail tag, θ; C-AIOE awaits a positive AIOE scale).
 - **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 6 hours).
 - **Horizon 2030 plan (agreed):** sprint 13 job reference (ROME → FAP 2009 / FAP 2021 → PCS → ISCO-08, official DARES and Insee
   tables), 14 employment to 2030 (DARES Métiers 2030, scenarios as ranges), 15 AI task exposure (OIT 2025 + France Travail tags +
