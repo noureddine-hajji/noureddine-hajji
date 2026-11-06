@@ -36,6 +36,7 @@ FEATURE_ENTRY_POINTS = {
     "referentiel_metiers": ("app.js", "function codesCard("),
     "emploi_2030": ("app.js", "function emploi2030Card("),
     "bmo_2026": ("app.js", "function bmoCard("),
+    "ia_exposition": ("app.js", "function iaCard("),
 }
 
 
@@ -52,7 +53,7 @@ def test_every_feature_is_wired():
     assert 'if (a === "voeux") return await viewVoeux()' in js and "${voeuButton(r.cod_aff_form)}" in js
     assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'href="#/metiers"' in (STATIC / "index.html").read_text()
     assert 'if (a === "metiers") return await viewMetiers(' in js
-    assert "${codesCard(d.codes)}" in js and "${emploi2030Card(d.emploi2030)}" in js and "${bmoCard(d.bmo)}" in js
+    assert "${codesCard(d.codes)}" in js and "${emploi2030Card(d.emploi2030)}" in js and "${bmoCard(d.bmo)}" in js and "${iaCard(d.ia)}" in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()
 
 

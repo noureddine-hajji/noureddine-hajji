@@ -19,6 +19,7 @@ import re
 
 from . import bmo as BMO
 from . import emploi2030 as E30
+from . import ia_exposition as IA
 from . import nomenclatures as NM
 from . import onisep as ON
 from .search import clean_complement, fold
@@ -93,5 +94,6 @@ def detail(con, met_id: str) -> dict | None:
             "codes": (codes := NM.for_metier(con, mid, romes)),
             "emploi2030": E30.for_codes(con, codes),
             "bmo": BMO.for_codes(con, codes),
+            "ia": IA.for_codes(con, codes),
             "status": "ok" if n_form else "hors_parcoursup" if dips else "sans_diplome",
             "n_formations": n_form, "diplomes": dips}

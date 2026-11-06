@@ -1405,10 +1405,36 @@ async function viewMetier(id, from = "") {
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p></div>
-    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${codesCard(d.codes)}`;
+    ${status}${d.diplomes.map(dip).join("")}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`;
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----
+// Published ILO exposure per ISCO code (gradient and mean task score), every code of the job shown with its title count;
+// the RANGE of the means, never an average, never combined with the 2030 figures; a potential of tasks, not job losses.
+const IA_GRADIENT = {
+  "Not Exposed": "non exposé", "Minimal Exposure": "exposition minimale",
+  "Exposed: Gradient 1": "exposé, gradient 1 sur 4", "Exposed: Gradient 2": "exposé, gradient 2 sur 4",
+  "Exposed: Gradient 3": "exposé, gradient 3 sur 4", "Exposed: Gradient 4": "exposé, gradient 4 sur 4",
+};
+function iaCard(ia) {
+  if (!ia || ((!ia.isco || !ia.isco.length) && (!ia.tags || !ia.tags.length))) return "";
+  const score = (x) => (x === null || x === undefined ? "—" : Number(x).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const rows = (ia.isco || []).map((i) => `<tr><td>${esc(i.code)}</td><td>${esc(i.libelle || "")}<div class="muted small">${fmt(i.n_intitules)} intitulé${i.n_intitules > 1 ? "s" : ""} de profession</div></td>
+      <td>${i.gradient ? esc(IA_GRADIENT[i.gradient] || i.gradient) : '<span class="muted">pas de note OIT</span>'}</td><td class="num">${score(i.score)}</td></tr>`).join("");
+  const range = ia.min === null || ia.min === undefined ? ""
+    : ia.min === ia.max ? `<p class="small">Note moyenne des tâches : ${score(ia.min)} sur 1.</p>`
+    : `<p class="small">Selon le code ISCO, la note moyenne des tâches va de ${score(ia.min)} à ${score(ia.max)} sur 1.</p>`;
+  const tagText = { Oui: "liée à la transition numérique", Non: "non liée à la transition numérique" };
+  const tags = (ia.tags || []).length ? `<p class="small">France Travail : ${ia.tags.map((t) => `fiche ROME ${esc(t.rome)} ${t.transition_numerique ? esc(tagText[t.transition_numerique] || "") : "non renseignée pour la transition numérique"}`).join(" ; ")}.</p>` : "";
+  return `<div class="card"><h2>L'IA générative et les tâches de ce métier</h2>
+    <p class="muted small">L'OIT a noté chaque tâche des métiers de la classification internationale ISCO-08 selon la part que l'IA générative pourrait en faire. C'est un potentiel technique des tâches, pas une prévision de pertes d'emplois ni un risque pour toi : un métier exposé est plus souvent transformé que remplacé.</p>
+    ${range}
+    ${rows ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th>Classement OIT</th><th class="num">Note moyenne des tâches</th></tr>${rows}</table></div>` : ""}
+    ${tags}
+    <p class="muted small">Le classement de l'OIT tient compte de la note moyenne et de l'écart entre les tâches : deux notes proches peuvent avoir deux classements différents. Les codes ISCO viennent des intitulés de profession (voir les codes officiels plus bas) ; on ne fait pas la moyenne entre eux. La complémentarité humaine (méthode du FMI) n'est pas encore affichée. Sources : OIT, Gmyrek, Berg et al. (2025), « Generative AI and Jobs: A Refined Global Index of Occupational Exposure », CC BY 4.0 ; France Travail, étiquettes des fiches ROME (octobre 2026).</p></div>`;
 }
 
 // ---- Sprint 14 follow-up: les recrutements prévus en 2026 (enquête BMO de France Travail) -----
