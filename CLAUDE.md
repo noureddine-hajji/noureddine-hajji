@@ -261,6 +261,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
   `<details class="dip">`. A new card goes in a tab, never above the summary. Red team X9-X13 (+ X7 page lengths).
+- **Working pages (lot 3).** Mes vœux opens on `zoneTiles` (zone tokens, counts, never a chance); Mon parcours folds a stored
+  profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
+  (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide);
+  the comparator is `table.cmp` (sticky label column). Red team X14-X15.
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 
