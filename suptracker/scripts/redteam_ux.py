@@ -13,6 +13,15 @@
   X7 browser (--browser, needs node + playwright and a running warehouse): phone screens measured: 0 JS errors, no horizontal
      scroll, every control >= 44 px, the first search result on the first screen, no column name in the visible text
   X8 mutation test
+  Lot 2 (Claude design guidelines):
+  X9 design tokens: five font sizes and three radii, every size and radius in the stylesheet goes through them (chart marks
+     of 2 px excepted), zone colours are their own tokens in every theme and differ from the accent, reduced motion honoured
+  X10 fonts self-hosted: no request to a font host (Google Fonts or other), every @font-face file is shipped with its licence
+  X11 no emoji used as a marker in what a student reads: drawn SVG icons instead (home doors, offer options)
+  X12 summary first: the formation page opens on one summary card (official access rate, the zone from the same Plan B answer,
+      admits, jobs; "pas des chances"), then tabs named after the student's questions; the job page folds its diplomas;
+      tabs have aria roles and only the open panel shows; every value escaped
+  X13 mutation test of X9-X12
 """
 from __future__ import annotations
 
@@ -32,7 +41,7 @@ STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
 
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi|tien|tienne|tiens)\b|\b[Tt]'a\b")      # tutoiement (the owner keeps "vous")
-IMPERATIVES = re.compile(r"\b(?:Tape|Essaie|Réessaie|Clique|Choisis|Ajoute|Vérifie|Regarde|Coche|Retire|Utilise|Trouve|Renseigne)\b|"
+IMPERATIVES = re.compile(r"\b(?:Tape|Cherche|Essaie|Réessaie|Clique|Choisis|Ajoute|Vérifie|Regarde|Coche|Retire|Utilise|Trouve|Renseigne)\b|"
                          r"\b(?:vois les|vois où|retire le|retire un|ajoute des|ajoute au moins|vérifie la|vérifie-les|regarde les|"
                          r"regarde leur|coche «|utilise la|tape ce)\b")
 PY_TEXT = ["api.py", "glossary.py", "planb.py", "search.py", "journey.py", "voeux.py", "metiers.py", "licence_master.py",
@@ -201,6 +210,7 @@ def x5(c: Ctx):
 def home_ui(js: str) -> tuple[bool, str]:
     blk = block(js, "// ---- lot 1 UI: the home page opens on three doors")
     prog = helpers(js) + """
+const ICONS = new Proxy({}, { get: () => "<svg></svg>" });
 const store = {}; const voeux = { get: () => JSON.parse(require('fs').readFileSync(0, 'utf8')) };
 const $view = { innerHTML: "", dataset: {} };
 const document = { getElementById: () => null };
@@ -248,6 +258,21 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
                  bar: getComputedStyle(document.querySelector(".tabbar")).display };
       }, fields);
     }
+    // lot 2: the formation page and the job page open on their summary, and stay short (tabs, folded diplomas)
+    await p.goto(base + "/#/s/informatique"); await p.waitForTimeout(2000);
+    const href = await p.evaluate(() => { const a = document.querySelector(".result a[href^='#/f/']"); return a && a.getAttribute("href"); });
+    const job = await p.evaluate(async () => { const c = await (await fetch("/api/metiers")).json(); const r = c.rows.find((x) => x[4] > 20); return r && r[0]; });
+    for (const [k, h] of [["formation", href], ["metier", job && "#/metiers/" + job]]) {
+      if (!h) { out[mode + " " + k] = { missing: true }; continue; }
+      await p.goto(base + "/" + h); await p.waitForTimeout(3000);
+      out[mode + " " + k] = await p.evaluate(() => {
+        const s = document.querySelector(".summary");
+        return { hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth, small: 0, shown: [], first: null,
+                 bar: getComputedStyle(document.querySelector(".tabbar")).display,
+                 summary: !!s && s.getBoundingClientRect().top < innerHeight * 0.9,
+                 screens: document.documentElement.scrollHeight / innerHeight };
+      });
+    }
     await ctx.close();
   }
   process.stdout.write(JSON.stringify({ errs, out })); await b.close();
@@ -255,7 +280,8 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
 """
 
 
-@check("X7 browser: phone screens measured (0 JS errors, no horizontal scroll, controls >= 44 px, first result on screen, no column name)")
+@check("X7 browser: phone screens measured (0 JS errors, no horizontal scroll, controls >= 44 px, first result on screen, no column name, "
+       "formation and job pages open on their summary and stay short)")
 def x7(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser)"
@@ -281,7 +307,9 @@ def x7(c: Ctx):
     if r.returncode:
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
-    bad = {k: v for k, v in d["out"].items() if v["hscroll"] or v["small"] or v["shown"] or v["bar"] != "flex" or v["first"] is False}
+    limit = {"formation": 14, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72)
+    bad = {k: v for k, v in d["out"].items() if v.get("missing") or v["hscroll"] or v["small"] or v["shown"] or v["bar"] != "flex"
+           or v["first"] is False or ("summary" in v and (not v["summary"] or v["screens"] > limit[k.split()[-1]]))}
     ok = not d["errs"] and not bad and d["out"]
     return ok, f"{len(d['out'])} phone screens; JS errors {d['errs'][:2]}; problems {dict(list(bad.items())[:3])}"
 
@@ -325,6 +353,186 @@ def x8(c: Ctx):
     if x1(m)[0]:
         missed.append("tutoiement in a method text")
     n = len(UI_MUTANTS) + 2
+    return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
+
+
+# ------------------------------------------------------------------ lot 2: Claude design guidelines
+def root_block(css: str) -> str:
+    return "\n".join(re.findall(r"(?m)^:root \{(.*?)^\}", css, re.S))   # every bare :root block (sizes, then palette)
+
+
+def dark_blocks(css: str) -> list[str]:
+    a = re.search(r"@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme=\"light\"\]\) \{(.*?)\}", css, re.S)
+    b = re.search(r":root\[data-theme=\"dark\"\] \{(.*?)\}", css, re.S)
+    return [x.group(1) if x else "" for x in (a, b)]
+
+
+def tokens_ok(css: str, js: str) -> tuple[bool, str]:
+    body = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    root = root_block(body)
+    fs = dict(re.findall(r"--fs-(\w+):\s*(\d+)px", root))
+    radii = dict(re.findall(r"--r-(\w+):\s*(\d+)px", root))
+    sizes = re.findall(r"font-size:\s*([^;}]+)", body)
+    raw_sizes = [s for s in sizes if not re.fullmatch(r"var\(--fs-(xs|sm|md|lg|xl)\)|inherit|\d*\.?\d+em|100%", s.strip())]
+    short = re.findall(r"(?<![-\w])font:\s*([^;}]+)", body)
+    raw_short = [s for s in short if not re.search(r"var\(--fs-\w+\)", s) and s.strip() not in ("inherit",)]
+    rads = re.findall(r"border-radius:\s*([^;}]+)", body)
+    raw_rads = [r for r in rads if not re.fullmatch(r"var\(--r-(sm|md|pill)\)|0|50%|2px", r.strip())
+                and not re.fullmatch(r"(?:0|[24]px)(?: (?:0|[24]px)){1,3}|4px", r.strip())]   # chart marks: 2-4 px corners
+    zones = ("securite", "cible", "ambitieux")
+    themes = [root] + dark_blocks(body)
+    zone_ok = all(all(re.search(rf"--zone-{z}:\s*#[0-9a-fA-F]{{3,6}}", th) for z in zones) for th in themes)
+    distinct = all(len({(re.search(rf"--{k}:\s*(#[0-9a-fA-F]+)", th) or re.search("(?!)", "")).group(1).lower()
+                        if re.search(rf"--{k}:\s*(#[0-9a-fA-F]+)", th) else k for k in ("accent", *[f"zone-{z}" for z in zones])}) == 4
+                   for th in themes)
+    js_zones = all(f'color: "var(--zone-{z})"' in js for z in zones)
+    motion = bool(re.search(r"@media \(prefers-reduced-motion: reduce\) \{[^@]*animation-duration[^@]*transition-duration", body))
+    ok = (set(fs) == {"xs", "sm", "md", "lg", "xl"} and set(radii) == {"sm", "md", "pill"} and not raw_sizes and not raw_short
+          and not raw_rads and zone_ok and distinct and js_zones and motion)
+    return ok, (f"sizes {sorted(fs)}; radii {sorted(radii)}; raw sizes {raw_sizes[:3]}; raw font shorthands {raw_short[:2]}; "
+                f"raw radii {raw_rads[:3]}; zone tokens in 3 themes {zone_ok}; distinct from accent {distinct}; JS zones {js_zones}; "
+                f"reduced motion {motion}")
+
+
+@check("X9 design tokens: five sizes, three radii, semantic zone colours apart from the accent in every theme, reduced motion")
+def x9(c: Ctx):
+    return tokens_ok(c.css, c.js)
+
+
+FONT_HOSTS = re.compile(r"fonts\.googleapis|fonts\.gstatic|use\.typekit|fonts\.bunny|fontshare|@import\s+url\(\s*['\"]?https?:", re.I)
+
+
+def fonts_ok(css: str, html: str, js: str) -> tuple[bool, str]:
+    remote = [m.group(0) for src in (css, html, js) for m in FONT_HOSTS.finditer(src)]
+    faces = re.findall(r"@font-face\s*\{(.*?)\}", css, re.S)
+    urls = [u for f in faces for u in re.findall(r"url\(\"?([^\")]+)\"?\)", f)]
+    offsite = [u for u in urls if not u.startswith("/static/fonts/")]
+    missing = [u for u in urls if u.startswith("/static/fonts/") and not (STATIC / u[len("/static/"):]).is_file()]
+    fams = {re.search(r"font-family:\s*\"([^\"]+)\"", f).group(1) for f in faces if re.search(r"font-family:\s*\"([^\"]+)\"", f)}
+    lic = {p.name.lower() for p in (STATIC / "fonts").glob("LICENSE-*")} if (STATIC / "fonts").is_dir() else set()
+    no_lic = [f for f in fams if f"license-{f.lower().replace(' ', '-')}.txt" not in lic]
+    used = all(f'"{f}"' in root_block(css) for f in fams)
+    ok = faces and not remote and not offsite and not missing and not no_lic and used
+    return bool(ok), f"{len(faces)} faces {sorted(fams)}; remote font hosts {remote[:2]}; off-site {offsite}; missing {missing}; no licence {no_lic}; in tokens {used}"
+
+
+@check("X10 fonts self-hosted: no font host contacted, every face shipped with its licence")
+def x10(c: Ctx):
+    return fonts_ok(c.css, c.html, c.js)
+
+
+EMOJI = re.compile("[\U0001F000-\U0001FAFF️⭐✅❌✨]")
+
+
+def icons_ok(js: str, html: str) -> tuple[bool, str]:
+    found = sorted({m.group(0) for src in (js, html) for m in EMOJI.finditer(src)})
+    m = re.search(r"const OPT_ICON = \{(.*?)\};", js)
+    opt = bool(m) and all(f"{k}: ICONS.{k}" in m.group(1) for k in ("internat", "apprentissage", "distance", "sport", "art"))
+    doors = all(f"${{ICONS.{k}}}" in js for k in ("search", "job", "compass"))
+    hidden = 'aria-hidden="true"' in (re.search(r"const ICO = .*", js) or re.search("(?!)", "") or [""])[0] if re.search(r"const ICO = .*", js) else False
+    ok = not found and opt and doors and hidden
+    return ok, f"emoji {found}; options drawn {opt}; doors drawn {doors}; icons hidden from screen readers {hidden}"
+
+
+@check("X11 no emoji as a marker: drawn SVG icons (doors, offer options), hidden from screen readers")
+def x11(c: Ctx):
+    return icons_ok(c.js, c.html)
+
+
+def summary_ui(js: str) -> tuple[bool, str]:
+    blk = block(js, "// ---- lot 2 (Claude design guidelines)")
+    prog = helpers(js) + """
+const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+let PROFILE = null;
+const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
+const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--line)" } };
+const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
+""" + blk + """
+const out = {};
+out.noProfile = summaryBand(P.r, P.d);
+PROFILE = { serie: "bg" };
+out.profile = summaryBand(P.r, P.d);
+const v = { innerHTML: "" }, n = { textContent: "" };
+els["sum-zone"] = { querySelector: (s) => (s === ".sum-value" ? v : n) };
+fillZoneTile({ zone: "cible" }); out.pill = v.innerHTML;
+fillZoneTile({ zone: "indetermine", uncertain: true }); out.pill2 = v.innerHTML; out.note2 = n.textContent;
+out.tabs = tabbed("fiche", [["a", "Y entrer", "<div class='card'>A</div>"], ["b", "Vide", "  "], ["c", "Historique", "<div class='card'>C</div>"]]);
+out.planbOnly = tabbed("x", [["a", "Y entrer", '<div id="planb"></div>'], ["b", "B", "<p>b</p>"]]);
+process.stdout.write(JSON.stringify(out));"""
+    payload = {"r": {"session": 2025, "taux_acces_ens": 43, "acc_tot": 319, "capa_fin": 320},
+               "d": {"metiers": {"status": "ok", "metiers": [{"nom": "<img src=x onerror=alert(1)>"}, {}, {}]}}}
+    r = node_run(prog, payload)
+    if r is None:
+        return True, "node not installed"
+    if r.startswith("__error__"):
+        return False, r
+    o = json.loads(r)
+    tiles = len(re.findall(r'class="sum-tile"', o["profile"]))   # 4 with a profile (the zone tile waits for Plan B)
+    words = all(w in o["profile"] for w in ("Taux d'accès 2025", "Votre zone", "Admis 2025", "Métiers visés", "pas des chances d'admission"))
+    figures = all(w in o["profile"] for w in ("43", "319", "pour 320 places", ">3<"))
+    zone_slot = 'id="sum-zone"' in o["profile"] and 'href="#/parcours"' in o["noProfile"] and 'id="sum-zone"' not in o["noProfile"]
+    pill = 'class="zone-pill" style="background:var(--zone-cible)"' in o["pill"] and ">cible<" in o["pill"]
+    neutral = "color:var(--ink)" in o["pill2"] and "incertaine" in o["note2"]
+    tabs = o["tabs"]
+    roles = tabs.count('role="tab"') == 2 and tabs.count('role="tabpanel"') == 2 and "Vide" not in tabs
+    first_open = re.search(r'id="panel-fiche-a"[^>]*>', tabs) and " hidden" not in re.search(r'id="panel-fiche-a"[^>]*>', tabs).group(0) \
+        and re.search(r'id="panel-fiche-c"[^>]*hidden', tabs) is not None and 'aria-selected="true"' in tabs.split("</button>")[0]
+    planb = 'role="tab"' in o["planbOnly"] and o["planbOnly"].count('role="tab"') == 2
+    vf = js[js.index("async function viewFormation("):js.index("// ---- Plan B: same programme elsewhere")]
+    order = vf.index("${summaryBand(r, d)}") < vf.index("${tabbed(\"fiche\"") < vf.index("Indicateurs officiels SIES") if all(
+        s in vf for s in ("${summaryBand(r, d)}", "${tabbed(\"fiche\"", "Indicateurs officiels SIES")) else False
+    groups = all(f'["{k}", "' in vf for k in ("admission", "reussite", "emploi", "historique")) and 'bindTabs("fiche");' in vf
+    fill = "if (!opts.inline && p) fillZoneTile(d.target);" in js
+    vm = js[js.index("async function viewMetier("):js.index("// ---- Sprint 15")]
+    job = ('<details class="dip"${open ? " open" : ""}>' in vm and "const open = !!mine.length" in vm and 'bindTabs("metier");' in vm
+           and "${summary}${tabbed(\"metier\"" in vm and "${esc(x.libelle)}" in vm)
+    ok = (tiles == 4 and words and figures and zone_slot and pill and neutral and roles and bool(first_open) and planb and order
+          and groups and fill and job)
+    return ok, (f"tiles {tiles}/4; wording {words}; figures {figures}; zone slot {zone_slot}; pill {pill}; neutral zone {neutral}; "
+                f"tabs {roles}; first open {bool(first_open)}; Plan B slot keeps its tab {planb}; summary before tabs {order}; groups {groups}; "
+                f"zone filled by Plan B {fill}; job page folded {job}")
+
+
+@check("X12 summary first, then tabs: formation page summary (4 tiles, zone from Plan B), aria tabs, job page folded by diploma")
+def x12(c: Ctx):
+    return summary_ui(c.js)
+
+
+DESIGN_MUTANTS = [
+    ("a raw font size", ".sum-value { font-size: var(--fs-xl);", ".sum-value { font-size: 30px;", ("css", (x9,))),
+    ("a raw radius", "details.dip { border-bottom", ".summary { border-radius: 14px; }\ndetails.dip { border-bottom", ("css", (x9,))),
+    ("zone colour = accent", 'cible: { label: "Vœu cible", color: "var(--zone-cible)" }', 'cible: { label: "Vœu cible", color: "var(--accent)" }', ("js", (x9,))),
+    ("reduced motion dropped", "@media (prefers-reduced-motion: reduce) {", "@media (min-width: 9999px) {", ("css", (x9,))),
+    ("Google Fonts back", "<head>", '<head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">', ("html", (x10,))),
+    ("font file not shipped", "figtree-latin-wght-normal.woff2", "figtree-latin-400.woff2", ("css", (x10,))),
+    ("emoji marker back", "internat: ICONS.internat,", 'internat: "🛏️",', ("js", (x11,))),
+    ("summary after the tabs", "  ${summaryBand(r, d)}\n  ${tabbed(\"fiche\", [", "  ${tabbed(\"fiche\", [", ("js", (x12,))),
+    ("caveat dropped from the summary", "Des résultats des campagnes passées, pas des chances d'admission.", "Des résultats des campagnes passées.", ("js", (x12,))),
+    ("zone pill unescaped", "${esc(z.label.replace(/^Vœu /, \"\"))}", "${z.label}", ("js", (x12,))),
+    ("empty tab kept", 'const kept = groups.filter(([, , html]) => html.replace(/<div id="planb"><\\/div>/, "x").trim());', "const kept = groups;", ("js", (x12,))),
+    ("every panel shown", '${n ? " hidden" : ""}>${html}</div>', ">${html}</div>", ("js", (x12,))),
+    ("job diplomas unfolded", '<details class="dip"${open ? " open" : ""}>', '<details class="dip" open>', ("js", (x12,))),
+]
+
+
+@check("X13 mutation test: raw sizes or radii, zone colours, motion, font hosts, emoji, summary and tab bugs are each caught")
+def x13(c: Ctx):
+    missed = []
+    for name, old, new, (where, fns) in DESIGN_MUTANTS:
+        src = {"js": c.js, "html": c.html, "css": c.css}[where]
+        if old not in src:
+            missed.append(f"{name} (anchor gone)")
+            continue
+        m = Ctx.__new__(Ctx)
+        m.__dict__.update(c.__dict__)
+        setattr(m, where, src.replace(old, new, 1))
+        try:
+            caught = any(not fn(m)[0] for fn in fns)
+        except Exception:  # noqa: BLE001  (a crash counts as caught only if the check itself is sound: it is reported)
+            caught = True
+        if not caught:
+            missed.append(name)
+    n = len(DESIGN_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 
 

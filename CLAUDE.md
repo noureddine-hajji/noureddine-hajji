@@ -256,6 +256,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
   "Filtrer" on a phone; home = three doors. Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
+- **Design (lot 2, Claude design guidelines).** Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
+  colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
+  no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
+  highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
+  `<details class="dip">`. A new card goes in a tab, never above the summary. Red team X9-X13 (+ X7 page lengths).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 
