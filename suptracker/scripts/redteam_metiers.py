@@ -389,7 +389,7 @@ UI_MUTANTS = [
     ("external link without noopener", '<h2><a href="${esc(x.url)}" target="_blank" rel="noopener">', '<h2><a href="${esc(x.url)}" target="_blank">'),
     ("national-list caveat dropped", "Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. ", ""),
     ("ranking caveat dropped", "Les formations sont rangées par académie et par ville, pas par chances d'admission.", ""),
-    ("privacy note dropped", "La recherche se fait dans ton navigateur : ce que tu tapes n'est pas envoyé au site. ", ""),
+    ("privacy note dropped", "La recherche se fait dans votre navigateur : ce que vous tapez n'est pas envoyé au site. ", ""),
     ("navigation race unguarded", "if ($view.dataset.rendered !== marker) return;", ""),
     ("stored query read unguarded", 'try { q0 = sessionStorage.getItem("metierQ") || ""; } catch (_) { /* storage blocked: start empty (Codex) */ }', 'q0 = sessionStorage.getItem("metierQ") || "";'),
     ("catalogue load race unguarded", 'if ($view.dataset.rendered !== "metiers:loading") return;', ""),

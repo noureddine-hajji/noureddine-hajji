@@ -156,3 +156,66 @@ input.wide { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1p
   table.lm td { border: 0; padding: 2px 0; text-align: left; }
   table.lm td[data-label]::before { content: attr(data-label) " : "; color: var(--muted); font-size: 12px; }
 }
+
+/* ---- lot 1 UI (audience 16-20 ans, téléphone d'abord) ---- */
+.hero { padding: 8px 2px 4px; }
+.hero h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; }
+.hero p { margin: 0 0 14px; color: var(--muted); font-size: 16px; }
+.doors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.door { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 16px; min-height: 120px; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--surface); color: var(--ink); text-decoration: none; font: inherit; cursor: pointer; }
+.door:hover, .door:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--range); }
+.door strong { font-size: 17px; }
+.door span:not(.door-ico) { color: var(--muted); font-size: 14px; }
+.door-ico { font-size: 26px; line-height: 1; }
+details.filters { margin: 6px 0 10px; }
+details.filters > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line);
+  border-radius: 22px; cursor: pointer; font-weight: 600; list-style: none; }
+details.filters > summary::-webkit-details-marker { display: none; }
+details.filters > summary::before { content: "⚙"; margin-right: 8px; }
+details.filters[open] > summary { margin-bottom: 8px; }
+.tabbar, .more-menu { display: none; }
+a[aria-current="page"] { font-weight: 700; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  body { font-size: 16px; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .top { padding: 10px 16px; }
+  .topnav { display: none; }
+  .brand span { display: block; font-size: 12px; }
+  .doors { grid-template-columns: 1fr; }
+  .door { min-height: 0; }
+  .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--surface); border-top: 1px solid var(--line);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); justify-content: space-around; }
+  .tabbar a, .tabbar button { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 56px; padding: 4px 2px; border: 0; border-radius: 10px; background: none; color: var(--muted); font-size: 11px; text-decoration: none; }
+  .tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tabbar a[aria-current="page"], .tabbar button.current, .tabbar button[aria-expanded="true"] { color: var(--accent); font-weight: 700; }
+  .tabbar .pill { position: absolute; top: 2px; left: 55%; font-size: 10px; min-width: 16px; padding: 0 4px; }
+  .more-menu:not([hidden]) { display: flex; flex-direction: column; position: fixed; right: 8px; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 51;
+    min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .more-menu a { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; color: var(--ink); }
+  .more-menu a[aria-current="page"] { color: var(--accent); }
+  /* every control a thumb can hit: at least 44 px high (Apple / WCAG 2.5.5) */
+  button, select, .search input, .search button, summary, a.badge, .toolbar a, input[type="search"], input[type="text"] { min-height: 44px; }
+  a.badge, .toolbar a { display: inline-flex; align-items: center; padding: 0 14px; }
+  label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; min-height: 44px; }
+  input[type="checkbox"] { width: 22px; height: 22px; }
+  footer { margin-bottom: 16px; }
+}
+@media (max-width: 720px) {
+  /* the "i" buttons keep their small look; an invisible 46 px zone around them takes the tap */
+  .tip { min-height: 0; }
+  .tip::before { content: ""; position: absolute; inset: -14px; }
+}
+@media (max-width: 720px) {
+  .tabbar a, .tabbar button { white-space: nowrap; }
+  .tabbar .pill[hidden] { display: none; }
+  /* the three doors fit on the first screen: icon on the left, text on the right */
+  .door { display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; row-gap: 2px; padding: 12px 14px; align-items: center; }
+  .door .door-ico { grid-row: span 2; font-size: 24px; }
+  .door strong { font-size: 16px; }
+  .door span:not(.door-ico) { font-size: 13.5px; }
+  .hero h1 { font-size: 23px; }
+  .hero p { font-size: 15px; margin-bottom: 10px; }
+}

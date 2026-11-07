@@ -13,7 +13,9 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 60, not 40: since sprints 15-16 the red teams also run on the real warehouse with their mutants (θ, per-job axes);
+    # PR #32's run took 37 min against the 40-min limit
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: suptracker

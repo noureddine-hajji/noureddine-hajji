@@ -283,7 +283,7 @@ def ui(js: str) -> tuple[bool, str]:
                                     "tous moins exposés", "complémentarité humaine plus haute", "1 où les débutants ne suffiraient pas",
                                     "1 incertains", "promotions regroupées", "orthographe différente", "Débouchés directs de cette licence",
                                     "MonMaster 2025", "promotion 2023", "taux non publié", 'data-label="Admis"'))
-    banned = [w for w in ("probabilit", "tes chances", "garanti", "moyenne des métiers", "score global") if w in flat.lower()]
+    banned = [w for w in ("probabilit", "tes chances", "vos chances", "garanti", "moyenne des métiers", "score global") if w in flat.lower()]
     ok = wired and not leaks and words and not banned and none == ""
     return ok, f"raw tags {leaks[:3]}; wording and figures {words}; banned {banned}; wired {wired}"
 
@@ -310,7 +310,7 @@ UI_MUTANTS = [
     ("vœux presented as people", "vœux : des candidatures additionnées sur les parcours, pas des personnes", "vœux : des candidats"),
     ("range collapsed to its middle", "two(lo) === two(hi) ? two(lo) : `${two(lo)} à ${two(hi)}`", "two((lo + hi) / 2)"),
     ("undocumented master hidden", "'<span class=\"muted\">métiers non documentés</span>'", "\"\""),
-    ("no chance caveat", "pas des chances d'admission ou d'emploi", "tes chances d'admission"),
+    ("no chance caveat", "pas des chances d'admission ou d'emploi", "vos chances d'admission"),
     ("year printed with a thousands separator", "(MonMaster ${esc(x.session)})", "(MonMaster ${fmt(x.session)})"),
     ("masked rate shown as a dash", "'<span class=\"muted\">taux non publié</span>'", "\"—\""),
 ]

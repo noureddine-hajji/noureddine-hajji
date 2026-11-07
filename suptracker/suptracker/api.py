@@ -47,9 +47,9 @@ STATIC = Path(__file__).parent / "static"
 
 METHODOLOGY = {
     "funnel": (
-        "Les trois étapes ne se divisent pas entre elles. Les vœux (voe_tot, nb_voe_pp) comptent des "
-        "vœux, et non des personnes. Les classés et proposés (nb_cla_pp, prop_tot) comptent des candidats "
-        "classés ou ayant reçu une proposition. Les admis (acc_tot) comptent les candidats qui ont "
+        "Les trois étapes ne se divisent pas entre elles. Les vœux comptent des "
+        "vœux, et non des personnes. Les classés et les proposés comptent des candidats "
+        "classés ou ayant reçu une proposition. Les admis comptent les candidats qui ont "
         "accepté définitivement. Un candidat peut formuler jusqu'à 10 vœux (et des sous-vœux), donc les "
         "ratios entre étapes n'ont pas de sens statistique."),
     "taux_acces_ens": (
@@ -58,10 +58,10 @@ METHODOLOGY = {
         "dernier candidat appelé. Il est restreint à la phase principale parce que c'est la seule phase "
         "qui produit un classement unique et complet : les vœux de la phase complémentaire (et des "
         "procédures ultérieures) portent sur des places restantes, avec un vivier et un calendrier "
-        "différents. Diviser prop_tot par voe_tot mélangerait ces phases et compterait des vœux au lieu "
+        "différents. Diviser le nombre de propositions par le nombre de vœux mélangerait ces phases et compterait des vœux au lieu "
         "de candidats."),
     "part_terminale_generale_en_position_admis_pp": (
-        "Indicateur officiel SIES (part_acces_gen) : parmi les candidats de terminale en position de recevoir "
+        "Indicateur officiel SIES : parmi les candidats de terminale en position de recevoir "
         "une proposition en phase principale, la part de ceux qui viennent de terminale générale. C'est une "
         "composition, pas une chance d'accès : avec les parts techno et pro, elle fait 100 % (vérifié sur "
         "99,9 % des formations 2025). 100 % en CPGE scientifique veut dire que les candidats appelés étaient tous "
@@ -86,12 +86,12 @@ METHODOLOGY = {
         "sexe, origine) sont très instables. La formation est exclue des distributions de référence de "
         "sa filière et aucun percentile ne lui est attribué."),
     "peers": (
-        "Les pairs sont les formations de la même filière détaillée (fil_lib_voe_acc) pour la même "
+        "Les pairs sont les formations de la même filière détaillée (même intitulé de programme) pour la même "
         "session. Le percentile est un rang médian (les ex-æquo partagent la position moyenne). La "
         f"distribution est jugée instable en dessous de {config.MIN_PEERS} pairs."),
     "lineage": (
-        f"{EXACT} : même couple (cod_uai, cod_aff_form) d'une campagne à l'autre. {INFERRED} : le code "
-        "formation a changé, et le lien a été inféré au sein du même établissement et de la même filière "
+        "Lien sûr : même établissement et même code de formation d'une campagne à l'autre. Lien déduit : le code "
+        "de la formation a changé, et le lien a été inféré au sein du même établissement et de la même filière "
         "agrégée, d'après la similarité des libellés (meilleur candidat mutuel, avec une marge minimale). "
         "Les cas ambigus ne sont jamais reliés."),
     "journey_stage1": (
@@ -116,7 +116,7 @@ METHODOLOGY = {
         "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
         "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
     "journey_bg": (
-        "Vous êtes situé parmi les admis de votre série du bac seulement (général, technologique ou "
+        "Vous êtes placé parmi les admis de votre série du bac seulement (général, technologique ou "
         "professionnel). Les explications ci-dessous valent pour chaque série. SIES ne publie pas "
         "la répartition des mentions par série du bac, seulement le nombre d'admis de chaque série ayant une "
         "mention, et la répartition des mentions toutes séries confondues. La part des bacheliers généraux "
@@ -146,13 +146,13 @@ METHODOLOGY = {
         "moins. Cible : tous les autres cas. Une formation est marquée « incertaine » quand une valeur "
         "comprise dans l'intervalle à 95 % la placerait dans une autre zone."),
     "journey_groups": (
-        "Groupe d'appel : le groupe de classement Parcoursup (lib_grp1 à 3) qui s'applique à un bachelier "
+        "Groupe d'appel : le groupe de classement Parcoursup qui s'applique à un bachelier "
         "général, avec le rang du dernier candidat appelé dans ce groupe. Dans les données SIES 2022–2025, "
         "aucun groupe n'est découpé par enseignement de spécialité ; les groupes portent sur la série du "
         "bac, le sexe, le campus ou la voie CEP. Le rang du dernier appelé n'est pas une probabilité : la "
         "taille du groupe n'est pas publiée."),
     "timing": (
-        "Indicateurs officiels SIES repris tels quels (pct_acc_debutpp, pct_acc_datebac, pct_acc_finpp) : part "
+        "Indicateurs officiels SIES repris tels quels : part "
         "des admis ayant reçu leur proposition d'admission à l'ouverture de la phase principale, avant les "
         "résultats du baccalauréat, puis avant la fin de la phase principale. Les trois parts sont cumulées : "
         "chacune inclut la précédente. Le dénominateur est l'ensemble des admis de la formation, phase "
@@ -227,14 +227,14 @@ METHODOLOGY = {
         "valeur. La fiabilité ne dit pas si le chiffre est bon ou mauvais pour vous : elle dit à quel point il est "
         "solide. Chaque étape du parcours décrit une population différente : les chiffres ne se multiplient pas entre eux."),
     "lycee": (
-        "Ton lycée, en contexte. L'indice de position sociale (IPS, ministère de l'Éducation nationale) résume le milieu "
+        "Votre lycée, en contexte. L'indice de position sociale (IPS, ministère de l'Éducation nationale) résume le milieu "
         "social des élèves d'un lycée : plus il est élevé, plus il est favorisé en moyenne. Il est comparé aux lycées du même "
         "type (général et technologique, polyvalent, professionnel) et du même secteur (public, privé sous contrat), dans "
         "l'académie et en France. La valeur ajoutée (IVAL) compare les résultats du lycée au bac (réussite, mentions, accès "
         "de la seconde au bac) à ceux qu'on attendrait vu le profil de ses élèves. Ce sont des indicateurs du lycée, pas de "
-        "toi. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : ton lycée ne modifie donc pas ton "
-        "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans ton lycée, la part "
-        "de ses admis qui venaient de ce même lycée. Ton lycée reste dans ton navigateur : il n'est jamais envoyé au site."),
+        "vous. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : votre lycée ne modifie donc pas votre "
+        "positionnement. Une seule exception est publiée : quand une formation (BTS, CPGE) se trouve dans votre lycée, la part "
+        "de ses admis qui venaient de ce même lycée. Votre lycée reste dans votre navigateur : il n'est jamais envoyé au site."),
     "metier_formations": (
         "Pour un métier, la page liste les diplômes dont la fiche Onisep (Idéo, licence ODbL) cite ce métier, du moins "
         "élevé au plus élevé, puis les formations Parcoursup de la dernière campagne qui préparent ces diplômes. C'est la "
@@ -242,14 +242,14 @@ METHODOLOGY = {
         "l'Onisep donne le niveau d'études minimum du métier : s'il est plus élevé que celui du diplôme, le métier demande "
         "une poursuite d'études. La liste est nationale : un établissement figure parce qu'il prépare le diplôme, pas parce "
         "que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi, et les formations ne sont pas classées "
-        "par chances d'admission. La recherche se fait dans ton navigateur : ce que tu cherches n'est pas envoyé au site."),
+        "par chances d'admission. La recherche se fait dans votre navigateur : ce que vous cherchez n'est pas envoyé au site."),
     "referentiel_metiers": (
         "Les codes officiels d'un métier servent à le relier aux statistiques de l'emploi. La fiche Onisep donne son ou ses "
         "codes ROME (le répertoire des métiers de France Travail). La Dares publie le passage du code ROME vers sa famille "
         "professionnelle (FAP-2021, et l'ancienne FAP-2009 qu'utilisent les projections « Les métiers en 2030 ») : pour "
         "beaucoup de codes ROME, la famille dépend de la qualification du poste (ouvrier, employé, technicien, cadre, "
         "indépendant…). On montre toutes les familles possibles, avec la qualification à laquelle chacune s'applique, sans "
-        "en choisir une pour toi. Les codes ISCO-08 (la classification internationale du BIT) viennent des intitulés de "
+        "en choisir une pour vous. Les codes ISCO-08 (la classification internationale du BIT) viennent des intitulés de "
         "profession : la Dares relie chaque intitulé à un code ROME, l'Insee code ce même intitulé en ISCO-08. Un métier a "
         "donc souvent plusieurs codes ISCO possibles ; le nombre indiqué est celui des intitulés de profession derrière "
         "chaque code, pas une part des emplois. Certains intitulés ne permettent qu'un code ISCO partiel (par exemple 21xx) : "
@@ -284,7 +284,7 @@ METHODOLOGY = {
         "fort). Un métier a souvent plusieurs codes ISCO (retrouvés par les intitulés de profession) : chacun est montré "
         "avec sa note moyenne publiée et son gradient, et la page donne l'écart entre le plus bas et le plus haut, jamais "
         "une moyenne. C'est un potentiel technique des tâches, pas une prévision de pertes d'emplois ni un risque pour "
-        "toi : l'OIT souligne qu'un métier exposé est plus souvent transformé que remplacé. France Travail indique en plus "
+        "vous : l'OIT souligne qu'un métier exposé est plus souvent transformé que remplacé. France Travail indique en plus "
         "si la fiche ROME du métier est liée à la transition numérique. La complémentarité humaine reprend la méthode du "
         "FMI (Pizzinelli et al., 2023) sur les données américaines O*NET 31.0 : six traits du métier (communication, "
         "responsabilité, conditions physiques, criticité des décisions, travail peu routinier, durée de formation), notés de "
@@ -303,13 +303,13 @@ METHODOLOGY = {
         "que si l'écart du master et celui des débouchés directs de la licence ne se chevauchent pas. Un master sans fiche "
         "Onisep affiche « métiers non documentés ». Ce ne sont jamais des chances d'admission ou d'emploi."),
     "voeux": (
-        "« Mes vœux » relit ta liste (10 vœux au maximum, comme sur Parcoursup) pour ton profil actuel, avec le même "
+        "« Mes vœux » relit votre liste (10 vœux au maximum, comme sur Parcoursup) pour votre profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
-        "recalculée si tu changes de mention, de spécialités ou de série. La lecture de la liste ne fait que COMPTER ces "
+        "recalculée si vous changez de mention, de spécialités ou de série. La lecture de la liste ne fait que COMPTER ces "
         "zones avec des règles fixes (par exemple : aucun vœu de sécurité sûr, plus de la moitié ambitieux, un vœu fermé à "
-        "ta série). Elle ne combine jamais les vœux en une chance d'être admis quelque part : les zones décrivent les admis "
+        "votre série). Elle ne combine jamais les vœux en une chance d'être admis quelque part : les zones décrivent les admis "
         "des campagnes passées et les vœux ne sont pas indépendants. Une sécurité « incertaine » ne compte pas comme sûre. "
-        "Sur Parcoursup, les vœux ne sont pas classés. Ta liste reste dans ton navigateur ; la page envoie les codes et ton "
+        "Sur Parcoursup, les vœux ne sont pas classés. Votre liste reste dans votre navigateur ; la page envoie les codes et votre "
         "profil pour la lire, rien n'est enregistré ni compté sur le serveur."),
     "metiers": (
         "Les métiers auxquels prépare ce diplôme, d'après les fiches de l'Onisep (Idéo, licence ODbL). La liste est celle "
@@ -337,7 +337,7 @@ METHODOLOGY = {
         "faire 100 % ensemble. C'est une estimation, pas un chiffre officiel, et jamais une chance d'admission."),
     "repere": (
         "Repère pour la prochaine campagne : deux fourchettes et une stabilité, calculées sur les campagnes 2022 à 2025. "
-        "Fourchette du taux d'accès officiel et fourchette de la part d'admis ayant ta mention ou moins (tous bacs confondus), "
+        "Fourchette du taux d'accès officiel et fourchette de la part d'admis ayant votre mention ou moins (tous bacs confondus), "
         "à 80 % : la méthode a été réglée sur 2023 et 2024, puis testée sur 2025 sans l'avoir vue ; la part des vraies "
         "valeurs 2025 tombées dans leur fourchette est affichée telle quelle. Les fourchettes sont plus larges pour les "
         "petites formations et pour celles qui ont peu d'historique. La stabilité dit dans combien de cas comparables la zone "
@@ -345,9 +345,10 @@ METHODOLOGY = {
         "que la zone affichée pour le bac général (part des admis bac général encadrée par les chiffres publiés). Ce ne sont pas des chances d'admission : "
         "les données publiques ne donnent pas les mentions des candidats, seulement celles des admis."),
     "mentions": (
-        "Les décompositions par série et par mention portent sur les admis néo-bacheliers (acc_neobac), "
+        "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
-        "exactement à acc_neobac, et non à acc_term. Les parts affichées sont celles publiées par SIES (pct_*). "
+        "exactement au nombre d'admis néo-bacheliers, et non au nombre d'admis venant de terminale. Les parts "
+        "affichées sont celles publiées par SIES. "
         "Quelques lignes de l'export SIES lui-même ne s'additionnent pas ; elles sont signalées."),
 }
 
