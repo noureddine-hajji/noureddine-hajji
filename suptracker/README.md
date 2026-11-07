@@ -787,6 +787,41 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
 - **X7** (`--browser`) now also opens a formation and a job page on a phone: the summary on the first screen, at most 14
   and 9 screens.
 
+## The working pages in the same format (UI lot 3)
+
+Lot 3 brings the lot-2 rules (summary first, detail folded, state by form and colour) to the four pages a student uses to
+build a list.
+
+**Measured on a phone (iPhone 13), before → after:**
+
+| Page | Before | After |
+|---|---|---|
+| Recherche (« licence psychologie », 103 results) | 11.1 screens | 5.7 screens (20 results per page on a phone, 40 on a wide screen) |
+| Mon parcours, positioning step (Licence Sciences juridiques, 270 formations) | 39.7 screens | 14.5 screens (20 rows first, then « Afficher les … formations ») |
+| Mes vœux (4 vœux) | 3.1 screens, the table cut on the right | 3.6 screens, nothing cut, the zone counts first |
+| Comparateur (3 formations) | 3.0 screens, labels squeezed | 2.8 screens, the label column stays in place |
+
+**What changed:**
+- **Mes vœux:** "Lecture de votre liste" is the summary card: one tile per zone (sécurité, cible, ambitieux) with its count
+  and the zone's own colour, plus "Autres". The list becomes one block per vœu on a phone, each figure with its label
+  (zone, access rate, "votre mention ou moins", places); the "how to add" note moves to the end.
+- **Mon parcours:** once a profile is stored, the form folds under one line ("bac général · SES + HGGSP · mention assez bien
+  · académie de Normandie", Modifier). The positioning table shows 20 rows first, one labelled block per formation on a phone.
+- **Recherche:** 20 results per page on a phone; the session and number of campaigns become plain text instead of two badges.
+- **Comparateur:** the label column is pinned while the formations slide; a one-line hint says so on a phone.
+
+Every caveat and every red-team-checked string is unchanged. Plan B, the pin buttons and "Voir un plan B" work as before
+(their red teams pass unchanged).
+
+**Red team** (`scripts/redteam_ux.py`):
+- **X14.** Run with Node: the zone tiles use the zone tokens and count each zone, the profile line is escaped, 20/40
+  per page. Static: every figure of the stacked tables keeps its label, the profile folds when stored, 20 rows first,
+  the comparator column is sticky. The phone CSS hides the header row.
+- **X15.** 9 mutants, each caught: accent instead of zone colour, unescaped profile, a lost label, profile never folded,
+  every row at once, 40 results on a phone, header row shown, comparator column not pinned.
+- **X7** (`--browser`) now fills a profile, a list and a comparator basket, then measures Mes vœux, the comparator and
+  Mon parcours on a phone: summary tiles present, profile folded, header rows hidden, search at most 8 screens.
+
 ## From the licence to the master, side by side (sprint 16, licence page)
 
 A licence page gets a card **"De la licence au master : chaque master côte à côte"** (`suptracker/licence_master.py`,
