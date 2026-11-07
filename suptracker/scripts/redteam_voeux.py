@@ -242,9 +242,9 @@ def ui(js: str) -> tuple[bool, str]:
     trusted = all(x in store_ for x in ("/^\\d{1,9}$/", ".slice(0, this.MAX)", "new Set("))
     race = "if ($view.dataset.rendered !== marker) return;" in b
     zone_guard = "v.zone && ZONES[v.zone]" in b
-    rate_label = bool(re.search(r'const rate = serie === "bg" \? "Taux d\'accès" : "Accès estimé pour ta série";', b))
+    rate_label = bool(re.search(r'const rate = serie === "bg" \? "Taux d\'accès" : "Accès estimé pour votre série";', b))
     words = all(w in b for w in ("pas des chances d'admission", "les vœux ne sont pas classés", "ne se combinent pas en une probabilité",
-                                 "rien n'est enregistré ni compté sur le serveur", "Accès estimé pour ta série"))
+                                 "rien n'est enregistré ni compté sur le serveur", "Accès estimé pour votre série"))
     msg = re.search(r"const VX_MSG = \{(.*?)\n\};", b, re.S)
     codes_ok = bool(msg) and all(f"{k}:" in msg.group(1) for k in ("aucune_securite", "majorite_ambitieuse", "hors_profil", "non_ouvert",
                                                                   "non_situe", "aucune_cible", "equilibree"))
@@ -270,11 +270,11 @@ UI_MUTANTS = [
     ("stored codes not validated", 'typeof c === "string" && /^\\d{1,9}$/.test(c)', 'typeof c === "string"'),
     ("no cap on the stored list", ".slice(0, this.MAX)", ""),
     ("navigation race unguarded", "if ($view.dataset.rendered !== marker) return;", ""),
-    ("no-chance caveat dropped", "Ils ne disent pas tes chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et tes vœux ne se combinent pas en une probabilité.", ""),
-    ("ranking caveat dropped", "Sur Parcoursup, les vœux ne sont pas classés : l'ordre de ta liste ne compte pas.", ""),
-    ("techno / pro rate labelled as official", '"Accès estimé pour ta série"', '"Taux d\'accès"'),
+    ("no-chance caveat dropped", "Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.", ""),
+    ("ranking caveat dropped", "Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.", ""),
+    ("techno / pro rate labelled as official", '"Accès estimé pour votre série"', '"Taux d\'accès"'),
     ("a message left out", "  aucune_cible: \"Aucun vœu cible pour l'instant.\",\n", ""),
-    ("a chance promised", "equilibree: \"Ta liste combine", "equilibree: \"Tu as 90 % de chances d'être admis : ta liste combine"),
+    ("a chance promised", "equilibree: \"Votre liste combine", "equilibree: \"Vous avez 90 % de chances d'être admis : votre liste combine"),
     ("route not wired", 'if (a === "voeux") return await viewVoeux();', ""),
 ]
 

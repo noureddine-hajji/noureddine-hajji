@@ -248,8 +248,8 @@ def ui_card(js: str) -> tuple[bool, str]:
     i = js.index("// ---- Sprint 4: the student's lycée")
     blk = js[i: js.index("function stage1Matrix", i)] if "function stage1Matrix" in js[i:] else js[i: i + 9000]
     raw = re.findall(r"\$\{(?:l|p\.lycee|r)\.(?:nom|commune|academie|rentree|uai)\}", blk)
-    words = all(w in blk for w in ("pas les tiens", "ne modifie pas", "dans ton lycée"))
-    promise = re.findall(r"chances? d['’]être admis|tu seras admis|garanti", blk, re.I)
+    words = all(w in blk for w in ("pas les vôtres", "ne modifie pas", "dans votre lycée"))
+    promise = re.findall(r"chances? d['’]être admis|vous serez admis|tu seras admis|garanti", blk, re.I)
     me = "ne publient pas les options de Terminale" in blk
     badge = re.search(r"p\.lycee && f\.cod_uai === p\.lycee\.uai \?", js) is not None
     here = "p.lycee.uai !== r.cod_uai" in blk

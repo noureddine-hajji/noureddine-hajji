@@ -314,7 +314,7 @@ UI_MUTANTS = [
     ("unescaped ROME", "fiche ROME ${esc(t.rome)}", "fiche ROME ${t.rome}"),
     ("one decimal", "minimumFractionDigits: 2, maximumFractionDigits: 2", "maximumFractionDigits: 1"),
     ("range replaced by an average", "va de ${score(ia.min)} à ${score(ia.max)} sur 1", "est en moyenne de ${score((ia.min + ia.max) / 2)} sur 1"),
-    ("job-loss caveat dropped", "pas une prévision de pertes d'emplois ni un risque pour toi", "un risque pour ton avenir"),
+    ("job-loss caveat dropped", "pas une prévision de pertes d'emplois ni un risque pour vous", "un risque pour votre avenir"),
     ("unscored code hidden", "'<span class=\"muted\">pas de note OIT</span>'", "\"\""),
     ("gradient label raw English", "esc(IA_GRADIENT[i.gradient] || i.gradient)", "esc(i.gradient)"),
     ("theta range collapsed to its middle", "(score(lo) === score(hi) ? score(lo) : `${score(lo)} à ${score(hi)}`)", "score((lo + hi) / 2)"),

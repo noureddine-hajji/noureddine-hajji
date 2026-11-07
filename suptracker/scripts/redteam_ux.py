@@ -1,9 +1,9 @@
-"""Red team of the UI lot 1 (audience 16-20 ans, téléphone d'abord).
+"""Red team of the UI lot 1 (audience 16-20 ans, téléphone d'abord; vouvoiement kept at the owner's request).
 
     python scripts/redteam_ux.py [--browser]
 
-  X1 tutoiement: no "vous / votre / vos / vôtre" and no vous-imperative in any text a student can read (the page script,
-     the shell, method texts, glossary, server messages)
+  X1 vouvoiement (the owner's choice): no "tu / ton / ta / tes / toi / le tien / t'a" and no tu-imperative in any text a
+     student can read (the page script, the shell, method texts, glossary, server messages)
   X2 no internal column name in what a student reads: method texts and glossary (shown in the "i" bubbles), the home page
   X3 navigation: on a phone a bottom bar with the 4 main pages + "Plus" holding the 4 others (every page of the top menu
      reachable), the current tab marked, the top menu hidden, the page padded above the bar
@@ -31,9 +31,10 @@ sys.path.insert(0, str(ROOT))
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
 
-FORMAL = re.compile(r"\b(?:[Vv]ous|[Vv]otre|[Vv]os|[Vv]ôtre)\b")
-IMPERATIVES = re.compile(r"\b(?:[Tt]apez|[Ee]ssayez|[Rr]éessayez|[Rr]etirez|[Aa]joutez|[Cc]hoisissez|[Cc]liquez|[Rr]enseignez|[Uu]tilisez|"
-                         r"[Cc]onsultez|[Vv]érifiez|[Ii]ndiquez|[Ss]électionnez|[Cc]ollez|[Cc]ochez|[Ss]aisissez|[Rr]egardez|[Cc]omparez)\b")
+FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi|tien|tienne|tiens)\b|\b[Tt]'a\b")      # tutoiement (the owner keeps "vous")
+IMPERATIVES = re.compile(r"\b(?:Tape|Essaie|Réessaie|Clique|Choisis|Ajoute|Vérifie|Regarde|Coche|Retire|Utilise|Trouve|Renseigne)\b|"
+                         r"\b(?:vois les|vois où|retire le|retire un|ajoute des|ajoute au moins|vérifie la|vérifie-les|regarde les|"
+                         r"regarde leur|coche «|utilise la|tape ce)\b")
 PY_TEXT = ["api.py", "glossary.py", "planb.py", "search.py", "journey.py", "voeux.py", "metiers.py", "licence_master.py",
            "insertion.py", "passerelles.py", "success.py", "poursuite.py", "cereq.py", "onisep.py", "evidence.py", "prevision.py"]
 
@@ -78,7 +79,7 @@ def field_names() -> set[str]:
     return {n for n in names if "_" in n}
 
 
-@check("X1 tutoiement: no vous / votre / vos and no vous-imperative in the student-facing text")
+@check("X1 vouvoiement: no tu / ton / ta / tes / toi and no tu-imperative in the student-facing text")
 def x1(c: Ctx):
     hits = []
     for src, text in [("app.js", js_text(c.js)), ("index.html", c.html)] + [(f"METHODOLOGY[{k}]", v) for k, v in c.methodology.items()] \
@@ -215,7 +216,7 @@ viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.
     links = all(h in html for h in ('href="#/metiers"', 'href="#/parcours"', 'id="door-search"'))
     leak = "<b>x</b>" in html
     words = all(w in html for w in ("Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
-                                     "jamais des pronostics", "Tu as 2 vœux dans ta liste"))
+                                     "jamais des pronostics", "Vous avez 2 vœux dans votre liste"))
     technical = "META.methodology" in blk or "voe_tot" in html
     ok = doors == 3 and links and not leak and words and not technical and rendered == "home" and "if (!q) return viewHome();" in js
     return ok, f"doors {doors}; links {links}; raw tag {leak}; wording {words}; technical note {technical}; routed {'if (!q) return viewHome();' in js}"
@@ -286,7 +287,7 @@ def x7(c: Ctx):
 
 
 UI_MUTANTS = [
-    ("formal home text", "jamais des pronostics.</p>", "jamais des pronostics. Tapez ce que vous cherchez.</p>", ("js", (x1, x6))),
+    ("tutoiement in the home text", "jamais des pronostics.</p>", "jamais des pronostics. Tape ce que tu cherches.</p>", ("js", (x1, x6))),
     ("column label back in the formation header", "n° Parcoursup ${esc(r.cod_aff_form)}", "cod_aff_form ${esc(r.cod_aff_form)}", ("js", (x2,))),
     ("Mes vœux tab dropped", '<a href="#/voeux" data-tab="voeux"><svg', '<a href="#/stats" data-tab="voeux"><svg', ("html", (x3,))),
     ("glossary missing from Plus", '  <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n</div>', "</div>", ("html", (x3,))),
@@ -302,7 +303,7 @@ UI_MUTANTS = [
 ]
 
 
-@check("X8 mutation test: formal text, column names, navigation, touch targets, filters and home bugs are each caught")
+@check("X8 mutation test: tutoiement, column names, navigation, touch targets, filters and home bugs are each caught")
 def x8(c: Ctx):
     missed = []
     for name, old, new, (where, fns) in UI_MUTANTS:
@@ -320,9 +321,9 @@ def x8(c: Ctx):
     m.methodology = {**c.methodology, "funnel": c.methodology["funnel"] + " (voe_tot)"}
     if x2(m)[0]:
         missed.append("column name in a method text")
-    m.methodology = {**c.methodology, "funnel": c.methodology["funnel"] + " Vérifiez votre fiche."}
+    m.methodology = {**c.methodology, "funnel": c.methodology["funnel"] + " Vérifie ta fiche."}
     if x1(m)[0]:
-        missed.append("formal method text")
+        missed.append("tutoiement in a method text")
     n = len(UI_MUTANTS) + 2
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 

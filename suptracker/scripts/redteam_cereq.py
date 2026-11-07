@@ -201,7 +201,7 @@ def c3(c: Ctx):
             f"{len(want)} formations, {len(bad)} differ {bad[:2]}; truth {truth[:2]}; BTS with a known field {known:.0%}; {dict(stats)}")
 
 
-@check("C4 API: the group's values are the stored ones, the reference is all leavers, 'si tu poursuis' only for licences")
+@check("C4 API: the group's values are the stored ones, the reference is all leavers, 'si vous poursuivez' only for licences")
 def c4(c: Ctx):
     con = duckdb.connect(str(c.db), read_only=True)
     bad, n = [], 0

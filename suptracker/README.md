@@ -723,7 +723,8 @@ mixed "vous" and "tu", and 83 of 121 controls on a formation page were under 32 
   plus example searches. No technical note.
 - **Bottom tab bar on a phone:** Chercher, Mon parcours, Métiers, Mes vœux, and "Plus" (Comparateur, Spécialités,
   Qualité des données, Glossaire). The current tab is marked (`aria-current`); counts hide at 0. The top menu stays on wide screens.
-- **Tutoiement everywhere** a student reads: page, method texts, glossary, server messages.
+- **Vouvoiement everywhere** a student reads (the owner's choice): page, method texts, glossary, server messages; the
+  older "tu" texts (lycée, Mes vœux, métiers) now say "vous" too.
 - **No column names** in method texts or labels (the formation header says "n° Parcoursup", "code établissement").
 - **Touch targets of at least 44 px** on a phone; the small "i" buttons keep their look with a hidden 45 px zone.
 - **Search results first:** filters fold under "Filtrer" on a phone (open on wide screens); active filters stay visible
@@ -733,8 +734,8 @@ The honesty rules are unchanged: no chance, no single score, ranges and parts d'
 
 **Red team** (`scripts/redteam_ux.py`, run by `tests/test_ux.py`; `--browser` measures real phone screens with Playwright):
 8/8 checks, 14/14 mutants caught.
-- **X1.** No "vous / votre / vos" or vous-imperative in any student-facing text (the page script without comments,
-  the shell, method texts, glossary, server string constants).
+- **X1.** No "tu / ton / ta / tes / toi / le tien / t'a" or tu-imperative in any student-facing text (the page script
+  without comments, the shell, method texts, glossary, server string constants).
 - **X2.** No column name in method texts, glossary or the home page.
 - **X3.** Navigation: the 4 main pages in the bottom bar, the 4 others under "Plus", every top-menu page reachable, the tab marked.
 - **X4.** The 44 px rule in the phone CSS; the "i" zone.
