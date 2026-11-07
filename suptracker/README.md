@@ -744,6 +744,49 @@ The honesty rules are unchanged: no chance, no single score, ranges and parts d'
 - **X7.** `--browser`: 12 phone screens (light and dark): 0 JS errors, no horizontal scroll, every control ≥ 44 px,
   the first search result on the first screen, no column name in the visible text.
 
+## Design system and page structure (UI lot 2, Claude design guidelines)
+
+Lot 2 applies the Claude design guidelines to the student pages: a summary before the detail, cards used sparingly,
+state shown by form and semantic colour, no emoji as markers, one type scale, self-hosted fonts, reduced motion.
+
+**Measured on a phone (iPhone 13), same formation and job, before → after:**
+- formation page (Licence Psychologie, Caen): **31.8 → 9.4 screens**, the summary in the first screen;
+- job page (assistant/e en ressources humaines, 37 diplomas, 1 094 formations): **138.6 → 5.8 screens**.
+
+**What changed:**
+- **Design tokens** (`style.css`): five font sizes (`--fs-xs` 12 to `--fs-xl` 28 px), three radii (`--r-sm`, `--r-md`,
+  `--r-pill`), a "prune" accent with neutrals biased toward it, light and dark. The zone colours are their own tokens
+  (`--zone-securite`, `--zone-cible`, `--zone-ambitieux`), never the accent, so a zone never reads as a link.
+- **Fonts, self-hosted** (`static/fonts/`, SIL OFL): Bricolage Grotesque for titles and key figures, Figtree for text.
+  No request to a font host, so no visitor's address leaves the site. (Atkinson Hyperlegible was tried first and dropped:
+  its slashed zero made "2025" read as "2Ø25".)
+- **Formation page:** one highlighted card first, **"L'essentiel"**, with four tiles: the official access rate, **your
+  zone** (a coloured pill filled from the same Plan B answer as "Mon parcours"; without a profile, a link to it), admits
+  and places, and the number of jobs of the Onisep sheet. It says "pas des chances d'admission". Then four tabs named
+  after the student's questions: **Y entrer** (indicators, forecast, offer, timing, lycée, Plan B, funnel, position),
+  **Réussir et poursuivre** (success, master, gateways, licence → master, BUT), **Emploi et métiers** (insertion, Céreq,
+  Onisep jobs), **Historique** (lineage). Inside a tab, sections are plain blocks separated by a rule, not cards. An empty
+  tab is not shown. Tabs have ARIA roles and arrow-key navigation; each tile opens its tab.
+- **Job page:** a summary (minimum level, number of diplomas and formations, the 2030 reading with sprint 16's fixed rule:
+  all read families agree or "Pas de conclusion", the ILO task-score range with "pas un risque de perte d'emploi"), then
+  two tabs, **Diplômes et formations** (one folded block per diploma, opened when it holds the formation the student came
+  from) and **Avenir du métier** (2030, BMO, AI, codes).
+- **Drawn SVG icons** replace the emoji of the home doors and offer options; they are hidden from screen readers.
+- **Reduced motion:** `prefers-reduced-motion` turns off animations and transitions.
+
+Every red-team-checked caveat is kept word for word; only new texts follow the plain-language guideline.
+
+**Red team** (`scripts/redteam_ux.py`, X9-X13; 13/13 checks, 13/13 design mutants and 14/14 lot-1 mutants caught):
+- **X9.** Tokens: exactly five sizes and three radii, every size and radius in the stylesheet goes through them (chart
+  marks of 2-4 px excepted), zone tokens in all three themes and distinct from the accent, reduced motion present.
+- **X10.** No font host anywhere (Google Fonts, Typekit, Bunny...), every `@font-face` file shipped, each family with its licence.
+- **X11.** No emoji in the page script or shell; offer options and home doors are drawn icons.
+- **X12.** Run with Node: the summary has its four tiles and caveat, values escaped, the zone pill from Plan B (neutral zones
+  in ink), tabs with roles where only the first panel shows and empty groups are dropped, the summary before the tabs, the
+  job page folded by diploma.
+- **X7** (`--browser`) now also opens a formation and a job page on a phone: the summary on the first screen, at most 14
+  and 9 screens.
+
 ## From the licence to the master, side by side (sprint 16, licence page)
 
 A licence page gets a card **"De la licence au master : chaque master côte à côte"** (`suptracker/licence_master.py`,
