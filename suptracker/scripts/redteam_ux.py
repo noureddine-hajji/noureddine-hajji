@@ -22,6 +22,12 @@
       admits, jobs; "pas des chances"), then tabs named after the student's questions; the job page folds its diplomas;
       tabs have aria roles and only the open panel shows; every value escaped
   X13 mutation test of X9-X12
+  Lot 3 (same format on the working pages):
+  X14 Mes vœux opens on its zone counts (one tile per zone, its own colour, "Autres" for the rest), "Mon parcours" folds a
+      stored profile under one escaped line, long tables become one labelled block per row on a phone (every figure keeps
+      its label), the positioning table shows 20 rows first, search pages hold 20 results on a phone, the comparator keeps
+      its label column in place
+  X15 mutation test of X14
 """
 from __future__ import annotations
 
@@ -244,7 +250,13 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
   const b = await chromium.launch(); const errs = []; const out = {};
   for (const [mode, opts] of [["phone", {...devices["iPhone 13"]}], ["phone-dark", {...devices["iPhone 13"], colorScheme: "dark"}]]) {
     const ctx = await b.newContext(opts); const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(e.message));
-    for (const h of ["#/", "#/s/informatique", "#/parcours", "#/metiers", "#/voeux", "#/glossaire"]) {
+    for (const h of ["#/", "#/s/informatique", "#/parcours", "#/metiers", "#/voeux", "#/compare", "#/parcours", "#/glossaire"]) {
+      if (h === "#/voeux") {     // lot 3: a stored profile, a list and a comparator basket (codes from a search)
+        await p.goto(base + "/#/s/informatique"); await p.waitForTimeout(2000);
+        await p.evaluate(() => { const c = [...document.querySelectorAll(".result a[href^='#/f/']")].map((a) => a.getAttribute("href").slice(4)).slice(0, 3);
+          localStorage.setItem("profile", JSON.stringify({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "" }));
+          localStorage.setItem("voeux", JSON.stringify(c)); localStorage.setItem("basket", JSON.stringify(c)); });
+      }
       await p.goto(base + "/" + h); await p.waitForTimeout(2000);
       out[mode + " " + h] = await p.evaluate((fields) => {
         const ctl = [...document.querySelectorAll("button, select, summary, a.badge, .toolbar a, .tabbar a, .more-menu a, .door, input[type=search]")]
@@ -255,7 +267,10 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
         const first = document.querySelector(".result");
         return { hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth, small, shown,
                  first: first ? first.getBoundingClientRect().top < innerHeight : null,
-                 bar: getComputedStyle(document.querySelector(".tabbar")).display };
+                 bar: getComputedStyle(document.querySelector(".tabbar")).display,
+                 screens: document.documentElement.scrollHeight / innerHeight, vxsum: !!document.querySelector(".summary .sum-tile .zone-pill"),
+                 folded: !!document.querySelector("details.profile:not([open])"), stacked: document.querySelectorAll("tr.stack-head").length,
+                 headShown: [...document.querySelectorAll("tr.stack-head")].some((r) => getComputedStyle(r).display !== "none") };
       }, fields);
     }
     // lot 2: the formation page and the job page open on their summary, and stay short (tabs, folded diplomas)
@@ -308,10 +323,13 @@ def x7(c: Ctx):
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
     limit = {"formation": 14, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72)
+    lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 8)        # 20 results (before: ~11 screens)
+            or (k.endswith("#/voeux") and not v["vxsum"]) or (k.endswith("#/parcours") and not v["folded"])
+            or v.get("headShown")}
     bad = {k: v for k, v in d["out"].items() if v.get("missing") or v["hscroll"] or v["small"] or v["shown"] or v["bar"] != "flex"
            or v["first"] is False or ("summary" in v and (not v["summary"] or v["screens"] > limit[k.split()[-1]]))}
-    ok = not d["errs"] and not bad and d["out"]
-    return ok, f"{len(d['out'])} phone screens; JS errors {d['errs'][:2]}; problems {dict(list(bad.items())[:3])}"
+    ok = not d["errs"] and not bad and not lot3 and d["out"]
+    return ok, f"{len(d['out'])} phone screens; JS errors {d['errs'][:2]}; problems {dict(list(bad.items())[:3])}; lot 3 problems {dict(list(lot3.items())[:3])}"
 
 
 UI_MUTANTS = [
@@ -533,6 +551,91 @@ def x13(c: Ctx):
         if not caught:
             missed.append(name)
     n = len(DESIGN_MUTANTS)
+    return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
+
+
+
+# ------------------------------------------------------------------ lot 3: the working pages
+def lot3_ui(js: str, css: str) -> tuple[bool, str]:
+    blk = block(js, "// ---- lot 3 (Claude design guidelines)")
+    prog = helpers(js) + """
+const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
+  ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
+let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
+""" + blk + """
+const out = {};
+out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);
+out.line = profileLine({ spe1: "<img src=x>", spe2: "SES", mention: "ab", academie: "<b>A</b>" }, "bg");
+out.lineBt = profileLine({ spe1: "MATHS", spe2: "SES", mention: "tb", academie: "" }, "bt");
+out.narrow = searchPage(); WIDE = true; out.wide = searchPage();
+process.stdout.write(JSON.stringify(out));"""
+    r = node_run(prog, None)
+    if r is None:
+        return True, "node not installed"
+    if r.startswith("__error__"):
+        return False, r
+    o = json.loads(r)
+    tiles = (o["tiles"].count('class="sum-tile"') == 4 and all(f"var(--zone-{z})" in o["tiles"] for z in ("securite", "cible", "ambitieux"))
+             and "Autres" in o["tiles"] and re.search(r">1<.*>0<.*>2<.*>3<", o["tiles"], re.S) is not None and "chance" not in o["tiles"])
+    line = "<img" not in o["line"] and "<b>" not in o["line"] and "mention assez bien" in o["line"] and "SES" in o["line"] \
+        and o["lineBt"] == "bac technologique · mention très bien"
+    pages = o["narrow"] == 20 and o["wide"] == 40
+    vx = js[js.index("async function viewVoeux("):js.index("// ---- Sprint 12")]
+    pc = js[js.index("async function viewParcours("):js.index("// ---- A5 glossary")]
+    vs = js[js.index("async function viewSearch("):js.index("function stageCard(")]
+    cmp = js[js.index("async function viewCompare("):js.index("async function viewSpecialites(")]
+
+    def labelled(src: str, rows_re: str = r'<table class="stack"><tr class="stack-head">.*?</table>') -> bool:
+        rows = re.search(rows_re, src, re.S)
+        if not rows or '<table class="stack"><tr class="stack-head">' not in src:
+            return False
+        cells = re.findall(r"<td(?![^>]*data-label)(?![^>]*class=\"acts\")[^>]*>", rows.group(0))
+        return len(cells) == 1                                 # only the formation cell has no label
+    vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}" in vx
+    pc_ok = (labelled(pc) and "${hasProfile ? `<details class=\"profile\"><summary><span>${profileLine(p, serie)}</span>" in pc
+             and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
+    vs_ok = "limit: PAGE" in vs and "offset: off + PAGE" in vs and "off - PAGE" in vs and "40" not in re.sub(r"<[^>]*>", "", vs.split("const qs")[1].split("const d =")[0])
+    cmp_ok = '<table class="cmp">' in cmp
+    mob = mobile_css(css)
+    css_ok = ("table.stack tr.stack-head { display: none; }" in mob and "table.stack td[data-label]::before { content: attr(data-label);" in mob
+              and re.search(r"table\.cmp th:first-child, table\.cmp td:first-child \{ position: sticky; left: 0;", css) is not None)
+    ok = tiles and line and pages and vx_ok and pc_ok and vs_ok and cmp_ok and css_ok
+    return ok, (f"zone tiles {tiles}; profile line escaped {line}; 20/40 per page {pages}; Mes vœux summary + labelled rows {vx_ok}; "
+                f"Mon parcours folded profile + labelled rows + 20 first {pc_ok}; search paging {vs_ok}; comparator {cmp_ok}; phone CSS {css_ok}")
+
+
+@check("X14 working pages: vœux summary, folded profile, labelled stacked rows, 20 rows first, phone paging, sticky comparator column")
+def x14(c: Ctx):
+    return lot3_ui(c.js, c.css)
+
+
+LOT3_MUTANTS = [
+    ("zone tile in the accent colour", 'class="zone-pill" style="background:${ZONES[k].color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
+    ("profile line unescaped", '`${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}`', '`${p.spe1 || ""} + ${p.spe2 || ""}`', ("js", (x14,))),
+    ("académie unescaped", 'p.academie ? `académie de ${esc(p.academie)}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
+    ("a figure loses its label", '<td class="num" data-label="Places">', '<td class="num">', ("js", (x14,))),
+    ("profile never folded", "${hasProfile ? `<details", "${false ? `<details", ("js", (x14,))),
+    ("every positioning row at once", ".slice(0, allPos ? 80 : 20)", ".slice(0, 80)", ("js", (x14,))),
+    ("40 results on a phone", "const searchPage = () => (narrow() ? 20 : 40);", "const searchPage = () => 40;", ("js", (x14,))),
+    ("header row shown on a phone", "  table.stack tr.stack-head { display: none; }\n", "", ("css", (x14,))),
+    ("comparator column not pinned", "position: sticky; left: 0; z-index: 1;", "position: static; left: 0; z-index: 1;", ("css", (x14,))),
+]
+
+
+@check("X15 mutation test: lot 3 bugs (colours, escaping, labels, folding, paging, phone CSS) are each caught")
+def x15(c: Ctx):
+    missed = []
+    for name, old, new, (where, fns) in LOT3_MUTANTS:
+        src = {"js": c.js, "html": c.html, "css": c.css}[where]
+        if old not in src:
+            missed.append(f"{name} (anchor gone)")
+            continue
+        m = Ctx.__new__(Ctx)
+        m.__dict__.update(c.__dict__)
+        setattr(m, where, src.replace(old, new, 1))
+        if all(fn(m)[0] for fn in fns):
+            missed.append(name)
+    n = len(LOT3_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 
 

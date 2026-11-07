@@ -199,11 +199,30 @@ function searchFilters(P, go, facets, activeOpts, inner) {
   return `${chips}<details class="filters"${wide ? " open" : ""}><summary>Filtrer${on.length ? ` (${on.length} actif${on.length > 1 ? "s" : ""})` : ""}</summary>${inner}</details>`;
 }
 
+// ---- lot 3 (Claude design guidelines): the same summary-first, folded-detail format on the four working pages ----
+const narrow = () => typeof matchMedia === "function" && matchMedia("(max-width: 720px)").matches;
+const searchPage = () => (narrow() ? 20 : 40);
+// zoneTiles: the zone counts of a list read as a summary (one tile per zone, the zone's own colour, never a chance)
+function zoneTiles(counts, other) {
+  const tile = (k, n) => `<div class="sum-tile"><span class="zone-pill" style="background:${ZONES[k].color}">${esc(ZONES[k].label.replace(/^Vœu /, ""))}</span>
+      <span class="sum-value">${fmt(n)}</span><span class="sum-note">vœu${n > 1 ? "x" : ""}</span></div>`;
+  return `<div class="sum-grid">${tile("securite", counts.securite || 0)}${tile("cible", counts.cible || 0)}${tile("ambitieux", counts.ambitieux || 0)}
+    <div class="sum-tile"><span class="sum-label">Autres</span><span class="sum-value">${fmt(other)}</span><span class="sum-note">hors-profil, non ouverts ou non situés</span></div></div>`;
+}
+// profileLine: the stored profile read back in one line (the form folds under it once a profile exists)
+function profileLine(p, serie) {
+  const ser = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie];
+  const men = { sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[p.mention] || "";
+  return [ser, serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}` : "", men && `mention ${men}`, p.academie ? `académie de ${esc(p.academie)}` : ""]
+    .filter(Boolean).join(" · ");
+}
+
 async function viewSearch(q, rawParams) {
   if (!q) return viewHome();
   const P = Object.fromEntries(new URLSearchParams(rawParams || ""));
   const near = store.get("profile", {}).academie || "";
-  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: 40 });
+  const PAGE = searchPage();                                          // lot 3: 20 results per page on a phone, 40 on a wide screen
+  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: PAGE });
   for (const k of ["fili", "academie", "selective", "options"]) if (P[k]) qs.set(k, P[k]);
   if (near) qs.set("near", near);
   const d = await api(`/api/search?${qs}`);
@@ -233,12 +252,12 @@ async function viewSearch(q, rawParams) {
     ${d.results.map((r) => `<div class="result"><div>
         <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
         ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
-        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span><span class="badge">${r.session}</span>
-        <span class="badge">${r.lineage_years} campagne(s)</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}
+        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}
+        <span class="muted small">${r.session} · ${r.lineage_years} campagne(s)</span>
         ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
       </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
-    ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + 40 }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + 80))}) →</a></p>` : ""}
-    ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - 40) }))}">← Résultats précédents</a></p>` : ""}
+    ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + PAGE }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + d.results.length + PAGE))}) →</a></p>` : ""}
+    ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - PAGE) }))}">← Résultats précédents</a></p>` : ""}
     ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
   </div>${feedbackBox("search")}`;
   $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
@@ -896,7 +915,7 @@ async function viewCompare() {
     ["Options", (f) => offerBadges(f.record) || '<span class="muted small">—</span>'], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
   ];
   const series = F.map((f) => { const by = Object.fromEntries(f.history.map((h) => [h.session, h.taux_acces_ens])); return { name: `${f.record.g_ea_lib_vx} · ${f.record.fil_lib_voe_acc}`, values: years.map((y) => by[y] ?? null) }; });
-  $view.innerHTML = `<div class="card"><h2>Comparateur</h2><div class="scroll"><table>
+  $view.innerHTML = `<div class="card"><h2>Comparateur</h2><p class="muted small">${narrow() && F.length > 1 ? "Faites glisser le tableau pour voir les autres formations ; la première colonne reste en place." : ""}</p><div class="scroll"><table class="cmp">
     <tr><th></th>${F.map((f) => `<th><a href="#/f/${esc(f.record.cod_aff_form)}">${esc(f.record.g_ea_lib_vx)}</a><div class="small">${esc(f.record.fil_lib_voe_acc)}</div><div class="muted small">${esc(f.record.ville_etab)}${f.record.lib_comp_voe_ins ? " · " + esc(f.record.lib_comp_voe_ins) : ""}</div>
       <button data-rm="${esc(f.record.cod_aff_form)}" class="small">retirer</button></th>`).join("")}</tr>
     ${rowsDef.map(([l, fn]) => `<tr><td>${l}</td>${F.map((f) => `<td>${fn(f)}</td>`).join("")}</tr>`).join("")}
@@ -1182,9 +1201,11 @@ function spark(trend, key, scale = 1) {
 
 async function viewParcours() {
   JV = JV || await api("/api/journey/vocab");
+  const hasProfile = !!store.get("profile", null);                   // lot 3: a stored profile folds the form under one line
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
   const show = new Set(store.get("gates", ["predilection", "accessible"]));
   const allF = store.get("allFilieres", false);
+  const allPos = store.get("allPositions", false);                    // lot 3: 20 rows first, the rest on request
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
   const sq = serie === "bg" ? `spe1=${encodeURIComponent(p.spe1)}&spe2=${encodeURIComponent(p.spe2)}` : `serie=${encodeURIComponent(serie)}`;
   const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
@@ -1200,7 +1221,7 @@ async function viewParcours() {
   const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
   if (p.lycee) { try { await loadLycees(); } catch (_) { /* the card says the lycée is unavailable */ } }
   $view.innerHTML = `
-  <div class="card"><h2>1 · Mon profil</h2>${profileForm(p)}${mathsExpertesNote(p, serie)}
+  <div class="card"><h2>1 · Mon profil</h2>${hasProfile ? `<details class="profile"><summary><span>${profileLine(p, serie)}</span><span class="muted small">Modifier</span></summary>${profileForm(p)}</details>` : profileForm(p)}${mathsExpertesNote(p, serie)}
     ${!s1 ? `<div class="warn">Choisissez deux spécialités distinctes.</div>` : serie === "bg"
       ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
       : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>`}</div>
@@ -1212,16 +1233,17 @@ async function viewParcours() {
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
     ${repereNote(s2.calibration)}
     ${scatter(F, (f) => pin(f))}
-    <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis avec votre mention ou moins ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th>${s2.calibration ? `<th>Repère ${esc(s2.calibration.target)} ${tip("repere")}</th>` : ""}<th>Évolution</th><th></th></tr>
-    ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, 80).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${p.lycee && f.cod_uai === p.lycee.uai ? ` · <span class="badge exact">dans votre lycée${f.pct_etab_orig != null ? ` · ${fmt(f.pct_etab_orig)} % des admis en venaient` : ""}</span>` : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
-      <td><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
-      <td class="num">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">estim. · tous ${fmt(f.taux_acces_all)} %</div>` : ""}</td><td class="num">${bgCell(f)}</td>
-      <td class="num">${pc1(f.exact_share)}</td><td class="num">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num">${pc1(f.pct_boursiers)}</td>
-      <td class="small">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
-      ${s2.calibration ? `<td class="small">${repereCell(f, serie)}</td>` : ""}
-      <td>${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
-      <td><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.includes(f.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button>${PLANB_ZONES.includes(f.zone) ? `<button type="button" data-planb="${esc(f.cod_aff_form)}" class="small planb-btn" aria-expanded="false">Voir un plan B</button>` : ""}</td></tr>`).join("")}
-    </table></div>${F.length > 80 ? `<p class="muted small">80 premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis avec votre mention ou moins ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th>${s2.calibration ? `<th>Repère ${esc(s2.calibration.target)} ${tip("repere")}</th>` : ""}<th>Évolution</th><th></th></tr>
+    ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, allPos ? 80 : 20).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${p.lycee && f.cod_uai === p.lycee.uai ? ` · <span class="badge exact">dans votre lycée${f.pct_etab_orig != null ? ` · ${fmt(f.pct_etab_orig)} % des admis en venaient` : ""}</span>` : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
+      <td data-label="Zone"><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
+      <td class="num" data-label="${serie === "bg" ? "Taux d'accès" : "Accès estimé"}">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">estim. · tous ${fmt(f.taux_acces_all)} %</div>` : ""}</td><td class="num" data-label="Admis avec votre mention ou moins">${bgCell(f)}</td>
+      <td class="num" data-label="Mention exacte">${pc1(f.exact_share)}</td><td class="num" data-label="${serie === "bg" ? "Bac général" : "Part de votre série"}">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num" data-label="Boursiers">${pc1(f.pct_boursiers)}</td>
+      <td class="small" data-label="Groupe d'appel">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
+      ${s2.calibration ? `<td class="small" data-label="Repère">${repereCell(f, serie)}</td>` : ""}
+      <td data-label="Évolution">${spark(f.trend, "cdf")}${spark(f.trend, "taux_acces_ens", 100)}</td>
+      <td class="acts"><button data-pin="${esc(f.cod_aff_form)}" class="small">${W.includes(f.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button>${PLANB_ZONES.includes(f.zone) ? `<button type="button" data-planb="${esc(f.cod_aff_form)}" class="small planb-btn" aria-expanded="false">Voir un plan B</button>` : ""}</td></tr>`).join("")}
+    </table></div>${F.length > 20 ? `<p><button type="button" id="allpos">${allPos ? "Afficher les 20 premières" : `Afficher ${F.length > 80 ? "les 80 premières" : `les ${fmt(F.length)}`} formations`}</button></p>` : ""}
+    ${F.length > (allPos ? 80 : 20) ? `<p class="muted small">${allPos ? 80 : 20} premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
     ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
   <div class="card"><h2>4 · Mes vœux</h2><p id="wishlist">${W.length ? `${fmt(W.length)} vœu(x) dans votre liste.` : "Votre liste est vide : ajoutez des formations depuis le tableau ou un plan B."} <a href="#/voeux">Voir la lecture de ma liste pour ce profil →</a></p>
     <p class="muted small">La liste est relue pour votre profil actuel à chaque visite (${voeux.MAX} vœux au maximum sur Parcoursup).</p></div>${feedbackBox("parcours")}`;
@@ -1270,6 +1292,7 @@ async function viewParcours() {
   $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
   $view.querySelectorAll("[data-type]").forEach((el) => { el.onclick = async () => { store.set("drill", { type: el.dataset.type, label: el.dataset.label }); await viewParcours(); document.getElementById("stage3")?.scrollIntoView({ behavior: "smooth" }); }; });
   const af = document.getElementById("allf"); if (af) af.onclick = () => { store.set("allFilieres", !allF); viewParcours(); };
+  const ap = document.getElementById("allpos"); if (ap) ap.onclick = () => { store.set("allPositions", !allPos); viewParcours(); };
   // "Voir un plan B": the same programme elsewhere, more accessible, opened under the row
   $view.querySelectorAll("[data-planb]").forEach((el) => {
     el.onclick = () => {
@@ -1410,10 +1433,10 @@ async function viewVoeux() {
   const prof = { ...p, serie, mention };
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p>
-    <p class="muted small">Ajoutez des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p></div>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p></div>`;
+  const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
-    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p></div>`;
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
     $view.dataset.rendered = "voeux:0";
     return;
   }
@@ -1432,30 +1455,27 @@ async function viewVoeux() {
   const L = d.lecture, z = L.zones;
   const zoneBadge = (v) => v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>${v.uncertain ? ' <span class="badge">incertain</span>' : ""}` : '<span class="badge">non situé</span>';
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
-  const legend = [["securite", z.securite], ["cible", z.cible], ["ambitieux", z.ambitieux], ["hors_profil", z.hors_profil], ["non_ouvert", z.non_ouvert]]
-    .map(([k, n]) => `<span><i style="background:${ZONES[k].color}"></i>${ZONES[k].label} : <strong>${fmt(n)}</strong></span>`).join("")
-    + `<span><i style="background:var(--line)"></i>Non situés : <strong>${fmt(z.indetermine + z.non_situe)}</strong></span>`;
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
-    return `<tr><td>${name}</td><td>${zoneBadge(v)}${flags}</td>
-      <td class="num">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
-      <td class="num">${v.status === "ok" ? position : "—"}</td>
-      <td class="num">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      <td>${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
+    return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v)}${flags}</td>
+      <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
+      <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
+      <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
+      <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
-  <div class="card"><h2>Lecture de votre liste</h2>
-    <div class="legend">${legend}</div>
+  <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
+    ${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
-    <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></div>
+    <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
-    <div class="scroll"><table><tr><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th><th></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th><th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p></div>`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
     el.onclick = () => {
