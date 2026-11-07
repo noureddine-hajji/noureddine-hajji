@@ -385,8 +385,8 @@ def m7(c: Ctx):
 
 UI_MUTANTS = [
     ("unescaped establishment", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>', '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a>'),
-    ("unescaped diploma label", '${esc(x.libelle)}</a></h2>', '${x.libelle}</a></h2>'),
-    ("external link without noopener", '<h2><a href="${esc(x.url)}" target="_blank" rel="noopener">', '<h2><a href="${esc(x.url)}" target="_blank">'),
+    ("unescaped diploma label", '<span class="dip-title">${esc(x.libelle)}</span>', '<span class="dip-title">${x.libelle}</span>'),
+    ("external link without noopener", '<a href="${esc(x.url)}" target="_blank" rel="noopener">Fiche diplôme Onisep', '<a href="${esc(x.url)}" target="_blank">Fiche diplôme Onisep'),
     ("national-list caveat dropped", "Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. ", ""),
     ("ranking caveat dropped", "Les formations sont rangées par académie et par ville, pas par chances d'admission.", ""),
     ("privacy note dropped", "La recherche se fait dans votre navigateur : ce que vous tapez n'est pas envoyé au site. ", ""),
