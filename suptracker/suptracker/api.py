@@ -35,6 +35,7 @@ from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
 from . import cereq as CQ
+from . import seo as SEO
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -383,7 +384,7 @@ def fold(s: str) -> str:
     return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
 
 
-app = FastAPI(title="SupTracker SIES", version="1.0")
+app = FastAPI(title="SupCompass", version="1.0")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
@@ -408,6 +409,14 @@ async def _cache_policy(request: Request, call_next):
     if h is not None:
         resp.headers["Cache-Control"] = h
     return resp
+
+
+@app.exception_handler(404)
+async def _not_found(request: Request, exc):
+    """Sprint 17: an unknown page address answers an HTML 404 with noindex; the API keeps its JSON errors."""
+    if request.url.path.startswith(("/api/", "/static/")):
+        return JSONResponse({"detail": getattr(exc, "detail", "Not Found")}, status_code=404)
+    return _html_404(request, "Cette page n'existe pas.")
 
 
 @app.exception_handler(WarehouseMissing)
@@ -899,7 +908,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages"]
 
 
 @lru_cache(maxsize=1)
@@ -927,13 +936,59 @@ def version():
                          "features": FEATURES}, headers={"Cache-Control": "no-store"})
 
 
-@app.get("/")
-def index():
+def _shell() -> str:
     v = _asset_version()
     html = (STATIC / "index.html").read_text()
     for name in ("app.js", "stats.js", "style.css"):
         html = html.replace(f'"/static/{name}"', f'"/static/{name}?v={v}"')
     label = _commit() or v
-    html = html.replace("<!--version-->", f'<span class="muted">version {label}</span>')
+    return html.replace("<!--version-->", f'<span class="muted">version {label}</span>')
+
+
+def _base(request: Request) -> str:
+    return SEO.base_url(request.headers.get("x-forwarded-host") or request.headers.get("host"))
+
+
+@app.get("/")
+def index(request: Request):
+    base = _base(request)
+    html = SEO.page(_shell(), SEO.home_head(base + "/"), "")
     # the page itself must never be cached: it is what points to the current asset fingerprint
     return Response(html, media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+# ---- Sprint 17: one indexable page per formation and per job, a sitemap and robots.txt (see seo.py) ----
+def _html_404(request: Request, what: str) -> Response:
+    head = SEO.head_tags(f"Page introuvable | {SEO.SITE}", what, _base(request) + "/", False, None)
+    return Response(SEO.page(_shell(), head, SEO.not_found_body(what)), status_code=404, media_type="text/html")
+
+
+@app.api_route("/formation/{cod}", methods=["GET", "HEAD"], include_in_schema=False)
+def formation_page(cod: str, request: Request):
+    r = SEO.formation(_con().cursor(), cod)
+    if r is None:
+        return _html_404(request, "Cette formation n'existe pas dans les données Parcoursup 2022–2025.")
+    url = f"{_base(request)}/formation/{r['cod_aff_form']}"
+    head = SEO.head_tags(SEO.formation_title(r), SEO.formation_description(r), url, r["indexable"], SEO.formation_ld(r, url))
+    return Response(SEO.page(_shell(), head, SEO.formation_body(r)), media_type="text/html")
+
+
+@app.api_route("/metier/{met_id}", methods=["GET", "HEAD"], include_in_schema=False)
+def metier_page(met_id: str, request: Request):
+    d = MT.detail(_con().cursor(), met_id) if MT.MET_ID.match(met_id or "") else None
+    if d is None:
+        return _html_404(request, "Ce métier n'existe pas dans les fiches Onisep.")
+    url = f"{_base(request)}/metier/{d['id']}"
+    head = SEO.head_tags(SEO.metier_title(d), SEO.metier_description(d), url, True, SEO.metier_ld(d, url))
+    return Response(SEO.page(_shell(), head, SEO.metier_body(d)), media_type="text/html")
+
+
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
+def sitemap_xml(request: Request):
+    paths = [] if SEO.is_preview() else SEO.sitemap_entries(_con().cursor())
+    return Response(SEO.sitemap(_base(request), paths), media_type="application/xml")
+
+
+@app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
+def robots_txt(request: Request):
+    return Response(SEO.robots(_base(request)), media_type="text/plain")

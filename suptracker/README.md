@@ -1,4 +1,6 @@
-# SupTracker SIES: longitudinal Parcoursup analytics, 2022–2025
+# SupCompass: longitudinal Parcoursup analytics, 2022–2025
+
+*(Formerly SupTracker. The Python package, folder and environment variables keep the technical name `suptracker`.)*
 
 This is an analytical web app built on the official SIES / MESR open data for the last four completed
 Parcoursup campaigns: **2022, 2023, 2024 and 2025**. It has three layers:
@@ -786,6 +788,54 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
   job page folded by diploma.
 - **X7** (`--browser`) now also opens a formation and a job page on a phone: the summary on the first screen, at most 14
   and 9 screens.
+
+## Found by search engines, and renamed SupCompass (sprint 17)
+
+**The name.** The site is now **SupCompass** ("Sup" of Parcoursup + compass), the owner's choice. Every visible place says
+so: page title, header, footer, API title, monitor user agent. The footer adds that the site is independent, not
+affiliated with Parcoursup or the ministry. The Python package, folder, workflows and Vercel settings keep the technical
+name `suptracker`, so the owner's settings keep working.
+
+**The problem.** Every view lived after a `#` (`#/f/2882`), and search engines do not index those. Only the home page
+existed for Google: about 14 000 formations and 1 100 jobs were invisible.
+
+**What changed (`suptracker/seo.py`):**
+- **`/formation/<code>` and `/metier/<MET.id>`** are real pages. Each one is the app shell with:
+  - in its `<head>`: a title ("Licence - Portail Psychologie à Caen (Université de Caen Normandie) : taux d'accès 2025 | SupCompass"),
+    a meta description (official figures and the caveat first), a canonical address, Open Graph tags and schema.org JSON-LD
+    (`EducationalOccupationalProgram`, `Occupation`);
+  - inside `<main id="view">`: a short server-rendered summary with the published access rate, admits and places (never
+    recomputed), the "pas des chances d'admission" caveat, the jobs of the Onisep sheet and the other formations of the
+    same filière in the académie, as plain links (they let a crawler move from page to page).
+- The app then boots on that address and shows the full page (summary, tabs). Once the visitor navigates, the address
+  goes back to `/#/…`, so the app's usual links stay the same.
+- **`/sitemap.xml`** lists the 14 252 formations of the latest campaign and the 1 124 jobs (15 376 URLs, under the 50 000 limit).
+  **`/robots.txt`** points to it and keeps crawlers off `/api/`.
+- **Indexing rules.**
+  - A formation absent from the latest campaign is served with `noindex`.
+  - A Vercel preview deployment is never indexed: `noindex` everywhere, `Disallow: /`, empty sitemap.
+  - The canonical origin is the production domain Vercel declares (`VERCEL_PROJECT_PRODUCTION_URL`), never the visitor's `Host`.
+- **Unknown addresses** answer an HTML 404 page with `noindex`; the API keeps its JSON errors.
+- **Cache.** Pages are kept by the CDN for one deployment (`s-maxage`) and always revalidated by browsers (`max-age=0`),
+  because they point to the current asset fingerprint. `HEAD` is answered (crawlers use it).
+
+**Red team** (`scripts/redteam_seo.py`, run by `tests/test_seo.py` on the synthetic and the real warehouse): 11/11 checks.
+- **G1.** The sitemap is re-derived from the warehouse: exactly the latest campaign's formations plus every job.
+- **G2.** On formation pages, the figures in the title, description and body are the published ones and equal
+  `/api/formation`; head tags, canonical and JSON-LD are present.
+- **G3.** Job pages list every diploma of `/api/metier`, and their formation links point to real pages.
+- **G4.** Hostile names are escaped everywhere, including the JSON-LD (no `</script>` can close it).
+- **G5.** Malformed or unknown addresses return a 404 with `noindex`, never cached.
+- **G6.** Older formations, previews and the canonical origin follow the indexing rules.
+- **G7.** The router maps the two paths to the same views (run with Node) and returns to `/#/…` on navigation.
+- **G8.** The SupCompass name and the independence notice are present; "SupTracker" appears nowhere a visitor reads.
+- **G9.** The cache policies hold.
+- **G10.** 22 mutants are each caught. They are built in memory: the red team never writes a source file, so the
+  parallel test workers are safe.
+- **G11** (`--browser`). On a phone, light and dark, the app boots on these addresses with 0 JS errors. Without
+  JavaScript, the server summary is readable.
+
+**For the owner after the merge:** declare the site in Google Search Console and submit `/sitemap.xml` (steps in the PR).
 
 ## The working pages in the same format (UI lot 3)
 

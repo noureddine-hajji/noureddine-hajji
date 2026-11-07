@@ -38,6 +38,7 @@ FEATURE_ENTRY_POINTS = {
     "bmo_2026": ("app.js", "function bmoCard("),
     "ia_exposition": ("app.js", "function iaCard("),
     "licence_master": ("app.js", "function licenceMasterCard("),
+    "seo_pages": ("app.js", "function pathRoute("),
 }
 
 

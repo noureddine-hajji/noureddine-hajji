@@ -1,5 +1,5 @@
 "use strict";
-// SupTracker SIES front-end: hash router + dependency-free SVG charts.
+// SupCompass front-end: hash router + dependency-free SVG charts.
 
 const $view = document.getElementById("view");
 let META = null;
@@ -1772,9 +1772,21 @@ function markTab(tab) {
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers" };
+// Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
+// hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
+function pathRoute(pathname, hash) {
+  if (hash && hash !== "#") return null;
+  const f = /^\/formation\/(\d{1,9})\/?$/.exec(pathname);
+  if (f) return `/f/${f[1]}`;
+  const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
+  if (m) return `/metiers/${m[1]}`;
+  return null;
+}
 async function route() {
+  if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
+  if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
-  const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
+  const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
   trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
   // every navigation invalidates the render marker: only the view that sets it again may still be
   // filled by a late async answer (the lycée suggestion of a search, found in review)

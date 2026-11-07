@@ -1,6 +1,6 @@
 "use strict";
 // Audience dashboard (#/stats). Reads /api/stats with the owner's token; every number shown is an
-// aggregate (see suptracker/analytics.py). One hue per chart, no dual axis, status = icon + text.
+// aggregate (see analytics.py). One hue per chart, no dual axis, status = icon + text.
 
 const STATS_TOKEN_KEY = "statsToken";
 const tokenGet = () => { try { return sessionStorage.getItem(STATS_TOKEN_KEY) || ""; } catch (_) { return ""; } };
@@ -254,7 +254,7 @@ async function viewStats(daysArg) {
   document.getElementById("csv").onclick = () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([toCsv(d)], { type: "text/csv;charset=utf-8" }));
-    a.download = `suptracker-audience-${d.period.start}_${d.period.end}.csv`; a.click();
+    a.download = `supcompass-audience-${d.period.start}_${d.period.end}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   $view.dataset.rendered = `stats:${days}`;

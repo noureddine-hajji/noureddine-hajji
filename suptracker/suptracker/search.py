@@ -221,7 +221,7 @@ OPTIONS = {
 }
 APPRENTICESHIP_NOTE = (
     "Les formations en apprentissage ne figurent presque plus dans les statistiques publiques de Parcoursup "
-    "depuis 2023 : SupTracker ne peut pas les comparer. Pour les trouver, utilisez la recherche de "
+    "depuis 2023 : SupCompass ne peut pas les comparer. Pour les trouver, utilisez la recherche de "
     "Parcoursup avec le filtre « Apprentissage ». Les résultats ci-dessous sont des formations sous statut "
     "scolaire.")
 _APPRENTI = re.compile(r"\b(apprenti\w*|alternan\w*|en alternance)\b")

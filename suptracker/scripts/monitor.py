@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 
-UA = "SupTrackerMonitor/1.0 (+uptime check; bot)"
+UA = "SupCompassMonitor/1.0 (+uptime check; bot)"
 RETRIES, PAUSE = 2, 2.0
 
 

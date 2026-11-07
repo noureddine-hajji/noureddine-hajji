@@ -83,6 +83,8 @@ class Ctx:
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
+            "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",
+            "/sitemap.xml": "/sitemap.xml", "/robots.txt": "/robots.txt",
         }
 
 
@@ -123,7 +125,7 @@ def s1(c: Ctx):
         nopol = [r for r in routes if r in samples and CACHE.policy(samples[r].split("?")[0]) is None]
         # persona and verification reports are produced for the real warehouse only (404 by design elsewhere)
         # persona / verification reports exist for the real warehouse only; a job page needs the Onisep jobs (sprint 12)
-        ok_codes = lambda r: ({200, 404} if r == "/api/metier/{met_id}" and not c.has_jobs else  # noqa: E731
+        ok_codes = lambda r: ({200, 404} if r in ("/api/metier/{met_id}", "/metier/{met_id}") and not c.has_jobs else  # noqa: E731
                               {200} if c.real or r not in ("/api/journey/persona", "/api/verification") else {200, 404})
         bad = [(r, cl.get(samples[r]).status_code) for r in routes if r in samples and r != "/api/stats"
                and cl.get(samples[r]).status_code not in ok_codes(r)]
@@ -286,7 +288,7 @@ def fake_site(c: Ctx, break_=None):
     """The monitor's fetch, served by the app itself (optionally broken)."""
     def fetch(base, path, timeout):
         with client(c.db) as (cl, _, _api):
-            r = cl.get(path, headers={"user-agent": "SupTrackerMonitor/1.0 (+uptime check; bot)", "DNT": "1"})
+            r = cl.get(path, headers={"user-agent": "SupCompassMonitor/1.0 (+uptime check; bot)", "DNT": "1"})
             h = {k.lower(): v for k, v in r.headers.items()}
             st, body = r.status_code, r.content
         if break_:

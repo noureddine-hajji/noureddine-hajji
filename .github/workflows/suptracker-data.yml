@@ -1,4 +1,4 @@
-# Builds the SupTracker warehouse from the official SIES exports on a GitHub runner
+# Builds the SupCompass warehouse from the official SIES exports on a GitHub runner
 # and commits it (suptracker/data/suptracker.duckdb + verification report) to the
 # branch it runs on. Vercel redeploys on that push and serves the file read-only.
 name: suptracker-data
