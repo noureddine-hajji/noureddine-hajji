@@ -323,7 +323,7 @@ def d7(c: Ctx):
     blk = c.js[c.js.index("// ---- Sprint \"Doublettes\""):c.js.index("// ---- lot 2 (Claude design guidelines)")]
     s1 = c.js[c.js.index("function stage1Matrix("):c.js.index("function stage1SeriesMatrix(")]
     text = re.sub(r"(?m)^\s*//.*$", "", blk + s1)
-    words = all(w in blk for w in ("Chiffre national du groupe, pas propre à cet établissement", "Ce ne sont pas des chances d'admission",
+    words = all(w in blk for w in ("Chiffre national du groupe, pas propre à cet établissement", "pas des chances d'admission.\";",
                                    "estimation")) and "Pas des chances d'admission" in s1
     chance = CHANCE.search(text)
     tu = FORMAL.search(re.sub(r"\$\{[^}]*\}", "", text))

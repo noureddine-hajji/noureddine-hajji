@@ -294,11 +294,11 @@ function pickDoublette(g, dkey) {
   return { source: "autres", key: dkey, label: mine ? mine.label : dkey, taux: g.autres.taux, candidats: g.autres.candidats,
     n_doublettes: g.autres.n_doublettes, trend: g.autres.trend, estimation: true };
 }
-const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce ne sont pas des chances d'admission.";
+const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
 function doubletteCard(d) {
   if (!d) return "";
-  const p = store.get("profile", null) || {};
-  const myVoie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : (p.spe1 ? "bg" : null);
+  const prof = store.get("profile", null) || {};
+  const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const last = Object.values(d.series)[0].trend.slice(-1)[0];
   const voies = ["bg", "bt", "bp"].map((s) => { const v = d.series[s];
     return `<tr${s === myVoie ? ' class="dbl-mine"' : ""}><td>${voiePill(s)}${s === myVoie ? ' <span class="estim">votre bac</span>' : ""}</td>
@@ -307,7 +307,7 @@ function doubletteCard(d) {
   let dbl;
   if (d.status !== "ok") dbl = `<p class="muted small">Pas de donnée par doublette pour ce type de formation : le ministère ne la publie que pour les groupes de formations qu'il suit.</p>`;
   else {
-    const g = d.groupe, dkey = profileDkey(p), mine = pickDoublette(g, dkey);
+    const g = d.groupe, dkey = profileDkey(prof), mine = pickDoublette(g, dkey);
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
     dbl = `<p class="small">Groupe : <strong>${esc(g.label)}</strong> · campagnes 2022–2025 cumulées</p>
