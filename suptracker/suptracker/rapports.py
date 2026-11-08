@@ -70,6 +70,11 @@ def _int(x):
         return None
 
 
+def _insert(con, sql: str, rows: list) -> None:
+    if rows:                                   # DuckDB refuses an empty executemany (e.g. no report matches the warehouse)
+        con.executemany(sql, rows)
+
+
 def _read(path: Path) -> list[dict]:
     return list(csv.DictReader(open(path, encoding="utf-8"))) if path.exists() else []
 
@@ -116,9 +121,9 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
             if k not in chosen or r["timestamp"] > chosen[k]["capture"]:
                 chosen[k] = {"cod_aff_form": code, "session": s, "digest": dig, "capture": r["timestamp"], "url": r["original"],
                              "confirmes": conf, "en_position": pos, "acceptes": acc, "methode": how, "n_formations": len(cands)}
-    con.executemany("INSERT INTO core.rapport_audit VALUES (?, ?, ?, ?, ?, ?, ?)", audit)
+    _insert(con, "INSERT INTO core.rapport_audit VALUES (?, ?, ?, ?, ?, ?, ?)", audit)
     keys = ["cod_aff_form", "session", "digest", "capture", "url", "confirmes", "en_position", "acceptes", "methode", "n_formations"]
-    con.executemany(f"INSERT INTO core.rapport VALUES ({', '.join('?' * len(keys))})", [[v[k] for k in keys] for v in chosen.values()])
+    _insert(con, f"INSERT INTO core.rapport VALUES ({', '.join('?' * len(keys))})", [[v[k] for k in keys] for v in chosen.values()])
     used = {(v["digest"], v["cod_aff_form"]): v for v in chosen.values()}
     by_dig = {}
     for v in chosen.values():
@@ -138,7 +143,7 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
             autres = r["doublette"].strip().lower().startswith("autres")
             dbl.append((v["cod_aff_form"], v["session"], bac, rank[k], r["doublette"], J.doublette_key(*p) if p and bac == "bg" else None,
                         autres, _int(r["confirmes"]), _int(r["classes"]), _int(r["en_position"]), _int(r["acceptes"])))
-    con.executemany("INSERT INTO core.rapport_doublette VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", dbl)
+    _insert(con, "INSERT INTO core.rapport_doublette VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", dbl)
     msk = set()
     for r in _read(harvest / "masked.csv"):
         dig = r["digest"]
@@ -147,7 +152,7 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
         for v in targets:
             if (b := _bac(r["bac"])):
                 msk.add((v["cod_aff_form"], v["session"], b))
-    con.executemany("INSERT INTO core.rapport_masque VALUES (?, ?, ?)", sorted(msk))
+    _insert(con, "INSERT INTO core.rapport_masque VALUES (?, ?, ?)", sorted(msk))
     texts = []
     q = harvest / "qualitatif.jsonl.gz"
     if q.exists():
@@ -159,7 +164,7 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
                     if eds.get("liste"):                # harvested before the parser stopped there: same rule, applied here
                         eds["liste"] = {k: clean_eds_list(v) for k, v in eds["liste"].items() if clean_eds_list(v)}
                     texts.append((d["digest"], json.dumps({k: d.get(k) for k in TEXT_KEYS}, ensure_ascii=False)))
-    con.executemany("INSERT INTO core.rapport_texte VALUES (?, ?)", texts)
+    _insert(con, "INSERT INTO core.rapport_texte VALUES (?, ?)", texts)
     return {"rapports": len(chosen), "doublettes": len(dbl), "textes": len(texts), "ecartes": sum(1 for a in audit if a[-1] != "retenu")}
 
 
