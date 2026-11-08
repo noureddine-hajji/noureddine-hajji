@@ -33,6 +33,17 @@ IMPORTANCE = ("Essentiel", "Très important", "Important", "Complémentaire")
 LINK_RE = re.compile(r"g_ea_cod=([0-9A-Z]+)|g_ti_cod=(\d+)|c_ja_cod=(\d+)")
 
 
+def clean_eds_list(items: list) -> list:
+    """Twin of scripts/rapports_parse.clean_eds_list: the list stops at the first line that is not a specialty."""
+    out = []
+    for x in items:
+        x = str(x).strip()
+        if not x or "?" in x or len(x) > 90 or re.match(r"(?i)(crit[èe]res?|vous avez|pr[ée]ciser|non,|oui,)", x):
+            break
+        out.append(x)
+    return out
+
+
 def _bac(label: str) -> str | None:
     for k, v in BAC.items():
         if label.startswith(k):
@@ -144,6 +155,9 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
             for line in f:
                 d = json.loads(line)
                 if d["digest"] in by_dig:
+                    eds = d.get("eds") or {}
+                    if eds.get("liste"):                # harvested before the parser stopped there: same rule, applied here
+                        eds["liste"] = {k: clean_eds_list(v) for k, v in eds["liste"].items() if clean_eds_list(v)}
                     texts.append((d["digest"], json.dumps({k: d.get(k) for k in TEXT_KEYS}, ensure_ascii=False)))
     con.executemany("INSERT INTO core.rapport_texte VALUES (?, ?)", texts)
     return {"rapports": len(chosen), "doublettes": len(dbl), "textes": len(texts), "ecartes": sum(1 for a in audit if a[-1] != "retenu")}

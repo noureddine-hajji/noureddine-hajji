@@ -143,6 +143,18 @@ OPTIONS = {"maths_expertes": r"math[ée]matiques?\s+expert|maths?\s+expert",
            "certifications": r"\bPIX\b|\bTOEIC\b|\bTOEFL\b|\bIELTS\b|\bcambridge\b|\bDELF\b|\bDELE\b|certification"}
 
 
+def clean_eds_list(items: list) -> list:
+    """The specialties a jury lists, up to the first line that is not one (the next section's title or question,
+    a long sentence): what follows is another section of the report, never a specialty."""
+    out = []
+    for x in items:
+        x = str(x).strip()
+        if not x or "?" in x or len(x) > 90 or re.match(r"(?i)(crit[èe]res?|vous avez|pr[ée]ciser|non,|oui,)", x):
+            break
+        out.append(x)
+    return out
+
+
 def _section(text: str, start: str, ends: list[str]) -> str:
     m = list(re.finditer(start, text))
     if not m:
@@ -176,6 +188,7 @@ def qualitative(text: str, crit_text: str = "") -> dict:
                 serie = line; eds["liste"].setdefault(serie, [])
             elif serie and line and not line.startswith(("Quels sont", "Le poids", "Est ")):
                 eds["liste"][serie].append(re.sub(r"\s*\(EDS\)\s*$", "", line))
+    eds["liste"] = {k: clean_eds_list(v) for k, v in eds["liste"].items() if clean_eds_list(v)}
     q["eds"] = eds
     # options named anywhere in the jury's texts and criteria: keep the sentence, verbatim
     corpus = "\n".join([crit_text, q.get("modalites", ""), q.get("conseils", ""), q.get("eliminatoires", "")])

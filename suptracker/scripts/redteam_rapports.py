@@ -112,7 +112,8 @@ def craft(c: Ctx, dest: Path) -> dict:
     with gzip.open(dest / "qualitatif.jsonl.gz", "wt", encoding="utf-8") as g:
         for dg in ("A2", "F1", "B1"):
             g.write(json.dumps({"digest": dg, "criteres": [{"champ": HOSTILE, "critere": HOSTILE, "elements": HOSTILE, "importance": "Essentiel"}],
-                                "eds": {"pris_en_compte": "Oui", "poids": HOSTILE, "liste": {"Série Générale": ["Mathématiques Spécialité", HOSTILE]}},
+                                "eds": {"pris_en_compte": "Oui", "poids": HOSTILE, "liste": {"Série Générale": ["Mathématiques Spécialité", HOSTILE],
+                                        "Série STL": ["Physique-Chimie et Mathématiques", "Critères « parcours en cordée de la réussite »", "Oui"]}},
                                 "options_citees": {"maths_expertes": [HOSTILE + " mathématiques expertes"]}, "eliminatoires": HOSTILE,
                                 "modalites": HOSTILE, "algorithme": HOSTILE, "conseils": HOSTILE}) + "\n")
     want = {(a, sa): ("A2", va), (d, sd): ("D1", vd), (f, sf): ("F1", vf), (e, sf): ("F1", ve)}
@@ -168,7 +169,7 @@ def r2(c: Ctx):
     return ok, f"kept {sorted(got)} want {sorted(spec['want'])}; rejected {sorted(rejected)}; build {res}"
 
 
-@check("R3 figures: served rows = harvested counts, rate re-derived, the student's row (Python and page twins)")
+@check("R3 figures: served rows = harvested counts, rate re-derived, the student's row (Python and page twins), EDS lists cut")
 def r3(c: Ctx):
     mem, spec, _ = built(c)
     bad = []
@@ -186,6 +187,10 @@ def r3(c: Ctx):
                     bad.append((cod, "rate", x["taux"], want))
     a = spec["a"]
     ba = M["RP"].for_formation(mem, *a)
+    # a specialty list stops where the next section of the report begins (harvested texts are cleaned at build)
+    stl = ((ba.get("textes") or {}).get("eds") or {}).get("liste", {}).get("Série STL")
+    if stl != ["Physique-Chimie et Mathématiques"]:
+        bad.append(("EDS list not cut at the next section", stl))
     if ba["masques"] != ["bp"]:
         bad.append(("masked", ba["masques"]))
     picks = {k: (M["RP"].pick(ba, k) or {}).get("source") for k in ("MATHS+PC", "HLP+SES", None)}
@@ -280,6 +285,7 @@ def r5(c: Ctx):
 
 # ------------------------------------------------------------------ mutation test
 PY_MUTANTS = [
+    ("EDS list runs into the next section", "if not x or \"?\" in x or len(x) > 90 or re.match(r\"(?i)(crit[èe]res?|vous avez|pr[ée]ciser|non,|oui,)\", x):\n            break", "if not x:\n            break"),
     ("unverified reports kept", "ok = bool(rs) and ref is not None and ref[0] == conf", "ok = bool(rs) and ref is not None"),
     ("first capture wins", 'if k not in chosen or r["timestamp"] > chosen[k]["capture"]:', 'if k not in chosen:'),
     ("rate inverted", "return None if not conf or pos is None else round(100 * pos / conf, 1)", "return None if not pos else round(100 * conf / pos, 1)"),
