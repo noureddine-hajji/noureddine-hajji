@@ -1,10 +1,10 @@
 {
- "parsed_this_run": 5376,
- "left": 13,
+ "repair_tried": 32,
  "total": 5408,
  "by_status": {
-  "ok": 5376,
-  "parse_error": 19,
-  "retry": 13
+  "failed": 11,
+  "incomplet": 6,
+  "ok": 5383,
+  "ok_repare": 8
  }
 }
