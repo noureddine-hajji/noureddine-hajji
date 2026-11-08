@@ -415,6 +415,9 @@ const tip = () => ""; const legend = () => ""; const lineChart = () => "";
 const [d, prof] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = {}; PROFILE = prof; out.rare = doubletteCard(d); PROFILE = null; out.none = doubletteCard(d);
 out.nogroup = doubletteCard({ ...d, status: "sans_groupe", groupe: null });
+// Codex (PR #37): a group with a counting break names its retained and left-out campaigns next to the pooled figures
+out.brk = doubletteCard({ ...d, groupe: { ...d.groupe, campagnes_ecartees: [2024, 2023],
+  tous: { ...d.groupe.tous, trend: [{ session: 2022, taux: 50 }, { session: 2025, taux: 50 }] } } });
 const DEF = new Set(["predilection", "accessible"]);
 out.stage1 = stage1Matrix({ filieres: [
   { type_key: "a", label: "Licence A", gate: "insuffisant", candidates: 3, years: 4, offer_rate: null, offer_rate_all: 0.5, share: 0, lift: 0,
@@ -447,7 +450,7 @@ def d8(c: Ctx):
     invite = "Indiquez vos spécialités" in o["none"]
     nogroup = "Pas de donnée par doublette" in o["nogroup"] and "Votre doublette" not in o["nogroup"]
     unlabelled = [len(re.findall(r'<td class="num"(?![^>]*data-label)', v)) for v in o.values()]
-    pills = all(o[k].count('class="voie-pill"') == 3 for k in ("rare", "none", "nogroup"))
+    pills = all(o[k].count('class="voie-pill"') == 3 for k in ("rare", "none", "nogroup", "brk"))
     s1 = o.get("stage1", "")
     rare_s1 = "Votre doublette est rare" in s1 and "44,7 %" in s1 and "Autres doublettes (estimation" in s1 and "Licence A" in s1
     few = o.get("few", "")
@@ -455,13 +458,16 @@ def d8(c: Ctx):
               and "Autres doublettes (estimation" not in few)
     filt = o.get("filtered", "")
     filt_ok = "Licence C" not in filt and "Licence D" not in filt and "Peu de candidats" not in filt and "est rare" not in filt
+    brk = o.get("brk", "")
+    brk_ok = ("campagnes 2022, 2025 cumulées" in brk and "2023 et 2024 écartées" in brk and "rupture de comptage" in brk
+              and "2022–2025 cumulées" not in brk and "campagnes 2022–2025 cumulées" in o["rare"] and "écartée" not in o["rare"])
     gm = re.search(r"^const GATE_MIN = (\d+);", c.js, re.M)
     gate_min = bool(gm) and int(gm.group(1)) == M["J"].GATE_RULES["min_candidates"]
-    ok = not raw and rare and invite and nogroup and not any(unlabelled) and pills and rare_s1 and few_ok and filt_ok and gate_min
+    ok = not raw and rare and invite and nogroup and not any(unlabelled) and pills and rare_s1 and few_ok and filt_ok and gate_min and brk_ok
     return ok, (f"raw tag {raw}; rare shows the bucket {rare}; invites a profile {invite}; no group {nogroup}; unlabelled cells {unlabelled}; "
                 f"route pills {pills}; a rare doublette's filières shown with the bucket in Mon parcours {rare_s1}; "
                 f"20-99 candidates shown with their own rate, not called rare {few_ok}; a student's filter honoured {filt_ok}; "
-                f"page gate threshold = server {gate_min}")
+                f"page gate threshold = server {gate_min}; left-out campaigns named next to the pooled figures {brk_ok}")
 
 
 
@@ -571,6 +577,8 @@ JS_MUTANTS = [
     ("rare note read from the gate, not the rare flags", "const allRare = fewOnly && s1.filieres.every((f) => f.rare);", "const allRare = fewOnly;"),
     ("fallback overrides the student's filters", 's1.filieres.every((f) => f.gate === "insuffisant") && !show.has("insuffisant")',
      '!s1.filieres.some((f) => show.has(f.gate)) && s1.filieres.some((f) => f.gate === "insuffisant")'),
+    ("left-out campaigns not disclosed", "const out = (g.campagnes_ecartees || []).slice().sort();", "const out = [];"),
+    ("pooled span hard-coded", "Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>", "Groupe : <strong>${esc(g.label)}</strong> · campagnes 2022–2025 cumulées</p>"),
     ("page gate threshold drifts", "const GATE_MIN = 100;", "const GATE_MIN = 50;"),
 ]
 CSS_MUTANTS = [
