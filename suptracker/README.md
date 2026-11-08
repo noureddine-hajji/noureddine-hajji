@@ -865,6 +865,65 @@ caught, built in memory.
 **After merging (owner):** nothing to do. The warehouse is rebuilt by the `suptracker-data` workflow on the branch
 before the merge.
 
+## Each formation's own public report: doublettes and what the jury looks at (sprint "Rapports publics")
+
+**What exists, checked before coding:**
+- Every Parcoursup formation publishes a "rapport public" of its commission d'examen des vœux (a PDF). It contains tables
+  per calling group, per bac type and mention, and per **doublette** (bac général) or specialty (techno, pro). Each table
+  gives the candidates who confirmed the vœu, ranked, "en position de recevoir une proposition", and who accepted. The
+  report also contains the jury's own texts:
+  - its criteria, with their published importance;
+  - the specialties it takes into account and their weight;
+  - its eliminating criteria;
+  - how files were examined;
+  - whether an algorithm was used;
+  - its advice to candidates.
+- The Parcoursup site overwrites the reports at each campaign, and it was in maintenance during the probe. The **Internet
+  Archive** keeps them: the archived fiche pages carry the exact report link (`g_ea_cod`, `g_ti_cod`, `c_ja_cod`), and the
+  PDFs are archived at that link. The archive sorts query parameters, so the harvest lists them by PATH prefix.
+- On the owner's report and on 10 probe reports (24 formations), the candidates who confirmed equal the SIES `nb_voe_pp`
+  exactly. In 2025, "en position" also equals `ran_grp` per group. In 2024 it often differs, because the report is
+  frozen on 11 July and SIES later. For IUT de Nice 2327 the parser gives 66 / 54 / 52 / 26 % (bac général) and 10 / 14 %
+  (bac techno), the figures the owner showed.
+
+**Pipeline:**
+- `suptracker-rapports` (GitHub Action, the hosts are blocked in the sandbox) runs `scripts/rapports_harvest.py`:
+  - CDX enumeration of every archived `telechargerRapportPublic` PDF (one row per distinct file);
+  - download, then parsing by `scripts/rapports_parse.py` (pdfplumber table extraction: continuation pages, repeated
+    headers, title rows, masked bac types; the jury's sections by their headings, never the signature);
+  - CSVs plus `qualitatif.jsonl.gz` in `data/rapports/harvest/`.
+  - It is resumable: each run stops after its time budget, and pushing `data/rapports/request.json` again continues it.
+- `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
+  - the formation code is the one printed in its tables (2024 on), or the `g_ti_cod` of its link for older reports;
+  - its confirmed candidates must equal the SIES `nb_voe_pp` of that code and session;
+  - when several captures exist, the latest verified one is kept;
+  - everything else is counted in `core.rapport_audit`.
+
+**On the page:**
+- **Tab "Y entrer", card "Selon votre bac".** A table "Dans cette formation, par doublette (rapport public SESSION)":
+  - one table per bac route, giving the access rate as en_position / confirmed, with the published counts;
+  - the student's doublette is highlighted, or the formation's own "Autres doublettes" row when it is not detailed;
+  - masked routes are said to be unpublished.
+  - This published figure replaces the per-formation ESTIMATE; the estimate stays only when the formation has no report.
+- **New tab "Ce que regarde le jury".**
+  - The criteria, by field, with an importance badge (a neutral ink scale, never a zone colour).
+  - The specialties taken into account, with the student's own ones marked, and their weight.
+  - Options and courses the jury names (maths expertes, maths complémentaires, DGEMC, langues anciennes, LV3, sections
+    européennes, certifications), shown only as quoted sentences.
+  - A student who follows maths expertes is told whether this report names them, never what that means for them.
+  - Eliminating criteria, method, algorithm and advice, folded.
+  - The source line gives the session, the capture date and a link to the archived PDF.
+- **Mes vœux** shows the formation's published figure when its report exists.
+
+**Red team** `scripts/redteam_rapports.py` (R1-R6), via `tests/test_rapports.py`:
+- R1: the parser on the committed probe PDFs (SIES identity, a known table read cell by cell, no signature);
+- R2: the selection rules on a crafted harvest built from the warehouse (unverified report rejected, wrong `g_ti_cod`
+  rejected, latest capture, concours split);
+- R3: the figures and the twins;
+- R4: a Node render on hostile texts (escaping, labels, estimate replaced only by a published figure, source, caveat);
+- R5: the wording and the register;
+- R6: 14 mutants built in memory, all caught.
+
 ## Found by search engines, and renamed SupCompass (sprint 17)
 
 **The name.** The site is now **SupCompass** ("Sup" of Parcoursup + compass), the owner's choice. Every visible place says

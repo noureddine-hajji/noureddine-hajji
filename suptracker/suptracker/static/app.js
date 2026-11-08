@@ -315,9 +315,10 @@ function dblCampagnes(g) {
   return `campagnes ${span} cumulées${out.length ? ` · ${out.join(" et ")} ${out.length > 1 ? "écartées" : "écartée"} : rupture de comptage dans les données publiées (candidats multipliés par 2 ou 3 sans hausse des propositions), ces campagnes ne sont dans aucun chiffre de ce bloc ni dans l'estimation` : ""}`;
 }
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
-function doubletteCard(d) {
+function doubletteCard(d, rp) {
   if (!d) return "";
   const prof = store.get("profile", null) || {};
+  const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const last = Object.values(d.series)[0].trend.slice(-1)[0];
   const voies = ["bg", "bt", "bp"].map((s) => { const v = d.series[s];
@@ -330,7 +331,8 @@ function doubletteCard(d) {
     const g = d.groupe, dkey = profileDkey(prof), mine = pickDoublette(g, dkey);
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
-    const est = estimateDoublette(d.series, g, dkey);
+    // the estimate is only shown when this formation's report gives no bac général figure
+    const est = own.bg ? null : estimateDoublette(d.series, g, dkey);
     const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
       <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
     dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>
@@ -347,7 +349,82 @@ function doubletteCard(d) {
     <h3>Par voie de bac, pour cette formation${last ? ` (campagne ${esc(last.session)})` : ""}</h3>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
-    <h3>Par doublette de spécialités (bac général)</h3>${dbl}</div>`;
+    ${own.html}
+    <h3>Par doublette de spécialités (bac général)${own.bg ? " : le groupe de formations, toute la France" : ""}</h3>${dbl}</div>`;
+}
+// ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
+const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
+// the student's row in THIS formation's report: their doublette, else the formation's own "Autres doublettes"
+// (twin of rapports.pick)
+function pickRapport(rp, dkey) {
+  if (!rp || !dkey) return null;
+  const rows = (rp.doublettes && rp.doublettes.bg) || [];
+  const mine = rows.find((x) => x.key === dkey);
+  if (mine) return { ...mine, source: "doublette" };
+  const other = rows.find((x) => x.autres);
+  return other ? { ...other, source: "autres" } : null;
+}
+const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été en position de recevoir une proposition en phase principale : le taux d'accès de la formation, détaillé par doublette, calculé à partir des effectifs publiés dans son rapport. Seuls y figurent les candidats scolarisés en terminale en France depuis 2020-2021. Ce sont des résultats passés, pas des chances d'admission.";
+function rapportSource(rp) {
+  const d = String(rp.capture || "");
+  const when = d.length >= 8 ? `${d.slice(6, 8)}/${d.slice(4, 6)}/${d.slice(0, 4)}` : "";
+  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), copie archivée le ${esc(when)} par l'Internet Archive : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
+}
+function rapportDoublettes(rp, prof) {
+  if (!rp || !rp.doublettes) return { html: "", bg: false };
+  const dkey = profileDkey(prof), mine = pickRapport(rp, dkey);
+  const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
+  const blocks = ["bg", "bt", "bp"].map((v) => {
+    const rows = rp.doublettes[v] || [];
+    if (!rows.length) return (rp.masques || []).includes(v) ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
+    return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Doublette"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
+      ${rows.map((x) => { const me = v === "bg" && mine && (mine.source === "doublette" ? x.key === dkey : x.autres) && myVoie === "bg";
+        return `<tr${me ? ' class="dbl-mine"' : ""}><td>${esc(x.libelle)}${me ? ` <span class="estim">${mine.source === "autres" ? "votre doublette en fait partie" : "votre doublette"}</span>` : ""}</td>
+        <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${x.taux !== null && x.taux !== undefined ? rateBar(x.taux, VOIES[v].color) : ""}</td>
+        <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td></tr>`; }).join("")}</table></div>`;
+  }).join("");
+  if (!blocks) return { html: "", bg: false };
+  const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres doublettes » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
+    <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une doublette autre que celles détaillées" : "cette doublette"} ont été en position de recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses doublettes les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
+  return { bg: !!(rp.doublettes.bg || []).length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})</h3>${head}${blocks}
+    <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
+}
+// what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it
+// names (quoted, never interpreted), eliminating criteria, method and advice; every text is the jury's own, escaped
+// journey.SPECIALTIES, the labels the reports print in their list of specialties taken into account (red team checks equality)
+const RP_SPE = {"MATHS": "Mathématiques Spécialité", "PC": "Physique-Chimie Spécialité", "SVT": "Sciences de la vie et de la Terre Spécialité", "SES": "Sciences Economiques et Sociales Spécialité", "HGGSP": "Histoire-Géographie, Géopolitique et Sciences politiques", "LLCER": "Langues, littératures et cultures étrangères et régionales", "HLP": "Humanités, Littérature et Philosophie", "NSI": "Numérique et Sciences Informatiques", "SI": "Sciences de l'ingénieur et sciences physiques", "LLCA": "Littérature et langues et cultures de l'Antiquité", "EPPCS": "Éducation physique, pratiques et culture sportives", "ART": "Art", "BIOECO": "Biologie/Ecologie"};
+const RP_IMP = ["Essentiel", "Très important", "Important", "Complémentaire"];
+const RP_OPTIONS = { maths_expertes: "Mathématiques expertes", maths_complementaires: "Mathématiques complémentaires", dgemc: "Droit et grands enjeux du monde contemporain",
+  langues_anciennes: "Langues anciennes (latin, grec)", lv3: "Troisième langue vivante", option_arts: "Option arts", option_eps: "Option EPS",
+  section_euro: "Section européenne ou internationale", certifications: "Certifications" };
+const rpText = (t) => esc(t || "").replace(/\n/g, "<br>");
+function juryCard(rp) {
+  if (!rp || !rp.textes) return "";
+  const t = rp.textes, prof = store.get("profile", null) || {};
+  const crit = (t.criteres || []).filter((c) => c.critere || c.elements);
+  const champs = [...new Set(crit.map((c) => c.champ))];
+  const impCls = (i) => { const k = RP_IMP.indexOf(i); return k < 0 ? "" : ` imp${k}`; };
+  const critHtml = champs.length ? `<h3>Ses critères et leur importance</h3><div class="scroll"><table class="stack"><tr class="stack-head"><th>Critère</th><th>Ce qui est regardé</th><th>Importance</th></tr>
+    ${champs.map((ch) => `<tr class="rp-champ"><td colspan="3"><strong>${esc(ch)}</strong></td></tr>${crit.filter((c) => c.champ === ch).map((c) => `<tr><td data-label="Critère">${esc(c.critere)}</td><td data-label="Ce qui est regardé">${esc(c.elements)}</td><td data-label="Importance">${c.importance ? `<span class="rp-imp${impCls(c.importance)}">${esc(c.importance)}</span>` : ""}</td></tr>`).join("")}`).join("")}
+    </table></div>` : "";
+  const eds = t.eds || {};
+  const mySpe = [prof.spe1, prof.spe2].filter((x) => typeof x === "string" && RP_SPE[x]).map((x) => RP_SPE[x].toLowerCase());
+  const edsList = Object.entries(eds.liste || {}).map(([serie, items]) => `<p class="small"><strong>${esc(serie)}</strong> : ${items.map((x) => {
+    return mySpe.includes(String(x).toLowerCase()) ? `<mark>${esc(x)}</mark>` : esc(x); }).join(" · ")}</p>`).join("");
+  const edsHtml = eds.pris_en_compte ? `<h3>Les spécialités de terminale</h3>
+    <p class="small">La commission dit ${/^oui/i.test(eds.pris_en_compte) ? "<strong>prendre en compte</strong>" : "<strong>ne pas prendre en compte</strong>"} les enseignements de spécialité.${eds.poids ? ` Le poids des résultats dans certaines spécialités, d'après la commission : « ${esc(eds.poids.replace(/\.$/, ""))} ».` : ""}</p>${edsList}` : "";
+  const opts = t.options_citees || {};
+  const me = prof.maths_expertes && (prof.spe1 === "MATHS" || prof.spe2 === "MATHS");
+  const optHtml = Object.keys(opts).length || me ? `<h3>Options et parcours cités par le jury</h3>
+    ${me ? `<p class="small">Vous suivez <strong>Mathématiques expertes</strong> : ${opts.maths_expertes ? "le rapport de cette formation la cite (voir ci-dessous)." : "le rapport de cette formation ne la cite pas. Cela ne veut pas dire qu'elle ne compte pas : regardez les attendus de la fiche Parcoursup."}</p>` : ""}
+    ${Object.entries(opts).map(([k, quotes]) => `<p class="small"><strong>${esc(RP_OPTIONS[k] || k)}</strong></p>${quotes.map((q) => `<blockquote class="rp-quote">« ${esc(q)} »</blockquote>`).join("")}`).join("")}` : "";
+  const fold = (title, txt) => (txt ? `<details class="dip"><summary>${title}</summary><p class="small">${rpText(txt)}</p></details>` : "");
+  return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}</h2>
+    <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
+    ${critHtml}${edsHtml}${optHtml}
+    ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
+    <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ce ne sont pas des chances d'admission.</p>
+    <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
 function doubletteCharts(d, years) {
@@ -453,7 +530,7 @@ async function viewFormation(cod, session) {
       <div><div class="muted small">Part des terminales générales parmi les candidats appelés (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
-  ${doubletteCard(d.doublettes)}
+  ${doubletteCard(d.doublettes, d.rapport)}
   ${previsionCard(d.prevision)}
   ${offerCard(r)}
   ${timingCard(r, d.history)}
@@ -474,6 +551,7 @@ async function viewFormation(cod, session) {
       <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
   </div>
 `],
+    ["jury", "Ce que regarde le jury", juryCard(d.rapport)],
     ["reussite", "Réussir et poursuivre", `
   ${successCard(d.success)}
   ${masterCard(d.master)}
@@ -1580,7 +1658,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}

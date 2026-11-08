@@ -37,6 +37,7 @@ from . import calibration as CAL
 from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
+from . import rapports as RP
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -578,7 +579,9 @@ def formation(cod: str, session: int | None = None):
             "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # sprint "Doublettes": per route for this formation, per doublette for its group (national); the profile
             # picks the student's row in the browser, it is never sent
-            "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
+            "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # sprint "Rapports publics": this formation's own report (doublettes as published, the jury's criteria and texts)
+            "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -912,7 +915,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics"]
 
 
 @lru_cache(maxsize=1)

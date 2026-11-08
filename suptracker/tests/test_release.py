@@ -40,6 +40,7 @@ FEATURE_ENTRY_POINTS = {
     "licence_master": ("app.js", "function licenceMasterCard("),
     "seo_pages": ("app.js", "function pathRoute("),
     "doublettes": ("app.js", "function doubletteCard("),
+    "rapports_publics": ("app.js", "function juryCard("),
 }
 
 
