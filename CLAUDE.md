@@ -105,7 +105,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   "Voie d'accès générale" = ordinary route, not bac général).
 - **Cartographie offer attributes.**
   - `amg` is distance teaching or sport/art arrangements, **not disability**.
-  - Apprenticeship is nearly absent from SIES stats after 2022, so there is no filter; show a note.
+  - Apprenticeship is nearly absent from SIES stats after 2022, so search has no filter (note). The map lists the cartographie's
+    apprenticeship offers apart, with no figure (see Carte).
 - **Plan B.**
   - Same `fil_lib_voe_acc`, a strictly better zone or +15 points; no fragile or closed readings;
     no same concours pool (`same_pool`).
@@ -301,19 +302,28 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
   - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
-  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R6).
+  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R7).
+  - Unread files (`--repair`, request mode "repair"): every other capture of the URL, as archived then rebuilt by qpdf
+    (pikepdf); a rebuilt file is `ok_repare` only if COMPLETE (every page has text, the signature line is there), else `incomplet`
+    and never used. Coverage is bounded by what the archive kept: the live fiches link the reports only during a campaign.
 - **Carte (map of formations).**
   - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
   - Two levels: type of diploma, then mention (`carte.diplome_of`, fixed rules on the published labels; every formation in
     exactly one type). Filters follow the Parcoursup map (statut, internat, aménagements, sélectivité, zones), each option
     with its count among what the other groups keep. Paid private institutions: the "Privés (payants)" box is unticked by
-    default (Plan B's rule). No apprenticeship filter (note). Zones: `/api/carte/zones` = journey.stage2 per own type, `only=`.
+    default (Plan B's rule). Zones: `/api/carte/zones` = journey.stage2 per own type, `only=`.
+  - Apprenticeship (owner's request, 2026-11-08): the offers of the LATEST cartographie session absent from the latest SIES
+    campaign (`carte.apprentissage`, own codes) are LISTED only: no zone, no rate, no paid flag, never "Mes vœux", a link to their
+    Parcoursup page (only `https://dossierappel.parcoursup.fr/`). Type and mention = the vote of the SIES formations carrying the
+    same cartographie labels (`label_votes`); académie by UAI, else département. A private CFA outside State contract is
+    `prive_app` (free for the apprentice, Code du travail L6211-1), ticked by default; never the paid `prive`. Filter
+    "Apprentissage" (hors / en). Unknown selectivity is neither sélective nor non sélective. Red team C9.
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
     in `static/vendor/leaflet/` and loaded by the map page only (never the page shell, never a CDN); one tile URL
     (`CARTE_TILES`), the attribution, and a note that OpenStreetMap's servers see the IP address. The list works without the map.
-  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C8).
+  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C9).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

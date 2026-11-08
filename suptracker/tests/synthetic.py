@@ -302,6 +302,29 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
         {"gta": "1103", "annee": 2026, "etab_gps": None, "fiche": fiche.format(1103),
          "app": "", "int": "Etablissements avec internat pour filles", "amg": "Enseignement à distance"},
     ]
+    # the cartographie's own labels (real ODS spellings)
+    lab = {"1100": ("BUT", "BUT - Génie mécanique et productique", "BUT - Production - Génie mécanique et productique"),
+           "1102": ("BTS - BTSA - BTSM", "BTS - Comptabilité et gestion", "BTS - Services - Comptabilité et gestion"),
+           "1103": ("BTS - BTSA - BTSM", "BTS - Systèmes numériques", "BTS - Production - Systèmes numériques")}
+    for c in carto:
+        tf, fl, nm = lab[c["gta"]]
+        c.update(tf=tf, fl=fl, nm=nm, tc="Publics", etab_uai="0751234A", etab_nom="Université Exemple Paris (Paris - 75)",
+                 commune="Paris", departement="Paris")
+    # apprenticeship offers SIES does not publish (own codes): one with labels SIES formations carry, one unseen, one older
+    carto += [
+        {"gta": "9901", "annee": 2026, "etab_gps": "48.85, 2.35", "fiche": fiche.format(9901), "app": "Formations en apprentissage",
+         "int": "", "amg": "Enseignement en présentiel", "tf": "BTS - BTSA - BTSM", "fl": "BTS - Comptabilité et gestion",
+         "nm": "BTS - Services - Comptabilité et gestion - en apprentissage", "tc": "Privés", "etab_uai": "0751234A",
+         "etab_nom": "CFA Exemple Paris (Paris - 75)", "commune": "Paris", "departement": "Ville de Paris"},   # académie from the UAI
+        {"gta": "9902", "annee": 2026, "etab_gps": "45.76, 4.84", "fiche": "javascript:alert(1)", "app": "Formations en apprentissage",
+         "int": "Etablissements avec internat pour filles et garçons", "amg": "Enseignement en présentiel", "tf": "Titre professionnel",
+         "fl": "Titre - Technicien d'études", "nm": "Titre - Technicien d'études - en apprentissage", "tc": "Privés en contrat avec l’Etat / EESC",
+         "etab_uai": "0000000Z", "etab_nom": "CFA Exemple Lyon (Lyon - 69)", "commune": "Lyon", "departement": "Lyon"},
+        {"gta": "9903", "annee": 2025, "etab_gps": "44.84, -0.58", "fiche": fiche.format(9903), "app": "Formations en apprentissage",
+         "int": "", "amg": "Enseignement en présentiel", "tf": "BUT", "fl": "BUT - Génie mécanique et productique",
+         "nm": "BUT - Génie mécanique et productique - en apprentissage", "tc": "Publics", "etab_uai": "0331234C",
+         "etab_nom": "Ancienne offre (Bordeaux - 33)", "commune": "Bordeaux", "departement": "Bordeaux"},
+    ]
     for c in carto:   # the cartographie carries the current Paysage id (fills the empty 2025 export)
         c["etablissement_id_paysage"] = "PARIS" if c["gta"] in ("1100", "1102") else None
         c["composante_id_paysage"] = None
