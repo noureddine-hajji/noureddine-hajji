@@ -366,12 +366,19 @@ def _fold(x):
     return unicodedata.normalize("NFKD", x or "").encode("ascii", "ignore").decode().lower().strip()
 
 
+# every establishment label the cartographie has published (all sessions), read by hand (Codex: "hors contrat" is outside)
+STATUT_CARTO = {"Publics": "public", "Privés en contrat avec l’Etat / EESC": "contrat", "Privés sous contrat": "contrat",
+                "Privés hors contrat": "prive_app", "Privés": "prive_app", "Privés enseignement supérieur": "prive_app", None: None, "": None}
+
+
 @check("C9 apprenticeship: layer re-derived (latest offer, not in SIES, once), no zone/rate/paid/vœu, status, vote, académie, link, card")
 def c9(c: Ctx):
     want = app_codes(c.con)
     rows = [a for d in c.fac["diplomes"] for a in (M["CA"].formations(c.con, d["label"]) or {"formations": []})["formations"] if not a["stats"]]
     got = [a["cod_aff_form"] for a in rows]
-    bad = []
+    bad = [("label", t, M["CA"].statut_carto(t), v) for t, v in STATUT_CARTO.items() if M["CA"].statut_carto(t) != v]
+    labels = {t for (t,) in c.con.execute("SELECT DISTINCT types_etab FROM core.cartographie").fetchall()} if want else set()
+    bad += [("unread label", t) for t in labels - set(STATUT_CARTO)]
     if sorted(got) != sorted(want) or len(set(got)) != len(got):
         bad.append(("layer", len(got), len(want)))
     if c.real and len(want) < 1000:
@@ -404,7 +411,7 @@ def c9(c: Ctx):
         zones_seen |= set(M["CA"].zones(c.con, d, None, J.doublette_key("MATHS", "SES"), "ab", "bg")["zones"])
     for cod, (dl, a) in by_label.items():
         tc, tf, fl, uai, dep, fiche = info[cod]
-        st = "public" if tc == "Publics" else "contrat" if tc and "contrat" in tc else "prive_app" if tc and tc.startswith("Priv") else None
+        st = STATUT_CARTO.get(tc)
         parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
         typ = pick(tvotes.get(tf, {})) or next((pick(tvotes[x]) for x in parts if x in tvotes), None) or (parts[0] if parts else "Autre formation")
         exp = pick(votes.get((tf, fl), {})) or (typ, fl or "")
@@ -454,6 +461,7 @@ PY_MUTANTS = [
      "WHERE c.apprentissage AND c.carto_session >= (SELECT min(carto_session) FROM core.cartographie)"),
     ("SIES formations listed again as apprenticeship", "AND c.cod_aff_form NOT IN (SELECT", "AND c.cod_aff_form IN (SELECT cod_aff_form FROM core.cartographie) OR c.cod_aff_form IN (SELECT"),
     ("apprenticeship private filed as paid", 'return "prive_app"\n    return None', 'return "prive"\n    return None'),
+    ("outside contract read as under contract", 'if "hors contrat" in t:', 'if False:'),
     ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
     ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),

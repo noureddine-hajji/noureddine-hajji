@@ -43,6 +43,8 @@ def statut_carto(types_etab: str | None) -> str | None:
     t = (types_etab or "").strip()
     if t == "Publics":
         return "public"
+    if "hors contrat" in t:               # "Privés hors contrat" (older sessions) is outside contract, not under it
+        return "prive_app"
     if "contrat" in t:
         return "contrat"
     if t.startswith("Priv"):
