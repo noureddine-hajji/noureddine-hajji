@@ -144,6 +144,40 @@ def main(db: str, out: str, n: int) -> None:
                             pass
                         got += 1
         summary["wayback_pdfs_downloaded"] = got
+        # probe 2: the ARCHIVED fiche pages (a capture made during a campaign links the previous session's report, with its
+        # g_ti_cod and c_ja_cod); every report link found is looked up in the archive and fetched when it is there
+        (dest / "wayback_fiches").mkdir(exist_ok=True)
+        found = {}
+        for cod, entry in wb.items():
+            for k, v in entry.items():
+                if not (k.startswith("fiche_") and isinstance(v, list) and len(v) > 1):
+                    continue
+                for ts, orig, *_ in v[1:][-2:]:
+                    r = get(http, f"https://web.archive.org/web/{ts}id_/{orig}", log)
+                    if r is None or r.status_code != 200:
+                        continue
+                    (dest / "wayback_fiches" / f"{cod}_{ts}.html").write_text(r.text, encoding="utf-8")
+                    hrefs = sorted({urljoin(orig, h.replace("&amp;", "&")) for h in re.findall(r'href="([^"]+)"', r.text)
+                                    if re.search(r"[Rr]apport|\.pdf", h)})
+                    found[f"{cod}_{ts}"] = hrefs
+                    for h in hrefs[:2]:
+                        r2 = get(http, "https://web.archive.org/cdx/search/cdx?url=" + quote(h, safe=":/") + "&output=json&fl=timestamp,original,mimetype,statuscode", log)
+                        rows = r2.json() if r2 is not None and r2.status_code == 200 and r2.text.strip() else []
+                        found[f"{cod}_{ts}"].append({"cdx": h, "captures": rows[1:4]})
+                        for row in rows[1:2]:
+                            r3 = get(http, f"https://web.archive.org/web/{row[0]}id_/{row[1]}", log)
+                            if r3 is not None and r3.content.startswith(b"%PDF"):
+                                (dest / "pdf").mkdir(exist_ok=True)
+                                (dest / "pdf" / f"wayback_{cod}_{row[0]}.pdf").write_bytes(r3.content)
+                                try:
+                                    (dest / "pdf" / f"wayback_{cod}_{row[0]}.txt").write_text("\n\n=== PAGE ===\n\n".join(pdf_text(r3.content)), encoding="utf-8")
+                                except Exception:  # noqa: BLE001
+                                    pass
+        summary["wayback_fiche_report_links"] = found
+        # is the live site back? (it answered a maintenance page on 2026-11-08)
+        for u in ("https://www.parcoursup.gouv.fr/", "https://dossierappel.parcoursup.fr/Candidats/carte", FICHE.format(d=DOMS[0], c="2327")):
+            r = get(http, u, log)
+            summary.setdefault("live_status", {})[u] = (r.status_code, "indisponible" in r.text) if r is not None else None
     summary["requests"] = log
     (dest / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k != "requests"}, ensure_ascii=False)[:3000])
