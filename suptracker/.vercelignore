@@ -9,3 +9,4 @@ requirements-pipeline.txt
 **/data/analytics/
 **/data/probe/
 **/data/sources/
+**/data/rapports/

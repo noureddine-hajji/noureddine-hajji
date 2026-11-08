@@ -1,0 +1,48 @@
+# Parcoursup public reports ("rapports publics"): per-formation doublette counts are published only in these PDFs.
+# The Parcoursup, SIES and Internet Archive hosts are blocked in the development sandbox, so this runner fetches them.
+# Step 1 (this file): a PROBE that commits small samples to data/rapports/probe/ so the harvest and parser can be designed.
+# Triggered by workflow_dispatch, or by a push of data/rapports/request.json on a claude/ branch (a new workflow can only be
+# dispatched once it is on the default branch).
+name: suptracker-rapports
+on:
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: "Number of formations in the probe sample"
+        required: false
+        default: "12"
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/rapports/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-rapports
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx "duckdb==2.0.0" pdfplumber
+      - name: Probe live reports, SIES 2020-2021 keys and the Wayback Machine
+        run: |
+          n="${{ inputs.sample }}"
+          if [ -z "$n" ] && [ -f data/rapports/request.json ]; then n=$(python -c "import json;print(json.load(open('data/rapports/request.json')).get('sample', 12))"); fi
+          python scripts/rapports_probe.py data/suptracker.duckdb data/rapports/probe "${n:-12}"
+      - name: Commit probe
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rapports/probe
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Probe Parcoursup public reports ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push
