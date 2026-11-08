@@ -320,6 +320,10 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
          "int": "Etablissements avec internat pour filles et garçons", "amg": "Enseignement en présentiel", "tf": "Titre professionnel",
          "fl": "Titre - Technicien d'études", "nm": "Titre - Technicien d'études - en apprentissage", "tc": "Privés en contrat avec l’Etat / EESC",
          "etab_uai": "0000000Z", "etab_nom": "CFA Exemple Lyon (Lyon - 69)", "commune": "Lyon", "departement": "Lyon"},
+        {"gta": "9904", "annee": 2026, "etab_gps": "43.30, 5.37", "fiche": fiche.format(9904), "app": "Formations en apprentissage",
+         "int": "", "amg": "Enseignement en présentiel", "tf": "Formation professionnelle,BTS - BTSA - BTSM",   # a list of types
+         "fl": "BTS - Mention inédite", "nm": "BTS - Mention inédite - en apprentissage", "tc": "Publics", "etab_uai": "0131234E",
+         "etab_nom": "Lycée Exemple Marseille (Marseille - 13)", "commune": "Marseille", "departement": "Marseille"},
         {"gta": "9903", "annee": 2025, "etab_gps": "44.84, -0.58", "fiche": fiche.format(9903), "app": "Formations en apprentissage",
          "int": "", "amg": "Enseignement en présentiel", "tf": "BUT", "fl": "BUT - Génie mécanique et productique",
          "nm": "BUT - Génie mécanique et productique - en apprentissage", "tc": "Publics", "etab_uai": "0331234C",

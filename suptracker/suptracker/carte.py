@@ -123,6 +123,15 @@ def label_votes(con) -> tuple[dict, dict]:
     return {k: best(v) for k, v in pair.items()}, {k: best(v) for k, v in typ.items()}
 
 
+def _type_of(tf: str | None, typ: dict) -> str:
+    """A cartographie type no SIES formation carries as a whole: a list "A,B" takes its first part SIES knows, else its
+    first part; any other label is kept as published."""
+    if tf in typ:
+        return typ[tf]
+    parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
+    return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")
+
+
 def apprentissage(con) -> list[dict]:
     """The apprenticeship offers of the latest cartographie session that SIES does not publish (no statistics)."""
     if not _has_labels(con):
@@ -146,7 +155,7 @@ def apprentissage(con) -> list[dict]:
     top = lambda c: sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if c else None  # noqa: E731
     out = []
     for (cod, etab, nom, commune, dep, uai, lat, lon, tc, tf, fl, internat, distance, sport, art, fiche, sess) in rows:
-        d, m = pair.get((tf, fl)) or (typ.get(tf) or tf or "Autre formation", fl or "")
+        d, m = pair.get((tf, fl)) or (_type_of(tf, typ), fl or "")
         out.append({"cod_aff_form": cod, "etablissement": etab or "", "formation": nom or fl or "", "ville": commune or "",
                     "academie": top(by_uai.get(uai)) or top(by_dep.get(_fold(dep))),
                     "lat": None if lat is None else round(lat, 5), "lon": None if lon is None else round(lon, 5),

@@ -405,7 +405,9 @@ def c9(c: Ctx):
     for cod, (dl, a) in by_label.items():
         tc, tf, fl, uai, dep, fiche = info[cod]
         st = "public" if tc == "Publics" else "contrat" if tc and "contrat" in tc else "prive_app" if tc and tc.startswith("Priv") else None
-        exp = pick(votes.get((tf, fl), {})) or (pick(tvotes.get(tf, {})) or tf or "Autre formation", fl or "")
+        parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
+        typ = pick(tvotes.get(tf, {})) or next((pick(tvotes[x]) for x in parts if x in tvotes), None) or (parts[0] if parts else "Autre formation")
+        exp = pick(votes.get((tf, fl), {})) or (typ, fl or "")
         acad = pick(uai_ac.get(uai, {})) or pick(dep_ac.get(_fold(dep), {}))
         if a["zone"] if "zone" in a else None:
             bad.append((cod, "zone"))
@@ -454,6 +456,7 @@ PY_MUTANTS = [
     ("apprenticeship private filed as paid", 'return "prive_app"\n    return None', 'return "prive"\n    return None'),
     ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
+    ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),
     ("any link kept", 'fiche if (fiche or "").startswith(FICHE_PREFIX) else None', "fiche"),
     ("zones from another profile", "J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods)", "J.stage2(con, dkey, 'tb', tk, None, serie=serie, only=cods)"),
 ]
@@ -498,7 +501,11 @@ def c8(c: Ctx):
     paid = c.con.execute("SELECT count(*) FROM core.formation_year WHERE contrat_etab IN (SELECT unnest(?))", [list(PB.PAID_CONTRACTS)]).fetchone()[0] > 0
     # likewise the double-licence mutant needs a double licence in the warehouse
     dbl = c.con.execute("SELECT count(*) FROM core.formation_year WHERE lib_for_voe_ins ILIKE 'double licence%'").fetchone()[0] > 0
-    skipped = {n for n, cond in (("paid flag lost", paid), ("double licences missed", dbl)) if not cond}
+    # and the link mutant needs an apprenticeship offer whose link is not a Parcoursup page (every real one is)
+    shown = app_codes(c.con)
+    links = any(not (u or "").startswith("https://dossierappel.parcoursup.fr/") for cod, u in
+                c.con.execute("SELECT cod_aff_form, fiche_url FROM core.cartographie WHERE apprentissage IS TRUE").fetchall() if cod in shown)
+    skipped = {n for n, cond in (("paid flag lost", paid), ("double licences missed", dbl), ("any link kept", links)) if not cond}
     for name, old, new in [m for m in PY_MUTANTS if m[0] not in skipped]:
         src = path.read_text()
         if old not in src:

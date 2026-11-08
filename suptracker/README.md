@@ -893,7 +893,8 @@ carte"):**
   - no zone, no access rate, never "Ajouter à mes vœux" (which reads SIES rows); the card says so and links to the
     offer's Parcoursup page (only a `https://dossierappel.parcoursup.fr/` link is kept);
   - the type of diploma and the mention are those of the SIES formations that carry the same cartographie labels (the
-    most frequent reading, `carte.label_votes`); a label no SIES formation carries keeps its published type and mention;
+    most frequent reading, `carte.label_votes`); a label no SIES formation carries keeps its published type and mention
+    (a list of types, "A,B", takes its first part SIES knows);
   - the académie is that of the establishment (UAI) in SIES, else of its département;
   - a private establishment outside State contract offering apprenticeship gets its own box, "Privés hors contrat, en
     apprentissage (gratuit pour l'apprenti)", ticked by default: apprenticeship training is free for the apprentice (Code
@@ -926,7 +927,7 @@ carte"):**
 - C5: OpenStreetMap hosting, attribution and the IP note.
 - C6: hostile data, markers naming their zone, distinct shapes, wording, no position sent.
 - C7: the wiring.
-- C8: 28 mutants built in memory, all caught.
+- C8: about 30 mutants built in memory, all caught (a mutant is skipped where the data cannot show it: no paid institution, no double licence, no non-Parcoursup link).
 - C9: the apprenticeship layer re-derived by SQL (latest offer, not in SIES, once), no figure, status, type and mention vote,
   académie, the Parcoursup link only, and the card on hostile data in Node.
 
@@ -962,7 +963,8 @@ carte"):**
     again on every other capture of the same URL, newest first, as archived then rebuilt by qpdf (pikepdf). A rebuilt file
     is used only when COMPLETE: every page has text and the report's last section (the signature line) is there. Otherwise
     it stays "incomplet" and is never used, since a table cut by the damage could still pass the SIES check. Red team R7.
-  - **Coverage.** The archive kept 5 408 distinct PDFs; 4 925 reports are verified (4 326 of the 14 252 formations of 2025).
+  - **Coverage.** The archive kept 5 408 distinct PDFs; 4 962 reports are verified after the repair (4 339 of the 14 252 formations of 2025): of the 32 files left
+    unread, 7 were read on another capture, 8 rebuilt complete, 6 set aside as cut short, 11 had no readable capture.
     Parcoursup publishes no list of its reports: each one is linked from its formation's fiche, and only during a campaign.
     A direct harvest of the live fiches is the way to cover every formation, once they reopen.
 - `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
