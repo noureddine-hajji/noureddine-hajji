@@ -179,3 +179,31 @@ def autres_by_type(con) -> dict:
         res[t]["n_doublettes"] = con.execute("SELECT count(DISTINCT doublette_key) FROM mart.spe_group WHERE type_key = ? AND rare",
                                              [t]).fetchone()[0]
     return res
+
+
+# ------------------------------------------------------------------------- per-formation estimate (owner's request, 2026-11-08)
+# No open data crosses doublette x formation x establishment: the SIES files stop at the group of formations, national (the
+# owner's official CSV says the same). The per-formation figure is therefore an ESTIMATION, built like the site's existing
+# per-series estimate (taux d'accès x series rate / all rate):
+#     this formation's bac général proposal rate (published, this establishment) x (the doublette's rate in the group /
+#     the rate of every bac général candidate of the group), capped at 100.
+# It assumes the doublette's relative position in the group holds in this establishment: never verified, so always labelled
+# "estimation", with the two published figures and the ratio shown next to it.
+def _ratio(mine_taux, all_taux):
+    return None if mine_taux is None or not all_taux else mine_taux / all_taux
+
+
+def estimate(series_bg: dict | None, group: dict | None, dkey: str | None) -> dict | None:
+    """Python twin of the page's estimateDoublette (red team D10)."""
+    p = pick(group, dkey)
+    if not p or not series_bg or series_bg.get("taux") is None:
+        return None
+    r = _ratio(p["taux"], group["tous"]["taux"])
+    if r is None:
+        return None
+    # one ratio (pooled over the campaigns, counting breaks left out) for the headline and the curve: the curve's last point is
+    # the headline; the year-to-year moves of the doublette itself are on the national curve
+    trend = [{"session": t["session"], "taux": None if t["taux"] is None else round(min(100.0, t["taux"] * r), 1)}
+             for t in series_bg.get("trend", [])]
+    return {"taux": round(min(100.0, series_bg["taux"] * r), 1), "base": series_bg["taux"], "ratio": round(r, 3),
+            "source": p["source"], "label": p["label"], "fragile": bool(series_bg.get("fragile")), "estimation": True, "trend": trend}

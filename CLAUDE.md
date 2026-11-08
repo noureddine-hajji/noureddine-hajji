@@ -283,7 +283,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   pooled into "Autres doublettes", shown only in place of a rare doublette, always "estimation". Counting-break campaigns
   (`BREAK_*`: candidates > 2x the group's minimum with proposals < 1.5x, groups with >= 2 000 proposals) are left out of every
   rate, stage 1 included. Route colours are `--voie-*` tokens, never a zone's or the accent, always with the route's name.
-  Red team `redteam_doublettes.py` (D1-D9).
+  Per FORMATION, the doublette figure is an ESTIMATION: the formation's published bac général proposal rate x the doublette's
+  pooled ratio in its group (doublette / all bac général), capped at 100, shown with its calculation (`doublettes.estimate`,
+  page twin `estimateDoublette`); never presented as a published per-establishment figure.
+  Red team `redteam_doublettes.py` (D1-D10).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

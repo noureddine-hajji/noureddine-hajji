@@ -68,10 +68,16 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
             rows[f["cod_aff_form"]] = f
     groups = {tk: DB.for_group(con, tk) for tk in by_type} if serie == "bg" and dkey else {}
 
-    def dbl(tk):
-        """The student's doublette in the vœu's group (national), or the 'Autres doublettes' estimation; no trend here."""
+    def dbl(tk, cod=None):
+        """The student's doublette: the per-formation estimate (this formation's bac général rate x the doublette's ratio in its
+        group), with the group's national figure it rests on; no trend here."""
         x = DB.pick(groups.get(tk), dkey)
-        return {k: v for k, v in x.items() if k != "trend"} if x else None
+        if not x:
+            return None
+        out = {k: v for k, v in x.items() if k != "trend"}
+        est = DB.estimate(DB.series(con, cod)["bg"], groups.get(tk), dkey) if cod else None
+        out["formation"] = {k: v for k, v in est.items() if k != "trend"} if est else None
+        return out
     out = []
     for c in cods:
         if c not in meta:
@@ -85,7 +91,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "complement": PB._view(f, None)["complement"],      # cleaned exactly as Plan B shows it
                         "position": position(f),
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
-                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"])})
+                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c)})
     return {"session": latest, "serie": serie, "mention": mention, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
 

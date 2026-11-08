@@ -294,6 +294,16 @@ function pickDoublette(g, dkey) {
   return { source: "autres", key: dkey, label: mine ? mine.label : dkey, taux: g.autres.taux, candidats: g.autres.candidats,
     n_doublettes: g.autres.n_doublettes, trend: g.autres.trend, estimation: true };
 }
+// per-formation estimate (owner's request): no open data crosses doublette x establishment, so this formation's published bac
+// général proposal rate is scaled by the doublette's ratio in its group (pooled), capped at 100: always an "estimation"
+function estimateDoublette(series, g, dkey) {
+  const p = pickDoublette(g, dkey), bg = series && series.bg;
+  if (!p || !bg || bg.taux === null || bg.taux === undefined || p.taux === null || p.taux === undefined || !g.tous.taux) return null;
+  const r = p.taux / g.tous.taux;
+  const cap = (x) => (x === null || x === undefined ? null : Math.round(Math.min(100, x * r) * 10) / 10);
+  return { taux: cap(bg.taux), base: bg.taux, ratio: Math.round(r * 1000) / 1000, source: p.source, label: p.label, fragile: !!bg.fragile,
+    estimation: true, trend: bg.trend.map((t) => ({ session: t.session, taux: cap(t.taux) })), mine: p.taux, tous: g.tous.taux };
+}
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
 function doubletteCard(d) {
   if (!d) return "";
@@ -310,7 +320,10 @@ function doubletteCard(d) {
     const g = d.groupe, dkey = profileDkey(prof), mine = pickDoublette(g, dkey);
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
-    dbl = `<p class="small">Groupe : <strong>${esc(g.label)}</strong> · campagnes 2022–2025 cumulées</p>
+    const est = estimateDoublette(d.series, g, dkey);
+    const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
+      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
+    dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · campagnes 2022–2025 cumulées</p>
       <div class="scroll"><table class="stack"><tr class="stack-head"><th>Doublette</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>
       ${mine ? row(`Votre doublette : ${esc(mine.label)}`, mine, "var(--voie-bg)", mine.source === "autres" ? `<div class="estim">peu de candidats avec cette doublette : chiffre des « Autres doublettes » (${fmt(mine.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats regroupées), estimation</div>` : "", ' class="dbl-mine"') : ""}
       ${row("Tous les bacheliers généraux du groupe", g.tous, "var(--muted)")}
@@ -336,8 +349,10 @@ function doubletteCharts(d, years) {
   if (d.status === "ok") {
     const g = d.groupe, mine = pickDoublette(g, profileDkey(store.get("profile", null)));
     const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--muted)", values: at(g.tous.trend, "taux") }];
-    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes (estimation)" : `Votre doublette : ${mine.label}`, color: "var(--voie-bg)", values: at(mine.trend, "taux") });
-    second = `<div class="card"><h3>Votre doublette dans le groupe « ${esc(g.label)} » (national)</h3>${legend(lines)}${lineChart(years, lines)}
+    const est = estimateDoublette(d.series, g, profileDkey(store.get("profile", null)));
+    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes, groupe national (estimation)" : `Votre doublette : ${mine.label}, groupe national`, color: "var(--voie-bt)", values: at(mine.trend, "taux") });
+    if (est) lines.unshift({ name: "Votre doublette dans cette formation (estimation)", color: "var(--voie-bg)", values: at(est.trend, "taux") });
+    second = `<div class="card"><h3>Votre doublette : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${legend(lines)}${lineChart(years, lines)}
       <p class="muted small">${DBL_CAVEAT}</p></div>`;
   }
   return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${legend(series)}${lineChart(years, series)}
@@ -1552,7 +1567,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette (national)">${v.doublette ? `${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? '<div class="estim">Autres doublettes, estimation</div>' : ""}` : "—"}</td>` : ""}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
@@ -1561,9 +1576,9 @@ async function viewVoeux() {
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
     <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (groupe, national)</th>' : ""}<th></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : ""}<th></th></tr>
     ${rows}</table></div>
-    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.</p>
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : estimation pour chaque formation (son taux des bacheliers généraux × l'écart national de votre doublette dans son groupe) ; aucune donnée publique ne donne les doublettes par établissement." : ""}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {

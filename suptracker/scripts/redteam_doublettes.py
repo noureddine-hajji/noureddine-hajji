@@ -326,7 +326,7 @@ def d6(c: Ctx):
                 continue
             want = M["DB"].pick(M["DB"].for_group(c.con, x["type_key"]), keys[0])
             want = {k: w for k, w in want.items() if k != "trend"} if want else None
-            if x.get("doublette") != want:
+            if {k: w for k, w in (x.get("doublette") or {}).items() if k != "formation"} != (want or {}):   # D10 checks "formation"
                 bad.append(("voeux", x["cod_aff_form"]))
         f = M["DB"].for_formation(c.con, cods[0])
         if f["groupe"] != M["DB"].for_group(c.con, M["DB"].type_of(c.con, cods[0])):
@@ -404,6 +404,73 @@ def d8(c: Ctx):
                 f"route pills {pills}; a rare doublette's filières shown with the bucket in Mon parcours {rare_s1}")
 
 
+
+
+def page_estimate(js: str, cases: list) -> list | str | None:
+    node = shutil.which("node")
+    m1 = re.search(r"function pickDoublette\(g, dkey\) \{.*?\n\}", js, re.S)
+    m2 = re.search(r"function estimateDoublette\(series, g, dkey\) \{.*?\n\}", js, re.S)
+    if not (m1 and m2):
+        return "missing"
+    if not node:
+        return None
+    prog = m1.group(0) + "\n" + m2.group(0) + """
+const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(cases.map(([s, g, k]) => { const e = estimateDoublette(s, g, k); return e ? [e.taux, e.trend.map((t) => t.taux)] : null; })));"""
+    r = subprocess.run([node, "-e", prog], input=json.dumps(cases), capture_output=True, text=True, timeout=120)
+    return json.loads(r.stdout) if r.returncode == 0 else "error: " + r.stderr[-200:]
+
+
+@check("D10 per-formation estimate: this formation's bac général rate x the doublette's ratio in its group, capped at 100, labelled; page = server")
+def d10(c: Ctx):
+    cods = [x for (x,) in c.con.execute("""SELECT t.cod_aff_form FROM core.taxonomy_link t WHERE t.session = (SELECT max(session) FROM core.formation_year)
+                                            ORDER BY hash(t.cod_aff_form) LIMIT ?""", [12 if c.real else 5]).fetchall()]
+    keys = [k for (k,) in c.con.execute("SELECT doublette_key FROM core.spe_doublette GROUP BY 1 ORDER BY 1").fetchall()][:3] + ["ART+EPPCS"]
+    bad, cases, want = [], [], []
+    for cod in cods:
+        f = M["DB"].for_formation(c.con, cod)
+        if f["status"] != "ok":
+            continue
+        g, bg = f["groupe"], f["series"]["bg"]
+        for k in keys:
+            e = M["DB"].estimate(bg, g, k)
+            p = M["DB"].pick(g, k)
+            if not p or bg["taux"] is None or p["taux"] is None or not g["tous"]["taux"]:
+                exp = None
+            else:                                                         # independent arithmetic
+                r = p["taux"] / g["tous"]["taux"]
+                exp = (round(min(100.0, bg["taux"] * r), 1), [None if t["taux"] is None else round(min(100.0, t["taux"] * r), 1) for t in bg["trend"]])
+            got = (e["taux"], [t["taux"] for t in e["trend"]]) if e else None
+            if got != exp:
+                bad.append((cod, k, got and got[0], exp and exp[0]))
+            if e and (not e.get("estimation") or e["taux"] > 100):
+                bad.append((cod, k, "flag/cap"))
+            cases.append([f["series"], g, k])
+            want.append(list(exp) if exp else None)
+    js = page_estimate(c.js, cases)
+    twin = js is None or (not isinstance(js, str) and all((a is None and b is None) or (a and b and abs(a[0] - b[0]) < 0.051) for a, b in zip(js, want)))
+    # the cap: a crafted group where the doublette does much better than the group
+    crafted = {"doublettes": [{"key": "A+B", "label": "A", "rare": False, "candidats": 100, "taux": 90.0, "trend": []}],
+               "autres": {"candidats": 0, "taux": None, "n_doublettes": 0, "trend": []}, "tous": {"candidats": 1000, "taux": 30.0, "trend": []}}
+    cap = M["DB"].estimate({"taux": 60.0, "trend": [{"session": 2025, "taux": 60.0}]}, crafted, "A+B")
+    cap_ok = bool(cap) and cap["taux"] == 100.0
+    from suptracker import voeux as VX
+    vx_ok = True
+    if keys and cods:
+        v = VX.evaluate(c.con, cods[:4], serie="bg", dkey=keys[0], mention="ab")
+        for x in v["voeux"]:
+            if x["status"] == "ok" and x.get("doublette"):
+                f = M["DB"].for_formation(c.con, x["cod_aff_form"])
+                e = M["DB"].estimate(f["series"]["bg"], f["groupe"], keys[0])
+                if (x["doublette"].get("formation") or {}).get("taux") != (e["taux"] if e else None):
+                    vx_ok = False
+    words = "Aucune donnée publique ne donne les doublettes établissement par établissement" in c.js and \
+        "Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class=\"estim\">estimation</span>" in c.js
+    ok = not bad and twin and cap_ok and vx_ok and words
+    return ok, (f"{len(cases)} formation × doublette cases; independent arithmetic {not bad} {bad[:2]}; page twin {twin}; cap at 100 {cap_ok}; "
+                f"vœux list = the estimate {vx_ok}; labelled with its calculation {words}")
+
+
 # ------------------------------------------------------------------ mutation test
 DBL_PY = ROOT / "suptracker" / "doublettes.py"
 JOURNEY_PY = ROOT / "suptracker" / "journey.py"
@@ -415,6 +482,8 @@ PY_MUTANTS = [
     ("route rate over vœux", 'cols = ", ".join(f"{J.series_candidates_sql(s)} AS c_{s}', 'cols = ", ".join(f"fy.voe_tot AS c_{s}'),
     ("fragile threshold dropped", '"fragile": (last["candidats"] or 0) < THRESHOLD', '"fragile": False'),
     ("break rule disabled", "BREAK_CAND, BREAK_PROP, BREAK_MIN_PROP = 2.0, 1.5, 2000", "BREAK_CAND, BREAK_PROP, BREAK_MIN_PROP = 99.0, 1.5, 2000"),
+    ("estimate not capped", 'return {"taux": round(min(100.0, series_bg["taux"] * r), 1), "base"', 'return {"taux": round(series_bg["taux"] * r, 1), "base"'),
+    ("estimate on the group rate instead of the formation's", 'return {"taux": round(min(100.0, series_bg["taux"] * r), 1), "base"', 'return {"taux": round(min(100.0, group["tous"]["taux"] * r), 1), "base"'),
     ("rate on acceptations", 'return {"candidats": cand, "propositions": prop, "acceptations": acc, "taux": rate(prop, cand),',
      'return {"candidats": cand, "propositions": prop, "acceptations": acc, "taux": rate(acc, cand),'),
 ]
@@ -422,6 +491,8 @@ JOURNEY_MUTANTS = [
     ("stage 1 keeps the break campaigns", "         OR (type_key, session) NOT IN (SELECT (type_key, session) FROM mart.spe_break)", "         OR TRUE"),
 ]
 JS_MUTANTS = [
+    ("page ratio inverted", "const r = p.taux / g.tous.taux;", "const r = g.tous.taux / p.taux;"),
+    ("estimate shown without its caveat", "Aucune donnée publique ne donne les doublettes établissement par établissement", "Chiffre propre à l'établissement"),
     ("page uses the bucket for a common doublette", "if (mine && !mine.rare) return", "if (mine && false) return"),
     ("route coloured like a zone", 'bg: { label: "Bac général", color: "var(--voie-bg)" }', 'bg: { label: "Bac général", color: "var(--zone-cible)" }'),
     ("national caveat dropped", "Chiffre national du groupe, pas propre à cet établissement. ", ""),
@@ -448,7 +519,7 @@ def mutated(modname: str, path: Path, old: str, new: str):
 
 @check("D9 mutation test: threshold, bucket, units, breaks, colours, escaping, labels and wording bugs are each caught")
 def d9(c: Ctx):
-    fns = [d1, d2, d3, d4, d5, d6, d7, d8]
+    fns = [d1, d2, d3, d4, d5, d6, d7, d8, d10]
     missed = []
 
     def caught():

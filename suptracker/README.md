@@ -825,6 +825,14 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
     pairs).
   - The rare ones are pooled; the bucket replaces the student's doublette only when that doublette is rare.
   - It is always labelled as an estimation.
+- **The student's doublette in THIS formation: an estimate** (owner's request after the preview). No open data
+  crosses doublette × establishment: the owner's CSV and the SIES exports stop at the group of formations.
+  - The figure is this formation's published bac général proposal rate × the doublette's ratio in its group (doublette
+    rate / all bac général candidates of the group, pooled, counting breaks left out), capped at 100.
+  - It is the same construction as the site's per-series estimate. Example: Licence Psychologie, Caen, SES + HGGSP:
+    45.9 % × 48.8 / 54.6 = 41.0 %.
+  - It is always labelled "estimation", with its calculation and the assumption that the national ratio holds in this
+    establishment. The national detail of the group stays below it; Mes vœux and the 4-year curve use the same estimate.
 - **Évolution sur 4 ans.** Two new charts in the route colours:
   - each route's rate for the formation;
   - the student's doublette (or the bucket) next to all bac général candidates of the group.
@@ -836,7 +844,7 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
 - One figure everywhere: stage 1, the formation page, the vœux list and the curves read the same rows. The profile picks
   the row in the browser; it is never sent with the formation page.
 
-**Red team** (`scripts/redteam_doublettes.py`, run by `tests/test_doublettes.py`): 9/9 checks on real data, 17/17 mutants
+**Red team** (`scripts/redteam_doublettes.py`, run by `tests/test_doublettes.py`): 10/10 checks on real data, 21/21 mutants
 caught, built in memory.
 - **D1. Units.** On real data: acceptations equal the formations' bac général admits (±5 %) in 80 % of the groups (the
   rest is the group mapping), with candidates below the vœux everywhere they match. The audit maps `voeux` to `n_candidats`.
@@ -849,6 +857,8 @@ caught, built in memory.
 - **D6. One figure everywhere.** Stage 1, the formation page, the vœux list and the curves agree.
 - **D7. Wording.**
 - **D8. The page run with Node on hostile names,** including a rare doublette in Mon parcours.
+- **D10. The per-formation estimate** re-derived with independent arithmetic on real formations, compared with the page
+  twin (Node) and the vœux list, and checked for the cap at 100 and its labelling.
 
 **After merging (owner):** nothing to do. The warehouse is rebuilt by the `suptracker-data` workflow on the branch
 before the merge.
