@@ -36,6 +36,7 @@ from . import evidence as EV
 from . import calibration as CAL
 from . import cereq as CQ
 from . import seo as SEO
+from . import doublettes as DBL
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -574,7 +575,10 @@ def formation(cod: str, session: int | None = None):
             "insertion": _insertion_block(rec),
             "prevision": PV.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             "cereq": CQ.for_formation(_con().cursor(), rec["cod_aff_form"]),
-            "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # sprint "Doublettes": per route for this formation, per doublette for its group (national); the profile
+            # picks the student's row in the browser, it is never sent
+            "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -639,10 +643,10 @@ def compare(ids: str, session: int | None = None):
 def specialites(session: int | None = None, formation_type: str | None = None):
     """Admission profile by Terminale specialty doublette, for one type of formation.
 
-    The SIES specialty exports publish admission proposals and acceptances per
-    (type of formation, doublette), with no candidate counts. So the matrix shows
-    each doublette's share of the type's accepted students. It is a composition of
-    one stage (acceptances), never a rate across stages.
+    The SIES specialty exports publish, per (type of formation, doublette), the candidates
+    (people with at least one vœu in the group; the SIES column is named "voeux"), those
+    with at least one proposal, and those who accepted. The matrix shows each doublette's
+    share of the type's accepted students: a composition of one stage.
 
     The 2025 export stacks three aggregation levels (0 = all bacheliers, 1 = a group of
     formations, 2 = its detailed formations, which repeat the level-1 totals). Only
@@ -724,7 +728,7 @@ def journey_persona():
 @app.get("/api/journey/vocab")
 def journey_vocab():
     _journey_ready()
-    nat = rows("""SELECT doublette_key, sum(voeux) AS candidates, sum(acceptations) AS accepted
+    nat = rows("""SELECT doublette_key, sum(candidats) AS candidates, sum(acceptations) AS accepted
                   FROM mart.spe_filiere WHERE type_key = ? GROUP BY 1 ORDER BY 3 DESC""", [J.NATIONAL_TYPE])
     acads = [r["acad_mies"] for r in rows("""SELECT DISTINCT acad_mies FROM core.formation_year
                WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL ORDER BY 1""")]
@@ -908,7 +912,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes"]
 
 
 @lru_cache(maxsize=1)

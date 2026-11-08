@@ -789,6 +789,65 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
 - **X7** (`--browser`) now also opens a formation and a job page on a phone: the summary on the first screen, at most 14
   and 9 screens.
 
+## Proposal rates by doublette and by bac route (sprint "Doublettes")
+
+**What the data really holds (checked on the real warehouse first):**
+- The SIES specialty files publish, per GROUP of formations (e.g. "Licence Sciences juridiques"), national, bac général
+  only, and per doublette: candidates, candidates with at least one proposal, and acceptations.
+- **The column named "voeux" counts candidates (people).** Its acceptations equal the formations' bac général admits
+  (34 576 vs 34 550 for Licence Sciences juridiques in 2025), while it is 4× smaller than their vœux (90 397 vs 347 976).
+  It is now ingested as `n_candidats`, so the data-quality page no longer says "missing".
+- **There is no doublette for bac techno or pro.** Each formation publishes its own counts per series: the per-route
+  ("voie") proposal rate of that formation.
+- **Counting break.** In three groups (Licence L.AS, Sciences de l'univers, Formation générale aux métiers de
+  l'ingénieur), the 2023 and 2024 rows count 2-3× more "candidates" while the proposals stay flat (L.AS: 96 307 →
+  272 454 → 262 625 → 103 979 candidates for about 55 000 proposals each year). A fixed rule leaves such campaigns out of
+  every rate of the group:
+  - it applies to groups with at least 2 000 proposals a year;
+  - a campaign is left out when it has more than 2× the smallest candidate count, with proposals under 1.5× the smallest;
+  - the page lists the excluded campaigns.
+
+**What changed (`suptracker/doublettes.py`, `mart.spe_group`, `mart.spe_break`):**
+- **Route colours.** General, techno and pro have their own colour tokens (`--voie-bg/bt/bp`, light and dark), far
+  from the zone colours and the accent. They always appear with the route's name.
+- **Formation page, tab "Y entrer": a "Selon votre bac" block.**
+  - The proposal rate of each route for THIS formation, with fewer than 20 candidates flagged.
+  - The proposal rate of each doublette in the formation's group, national. The student's doublette comes first, then
+    all bac général candidates, the main doublettes and "Autres doublettes".
+  - A formation without a group (1 077 of 14 252) says no doublette figure exists.
+- **"Autres doublettes"** (owner's rule).
+  - In a group, a doublette with fewer than 20 candidates over the campaigns is rare (2 931 of 5 603 group × doublette
+    pairs).
+  - The rare ones are pooled; the bucket replaces the student's doublette only when that doublette is rare.
+  - It is always labelled as an estimation.
+- **Évolution sur 4 ans.** Two new charts in the route colours:
+  - each route's rate for the formation;
+  - the student's doublette (or the bucket) next to all bac général candidates of the group.
+- **Mon parcours, step 2.**
+  - The doublette's proposal rate comes first, with a bar; rows stack on a phone.
+  - A rare doublette no longer leaves an empty list: its filières are shown with each one's "Autres doublettes"
+    estimation, and a note explains why.
+- **Mes vœux.** Each vœu shows the student's doublette rate in its group (national), or the bucket.
+- One figure everywhere: stage 1, the formation page, the vœux list and the curves read the same rows. The profile picks
+  the row in the browser; it is never sent with the formation page.
+
+**Red team** (`scripts/redteam_doublettes.py`, run by `tests/test_doublettes.py`): 9/9 checks on real data, 17/17 mutants
+caught, built in memory.
+- **D1. Units.** On real data: acceptations equal the formations' bac général admits (±5 %) in 80 % of the groups (the
+  rest is the group mapping), with candidates below the vœux everywhere they match. The audit maps `voeux` to `n_candidats`.
+- **D2. Independent re-derivation.** Every figure of a group is recomputed: each doublette, all candidates, the bucket,
+  pooled and per campaign. The break rule is re-implemented, and the build is re-run on a scratch copy with a crafted
+  L.AS-like group.
+- **D3. Rules.** The threshold of 20 and the bucket, with the Python twin and the page twin compared on crafted cases.
+- **D4. Route rates** re-derived from the published counts of each campaign.
+- **D5. Colour distances,** by token name, in every theme.
+- **D6. One figure everywhere.** Stage 1, the formation page, the vœux list and the curves agree.
+- **D7. Wording.**
+- **D8. The page run with Node on hostile names,** including a rare doublette in Mon parcours.
+
+**After merging (owner):** nothing to do. The warehouse is rebuilt by the `suptracker-data` workflow on the branch
+before the merge.
+
 ## Found by search engines, and renamed SupCompass (sprint 17)
 
 **The name.** The site is now **SupCompass** ("Sup" of Parcoursup + compass), the owner's choice. Every visible place says

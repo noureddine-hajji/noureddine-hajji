@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 
+from . import doublettes as DB
 from . import journey as J
 from . import planb as PB
 
@@ -65,6 +66,12 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
     for tk, cs in by_type.items():
         for f in J.stage2(con, dkey, mention, tk, academie, serie=serie, only=cs)["formations"]:
             rows[f["cod_aff_form"]] = f
+    groups = {tk: DB.for_group(con, tk) for tk in by_type} if serie == "bg" and dkey else {}
+
+    def dbl(tk):
+        """The student's doublette in the vœu's group (national), or the 'Autres doublettes' estimation; no trend here."""
+        x = DB.pick(groups.get(tk), dkey)
+        return {k: v for k, v in x.items() if k != "trend"} if x else None
     out = []
     for c in cods:
         if c not in meta:
@@ -78,7 +85,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "complement": PB._view(f, None)["complement"],      # cleaned exactly as Plan B shows it
                         "position": position(f),
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
-                        "type_key": meta[c]["type_key"]})
+                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"])})
     return {"session": latest, "serie": serie, "mention": mention, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
 

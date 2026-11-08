@@ -33,6 +33,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **AI and tasks (sprint 15):** `ia_exposition.py` (ILO 2025 generative-AI exposure per ISCO-08 unit group, France Travail "transition numérique" tag, IMF human complementarity θ rebuilt from O*NET, job page).
   - **Licence → master (sprint 16):** `licence_master.py` (each master of the licence's university side by side: MonMaster, InserSup, Onisep jobs with sprints 13-15 ranges and counts; `core.metier_axes` precomputed per job).
   - **Indexable pages (sprint 17):** `seo.py` (`/formation/<code>`, `/metier/<id>`, sitemap, robots; the app boots on these paths).
+  - **Doublettes:** `doublettes.py` (proposal rates per doublette for a group, national; per bac route for a formation; `mart.spe_group`, `mart.spe_break`).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -276,6 +277,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   origin is `VERCEL_PROJECT_PRODUCTION_URL`, never the visitor's Host. robots.txt never blocks the data the pages render from
   (only search, vœux, stats); a failed load goes through `showError`, which keeps the server summary (Codex). A new public page needs a cache policy and a sitemap
   decision. Red team `redteam_seo.py` (G1-G11; its mutants are built IN MEMORY: never write source files from a test).
+- **Doublettes.** The SIES specialty column "voeux" counts CANDIDATES (`n_candidats`; acceptations = formations' bac général
+  admits). Doublette figures are per GROUP of formations, national, bac général only, never per establishment; techno and pro
+  have only per-formation route rates (`journey.series_rate_sql`). Rare = < 20 candidates over the campaigns; the rare ones are
+  pooled into "Autres doublettes", shown only in place of a rare doublette, always "estimation". Counting-break campaigns
+  (`BREAK_*`: candidates > 2x the group's minimum with proposals < 1.5x, groups with >= 2 000 proposals) are left out of every
+  rate, stage 1 included. Route colours are `--voie-*` tokens, never a zone's or the accent, always with the route's name.
+  Red team `redteam_doublettes.py` (D1-D9).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

@@ -39,6 +39,7 @@ FEATURE_ENTRY_POINTS = {
     "ia_exposition": ("app.js", "function iaCard("),
     "licence_master": ("app.js", "function licenceMasterCard("),
     "seo_pages": ("app.js", "function pathRoute("),
+    "doublettes": ("app.js", "function doubletteCard("),
 }
 
 

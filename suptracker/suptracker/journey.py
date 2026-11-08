@@ -551,7 +551,7 @@ def build_journey(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
     CREATE OR REPLACE TABLE mart.spe_filiere AS
     SELECT s.session, k.type_key, any_value(s.formation_type ORDER BY s.formation_type) AS type_label,
-           d.doublette_key, sum(s.n_voeux) AS voeux, sum(s.n_proposition) AS propositions,
+           d.doublette_key, sum(s.n_candidats) AS candidats, sum(s.n_proposition) AS propositions,
            sum(s.n_accepte) AS acceptations
     FROM core.specialites s
     JOIN _type_key k USING (formation_type)
@@ -566,11 +566,15 @@ def stage1(con, dkey: str) -> dict:
     rows = con.execute(f"""
     WITH f AS (
       SELECT type_key, session,
-             sum(voeux) FILTER (WHERE doublette_key = $d) AS v_d,
+             sum(candidats) FILTER (WHERE doublette_key = $d) AS v_d,
              sum(propositions) FILTER (WHERE doublette_key = $d) AS p_d,
              sum(acceptations) FILTER (WHERE doublette_key = $d) AS a_d,
-             sum(voeux) AS v_all, sum(propositions) AS p_all, sum(acceptations) AS a_all
-      FROM mart.spe_filiere GROUP BY ALL),
+             sum(candidats) AS v_all, sum(propositions) AS p_all, sum(acceptations) AS a_all
+      FROM mart.spe_filiere f
+      -- sprint "Doublettes": a campaign with a counting break in a group (doublettes.BREAK_*) is left out, as on every page
+      WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'mart' AND table_name = 'spe_break')
+         OR (type_key, session) NOT IN (SELECT (type_key, session) FROM mart.spe_break)
+      GROUP BY ALL),
     pooled AS (
       SELECT type_key, count(DISTINCT session) AS years, sum(v_d) v_d, sum(p_d) p_d, sum(a_d) a_d,
              sum(v_all) v_all, sum(p_all) p_all, sum(a_all) a_all,
@@ -610,6 +614,14 @@ def stage1(con, dkey: str) -> dict:
         for k in ("nat_a_d", "nat_a_all", "nat_v_d", "nat_p_d"):
             x.pop(k)
         out.append(x)
+    # sprint "Doublettes": when the student's doublette is rare in a group (< 20 candidates over the campaigns), the page
+    # shows the group's "Autres doublettes" bucket as an estimation (doublettes.pick has the same rule)
+    from . import doublettes as DB
+    autres = DB.autres_by_type(con)
+    for x in out:
+        x["rare"] = (x["candidates"] or 0) < DB.THRESHOLD
+        a = autres.get(x["type_key"])
+        x["autres"] = {k: a[k] for k in ("taux", "candidats", "n_doublettes")} if a and x["rare"] else None
     return {"doublette": dkey, "national": national, "filieres": out}
 
 
