@@ -12,6 +12,7 @@ generic User-Agent.
 from __future__ import annotations
 
 import csv
+import gzip
 import json
 import sys
 import time
@@ -29,6 +30,7 @@ CDX = "https://web.archive.org/cdx/search/cdx"
 INDEX_COLS = ["timestamp", "original", "digest", "length", "status", "session", "codes", "n_doublettes", "n_synthese", "error"]
 DBL_COLS = ["digest", "timestamp", "session", "code", "jury", "bac", "doublette", "confirmes", "classes", "en_position", "acceptes"]
 SYN_COLS = ["digest", "timestamp", "session", "code", "jury", "groupe", "places", "confirmes", "classes", "en_position", "acceptes"]
+QUALI = ("criteres", "eds", "options_citees", "eliminatoires", "modalites", "algorithme", "conseils")
 MSK_COLS = ["digest", "timestamp", "session", "code", "jury", "bac"]
 
 
@@ -83,37 +85,49 @@ def write(path: Path, cols, rows, append: bool = False):
         w.writerows(rows)
 
 
-def fetch(http: httpx.Client, out: Path, budget_s: float) -> dict:
+def fetch(http: httpx.Client, out: Path, budget_s: float, workers: int = 2) -> dict:
+    """Download and parse the files still to do; `workers` downloads at a time (each paced), writes under one lock."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
     t0 = time.time()
     idx = list(csv.DictReader(open(out / "pdf_index.csv", encoding="utf-8")))
     todo = [r for r in idx if r["status"] in ("todo", "retry")]
-    done = 0
-    for r in todo:
+    lock = threading.Lock()
+    done = [0]
+
+    def one(r):
         if time.time() - t0 > budget_s:
-            break
+            return
         resp = call(http, f"https://web.archive.org/web/{r['timestamp']}id_/{r['original']}", pause=1.0)
         if resp is None or resp.status_code != 200 or not resp.content.startswith(b"%PDF"):
             r["status"] = "retry" if r["status"] == "todo" else "failed"
             r["error"] = "download " + (str(resp.status_code) if resp is not None else "none")
-            continue
+            return
         try:
             p = parse(resp.content)
         except Exception as e:  # noqa: BLE001
             r["status"], r["error"] = "parse_error", f"{type(e).__name__}: {e}"[:200]
-            continue
+            return
         key = {"digest": r["digest"], "timestamp": r["timestamp"], "session": p["session"]}
-        write(out / "doublettes.csv", DBL_COLS, [{**key, **d} for d in p["doublettes"]], append=True)
-        write(out / "synthese.csv", SYN_COLS, [{**key, **d} for d in p["synthese"]], append=True)
-        write(out / "masked.csv", MSK_COLS, [{**key, **d} for d in p["masked"]], append=True)
-        r.update(status="ok", session=p["session"], codes=";".join(p["codes"]), n_doublettes=len(p["doublettes"]),
-                 n_synthese=len(p["synthese"]), error="")
-        done += 1
-        if done % 200 == 0:
-            write(out / "pdf_index.csv", INDEX_COLS, idx)
-            print(f"{done} parsed, {time.time() - t0:.0f} s", flush=True)
+        with lock:
+            write(out / "doublettes.csv", DBL_COLS, [{**key, **d} for d in p["doublettes"]], append=True)
+            write(out / "synthese.csv", SYN_COLS, [{**key, **d} for d in p["synthese"]], append=True)
+            write(out / "masked.csv", MSK_COLS, [{**key, **d} for d in p["masked"]], append=True)
+            # the jury's own texts (criteria, EDS, eliminating criteria, method, algorithm, advice), gzip members appended
+            with gzip.open(out / "qualitatif.jsonl.gz", "at", encoding="utf-8") as g:
+                g.write(json.dumps({**key, "codes": p["codes"], **{k: p[k] for k in QUALI}}, ensure_ascii=False) + "\n")
+            r.update(status="ok", session=p["session"], codes=";".join(p["codes"]), n_doublettes=len(p["doublettes"]),
+                     n_synthese=len(p["synthese"]), error="")
+            done[0] += 1
+            if done[0] % 200 == 0:
+                write(out / "pdf_index.csv", INDEX_COLS, idx)
+                print(f"{done[0]} parsed, {time.time() - t0:.0f} s", flush=True)
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one, todo))
     write(out / "pdf_index.csv", INDEX_COLS, idx)
     left = sum(1 for r in idx if r["status"] in ("todo", "retry"))
-    return {"parsed_this_run": done, "left": left, "total": len(idx),
+    return {"parsed_this_run": done[0], "left": left, "total": len(idx),
             "by_status": {s: sum(1 for r in idx if r["status"] == s) for s in sorted({r["status"] for r in idx})}}
 
 

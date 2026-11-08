@@ -24,7 +24,7 @@ concurrency:
 jobs:
   rapports:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 355
     defaults:
       run:
         working-directory: suptracker
