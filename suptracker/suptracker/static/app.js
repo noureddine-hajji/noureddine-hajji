@@ -297,7 +297,8 @@ function pickDoublette(g, dkey) {
 // per-formation estimate (owner's request): no open data crosses doublette x establishment, so this formation's published bac
 // général proposal rate is scaled by the doublette's ratio in its group (pooled), capped at 100: always an "estimation"
 function estimateDoublette(series, g, dkey) {
-  const p = pickDoublette(g, dkey), bg = series && series.bg;
+  // the route figures of /api/formation (not a stage-2 row: redteam_scale S4 watches stage-2 field reads by name)
+  const p = pickDoublette(g, dkey), { bg } = series || {};
   if (!p || !bg || bg.taux === null || bg.taux === undefined || p.taux === null || p.taux === undefined || !g.tous.taux) return null;
   const r = p.taux / g.tous.taux;
   const cap = (x) => (x === null || x === undefined ? null : Math.round(Math.min(100, x * r) * 10) / 10);
