@@ -267,7 +267,7 @@ def metier_ok(html: str, url: str, api_d: dict) -> tuple[bool, str]:
         ld = [json.loads(x) for x in h.ld]
     except json.JSONDecodeError:
         ld = None
-    dips = all(d["libelle"] in h.text for d in api_d["diplomes"])
+    dips = all(re.sub(r"\s+", " ", d["libelle"]).strip() in h.text for d in api_d["diplomes"])   # Onisep titles may hold double spaces
     links = re.findall(r'href="/formation/(\d+)"', html)
     known = {f["cod_aff_form"] for d in api_d["diplomes"] for f in (d.get("formations") or [])}
     links_ok = set(links) <= known
