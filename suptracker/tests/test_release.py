@@ -41,6 +41,7 @@ FEATURE_ENTRY_POINTS = {
     "seo_pages": ("app.js", "function pathRoute("),
     "doublettes": ("app.js", "function doubletteCard("),
     "rapports_publics": ("app.js", "function juryCard("),
+    "carte": ("app.js", "function viewCarte("),
 }
 
 

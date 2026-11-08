@@ -302,6 +302,15 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
   - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R6).
+- **Carte (map of formations).**
+  - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
+  - The neutral layer is `/api/carte/<type>`. Paid private institutions are shown only on request (Plan B's rule).
+  - The town and radius filter runs in the browser: no API call carries a position.
+  - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
+  - The default base map is self-hosted (`static/geo/france.json`, IGN Admin Express, `scripts/build_geo.py`).
+  - OpenStreetMap is used only after a note naming the IP address and a click. Leaflet is self-hosted in
+    `static/vendor/leaflet/` (never a CDN, never in the page shell), with attribution.
+  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C8).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

@@ -38,6 +38,7 @@ from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
 from . import rapports as RP
+from . import carte as CA
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -728,6 +729,21 @@ def journey_persona():
     return json.loads(path.read_text())
 
 
+@app.get("/api/carte")
+def carte_types():
+    """Sprint "Carte": the filière types the map can show."""
+    return {"types": CA.types(_con().cursor())}
+
+
+@app.get("/api/carte/{type_key}")
+def carte(type_key: str):
+    """Sprint "Carte": the neutral layer of one filière type (no profile; the zones come from /api/journey/stage2)."""
+    res = CA.formations(_con().cursor(), type_key)
+    if res is None:
+        raise HTTPException(404, "type de formation inconnu")
+    return res
+
+
 @app.get("/api/journey/vocab")
 def journey_vocab():
     _journey_ready()
@@ -915,7 +931,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte"]
 
 
 @lru_cache(maxsize=1)

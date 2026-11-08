@@ -81,6 +81,7 @@ class Ctx:
             "/api/lycees": "/api/lycees", "/api/planb/{cod}": f"/api/planb/{c}?{bg}",
             "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/continuity": "/api/continuity",
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
+            "/api/carte": "/api/carte", "/api/carte/{type_key}": "/api/carte/" + __import__("urllib.parse").parse.quote(self.type_key),
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
             "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",

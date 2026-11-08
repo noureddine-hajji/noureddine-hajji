@@ -51,6 +51,8 @@ POLICY = [
     (r"/api/journey/stage1", PUBLIC, "positioning (the audience count is sent by the page)"),
     (r"/api/journey/stage2", PUBLIC, "positioning (the audience count is sent by the page)"),
     (r"/api/planb/[^/]+", PUBLIC, "plan B for one formation and a coarse profile"),
+    (r"/api/carte", PUBLIC, "map: the filière types (no parameter)"),
+    (r"/api/carte/[^/]+", PUBLIC, "map: the neutral layer of one filière type (no profile, no position)"),
     (r"/api/metiers", PUBLIC, "job catalogue (no parameter: searched in the browser)"),
     (r"/api/metier/[^/]+", PUBLIC, "one job and the formations preparing it"),
     (r"/static/.+", "asset", "front-end files"),
