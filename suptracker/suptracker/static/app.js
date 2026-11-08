@@ -332,7 +332,7 @@ function doubletteCard(d, rp) {
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
     // the estimate is only shown when this formation's report gives no bac général figure
-    const est = own.bg ? null : estimateDoublette(d.series, g, dkey);
+    const est = own.hasBg ? null : estimateDoublette(d.series, g, dkey);
     const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
       <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
     dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>
@@ -350,7 +350,7 @@ function doubletteCard(d, rp) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
     ${own.html}
-    <h3>Par doublette de spécialités (bac général)${own.bg ? " : le groupe de formations, toute la France" : ""}</h3>${dbl}</div>`;
+    <h3>Par doublette de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${dbl}</div>`;
 }
 // ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
 const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
@@ -358,7 +358,7 @@ const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac profess
 // (twin of rapports.pick)
 function pickRapport(rp, dkey) {
   if (!rp || !dkey) return null;
-  const rows = (rp.doublettes && rp.doublettes.bg) || [];
+  const { bg: rows = [] } = rp.doublettes || {};      // destructured: redteam_scale S4 watches stage-2 field reads by name
   const mine = rows.find((x) => x.key === dkey);
   if (mine) return { ...mine, source: "doublette" };
   const other = rows.find((x) => x.autres);
@@ -371,7 +371,7 @@ function rapportSource(rp) {
   return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), copie archivée le ${esc(when)} par l'Internet Archive : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
 }
 function rapportDoublettes(rp, prof) {
-  if (!rp || !rp.doublettes) return { html: "", bg: false };
+  if (!rp || !rp.doublettes) return { html: "", hasBg: false };
   const dkey = profileDkey(prof), mine = pickRapport(rp, dkey);
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const blocks = ["bg", "bt", "bp"].map((v) => {
@@ -383,10 +383,11 @@ function rapportDoublettes(rp, prof) {
         <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${x.taux !== null && x.taux !== undefined ? rateBar(x.taux, VOIES[v].color) : ""}</td>
         <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td></tr>`; }).join("")}</table></div>`;
   }).join("");
-  if (!blocks) return { html: "", bg: false };
+  if (!blocks) return { html: "", hasBg: false };
   const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres doublettes » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
     <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une doublette autre que celles détaillées" : "cette doublette"} ont été en position de recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses doublettes les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
-  return { bg: !!(rp.doublettes.bg || []).length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})</h3>${head}${blocks}
+  const { bg: bgRows = [] } = rp.doublettes;
+  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})</h3>${head}${blocks}
     <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
 }
 // what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it

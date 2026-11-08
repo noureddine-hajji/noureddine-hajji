@@ -291,7 +291,7 @@ JS_MUTANTS = [
     ("label unescaped", "<td>${esc(x.libelle)}", "<td>${x.libelle}"),
     ("jury text unescaped", 'const rpText = (t) => esc(t || "")', 'const rpText = (t) => String(t || "")'),
     ("criterion unescaped", '<td data-label="Critère">${esc(c.critere)}</td>', '<td data-label="Critère">${c.critere}</td>'),
-    ("estimate kept beside the published figure", "const est = own.bg ? null : estimateDoublette(d.series, g, dkey);", "const est = estimateDoublette(d.series, g, dkey);"),
+    ("estimate kept beside the published figure", "const est = own.hasBg ? null : estimateDoublette(d.series, g, dkey);", "const est = estimateDoublette(d.series, g, dkey);"),
     ("figure without its label", '<td class="num" data-label="Taux d\'accès">${pct1(x.taux)}', '<td class="num">${pct1(x.taux)}'),
     ("caveat dropped", "Ce sont des résultats passés, pas des chances d'admission.\";\nfunction rapportSource", "\";\nfunction rapportSource"),
     ("page uses the group bucket", "const other = rows.find((x) => x.autres);", "const other = null;"),
