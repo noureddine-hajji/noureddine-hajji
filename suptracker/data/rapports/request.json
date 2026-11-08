@@ -1,1 +1,1 @@
-{"sample": 12, "note": "probe 2: archived fiche pages and their report links; live site status"}
+{"mode": "harvest", "enumerate": true, "budget_min": 300, "note": "harvest run 1: enumerate archived report PDFs, then fetch and parse"}

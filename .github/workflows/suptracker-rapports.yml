@@ -1,16 +1,18 @@
 # Parcoursup public reports ("rapports publics"): per-formation doublette counts are published only in these PDFs.
 # The Parcoursup, SIES and Internet Archive hosts are blocked in the development sandbox, so this runner fetches them.
-# Step 1 (this file): a PROBE that commits small samples to data/rapports/probe/ so the harvest and parser can be designed.
+#   mode "probe":   small samples to data/rapports/probe/ (design material)
+#   mode "harvest": every report PDF archived by the Internet Archive, parsed into CSVs in data/rapports/harvest/
+#                   (resumable: each run stops after `budget` minutes and commits; push request.json again to continue)
 # Triggered by workflow_dispatch, or by a push of data/rapports/request.json on a claude/ branch (a new workflow can only be
 # dispatched once it is on the default branch).
 name: suptracker-rapports
 on:
   workflow_dispatch:
     inputs:
-      sample:
-        description: "Number of formations in the probe sample"
+      mode:
+        description: "probe or harvest"
         required: false
-        default: "12"
+        default: "harvest"
   push:
     branches: ["claude/**"]
     paths: ["suptracker/data/rapports/request.json"]
@@ -20,9 +22,9 @@ concurrency:
   group: suptracker-rapports
   cancel-in-progress: false
 jobs:
-  probe:
+  rapports:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 350
     defaults:
       run:
         working-directory: suptracker
@@ -32,17 +34,31 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install httpx "duckdb==2.0.0" pdfplumber
-      - name: Probe live reports, SIES 2020-2021 keys and the Wayback Machine
+      - name: Read the request
+        id: req
         run: |
-          n="${{ inputs.sample }}"
-          if [ -z "$n" ] && [ -f data/rapports/request.json ]; then n=$(python -c "import json;print(json.load(open('data/rapports/request.json')).get('sample', 12))"); fi
-          python scripts/rapports_probe.py data/suptracker.duckdb data/rapports/probe "${n:-12}"
-      - name: Commit probe
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          r = json.load(open("data/rapports/request.json")) if os.path.exists("data/rapports/request.json") else {}
+          mode = "${{ inputs.mode }}" or r.get("mode", "harvest")
+          print(f"mode={mode}")
+          print(f"sample={r.get('sample', 12)}")
+          print(f"budget={r.get('budget_min', 300)}")
+          print(f"enumerate={'--enumerate' if r.get('enumerate') else ''}")
+          EOF
+      - name: Probe
+        if: steps.req.outputs.mode == 'probe'
+        run: python scripts/rapports_probe.py data/suptracker.duckdb data/rapports/probe "${{ steps.req.outputs.sample }}"
+      - name: Harvest archived reports
+        if: steps.req.outputs.mode == 'harvest'
+        run: python scripts/rapports_harvest.py data/rapports/harvest "${{ steps.req.outputs.budget }}" ${{ steps.req.outputs.enumerate }}
+      - name: Commit
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/rapports/probe
+          git add data/rapports/probe data/rapports/harvest 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "Probe Parcoursup public reports ($(date -u +%Y-%m-%d))"
+          git commit -m "Parcoursup public reports: ${{ steps.req.outputs.mode }} ($(date -u +%Y-%m-%d))"
           git pull --rebase
           git push
