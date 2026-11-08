@@ -797,6 +797,11 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
 - **The column named "voeux" counts candidates (people).** Its acceptations equal the formations' bac général admits
   (34 576 vs 34 550 for Licence Sciences juridiques in 2025), while it is 4× smaller than their vœux (90 397 vs 347 976).
   It is now ingested as `n_candidats`, so the data-quality page no longer says "missing".
+  The owner's CSV export of the same dataset (`data/sources/fr-esr-parcoursup-enseignements-de-specialite-bacheliers-generaux-2.csv`,
+  registered as a cross-check) names the column "Nombre de candidats bacheliers ayant confirmé au moins un vœu"; its
+  13 455 rows for 2022-2024 equal the ingested ones, and red team D1 compares them row by row. It also shows that L.AS
+  already had about 266 000 "candidates" in 2021, about 70 % of all bac général candidates, which is implausible: this
+  supports the counting-break rule below.
 - **There is no doublette for bac techno or pro.** Each formation publishes its own counts per series: the per-route
   ("voie") proposal rate of that formation.
 - **Counting break.** In three groups (Licence L.AS, Sciences de l'univers, Formation générale aux métiers de

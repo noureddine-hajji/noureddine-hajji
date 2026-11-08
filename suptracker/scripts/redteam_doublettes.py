@@ -100,6 +100,24 @@ def pct(p, c):
     return None if not c else round(100.0 * p / c, 1)
 
 
+def official_check(con) -> tuple[bool, str]:
+    import csv
+    files = sorted((ROOT / "data" / "sources").glob("fr-esr-parcoursup-enseignements-de-specialite-bacheliers-generaux*.csv"))
+    if not files:
+        return True, "no official CSV committed"
+    with open(files[-1], encoding="utf-8-sig") as fh:
+        rows = list(csv.reader(fh, delimiter=";"))
+    head, body = rows[0], rows[1:]
+    label = "Nombre de candidats bacheliers ayant confirmé au moins un vœu" in head
+    db = {(str(s), d, f): (c, p, a) for s, f, d, c, p, a in con.execute(
+        "SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte FROM core.specialites WHERE source = 'specialites_2021_2024'").fetchall()}
+    seen = [r for r in body if (r[0], r[1], r[2]) in db]
+    diff = [r[:3] for r in seen if db[(r[0], r[1], r[2])] != (int(r[3]), int(float(r[4])), int(r[5]))]
+    years = {r[0] for r in seen}
+    ok = label and len(seen) > 0 and not diff and years >= {"2022", "2023", "2024"} - {y for y in ("2022", "2023", "2024") if not any(k[0] == y for k in db)}
+    return ok, f"label says candidates {label}; {len(seen)} rows compared, {len(diff)} different {diff[:2]}"
+
+
 # ------------------------------------------------------------------ checks
 @check("D1 units: the SIES 'voeux' column counts candidates (acceptations = formations' bac général admits, below their vœux)")
 def d1(c: Ctx):
@@ -120,11 +138,14 @@ def d1(c: Ctx):
     audit_ok = bool(audit) and all(v == "voeux" for v in audit.values()) and not missing
     share = len(close) / max(1, len(both))
     order = c.con.execute("SELECT count(*) FROM core.specialites WHERE n_candidats < n_proposition OR n_proposition < n_accepte").fetchone()[0]
+    # the owner's CSV export of the same SIES dataset names the column "Nombre de candidats bacheliers ayant confirmé au moins
+    # un vœu": its counts must equal the ingested rows, row by row (2022-2024)
+    official = official_check(c.con)
     if not c.real:      # the synthetic fixture's specialty counts are not built from its formations: units on real data only
         return audit_ok and order == 0, f"synthetic: audit {audit}, still missing {missing}; rows with candidates < proposals < acceptations broken: {order}"
-    ok = both and share >= 0.75 and len(below) == len(close) and audit_ok and order == 0
+    ok = both and share >= 0.75 and len(below) == len(close) and audit_ok and order == 0 and official[0]
     return ok, (f"{len(both)} groups; acceptations = formations' bac général admits (±5 %) in {len(close)} ({share:.0%}); "
-                f"candidates ≤ formations' vœux in {len(below)}/{len(close)} of them; audit {audit}, still missing {missing}; order broken in {order} rows")
+                f"candidates ≤ formations' vœux in {len(below)}/{len(close)} of them; audit {audit}, still missing {missing}; order broken in {order} rows; official CSV {official[1]}")
 
 
 @check("D2 every figure of a group re-derived independently (doublettes, all, 'Autres doublettes', pooled and per campaign, breaks left out)")
