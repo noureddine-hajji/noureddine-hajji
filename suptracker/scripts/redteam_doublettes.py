@@ -203,6 +203,40 @@ def d2(c: Ctx):
     return not bad, f"{len(c.sample_types)} groups; breaks {want}; problems {bad[:3]}"
 
 
+@check("D11 stage 1 destination share and index: national denominators over the SAME campaigns as the group (breaks left out of both)")
+def d11(c: Ctx):
+    rows = c.con.execute("SELECT type_key, session, doublette_key, acceptations FROM mart.spe_filiere").fetchall()
+    brk = {}
+    for tk, s in c.con.execute("SELECT type_key, session FROM mart.spe_break").fetchall():
+        brk.setdefault(tk, set()).add(s)
+    nat = M["J"].NATIONAL_TYPE
+    acc = {}
+    for tk, s, dk, a in rows:
+        x = acc.setdefault((tk, s), {})
+        x[dk] = x.get(dk, 0) + (a or 0)
+    keys = [k for (k,) in c.con.execute("""SELECT doublette_key FROM mart.spe_filiere WHERE type_key IN (SELECT type_key FROM mart.spe_break)
+                                           GROUP BY 1 ORDER BY sum(acceptations) DESC LIMIT 2""").fetchall()]
+    keys += [k for (k,) in c.con.execute("SELECT doublette_key FROM core.spe_doublette GROUP BY 1 ORDER BY 1 LIMIT 1").fetchall()]
+    bad, n = [], 0
+    for dk in keys:
+        for f in M["J"].stage1(c.con, dk)["filieres"]:
+            tk = f["type_key"]
+            sess = {s for (t, s) in acc if t == tk and s not in brk.get(tk, set())}
+            num = sum(acc[(tk, s)].get(dk, 0) for s in sess)
+            num_all = sum(sum(acc[(tk, s)].values()) for s in sess)
+            nsess = {s for (t, s) in acc if t == nat and s not in brk.get(tk, set())}
+            den = sum(acc[(nat, s)].get(dk, 0) for s in nsess)
+            den_all = sum(sum(acc[(nat, s)].values()) for s in nsess)
+            want = num / den if den else None
+            lift = (num / num_all) / (den / den_all) if num_all and den and den_all else None
+            n += 1
+            if (want is None) != (f["destination_share"] is None) or (want is not None and abs(want - f["destination_share"]) > 1e-9):
+                bad.append((dk, tk, "share", f["destination_share"], want))
+            if lift is not None and (f["lift"] is None or abs(lift - f["lift"]) > 1e-9):
+                bad.append((dk, tk, "lift", f["lift"], lift))
+    return not bad, f"{n} filière rows over {len(keys)} doublettes; break groups {sorted(brk)}; problems {bad[:3]}"
+
+
 def _crafted():
     mk = lambda k, cand, rare, taux: {"key": k, "label": k, "rare": rare, "candidats": cand, "taux": taux, "trend": []}  # noqa: E731
     return {"doublettes": [mk("A+B", 500, False, 70.0), mk("C+D", 20, False, 50.0), mk("E+F", 19, True, 10.0), mk("G+H", 0, True, None)],
@@ -374,10 +408,20 @@ const tip = () => ""; const legend = () => ""; const lineChart = () => "";
 const [d, prof] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = {}; PROFILE = prof; out.rare = doubletteCard(d); PROFILE = null; out.none = doubletteCard(d);
 out.nogroup = doubletteCard({ ...d, status: "sans_groupe", groupe: null });
+const DEF = new Set(["predilection", "accessible"]);
 out.stage1 = stage1Matrix({ filieres: [
   { type_key: "a", label: "Licence A", gate: "insuffisant", candidates: 3, years: 4, offer_rate: null, offer_rate_all: 0.5, share: 0, lift: 0,
-    destination_share: 0, n_formations: 2, rare: true, autres: { taux: 44.7, candidats: 85, n_doublettes: 16 } }] },
-  new Set(["predilection", "accessible"]), false);
+    destination_share: 0, n_formations: 2, rare: true, autres: { taux: 44.7, candidats: 85, n_doublettes: 16 } }] }, DEF, false);
+// Codex (PR #37): few candidates but NOT rare (between 20 and 99): shown, own rate, never called rare
+out.few = stage1Matrix({ filieres: [
+  { type_key: "b", label: "Licence B", gate: "insuffisant", candidates: 98, years: 4, offer_rate: 0.613, offer_rate_all: 0.5, share: 0.01, lift: 1,
+    destination_share: 0.01, n_formations: 2, rare: false, autres: null }] }, DEF, false);
+// a common doublette whose filières are all filtered out by the student: the filter is honoured
+out.filtered = stage1Matrix({ filieres: [
+  { type_key: "c", label: "Licence C", gate: "accessible", candidates: 900, years: 4, offer_rate: 0.7, offer_rate_all: 0.5, share: 0.1, lift: 1,
+    destination_share: 0.2, n_formations: 2, rare: false, autres: null },
+  { type_key: "d", label: "Licence D", gate: "insuffisant", candidates: 40, years: 4, offer_rate: 0.7, offer_rate_all: 0.5, share: 0.1, lift: 1,
+    destination_share: 0.01, n_formations: 2, rare: false, autres: null }] }, new Set(), false);
 process.stdout.write(JSON.stringify(out));"""
     r = subprocess.run([node, "-e", prog], input=json.dumps([{"series": ser, "groupe": g, "status": "ok"},
                                                             {"serie": "bg", "spe1": "ART", "spe2": "EPPCS"}]), capture_output=True, text=True, timeout=60)
@@ -399,9 +443,18 @@ def d8(c: Ctx):
     pills = all(o[k].count('class="voie-pill"') == 3 for k in o if k != "stage1")
     s1 = o.get("stage1", "")
     rare_s1 = "Votre doublette est rare" in s1 and "44,7 %" in s1 and "Autres doublettes (estimation" in s1 and "Licence A" in s1
-    ok = not raw and rare and invite and nogroup and not any(unlabelled) and pills and rare_s1
+    few = o.get("few", "")
+    few_ok = ("Licence B" in few and "61,3 %" in few and "Votre doublette est rare" not in few and "Peu de candidats" in few
+              and "Autres doublettes (estimation" not in few)
+    filt = o.get("filtered", "")
+    filt_ok = "Licence C" not in filt and "Licence D" not in filt and "Peu de candidats" not in filt and "est rare" not in filt
+    gm = re.search(r"^const GATE_MIN = (\d+);", c.js, re.M)
+    gate_min = bool(gm) and int(gm.group(1)) == M["J"].GATE_RULES["min_candidates"]
+    ok = not raw and rare and invite and nogroup and not any(unlabelled) and pills and rare_s1 and few_ok and filt_ok and gate_min
     return ok, (f"raw tag {raw}; rare shows the bucket {rare}; invites a profile {invite}; no group {nogroup}; unlabelled cells {unlabelled}; "
-                f"route pills {pills}; a rare doublette's filières shown with the bucket in Mon parcours {rare_s1}")
+                f"route pills {pills}; a rare doublette's filières shown with the bucket in Mon parcours {rare_s1}; "
+                f"20-99 candidates shown with their own rate, not called rare {few_ok}; a student's filter honoured {filt_ok}; "
+                f"page gate threshold = server {gate_min}")
 
 
 
@@ -489,6 +542,8 @@ PY_MUTANTS = [
 ]
 JOURNEY_MUTANTS = [
     ("stage 1 keeps the break campaigns", "         OR (type_key, session) NOT IN (SELECT (type_key, session) FROM mart.spe_break)", "         OR TRUE"),
+    ("destination share over every campaign", "p.a_d / nullif(p.den_d, 0) AS destination_share", "p.a_d / nullif(p.nat_a_d, 0) AS destination_share"),
+    ("index over every campaign", "nullif(p.den_d / nullif(p.den_all, 0), 0) AS lift", "nullif(p.nat_a_d / nullif(p.nat_a_all, 0), 0) AS lift"),
 ]
 JS_MUTANTS = [
     ("page ratio inverted", "const r = p.taux / g.tous.taux;", "const r = g.tous.taux / p.taux;"),
@@ -499,7 +554,11 @@ JS_MUTANTS = [
     ("group label unescaped", "Groupe : <strong>${esc(g.label)}</strong>", "Groupe : <strong>${g.label}</strong>"),
     ("doublette label unescaped", "top.map((x) => row(esc(x.label), x,", "top.map((x) => row(x.label, x,"),
     ("figure without its label", '<td class="num" data-label="Candidats">${fmt(v.candidats)}', '<td class="num">${fmt(v.candidats)}'),
-    ("stage 1 hides the rare doublette's filières", "const onlyRare = !s1.filieres.some", "const onlyRare = false && !s1.filieres.some"),
+    ("stage 1 hides the rare doublette's filières", "const fewOnly = s1.filieres.length > 0", "const fewOnly = false && s1.filieres.length > 0"),
+    ("rare note read from the gate, not the rare flags", "const allRare = fewOnly && s1.filieres.every((f) => f.rare);", "const allRare = fewOnly;"),
+    ("fallback overrides the student's filters", 's1.filieres.every((f) => f.gate === "insuffisant") && !show.has("insuffisant")',
+     '!s1.filieres.some((f) => show.has(f.gate)) && s1.filieres.some((f) => f.gate === "insuffisant")'),
+    ("page gate threshold drifts", "const GATE_MIN = 100;", "const GATE_MIN = 50;"),
 ]
 CSS_MUTANTS = [
     ("route colour equal to a zone", "--voie-bt: #8a6d00;", "--voie-bt: #c4581f;"),
@@ -519,7 +578,7 @@ def mutated(modname: str, path: Path, old: str, new: str):
 
 @check("D9 mutation test: threshold, bucket, units, breaks, colours, escaping, labels and wording bugs are each caught")
 def d9(c: Ctx):
-    fns = [d1, d2, d3, d4, d5, d6, d7, d8, d10]
+    fns = [d1, d2, d3, d4, d5, d6, d7, d8, d10, d11]
     missed = []
 
     def caught():

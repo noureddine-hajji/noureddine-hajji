@@ -282,7 +282,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   have only per-formation route rates (`journey.series_rate_sql`). Rare = < 20 candidates over the campaigns; the rare ones are
   pooled into "Autres doublettes", shown only in place of a rare doublette, always "estimation". Counting-break campaigns
   (`BREAK_*`: candidates > 2x the group's minimum with proposals < 1.5x, groups with >= 2 000 proposals) are left out of every
-  rate, stage 1 included. Route colours are `--voie-*` tokens, never a zone's or the accent, always with the route's name.
+  rate, stage 1 included, and out of that group's NATIONAL denominators too (destination share, index: same campaigns as the
+  numerator, red team D11). Mon parcours shows all-"insuffisant" filières only when every one is (a student's filter is honoured);
+  it says "rare" only from the rows' `rare` flags. Route colours are `--voie-*` tokens, never a zone's or the accent, always with the route's name.
   Per FORMATION, the doublette figure is an ESTIMATION: the formation's published bac général proposal rate x the doublette's
   pooled ratio in its group (doublette / all bac général), capped at 100, shown with its calculation (`doublettes.estimate`,
   page twin `estimateDoublette`); never presented as a published per-establishment figure.

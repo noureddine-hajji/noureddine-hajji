@@ -279,6 +279,7 @@ function stageCard(title, keys, rec, note) {
 const VOIES = { bg: { label: "Bac général", color: "var(--voie-bg)" }, bt: { label: "Bac techno", color: "var(--voie-bt)" },
   bp: { label: "Bac pro", color: "var(--voie-bp)" } };
 const DBL_SEUIL = 20;
+const GATE_MIN = 100;   // journey.GATE_RULES["min_candidates"] (red team D8 checks they agree)
 const pct1 = (v) => (v === null || v === undefined ? "—" : `${fmt(v, 1)} %`);
 const voiePill = (s) => `<span class="voie-pill" style="color:${VOIES[s].color}">${VOIES[s].label}</span>`;
 const rateBar = (taux, color) => `<span class="dbl-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, Number(taux) || 0))}%;background:${color}"></i></span>`;
@@ -1206,10 +1207,12 @@ function mathsExpertesNote(p, serie) {
 }
 
 function stage1Matrix(s1, show, all) {
-  // sprint "Doublettes": a rare doublette leaves every filière "insuffisant" (hidden by default): those filières are then
-  // shown anyway, each with its "Autres doublettes" estimation, and the page says why
-  const onlyRare = !s1.filieres.some((f) => show.has(f.gate)) && s1.filieres.some((f) => f.gate === "insuffisant");
-  const kept = onlyRare ? s1.filieres.filter((f) => f.gate === "insuffisant").sort((a, b) => (b.candidates || 0) - (a.candidates || 0) || ((b.autres && b.autres.candidats) || 0) - ((a.autres && a.autres.candidats) || 0))
+  // sprint "Doublettes": when EVERY filière is "insuffisant" (< 100 candidates of the doublette, hidden by default), the view is
+  // empty whatever the filters, so those filières are shown anyway; a filter that hides filières which exist stays honoured (Codex).
+  // The note says which case it is from the rows' own `rare` flags (< 20 candidates), never from the gate.
+  const fewOnly = s1.filieres.length > 0 && s1.filieres.every((f) => f.gate === "insuffisant") && !show.has("insuffisant");
+  const allRare = fewOnly && s1.filieres.every((f) => f.rare);
+  const kept = fewOnly ? s1.filieres.filter((f) => f.gate === "insuffisant").sort((a, b) => (b.candidates || 0) - (a.candidates || 0) || ((b.autres && b.autres.candidats) || 0) - ((a.autres && a.autres.candidats) || 0))
     : s1.filieres.filter((f) => show.has(f.gate));
   const rows = all ? kept : kept.slice(0, 15);
   const max = Math.max(0.01, ...rows.map((f) => f.destination_share || 0));
@@ -1219,7 +1222,8 @@ function stage1Matrix(s1, show, all) {
     ? `${pct1(f.autres.taux)}${rateBar(f.autres.taux, "var(--voie-bg)")}<div class="estim">Autres doublettes (estimation : ${fmt(f.autres.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats)</div>`
     : `<strong>${pc1(f.offer_rate)}</strong>${f.offer_rate !== null && f.offer_rate !== undefined ? rateBar(100 * f.offer_rate, "var(--voie-bg)") : ""}`);
   return `<div class="legend">${Object.entries(GATES).map(([k, g]) => `<label style="cursor:pointer"><input type="checkbox" data-gate="${k}" ${show.has(k) ? "checked" : ""}> <i style="background:${g.color}"></i>${g.label} (${s1.filieres.filter((f) => f.gate === k).length})</label>`).join("")}</div>
-  ${onlyRare ? `<div class="info">Votre doublette est rare : moins de ${DBL_SEUIL} candidats dans chaque filière sur 2022–2025. Les taux affichés sont ceux des « Autres doublettes » de chaque filière (doublettes rares regroupées) : une estimation.</div>` : ""}
+  ${allRare ? `<div class="info">Votre doublette est rare : moins de ${DBL_SEUIL} candidats dans chaque filière sur 2022–2025. Les taux affichés sont ceux des « Autres doublettes » de chaque filière (doublettes rares regroupées) : une estimation.</div>`
+    : fewOnly ? `<div class="info">Peu de candidats ont votre doublette : moins de ${fmt(GATE_MIN)} dans chaque filière sur 2022–2025, les filières sont donc affichées quand même. Là où ils sont moins de ${DBL_SEUIL}, le taux affiché est celui des « Autres doublettes » (estimation).</div>` : ""}
   <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th><th class="num">Taux de proposition de votre doublette</th><th class="num">… tous les bacheliers généraux</th><th>Part de destination</th><th class="num">Part des admis</th><th class="num">Indice</th><th></th></tr>
   ${rows.map((f) => `<tr><td><span class="badge" style="border-color:${GATES[f.gate].color};color:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats de la doublette · ${f.years} an(s)</div></td>
     <td class="num" data-label="Taux de proposition de votre doublette">${rate(f)}</td><td class="num muted" data-label="Tous les bacheliers généraux">${pc1(f.offer_rate_all)}</td>

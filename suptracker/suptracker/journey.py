@@ -563,6 +563,12 @@ def build_journey(con: duckdb.DuckDBPyConnection) -> None:
 # --------------------------------------------------------------------------- stage 1
 def stage1(con, dkey: str) -> dict:
     nat = NATIONAL_TYPE
+    has_break = con.execute("""SELECT count(*) FROM information_schema.tables
+                               WHERE table_schema = 'mart' AND table_name = 'spe_break'""").fetchone()[0] > 0
+    # Codex (PR #37): a group's left-out campaigns are also left out of ITS national denominators, so a destination share
+    # (and the national share behind the index) is computed over the same campaigns as its numerator
+    brk = ("SELECT b.type_key, sum(n.a_d) AS a_d, sum(n.a_all) AS a_all FROM mart.spe_break b JOIN nat_s n USING (session) GROUP BY 1"
+           if has_break else "SELECT NULL::VARCHAR AS type_key, 0 AS a_d, 0 AS a_all WHERE FALSE")
     rows = con.execute(f"""
     WITH f AS (
       SELECT type_key, session,
@@ -581,17 +587,21 @@ def stage1(con, dkey: str) -> dict:
              list({{'session': session, 'offer_rate': p_d / nullif(v_d, 0), 'share': a_d / nullif(a_all, 0),
                    'candidates': v_d}} ORDER BY session) AS trend
       FROM f GROUP BY 1),
-    n AS (SELECT a_d AS nat_a_d, a_all AS nat_a_all, v_d AS nat_v_d, p_d AS nat_p_d FROM pooled WHERE type_key = '{nat}')
+    n AS (SELECT a_d AS nat_a_d, a_all AS nat_a_all, v_d AS nat_v_d, p_d AS nat_p_d FROM pooled WHERE type_key = '{nat}'),
+    nat_s AS (SELECT session, a_d, a_all FROM f WHERE type_key = '{nat}'),
+    brk AS ({brk}),
+    d AS (SELECT p.*, n.*, n.nat_a_d - coalesce(b.a_d, 0) AS den_d, n.nat_a_all - coalesce(b.a_all, 0) AS den_all
+          FROM pooled p CROSS JOIN n LEFT JOIN brk b ON b.type_key = p.type_key)
     SELECT p.type_key, (SELECT any_value(type_label ORDER BY session DESC) FROM mart.spe_filiere m
                         WHERE m.type_key = p.type_key) AS label,
            p.years, p.v_d, p.p_d, p.a_d, p.a_all,
            p.p_d / nullif(p.v_d, 0) AS offer_rate,
            p.p_all / nullif(p.v_all, 0) AS offer_rate_all,
            p.a_d / nullif(p.a_all, 0) AS share,
-           (p.a_d / nullif(p.a_all, 0)) / nullif(n.nat_a_d / nullif(n.nat_a_all, 0), 0) AS lift,
-           p.a_d / nullif(n.nat_a_d, 0) AS destination_share,
-           p.trend, n.nat_a_d, n.nat_a_all, n.nat_v_d, n.nat_p_d
-    FROM pooled p, n
+           (p.a_d / nullif(p.a_all, 0)) / nullif(p.den_d / nullif(p.den_all, 0), 0) AS lift,
+           p.a_d / nullif(p.den_d, 0) AS destination_share,
+           p.trend, p.nat_a_d, p.nat_a_all, p.nat_v_d, p.nat_p_d
+    FROM d p
     ORDER BY destination_share DESC NULLS LAST""", {"d": dkey}).fetchall()
     linked = dict(con.execute("""SELECT r.spe_type_key, count(*) FROM core.taxonomy_link t
         JOIN core.taxonomy_rule r USING (rule_id)

@@ -811,6 +811,8 @@ Every red-team-checked caveat is kept word for word; only new texts follow the p
   - it applies to groups with at least 2 000 proposals a year;
   - a campaign is left out when it has more than 2× the smallest candidate count, with proposals under 1.5× the smallest;
   - the page lists the excluded campaigns.
+  - in "Mon parcours", a group's left-out campaigns are also left out of its national denominators: the destination
+    share and the index compare the same campaigns (Licence L.AS for Maths + SVT: 11.9 %, not 5.8 %).
 
 **What changed (`suptracker/doublettes.py`, `mart.spe_group`, `mart.spe_break`):**
 - **Route colours.** General, techno and pro have their own colour tokens (`--voie-bg/bt/bp`, light and dark), far
