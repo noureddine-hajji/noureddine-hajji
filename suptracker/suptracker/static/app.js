@@ -424,7 +424,7 @@ function juryCard(rp) {
     <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
     ${critHtml}${edsHtml}${optHtml}
     ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
-    <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ce ne sont pas des chances d'admission.</p>
+    <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
