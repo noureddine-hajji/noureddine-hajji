@@ -1,5 +1,4 @@
 """Sprint "Carte": the formations of one filière on a map, coloured by the student's zone, and the red team."""
-import json
 import sys
 from pathlib import Path
 
@@ -17,11 +16,10 @@ from synthetic import make_raw  # noqa: E402
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
 
-def test_base_map_is_self_hosted_and_small():
-    g = json.loads((ROOT / "suptracker" / "static" / "geo" / "france.json").read_text())
-    assert [a["id"] for a in g["areas"]] == ["metro", "971", "972", "973", "974", "976"]
-    assert sum(len(a["departements"]) for a in g["areas"]) == 101
-    assert (ROOT / "suptracker" / "static" / "geo" / "france.json").stat().st_size < 300_000
+def test_leaflet_is_self_hosted_with_its_licence():
+    d = ROOT / "suptracker" / "static" / "vendor" / "leaflet"
+    assert (d / "leaflet.js").exists() and (d / "leaflet.css").exists() and "BSD" in (d / "LICENSE").read_text()
+    assert "leaflet" not in (ROOT / "suptracker" / "static" / "index.html").read_text().lower()
 
 
 @pytest.fixture(scope="module")

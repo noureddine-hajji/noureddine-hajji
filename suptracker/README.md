@@ -870,41 +870,43 @@ before the merge.
 **What the page does (`#/carte`, menu "Carte"; on a phone under "Plus"; from "Mon parcours": "Voir ces formations sur la
 carte"):**
 - **Choosing.** One filière type at a time, the 59 types of "Mon parcours".
-- **The map.**
+- **The map.** It is OpenStreetMap (the owner's choice, 2026-11-08: the site's own drawn map was removed).
   - Every formation of the latest campaign is placed on the map.
   - With a profile, it is coloured by the student's zone with the site's zone tokens, and each zone also has its own shape:
     sécurité round, cible square, ambitieux triangle.
   - Without a profile, the points are neutral and the page invites the student to fill "Mon parcours".
-  - Close points form a group: a ring split by zone, with its count. Clicking it zooms in.
+  - Close points form a group: a ring split by zone, with its count. Clicking it zooms in. From zoom 16, every formation
+    is drawn on its own.
   - Clicking a formation opens a short card: zone, official access rate, "Ajouter à mes vœux", the full page.
-- **Filters.** Name or town, académie, around a town (10 to 200 km), public or private, selectivity, boarding, zones.
-  Fee-charging private institutions are shown only on request and flagged (Plan B's rule).
-- **The list.** It shows the formations in view, plus those that cannot be drawn ("hors carte", e.g. French Polynesia), in
-  pages of 20 on a phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
+- **Filters.** Name or town, académie, around a town (10 to 200 km; the map centres on it), public or private,
+  selectivity, boarding, zones. Fee-charging private institutions are shown only on request and flagged (Plan B's rule).
+- **The list.** It shows the formations in view, plus those without coordinates ("non localisée"), in pages of 20 on a
+  phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
 
 **Rules:**
 - The zones are NOT computed by the map: they are the `/api/journey/stage2` rows, the same as "Mon parcours", Plan B and
   Mes vœux.
 - `/api/carte/<type>` (cacheable) only gives the neutral layer.
-- The town and the radius stay in the browser: no API call carries a position.
-
-**Base maps (the owner chose both):**
-- **By default, the site's own map.** The départements are drawn from IGN Admin Express (Licence ouverte), simplified by
-  `scripts/build_geo.py` into `static/geo/france.json` (131 KB). It covers metropolitan France and the 5 overseas
-  départements in insets, with one local projection per area. No outside service is involved.
-- **OpenStreetMap, on request.** The button "Afficher les rues (OpenStreetMap)" first shows a note: the map images come
-  from OpenStreetMap's servers, which see the visitor's IP address. Only after the student confirms does the page load
-  Leaflet 1.9.4 (self-hosted in `static/vendor/leaflet/`, BSD-2 licence) and the tiles, with attribution.
+- The town and the radius stay in the browser: no API call to the site carries a position.
+- **OpenStreetMap:**
+  - Leaflet 1.9.4 is self-hosted in `static/vendor/leaflet/` (BSD-2 licence) and loaded by the map page only, never by
+    the page shell or a CDN.
+  - The tiles come from `tile.openstreetmap.org` (one constant, `CARTE_TILES`, to change provider), with the attribution.
+  - The page says that OpenStreetMap's servers see the visitor's IP address, and that the profile and filters are not
+    sent to them.
+  - If the map cannot load, the list still works.
+  - OpenStreetMap's tile servers are meant for moderate use. If the audience grows, switch `CARTE_TILES` to a tile
+    provider.
 
 **Red team** `scripts/redteam_carte.py` (C1-C8), via `tests/test_carte.py`:
 - C1: zones = "Mon parcours", run in Node.
-- C2: the projection re-derived, and every formation inside its area.
-- C3: the filters against an independent Python reading, on crafted and real rows.
+- C2: every drawn formation in exactly one group, and none without coordinates dropped from the list.
+- C3: the filters against an independent Python reading.
 - C4: the neutral layer by SQL.
-- C5: OpenStreetMap consent, self-hosting and attribution.
+- C5: OpenStreetMap hosting, attribution and the IP note.
 - C6: hostile data, markers naming their zone, distinct shapes, wording, no position sent.
 - C7: the wiring.
-- C8: 12 mutants built in memory, all caught.
+- C8: 14 mutants built in memory, all caught.
 
 ## Each formation's own public report: doublettes and what the jury looks at (sprint "Rapports publics")
 

@@ -344,14 +344,10 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .carte-filters input[type=search], .carte-filters input[list], .carte-filters select { width: 100%; min-height: 44px; box-sizing: border-box; }
 .carte-filters fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); display: grid; gap: 6px; }
 .carte-box { position: relative; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
-.carte-svg svg { display: block; width: 100%; height: auto; max-height: 72vh; touch-action: none; cursor: grab; }
-.carte-svg .deps path { fill: var(--bg); stroke: var(--line); }
-.carte-svg .inset { fill: none; stroke: var(--line); stroke-dasharray: 4 3; }
-.carte-svg [data-cod], .carte-svg .cl { cursor: pointer; }
-.carte-svg text { fill: var(--ink); font-family: inherit; font-weight: 700; pointer-events: none; }
 .carte-osm { height: 70vh; min-height: 360px; }
-.carte-ctl { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
-.carte-ctl button { min-width: 44px; min-height: 44px; }
+.carte-pin { background: none; border: 0; }
+.carte-pin svg { display: block; overflow: visible; }
+.carte-osm .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
 .carte-filters fieldset i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
 .legend i.lg-securite, .legend i.lg-autre, .carte-filters i.lg-securite, .carte-filters i.lg-autre { border-radius: 50%; }
 .legend i.lg-cible, .carte-filters i.lg-cible { border-radius: 2px; }

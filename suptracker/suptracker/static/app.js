@@ -447,29 +447,28 @@ function doubletteCharts(d, years) {
     <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats de la voie cette année-là.</p></div>${second}`;
 }
 
-// ---- Sprint "Carte": the formations of one filière on a map, coloured by the student's zone ----
+// ---- Sprint "Carte": the formations of one filière on an OpenStreetMap map, coloured by the student's zone ----
 // The zones are those of "Mon parcours" (the same /api/journey/stage2 rows), never recomputed here; without a profile the
-// points are neutral. The base map is drawn by the site (IGN Admin Express outlines, static/geo/france.json); the streets
-// of OpenStreetMap load only when the student asks. The "around a town" filter runs here: no position is ever sent.
+// points are neutral. The map is OpenStreetMap (owner's choice, 2026-11-08) drawn by Leaflet, self-hosted and loaded by this
+// page only. The "around a town" filter runs here: no position is ever sent to the site.
 const CARTE_ZONES = ["securite", "cible", "ambitieux"];
 const CARTE_SHAPE = { securite: "rond", cible: "carré", ambitieux: "triangle" };   // the shape doubles the colour
 const CARTE_OTHER = { label: "Autre ou non situé", color: "var(--muted)" };
-let GEO = null;
-const carteUI = { view: [0, 0, 1000, 1000], sel: null, page: 0, osm: false, map: null };
-// the projection of static/geo/france.json (scripts/build_geo.py), checked by red team C2
-function geoProject(lat, lon) {
-  if (!GEO || lat == null || lon == null) return null;
-  for (const a of GEO.areas) {
-    const p = a.proj, [lo0, la0, lo1, la1] = p.box;
-    if (lon >= lo0 && lon <= lo1 && lat >= la0 && lat <= la1) return [(lon - p.lon0) * p.cos * p.k + p.ox, (p.lat1 - lat) * p.k + p.oy];
-  }
-  return null;
-}
+const CARTE_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";             // one place to change the tile provider
+const CARTE_ATTRIB = "© les contributeurs d'OpenStreetMap";
+const carteUI = { sel: null, page: 0, map: null, layer: null, type: null };
 function haversineKm(a, b, c, d) {
   const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2;
   return 12742 * Math.asin(Math.sqrt(x));
 }
 const carteZone = (f) => (CARTE_ZONES.includes(f.zone) ? f.zone : "autre");
+const carteLabel = (z) => (z === "autre" ? CARTE_OTHER.label : ZONES[z].label);
+const carteColor = (z) => (z === "autre" ? CARTE_OTHER.color : ZONES[z].color);
+// the zone of each formation is the one of "Mon parcours" (stage 2 rows), as is; none without a profile (red team C1)
+function carteMerge(neutral, stage2, ok) {
+  const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
+  return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
+}
 // every filter in one pure function (red team C3 runs it against an independent Python reading)
 function carteFilter(rows, F) {
   const q = (F.q || "").trim().toLowerCase();
@@ -482,19 +481,15 @@ function carteFilter(rows, F) {
     && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
     && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km)));
 }
-// the zone of each formation is the one of "Mon parcours" (stage 2 rows), as is; none without a profile (red team C1)
-function carteMerge(neutral, stage2, ok) {
-  const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
-  return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
+// one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
+function carteMarker(f) {
+  const z = carteZone(f), col = carteColor(z);
+  const shape = z === "cible" ? `<rect x="3" y="3" width="12" height="12" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
+    : z === "ambitieux" ? `<path d="M9,1.5L16.5,15.5L1.5,15.5Z" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
+      : `<circle cx="9" cy="9" r="6.5" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
+  return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}">${shape}</svg>`;
 }
-function carteMarker(f, x, y, s) {
-  const z = carteZone(f), col = z === "autre" ? CARTE_OTHER.color : ZONES[z].color;
-  const common = `data-cod="${esc(f.cod_aff_form)}" fill="${col}" stroke="var(--surface)" stroke-width="${s / 4}" tabindex="0" role="button" aria-label="${esc(f.etablissement)}, ${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}"`;
-  if (z === "cible") return `<rect x="${x - s}" y="${y - s}" width="${2 * s}" height="${2 * s}" ${common}/>`;
-  if (z === "ambitieux") return `<path d="M${x},${y - 1.25 * s}L${x + 1.2 * s},${y + s}L${x - 1.2 * s},${y + s}Z" ${common}/>`;
-  return `<circle cx="${x}" cy="${y}" r="${s}" ${common}/>`;
-}
-// points closer than a cell (in screen terms) are drawn as one group: a ring split by zone, with its count
+// points closer than a cell on screen are drawn as one group: a ring split by zone, with its count
 function carteClusters(pts, cell) {
   const grid = new Map();
   for (const p of pts) {
@@ -504,35 +499,18 @@ function carteClusters(pts, cell) {
   }
   return [...grid.values()];
 }
-function carteRing(group, s) {
-  const x = group.reduce((a, p) => a + p.x, 0) / group.length, y = group.reduce((a, p) => a + p.y, 0) / group.length;
-  const r = s * (1.6 + Math.min(1.6, Math.log10(group.length))), c = 2 * Math.PI * r;
+function carteRing(group) {
+  const n = group.length, r = 13 + Math.min(9, 3 * Math.log10(n)), size = 2 * r + 8, c = 2 * Math.PI * r, o = size / 2;
   const counts = {}; group.forEach((p) => { const z = carteZone(p.f); counts[z] = (counts[z] || 0) + 1; });
   let off = 0;
   const arcs = [...CARTE_ZONES, "autre"].filter((z) => counts[z]).map((z) => {
-    const len = c * counts[z] / group.length, col = z === "autre" ? CARTE_OTHER.color : ZONES[z].color;
-    const a = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${col}" stroke-width="${s * 0.9}" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${x} ${y})"/>`;
+    const len = c * counts[z] / n;
+    const a = `<circle cx="${o}" cy="${o}" r="${r}" fill="none" stroke="${carteColor(z)}" stroke-width="6" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${o} ${o})"/>`;
     off += len; return a;
   }).join("");
-  const label = Object.entries(counts).map(([z, n]) => `${n} ${z === "autre" ? "autres" : ZONES[z].label.replace(/^Vœu /, "")}`).join(", ");
-  return `<g class="cl" data-zoom="${x},${y}" tabindex="0" role="button" aria-label="${group.length} formations : ${esc(label)}. Zoomer"><circle cx="${x}" cy="${y}" r="${r}" fill="var(--surface)"/>${arcs}
-    <text x="${x}" y="${y}" font-size="${s * 2.1}" text-anchor="middle" dominant-baseline="central">${group.length}</text></g>`;
-}
-function carteSvg(rows) {
-  const [vx, vy, vw] = carteUI.view, s = vw / 160;
-  const m = vw * 0.05;           // only what is in view (and a margin) is drawn
-  const pts = rows.map((f) => { const p = geoProject(f.lat, f.lon); return p ? { x: p[0], y: p[1], f } : null; })
-    .filter((p) => p && p.x >= vx - m && p.x <= vx + vw + m && p.y >= vy - m && p.y <= vy + vw + m);
-  const groups = carteClusters(pts, vw / 28);
-  const deps = GEO.areas.map((a) => `<g>${a.id !== "metro" ? `<rect x="${a.proj.rect[0]}" y="${a.proj.rect[1]}" width="${a.proj.rect[2]}" height="${a.proj.rect[3]}" class="inset"/>` : ""}${a.departements.map((d) => `<path d="${d.d}"><title>${esc(d.nom)}</title></path>`).join("")}</g>`).join("");
-  const marks = groups.map((g) => (g.length === 1 || vw < 60 ? g.map((p) => carteMarker(p.f, p.x, p.y, s)).join("") : carteRing(g, s))).join("");
-  const sel = carteUI.sel && pts.find((p) => p.f.cod_aff_form === carteUI.sel);
-  return `<svg id="cmap" viewBox="${vx} ${vy} ${vw} ${vw}" role="img" aria-label="Carte des formations"><g class="deps" stroke-width="${vw / 900}">${deps}</g>${marks}
-    ${sel ? `<circle cx="${sel.x}" cy="${sel.y}" r="${s * 2.4}" fill="none" stroke="var(--ink)" stroke-width="${s / 2.5}"/>` : ""}</svg>`;
-}
-function carteInView(rows) {
-  const [vx, vy, vw] = carteUI.view;
-  return rows.filter((f) => { const p = geoProject(f.lat, f.lon); return p && p[0] >= vx && p[0] <= vx + vw && p[1] >= vy && p[1] <= vy + vw; });
+  const label = Object.entries(counts).map(([z, k]) => `${k} ${z === "autre" ? "autres" : ZONES[z].label.replace(/^Vœu /, "")}`).join(", ");
+  return { size, html: `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${n} formations : ${esc(label)}. Zoomer"><circle cx="${o}" cy="${o}" r="${r}" fill="var(--surface)"/>${arcs}
+    <text x="${o}" y="${o}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="var(--ink)">${n}</text></svg>` };
 }
 function carteDetail(f, hasProfile) {
   if (!f) return "";
@@ -547,13 +525,18 @@ function carteList(rows, hasProfile) {
   const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
   return `<div class="carte-list">${part.map((f) => { const z = carteZone(f);
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${z === "autre" ? "var(--muted)" : ZONES[z].color}">${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${geoProject(f.lat, f.lon) ? "" : ' <span class="badge">hors carte</span>'}</div>
+      <span class="small">${esc(f.formation)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
+// Leaflet (static/vendor/leaflet, BSD-2) is loaded by this page only, never by the page shell
+function carteLeaflet() {
+  if (window.L) return Promise.resolve();
+  const load = (tag, attrs) => new Promise((ok, ko) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = ko; document.head.appendChild(el); });
+  return Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
+}
 async function viewCarte(typeArg) {
   const T = await api("/api/carte");
-  GEO = GEO || await api("/static/geo/france.json");
   const known = (k) => T.types.some((t) => t.type_key === k);
   const type = [typeArg, store.get("carteType", null)].find(known) || (T.types[0] && T.types[0].type_key);   // stored value never trusted
   store.set("carteType", type);
@@ -561,41 +544,22 @@ async function viewCarte(typeArg) {
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   const ok = P && (serie !== "bg" || (P.spe1 && P.spe2 && P.spe1 !== P.spe2)) && ["sm", "ab", "b", "tb"].includes(P.mention);
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
-  const [L, Z] = await Promise.all([api(`/api/carte/${encodeURIComponent(type)}`),
-    ok ? api(`/api/journey/stage2?${sq}&mention=${P.mention}&type=${encodeURIComponent(type)}`).catch(() => null) : null]);
+  const [L0, Z] = await Promise.all([api(`/api/carte/${encodeURIComponent(type)}`),
+    ok ? api(`/api/journey/stage2?${sq}&mention=${P.mention}&type=${encodeURIComponent(type)}`).catch(() => null) : null, carteLeaflet().catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
   if (Z) track("journey", { stage: "stage2" });
-  const rows = carteMerge(L.formations, Z, ok);
+  const rows = carteMerge(L0.formations, Z, ok);
   const F = store.get("carteFiltres", {}) || {};
   if (!ok) F.zones = [];
-  const towns = [...new Map(rows.filter((f) => f.lat != null).map((f) => [f.ville, f])).values()].map((f) => f.ville).sort((a, b) => a.localeCompare(b, "fr"));
+  const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
-  const draw = () => {
-    const kept = carteFilter(rows, F);
-    if (F.autour) kept.forEach((f) => { f.dist = f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
-    else kept.forEach((f) => { f.dist = null; });
-    const listed = (carteUI.osm ? kept : carteInView(kept).concat(kept.filter((f) => !geoProject(f.lat, f.lon))))
-      .sort((a, b) => (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0) || a.etablissement.localeCompare(b.etablissement, "fr"));
-    const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
-    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} · ${fmt(listed.length)} dans la partie visible de la carte`;
-    document.getElementById("carte-legend").innerHTML = ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z === "autre" ? "autre" : z}" style="background:${z === "autre" ? CARTE_OTHER.color : ZONES[z].color}"></i>${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
-    if (!carteUI.osm) document.getElementById("carte-svg").innerHTML = carteSvg(kept);
-    else carteOsmDraw(kept);
-    document.getElementById("carte-sel").innerHTML = carteDetail(rows.find((f) => f.cod_aff_form === carteUI.sel), ok);
-    document.getElementById("carte-items").innerHTML = carteList(listed, ok);
-    bindVoeuButton(draw);
-    document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
-    document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; draw(); document.getElementById("carte-sel").scrollIntoView({ block: "nearest" }); }; });
-    bindCarteSvg(draw);
-  };
-  const zoneBox = (z) => `<label class="small"><input type="checkbox" data-zone="${z}" ${(F.zones || []).includes(z) ? "checked" : ""} ${ok ? "" : "disabled"}> <i class="lg-${z}" style="background:${z === "autre" ? CARTE_OTHER.color : ZONES[z].color}"></i>${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}</label>`;
-  const wide = !narrow();
+  const zoneBox = (z) => `<label class="small"><input type="checkbox" data-zone="${z}" ${(F.zones || []).includes(z) ? "checked" : ""} ${ok ? "" : "disabled"}> <i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}</label>`;
   $view.innerHTML = `<div class="card"><h1>Carte des formations</h1>
     <p class="small">${ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
     <label class="small">Type de formation <select id="ctype">${T.types.map((t) => `<option value="${esc(t.type_key)}" ${t.type_key === type ? "selected" : ""}>${esc(t.label)} (${fmt(t.n)})</option>`).join("")}</select></label></div>
   <div class="carte-layout">
-    <details class="filters carte-filters"${wide ? " open" : ""}><summary>Filtrer</summary><div class="filter-grid">
+    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>Filtrer</summary><div class="filter-grid">
       <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
       <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
       <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
@@ -605,26 +569,75 @@ async function viewCarte(typeArg) {
       <label class="small"><input type="checkbox" id="cint" ${F.internat ? "checked" : ""}> Avec internat</label>
       <label class="small"><input type="checkbox" id="cpay" ${F.payant ? "checked" : ""}> Inclure les établissements privés payants</label>
       <fieldset class="small"><legend>Zones${ok ? "" : " (avec un profil)"}</legend>${[...CARTE_ZONES, "autre"].map(zoneBox).join("")}</fieldset>
-      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée : le rayon est calculé dans votre navigateur.</p>
+      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>
     </div></details>
     <div class="carte-main">
       <div class="legend" id="carte-legend"></div>
-      <div class="carte-box"><div id="carte-svg" class="carte-svg"></div><div id="carte-osm" class="carte-osm" hidden></div>
-        <div class="carte-ctl"><button type="button" data-cz="in" aria-label="Zoomer">+</button><button type="button" data-cz="out" aria-label="Dézoomer">−</button><button type="button" data-cz="reset">France</button></div></div>
-      <div class="toolbar"><button type="button" id="cstreets">${carteUI.osm ? "Revenir à la carte simple" : "Afficher les rues (OpenStreetMap)"}</button></div>
-      <div id="cosm-note"></div>
+      <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
+      <p class="muted small">Fond de carte OpenStreetMap : votre navigateur demande les images de la carte aux serveurs d'OpenStreetMap, qui voient votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.</p>
       <p class="muted small" id="carte-count"></p>
       <div id="carte-sel"></div>
       <div class="card"><h2>Formations de la carte</h2><div id="carte-items"></div>
-      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Fond de carte : contours des départements, IGN Admin Express (Licence ouverte)${carteUI.osm ? " ; rues : © les contributeurs d'OpenStreetMap" : ""}. Données : SIES / MESR, session ${esc(L.session)}.</p></div>
+      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(L0.session)}.</p></div>
     </div></div>`;
   $view.dataset.rendered = "carte";
+  const box = document.getElementById("carte-osm");
+  if (!window.L) { box.innerHTML = `<div class="warn">La carte n'a pas pu être chargée ; la liste reste disponible.</div>`; }
+  else {
+    if (carteUI.map) { carteUI.map.remove(); carteUI.map = null; }
+    carteUI.map = L.map(box, { zoomControl: true }).fitBounds([[41.3, -5.2], [51.1, 9.6]]);   // metropolitan France on any screen
+    L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB }).addTo(carteUI.map);
+    carteUI.layer = L.layerGroup().addTo(carteUI.map);
+    if (carteUI.type === type && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
+  }
+  carteUI.type = type;
+  const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
+  function draw() {
+    const kept = carteFilter(rows, F);
+    kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
+    const listed = kept.filter((f) => inView(f) || f.lat == null)
+      .sort((a, b) => (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0) || a.etablissement.localeCompare(b.etablissement, "fr"));
+    const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
+    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} · ${fmt(listed.length)} dans la partie visible de la carte`;
+    document.getElementById("carte-legend").innerHTML = ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
+    if (carteUI.map) {
+      carteUI.layer.clearLayers();
+      const map = carteUI.map, pts = kept.filter((f) => f.lat != null).map((f) => { const p = map.latLngToLayerPoint([f.lat, f.lon]); return { x: p.x, y: p.y, f }; });
+      // from zoom 16 every formation is drawn on its own (several in one building would never split otherwise)
+      for (const g of (map.getZoom() >= 16 ? pts.map((p) => [p]) : carteClusters(pts, map.getZoom() >= 13 ? 20 : 52))) {
+        if (g.length === 1) {
+          const f = g[0].f;
+          L.marker([f.lat, f.lon], { icon: L.divIcon({ className: "carte-pin", html: carteMarker(f), iconSize: [18, 18] }), keyboard: true, title: `${f.etablissement}, ${carteLabel(carteZone(f))}` })
+            .on("click", () => { carteUI.sel = f.cod_aff_form; showSel(); }).addTo(carteUI.layer);
+        } else {
+          const lat = g.reduce((a, p) => a + p.f.lat, 0) / g.length, lon = g.reduce((a, p) => a + p.f.lon, 0) / g.length, ring = carteRing(g);
+          L.marker([lat, lon], { icon: L.divIcon({ className: "carte-pin", html: ring.html, iconSize: [ring.size, ring.size] }), keyboard: true, title: `${g.length} formations` })
+            .on("click", () => map.setView([lat, lon], Math.min(map.getZoom() + 2, 18))).addTo(carteUI.layer);
+        }
+      }
+    }
+    showSel();
+    document.getElementById("carte-items").innerHTML = carteList(listed, ok);
+    bindVoeuButton(draw);
+    document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
+    document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; showSel(true); }; });
+  }
+  function showSel(focus) {
+    const f = rows.find((x) => x.cod_aff_form === carteUI.sel);
+    document.getElementById("carte-sel").innerHTML = carteDetail(f, ok);
+    bindVoeuButton(draw);
+    if (focus && f && f.lat != null && carteUI.map) carteUI.map.setView([f.lat, f.lon], Math.max(carteUI.map.getZoom(), 12));
+    if (focus) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
+  }
   const save = () => { store.set("carteFiltres", F); carteUI.page = 0; draw(); };
-  document.getElementById("ctype").onchange = (e) => { carteUI.sel = null; carteUI.view = [0, 0, 1000, 1000]; location.hash = `#/carte/${encodeURIComponent(e.target.value)}`; };
+  document.getElementById("ctype").onchange = (e) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(e.target.value)}`; };
   document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(); };
   document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
   const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
-    F.autour = t ? { ...t, km, ville: v } : null; save(); };
+    F.autour = t ? { ...t, km, ville: v } : null;
+    if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
+    save(); };
   document.getElementById("ctown").onchange = setTown;
   document.getElementById("ckm").onchange = setTown;
   document.getElementById("cstat").onchange = (e) => { F.statut = e.target.value; save(); };
@@ -632,84 +645,7 @@ async function viewCarte(typeArg) {
   document.getElementById("cint").onchange = (e) => { F.internat = e.target.checked; save(); };
   document.getElementById("cpay").onchange = (e) => { F.payant = e.target.checked; save(); };
   document.querySelectorAll("[data-zone]").forEach((el) => { el.onchange = () => { F.zones = [...document.querySelectorAll("[data-zone]:checked")].map((x) => x.dataset.zone); save(); }; });
-  document.querySelectorAll("[data-cz]").forEach((b) => { b.onclick = () => { carteZoom(b.dataset.cz); draw(); }; });
-  document.getElementById("cstreets").onclick = () => carteToggleOsm(draw);
-  if (carteUI.osm) { carteUI.osm = false; carteToggleOsm(draw, true); }
   draw();
-}
-function carteZoom(how, cx, cy) {
-  const [vx, vy, vw] = carteUI.view;
-  if (how === "reset") { carteUI.view = [0, 0, 1000, 1000]; return; }
-  const f = how === "in" ? 0.5 : 2, nw = Math.max(20, Math.min(1000, vw * f));
-  const x = cx ?? vx + vw / 2, y = cy ?? vy + vw / 2;
-  carteUI.view = [Math.max(-200, Math.min(1000 - nw + 200, x - nw / 2)), Math.max(-200, Math.min(1000 - nw + 200, y - nw / 2)), nw];
-  carteUI.page = 0;
-}
-function bindCarteSvg(draw) {
-  const svg = document.getElementById("cmap");
-  if (!svg) return;
-  const toSvg = (e) => { const r = svg.getBoundingClientRect(), [vx, vy, vw] = carteUI.view; return [vx + (e.clientX - r.left) / r.width * vw, vy + (e.clientY - r.top) / r.height * vw]; };
-  const act = (el) => {
-    if (el.dataset.cod) { carteUI.sel = el.dataset.cod; draw(); }
-    else if (el.dataset.zoom) { const [x, y] = el.dataset.zoom.split(",").map(Number); carteZoom("in", x, y); draw(); }
-  };
-  svg.querySelectorAll("[data-cod],[data-zoom]").forEach((el) => {
-    el.addEventListener("click", (e) => { if (!svg.dataset.dragged) act(el); e.stopPropagation(); });
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(el); } });
-  });
-  svg.onwheel = (e) => { e.preventDefault(); const [x, y] = toSvg(e); carteZoom(e.deltaY < 0 ? "in" : "out", x, y); draw(); };
-  let start = null;
-  svg.onpointerdown = (e) => { start = { x: e.clientX, y: e.clientY, view: carteUI.view.slice() }; delete svg.dataset.dragged; };
-  svg.onpointermove = (e) => {
-    if (!start) return;
-    const r = svg.getBoundingClientRect(), k = start.view[2] / r.width, dx = (e.clientX - start.x) * k, dy = (e.clientY - start.y) * k;
-    if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) < 6) return;
-    svg.dataset.dragged = "1";
-    carteUI.view = [start.view[0] - dx, start.view[1] - dy, start.view[2]];
-    svg.setAttribute("viewBox", carteUI.view.join(" ").replace(/ ([\d.-]+)$/, " $1 $1"));
-  };
-  svg.onpointerup = () => { if (start && svg.dataset.dragged) { start = null; carteUI.page = 0; draw(); setTimeout(() => { const s = document.getElementById("cmap"); if (s) delete s.dataset.dragged; }, 0); } start = null; };
-  svg.onpointerleave = svg.onpointerup;
-}
-// OpenStreetMap on request only: Leaflet is self-hosted, the tiles come from OpenStreetMap's servers, said before loading
-function carteToggleOsm(draw, silent) {
-  const note = document.getElementById("cosm-note");
-  if (carteUI.osm) {
-    carteUI.osm = false; if (carteUI.map) { carteUI.map.remove(); carteUI.map = null; }
-    document.getElementById("carte-osm").hidden = true; document.getElementById("carte-svg").hidden = false; document.querySelector(".carte-ctl").hidden = false;
-    document.getElementById("cstreets").textContent = "Afficher les rues (OpenStreetMap)"; note.innerHTML = ""; draw(); return;
-  }
-  const go = () => {
-    const load = (tag, attrs) => new Promise((ok, ko) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = ko; document.head.appendChild(el); });
-    const ready = window.L ? Promise.resolve() : Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
-    ready.then(() => {
-      carteUI.osm = true; note.innerHTML = "";
-      document.getElementById("carte-svg").hidden = true; const box = document.getElementById("carte-osm"); box.hidden = false;
-      document.querySelector(".carte-ctl").hidden = true;        // Leaflet has its own zoom buttons
-      carteUI.map = L.map(box, { preferCanvas: true }).setView([46.6, 2.4], 5);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© les contributeurs d'OpenStreetMap" }).addTo(carteUI.map);
-      carteUI.layer = L.layerGroup().addTo(carteUI.map);
-      document.getElementById("cstreets").textContent = "Revenir à la carte simple"; draw();
-    }).catch(() => { note.innerHTML = `<div class="warn">La carte OpenStreetMap n'a pas pu être chargée.</div>`; });
-  };
-  if (silent) { go(); return; }
-  note.innerHTML = `<div class="info small">Les rues viennent d'OpenStreetMap : votre navigateur demandera les images de la carte à leurs serveurs, qui verront votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.
-    <div class="toolbar"><button type="button" class="primary" id="cosm-ok">Afficher les rues</button><button type="button" id="cosm-no">Annuler</button></div></div>`;
-  document.getElementById("cosm-ok").onclick = go;
-  document.getElementById("cosm-no").onclick = () => { note.innerHTML = ""; };
-}
-function carteOsmDraw(rows) {
-  if (!carteUI.map || !carteUI.layer) return;
-  carteUI.layer.clearLayers();
-  const css = getComputedStyle(document.documentElement);
-  const col = (z) => css.getPropertyValue(z === "autre" ? "--muted" : `--zone-${z}`).trim() || "#888";
-  rows.forEach((f) => {
-    if (f.lat == null) return;
-    const z = carteZone(f);
-    L.circleMarker([f.lat, f.lon], { radius: z === "autre" ? 5 : 7, color: "#fff", weight: 1, fillColor: col(z), fillOpacity: 0.95 })
-      .on("click", () => { carteUI.sel = f.cod_aff_form; document.getElementById("carte-sel").innerHTML = carteDetail(f, f.zone !== undefined && store.get("profile", null) != null); bindVoeuButton(() => {}); })
-      .bindTooltip(`${esc(f.etablissement)} · ${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}`).addTo(carteUI.layer);
-  });
 }
 
 // ---- lot 2 (Claude design guidelines): the summary comes before the detail; details live in tabs ----

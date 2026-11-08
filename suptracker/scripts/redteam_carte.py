@@ -2,14 +2,14 @@
     python scripts/redteam_carte.py [--db data/suptracker.duckdb] [--real]
   C1 zones: the map's zone of every formation is the "Mon parcours" one (journey.stage2), as is (page merge run in Node);
      no zone without a profile
-  C2 projection: static/geo/france.json re-derived independently (each area's parameters fit its box in its rectangle);
-     every formation inside an area lands inside that rectangle; the page's projection = this one; the rest is "hors carte"
+  C2 groups: the page's carteClusters puts every drawn formation in exactly one group of one screen cell (Node, crafted
+     and real points); a formation without coordinates is listed ("non localisée"), never dropped
   C3 filters: the page's carteFilter (Node) = an independent Python reading on crafted and real rows (académie, status,
      selectivity, boarding, zones, text, radius); fee-charging private institutions only on request
   C4 neutral layer: /api/carte rows re-derived by SQL (one row per formation of the type, latest campaign, no duplicate,
      the paid flag = Plan B's rule)
-  C5 OpenStreetMap: Leaflet self-hosted with its licence, never in the page shell, loaded and tiles asked only after the
-     student confirms a note that names the IP address; attribution shown
+  C5 OpenStreetMap (the owner's choice of base map): Leaflet self-hosted with its licence, loaded by the map page only
+     (never the page shell, never a CDN), one tile URL, the attribution, and a note on the page that names the IP address
   C6 page pieces on hostile data (Node): escaped, every marker names its zone, shapes differ by zone, no chance wording,
      vouvoiement; nothing about the position or the town is sent (no API call carries them)
   C7 wiring: route, menu entries, analytics route, cache policies, release guard, sources register
@@ -36,7 +36,6 @@ from suptracker import journey as J  # noqa: E402
 from suptracker import planb as PB  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
-GEO = STATIC / "geo" / "france.json"
 CHECKS = []
 CHANCE = re.compile(r"(?i)\bprobabilit|\d+\s*%\s*de chances|chances? d'[eê]tre (?:admis|pris)|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
@@ -58,7 +57,6 @@ class Ctx:
         self.con = duckdb.connect(str(db), read_only=True)
         self.js = (STATIC / "app.js").read_text()
         self.html = (STATIC / "index.html").read_text()
-        self.geo = json.loads(GEO.read_text())
         t = M["CA"].types(self.con)
         self.types = [x["type_key"] for x in t]
         self.sample = self.types[:3] + self.types[-2:] if real else self.types[:4]
@@ -82,15 +80,6 @@ def carte_js(js: str) -> str:
 
 
 # ------------------------------------------------------------------ independent readings
-def project(geo, lat, lon):
-    for a in geo["areas"]:
-        p = a["proj"]
-        lo0, la0, lo1, la1 = p["box"]
-        if lo0 <= lon <= lo1 and la0 <= lat <= la1:
-            return a["id"], ((lon - p["lon0"]) * p["cos"] * p["k"] + p["ox"], (p["lat1"] - lat) * p["k"] + p["oy"])
-    return None, None
-
-
 def py_filter(rows, F):
     def km(a, b, c, d):
         r = math.pi / 180
@@ -150,47 +139,27 @@ process.stdout.write(JSON.stringify([carteMerge(n, s, true).map((f) => [f.cod_af
     return not bad and n > 0, f"{n} formations over {min(3, len(c.sample))} types; problems {bad[:2]}"
 
 
-@check("C2 projection re-derived: each area fits its rectangle, every formation lands in its area, page = this reading")
+@check("C2 groups: every drawn formation in exactly one group of one cell (Node); no formation without coordinates dropped")
 def c2(c: Ctx):
-    bad = []
-    for a in c.geo["areas"]:
-        p = a["proj"]
-        lo0, la0, lo1, la1 = p["box"]
-        x, y, w, h = p["rect"]
-        cs = math.cos(math.radians((la0 + la1) / 2))
-        k = min(w / ((lo1 - lo0) * cs), h / (la1 - la0))
-        if abs(k - p["k"]) > 1e-3 or abs(cs - p["cos"]) > 1e-5:
-            bad.append((a["id"], "parameters", p["k"], k))
-        for cx, cy in ((lo0, la0), (lo1, la1)):
-            X, Y = (cx - p["lon0"]) * p["cos"] * p["k"] + p["ox"], (p["lat1"] - cy) * p["k"] + p["oy"]
-            if not (x - 0.5 <= X <= x + w + 0.5 and y - 0.5 <= Y <= y + h + 0.5):
-                bad.append((a["id"], "box corner outside its rectangle", X, Y))
-        if not a["departements"]:
-            bad.append((a["id"], "no outline"))
-    pts = c.con.execute("""SELECT cod_aff_form, lat, lon FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
-                           AND lat IS NOT NULL ORDER BY hash(cod_aff_form) LIMIT 400""").fetchall()
-    rect = {a["id"]: a["proj"]["rect"] for a in c.geo["areas"]}
-    py, out = [], 0
-    for cod, lat, lon in pts:
-        area, xy = project(c.geo, lat, lon)
-        if area is None:
-            out += 1; py.append(None); continue
-        x, y, w, h = rect[area]
-        if not (x <= xy[0] <= x + w and y <= xy[1] <= y + h):
-            bad.append((cod, "outside its area"))
-        py.append([round(xy[0], 6), round(xy[1], 6)])
-    m = re.search(r"function geoProject\(lat, lon\) \{.*?\n\}", c.js, re.S)
-    page = node("let GEO = null;\n" + (m.group(0) if m else "") + """
-const [g, pts] = JSON.parse(require('fs').readFileSync(0, 'utf8')); GEO = g;
-process.stdout.write(JSON.stringify(pts.map(([, la, lo]) => { const p = geoProject(la, lo); return p ? [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6] : null; })));""", [c.geo, pts])
-    if isinstance(page, dict):
-        bad.append(("page", page["error"]))
-    elif page is not None:
-        diff = [i for i, (a, b) in enumerate(zip(py, page)) if (a is None) != (b is None) or (a and max(abs(a[0] - b[0]), abs(a[1] - b[1])) > 1e-4)]
-        if diff:
-            bad.append(("page projection differs", len(diff)))
-    hors = '<span class="badge">hors carte</span>' in c.js and "kept.filter((f) => !geoProject(f.lat, f.lon))" in c.js
-    return not bad and hors, f"{len(c.geo['areas'])} areas; {len(pts)} formations, {out} outside every area (listed 'hors carte' {hors}); problems {bad[:3]}"
+    js = carte_js(c.js)
+    m = re.search(r"function carteClusters\(pts, cell\) \{.*?\n\}", js, re.S)
+    if not m:
+        return False, "carteClusters missing"
+    pts = [{"x": x * 7.3 % 400, "y": x * 13.1 % 300, "f": {"cod_aff_form": str(x)}} for x in range(300)]
+    out = node(m.group(0) + """
+const [pts, cell] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(carteClusters(pts, cell).map((g) => g.map((p) => [p.f.cod_aff_form, Math.floor(p.x / cell), Math.floor(p.y / cell)]))));""", [pts, 52])
+    if out is None:
+        return True, "node not installed"
+    if isinstance(out, dict):
+        return False, out["error"]
+    codes = [x[0] for g in out for x in g]
+    one_cell = all(len({(x[1], x[2]) for x in g}) == 1 for g in out)
+    want = len({(int(p["x"] // 52), int(p["y"] // 52)) for p in pts})
+    listed = "kept.filter((f) => inView(f) || f.lat == null)" in js and '<span class="badge">non localisée</span>' in js
+    drawn = "kept.filter((f) => f.lat != null)" in js
+    ok = sorted(codes) == sorted(p["f"]["cod_aff_form"] for p in pts) and one_cell and len(out) == want and listed and drawn
+    return ok, f"{len(pts)} points in {len(out)} groups (want {want}); each once {sorted(codes) == sorted(p['f']['cod_aff_form'] for p in pts)}; one cell per group {one_cell}; unlocated listed {listed}"
 
 
 CRAFT = [
@@ -254,21 +223,21 @@ def c4(c: Ctx):
     return not bad and n > 0, f"{len(c.sample)} types checked, {n} formations listed in all; problems {bad[:3]}"
 
 
-@check("C5 OpenStreetMap: self-hosted Leaflet with its licence, loaded and tiles asked only after a confirmed note, attribution")
+@check("C5 OpenStreetMap: self-hosted Leaflet with its licence, loaded by the map page only, one tile URL, attribution, IP note")
 def c5(c: Ctx):
     js = carte_js(c.js)
     vend = (STATIC / "vendor" / "leaflet" / "leaflet.js").exists() and (STATIC / "vendor" / "leaflet" / "LICENSE").exists()
     shell = "leaflet" not in c.html.lower() and "openstreetmap" not in c.html.lower()
-    tog = block(js, "function carteToggleOsm(", "\nfunction carteOsmDraw(")
-    go = block(tog, "const go = () => {", "  if (silent)")
-    only_in_go = js.count("tile.openstreetmap.org") == 1 and "tile.openstreetmap.org" in go and "/static/vendor/leaflet/leaflet.js" in go
+    loader = block(js, "function carteLeaflet() {", "\nasync function viewCarte(")
+    only_here = "/static/vendor/leaflet/leaflet.js" in loader and c.js.count("/static/vendor/leaflet/leaflet.js") == 1 and "carteLeaflet()" in block(js, "async function viewCarte(", "\n  $view.innerHTML")
+    tiles = c.js.count("tile.openstreetmap.org") == 1 and "L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB })" in js
     no_cdn = not re.search(r"(?:unpkg|jsdelivr|cdnjs)[^\"']*leaflet", c.js)
-    note = "adresse IP" in tog and 'id="cosm-ok"' in tog and tog.index('id="cosm-ok"') > tog.index("adresse IP")
-    first_click = re.search(r'document\.getElementById\("cosm-ok"\)\.onclick = go;', tog) is not None and "go();" not in tog.replace("if (silent) { go(); return; }", "")
-    attrib = "contributeurs d'OpenStreetMap" in js
-    ok = vend and shell and only_in_go and no_cdn and note and first_click and attrib
-    return ok, (f"vendored with licence {vend}; not in the page shell {shell}; tiles and script only after confirmation {only_in_go}; no CDN {no_cdn}; "
-                f"note names the IP before the button {note}; first click shows the note only {first_click}; attribution {attrib}")
+    note = "qui voient votre adresse IP" in js and "Votre profil et vos filtres ne leur sont pas envoyés" in js
+    attrib = "contributeurs d'OpenStreetMap" in js and "Carte : ${CARTE_ATTRIB}" in js
+    fallback = "la liste reste disponible" in js
+    ok = vend and shell and only_here and tiles and no_cdn and note and attrib and fallback
+    return ok, (f"vendored with licence {vend}; not in the page shell {shell}; loaded by the map page only {only_here}; one tile URL with attribution {tiles}; "
+                f"no CDN {no_cdn}; IP note {note}; attribution under the list {attrib}; list kept if the map fails {fallback}")
 
 
 @check("C6 page pieces on hostile data: escaped, zone named on every marker, shapes differ, wording; no position sent")
@@ -280,13 +249,13 @@ def c6(c: Ctx):
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 };
 """ + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
-const [f, geo] = JSON.parse(require('fs').readFileSync(0, 'utf8')); GEO = geo;
+const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const zs = ["securite", "cible", "ambitieux", null].map((zone) => ({ ...f, zone }));
-const out = { marks: zs.map((x) => carteMarker(x, 10, 10, 2)), ring: carteRing(zs.map((x, i) => ({ x: 10 + i, y: 10, f: x })), 2),
+const out = { marks: zs.map((x) => carteMarker(x)), ring: carteRing(zs.map((x, i) => ({ x: 10 + i, y: 10, f: x }))).html,
   detail: carteDetail(zs[1], true), detail0: carteDetail(zs[1], false), list: carteList(zs, true) };
 process.stdout.write(JSON.stringify(out));"""
     f = {**CRAFT[0], "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "academie": HOSTILE, "contrat_etab": HOSTILE, "taux_acces_ens": 42.0}
-    o = node(prog, [f, c.geo])
+    o = node(prog, [f])
     if o is None:
         return True, "node not installed"
     if "error" in o:
@@ -294,14 +263,14 @@ process.stdout.write(JSON.stringify(out));"""
     flat = json.dumps(o)
     raw = "<img" in flat
     named = all(re.search(r'aria-label="[^"]*, (?:Vœu de sécurité|Vœu cible|Vœu ambitieux|Autre ou non situé)"', m) for m in o["marks"])
-    shapes = [m.split(" ")[0] for m in o["marks"]]
+    shapes = [re.search(r"<(circle|rect|path)", m).group(1) for m in o["marks"]]
     distinct = len(set(shapes[:3])) == 3
     ring = "4 formations" in o["ring"] and "Zoomer" in o["ring"]
     detail = "d'après les admis des campagnes passées" in o["detail"] and "Indiquez votre profil" in o["detail0"]
     texts = re.findall(r"`[^`]*`|\"[^\"]*\"", js)
     chance = [t[:60] for t in texts if CHANCE.search(t)]
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
-    calls = re.findall(r"api\(`([^`]*)`\)", block(js, "async function viewCarte(", "\nfunction carteZoom("))
+    calls = re.findall(r"api\(`([^`]*)`\)", block(js, "async function viewCarte(", "\n  $view.innerHTML"))
     leak = [u for u in calls if re.search(r"autour|ctown|lat|lon|ville|F\.", u)]
     caveat = "ce ne sont pas des chances d'admission" in js and "jamais par chances" in js
     ok = not raw and named and distinct and ring and detail and not chance and not tu and not leak and calls and caveat
@@ -309,19 +278,17 @@ process.stdout.write(JSON.stringify(out));"""
                 f"probability wording {chance[:2]}; tutoiement {tu[:2]}; API calls {calls}, leaking position {leak}; caveat {caveat}")
 
 
-@check("C7 wiring: route, menus, analytics route, cache policies, release guard, sources register")
+@check("C7 wiring: route, menus, analytics route, cache policies, release guard, link from Mon parcours")
 def c7(c: Ctx):
     from suptracker import analytics, cache
-    from suptracker import sources as SRC
     route = 'if (a === "carte") return await viewCarte(b || "");' in c.js and 'carte: "carte"' in c.js
     menus = c.html.count('href="#/carte"') == 2
     an = "carte" in analytics.ROUTES
-    pol = cache.policy("/api/carte") and cache.policy("/api/carte/bts%20service") and cache.policy("/static/geo/france.json")
+    pol = cache.policy("/api/carte") and cache.policy("/api/carte/bts%20service")
     rel = '"carte": ("app.js", "function viewCarte(")' in (ROOT / "tests" / "test_release.py").read_text()
-    reg = any(s["key"] == "contours_departements_ign" for s in SRC.SOURCES)
     parcours = 'href="#/carte/${encodeURIComponent(drill.type)}"' in c.js
-    ok = route and menus and an and bool(pol) and rel and reg and parcours
-    return ok, f"route {route}; two menu entries {menus}; analytics {an}; cache {bool(pol)}; release guard {rel}; register {reg}; link from Mon parcours {parcours}"
+    ok = route and menus and an and bool(pol) and rel and parcours
+    return ok, f"route {route}; two menu entries {menus}; analytics {an}; cache {bool(pol)}; release guard {rel}; link from Mon parcours {parcours}"
 
 
 PY_MUTANTS = [
@@ -333,16 +300,18 @@ JS_MUTANTS = [
     ("paid shown by default", "&& (F.payant || !f.payant)", "&& true"),
     ("radius ignored", "haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km", "true"),
     ("statut inverted", 'F.statut === "public" ? f.contrat_etab === "Public" : f.contrat_etab !== "Public"', 'F.statut === "public" ? f.contrat_etab !== "Public" : f.contrat_etab === "Public"'),
-    ("projection shifted", "return [(lon - p.lon0) * p.cos * p.k + p.ox, (p.lat1 - lat) * p.k + p.oy];", "return [(lon - p.lon0) * p.k + p.ox, (p.lat1 - lat) * p.k + p.oy];"),
+    ("groups lose points", "grid.get(k).push(p);", "if (grid.get(k).length < 3) grid.get(k).push(p);"),
+    ("unlocated formations dropped from the list", "kept.filter((f) => inView(f) || f.lat == null)", "kept.filter((f) => inView(f))"),
+    ("IP note dropped", "qui voient votre adresse IP", "rapides"),
+    ("Leaflet from a CDN", 'src: "/static/vendor/leaflet/leaflet.js"', 'src: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"'),
     ("name unescaped", "<strong>${esc(f.etablissement)}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>", "<strong>${f.etablissement}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>"),
-    ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(z === "autre" ? CARTE_OTHER.label : ZONES[z].label)}"', 'aria-label="${esc(f.etablissement)}"'),
-    ("one shape for all", 'if (z === "cible") return', 'if (false) return'),
-    ("tiles without the note", 'document.getElementById("cosm-ok").onclick = go;', "go();"),
+    ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}"', 'aria-label="${esc(f.etablissement)}"'),
+    ("one shape for all", 'const shape = z === "cible" ?', 'const shape = false ?'),
     ("caveat dropped", "ce ne sont pas des chances d'admission", "voici vos résultats"),
 ]
 
 
-@check("C8 mutation test: zones, filters, paid rule, projection, escaping, markers, OpenStreetMap consent and wording bugs are each caught")
+@check("C8 mutation test: zones, filters, paid rule, groups, escaping, markers, OpenStreetMap hosting and wording bugs are each caught")
 def c8(c: Ctx):
     fns = [c1, c2, c3, c4, c5, c6, c7]
     missed = []

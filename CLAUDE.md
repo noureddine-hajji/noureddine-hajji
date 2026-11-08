@@ -307,9 +307,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - The neutral layer is `/api/carte/<type>`. Paid private institutions are shown only on request (Plan B's rule).
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
-  - The default base map is self-hosted (`static/geo/france.json`, IGN Admin Express, `scripts/build_geo.py`).
-  - OpenStreetMap is used only after a note naming the IP address and a click. Leaflet is self-hosted in
-    `static/vendor/leaflet/` (never a CDN, never in the page shell), with attribution.
+  - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
+    in `static/vendor/leaflet/` and loaded by the map page only (never the page shell, never a CDN); one tile URL
+    (`CARTE_TILES`), the attribution, and a note that OpenStreetMap's servers see the IP address. The list works without the map.
   - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C8).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
