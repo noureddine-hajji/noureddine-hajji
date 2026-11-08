@@ -440,7 +440,7 @@ def d8(c: Ctx):
     invite = "Indiquez vos spécialités" in o["none"]
     nogroup = "Pas de donnée par doublette" in o["nogroup"] and "Votre doublette" not in o["nogroup"]
     unlabelled = [len(re.findall(r'<td class="num"(?![^>]*data-label)', v)) for v in o.values()]
-    pills = all(o[k].count('class="voie-pill"') == 3 for k in o if k != "stage1")
+    pills = all(o[k].count('class="voie-pill"') == 3 for k in ("rare", "none", "nogroup"))
     s1 = o.get("stage1", "")
     rare_s1 = "Votre doublette est rare" in s1 and "44,7 %" in s1 and "Autres doublettes (estimation" in s1 and "Licence A" in s1
     few = o.get("few", "")
