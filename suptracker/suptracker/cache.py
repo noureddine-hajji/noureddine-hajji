@@ -19,6 +19,8 @@ PUBLIC = "public, max-age=300, s-maxage=86400, stale-while-revalidate=86400"
 IMMUTABLE = "public, max-age=31536000, immutable"
 SHORT = "public, max-age=300"
 NO_STORE = "no-store"
+# an HTML page points to the current asset fingerprint: browsers always revalidate it, the CDN keeps it for the deployment
+PAGE = "public, max-age=0, must-revalidate, s-maxage=86400"
 
 # (path pattern, policy, why); the first match wins. `None` keeps what the route sets itself.
 POLICY = [
@@ -31,6 +33,10 @@ POLICY = [
     (r"/readyz", NO_STORE, "readiness"),
     (r"/", None, "the page sets no-cache itself: it points to the current asset fingerprint"),
     (r"/docs|/docs/oauth2-redirect|/redoc|/openapi\.json", SHORT, "FastAPI's API documentation"),
+    (r"/formation/[^/]+", PAGE, "indexable formation page (sprint 17): kept by the CDN for one deployment, revalidated by browsers"),
+    (r"/metier/[^/]+", PAGE, "indexable job page (sprint 17)"),
+    (r"/sitemap\.xml", PAGE, "sitemap (sprint 17)"),
+    (r"/robots\.txt", PAGE, "robots.txt (sprint 17)"),
     (r"/api/lycees", None, "sets its own day-long public cache"),
     (r"/api/meta", PUBLIC, "warehouse metadata"),
     (r"/api/formation/[^/]+", PUBLIC, "formation page data"),

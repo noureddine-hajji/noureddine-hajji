@@ -1,5 +1,5 @@
 "use strict";
-// SupTracker SIES front-end: hash router + dependency-free SVG charts.
+// SupCompass front-end: hash router + dependency-free SVG charts.
 
 const $view = document.getElementById("view");
 let META = null;
@@ -1580,7 +1580,7 @@ async function viewMetier(id, from = "") {
   };
   const status = d.status === "sans_diplome" ? `<div class="info">L'Onisep ne relie aucune fiche diplôme à ce métier.</div>`
     : d.status === "hors_parcoursup" ? `<div class="info">Les diplômes qui mènent à ce métier ne sont pas sur Parcoursup (ils se préparent après un premier diplôme, ou dans une école) : regardez leur fiche Onisep.</div>` : "";
-  const nForm = d.diplomes.reduce((s, x) => s + (x.parcoursup ? x.formations.length : 0), 0);
+  const nForm = d.n_formations;                                       // distinct formations (one may prepare several diplomas)
   const read = (d.emploi2030 || []).filter((f) => !f.absent && f.lecture).map((f) => f.lecture);
   const word = { debutants_insuffisants: "Recrute au-delà des débutants", debutants_nombreux: "Entrée plus disputée", incertain: "Pas de conclusion" };
   // fixed rule (sprint 16): every family read agrees, else no conclusion
@@ -1772,9 +1772,29 @@ function markTab(tab) {
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers" };
+// Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
+// hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
+function pathRoute(pathname, hash) {
+  if (hash && hash !== "#") return null;
+  const f = /^\/formation\/(\d{1,9})\/?$/.exec(pathname);
+  if (f) return `/f/${f[1]}`;
+  const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
+  if (m) return `/metiers/${m[1]}`;
+  return null;
+}
+// Sprint 17 (Codex): when the app cannot load its data (a crawler that may not fetch /api/, a network error), the
+// server-rendered summary of an indexable page stays readable: the error is shown above it, never in its place.
+function showError(e) {
+  const kept = $view.querySelector("[data-seo]");
+  const warn = `<div class="warn">${esc(e.message)}</div>`;
+  if (kept) { $view.querySelectorAll(":scope > .warn").forEach((w) => w.remove()); kept.insertAdjacentHTML("beforebegin", warn); }
+  else $view.innerHTML = warn;
+}
 async function route() {
+  if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
+  if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
-  const [, a, b, c] = (location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
+  const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
   trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
   // every navigation invalidates the render marker: only the view that sets it again may still be
   // filled by a late async answer (the lycée suggestion of a search, found in review)
@@ -1794,7 +1814,7 @@ async function route() {
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
   } catch (e) {
-    $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`;
+    showError(e);
   }
 }
 
@@ -1805,6 +1825,6 @@ document.getElementById("search").onsubmit = (e) => {
 };
 window.addEventListener("hashchange", route);
 (async () => {
-  try { META = await api("/api/meta"); } catch (e) { $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`; return; }
+  try { META = await api("/api/meta"); } catch (e) { showError(e); return; }
   basket.render(); voeux.render(); route();
 })();

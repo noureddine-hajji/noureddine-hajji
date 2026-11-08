@@ -1,4 +1,8 @@
-# SupTracker — project memory for Claude Code
+# SupCompass — project memory for Claude Code
+
+The site's name is **SupCompass** (renamed from SupTracker on 2026-11-07, owner's choice: "Sup" of Parcoursup + compass).
+Only the visible brand changed: the package, folder, workflows and env vars keep the technical name `suptracker`
+(renaming them would break the owner's Vercel and GitHub settings). Never "Parcoursup" alone as the site's name.
 
 Student-facing web app over the official SIES / Parcoursup open data 2022–2025: search, formation
 pages, comparator, "Mon parcours" (positioning by bac series, specialties and mention), Plan B,
@@ -28,6 +32,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Employment to 2030 (sprint 14):** `emploi2030.py` (Métiers 2030 per FAP-87 family, scenario ranges, job page); `bmo.py` (BMO 2026 hiring intentions, short-term context).
   - **AI and tasks (sprint 15):** `ia_exposition.py` (ILO 2025 generative-AI exposure per ISCO-08 unit group, France Travail "transition numérique" tag, IMF human complementarity θ rebuilt from O*NET, job page).
   - **Licence → master (sprint 16):** `licence_master.py` (each master of the licence's university side by side: MonMaster, InserSup, Onisep jobs with sprints 13-15 ranges and counts; `core.metier_axes` precomputed per job).
+  - **Indexable pages (sprint 17):** `seo.py` (`/formation/<code>`, `/metier/<id>`, sitemap, robots; the app boots on these paths).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -265,6 +270,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
   (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide);
   the comparator is `table.cmp` (sticky label column). Red team X14-X15.
+- **Indexable pages (sprint 17).** Page figures are the PUBLISHED ones (same as `/api/formation`), with the "pas des chances" caveat;
+  every stored string escaped in HTML, attributes and JSON-LD (`json_ld` escapes `<`, `>`, `&`). Sitemap = latest campaign's
+  formations + every job; an older formation is `noindex`; a preview (`VERCEL_ENV=preview`) is never indexed; the canonical
+  origin is `VERCEL_PROJECT_PRODUCTION_URL`, never the visitor's Host. robots.txt never blocks the data the pages render from
+  (only search, vœux, stats); a failed load goes through `showError`, which keeps the server summary (Codex). A new public page needs a cache policy and a sitemap
+  decision. Red team `redteam_seo.py` (G1-G11; its mutants are built IN MEMORY: never write source files from a test).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

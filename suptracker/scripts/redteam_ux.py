@@ -502,7 +502,7 @@ process.stdout.write(JSON.stringify(out));"""
     groups = all(f'["{k}", "' in vf for k in ("admission", "reussite", "emploi", "historique")) and 'bindTabs("fiche");' in vf
     fill = "if (!opts.inline && p) fillZoneTile(d.target);" in js
     vm = js[js.index("async function viewMetier("):js.index("// ---- Sprint 15")]
-    job = ('<details class="dip"${open ? " open" : ""}>' in vm and "const open = !!mine.length" in vm and 'bindTabs("metier");' in vm
+    job = ("const nForm = d.n_formations;" in vm and '<details class="dip"${open ? " open" : ""}>' in vm and "const open = !!mine.length" in vm and 'bindTabs("metier");' in vm
            and "${summary}${tabbed(\"metier\"" in vm and "${esc(x.libelle)}" in vm)
     ok = (tiles == 4 and words and figures and zone_slot and pill and neutral and roles and bool(first_open) and planb and order
           and groups and fill and job)
@@ -529,6 +529,8 @@ DESIGN_MUTANTS = [
     ("zone pill unescaped", "${esc(z.label.replace(/^Vœu /, \"\"))}", "${z.label}", ("js", (x12,))),
     ("empty tab kept", 'const kept = groups.filter(([, , html]) => html.replace(/<div id="planb"><\\/div>/, "x").trim());', "const kept = groups;", ("js", (x12,))),
     ("every panel shown", '${n ? " hidden" : ""}>${html}</div>', ">${html}</div>", ("js", (x12,))),
+    ("job summary counts a formation once per diploma", "const nForm = d.n_formations;",
+     "const nForm = d.diplomes.reduce((s, x) => s + (x.parcoursup ? x.formations.length : 0), 0);", ("js", (x12,))),
     ("job diplomas unfolded", '<details class="dip"${open ? " open" : ""}>', '<details class="dip" open>', ("js", (x12,))),
 ]
 
