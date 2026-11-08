@@ -116,14 +116,15 @@ def d1(c: Ctx):
     # gap comes from the group mapping (e.g. archéologie: 307 SIES admits vs 2 431 in the mapped formations), not the units
     below = [t for t in close if (spe[t][0] or 0) <= (fy[t][0] or 0)]
     audit = dict(c.con.execute("SELECT canonical, upstream FROM meta.schema_audit WHERE canonical LIKE 'specialites%n_candidats'").fetchall())
-    audit_ok = bool(audit) and all(v == "voeux" for v in audit.values())
+    missing = [k for (k,) in c.con.execute("SELECT canonical FROM meta.schema_audit WHERE canonical LIKE 'specialites%' AND status = 'missing'").fetchall()]
+    audit_ok = bool(audit) and all(v == "voeux" for v in audit.values()) and not missing
     share = len(close) / max(1, len(both))
     order = c.con.execute("SELECT count(*) FROM core.specialites WHERE n_candidats < n_proposition OR n_proposition < n_accepte").fetchone()[0]
     if not c.real:      # the synthetic fixture's specialty counts are not built from its formations: units on real data only
-        return audit_ok and order == 0, f"synthetic: audit {audit}; rows with candidates < proposals < acceptations broken: {order}"
+        return audit_ok and order == 0, f"synthetic: audit {audit}, still missing {missing}; rows with candidates < proposals < acceptations broken: {order}"
     ok = both and share >= 0.75 and len(below) == len(close) and audit_ok and order == 0
     return ok, (f"{len(both)} groups; acceptations = formations' bac général admits (±5 %) in {len(close)} ({share:.0%}); "
-                f"candidates ≤ formations' vœux in {len(below)}/{len(close)} of them; audit {audit}; order broken in {order} rows")
+                f"candidates ≤ formations' vœux in {len(below)}/{len(close)} of them; audit {audit}, still missing {missing}; order broken in {order} rows")
 
 
 @check("D2 every figure of a group re-derived independently (doublettes, all, 'Autres doublettes', pooled and per campaign, breaks left out)")

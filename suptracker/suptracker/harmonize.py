@@ -194,7 +194,9 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
         m.update(resolve_by_keywords([c for c in num_cols if c != m.get("year")], SPE_COUNT_RULES))
         for canon, src in m.items():
             con.execute("INSERT INTO meta.schema_audit VALUES (NULL, ?, ?, ?)",
-                        [f"{key}.{canon}", src, "missing" if src is None else "keyword"])
+                        [f"{key}.{canon}", src, "keyword" if src is not None else
+                         # the 2021-2024 file has a single level (the group): no aggregation level or detail to read
+                         "sans_objet" if canon in SPE_EXTRA_RULES else "missing"])
         sel = [
             (f"TRY_CAST({_num(m['year'])} AS BIGINT)" if m["year"] else "NULL::BIGINT") + " AS session",
             (_text(m["formation_type"]) if m["formation_type"] else "NULL") + " AS formation_type",
