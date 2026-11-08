@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 
 from . import doublettes as DB
+from . import rapports as RP
 from . import journey as J
 from . import planb as PB
 
@@ -78,6 +79,13 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
         est = DB.estimate(DB.series(con, cod)["bg"], groups.get(tk), dkey) if cod else None
         out["formation"] = {k: v for k, v in est.items() if k != "trend"} if est else None
         return out
+    def rapport(cod):
+        if serie != "bg" or not dkey:
+            return None
+        b = RP.for_formation(con, cod)
+        x = RP.pick(b, dkey)
+        return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
+                "en_position": x["en_position"]} if x else None
     out = []
     for c in cods:
         if c not in meta:
@@ -91,7 +99,9 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "complement": PB._view(f, None)["complement"],      # cleaned exactly as Plan B shows it
                         "position": position(f),
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
-                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c)})
+                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c),
+                        # sprint "Rapports publics": the formation's OWN published figure for the doublette, when its report exists
+                        "rapport": rapport(c)})
     return {"session": latest, "serie": serie, "mention": mention, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
 

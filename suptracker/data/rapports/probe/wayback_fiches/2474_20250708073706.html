@@ -1,0 +1,231 @@
+
+
+
+
+
+
+
+
+	
+	
+	
+	
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="fr">
+	
+	<head>
+		
+		
+		<title>Site Candidat - Candidats</title>
+		<meta charset="UTF-8">
+		<meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
+		
+		
+			
+		
+		<meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
+		
+		
+		
+		
+		<script crossorigin="anonymous"integrity="sha256-inaRZwkhJyK4JU6bQTSdDELBnWSdO5GBfVBNodMXX8g=" src="https://ressource.parcoursup.fr/js/candidat.8a76916709212722b8254e9b41349d0c42c19d649d3b91817d504da1d3175fc8.js" type="text/javascript"></script>
+
+		
+		
+			
+
+
+
+
+
+
+
+<script crossorigin="anonymous"integrity="sha256-z+sYCC+xIYJQKBNG9TB9Pkr/OqRUUCV+07yBpjgVSwI=" src="https://ressource.parcoursup.fr/framework/js/plugins/jquery/jquery-3.5.1.min.cfeb18082fb1218250281346f5307d3e4aff3aa45450257ed3bc81a638154b02.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-2HHPOCUugHGCEqA4w4QJkaQXrsi1muxALrBzC6L8iuo=" src="https://ressource.parcoursup.fr/framework/js/plugins/popper.js/popper-2.4.4.min.d871cf38252e80718212a038c3840991a417aec8b59aec402eb0730ba2fc8aea.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-IMCekbFxkNlBecd99E8jJoS1s3B3zHR+O8rnIs+NwZo=" src="https://ressource.parcoursup.fr/framework/js/plugins/btable/btable.min.20c09e91b17190d94179c77df44f232684b5b37077cc747e3bcae722cf8dc19a.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-yf5UvZOK75T9GqLUTDBJxoy3Empd4GgL2W9r9eaVDiA=" src="https://ressource.parcoursup.fr/framework/css/bootstrap-4.5.0/js/bootstrap.bundle.min.c9fe54bd938aef94fd1aa2d44c3049c68cb7126a5de0680bd96f6bf5e6950e20.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-A4n16cuO3GOiVinaiG05SkUcAQF8qIv7p3DqZ8c/hWU=" src="https://ressource.parcoursup.fr/framework/js/plugins/ckeditor_4.14.1_standard/ckeditor.0389f5e9cb8edc63a25629da886d394a451c01017ca88bfba770ea67c73f8565.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-Su6Qb+6q/Uf2PRNCBb9nJ8JvL5aeCqOAeK0D9BDJRY0=" src="https://ressource.parcoursup.fr/framework/js/plugins/notifications/notificationToast.4aee906feeaafd47f63d134205bf6727c26f2f969e0aa38078ad03f410c9458d.js" type="text/javascript"></script>
+
+<script crossorigin="anonymous"integrity="sha256-IG9xppBY7dilUfRbsQCMt5E62+mmtIW3WYYFL43l6Mk=" src="https://ressource.parcoursup.fr/framework/js/general.206f71a69058edd8a551f45bb1008cb7913adbe9a6b485b75986052f8de5e8c9.js" type="text/javascript"></script>
+
+<link  crossorigin="anonymous" integrity="sha256-UAiF/GLHzYcUIGDJGS9Y/mB/tySAWkEbjwhA/8ouzxE=" href="https://ressource.parcoursup.fr/framework/css/bootstrap-4.5.0/css/bootstrap.min.500885fc62c7cd87142060c9192f58fe607fb724805a411b8f0840ffca2ecf11.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-c4NfndSUkxzQViqy1NuKrz1U3KN1q63heUrRoSrg2Xw=" href="https://ressource.parcoursup.fr/framework/font/font-awesome-4.7.0/css/font-awesome.min.73835f9dd494931cd0562ab2d4db8aaf3d54dca375abade1794ad1a12ae0d97c.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-fMOuc/1rVZOpIq+dfFPGWNecve9KHqr6d7q0R4h+h1w=" href="https://ressource.parcoursup.fr/framework/css/commun.7cc3ae73fd6b5593a922af9d7c53c658d79cbdef4a1eaafa77bab447887e875c.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-uFl70ihwuG0LLL3mXm0s/WmMBhqUqjn8X8hFNb58ru8=" href="https://ressource.parcoursup.fr/framework/css/CadreGestion.b8597bd22870b86d0b2cbde65e6d2cfd698c061a94aa39fc5fc84535be7caeef.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-ofyEB/uq07RruDbaHS7Ohxiq9e0Ci+6uEIAAxNt9tvU=" href="https://ressource.parcoursup.fr/framework/css/choix-formation.a1fc8407fbaad3b46bb836da1d2ece8718aaf5ed028beeae108000c4db7db6f5.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-u5dKDWtl1tg/oCsKokJgjfC5DdTQeDQ9EljrKY8dJtY=" href="https://ressource.parcoursup.fr/framework/js/plugins/btable/btable.min.bb974a0d6b65d6d83fa02b0aa242608df0b90dd4d078343d1258eb298f1d26d6.css"  rel="stylesheet" >
+
+<link  crossorigin="anonymous" integrity="sha256-GPkL5h3Ke40MMTtUNQ670oWoqVbvDLk47OmuTTyyE8o=" href="https://ressource.parcoursup.fr/framework/js/plugins/notifications/notificationToast.18f90be61dca7b8d0c313b54350ebbd285a8a956ef0cb938ece9ae4d3cb213ca.css"  rel="stylesheet" >
+ 
+<script crossorigin="anonymous"integrity="sha256-ThNQxeV+WXNK0yVErShJ4ZmNZ5fhskdLrdPdRNMSGz0=" src="https://ressource.parcoursup.fr/framework/js/plugins/datetimepicker/bootstrap-datetimepicker.min.4e1350c5e57e59734ad32544ad2849e1998d6797e1b2474badd3dd44d3121b3d.js" type="text/javascript"></script>
+
+<link  crossorigin="anonymous" integrity="sha256-p54dxLObzklr7QvgU6FepQJQW2umbgqzZdm2acP7TFI=" href="https://ressource.parcoursup.fr/framework/js/plugins/datetimepicker/bootstrap-datetimepicker.min.a79e1dc4b39bce496bed0be053a15ea502505b6ba66e0ab365d9b669c3fb4c52.css"  rel="stylesheet" >
+ 
+
+
+
+		
+		
+	</head>
+	<body id="global">
+		
+		
+		<div class="fr-skiplinks"><nav class="fr-container" role="navigation" aria-label="Accès rapide"><ul class="fr-skiplinks__list"><li><a class="fr-link" href="#main">Contenu</a></li><li><a class="fr-link" href="#footer">Pied de page</a></li></ul></nav></div>
+
+		
+		
+		
+		
+		
+		<div id="div-notif-toast" aria-live="polite"></div>
+		
+		
+		
+		
+		
+
+
+
+
+	    
+
+
+
+		
+		<!-- CONTENU -->
+		<main id="main" role="main" class="fr-m-0" tabindex="-1">
+			
+
+
+
+
+
+
+
+	
+	
+	
+		
+	
+
+
+<div id="div-mod-conf-drt" class="display-none">
+	<dialog id="modaleConfirmationActionDroits" aria-labelledby="fr-modal-title-modal-modaleConfirmationActionDroits" role="dialog" class="fr-modal"><div class="fr-container fr-container--fluid fr-container-md"><div class="fr-grid-row fr-grid-row--center"><div class="fr-col-12 fr-col-md-8 fr-col-lg-6"><div class="fr-modal__body"><div class="fr-modal__header"><button type="button" class="fr-btn--close fr-btn" title="Fermer la fenêtre modale" aria-controls="modaleConfirmationActionDroits" id="btn-fermer-modaleConfirmationActionDroits" >Fermer</button></div><div class="fr-modal__content"><h1 id="fr-modal-title-modal-modaleConfirmationActionDroits" class="fr-modal__title">Mise à jour de données</h1>
+
+		<p>ATTENTION, vous vous apprêtez à mettre à jour des données en lieu et place d'un candidat.</p>
+		<p class="mb-0">Vous pouvez confirmer la modification en cliquant sur "Confirmer".</p>
+		<p>Si vous ne souhaitez pas effectuer la modification, cliquez sur "Annuler".</p>
+	</div><div class="fr-modal__footer"><ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-reverse fr-btns-group--inline-lg fr-btns-group--icon-left"><li><button id="btn-primaire-modaleConfirmationActionDroits" type="button" class="fr-btn" >Confirmer</button></li><li><button id="btn-secondaire-modaleConfirmationActionDroits" type="button" class="fr-btn fr-btn--secondary" onclick="dsfr($('#modaleConfirmationActionDroits')[0]).modal.conceal();" >Annuler</button></li></ul></div></div></div></div></div></dialog>
+
+</div>	
+
+			
+
+
+
+
+
+	
+	
+	
+	
+
+			
+			
+			
+
+
+
+
+
+<script crossorigin="anonymous"integrity="sha256-LAMfZsBxG3IblyIegi97I3l27GElybnOnA1v2DQQhuE=" src="https://ressource.parcoursup.fr/framework/js/erreur.2c031f66c0711b721b97221e822f7b237976ec6125c9b9ce9c0d6fd8341086e1.js" type="text/javascript"></script>
+
+<body>
+	<div id="page">
+		<div id="main" class="text-center">
+
+			<h1>Oups...</h1>
+			<p class="text-center font-weight-bold" style="font-size: xx-large;">Erreur 404!</p>
+			
+			<p class="font-weight-bold">D&eacute;sol&eacute;, il semble que la page que vous demandez n'existe pas.</p>
+			<p class="font-weight-bold mb-4">Nous vous prions de nous excuser pour la g&ecirc;ne occasionn&eacute;e.</p>
+			
+			<a id="btn-retour" class="psup-lien "  href="#">Page précédente
+</a>
+
+		</div>	
+	</div>		
+</body>
+		</main>
+		
+		<!-- FOOTER -->
+		
+			
+
+
+
+
+	
+	
+	
+		
+	 
+ 		<footer id="footer" role="contentinfo" tabindex="-1"></footer>
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+		 
+		
+		
+		
+			
+				
+		
+	</body>
+</html>
+	
+	
+	
+	
+	
+		
+	
+	
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+

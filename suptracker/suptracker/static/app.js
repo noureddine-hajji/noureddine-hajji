@@ -315,9 +315,10 @@ function dblCampagnes(g) {
   return `campagnes ${span} cumulées${out.length ? ` · ${out.join(" et ")} ${out.length > 1 ? "écartées" : "écartée"} : rupture de comptage dans les données publiées (candidats multipliés par 2 ou 3 sans hausse des propositions), ces campagnes ne sont dans aucun chiffre de ce bloc ni dans l'estimation` : ""}`;
 }
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
-function doubletteCard(d) {
+function doubletteCard(d, rp) {
   if (!d) return "";
   const prof = store.get("profile", null) || {};
+  const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const last = Object.values(d.series)[0].trend.slice(-1)[0];
   const voies = ["bg", "bt", "bp"].map((s) => { const v = d.series[s];
@@ -330,7 +331,8 @@ function doubletteCard(d) {
     const g = d.groupe, dkey = profileDkey(prof), mine = pickDoublette(g, dkey);
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
-    const est = estimateDoublette(d.series, g, dkey);
+    // the estimate is only shown when this formation's report gives no bac général figure
+    const est = own.hasBg ? null : estimateDoublette(d.series, g, dkey);
     const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
       <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
     dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>
@@ -347,7 +349,83 @@ function doubletteCard(d) {
     <h3>Par voie de bac, pour cette formation${last ? ` (campagne ${esc(last.session)})` : ""}</h3>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
-    <h3>Par doublette de spécialités (bac général)</h3>${dbl}</div>`;
+    ${own.html}
+    <h3>Par doublette de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${dbl}</div>`;
+}
+// ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
+const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
+// the student's row in THIS formation's report: their doublette, else the formation's own "Autres doublettes"
+// (twin of rapports.pick)
+function pickRapport(rp, dkey) {
+  if (!rp || !dkey) return null;
+  const { bg: rows = [] } = rp.doublettes || {};      // destructured: redteam_scale S4 watches stage-2 field reads by name
+  const mine = rows.find((x) => x.key === dkey);
+  if (mine) return { ...mine, source: "doublette" };
+  const other = rows.find((x) => x.autres);
+  return other ? { ...other, source: "autres" } : null;
+}
+const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été en position de recevoir une proposition en phase principale : le taux d'accès de la formation, détaillé par doublette, calculé à partir des effectifs publiés dans son rapport. Seuls y figurent les candidats scolarisés en terminale en France depuis 2020-2021. Ce sont des résultats passés, pas des chances d'admission.";
+function rapportSource(rp) {
+  const d = String(rp.capture || "");
+  const when = d.length >= 8 ? `${d.slice(6, 8)}/${d.slice(4, 6)}/${d.slice(0, 4)}` : "";
+  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), copie archivée le ${esc(when)} par l'Internet Archive : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
+}
+function rapportDoublettes(rp, prof) {
+  if (!rp || !rp.doublettes) return { html: "", hasBg: false };
+  const dkey = profileDkey(prof), mine = pickRapport(rp, dkey);
+  const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
+  const blocks = ["bg", "bt", "bp"].map((v) => {
+    const rows = rp.doublettes[v] || [];
+    if (!rows.length) return (rp.masques || []).includes(v) ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
+    return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Doublette"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
+      ${rows.map((x) => { const me = v === "bg" && mine && (mine.source === "doublette" ? x.key === dkey : x.autres) && myVoie === "bg";
+        return `<tr${me ? ' class="dbl-mine"' : ""}><td>${esc(x.libelle)}${me ? ` <span class="estim">${mine.source === "autres" ? "votre doublette en fait partie" : "votre doublette"}</span>` : ""}</td>
+        <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${x.taux !== null && x.taux !== undefined ? rateBar(x.taux, VOIES[v].color) : ""}</td>
+        <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td></tr>`; }).join("")}</table></div>`;
+  }).join("");
+  if (!blocks) return { html: "", hasBg: false };
+  const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres doublettes » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
+    <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une doublette autre que celles détaillées" : "cette doublette"} ont été en position de recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses doublettes les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
+  const { bg: bgRows = [] } = rp.doublettes;
+  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})</h3>${head}${blocks}
+    <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
+}
+// what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it
+// names (quoted, never interpreted), eliminating criteria, method and advice; every text is the jury's own, escaped
+// journey.SPECIALTIES, the labels the reports print in their list of specialties taken into account (red team checks equality)
+const RP_SPE = {"MATHS": "Mathématiques Spécialité", "PC": "Physique-Chimie Spécialité", "SVT": "Sciences de la vie et de la Terre Spécialité", "SES": "Sciences Economiques et Sociales Spécialité", "HGGSP": "Histoire-Géographie, Géopolitique et Sciences politiques", "LLCER": "Langues, littératures et cultures étrangères et régionales", "HLP": "Humanités, Littérature et Philosophie", "NSI": "Numérique et Sciences Informatiques", "SI": "Sciences de l'ingénieur et sciences physiques", "LLCA": "Littérature et langues et cultures de l'Antiquité", "EPPCS": "Éducation physique, pratiques et culture sportives", "ART": "Art", "BIOECO": "Biologie/Ecologie"};
+const RP_IMP = ["Essentiel", "Très important", "Important", "Complémentaire"];
+const RP_OPTIONS = { maths_expertes: "Mathématiques expertes", maths_complementaires: "Mathématiques complémentaires", dgemc: "Droit et grands enjeux du monde contemporain",
+  langues_anciennes: "Langues anciennes (latin, grec)", lv3: "Troisième langue vivante", option_arts: "Option arts", option_eps: "Option EPS",
+  section_euro: "Section européenne ou internationale", certifications: "Certifications" };
+const rpText = (t) => esc(t || "").replace(/\n/g, "<br>");
+function juryCard(rp) {
+  if (!rp || !rp.textes) return "";
+  const t = rp.textes, prof = store.get("profile", null) || {};
+  const crit = (t.criteres || []).filter((c) => c.critere || c.elements);
+  const champs = [...new Set(crit.map((c) => c.champ))];
+  const impCls = (i) => { const k = RP_IMP.indexOf(i); return k < 0 ? "" : ` imp${k}`; };
+  const critHtml = champs.length ? `<h3>Ses critères et leur importance</h3><div class="scroll"><table class="stack"><tr class="stack-head"><th>Critère</th><th>Ce qui est regardé</th><th>Importance</th></tr>
+    ${champs.map((ch) => `<tr class="rp-champ"><td colspan="3"><strong>${esc(ch)}</strong></td></tr>${crit.filter((c) => c.champ === ch).map((c) => `<tr><td data-label="Critère">${esc(c.critere)}</td><td data-label="Ce qui est regardé">${esc(c.elements)}</td><td data-label="Importance">${c.importance ? `<span class="rp-imp${impCls(c.importance)}">${esc(c.importance)}</span>` : ""}</td></tr>`).join("")}`).join("")}
+    </table></div>` : "";
+  const eds = t.eds || {};
+  const mySpe = [prof.spe1, prof.spe2].filter((x) => typeof x === "string" && RP_SPE[x]).map((x) => RP_SPE[x].toLowerCase());
+  const edsList = Object.entries(eds.liste || {}).map(([serie, items]) => `<p class="small"><strong>${esc(serie)}</strong> : ${items.map((x) => {
+    return mySpe.includes(String(x).toLowerCase()) ? `<mark>${esc(x)}</mark>` : esc(x); }).join(" · ")}</p>`).join("");
+  const edsHtml = eds.pris_en_compte ? `<h3>Les spécialités de terminale</h3>
+    <p class="small">La commission dit ${/^oui/i.test(eds.pris_en_compte) ? "<strong>prendre en compte</strong>" : "<strong>ne pas prendre en compte</strong>"} les enseignements de spécialité.${eds.poids ? ` Le poids des résultats dans certaines spécialités, d'après la commission : « ${esc(eds.poids.replace(/\.$/, ""))} ».` : ""}</p>${edsList}` : "";
+  const opts = t.options_citees || {};
+  const me = prof.maths_expertes && (prof.spe1 === "MATHS" || prof.spe2 === "MATHS");
+  const optHtml = Object.keys(opts).length || me ? `<h3>Options et parcours cités par le jury</h3>
+    ${me ? `<p class="small">Vous suivez <strong>Mathématiques expertes</strong> : ${opts.maths_expertes ? "le rapport de cette formation la cite (voir ci-dessous)." : "le rapport de cette formation ne la cite pas. Cela ne veut pas dire qu'elle ne compte pas : regardez les attendus de la fiche Parcoursup."}</p>` : ""}
+    ${Object.entries(opts).map(([k, quotes]) => `<p class="small"><strong>${esc(RP_OPTIONS[k] || k)}</strong></p>${quotes.map((q) => `<blockquote class="rp-quote">« ${esc(q)} »</blockquote>`).join("")}`).join("")}` : "";
+  const fold = (title, txt) => (txt ? `<details class="dip"><summary>${title}</summary><p class="small">${rpText(txt)}</p></details>` : "");
+  return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}</h2>
+    <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
+    ${critHtml}${edsHtml}${optHtml}
+    ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
+    <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
+    <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
 function doubletteCharts(d, years) {
@@ -367,6 +445,234 @@ function doubletteCharts(d, years) {
   }
   return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${legend(series)}${lineChart(years, series)}
     <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats de la voie cette année-là.</p></div>${second}`;
+}
+
+// ---- Sprint "Carte": the formations of one filière on an OpenStreetMap map, coloured by the student's zone ----
+// The zones are those of "Mon parcours" (the same /api/journey/stage2 rows), never recomputed here; without a profile the
+// points are neutral. The map is OpenStreetMap (owner's choice, 2026-11-08) drawn by Leaflet, self-hosted and loaded by this
+// page only. The "around a town" filter runs here: no position is ever sent to the site.
+const CARTE_ZONES = ["securite", "cible", "ambitieux"];
+const CARTE_SHAPE = { securite: "rond", cible: "carré", ambitieux: "triangle" };   // the shape doubles the colour
+const CARTE_OTHER = { label: "Autre ou non situé", color: "var(--muted)" };
+const CARTE_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";             // one place to change the tile provider
+const CARTE_ATTRIB = "© les contributeurs d'OpenStreetMap";
+const carteUI = { sel: null, page: 0, map: null, layer: null, type: null };
+function haversineKm(a, b, c, d) {
+  const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(x));
+}
+const carteZone = (f) => (CARTE_ZONES.includes(f.zone) ? f.zone : "autre");
+const carteLabel = (z) => (z === "autre" ? CARTE_OTHER.label : ZONES[z].label);
+const carteColor = (z) => (z === "autre" ? CARTE_OTHER.color : ZONES[z].color);
+// the zone of each formation is the one of "Mon parcours" (stage 2 rows), as is; none without a profile (red team C1)
+function carteMerge(neutral, stage2, ok) {
+  const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
+  return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
+}
+// the filter groups, inspired by the Parcoursup map: each group is a list of ticked options; an empty group keeps all.
+// "prive" (fee-charging private institutions) is never ticked by default (Plan B's rule)
+const CARTE_GROUPS = [
+  ["statut", "Types d'établissement", [["public", "Publics"], ["contrat", "Privés sous contrat avec l'État / EESC"], ["prive", "Privés (payants)"]]],
+  ["internat", "Internat", [["mixte", "Internat filles et garçons"], ["filles", "Internat pour filles"], ["garcons", "Internat pour garçons"]]],
+  ["amenag", "Aménagements", [["presentiel", "Enseignement en présentiel"], ["partielle", "Enseignement partiellement à distance"], ["totale", "Enseignement entièrement à distance"],
+    ["sport", "Aménagements pour sportifs de haut niveau"], ["art", "Aménagements pour artistes confirmés"]]],
+  ["select", "Autres", [["oui", "Formations sélectives"], ["non", "Formations non sélectives"]]],
+];
+const CARTE_DEFAULT = { statut: ["public", "contrat"] };
+// does a formation carry an option of a group (one pure function, re-derived by red team C3)
+function carteHas(f, g, o) {
+  if (g === "statut") return f.statut === o;
+  if (g === "internat") return f.internat === o;
+  if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
+  if (g === "select") return o === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective";
+  if (g === "zones") return carteZone(f) === o;
+  return false;
+}
+// every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
+function carteFilter(rows, F, skip) {
+  const q = (F.q || "").trim().toLowerCase();
+  const groups = ["statut", "internat", "amenag", "select", "zones"].filter((g) => g !== skip);
+  return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
+    && (!F.academie || f.academie === F.academie)
+    && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
+    && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km)));
+}
+// one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
+function carteMarker(f) {
+  const z = carteZone(f), col = carteColor(z);
+  const shape = z === "cible" ? `<rect x="3" y="3" width="12" height="12" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
+    : z === "ambitieux" ? `<path d="M9,1.5L16.5,15.5L1.5,15.5Z" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
+      : `<circle cx="9" cy="9" r="6.5" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
+  return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}">${shape}</svg>`;
+}
+// points closer than a cell on screen are drawn as one group: a ring split by zone, with its count
+function carteClusters(pts, cell) {
+  const grid = new Map();
+  for (const p of pts) {
+    const k = `${Math.floor(p.x / cell)}:${Math.floor(p.y / cell)}`;
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(p);
+  }
+  return [...grid.values()];
+}
+function carteRing(group) {
+  const n = group.length, r = 13 + Math.min(9, 3 * Math.log10(n)), size = 2 * r + 8, c = 2 * Math.PI * r, o = size / 2;
+  const counts = {}; group.forEach((p) => { const z = carteZone(p.f); counts[z] = (counts[z] || 0) + 1; });
+  let off = 0;
+  const arcs = [...CARTE_ZONES, "autre"].filter((z) => counts[z]).map((z) => {
+    const len = c * counts[z] / n;
+    const a = `<circle cx="${o}" cy="${o}" r="${r}" fill="none" stroke="${carteColor(z)}" stroke-width="6" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${o} ${o})"/>`;
+    off += len; return a;
+  }).join("");
+  const label = Object.entries(counts).map(([z, k]) => `${k} ${z === "autre" ? "autres" : ZONES[z].label.replace(/^Vœu /, "")}`).join(", ");
+  return { size, html: `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${n} formations : ${esc(label)}. Zoomer"><circle cx="${o}" cy="${o}" r="${r}" fill="var(--surface)"/>${arcs}
+    <text x="${o}" y="${o}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="var(--ink)">${n}</text></svg>` };
+}
+// the mention when the formation's own label does not already say it (CPGE "ECG", BTS options...)
+const carteMentionTail = (f) => (f.mention && !String(f.formation || "").toLowerCase().includes(String(f.mention).toLowerCase()) ? ` · ${esc(f.mention)}` : "");
+function carteDetail(f, hasProfile) {
+  if (!f) return "";
+  const z = carteZone(f);
+  return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
+    <p class="small">${esc(f.formation)}${carteMentionTail(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
+    <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/parcours">Indiquez votre profil</a> pour voir votre zone.`}
+    · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
+    <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
+}
+function carteList(rows, hasProfile) {
+  const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
+  return `<div class="carte-list">${part.map((f) => { const z = carteZone(f);
+    return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
+    <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
+}
+// Leaflet (static/vendor/leaflet, BSD-2) is loaded by this page only, never by the page shell
+function carteLeaflet() {
+  if (window.L) return Promise.resolve();
+  const load = (tag, attrs) => new Promise((ok, ko) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = ko; document.head.appendChild(el); });
+  return Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
+}
+async function viewCarte(dArg, mArg) {
+  const FAC = await api("/api/carte");
+  // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
+  if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
+  const known = (d) => FAC.diplomes.find((x) => x.label === d);
+  const D = known(dArg) || known(store.get("carteDiplome", null)) || known("BUT") || FAC.diplomes[0];   // stored value never trusted
+  const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
+  store.set("carteDiplome", D.label);
+  const P = store.get("profile", null);
+  const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
+  const ok = P && (serie !== "bg" || (P.spe1 && P.spe2 && P.spe1 !== P.spe2)) && ["sm", "ab", "b", "tb"].includes(P.mention);
+  const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
+  const dq = `diplome=${encodeURIComponent(D.label)}${mention ? `&mention=${encodeURIComponent(mention)}` : ""}`;
+  const [L0, Z] = await Promise.all([api(`/api/carte/formations?${dq}`),
+    ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${P.mention}`).catch(() => null) : null, carteLeaflet().catch(() => null)]);
+  if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
+  if (Z) track("journey", { stage: "stage2" });
+  const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
+  const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres", {}) || {}) };
+  for (const [g, , opts] of CARTE_GROUPS) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
+  F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
+  const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
+  const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
+  const goTo = (d, m) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(d)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
+  $view.innerHTML = `<div class="card"><h1>Carte des formations</h1>
+    <p class="small">${ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
+    <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
+    <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
+  <div class="carte-layout">
+    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>Filtrer</summary><div class="filter-grid" id="cfilters"></div></details>
+    <div class="carte-main">
+      <div class="legend" id="carte-legend"></div>
+      <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
+      <p class="muted small">Fond de carte OpenStreetMap : votre navigateur demande les images de la carte aux serveurs d'OpenStreetMap, qui voient votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.</p>
+      <p class="muted small" id="carte-count"></p>
+      <div id="carte-sel"></div>
+      <div class="card"><h2>Formations de la carte</h2><div id="carte-items"></div>
+      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(L0.session)}.</p></div>
+    </div></div>`;
+  $view.dataset.rendered = "carte";
+  const box = document.getElementById("carte-osm");
+  if (!window.L) { box.innerHTML = `<div class="warn">La carte n'a pas pu être chargée ; la liste reste disponible.</div>`; }
+  else {
+    if (carteUI.map) { carteUI.map.remove(); carteUI.map = null; }
+    carteUI.map = L.map(box, { zoomControl: true }).fitBounds([[41.3, -5.2], [51.1, 9.6]]);   // metropolitan France on any screen
+    L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB }).addTo(carteUI.map);
+    carteUI.layer = L.layerGroup().addTo(carteUI.map);
+    if (carteUI.type === D.label + mention && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
+  }
+  carteUI.type = D.label + mention;
+  const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
+  // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
+  function panel() {
+    const box2 = (g, o, label) => { const n = carteFilter(rows, F, g).filter((f) => carteHas(f, g, o)).length;
+      return `<label class="small"><input type="checkbox" data-g="${g}" data-o="${o}" ${(F[g] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
+    const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
+    document.getElementById("cfilters").innerHTML = `
+      <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
+      <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
+      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
+      ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
+      ${CARTE_GROUPS.map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
+        ${g === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
+      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
+    document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
+    document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
+    const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
+      F.autour = t ? { ...t, km, ville: v } : null;
+      if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
+      save(); };
+    document.getElementById("ctown").onchange = setTown;
+    document.getElementById("ckm").onchange = setTown;
+    document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
+      const g = el.dataset.g; F[g] = [...document.querySelectorAll(`[data-g="${g}"]:checked`)].map((x) => x.dataset.o); save(); }; });
+  }
+  function draw() {
+    const kept = carteFilter(rows, F);
+    kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
+    const listed = kept.filter((f) => inView(f) || f.lat == null)
+      .sort((a, b) => (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0) || a.etablissement.localeCompare(b.etablissement, "fr"));
+    const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
+    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte`;
+    document.getElementById("carte-legend").innerHTML = ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
+    if (carteUI.map) {
+      carteUI.layer.clearLayers();
+      const map = carteUI.map, pts = kept.filter((f) => f.lat != null).map((f) => { const p = map.latLngToLayerPoint([f.lat, f.lon]); return { x: p.x, y: p.y, f }; });
+      // from zoom 16 every formation is drawn on its own (several in one building would never split otherwise)
+      for (const g of (map.getZoom() >= 16 ? pts.map((p) => [p]) : carteClusters(pts, map.getZoom() >= 13 ? 20 : 52))) {
+        if (g.length === 1) {
+          const f = g[0].f;
+          L.marker([f.lat, f.lon], { icon: L.divIcon({ className: "carte-pin", html: carteMarker(f), iconSize: [18, 18] }), keyboard: true, title: `${f.etablissement}, ${carteLabel(carteZone(f))}` })
+            .on("click", () => { carteUI.sel = f.cod_aff_form; showSel(); }).addTo(carteUI.layer);
+        } else {
+          const lat = g.reduce((a, p) => a + p.f.lat, 0) / g.length, lon = g.reduce((a, p) => a + p.f.lon, 0) / g.length, ring = carteRing(g);
+          L.marker([lat, lon], { icon: L.divIcon({ className: "carte-pin", html: ring.html, iconSize: [ring.size, ring.size] }), keyboard: true, title: `${g.length} formations` })
+            .on("click", () => map.setView([lat, lon], Math.min(map.getZoom() + 2, 18))).addTo(carteUI.layer);
+        }
+      }
+    }
+    showSel();
+    document.getElementById("carte-items").innerHTML = carteList(listed, ok);
+    bindVoeuButton(draw);
+    document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
+    document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; showSel(true); }; });
+  }
+  function showSel(focus) {
+    const f = rows.find((x) => x.cod_aff_form === carteUI.sel);
+    document.getElementById("carte-sel").innerHTML = carteDetail(f, ok);
+    bindVoeuButton(draw);
+    if (focus && f && f.lat != null && carteUI.map) carteUI.map.setView([f.lat, f.lon], Math.max(carteUI.map.getZoom(), 12));
+    if (focus) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
+  }
+  function save(repanel = true) { store.set("carteFiltres", F); carteUI.page = 0; if (repanel) panel(); draw(); }
+  document.getElementById("cdip").onchange = (e) => goTo(e.target.value, "");
+  document.getElementById("cmen").onchange = (e) => goTo(D.label, e.target.value);
+  panel();
+  draw();
 }
 
 // ---- lot 2 (Claude design guidelines): the summary comes before the detail; details live in tabs ----
@@ -453,7 +759,7 @@ async function viewFormation(cod, session) {
       <div><div class="muted small">Part des terminales générales parmi les candidats appelés (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
-  ${doubletteCard(d.doublettes)}
+  ${doubletteCard(d.doublettes, d.rapport)}
   ${previsionCard(d.prevision)}
   ${offerCard(r)}
   ${timingCard(r, d.history)}
@@ -474,6 +780,7 @@ async function viewFormation(cod, session) {
       <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
   </div>
 `],
+    ["jury", "Ce que regarde le jury", juryCard(d.rapport)],
     ["reussite", "Réussir et poursuivre", `
   ${successCard(d.success)}
   ${masterCard(d.master)}
@@ -1345,7 +1652,7 @@ async function viewParcours() {
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
     <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
-    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}</div>
+    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
     ${repereNote(s2.calibration)}
     ${scatter(F, (f) => pin(f))}
@@ -1580,7 +1887,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
@@ -1868,8 +2175,8 @@ function codesCard(codes) {
 
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
-  compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats" };
-const MORE_TABS = ["compare", "specialites", "qualite", "glossaire"];
+  carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats" };
+const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire"];
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
     if (el.dataset.tab === tab) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
@@ -1888,7 +2195,7 @@ function markTab(tab) {
 
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
-  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers" };
+  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -1927,6 +2234,7 @@ async function route() {
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
     if (a === "voeux") return await viewVoeux();
+    if (a === "carte") return await viewCarte(b || "", c || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");

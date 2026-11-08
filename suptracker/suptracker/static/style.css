@@ -327,3 +327,39 @@ table.cmp th:not(:first-child), table.cmp td:not(:first-child) { min-width: 140p
 .estim { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; }
 .dbl-est { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); margin: 6px 0 12px; }
 .dbl-est p { margin: 4px 0; }
+
+/* sprint "Rapports publics": the jury's published importance, a neutral ink scale (never a zone colour or the accent) */
+.rp-imp { display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); font-size: var(--fs-xs); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.rp-imp.imp0 { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 700; }
+.rp-imp.imp1 { border-color: var(--ink); color: var(--ink); font-weight: 700; }
+.rp-imp.imp2 { border-color: var(--muted); color: var(--ink); }
+.rp-champ td { background: var(--bg); }
+.rp-quote { margin: 4px 0 8px; padding: 6px 12px; border-left: 3px solid var(--line); font-size: var(--fs-sm); color: var(--ink); }
+mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; padding: 0 2px; }
+
+/* sprint "Carte": filters left, map and list right on wide screens; map first on a phone */
+.carte-layout { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.carte-main { min-width: 0; }
+.carte-filters .filter-grid { display: grid; gap: 10px; }
+.carte-filters input[type=search], .carte-filters input[list], .carte-filters select { width: 100%; min-height: 44px; box-sizing: border-box; }
+.carte-filters fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); display: grid; gap: 6px; }
+.carte-box { position: relative; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
+.carte-osm { height: 70vh; min-height: 360px; }
+.carte-pin { background: none; border: 0; }
+.carte-pin svg { display: block; overflow: visible; }
+.carte-osm .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
+.carte-filters fieldset i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
+.legend i.lg-securite, .legend i.lg-autre, .carte-filters i.lg-securite, .carte-filters i.lg-autre { border-radius: 50%; }
+.legend i.lg-cible, .carte-filters i.lg-cible { border-radius: 2px; }
+.legend i.lg-ambitieux, .carte-filters i.lg-ambitieux { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
+.carte-sel h3 { margin-top: 0; }
+@media (max-width: 720px) {
+  .carte-layout { grid-template-columns: minmax(0, 1fr); }
+  .carte-filters { order: 2; }
+  .carte-main { order: 1; }
+}
+.carte-pick { display: flex; flex-wrap: wrap; gap: 12px; }
+.carte-pick label { flex: 1 1 260px; min-width: 0; }
+.carte-pick select { width: 100%; max-width: 100%; min-height: 44px; }
+.carte-filters fieldset label { display: flex; align-items: center; gap: 8px; }
+.carte-filters fieldset label > .muted { margin-left: auto; font-variant-numeric: tabular-nums; }

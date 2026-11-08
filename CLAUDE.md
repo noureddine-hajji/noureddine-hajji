@@ -288,7 +288,32 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   Per FORMATION, the doublette figure is an ESTIMATION: the formation's published bac général proposal rate x the doublette's
   pooled ratio in its group (doublette / all bac général), capped at 100, shown with its calculation (`doublettes.estimate`,
   page twin `estimateDoublette`); never presented as a published per-establishment figure.
-  Red team `redteam_doublettes.py` (D1-D10).
+  Red team `redteam_doublettes.py` (D1-D11).
+- **Rapports publics (each formation's own report).**
+  - Source: the report PDFs archived by the Internet Archive, harvested by the `suptracker-rapports` workflow (resumable;
+    push `data/rapports/request.json` to continue) into `data/rapports/harvest/`. The CDX query is a PATH prefix (the
+    archive sorts query parameters).
+  - A report is used ONLY when verified: the code printed in its tables, or its link's `g_ti_cod` for older reports, AND
+    its confirmed candidates = SIES `nb_voe_pp` for that code and session. One per (code, session), the latest capture.
+    Never `ran_grp` as the identity: the report is frozen in July.
+  - Rate = en_position / confirmed, the formation's access rate broken down by doublette, computed from published counts
+    and shown with them. The table covers only candidates schooled in terminale in France since 2020-2021: say so.
+    "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
+  - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
+    does not count. The signature (a person's name) is never stored.
+  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R6).
+- **Carte (map of formations).**
+  - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
+  - Two levels: type of diploma, then mention (`carte.diplome_of`, fixed rules on the published labels; every formation in
+    exactly one type). Filters follow the Parcoursup map (statut, internat, aménagements, sélectivité, zones), each option
+    with its count among what the other groups keep. Paid private institutions: the "Privés (payants)" box is unticked by
+    default (Plan B's rule). No apprenticeship filter (note). Zones: `/api/carte/zones` = journey.stage2 per own type, `only=`.
+  - The town and radius filter runs in the browser: no API call carries a position.
+  - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
+  - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
+    in `static/vendor/leaflet/` and loaded by the map page only (never the page shell, never a CDN); one tile URL
+    (`CARTE_TILES`), the attribution, and a note that OpenStreetMap's servers see the IP address. The list works without the map.
+  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C8).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

@@ -37,6 +37,8 @@ from . import calibration as CAL
 from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
+from . import rapports as RP
+from . import carte as CA
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -578,7 +580,9 @@ def formation(cod: str, session: int | None = None):
             "metiers": ON.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # sprint "Doublettes": per route for this formation, per doublette for its group (national); the profile
             # picks the student's row in the browser, it is never sent
-            "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
+            "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # sprint "Rapports publics": this formation's own report (doublettes as published, the jury's criteria and texts)
+            "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -723,6 +727,35 @@ def journey_persona():
     if not path.exists():
         raise HTTPException(404, "aucun rapport de calibration publié")
     return json.loads(path.read_text())
+
+
+@app.get("/api/carte")
+def carte_facets():
+    """Sprint "Carte": every type of diploma and its mentions, with their counts (two-level filter)."""
+    return CA.facets(_con().cursor())
+
+
+@app.get("/api/carte/formations")
+def carte_formations(diplome: str, mention: str | None = None):
+    """Sprint "Carte": the neutral layer of a type of diploma (and mention); no profile, no position."""
+    res = CA.public(CA.formations(_con().cursor(), diplome, mention or None))
+    if res is None:
+        raise HTTPException(404, "type de diplôme inconnu")
+    return res
+
+
+@app.get("/api/carte/zones")
+def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|ab|b|tb)$"),
+                mention: str | None = None, spe1: str | None = None, spe2: str | None = None,
+                serie: str = Query("bg", pattern="^(bg|bt|bp)$")):
+    """Sprint "Carte": the zones of "Mon parcours" for these formations (journey.stage2 on their own types)."""
+    _journey_ready()
+    dkey = None
+    if serie == "bg":
+        if not spe1 or not spe2 or spe1 == spe2:
+            raise HTTPException(422, "deux spécialités différentes sont requises")
+        dkey = J.doublette_key(spe1, spe2)
+    return CA.zones(_con().cursor(), diplome, mention or None, dkey, mention_bac, serie)
 
 
 @app.get("/api/journey/vocab")
@@ -912,7 +945,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte"]
 
 
 @lru_cache(maxsize=1)

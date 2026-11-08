@@ -52,7 +52,7 @@ MAX_BODY = 2048
 MAX_QUERY = 80
 
 ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats", "glossaire",
-          "voeux", "metiers")
+          "voeux", "metiers", "carte")
 DEVICES = ("mobile", "tablet", "desktop")
 FEEDBACK_PAGES = ("fiche", "parcours", "search")
 FEEDBACK_REASONS = ("utile", "introuvable", "incomprehensible", "manque_info", "erreur_donnees", "lent")

@@ -11,3 +11,5 @@ lupa>=2.2
 openpyxl>=3.1
 # Dares FAP-2009 table (.xls, sprint 13)
 xlrd>=2.0
+# Parcoursup public reports (scripts/rapports_parse.py, red team R1)
+pdfplumber>=0.11

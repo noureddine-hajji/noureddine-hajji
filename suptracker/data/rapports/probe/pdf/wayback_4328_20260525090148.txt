@@ -1,0 +1,255 @@
+Rapport public Parcoursup session 2025
+CPBx (ENSMAC) - Formation d'ingénieur Bac + 5 - bac général - Parcours Chimie, Génie Physique
+Les données de la formation
+Les tableaux suivants permettent de suivre l'évolution du nombre de candidats, par formation et par groupe, depuis ceux qui
+confirment le vœu jusqu'à ceux qui acceptent la proposition correspondante. Ces tableaux sont déclinés selon plusieurs éléments.
+Les données de la formation correspondent aux données de la phase principale, calculées au 10 juillet 2025.
+Elles ne prennent pas en compte les données de la phase de gestion des démissions.
+CPBx (ENSMAC - Chimie, Génie Physique) - Formation d'ingénieur Bac + 5 - bac général - Parcours Chimie, Génie Physique (4328)
+Rappel des taux appliqués pour cette formation
+Taux minimum de candidats boursiers fixé par le recteur : 8%
+
+=== PAGE ===
+
+Synthèse des candidatures, classements et admissions
+Formation Jury Groupe Nombre de Nombre de Nombre de Nombre de Nombre de
+d'affectation places proposées candidats qui candidats candidats en candidats qui ont
+ont confirmé le classés (parmi position de accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le vœu) proposition
+d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+CPBx (ENSMAC - Jury par Tous les 15 488 215 98 16
+Chimie, Génie défaut candidats
+Physique) -
+Formation
+d'ingénieur Bac + 5
+- bac général -
+Parcours Chimie,
+Génie Physique
+(4328)
+
+=== PAGE ===
+
+Suivi des candidats par sexe
+Formation Jury Groupe Sexe Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+CPBx (ENSMAC - Jury par Tous les Féminin 267 122 64 8 50 %
+Chimie, Génie défaut candidats
+Masculin 221 93 34 8 50 %
+Physique) -
+Formation
+Total 488 215 98 16 100 %
+d'ingénieur Bac +
+5 - bac général -
+Parcours Chimie,
+Génie Physique
+(4328)
+
+=== PAGE ===
+
+Suivi des candidats par type de baccalauréat
+Formation Jury Groupe Type de bac Mention au Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation bac candidats candidats candidats en proposition
+qui ont classés position de Nombre Pourcentage
+confirmé le (parmi ceux recevoir une
+vœu qui ont proposition
+confirmé le d'admission
+vœu) (parmi ceux
+qui ont
+confirmé le
+vœu)
+CPBx (ENSMAC Jury par Tous les Baccalauréat Échec au 1 0 0 0 0 %
+- Chimie, Génie défaut candidats Général bac
+Physique) -
+Sans 47 1 0 0 0 %
+Formation
+mention
+d'ingénieur Bac
++ 5 - bac
+AB 91 12 1 0 0 %
+général -
+Parcours B 195 88 24 3 18,8 %
+Chimie, Génie
+Physique (4328) TB 141 108 68 13 81,3 %
+TBF 11 6 5 0 0 %
+Total 486 215 98 16 100 %
+Diplômes Sans 2 0 0 0
+étrangers mention
+équivalents au
+Total 2 0 0 0
+bac
+
+=== PAGE ===
+
+Suivi des candidats par profil
+Formation Jury Groupe Profil Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+CPBx (ENSMAC - Jury par Tous les En terminale 378 179 96 15 93,8 %
+Chimie, Génie défaut candidats
+En réorientation 81 29 1 1 6,3 %
+Physique) -
+Formation
+Non scolarisés 3 1 0 0 0 %
+d'ingénieur Bac +
+5 - bac général - Scolarité 14 2 1 0 0 %
+Parcours Chimie, étrangère
+Génie Physique
+(4328) Autres 12 4 0 0 0 %
+Total 488 215 98 16 100 %
+
+=== PAGE ===
+
+Suivi des candidats par choix d’enseignements de spécialité en série générale et technologique, ou par spécialité en série
+professionnelle
+Les données de ces tableaux ont été calculées en prenant en compte tous les candidats qui ont suivi une scolarité française en terminale générale, technologique ou
+professionnelle depuis l'année scolaire 2020-2021.
+Formation Jury Type de bac EDS 1 & EDS 2 / Nombre de Nombre de Nombre de Nombre de
+d'affectation Spécialité candidats qui candidats candidats en candidats qui
+ont confirmé le classés (parmi position de ont accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+CPBx (ENSMAC - Jury par Baccalauréat Mathématiques 372 208 97 15
+Chimie, Génie défaut Général Spécialité &
+Physique) - Physique-Chimie
+Formation Spécialité
+d'ingénieur Bac +
+Physique-Chimie 80 0 0 0
+5 - bac général -
+Spécialité &
+Parcours Chimie,
+Sciences de la vie et
+Génie Physique
+de la Terre Spécialité
+(4328)
+Autres doublettes 20 6 1 1
+Baccalauréat À noter : Aucune donnée à afficher. Aucun candidat de cette série n'a confirmé de vœux pour cette
+Technologique formation.
+Baccalauréat Pro À noter : Aucune donnée à afficher. Aucun candidat de cette série n'a confirmé de vœux pour cette
+formation.
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série générale, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+Formation Jury Doublette EDS Nombre de Nombre de Nombre de Nombre de
+d'affectation Significatives candidats qui ont candidats classés candidats en candidats qui ont
+confirmé le vœu (parmi ceux qui position de recevoir accepté la
+ont confirmé le une proposition proposition
+vœu) d'admission (parmi
+ceux qui ont
+confirmé le vœu)
+CPBx (ENSMAC - Jury par défaut Mathématiques 78,8 % 97,2 % 99 % 93,8 %
+Chimie, Génie Spécialité & Physique-
+Physique) - Chimie Spécialité
+Formation
+Physique-Chimie 16,9 % 0 % 0 % 0 %
+d'ingénieur Bac + 5 -
+Spécialité & Sciences
+bac général -
+de la vie et de la Terre
+Parcours Chimie,
+Spécialité
+Génie Physique
+(4328)
+Autres doublettes 4,2 % 2,8 % 1 % 6,3 %
+Total 100 % 100 % 100 % 100 %
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série technologique, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+À noter : Aucune donnée à afficher. Aucun candidat de cette série n'a confirmé de vœux pour cette formation.
+
+=== PAGE ===
+
+Répartition des candidats de la série professionnelle, à différentes étapes de la procédure, en fonction de leur spécialité
+À noter : Aucune donnée à afficher. Aucun candidat de cette série n'a confirmé de vœux pour cette formation.
+
+=== PAGE ===
+
+Les critères utilisés en 2025
+Champs d'évaluation Critères retenus par la commission Eléments pris en compte pour Degré d'importance des critères
+d'examen des vœux l'évaluation des critères
+Résultats académiques Niveau en Mathématiques Notes de Première et de Terminale Très important
+Niveau en Physique-Chimie Notes de Première et de Terminale Très important
+Niveau en Anglais notes de Première et de Terminale Important
+Compétences académiques, acquis Aucun critère défini pour ce champ
+méthodologiques, savoir-faire d’évaluation
+Savoir-être Aucun critère défini pour ce champ
+d’évaluation
+Motivation, connaissance de la Cohérence du projet et connaissance Contenu de la lettre de motivation Essentiel
+formation, cohérence du projet de l'école d'ingénieur
+Engagements, activités et centres d’ Aucun critère défini pour ce champ
+intérêt, réalisations péri ou extra- d’évaluation
+scolaires
+
+=== PAGE ===
+
+Prise en compte des enseignements de spécialité (EDS) en séries générale et technologique dans l'examen des
+vœux
+Prenez-vous en compte les enseignements de spécialité (voie générale et technologique) dans votre examen des candidatures ?
+Oui.
+Le poids dans l'examen des candidatures donné aux résultats académiques dans certains EDS :
+Est supérieur à celui donné à l'ensemble des autres matières.
+Quels sont les EDS pris en compte pour l'examen des candidatures ?
+Série Générale
+Mathématiques Spécialité (EDS)
+Physique-Chimie Spécialité (EDS)
+Sciences de l'ingénieur et sciences physiques (EDS)
+
+=== PAGE ===
+
+Critères éliminatoires
+Préciser les critères quantitatifs voire qualitatifs qui conduisent à ne pas classer certains candidats lors de l’examen des
+candidatures
+Il est tenu compte des notes des EDS scientifiques en classe de première et de terminale, des appréciations des professeurs ainsi
+que du contenu de la lettre de motivation.
+
+=== PAGE ===
+
+Les modalités d’examen des vœux
+Les modalités d'examen des voeux
+Les niveaux des EDS scientifiques en classe de première et de terminale sont très importants.
+Avez-vous eu recours à un traitement algorithmique ?
+Un traitement algorithmique permettant essentiellement, à partir des données quantitatives et qualitatives figurant dans les
+dossiers, de calculer les moyennes des notes récupérées ou attribuées aux candidats, a été mis en œuvre par la commission d’
+examen des vœux afin de l’aider dans ses travaux, et non se substituer à elle.
+Ce traitement automatisé, dont le paramétrage a été effectué par la commission d’examen des vœux en fonction des critères
+que ses membres ont définis, a été utilisé pour effectuer une première analyse des candidatures et un pré-classement de ces
+dernières.
+La commission d’examen des vœux s’est en partie fondée sur ces éléments pour apprécier les mérites des candidatures.
+
+=== PAGE ===
+
+Nos conseils aux candidats pour la prochaine session
+Nos conseils aux candidats pour la prochaine session
+Le nombre de candidatures à cette formation est très grand par rapport au nombre de places offertes mais le nombre de
+désistements de candidats acceptés (liste principale et liste d'attente) est également important. Si vous disposez d'un bon
+dossier, vous avez toutes les chances d'être accepté et de figurer sur la liste principale à un moment de la procédure d'admission.
+La cohérence entre le contenu de la lettre de motivation et les thématiques de l'école est un point capital pour la candidature.
+Signature :
+Nathalie Geneste,
+Madame de l'établissement CPBx (ENSMAC)

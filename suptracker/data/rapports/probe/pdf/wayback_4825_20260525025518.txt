@@ -1,0 +1,278 @@
+Rapport public Parcoursup session 2025
+Lycée Descartes - CPGE - BCPST
+Les données de la formation
+Les tableaux suivants permettent de suivre l'évolution du nombre de candidats, par formation et par groupe, depuis ceux qui
+confirment le vœu jusqu'à ceux qui acceptent la proposition correspondante. Ces tableaux sont déclinés selon plusieurs éléments.
+Les données de la formation correspondent aux données de la phase principale, calculées au 10 juillet 2025.
+Elles ne prennent pas en compte les données de la phase de gestion des démissions.
+Lycée Descartes - CPGE - BCPST (4825)
+Rappel des taux appliqués pour cette formation
+Taux minimum de candidats boursiers fixé par le recteur : 7%
+
+=== PAGE ===
+
+Synthèse des candidatures, classements et admissions
+Formation Jury Groupe Nombre de Nombre de Nombre de Nombre de Nombre de
+d'affectation places proposées candidats qui candidats candidats en candidats qui ont
+ont confirmé le classés (parmi position de accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le vœu) proposition
+d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Descartes - Jury par Tous les 48 1651 1059 418 48
+CPGE - BCPST défaut candidats
+(4825)
+
+=== PAGE ===
+
+Suivi des candidats par sexe
+Formation Jury Groupe Sexe Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Descartes - Jury par Tous les Féminin 1155 768 303 33 68,8 %
+CPGE - BCPST défaut candidats
+Masculin 496 291 115 15 31,3 %
+(4825)
+Total 1651 1059 418 48 100 %
+
+=== PAGE ===
+
+Suivi des candidats par type de baccalauréat
+Formation Jury Groupe Type de bac Mention au Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation bac candidats candidats candidats en proposition
+qui ont classés position de Nombre Pourcentage
+confirmé le (parmi ceux recevoir une
+vœu qui ont proposition
+confirmé le d'admission
+vœu) (parmi ceux
+qui ont
+confirmé le
+vœu)
+Lycée Jury par Tous les Baccalauréat Échec au 2 0 0 0 0 %
+Descartes - défaut candidats Général bac
+CPGE - BCPST
+Sans 74 12 0 0 0 %
+(4825)
+mention
+AB 244 133 8 2 4,2 %
+B 498 402 100 27 56,3 %
+TB 478 424 236 16 33,3 %
+TBF 93 88 74 3 6,3 %
+Total 1389 1059 418 48 100 %
+Baccalauréat Sans 3 0 0 0
+Technologique mention
+AB 4 0 0 0
+B 4 0 0 0
+TB 1 0 0 0
+TBF 1 0 0 0
+Total 13 0 0 0
+
+=== PAGE ===
+
+Formation Jury Groupe Type de bac Mention au Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation bac candidats candidats candidats en proposition
+qui ont classés position de Nombre Pourcentage
+confirmé le (parmi ceux recevoir une
+vœu qui ont proposition
+confirmé le d'admission
+vœu) (parmi ceux
+qui ont
+confirmé le
+vœu)
+Baccalauréat Sans 2 0 0 0
+Professionnel mention
+B 1 0 0 0
+Total 3 0 0 0
+Diplômes Sans 194 0 0 0
+étrangers mention
+équivalents au
+AB 34 0 0 0
+bac
+B 11 0 0 0
+TB 7 0 0 0
+Total 246 0 0 0
+
+=== PAGE ===
+
+Suivi des candidats par profil
+Formation Jury Groupe Profil Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Descartes Jury par Tous les En terminale 1242 963 416 48 100 %
+- CPGE - BCPST défaut candidats
+En réorientation 133 86 2 0 0 %
+(4825)
+Non scolarisés 63 0 0 0 0 %
+Scolarité 197 0 0 0 0 %
+étrangère
+Autres 16 10 0 0 0 %
+Total 1651 1059 418 48 100 %
+
+=== PAGE ===
+
+Suivi des candidats par choix d’enseignements de spécialité en série générale et technologique, ou par spécialité en série
+professionnelle
+Les données de ces tableaux ont été calculées en prenant en compte tous les candidats qui ont suivi une scolarité française en terminale générale, technologique ou
+professionnelle depuis l'année scolaire 2020-2021.
+Formation Jury Type de bac EDS 1 & EDS 2 / Nombre de Nombre de Nombre de Nombre de
+d'affectation Spécialité candidats qui candidats candidats en candidats qui
+ont confirmé le classés (parmi position de ont accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Descartes - Jury par Baccalauréat Physique-Chimie 635 531 185 22
+CPGE - BCPST défaut Général Spécialité &
+(4825) Sciences de la vie et
+de la Terre Spécialité
+Mathématiques 420 349 147 15
+Spécialité &
+Physique-Chimie
+Spécialité
+Mathématiques 267 165 80 10
+Spécialité &
+Sciences de la vie et
+de la Terre Spécialité
+Autres doublettes 59 13 6 1
+Baccalauréat À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+Technologique
+Baccalauréat À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+Professionnel
+
+=== PAGE ===
+
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série générale, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+Formation Jury Doublette EDS Nombre de Nombre de Nombre de Nombre de
+d'affectation Significatives candidats qui ont candidats classés candidats en candidats qui ont
+confirmé le vœu (parmi ceux qui position de recevoir accepté la
+ont confirmé le une proposition proposition
+vœu) d'admission (parmi
+ceux qui ont
+confirmé le vœu)
+Lycée Descartes - Jury par défaut Physique-Chimie 46 % 50,2 % 44,3 % 45,8 %
+CPGE - BCPST (4825) Spécialité & Sciences
+de la vie et de la Terre
+Spécialité
+Mathématiques 30,4 % 33 % 35,2 % 31,3 %
+Spécialité & Physique-
+Chimie Spécialité
+Mathématiques 19,3 % 15,6 % 19,1 % 20,8 %
+Spécialité & Sciences
+de la vie et de la Terre
+Spécialité
+Autres doublettes 4,3 % 1,2 % 1,4 % 2,1 %
+Total 100 % 100 % 100 % 100 %
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série technologique, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+
+=== PAGE ===
+
+Répartition des candidats de la série professionnelle, à différentes étapes de la procédure, en fonction de leur spécialité
+À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+
+=== PAGE ===
+
+Les critères utilisés en 2025
+Champs d'évaluation Critères retenus par la commission Eléments pris en compte pour Degré d'importance des critères
+d'examen des vœux l'évaluation des critères
+Résultats académiques 1. Résultats dans les matières 1 - Notes, classements et Essentiel
+scientifiques 2. Résultats dans les appréciations dans les matières
+matières non scientifiques scientifiques en terminale et
+première - Niveau de la classe. 2.
+Notes de français aux épreuves
+anticipées du baccalauréat. Notes,
+classements et appréciations en
+anglais et philosophie en terminale.
+Niveau de la classe.
+Compétences académiques, acquis Méthodes de travail Appréciations des professeurs. Très important
+méthodologiques, savoir-faire
+Savoir-être Sérieux et attitude face au travail. Appréciations des professeurs Très important
+Autonomie dans le travail.
+Implication, capacité à s'investir.
+Motivation, connaissance de la Motivation. Cohérence du projet Lettre de motivation. Avis du chef Important
+formation, cohérence du projet d'établissement.
+Engagements, activités et centres d’ Engagements, activités, centres Lettre de motivation Complémentaire
+intérêt, réalisations péri ou extra- d'intérêt
+scolaires
+
+=== PAGE ===
+
+Prise en compte des enseignements de spécialité (EDS) en séries générale et technologique dans l'examen des
+vœux
+Prenez-vous en compte les enseignements de spécialité (voie générale et technologique) dans votre examen des candidatures ?
+Oui.
+Le poids dans l'examen des candidatures donné aux résultats académiques dans certains EDS :
+Est supérieur à celui donné à l'ensemble des autres matières.
+Quels sont les EDS pris en compte pour l'examen des candidatures ?
+Série Générale
+Biologie/Ecologie (EDS)
+Mathématiques Spécialité (EDS)
+Physique-Chimie Spécialité (EDS)
+Sciences de la vie et de la Terre Spécialité (EDS)
+
+=== PAGE ===
+
+Critères éliminatoires
+Préciser les critères quantitatifs voire qualitatifs qui conduisent à ne pas classer certains candidats lors de l’examen des
+candidatures
+Résultats insuffisants, incohérence des EDS pour suivre la formation.
+
+=== PAGE ===
+
+Les modalités d’examen des vœux
+Les modalités d'examen des voeux
+Tous les dossiers ont été examinés, quels que soient les choix de spécialités en Terminale ou la filière suivie pour les dossiers
+postbac.
+Pour ces dossiers postbac, quand la lisibilité du parcours a bien été identifiée et que le niveau potentiel a pu être estimé, nous
+avons également vérifié si l’étudiant avait demandé la classe quand il était en terminale. Le dossier a alors été intercalé dans le
+classement.
+A l’issue d’un préclassement informatique où sont pris en compte rang et note de terminale (note de première s’il n’y a pas de
+note en terminale) en Mathématiques, Sciences Physiques, SVT , Anglais, Philosophie, chaque dossier a été ouvert afin d’étudier la
+fiche avenir, les bulletins, ainsi que la lettre de présentation/motivation. Une attention particulière a été portée sur la motivation
+pour la filière.
+Un certain nombre de points de bonus/malus a alors été ajouté, influençant à la marge ou non le préclassement informatique
+Avez-vous eu recours à un traitement algorithmique ?
+Un traitement algorithmique permettant essentiellement, à partir des données quantitatives et qualitatives figurant dans les
+dossiers, de calculer les moyennes des notes récupérées ou attribuées aux candidats, a été mis en œuvre par la commission d’
+examen des vœux afin de l’aider dans ses travaux, et non se substituer à elle.
+Ce traitement automatisé, dont le paramétrage a été effectué par la commission d’examen des vœux en fonction des critères
+que ses membres ont définis, a été utilisé pour effectuer une première analyse des candidatures et un pré-classement de ces
+dernières.
+La commission d’examen des vœux s’est en partie fondée sur ces éléments pour apprécier les mérites des candidatures.
+
+=== PAGE ===
+
+Nos conseils aux candidats pour la prochaine session
+Nos conseils aux candidats pour la prochaine session
+Les candidats doivent éviter de faire une lettre de motivation non personnalisée.
+Cette filière demande une appétence particulière pour les domaines liés à la biologie et la géologie
+Signature :
+Stéphane BLARDAT,
+Chef d'établissement de l'établissement Lycée
+Descartes
