@@ -810,7 +810,9 @@ existed for Google: about 14 000 formations and 1 100 jobs were invisible.
 - The app then boots on that address and shows the full page (summary, tabs). Once the visitor navigates, the address
   goes back to `/#/…`, so the app's usual links stay the same.
 - **`/sitemap.xml`** lists the 14 252 formations of the latest campaign and the 1 124 jobs (15 376 URLs, under the 50 000 limit).
-  **`/robots.txt`** points to it and keeps crawlers off `/api/`.
+  **`/robots.txt`** points to it. It keeps crawlers off search, vœux and stats, but leaves open the data the pages are
+  rendered from: a crawler that runs the app must be able to load it. If that data cannot be loaded, the server summary
+  stays, with the error shown above it, never in its place (Codex finding).
 - **Indexing rules.**
   - A formation absent from the latest campaign is served with `noindex`.
   - A Vercel preview deployment is never indexed: `noindex` everywhere, `Disallow: /`, empty sitemap.
@@ -827,13 +829,14 @@ existed for Google: about 14 000 formations and 1 100 jobs were invisible.
 - **G4.** Hostile names are escaped everywhere, including the JSON-LD (no `</script>` can close it).
 - **G5.** Malformed or unknown addresses return a 404 with `noindex`, never cached.
 - **G6.** Older formations, previews and the canonical origin follow the indexing rules.
-- **G7.** The router maps the two paths to the same views (run with Node) and returns to `/#/…` on navigation.
+- **G7.** The router maps the two paths to the same views (run with Node) and returns to `/#/…` on navigation. A failed data
+  load keeps the server summary.
 - **G8.** The SupCompass name and the independence notice are present; "SupTracker" appears nowhere a visitor reads.
 - **G9.** The cache policies hold.
-- **G10.** 22 mutants are each caught. They are built in memory: the red team never writes a source file, so the
+- **G10.** 24 mutants are each caught. They are built in memory: the red team never writes a source file, so the
   parallel test workers are safe.
 - **G11** (`--browser`). On a phone, light and dark, the app boots on these addresses with 0 JS errors. Without
-  JavaScript, the server summary is readable.
+  JavaScript, and with `/api/` blocked, the server summary stays readable.
 
 **For the owner after the merge:** declare the site in Google Search Console and submit `/sitemap.xml` (steps in the PR).
 

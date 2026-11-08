@@ -1782,6 +1782,14 @@ function pathRoute(pathname, hash) {
   if (m) return `/metiers/${m[1]}`;
   return null;
 }
+// Sprint 17 (Codex): when the app cannot load its data (a crawler that may not fetch /api/, a network error), the
+// server-rendered summary of an indexable page stays readable: the error is shown above it, never in its place.
+function showError(e) {
+  const kept = $view.querySelector("[data-seo]");
+  const warn = `<div class="warn">${esc(e.message)}</div>`;
+  if (kept) { $view.querySelectorAll(":scope > .warn").forEach((w) => w.remove()); kept.insertAdjacentHTML("beforebegin", warn); }
+  else $view.innerHTML = warn;
+}
 async function route() {
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
   if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
@@ -1806,7 +1814,7 @@ async function route() {
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
   } catch (e) {
-    $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`;
+    showError(e);
   }
 }
 
@@ -1817,6 +1825,6 @@ document.getElementById("search").onsubmit = (e) => {
 };
 window.addEventListener("hashchange", route);
 (async () => {
-  try { META = await api("/api/meta"); } catch (e) { $view.innerHTML = `<div class="warn">${esc(e.message)}</div>`; return; }
+  try { META = await api("/api/meta"); } catch (e) { showError(e); return; }
   basket.render(); voeux.render(); route();
 })();

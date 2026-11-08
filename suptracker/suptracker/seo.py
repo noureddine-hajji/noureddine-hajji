@@ -31,6 +31,7 @@ SITE = "SupCompass"
 TAGLINE = "Parcoursup 2022–2025, les vrais chiffres"
 INDEPENDENT = "SupCompass est un site indépendant, non affilié à Parcoursup ni au ministère de l'Enseignement supérieur."
 CAVEAT = "Des résultats des campagnes passées, pas des chances d'admission."
+ROBOTS_OFF = ("/api/search", "/api/voeux", "/api/e", "/api/stats")
 COD = re.compile(r"^\d{1,9}$")
 MAX_RELATED = 12
 
@@ -228,7 +229,9 @@ def not_found_body(what: str) -> str:
 def robots(base: str) -> str:
     if is_preview():
         return "User-agent: *\nDisallow: /\n"
-    return f"User-agent: *\nDisallow: /api/\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+    # the data the pages render from (/api/meta, /api/formation, /api/metier…) stays allowed: a crawler that renders the app
+    # must be able to load it (Codex); only routes that record an event, hold a personal list or are private are kept off
+    return ("User-agent: *\n" + "".join(f"Disallow: {p}\n" for p in ROBOTS_OFF) + f"Allow: /\nSitemap: {base}/sitemap.xml\n")
 
 
 def sitemap(base: str, paths: list[str]) -> str:

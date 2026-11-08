@@ -3,7 +3,8 @@
     python scripts/redteam_seo.py [--db data/suptracker.duckdb] [--real] [--browser]
 
   G1 sitemap: valid XML, absolute https URLs, under the 50 000-URL limit, exactly the latest campaign's formations and every
-     job (re-derived from the warehouse), no duplicate, nothing else; robots.txt points to it and keeps crawlers off /api/
+     job (re-derived from the warehouse), no duplicate, nothing else; robots.txt points to it, leaves the data the pages render
+     from open (a crawler that runs the app must load it: Codex) and keeps search, vœux and stats off
   G2 formation page: 200, the app shell, one <title>, a meta description, a canonical equal to its own address, Open Graph,
      JSON-LD that parses; the figures in title, description and body are the PUBLISHED ones (re-read from the warehouse,
      never recomputed) and agree with /api/formation; the caveat "pas des chances d'admission"; no probability wording
@@ -16,7 +17,8 @@
      sitemap; a preview deployment is never indexed (every page noindex, robots "Disallow: /", empty sitemap); the
      canonical origin is the production domain Vercel declares
   G7 the app boots on these addresses: the router maps /formation/<code> and /metier/<id> to the same views as their hash
-     routes (run with Node), returns to "/#/…" when the visitor navigates, and the summary sits inside <main id="view">
+     routes (run with Node), returns to "/#/…" when the visitor navigates, and a failed data load keeps the server summary
+     (the error shows above it, never in its place: Codex)
   G8 name: "SupCompass" in the shell, the API title and the footer, with the independence notice (not affiliated with
      Parcoursup or the ministry); "SupTracker" nowhere a visitor can read
   G9 cache: every new route has a policy; pages are kept by the CDN only as 200s and always revalidated by browsers
@@ -191,12 +193,18 @@ def sitemap_ok(xml_text: str, robots: str, base: str, latest: list[str], jobs: l
     got = set(locs)
     ok = (root.tag == f"{ns}urlset" and len(locs) == len(got) and got == want and len(locs) <= 50000
           and all(u.startswith("https://") for u in locs))
-    rob = ("Disallow: /api/" in robots and f"Sitemap: {base}/sitemap.xml" in robots and "Disallow: /\n" not in robots)
+    rules = [ln.split(":", 1)[1].strip() for ln in robots.splitlines() if ln.lower().startswith("disallow:")]
+    blocked = lambda path: any(r and path.startswith(r) for r in rules)  # noqa: E731  (robots prefix rule)
+    # what the pages render from must stay fetchable by a crawler that runs the app (Codex finding)
+    render_ok = not any(blocked(x) for x in ("/api/meta", "/api/formation/1", "/api/metier/MET.1", "/api/journey/vocab",
+                                             "/api/planb/1", "/static/app.js", "/formation/1", "/metier/MET.1"))
+    private_off = all(blocked(x) for x in ("/api/search", "/api/voeux", "/api/stats"))
+    rob = render_ok and private_off and f"Sitemap: {base}/sitemap.xml" in robots
     return ok and rob, (f"{len(locs)} URLs (want {len(want)}); missing {sorted(want - got)[:2]}; extra {sorted(got - want)[:2]}; "
-                        f"duplicates {len(locs) - len(got)}; robots {rob}")
+                        f"duplicates {len(locs) - len(got)}; robots: render data allowed {render_ok}, private routes off {private_off}")
 
 
-@check("G1 sitemap = the latest campaign's formations + every job, valid, absolute, no duplicate; robots points to it, off /api/")
+@check("G1 sitemap = the latest campaign's formations + every job, valid, absolute, no duplicate; robots points to it, leaves the render data open, keeps private routes off")
 def g1(c: Ctx):
     with client(c.db) as (cl, _):
         sm, rb = cl.get("/sitemap.xml"), cl.get("/robots.txt")
@@ -387,8 +395,13 @@ process.stdout.write(JSON.stringify(cases.map(([p, h]) => pathRoute(p, h))));"""
     rt = js[js.index("async function route()"):js.index("document.getElementById(\"search\").onsubmit")]
     wired = ("(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")" in rt
              and 'history.replaceState(null, "", "/" + location.hash)' in rt and "document.title = " in rt)
-    ok = got == want and wired
-    return ok, f"path → view {got == want} ({[g for g, w in zip(got, want) if g != w][:3]}); router wired, URL cleaned, title reset {wired}"
+    boot = js[js.index("window.addEventListener(\"hashchange\", route);"):]
+    se = re.search(r"function showError\(e\) \{.*?\n\}", js, re.S)
+    keep = (bool(se) and '$view.querySelector("[data-seo]")' in se.group(0) and 'insertAdjacentHTML("beforebegin"' in se.group(0)
+            and "showError(e);" in rt and 'catch (e) { showError(e); return; }' in boot and "$view.innerHTML = `<div class=\"warn\">" not in rt + boot)
+    ok = got == want and wired and keep
+    return ok, (f"path → view {got == want} ({[g for g, w in zip(got, want) if g != w][:3]}); router wired, URL cleaned, title reset {wired}; "
+                f"a failed load keeps the server summary {keep}")
 
 
 @check("G7 the app boots on /formation/<code> and /metier/<id> (same views as the hash routes), then returns to '/#/…'")
@@ -450,7 +463,8 @@ MUTANTS = [
      '"SELECT DISTINCT cod_aff_form FROM core.formation_year WHERE session <= ? ORDER BY 1", [last]'),
     ("jobs left out of the sitemap", 'paths += [f"/metier/{m}"', 'paths += [f"/metiers/{m}"'),
     ("canonical from the visitor's host", '    prod = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")', "    prod = None"),
-    ("robots lets crawlers into the API", 'return f"User-agent: *\\nDisallow: /api/\\nAllow: /', 'return f"User-agent: *\\nAllow: /'),
+    ("robots blocks the data the pages render from", 'ROBOTS_OFF = ("/api/search",', 'ROBOTS_OFF = ("/api/", "/api/search",'),
+    ("robots lets crawlers into search", 'ROBOTS_OFF = ("/api/search", ', 'ROBOTS_OFF = ('),
 ]
 API_MUTANTS = [
     ("unknown code answers 200", '        return _html_404(request, "Cette formation n\'existe pas dans les données Parcoursup 2022–2025.")',
@@ -460,6 +474,7 @@ API_MUTANTS = [
 JS_MUTANTS = [
     ("router ignores the path", "(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")", "(location.hash.slice(1) || \"/\")"),
     ("job path not mapped", "if (m) return `/metiers/${m[1]}`;", "if (m) return null;"),
+    ("a failed data load erases the server summary", "  } catch (e) {\n    showError(e);\n  }", "  } catch (e) {\n    $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
     ("letters accepted as a code", "const f = /^\\/formation\\/(\\d{1,9})\\/?$/.exec(pathname);", "const f = /^\\/formation\\/([^/]+)\\/?$/.exec(pathname);"),
 ]
 HTML_MUTANTS = [
@@ -579,6 +594,13 @@ const [base, cod, job] = process.argv.slice(2);
     }
     await ctx.close();
   }
+  { // a crawler that renders the app but may not fetch the data: the server summary must stay (Codex)
+    const ctx = await b.newContext({ ...devices["iPhone 13"] }); const p = await ctx.newPage();
+    await p.route("**/api/**", (r) => r.abort());
+    await p.goto(base + `/formation/${cod}`); await p.waitForTimeout(2500);
+    out.noapi = await p.evaluate(() => ({ server: !!document.querySelector("[data-seo] .summary"), warn: !!document.querySelector("#view > .warn") }));
+    await ctx.close();
+  }
   const ctx = await b.newContext({ ...devices["iPhone 13"], javaScriptEnabled: false }); const p = await ctx.newPage();
   await p.goto(base + `/formation/${cod}`);
   out.nojs = await p.evaluate(() => ({ server: !!document.querySelector("[data-seo] .summary"), text: document.querySelector("main").innerText.length,
@@ -618,10 +640,13 @@ def g11(c: Ctx):
     if r.returncode:
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
-    bad = {k: v for k, v in d["out"].items() if k != "nojs" and (not v["summary"] or v["server"] or v["hscroll"])}
+    bad = {k: v for k, v in d["out"].items() if k not in ("nojs", "noapi") and (not v["summary"] or v["server"] or v["hscroll"])}
+    noapi = d["out"]["noapi"]
+    if not noapi["server"]:
+        bad["API blocked"] = noapi
     nojs = d["out"]["nojs"]
     ok = not d["errs"] and not bad and nojs["server"] and nojs["text"] > 100 and not nojs["hscroll"]
-    return ok, f"JS errors {d['errs'][:2]}; phone problems {bad}; without JavaScript {nojs}"
+    return ok, f"JS errors {d['errs'][:2]}; phone problems {bad}; without JavaScript {nojs}; data blocked {noapi}"
 
 
 def run(db: Path, real: bool = False, browser: bool = False) -> list[dict]:
