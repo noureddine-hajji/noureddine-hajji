@@ -157,11 +157,14 @@ SPE_EXTRA_RULES = {   # 2025 export: several aggregation levels in one file
     "aggregation_level": [("niveau", "agregation")],
     "formation_detail": [("formation",)],
 }
+# The SIES column named "voeux" counts CANDIDATES (people: a candidate with at least one vœu in the group of
+# formations counts once). Checked on real data: its acceptations equal the admits of the formations (Licence
+# Sciences juridiques 2025: 34 576 vs 34 550 bacheliers généraux) while it is 4x smaller than their vœux (90 397
+# vs 347 976). Propositions are candidates with at least one proposal. Red team D1 re-checks it at every build.
 SPE_COUNT_RULES = {
-    "n_candidats": [("confirm",), ("candidat", "voeu")],
+    "n_candidats": [("voeux",), ("confirm",), ("candidat",)],
     "n_proposition": [("propos",), ("recu",)],  # SIES: propositions_d_admissions
     "n_accepte": [("accept",), ("admis",)],
-    "n_voeux": [("voeux",)],
 }
 
 
@@ -191,7 +194,9 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
         m.update(resolve_by_keywords([c for c in num_cols if c != m.get("year")], SPE_COUNT_RULES))
         for canon, src in m.items():
             con.execute("INSERT INTO meta.schema_audit VALUES (NULL, ?, ?, ?)",
-                        [f"{key}.{canon}", src, "missing" if src is None else "keyword"])
+                        [f"{key}.{canon}", src, "keyword" if src is not None else
+                         # the 2021-2024 file has a single level (the group): no aggregation level or detail to read
+                         "sans_objet" if canon in SPE_EXTRA_RULES else "missing"])
         sel = [
             (f"TRY_CAST({_num(m['year'])} AS BIGINT)" if m["year"] else "NULL::BIGINT") + " AS session",
             (_text(m["formation_type"]) if m["formation_type"] else "NULL") + " AS formation_type",
@@ -208,7 +213,7 @@ def build_specialites(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
     else:
         con.execute("""CREATE OR REPLACE TABLE core.specialites (session BIGINT, formation_type VARCHAR,
             doublette VARCHAR, aggregation_level VARCHAR, formation_detail VARCHAR, n_candidats BIGINT,
-            n_proposition BIGINT, n_accepte BIGINT, n_voeux BIGINT, source VARCHAR)""")
+            n_proposition BIGINT, n_accepte BIGINT, source VARCHAR)""")
 
 
 CARTO_RULES = {

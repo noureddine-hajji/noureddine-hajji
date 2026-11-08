@@ -551,7 +551,7 @@ def build_journey(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
     CREATE OR REPLACE TABLE mart.spe_filiere AS
     SELECT s.session, k.type_key, any_value(s.formation_type ORDER BY s.formation_type) AS type_label,
-           d.doublette_key, sum(s.n_voeux) AS voeux, sum(s.n_proposition) AS propositions,
+           d.doublette_key, sum(s.n_candidats) AS candidats, sum(s.n_proposition) AS propositions,
            sum(s.n_accepte) AS acceptations
     FROM core.specialites s
     JOIN _type_key k USING (formation_type)
@@ -563,31 +563,45 @@ def build_journey(con: duckdb.DuckDBPyConnection) -> None:
 # --------------------------------------------------------------------------- stage 1
 def stage1(con, dkey: str) -> dict:
     nat = NATIONAL_TYPE
+    has_break = con.execute("""SELECT count(*) FROM information_schema.tables
+                               WHERE table_schema = 'mart' AND table_name = 'spe_break'""").fetchone()[0] > 0
+    # Codex (PR #37): a group's left-out campaigns are also left out of ITS national denominators, so a destination share
+    # (and the national share behind the index) is computed over the same campaigns as its numerator
+    brk = ("SELECT b.type_key, sum(n.a_d) AS a_d, sum(n.a_all) AS a_all FROM mart.spe_break b JOIN nat_s n USING (session) GROUP BY 1"
+           if has_break else "SELECT NULL::VARCHAR AS type_key, 0 AS a_d, 0 AS a_all WHERE FALSE")
     rows = con.execute(f"""
     WITH f AS (
       SELECT type_key, session,
-             sum(voeux) FILTER (WHERE doublette_key = $d) AS v_d,
+             sum(candidats) FILTER (WHERE doublette_key = $d) AS v_d,
              sum(propositions) FILTER (WHERE doublette_key = $d) AS p_d,
              sum(acceptations) FILTER (WHERE doublette_key = $d) AS a_d,
-             sum(voeux) AS v_all, sum(propositions) AS p_all, sum(acceptations) AS a_all
-      FROM mart.spe_filiere GROUP BY ALL),
+             sum(candidats) AS v_all, sum(propositions) AS p_all, sum(acceptations) AS a_all
+      FROM mart.spe_filiere f
+      -- sprint "Doublettes": a campaign with a counting break in a group (doublettes.BREAK_*) is left out, as on every page
+      WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'mart' AND table_name = 'spe_break')
+         OR (type_key, session) NOT IN (SELECT (type_key, session) FROM mart.spe_break)
+      GROUP BY ALL),
     pooled AS (
       SELECT type_key, count(DISTINCT session) AS years, sum(v_d) v_d, sum(p_d) p_d, sum(a_d) a_d,
              sum(v_all) v_all, sum(p_all) p_all, sum(a_all) a_all,
              list({{'session': session, 'offer_rate': p_d / nullif(v_d, 0), 'share': a_d / nullif(a_all, 0),
                    'candidates': v_d}} ORDER BY session) AS trend
       FROM f GROUP BY 1),
-    n AS (SELECT a_d AS nat_a_d, a_all AS nat_a_all, v_d AS nat_v_d, p_d AS nat_p_d FROM pooled WHERE type_key = '{nat}')
+    n AS (SELECT a_d AS nat_a_d, a_all AS nat_a_all, v_d AS nat_v_d, p_d AS nat_p_d FROM pooled WHERE type_key = '{nat}'),
+    nat_s AS (SELECT session, a_d, a_all FROM f WHERE type_key = '{nat}'),
+    brk AS ({brk}),
+    d AS (SELECT p.*, n.*, n.nat_a_d - coalesce(b.a_d, 0) AS den_d, n.nat_a_all - coalesce(b.a_all, 0) AS den_all
+          FROM pooled p CROSS JOIN n LEFT JOIN brk b ON b.type_key = p.type_key)
     SELECT p.type_key, (SELECT any_value(type_label ORDER BY session DESC) FROM mart.spe_filiere m
                         WHERE m.type_key = p.type_key) AS label,
            p.years, p.v_d, p.p_d, p.a_d, p.a_all,
            p.p_d / nullif(p.v_d, 0) AS offer_rate,
            p.p_all / nullif(p.v_all, 0) AS offer_rate_all,
            p.a_d / nullif(p.a_all, 0) AS share,
-           (p.a_d / nullif(p.a_all, 0)) / nullif(n.nat_a_d / nullif(n.nat_a_all, 0), 0) AS lift,
-           p.a_d / nullif(n.nat_a_d, 0) AS destination_share,
-           p.trend, n.nat_a_d, n.nat_a_all, n.nat_v_d, n.nat_p_d
-    FROM pooled p, n
+           (p.a_d / nullif(p.a_all, 0)) / nullif(p.den_d / nullif(p.den_all, 0), 0) AS lift,
+           p.a_d / nullif(p.den_d, 0) AS destination_share,
+           p.trend, p.nat_a_d, p.nat_a_all, p.nat_v_d, p.nat_p_d
+    FROM d p
     ORDER BY destination_share DESC NULLS LAST""", {"d": dkey}).fetchall()
     linked = dict(con.execute("""SELECT r.spe_type_key, count(*) FROM core.taxonomy_link t
         JOIN core.taxonomy_rule r USING (rule_id)
@@ -610,6 +624,14 @@ def stage1(con, dkey: str) -> dict:
         for k in ("nat_a_d", "nat_a_all", "nat_v_d", "nat_p_d"):
             x.pop(k)
         out.append(x)
+    # sprint "Doublettes": when the student's doublette is rare in a group (< 20 candidates over the campaigns), the page
+    # shows the group's "Autres doublettes" bucket as an estimation (doublettes.pick has the same rule)
+    from . import doublettes as DB
+    autres = DB.autres_by_type(con)
+    for x in out:
+        x["rare"] = (x["candidates"] or 0) < DB.THRESHOLD
+        a = autres.get(x["type_key"])
+        x["autres"] = {k: a[k] for k in ("taux", "candidats", "n_doublettes")} if a and x["rare"] else None
     return {"doublette": dkey, "national": national, "filieres": out}
 
 

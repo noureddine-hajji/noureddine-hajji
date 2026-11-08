@@ -91,7 +91,7 @@ def run(con, persona=PERSONA) -> Report:
                         WHERE r.spe_type = 'CPGE S' AND fy.fil_lib_voe_acc IN ('MPSI', 'PCSI')
                         GROUP BY 1""").fetchall()
     rep.check("taxonomy: MPSI and PCSI belong to the filtered CPGE S type", len(cs) == 2, dict(cs))
-    raw = con.execute("""SELECT sum(s.n_voeux), sum(s.n_accepte) FROM core.specialites s
+    raw = con.execute("""SELECT sum(s.n_candidats), sum(s.n_accepte) FROM core.specialites s
         JOIN core.spe_doublette d USING (doublette)
         WHERE d.doublette_key = ? AND coalesce(s.aggregation_level, '0') = '0'
           AND s.formation_type = 'Ensemble des bacheliers'""", [d]).fetchone()

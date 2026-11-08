@@ -377,7 +377,9 @@ def l7(c: Ctx):
                 con.execute("INSERT INTO core.master_onisep VALUES (?, ?, 'titre')", [mention, hit[0]])
 
     def any_university_insertion(con, pid, disc):                  # insertion matched on title alone, any university
-        any_pid = con.execute("SELECT id_paysage FROM core.insersup WHERE id_paysage <> ? AND id_paysage <> 'all' LIMIT 1", [pid]).fetchone()
+        # deterministic: the other university with the most master rows (an unordered LIMIT 1 changed with each warehouse build)
+        any_pid = con.execute("""SELECT id_paysage FROM core.insersup WHERE id_paysage <> ? AND id_paysage <> 'all'
+                                 AND type_diplome = 'Master LMD' GROUP BY 1 ORDER BY count(*) DESC, 1 LIMIT 1""", [pid]).fetchone()
         a, y = orig_ins(con, pid, disc)
         b, _ = orig_ins(con, any_pid[0], disc) if any_pid else ({}, y)
         return {**b, **a} if not a else {**a, **{k: v for k, v in b.items() if k not in a}}, y

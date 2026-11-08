@@ -15,7 +15,7 @@
 :root {
   --bg: #f7f6f8; --surface: #ffffff; --ink: #1e1b22; --muted: #625d69; --line: #e2dfe6;
   --accent: #8e2a6b;
-  --zone-securite: #1e7a46; --zone-cible: #2b5fd9; --zone-ambitieux: #c4581f; --accent-soft: #f6e8f1; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
+  --zone-securite: #1e7a46; --zone-cible: #2b5fd9; --zone-ambitieux: #c4581f; --voie-bg: #00838f; --voie-bt: #8a6d00; --voie-bp: #6b4bb8; --accent-soft: #f6e8f1; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
   --c1: #2b5fd9; --c2: #e07b39; --c3: #2e9e6a; --c4: #a64fb6; --c5: #c9a227; --c6: #8a94a3;
   --box: #c9d6f5; --range: #e6ebf7;
   --good: #1e7a46; --bad: #b3261e; --warn: #8a5a00;
@@ -24,7 +24,7 @@
   :root:not([data-theme="light"]) {
     --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d;
     --accent: #e590c4;
-    --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
+    --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #7ea2ff; --c2: #f2a46b; --c3: #5cc596; --c4: #cf8bdc; --c5: #e3c35a; --c6: #a3acb9;
     --box: #3a4f86; --range: #283247;
     --good: #6fd39c; --bad: #ff8f86; --warn: #f3cf8a;
@@ -33,7 +33,7 @@
 :root[data-theme="dark"] {
   --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d;
   --accent: #e590c4;
-  --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
+  --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
   --c1: #7ea2ff; --c2: #f2a46b; --c3: #5cc596; --c4: #cf8bdc; --c5: #e3c35a; --c6: #a3acb9;
   --box: #3a4f86; --range: #283247;
   --good: #6fd39c; --bad: #ff8f86; --warn: #f3cf8a;
@@ -316,3 +316,14 @@ table.cmp th:not(:first-child), table.cmp td:not(:first-child) { min-width: 140p
   table.stack tr.planb-row td { display: block; }
   .result .badge { margin-bottom: 2px; }
 }
+
+/* ---- sprint "Doublettes": the bac route (voie) has its own colours, never the zones' or the accent; always with its name ---- */
+.voie-pill { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: var(--r-pill); border: 1px solid currentColor;
+  font-size: var(--fs-sm); font-weight: 700; background: var(--surface); }
+.voie-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dbl-bar { display: block; height: 8px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; margin-top: 4px; }
+.dbl-bar > i { display: block; height: 100%; border-radius: var(--r-pill); }
+.dbl-mine td { font-weight: 700; }
+.estim { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; }
+.dbl-est { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); margin: 6px 0 12px; }
+.dbl-est p { margin: 4px 0; }
