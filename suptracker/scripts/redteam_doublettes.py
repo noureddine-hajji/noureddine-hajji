@@ -281,9 +281,16 @@ def d4(c: Ctx):
     cods = [x for (x,) in c.con.execute("""SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
                                             ORDER BY hash(cod_aff_form) LIMIT ?""", [20 if c.real else 6]).fetchall()]
     bad = []
-    for cod in cods:
-        s = M["DB"].series(c.con, cod)
-        lin = c.con.execute("SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? ORDER BY session DESC LIMIT 1", [cod]).fetchone()[0]
+    # Codex (PR #37): codes that belong to several lineages, read at EACH of their campaigns (the page of an older session)
+    multi = c.con.execute("""SELECT cod_aff_form, session FROM core.lineage WHERE cod_aff_form IN (
+                               SELECT cod_aff_form FROM core.lineage GROUP BY 1 HAVING count(DISTINCT lineage_id) > 1 ORDER BY hash(cod_aff_form) LIMIT 4)
+                             ORDER BY 1, 2""").fetchall()
+    for cod, ses in [(x, None) for x in cods] + multi:
+        s = M["DB"].series(c.con, cod, ses) if ses is not None else M["DB"].series(c.con, cod)
+        lin = c.con.execute("SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? AND (? IS NULL OR session = ?)",
+                            [cod, ses, ses]).fetchone()[0]
+        if ses is not None and M["DB"].for_formation(c.con, cod, ses)["series"] != s:
+            bad.append((cod, ses, "page block not from this session's lineage"))
         rows = c.con.execute("""SELECT fy.session, nb_voe_pp_bg, nb_voe_pc_bg, prop_tot_bg, nb_voe_pp_bt, nb_voe_pc_bt, prop_tot_bt,
                                        nb_voe_pp_bp, nb_voe_pc_bp, prop_tot_bp FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
                                 WHERE l.lineage_id = ? ORDER BY 1""", [lin]).fetchall()
@@ -295,7 +302,7 @@ def d4(c: Ctx):
                 bad.append((cod, v, got[-1:], exp[-1:]))
             if s[v]["fragile"] != ((s[v]["candidats"] or 0) < 20):
                 bad.append((cod, v, "fragile"))
-    return not bad, f"{len(cods)} formations; problems {bad[:3]}"
+    return not bad, f"{len(cods)} formations + {len(multi)} (code, campaign) pairs of codes in several lineages; problems {bad[:3]}"
 
 
 def _rgb(h):
@@ -540,6 +547,12 @@ PY_MUTANTS = [
     ("rate on acceptations", 'return {"candidats": cand, "propositions": prop, "acceptations": acc, "taux": rate(prop, cand),',
      'return {"candidats": cand, "propositions": prop, "acceptations": acc, "taux": rate(acc, cand),'),
 ]
+# only meaningful when the warehouse has codes in several lineages (the real one has 812; the synthetic fixture none)
+LINEAGE_MUTANTS = [
+    ("route figures from the code's latest lineage", "WHERE cod_aff_form = ? AND (? IS NULL OR session = ?)\n                         ORDER BY session DESC LIMIT 1\"\"\", [cod, session, session]",
+     "WHERE cod_aff_form = ? AND (? IS NULL OR TRUE)\n                         ORDER BY session DESC LIMIT 1\"\"\", [cod, session]"),
+    ("page block ignores the session", '    return {"series": series(con, cod, session), "groupe": g,', '    return {"series": series(con, cod), "groupe": g,'),
+]
 JOURNEY_MUTANTS = [
     ("stage 1 keeps the break campaigns", "         OR (type_key, session) NOT IN (SELECT (type_key, session) FROM mart.spe_break)", "         OR TRUE"),
     ("destination share over every campaign", "p.a_d / nullif(p.den_d, 0) AS destination_share", "p.a_d / nullif(p.nat_a_d, 0) AS destination_share"),
@@ -590,7 +603,10 @@ def d9(c: Ctx):
                 pass
         return False
     has_break = c.con.execute("SELECT count(*) FROM mart.spe_break").fetchone()[0] > 0
-    for group, path, slot in ((PY_MUTANTS, DBL_PY, "DB"), (JOURNEY_MUTANTS if has_break else [], JOURNEY_PY, "J")):
+    has_multi = c.con.execute("""SELECT count(*) FROM (SELECT cod_aff_form FROM core.lineage GROUP BY 1
+                                                     HAVING count(DISTINCT lineage_id) > 1)""").fetchone()[0] > 0
+    for group, path, slot in ((PY_MUTANTS + (LINEAGE_MUTANTS if has_multi else []), DBL_PY, "DB"),
+                              (JOURNEY_MUTANTS if has_break else [], JOURNEY_PY, "J")):
         for name, old, new in group:
             m = mutated(f"suptracker._mut_{slot}", path, old, new)
             if m is None:

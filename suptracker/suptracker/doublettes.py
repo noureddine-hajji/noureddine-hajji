@@ -141,9 +141,11 @@ def type_of(con, cod: str, session: int | None = None) -> str | None:
     return r[0] if r else None
 
 
-def series(con, cod: str) -> dict:
-    """Per-route proposal rate of THIS formation, each campaign of its lineage (the sprint-B4 indicator)."""
-    lin = con.execute("""SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? ORDER BY session DESC LIMIT 1""", [cod]).fetchone()
+def series(con, cod: str, session: int | None = None) -> dict:
+    """Per-route proposal rate of THIS formation, each campaign of its lineage (the sprint-B4 indicator). A code can belong to
+    several lineages over the campaigns (812 codes do): the lineage is the one of (cod, session), the record the page shows (Codex)."""
+    lin = con.execute("""SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? AND (? IS NULL OR session = ?)
+                         ORDER BY session DESC LIMIT 1""", [cod, session, session]).fetchone()
     where = "l.lineage_id = ?" if lin else "fy.cod_aff_form = ?"
     arg = lin[0] if lin else cod
     cols = ", ".join(f"{J.series_candidates_sql(s)} AS c_{s}, fy.prop_tot_{s} AS p_{s}" for s in VOIES)
@@ -162,7 +164,7 @@ def for_formation(con, cod: str, session: int | None = None) -> dict:
     """The block of the formation page: per route for this formation, per doublette for its group (national)."""
     t = type_of(con, cod, session)
     g = for_group(con, t)
-    return {"series": series(con, cod), "groupe": g, "status": "ok" if g else "sans_groupe"}
+    return {"series": series(con, cod, session), "groupe": g, "status": "ok" if g else "sans_groupe"}
 
 
 def autres_by_type(con) -> dict:
