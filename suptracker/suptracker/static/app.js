@@ -1580,7 +1580,7 @@ async function viewMetier(id, from = "") {
   };
   const status = d.status === "sans_diplome" ? `<div class="info">L'Onisep ne relie aucune fiche diplôme à ce métier.</div>`
     : d.status === "hors_parcoursup" ? `<div class="info">Les diplômes qui mènent à ce métier ne sont pas sur Parcoursup (ils se préparent après un premier diplôme, ou dans une école) : regardez leur fiche Onisep.</div>` : "";
-  const nForm = d.diplomes.reduce((s, x) => s + (x.parcoursup ? x.formations.length : 0), 0);
+  const nForm = d.n_formations;                                       // distinct formations (one may prepare several diplomas)
   const read = (d.emploi2030 || []).filter((f) => !f.absent && f.lecture).map((f) => f.lecture);
   const word = { debutants_insuffisants: "Recrute au-delà des débutants", debutants_nombreux: "Entrée plus disputée", incertain: "Pas de conclusion" };
   // fixed rule (sprint 16): every family read agrees, else no conclusion

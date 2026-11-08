@@ -181,7 +181,10 @@ def metier_title(d: dict) -> str:
 
 
 def metier_description(d: dict) -> str:
-    n_f = sum(len(x.get("formations") or []) for x in d.get("diplomes") or [] if x.get("parcoursup"))
+    # a formation linked to several diploma sheets of the job counts once (Codex): the job page's own distinct count
+    n_f = d.get("n_formations")
+    if n_f is None:
+        n_f = len({f["cod_aff_form"] for x in d.get("diplomes") or [] for f in (x.get("formations") or [])})
     lvl = f"Niveau d'études minimum : {d['niveau_acces_min']}. " if d.get("niveau_acces_min") else ""
     return (f"{d['nom']} : {lvl}{num(len(d.get('diplomes') or []))} diplôme(s) d'après l'Onisep, {num(n_f)} formation(s) Parcoursup "
             f"pour s'y préparer. Liste nationale, pas une promesse d'emploi.")

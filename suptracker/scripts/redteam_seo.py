@@ -164,6 +164,13 @@ class Ctx:
             if j and j[0] not in self.sample:
                 self.sample.append(j[0])
         self.job_sample = (self.jobs[:: max(1, len(self.jobs) // 6)][:6]) if self.jobs else []
+        # a job where one formation prepares several of its diplomas (Codex: counted once, not once per diploma)
+        dup = con.execute("""SELECT fm.met_id FROM core.onisep_formation_metier fm JOIN core.onisep_link l USING (for_id)
+                             WHERE l.session = ? GROUP BY fm.met_id, l.cod_aff_form HAVING count(DISTINCT fm.for_id) > 1
+                             ORDER BY 1 LIMIT 1""", [self.last]).fetchone() if has_jobs and con.execute(
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema='core' AND table_name='onisep_link'").fetchone()[0] else None
+        if dup and dup[0] not in self.job_sample:
+            self.job_sample.append(dup[0])
         self.published = {c: dict(zip(("taux", "acc", "capa", "etab", "ville", "lib"), r)) for c, *r in con.execute(
             """SELECT cod_aff_form, taux_acces_ens, acc_tot, capa_fin, g_ea_lib_vx, ville_etab, lib_for_voe_ins
                FROM core.formation_year WHERE session = ?""", [self.last]).fetchall() if c in self.sample}
@@ -267,9 +274,13 @@ def metier_ok(html: str, url: str, api_d: dict) -> tuple[bool, str]:
     head = (api_d["nom"] in title and title.endswith("| SupCompass") and h.links.get("canonical") == url
             and h.meta.get("robots") == "index, follow" and bool(h.meta.get("description")))
     ld_ok = bool(ld) and ld[0].get("@type") == "Occupation" and ld[0].get("name") == api_d["nom"]
+    distinct = len(known)                                   # each formation once, whatever the number of its diplomas
+    m = re.search(r"([\d\u202f]+) formation\(s\) Parcoursup", h.meta.get("description") or "")
+    count_ok = bool(m) and int(m.group(1).replace("\u202f", "")) == distinct
     words = "pas une promesse d’emploi" in h.text and "Onisep, Idéo (licence ODbL)" in h.text and not CHANCE.search(h.text)
-    ok = dips and links_ok and head and ld_ok and words
-    return ok, f"every diploma listed {dips}; links to real formations {links_ok} ({len(links)}); head {head}; JSON-LD {ld_ok}; wording {words}"
+    ok = dips and links_ok and head and ld_ok and words and count_ok
+    return ok, (f"every diploma listed {dips}; links to real formations {links_ok} ({len(links)}); head {head}; JSON-LD {ld_ok}; "
+                f"wording {words}; distinct formations in the description {count_ok} ({m and m.group(1)} vs {distinct})")
 
 
 @check("G3 job pages: head tags, canonical, JSON-LD, every diploma of /api/metier, formation links real, caveat and credit")
@@ -462,6 +473,7 @@ MUTANTS = [
     ("sitemap lists every campaign", '"SELECT DISTINCT cod_aff_form FROM core.formation_year WHERE session = ? ORDER BY 1", [last]',
      '"SELECT DISTINCT cod_aff_form FROM core.formation_year WHERE session <= ? ORDER BY 1", [last]'),
     ("jobs left out of the sitemap", 'paths += [f"/metier/{m}"', 'paths += [f"/metiers/{m}"'),
+    ("formations counted once per diploma", '    n_f = d.get("n_formations")\n', '    n_f = sum(len(x.get("formations") or []) for x in d.get("diplomes") or [])\n'),
     ("canonical from the visitor's host", '    prod = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")', "    prod = None"),
     ("robots blocks the data the pages render from", 'ROBOTS_OFF = ("/api/search",', 'ROBOTS_OFF = ("/api/", "/api/search",'),
     ("robots lets crawlers into search", 'ROBOTS_OFF = ("/api/search", ', 'ROBOTS_OFF = ('),
