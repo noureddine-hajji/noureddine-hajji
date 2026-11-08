@@ -469,15 +469,31 @@ function carteMerge(neutral, stage2, ok) {
   const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
   return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
 }
-// every filter in one pure function (red team C3 runs it against an independent Python reading)
-function carteFilter(rows, F) {
+// the filter groups, inspired by the Parcoursup map: each group is a list of ticked options; an empty group keeps all.
+// "prive" (fee-charging private institutions) is never ticked by default (Plan B's rule)
+const CARTE_GROUPS = [
+  ["statut", "Types d'établissement", [["public", "Publics"], ["contrat", "Privés sous contrat avec l'État / EESC"], ["prive", "Privés (payants)"]]],
+  ["internat", "Internat", [["mixte", "Internat filles et garçons"], ["filles", "Internat pour filles"], ["garcons", "Internat pour garçons"]]],
+  ["amenag", "Aménagements", [["presentiel", "Enseignement en présentiel"], ["partielle", "Enseignement partiellement à distance"], ["totale", "Enseignement entièrement à distance"],
+    ["sport", "Aménagements pour sportifs de haut niveau"], ["art", "Aménagements pour artistes confirmés"]]],
+  ["select", "Autres", [["oui", "Formations sélectives"], ["non", "Formations non sélectives"]]],
+];
+const CARTE_DEFAULT = { statut: ["public", "contrat"] };
+// does a formation carry an option of a group (one pure function, re-derived by red team C3)
+function carteHas(f, g, o) {
+  if (g === "statut") return f.statut === o;
+  if (g === "internat") return f.internat === o;
+  if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
+  if (g === "select") return o === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective";
+  if (g === "zones") return carteZone(f) === o;
+  return false;
+}
+// every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
+function carteFilter(rows, F, skip) {
   const q = (F.q || "").trim().toLowerCase();
-  return rows.filter((f) => (!F.academie || f.academie === F.academie)
-    && (F.payant || !f.payant)
-    && (!F.statut || (F.statut === "public" ? f.contrat_etab === "Public" : f.contrat_etab !== "Public"))
-    && (!F.select || (F.select === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective"))
-    && (!F.internat || (f.internat && f.internat !== "non"))
-    && (!F.zones || !F.zones.length || F.zones.includes(carteZone(f)))
+  const groups = ["statut", "internat", "amenag", "select", "zones"].filter((g) => g !== skip);
+  return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
+    && (!F.academie || f.academie === F.academie)
     && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
     && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km)));
 }
@@ -512,11 +528,13 @@ function carteRing(group) {
   return { size, html: `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${n} formations : ${esc(label)}. Zoomer"><circle cx="${o}" cy="${o}" r="${r}" fill="var(--surface)"/>${arcs}
     <text x="${o}" y="${o}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="var(--ink)">${n}</text></svg>` };
 }
+// the mention when the formation's own label does not already say it (CPGE "ECG", BTS options...)
+const carteMentionTail = (f) => (f.mention && !String(f.formation || "").toLowerCase().includes(String(f.mention).toLowerCase()) ? ` · ${esc(f.mention)}` : "");
 function carteDetail(f, hasProfile) {
   if (!f) return "";
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
-    <p class="small">${esc(f.formation)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
+    <p class="small">${esc(f.formation)}${carteMentionTail(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
     <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/parcours">Indiquez votre profil</a> pour voir votre zone.`}
     · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
     <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
@@ -525,7 +543,7 @@ function carteList(rows, hasProfile) {
   const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
   return `<div class="carte-list">${part.map((f) => { const z = carteZone(f);
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
@@ -535,42 +553,37 @@ function carteLeaflet() {
   const load = (tag, attrs) => new Promise((ok, ko) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = ko; document.head.appendChild(el); });
   return Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
 }
-async function viewCarte(typeArg) {
-  const T = await api("/api/carte");
-  const known = (k) => T.types.some((t) => t.type_key === k);
-  const type = [typeArg, store.get("carteType", null)].find(known) || (T.types[0] && T.types[0].type_key);   // stored value never trusted
-  store.set("carteType", type);
+async function viewCarte(dArg, mArg) {
+  const FAC = await api("/api/carte");
+  // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
+  if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
+  const known = (d) => FAC.diplomes.find((x) => x.label === d);
+  const D = known(dArg) || known(store.get("carteDiplome", null)) || known("BUT") || FAC.diplomes[0];   // stored value never trusted
+  const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
+  store.set("carteDiplome", D.label);
   const P = store.get("profile", null);
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   const ok = P && (serie !== "bg" || (P.spe1 && P.spe2 && P.spe1 !== P.spe2)) && ["sm", "ab", "b", "tb"].includes(P.mention);
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
-  const [L0, Z] = await Promise.all([api(`/api/carte/${encodeURIComponent(type)}`),
-    ok ? api(`/api/journey/stage2?${sq}&mention=${P.mention}&type=${encodeURIComponent(type)}`).catch(() => null) : null, carteLeaflet().catch(() => null)]);
+  const dq = `diplome=${encodeURIComponent(D.label)}${mention ? `&mention=${encodeURIComponent(mention)}` : ""}`;
+  const [L0, Z] = await Promise.all([api(`/api/carte/formations?${dq}`),
+    ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${P.mention}`).catch(() => null) : null, carteLeaflet().catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
   if (Z) track("journey", { stage: "stage2" });
-  const rows = carteMerge(L0.formations, Z, ok);
-  const F = store.get("carteFiltres", {}) || {};
-  if (!ok) F.zones = [];
+  const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
+  const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres", {}) || {}) };
+  for (const [g, , opts] of CARTE_GROUPS) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
+  F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
-  const zoneBox = (z) => `<label class="small"><input type="checkbox" data-zone="${z}" ${(F.zones || []).includes(z) ? "checked" : ""} ${ok ? "" : "disabled"}> <i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}</label>`;
+  const goTo = (d, m) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(d)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
   $view.innerHTML = `<div class="card"><h1>Carte des formations</h1>
     <p class="small">${ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
-    <label class="small">Type de formation <select id="ctype">${T.types.map((t) => `<option value="${esc(t.type_key)}" ${t.type_key === type ? "selected" : ""}>${esc(t.label)} (${fmt(t.n)})</option>`).join("")}</select></label></div>
+    <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
+    <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
   <div class="carte-layout">
-    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>Filtrer</summary><div class="filter-grid">
-      <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
-      <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
-      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
-      <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
-      <label class="small">Statut <select id="cstat"><option value="">Tous</option><option value="public" ${F.statut === "public" ? "selected" : ""}>Public</option><option value="prive" ${F.statut === "prive" ? "selected" : ""}>Privé</option></select></label>
-      <label class="small">Sélectivité <select id="csel"><option value="">Toutes</option><option value="oui" ${F.select === "oui" ? "selected" : ""}>Sélectives</option><option value="non" ${F.select === "non" ? "selected" : ""}>Non sélectives</option></select></label>
-      <label class="small"><input type="checkbox" id="cint" ${F.internat ? "checked" : ""}> Avec internat</label>
-      <label class="small"><input type="checkbox" id="cpay" ${F.payant ? "checked" : ""}> Inclure les établissements privés payants</label>
-      <fieldset class="small"><legend>Zones${ok ? "" : " (avec un profil)"}</legend>${[...CARTE_ZONES, "autre"].map(zoneBox).join("")}</fieldset>
-      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>
-    </div></details>
+    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>Filtrer</summary><div class="filter-grid" id="cfilters"></div></details>
     <div class="carte-main">
       <div class="legend" id="carte-legend"></div>
       <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
@@ -588,18 +601,43 @@ async function viewCarte(typeArg) {
     carteUI.map = L.map(box, { zoomControl: true }).fitBounds([[41.3, -5.2], [51.1, 9.6]]);   // metropolitan France on any screen
     L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB }).addTo(carteUI.map);
     carteUI.layer = L.layerGroup().addTo(carteUI.map);
-    if (carteUI.type === type && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    if (carteUI.type === D.label + mention && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
     carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
   }
-  carteUI.type = type;
+  carteUI.type = D.label + mention;
   const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
+  // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
+  function panel() {
+    const box2 = (g, o, label) => { const n = carteFilter(rows, F, g).filter((f) => carteHas(f, g, o)).length;
+      return `<label class="small"><input type="checkbox" data-g="${g}" data-o="${o}" ${(F[g] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
+    const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
+    document.getElementById("cfilters").innerHTML = `
+      <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
+      <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
+      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
+      ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
+      ${CARTE_GROUPS.map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
+        ${g === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
+      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
+    document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
+    document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
+    const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
+      F.autour = t ? { ...t, km, ville: v } : null;
+      if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
+      save(); };
+    document.getElementById("ctown").onchange = setTown;
+    document.getElementById("ckm").onchange = setTown;
+    document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
+      const g = el.dataset.g; F[g] = [...document.querySelectorAll(`[data-g="${g}"]:checked`)].map((x) => x.dataset.o); save(); }; });
+  }
   function draw() {
     const kept = carteFilter(rows, F);
     kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
     const listed = kept.filter((f) => inView(f) || f.lat == null)
       .sort((a, b) => (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0) || a.etablissement.localeCompare(b.etablissement, "fr"));
     const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
-    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} · ${fmt(listed.length)} dans la partie visible de la carte`;
+    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte`;
     document.getElementById("carte-legend").innerHTML = ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
     if (carteUI.map) {
       carteUI.layer.clearLayers();
@@ -630,21 +668,10 @@ async function viewCarte(typeArg) {
     if (focus && f && f.lat != null && carteUI.map) carteUI.map.setView([f.lat, f.lon], Math.max(carteUI.map.getZoom(), 12));
     if (focus) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
   }
-  const save = () => { store.set("carteFiltres", F); carteUI.page = 0; draw(); };
-  document.getElementById("ctype").onchange = (e) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(e.target.value)}`; };
-  document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(); };
-  document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
-  const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
-    F.autour = t ? { ...t, km, ville: v } : null;
-    if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
-    save(); };
-  document.getElementById("ctown").onchange = setTown;
-  document.getElementById("ckm").onchange = setTown;
-  document.getElementById("cstat").onchange = (e) => { F.statut = e.target.value; save(); };
-  document.getElementById("csel").onchange = (e) => { F.select = e.target.value; save(); };
-  document.getElementById("cint").onchange = (e) => { F.internat = e.target.checked; save(); };
-  document.getElementById("cpay").onchange = (e) => { F.payant = e.target.checked; save(); };
-  document.querySelectorAll("[data-zone]").forEach((el) => { el.onchange = () => { F.zones = [...document.querySelectorAll("[data-zone]:checked")].map((x) => x.dataset.zone); save(); }; });
+  function save(repanel = true) { store.set("carteFiltres", F); carteUI.page = 0; if (repanel) panel(); draw(); }
+  document.getElementById("cdip").onchange = (e) => goTo(e.target.value, "");
+  document.getElementById("cmen").onchange = (e) => goTo(D.label, e.target.value);
+  panel();
   draw();
 }
 
@@ -1625,7 +1652,7 @@ async function viewParcours() {
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
     <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
-    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
+    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
     ${repereNote(s2.calibration)}
     ${scatter(F, (f) => pin(f))}
@@ -2207,7 +2234,7 @@ async function route() {
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
     if (a === "voeux") return await viewVoeux();
-    if (a === "carte") return await viewCarte(b || "");
+    if (a === "carte") return await viewCarte(b || "", c || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");

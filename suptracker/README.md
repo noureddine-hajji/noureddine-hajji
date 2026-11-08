@@ -869,7 +869,10 @@ before the merge.
 
 **What the page does (`#/carte`, menu "Carte"; on a phone under "Plus"; from "Mon parcours": "Voir ces formations sur la
 carte"):**
-- **Choosing.** One filière type at a time, the 59 types of "Mon parcours".
+- **Choosing, in two levels like the owner asked (2026-11-08):** the TYPE of diploma (BTS - BTSA - BTSM, BUT, Licence, Double licence,
+  Licence Accès Santé, PASS, CPGE ECG, CPGE ECT, CPGE scientifique, CPES, DCG, écoles d'ingénieurs...: 34 types covering the
+  14 252 formations, each exactly once), then its MENTION (BUT Science des données, CPGE ECG Mathématiques appliquées + ESH,
+  Double licence Mathématiques / Informatique...). Both come from the published labels by fixed rules (`carte.diplome_of`).
 - **The map.** It is OpenStreetMap (the owner's choice, 2026-11-08: the site's own drawn map was removed).
   - Every formation of the latest campaign is placed on the map.
   - With a profile, it is coloured by the student's zone with the site's zone tokens, and each zone also has its own shape:
@@ -878,15 +881,20 @@ carte"):**
   - Close points form a group: a ring split by zone, with its count. Clicking it zooms in. From zoom 16, every formation
     is drawn on its own.
   - Clicking a formation opens a short card: zone, official access rate, "Ajouter à mes vœux", the full page.
-- **Filters.** Name or town, académie, around a town (10 to 200 km; the map centres on it), public or private,
-  selectivity, boarding, zones. Fee-charging private institutions are shown only on request and flagged (Plan B's rule).
+- **Filters, inspired by the Parcoursup map** (each option with its count among what the other filters keep): types
+  of establishment (public; private under contract / EESC; private, i.e. fee-charging, unticked by default: Plan B's rule),
+  boarding (mixed, girls, boys), arrangements (on site, partly or fully at a distance, top-level athletes, confirmed
+  artists), others (selective or not), the student's zone; plus name or town, académie and around a town (10 to 200 km;
+  the map centres on it). No apprenticeship filter: apprenticeship is nearly absent from the SIES statistics after 2022
+  (a note says so).
 - **The list.** It shows the formations in view, plus those without coordinates ("non localisée"), in pages of 20 on a
   phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
 
 **Rules:**
 - The zones are NOT computed by the map: they are the `/api/journey/stage2` rows, the same as "Mon parcours", Plan B and
   Mes vœux.
-- `/api/carte/<type>` (cacheable) only gives the neutral layer.
+- `/api/carte` gives the types of diploma and mentions, `/api/carte/formations` the neutral layer; `/api/carte/zones` asks
+  `journey.stage2` on each formation's own type with `only=` its codes (all cacheable).
 - The town and the radius stay in the browser: no API call to the site carries a position.
 - **OpenStreetMap:**
   - Leaflet 1.9.4 is self-hosted in `static/vendor/leaflet/` (BSD-2 licence) and loaded by the map page only, never by

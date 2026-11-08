@@ -65,6 +65,8 @@ class Ctx:
             WHERE t.session = ? GROUP BY 1 ORDER BY n DESC""", [latest]).fetchall()
         self.types = [b[0] for b in big[: (6 if real else len(big))]]
         self.fil = con.execute("SELECT fil_lib_voe_acc FROM core.formation_year WHERE cod_aff_form = ? LIMIT 1", [self.cod]).fetchone()[0]
+        from suptracker import carte as CA                   # the map's smallest type of diploma (sprint "Carte")
+        self.diplome = min(CA.facets(con)["diplomes"], key=lambda d: d["n"])["label"]
         con.close()
 
     def samples(self):
@@ -81,7 +83,8 @@ class Ctx:
             "/api/lycees": "/api/lycees", "/api/planb/{cod}": f"/api/planb/{c}?{bg}",
             "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/continuity": "/api/continuity",
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
-            "/api/carte": "/api/carte", "/api/carte/{type_key}": "/api/carte/" + __import__("urllib.parse").parse.quote(self.type_key),
+            "/api/carte": "/api/carte", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
+            "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
             "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",

@@ -730,18 +730,32 @@ def journey_persona():
 
 
 @app.get("/api/carte")
-def carte_types():
-    """Sprint "Carte": the filière types the map can show."""
-    return {"types": CA.types(_con().cursor())}
+def carte_facets():
+    """Sprint "Carte": every type of diploma and its mentions, with their counts (two-level filter)."""
+    return CA.facets(_con().cursor())
 
 
-@app.get("/api/carte/{type_key}")
-def carte(type_key: str):
-    """Sprint "Carte": the neutral layer of one filière type (no profile; the zones come from /api/journey/stage2)."""
-    res = CA.formations(_con().cursor(), type_key)
+@app.get("/api/carte/formations")
+def carte_formations(diplome: str, mention: str | None = None):
+    """Sprint "Carte": the neutral layer of a type of diploma (and mention); no profile, no position."""
+    res = CA.public(CA.formations(_con().cursor(), diplome, mention or None))
     if res is None:
-        raise HTTPException(404, "type de formation inconnu")
+        raise HTTPException(404, "type de diplôme inconnu")
     return res
+
+
+@app.get("/api/carte/zones")
+def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|ab|b|tb)$"),
+                mention: str | None = None, spe1: str | None = None, spe2: str | None = None,
+                serie: str = Query("bg", pattern="^(bg|bt|bp)$")):
+    """Sprint "Carte": the zones of "Mon parcours" for these formations (journey.stage2 on their own types)."""
+    _journey_ready()
+    dkey = None
+    if serie == "bg":
+        if not spe1 or not spe2 or spe1 == spe2:
+            raise HTTPException(422, "deux spécialités différentes sont requises")
+        dkey = J.doublette_key(spe1, spe2)
+    return CA.zones(_con().cursor(), diplome, mention or None, dkey, mention_bac, serie)
 
 
 @app.get("/api/journey/vocab")

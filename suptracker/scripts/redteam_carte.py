@@ -1,4 +1,4 @@
-"""Red team of the "Carte" sprint: the formations of one filière on a map, coloured by the student's zone.
+"""Red team of the "Carte" sprint: the formations on an OpenStreetMap map, filtered like Parcoursup (type of diploma, mention), coloured by zone.
     python scripts/redteam_carte.py [--db data/suptracker.duckdb] [--real]
   C1 zones: the map's zone of every formation is the "Mon parcours" one (journey.stage2), as is (page merge run in Node);
      no zone without a profile
@@ -57,9 +57,10 @@ class Ctx:
         self.con = duckdb.connect(str(db), read_only=True)
         self.js = (STATIC / "app.js").read_text()
         self.html = (STATIC / "index.html").read_text()
-        t = M["CA"].types(self.con)
-        self.types = [x["type_key"] for x in t]
-        self.sample = self.types[:3] + self.types[-2:] if real else self.types[:4]
+        self.fac = M["CA"].facets(self.con)
+        labels = [d["label"] for d in self.fac["diplomes"]]
+        want = ["BUT", "CPGE ECG", "Double licence", "BTS - BTSA - BTSM"]
+        self.sample = [d for d in want if d in labels] if real else sorted(labels, key=lambda d: -next(x["n"] for x in self.fac["diplomes"] if x["label"] == d))[:3]
 
 
 def block(js: str, start: str, end: str) -> str:
@@ -111,7 +112,7 @@ def py_filter(rows, F):
 
 
 # ------------------------------------------------------------------ checks
-@check("C1 zones on the map = 'Mon parcours' zones (page merge in Node); none without a profile")
+@check("C1 zones on the map = 'Mon parcours' zones (full type stage 2, independent); page merge in Node; none without a profile")
 def c1(c: Ctx):
     js = carte_js(c.js)
     m = re.search(r"function carteMerge\(neutral, stage2, ok\) \{.*?\n\}", js, re.S)
@@ -119,24 +120,29 @@ def c1(c: Ctx):
         return False, "carteMerge missing"
     bad, n = [], 0
     dk = J.doublette_key("MATHS", "SES")
-    for tk in c.sample[:3]:
-        lay = M["CA"].formations(c.con, tk)
-        s2 = J.public_stage2(J.stage2(c.con, dk, "ab", tk, None))
-        want = {f["cod_aff_form"]: f["zone"] for f in s2["formations"]}
-        got = node(m.group(0) + """
-const [n, s, ok] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    for d in c.sample[:2]:
+        lay = M["CA"].formations(c.con, d)
+        got = M["CA"].zones(c.con, d, None, dk, "ab", "bg")["zones"]
+        want = {}
+        for tk in {f["type_key"] for f in lay["formations"] if f["type_key"]}:          # the FULL type, as Mon parcours reads it
+            want.update({f["cod_aff_form"]: f["zone"] for f in J.stage2(c.con, dk, "ab", tk, None)["formations"]})
+        mine = {f["cod_aff_form"] for f in lay["formations"]}
+        want = {k: v for k, v in want.items() if k in mine}
+        if got != want:
+            bad.append((d, len(got), len(want), [k for k in want if got.get(k) != want[k]][:3]))
+        page = node(m.group(0) + """
+const [n, s] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify([carteMerge(n, s, true).map((f) => [f.cod_aff_form, f.zone]), carteMerge(n, s, false).every((f) => f.zone === null)]));""",
-                   [lay["formations"], {"formations": [{"cod_aff_form": k, "zone": v} for k, v in want.items()]}, True])
-        if got is None:
+                    [M["CA"].public(lay)["formations"], {"formations": [{"cod_aff_form": k, "zone": v} for k, v in got.items()]}])
+        if page is None:
             return True, "node not installed"
-        if isinstance(got, dict):
-            return False, got["error"]
-        merged, neutral = got
+        if isinstance(page, dict):
+            return False, page["error"]
+        merged, neutral = page
         n += len(merged)
-        diff = [(k, z, want.get(k)) for k, z in merged if z != want.get(k)]
-        if diff or not neutral:
-            bad.append((tk, diff[:3], neutral))
-    return not bad and n > 0, f"{n} formations over {min(3, len(c.sample))} types; problems {bad[:2]}"
+        if [(k, z) for k, z in merged if z != got.get(k)] or not neutral:
+            bad.append((d, "page merge"))
+    return not bad and n > 0, f"{n} formations over {min(2, len(c.sample))} types of diploma; problems {bad[:2]}"
 
 
 @check("C2 groups: every drawn formation in exactly one group of one cell (Node); no formation without coordinates dropped")
@@ -162,65 +168,109 @@ process.stdout.write(JSON.stringify(carteClusters(pts, cell).map((g) => g.map((p
     return ok, f"{len(pts)} points in {len(out)} groups (want {want}); each once {sorted(codes) == sorted(p['f']['cod_aff_form'] for p in pts)}; one cell per group {one_cell}; unlocated listed {listed}"
 
 
-CRAFT = [
-    {"cod_aff_form": "1", "etablissement": "Lycée A", "formation": "BTS X", "ville": "Lyon", "academie": "Lyon", "lat": 45.76, "lon": 4.84,
-     "contrat_etab": "Public", "select_form": "formation sélective", "internat": "mixte", "payant": False, "zone": "cible"},
-    {"cod_aff_form": "2", "etablissement": "École B", "formation": "BTS X", "ville": "Villeurbanne", "academie": "Lyon", "lat": 45.77, "lon": 4.88,
-     "contrat_etab": "Privé enseignement supérieur", "select_form": "formation sélective", "internat": "non", "payant": True, "zone": "securite"},
-    {"cod_aff_form": "3", "etablissement": "Lycée C", "formation": "BTS X", "ville": "Paris", "academie": "Paris", "lat": 48.85, "lon": 2.35,
-     "contrat_etab": "Privé sous contrat d'association", "select_form": "formation non sélective", "internat": None, "payant": False, "zone": None},
-    {"cod_aff_form": "4", "etablissement": "Lycée D", "formation": "BTS X", "ville": "Papeete", "academie": "Polynésie", "lat": None, "lon": None,
-     "contrat_etab": "Public", "select_form": "formation sélective", "internat": "non", "payant": False, "zone": "ambitieux"},
-]
-FILTERS = [{}, {"payant": True}, {"academie": "Lyon"}, {"statut": "public"}, {"statut": "prive", "payant": True}, {"select": "non"},
-           {"internat": True}, {"zones": ["cible", "autre"]}, {"q": "lycée"}, {"autour": {"lat": 45.76, "lon": 4.84, "km": 10}, "payant": True},
-           {"autour": {"lat": 45.76, "lon": 4.84, "km": 1}}]
+def craft(i, **kw):
+    base = {"cod_aff_form": str(i), "etablissement": f"Lycée {i}", "formation": "BTS X", "ville": "Lyon", "academie": "Lyon", "lat": 45.76,
+            "lon": 4.84, "statut": "public", "select_form": "formation sélective", "internat": "non", "distance": "aucune",
+            "amenag_sport": False, "amenag_art": False, "zone": "cible"}
+    return {**base, **kw}
 
 
-@check("C3 filters: page carteFilter = independent reading (crafted and real rows); paid institutions only on request")
+CRAFT = [craft(1, internat="mixte"), craft(2, statut="prive", zone="securite", ville="Villeurbanne", lat=45.77, lon=4.88),
+         craft(3, statut="contrat", select_form="formation non sélective", internat=None, zone=None, ville="Paris", academie="Paris", lat=48.85, lon=2.35),
+         craft(4, lat=None, lon=None, zone="ambitieux", academie="Polynésie", distance="totale"),
+         craft(5, internat="filles", distance="partielle", amenag_sport=True), craft(6, internat="garcons", amenag_art=True, distance=None)]
+FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"academie": "Lyon"}, {"select": ["non"]}, {"internat": ["mixte", "filles"]},
+           {"amenag": ["presentiel"]}, {"amenag": ["totale", "sport"]}, {"amenag": ["art"]}, {"zones": ["cible", "autre"]}, {"q": "lycée 1"},
+           {"autour": {"lat": 45.76, "lon": 4.84, "km": 10}}, {"autour": {"lat": 45.76, "lon": 4.84, "km": 1}, "statut": ["public", "contrat", "prive"]}]
+
+
+def has(f, g, o):
+    z = f["zone"] if f["zone"] in ("securite", "cible", "ambitieux") else "autre"
+    return {"statut": lambda: f["statut"] == o, "internat": lambda: f["internat"] == o, "zones": lambda: z == o,
+            "select": lambda: (f["select_form"] == "formation sélective") == (o == "oui"),
+            "amenag": lambda: (f["distance"] in (None, "aucune")) if o == "presentiel" else bool(f["amenag_sport"]) if o == "sport"
+            else bool(f["amenag_art"]) if o == "art" else f["distance"] == o}[g]()
+
+
+def py_filter(rows, F, skip=None):
+    def km(a, b, c, d):
+        r = math.pi / 180
+        x = math.sin((c - a) * r / 2) ** 2 + math.cos(a * r) * math.cos(c * r) * math.sin((d - b) * r / 2) ** 2
+        return 12742 * math.asin(math.sqrt(x))
+    q = (F.get("q") or "").strip().lower()
+    out = []
+    for f in rows:
+        if any(F.get(g) and not any(has(f, g, o) for o in F[g]) for g in ("statut", "internat", "amenag", "select", "zones") if g != skip):
+            continue
+        if F.get("academie") and f["academie"] != F["academie"]:
+            continue
+        if q and q not in f"{f['etablissement']} {f['formation']} {f['ville']}".lower():
+            continue
+        a = F.get("autour")
+        if a and (f["lat"] is None or km(a["lat"], a["lon"], f["lat"], f["lon"]) > a["km"]):
+            continue
+        out.append(f["cod_aff_form"])
+    return out
+
+
+@check("C3 filters: page carteFilter/carteHas = independent reading (crafted and real rows, facet counts); paid unticked by default")
 def c3(c: Ctx):
     js = carte_js(c.js)
     fns = "\n".join(m.group(0) for m in (re.search(r"function haversineKm\(a, b, c, d\) \{.*?\n\}", js, re.S),
                                          re.search(r"const carteZone = .*?;", js),
-                                         re.search(r"function carteFilter\(rows, F\) \{.*?\n\}", js, re.S)) if m)
-    tk = c.sample[0]
-    real = [{**f, "zone": z} for f, z in zip(M["CA"].formations(c.con, tk)["formations"], ["securite", "cible", "ambitieux", None] * 99999)]
+                                         re.search(r"function carteHas\(f, g, o\) \{.*?\n\}", js, re.S),
+                                         re.search(r"function carteFilter\(rows, F, skip\) \{.*?\n\}", js, re.S)) if m)
+    d = c.sample[0]
+    real = [{**f, "zone": z} for f, z in zip(M["CA"].public(M["CA"].formations(c.con, d))["formations"], ["securite", "cible", "ambitieux", None] * 99999)]
     acad = next((f["academie"] for f in real if f["academie"]), "")
     town = next((f for f in real if f["lat"] is not None), None)
-    real_f = [{}, {"academie": acad}, {"statut": "public"}, {"internat": True, "payant": True}, {"zones": ["securite"]},
-              {"autour": {"lat": town["lat"], "lon": town["lon"], "km": 50}} if town else {}]
+    real_f = [{}, {"academie": acad}, {"statut": ["public"]}, {"internat": ["mixte"], "statut": ["public", "contrat", "prive"]}, {"zones": ["securite"]},
+              {"amenag": ["sport", "partielle"]}, {"autour": {"lat": town["lat"], "lon": town["lon"], "km": 50}} if town else {}]
+    cases = [[CRAFT, F, None] for F in FILTERS] + [[real, F, None] for F in real_f] + [[CRAFT, {"statut": ["contrat"], "internat": ["mixte"]}, "statut"]]
     page = node("const CARTE_ZONES = ['securite', 'cible', 'ambitieux'];\n" + fns + """
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(cases.map(([rows, F]) => carteFilter(rows, F).map((f) => f.cod_aff_form))));""",
-                [[CRAFT, F] for F in FILTERS] + [[real, F] for F in real_f])
+process.stdout.write(JSON.stringify(cases.map(([rows, F, skip]) => carteFilter(rows, F, skip || undefined).map((f) => f.cod_aff_form))));""", cases)
     if page is None:
         return True, "node not installed"
     if isinstance(page, dict):
         return False, page["error"]
-    want = [py_filter(CRAFT, F) for F in FILTERS] + [py_filter(real, F) for F in real_f]
+    want = [py_filter(rows, F, skip) for rows, F, skip in cases]
     diff = [i for i, (a, b) in enumerate(zip(page, want)) if a != b]
-    paid_hidden = "2" not in page[0] and "2" in page[1]
-    return not diff and paid_hidden, f"{len(want)} filter cases ({len(real)} real rows of {tk}); differing cases {diff}; paid only on request {paid_hidden}"
+    m = re.search(r"const CARTE_DEFAULT = (\{.*?\});", js)
+    default = bool(m) and json.loads(re.sub(r"(\w+):", r'"\1":', m.group(1))) == {"statut": ["public", "contrat"]}
+    return not diff and default, f"{len(cases)} filter cases ({len(real)} real rows of {d}); differing cases {diff}; paid unticked by default {default}"
 
 
-@check("C4 neutral layer re-derived by SQL: one row per formation of the type (latest campaign), paid flag = Plan B's rule")
+@check("C4 neutral layer: every formation of the latest campaign in exactly one type of diploma, counts and mentions agree, rules re-derived")
 def c4(c: Ctx):
     bad = []
-    for tk in c.sample:
-        lay = M["CA"].formations(c.con, tk)
-        want = {r[0]: r[1] for r in c.con.execute("""
-            SELECT t.cod_aff_form, f.contrat_etab FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
-            JOIN core.formation_year f ON f.cod_aff_form = t.cod_aff_form AND f.session = t.session
-            WHERE t.session = (SELECT max(session) FROM core.formation_year) AND r.spe_type_key = ?""", [tk]).fetchall()}
-        got = [f["cod_aff_form"] for f in lay["formations"]]
-        if sorted(got) != sorted(want) or len(got) != len(set(got)):
-            bad.append((tk, len(got), len(want), len(got) - len(set(got))))
-        if any(f["payant"] != (want.get(f["cod_aff_form"]) in PB.PAID_CONTRACTS) for f in lay["formations"]):
-            bad.append((tk, "paid flag"))
-        if lay["session"] != c.con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]:
-            bad.append((tk, "session"))
-    n = sum(t["n"] for t in M["CA"].types(c.con))
-    return not bad and n > 0, f"{len(c.sample)} types checked, {n} formations listed in all; problems {bad[:3]}"
+    rows = c.con.execute("""SELECT cod_aff_form, fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins, contrat_etab FROM core.formation_year
+                            WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()
+    seen = {}
+    for d in c.fac["diplomes"]:
+        lay = M["CA"].formations(c.con, d["label"])
+        codes = [f["cod_aff_form"] for f in (lay or {"formations": []})["formations"]]
+        if len(codes) != d["n"] or sum(m["n"] for m in d["mentions"]) != d["n"]:
+            bad.append((d["label"], "counts", len(codes), d["n"]))
+        for f in (lay or {"formations": []})["formations"]:
+            seen[f["cod_aff_form"]] = seen.get(f["cod_aff_form"], 0) + 1
+            if f["payant"] != (f["contrat_etab"] in PB.PAID_CONTRACTS) or f["statut"] != ("public" if f["contrat_etab"] == "Public" else "prive" if f["payant"] else "contrat"):
+                bad.append((d["label"], "status", f["cod_aff_form"]))
+    if sorted(seen) != sorted(r[0] for r in rows) or any(v != 1 for v in seen.values()):
+        bad.append(("coverage", len(seen), len(rows)))
+    for d in c.sample[:2]:
+        men = next(x for x in c.fac["diplomes"] if x["label"] == d)["mentions"][0]
+        sub = M["CA"].formations(c.con, d, men["label"])
+        if len(sub["formations"]) != men["n"] or any(f["mention"] != men["label"] for f in sub["formations"]):
+            bad.append((d, "mention filter"))
+    # a few rules written again: the owner's examples
+    for cod, fili, form, fil, lib, _ in rows:
+        want = ("Double licence" if (lib or "").lower().startswith("double licence") else "BUT" if fili == "BUT"
+                else "CPGE ECG" if form == "Classe préparatoire économique et commerciale" and (fil or "").startswith("ECG")
+                else "CPGE ECT" if form == "Classe préparatoire économique et commerciale" and (fil or "").startswith("ECT") else None)
+        if want and M["CA"].diplome_of(fili, form, fil, lib)[0] != want:
+            bad.append((cod, "rule", want))
+    return not bad and seen, f"{len(c.fac['diplomes'])} types of diploma, {len(seen)} formations each listed once; problems {bad[:3]}"
 
 
 @check("C5 OpenStreetMap: self-hosted Leaflet with its licence, loaded by the map page only, one tile URL, attribution, IP note")
@@ -281,25 +331,30 @@ process.stdout.write(JSON.stringify(out));"""
 @check("C7 wiring: route, menus, analytics route, cache policies, release guard, link from Mon parcours")
 def c7(c: Ctx):
     from suptracker import analytics, cache
-    route = 'if (a === "carte") return await viewCarte(b || "");' in c.js and 'carte: "carte"' in c.js
+    route = 'if (a === "carte") return await viewCarte(b || "", c || "");' in c.js and 'carte: "carte"' in c.js
     menus = c.html.count('href="#/carte"') == 2
     an = "carte" in analytics.ROUTES
-    pol = cache.policy("/api/carte") and cache.policy("/api/carte/bts%20service")
+    pol = cache.policy("/api/carte") and cache.policy("/api/carte/formations") and cache.policy("/api/carte/zones")
     rel = '"carte": ("app.js", "function viewCarte(")' in (ROOT / "tests" / "test_release.py").read_text()
-    parcours = 'href="#/carte/${encodeURIComponent(drill.type)}"' in c.js
+    parcours = 'href="#/carte/t/${encodeURIComponent(drill.type)}"' in c.js and "const d = FAC.types[mArg]" in c.js
     ok = route and menus and an and bool(pol) and rel and parcours
     return ok, f"route {route}; two menu entries {menus}; analytics {an}; cache {bool(pol)}; release guard {rel}; link from Mon parcours {parcours}"
 
 
 PY_MUTANTS = [
-    ("paid flag lost", 'x["payant"] = x["contrat_etab"] in PB.PAID_CONTRACTS', 'x["payant"] = False'),
-    ("an older campaign", "WHERE f.session = s.s AND r.spe_type_key = ?", "WHERE f.session = s.s - 1 AND r.spe_type_key = ?"),
+    ("paid flag lost", 'x["payant"] = x["statut"] == "prive"', 'x["payant"] = False'),
+    ("an older campaign", "FROM core.formation_year f JOIN s ON f.session = s.s", "FROM core.formation_year f JOIN s ON f.session = s.s - 1"),
+    ("ECG mentions filed under ECT", 'return "CPGE ECG", fil.replace("ECG - ", "", 1)', 'return "CPGE ECT", fil.replace("ECG - ", "", 1)'),
+    ("double licences missed", 'if re.match(r"(?i)double licence", lib):', 'if False:'),
+    ("zones from another profile", "J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods)", "J.stage2(con, dkey, 'tb', tk, None, serie=serie, only=cods)"),
 ]
 JS_MUTANTS = [
     ("zone shown without a profile", "zone: ok ? (zones.get(f.cod_aff_form) || null) : null", "zone: zones.get(f.cod_aff_form) || null"),
-    ("paid shown by default", "&& (F.payant || !f.payant)", "&& true"),
+    ("paid ticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat"] };', 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive"] };'),
+    ("presentiel misread", 'o === "presentiel" ? (!f.distance || f.distance === "aucune")', 'o === "presentiel" ? f.distance === "aucune"'),
+    ("facet counts ignore other groups", '.filter((g) => g !== skip);', ';'),
     ("radius ignored", "haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km", "true"),
-    ("statut inverted", 'F.statut === "public" ? f.contrat_etab === "Public" : f.contrat_etab !== "Public"', 'F.statut === "public" ? f.contrat_etab !== "Public" : f.contrat_etab === "Public"'),
+    ("statut inverted", 'if (g === "statut") return f.statut === o;', 'if (g === "statut") return f.statut !== o;'),
     ("groups lose points", "grid.get(k).push(p);", "if (grid.get(k).length < 3) grid.get(k).push(p);"),
     ("unlocated formations dropped from the list", "kept.filter((f) => inView(f) || f.lat == null)", "kept.filter((f) => inView(f))"),
     ("IP note dropped", "qui voient votre adresse IP", "rapides"),
@@ -327,7 +382,10 @@ def c8(c: Ctx):
     path = ROOT / "suptracker" / "carte.py"
     # the paid-flag mutant is only observable where a paid institution exists (the synthetic fixture has none)
     paid = c.con.execute("SELECT count(*) FROM core.formation_year WHERE contrat_etab IN (SELECT unnest(?))", [list(PB.PAID_CONTRACTS)]).fetchone()[0] > 0
-    for name, old, new in [m for m in PY_MUTANTS if paid or m[0] != "paid flag lost"]:
+    # likewise the double-licence mutant needs a double licence in the warehouse
+    dbl = c.con.execute("SELECT count(*) FROM core.formation_year WHERE lib_for_voe_ins ILIKE 'double licence%'").fetchone()[0] > 0
+    skipped = {n for n, cond in (("paid flag lost", paid), ("double licences missed", dbl)) if not cond}
+    for name, old, new in [m for m in PY_MUTANTS if m[0] not in skipped]:
         src = path.read_text()
         if old not in src:
             missed.append(f"{name} (anchor gone)"); continue
@@ -351,7 +409,7 @@ def c8(c: Ctx):
                 missed.append(name)
         finally:
             c.js = saved
-    n = len(PY_MUTANTS) - (0 if paid else 1) + len(JS_MUTANTS)
+    n = len(PY_MUTANTS) - len(skipped) + len(JS_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 
 

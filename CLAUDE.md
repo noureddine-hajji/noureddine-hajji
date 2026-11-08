@@ -304,7 +304,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R6).
 - **Carte (map of formations).**
   - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
-  - The neutral layer is `/api/carte/<type>`. Paid private institutions are shown only on request (Plan B's rule).
+  - Two levels: type of diploma, then mention (`carte.diplome_of`, fixed rules on the published labels; every formation in
+    exactly one type). Filters follow the Parcoursup map (statut, internat, aménagements, sélectivité, zones), each option
+    with its count among what the other groups keep. Paid private institutions: the "Privés (payants)" box is unticked by
+    default (Plan B's rule). No apprenticeship filter (note). Zones: `/api/carte/zones` = journey.stage2 per own type, `only=`.
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
