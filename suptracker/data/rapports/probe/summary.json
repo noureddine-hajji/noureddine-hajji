@@ -289,11 +289,8 @@
  ],
  "report_links": {
   "2327": [],
-  "31899": [],
   "35740": [],
-  "4825": [],
   "42915": [],
-  "6668": [],
   "31384": [],
   "4328": [],
   "2474": [],
@@ -304,23 +301,10 @@
  "live_pdfs": [],
  "wayback": {
   "2327": {
-   "fiche_dossierappel.parcoursup.fr": 503,
-   "pdf_dossierappel.parcoursup.fr": 503,
-   "fiche_dossier.parcoursup.fr": [
-    [
-     "timestamp",
-     "original",
-     "mimetype",
-     "statuscode"
-    ],
-    [
-     "20260525012613",
-     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=2327&typeBac=0&originePc=0",
-     "text/html",
-     "200"
-    ]
-   ],
-   "pdf_dossier.parcoursup.fr": []
+   "fiche_dossierappel.parcoursup.fr": [],
+   "pdf_dossierappel.parcoursup.fr": [],
+   "fiche_dossier.parcoursup.fr": 503,
+   "pdf_dossier.parcoursup.fr": 503
   },
   "31899": {
    "fiche_dossierappel.parcoursup.fr": [],
@@ -411,8 +395,8 @@
    "pdf_dossier.parcoursup.fr": []
   },
   "42915": {
-   "fiche_dossierappel.parcoursup.fr": [],
-   "pdf_dossierappel.parcoursup.fr": 504,
+   "fiche_dossierappel.parcoursup.fr": 503,
+   "pdf_dossierappel.parcoursup.fr": [],
    "fiche_dossier.parcoursup.fr": [
     [
      "timestamp",
@@ -450,56 +434,12 @@
   "6668": {
    "fiche_dossierappel.parcoursup.fr": [],
    "pdf_dossierappel.parcoursup.fr": [],
-   "fiche_dossier.parcoursup.fr": [
-    [
-     "timestamp",
-     "original",
-     "mimetype",
-     "statuscode"
-    ],
-    [
-     "20241112161129",
-     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=6668",
-     "text/html",
-     "200"
-    ],
-    [
-     "20251005125446",
-     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=6668",
-     "text/html",
-     "200"
-    ],
-    [
-     "20260520011812",
-     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=6668",
-     "text/html",
-     "200"
-    ]
-   ],
+   "fiche_dossier.parcoursup.fr": 503,
    "pdf_dossier.parcoursup.fr": []
   },
   "31384": {
-   "fiche_dossierappel.parcoursup.fr": [
-    [
-     "timestamp",
-     "original",
-     "mimetype",
-     "statuscode"
-    ],
-    [
-     "20250603181432",
-     "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31384",
-     "text/html",
-     "200"
-    ],
-    [
-     "20260207202609",
-     "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31384&typeBac=0&originePc=0",
-     "text/html",
-     "200"
-    ]
-   ],
-   "pdf_dossierappel.parcoursup.fr": [],
+   "fiche_dossierappel.parcoursup.fr": 503,
+   "pdf_dossierappel.parcoursup.fr": 503,
    "fiche_dossier.parcoursup.fr": [
     [
      "timestamp",
@@ -537,7 +477,7 @@
   },
   "2474": {
    "fiche_dossierappel.parcoursup.fr": 503,
-   "pdf_dossierappel.parcoursup.fr": [],
+   "pdf_dossierappel.parcoursup.fr": 503,
    "fiche_dossier.parcoursup.fr": [
     [
      "timestamp",
@@ -556,8 +496,33 @@
   },
   "22": {
    "fiche_dossierappel.parcoursup.fr": [],
-   "pdf_dossierappel.parcoursup.fr": [],
-   "fiche_dossier.parcoursup.fr": 503,
+   "pdf_dossierappel.parcoursup.fr": 504,
+   "fiche_dossier.parcoursup.fr": [
+    [
+     "timestamp",
+     "original",
+     "mimetype",
+     "statuscode"
+    ],
+    [
+     "20241106230255",
+     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=22",
+     "text/html",
+     "200"
+    ],
+    [
+     "20250718124653",
+     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=22",
+     "text/html",
+     "200"
+    ],
+    [
+     "20260525012806",
+     "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=22&typeBac=0&originePc=0",
+     "text/html",
+     "200"
+    ]
+   ],
    "pdf_dossier.parcoursup.fr": 503
   },
   "24438": {
@@ -580,7 +545,7 @@
    "pdf_dossier.parcoursup.fr": []
   },
   "11933": {
-   "fiche_dossierappel.parcoursup.fr": 503,
+   "fiche_dossierappel.parcoursup.fr": [],
    "pdf_dossierappel.parcoursup.fr": [],
    "fiche_dossier.parcoursup.fr": [
     [
@@ -596,10 +561,244 @@
      "200"
     ]
    ],
-   "pdf_dossier.parcoursup.fr": []
+   "pdf_dossier.parcoursup.fr": 503
   }
  },
  "wayback_pdfs_downloaded": 0,
+ "wayback_fiche_report_links": {
+  "31899_20250718140756": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+    "captures": [
+     [
+      "20260525031407",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "31899_20260525004042": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+    "captures": [
+     [
+      "20260525031407",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "35740_20250425220312": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+    "captures": [
+     [
+      "20260525065742",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "35740_20260525010658": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+    "captures": [
+     [
+      "20260525065742",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "4825_20260517054110": [
+   "https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+   {
+    "cdx": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+    "captures": [
+     [
+      "20260618012153",
+      "https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "4825_20260525003858": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+    "captures": [
+     [
+      "20260525025518",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "42915_20251211031349": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+    "captures": [
+     [
+      "20250720135848",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+      "application/pdf",
+      "200"
+     ],
+     [
+      "20260525045704",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "42915_20260525005145": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+    "captures": [
+     [
+      "20250720135848",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+      "application/pdf",
+      "200"
+     ],
+     [
+      "20260525045704",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "31384_20260525005241": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0350710G&g_ti_cod=31384&c_ja_cod=24268",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0350710G&g_ti_cod=31384&c_ja_cod=24268",
+    "captures": [
+     [
+      "20260525050405",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0350710G&g_ti_cod=31384&c_ja_cod=24268",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "4328_20260525012411": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=B330196J&g_ti_cod=4328&c_ja_cod=3102",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=B330196J&g_ti_cod=4328&c_ja_cod=3102",
+    "captures": [
+     [
+      "20260525090148",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=B330196J&g_ti_cod=4328&c_ja_cod=3102",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "2474_20250708073706": [],
+  "22_20250718124653": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+    "captures": [
+     [
+      "20260228170125",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?c_ja_cod=31556&g_ea_cod=C540130Y&g_ti_cod=7",
+      "application/pdf",
+      "200"
+     ],
+     [
+      "20260525020402",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "22_20260525012806": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+    "captures": [
+     [
+      "20260228170125",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?c_ja_cod=31556&g_ea_cod=C540130Y&g_ti_cod=7",
+      "application/pdf",
+      "200"
+     ],
+     [
+      "20260525020402",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=C540130Y&g_ti_cod=7&c_ja_cod=31556",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "24438_20260525003910": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370800U&g_ti_cod=24438&c_ja_cod=19375",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370800U&g_ti_cod=24438&c_ja_cod=19375",
+    "captures": [
+     [
+      "20260525025757",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370800U&g_ti_cod=24438&c_ja_cod=19375",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ],
+  "11933_20260525003427": [
+   "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=9740787M&g_ti_cod=11933&c_ja_cod=10362",
+   {
+    "cdx": "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=9740787M&g_ti_cod=11933&c_ja_cod=10362",
+    "captures": [
+     [
+      "20260525020023",
+      "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=9740787M&g_ti_cod=11933&c_ja_cod=10362",
+      "application/pdf",
+      "200"
+     ]
+    ]
+   }
+  ]
+ },
+ "live_status": {
+  "https://www.parcoursup.gouv.fr/": [
+   403,
+   false
+  ],
+  "https://dossierappel.parcoursup.fr/Candidats/carte": [
+   404,
+   true
+  ],
+  "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=2327": null
+ },
  "requests": [
   {
    "url": "https://data.enseignementsup-recherche.gouv.fr/api/explore/v2.1/catalog/datasets/fr-esr-parcoursup_2020/exports/csv?delimiter=%3B",
@@ -621,9 +820,7 @@
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31899&typeBac=0&originePc=0",
-   "status": 404,
-   "type": "text/html",
-   "bytes": 49231
+   "error": "RemoteProtocolError: Server disconnected without sending a response."
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35740&typeBac=0&originePc=0",
@@ -633,9 +830,7 @@
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=4825&typeBac=0&originePc=0",
-   "status": 404,
-   "type": "text/html",
-   "bytes": 49231
+   "error": "RemoteProtocolError: Server disconnected without sending a response."
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=42915&typeBac=0&originePc=0",
@@ -645,9 +840,7 @@
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=6668&typeBac=0&originePc=0",
-   "status": 404,
-   "type": "text/html",
-   "bytes": 49231
+   "error": "RemoteProtocolError: Server disconnected without sending a response."
   },
   {
    "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31384&typeBac=0&originePc=0",
@@ -687,27 +880,27 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D2327&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D2327%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 503,
-   "type": "text/html",
-   "bytes": 11832
-  },
-  {
-   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0061817T&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0061817T%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
-   "status": 503,
-   "type": "text/html",
-   "bytes": 11832
-  },
-  {
-   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D2327&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D2327%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 204
-  },
-  {
-   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0061817T&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0061817T%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
    "status": 200,
    "type": "application/json",
    "bytes": 3
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0061817T&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0061817T%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 3
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D2327&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D2327%28%26.%2A%29%3F%24&collapse=timestamp:6",
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0061817T&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0061817T%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D31899&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D31899%28%26.%2A%29%3F%24&collapse=timestamp:6",
@@ -783,15 +976,15 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D42915&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D42915%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 3
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0573561L&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0573561L%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
-   "status": 504,
-   "type": "text/html",
-   "bytes": 160
+   "status": 200,
+   "type": "application/json",
+   "bytes": 3
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D42915&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D42915%28%26.%2A%29%3F%24&collapse=timestamp:6",
@@ -819,9 +1012,9 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D6668&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D6668%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 444
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0573435Z&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0573435Z%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
@@ -831,15 +1024,15 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D31384&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D31384%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 347
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0350710G&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0350710G%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 3
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D31384&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D31384%28%26.%2A%29%3F%24&collapse=timestamp:6",
@@ -885,9 +1078,9 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0111024D&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0111024D%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 3
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D2474&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D2474%28%26.%2A%29%3F%24&collapse=timestamp:6",
@@ -909,15 +1102,15 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0542307P&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0542307P%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
-   "status": 200,
-   "type": "application/json",
-   "bytes": 3
+   "status": 504,
+   "type": "text/html",
+   "bytes": 160
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D22&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D22%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 503,
-   "type": "text/html",
-   "bytes": 11832
+   "status": 200,
+   "type": "application/json",
+   "bytes": 460
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0542307P&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D0542307P%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
@@ -951,9 +1144,9 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation%3Fg_ta_cod%3D11933&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ta_cod%3D11933%28%26.%2A%29%3F%24&collapse=timestamp:6",
-   "status": 503,
-   "type": "text/html",
-   "bytes": 11832
+   "status": 200,
+   "type": "application/json",
+   "bytes": 3
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D9740787M&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D9740787M%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
@@ -969,9 +1162,283 @@
   },
   {
    "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D9740787M&matchType=prefix&output=json&fl=timestamp,original,mimetype,statuscode&filter=statuscode:200&filter=original:.%2Ag_ea_cod%3D9740787M%28%26.%2A%29%3F%24&filter=mimetype:application/pdf",
+   "status": 503,
+   "type": "text/html",
+   "bytes": 11832
+  },
+  {
+   "url": "https://web.archive.org/web/20250718140756id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31899",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 94134
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0801344B%26g_ti_cod%3D31899%26c_ja_cod%3D24576&output=json&fl=timestamp,original,mimetype,statuscode",
    "status": 200,
    "type": "application/json",
-   "bytes": 3
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525031407id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 500036
+  },
+  {
+   "url": "https://web.archive.org/web/20260525004042id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31899&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 105031
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0801344B%26g_ti_cod%3D31899%26c_ja_cod%3D24576&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525031407id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0801344B&g_ti_cod=31899&c_ja_cod=24576",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 500036
+  },
+  {
+   "url": "https://web.archive.org/web/20250425220312id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35740",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 83928
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0230008J%26g_ti_cod%3D35740%26c_ja_cod%3D28394&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525065742id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 490204
+  },
+  {
+   "url": "https://web.archive.org/web/20260525010658id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35740&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 93813
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0230008J%26g_ti_cod%3D35740%26c_ja_cod%3D28394&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525065742id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0230008J&g_ti_cod=35740&c_ja_cod=28394",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 490204
+  },
+  {
+   "url": "https://web.archive.org/web/20260517054110id_/https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=4825&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 88044
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0370035M%26g_ti_cod%3D4825%26c_ja_cod%3D3564&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 227
+  },
+  {
+   "url": "https://web.archive.org/web/20260618012153id_/https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 424097
+  },
+  {
+   "url": "https://web.archive.org/web/20260525003858id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=4825&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 87943
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0370035M%26g_ti_cod%3D4825%26c_ja_cod%3D3564&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 222
+  },
+  {
+   "url": "https://web.archive.org/web/20260525025518id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370035M&g_ti_cod=4825&c_ja_cod=3564",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 424097
+  },
+  {
+   "url": "https://web.archive.org/web/20251211031349id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=42915",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 95618
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0542493S%26g_ti_cod%3D42915%26c_ja_cod%3D35205&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 397
+  },
+  {
+   "url": "https://web.archive.org/web/20250720135848id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 386790
+  },
+  {
+   "url": "https://web.archive.org/web/20260525005145id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=42915&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 106739
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0542493S%26g_ti_cod%3D42915%26c_ja_cod%3D35205&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 397
+  },
+  {
+   "url": "https://web.archive.org/web/20250720135848id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0542493S&g_ti_cod=42915&c_ja_cod=35205",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 386790
+  },
+  {
+   "url": "https://web.archive.org/web/20260525005241id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31384&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 99708
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0350710G%26g_ti_cod%3D31384%26c_ja_cod%3D24268&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525050405id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0350710G&g_ti_cod=31384&c_ja_cod=24268",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 460755
+  },
+  {
+   "url": "https://web.archive.org/web/20260525012411id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=4328&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 89887
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3DB330196J%26g_ti_cod%3D4328%26c_ja_cod%3D3102&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 222
+  },
+  {
+   "url": "https://web.archive.org/web/20260525090148id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=B330196J&g_ti_cod=4328&c_ja_cod=3102",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 345032
+  },
+  {
+   "url": "https://web.archive.org/web/20250708073706id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=2474",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 8307
+  },
+  {
+   "url": "https://web.archive.org/web/20250718124653id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=22",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 88209
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3DC540130Y%26g_ti_cod%3D7%26c_ja_cod%3D31556&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 389
+  },
+  {
+   "url": "https://web.archive.org/web/20260228170125id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?c_ja_cod=31556&g_ea_cod=C540130Y&g_ti_cod=7",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 3637281
+  },
+  {
+   "url": "https://web.archive.org/web/20260525012806id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=22&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 108540
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3DC540130Y%26g_ti_cod%3D7%26c_ja_cod%3D31556&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 389
+  },
+  {
+   "url": "https://web.archive.org/web/20260228170125id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?c_ja_cod=31556&g_ea_cod=C540130Y&g_ti_cod=7",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 3637281
+  },
+  {
+   "url": "https://web.archive.org/web/20260525003910id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=24438&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 105370
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D0370800U%26g_ti_cod%3D24438%26c_ja_cod%3D19375&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525025757id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0370800U&g_ti_cod=24438&c_ja_cod=19375",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 447085
+  },
+  {
+   "url": "https://web.archive.org/web/20260525003427id_/https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=11933&typeBac=0&originePc=0",
+   "status": 200,
+   "type": "text/html;charset=UTF-8",
+   "bytes": 96548
+  },
+  {
+   "url": "https://web.archive.org/cdx/search/cdx?url=https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic%3Fg_ea_cod%3D9740787M%26g_ti_cod%3D11933%26c_ja_cod%3D10362&output=json&fl=timestamp,original,mimetype,statuscode",
+   "status": 200,
+   "type": "application/json",
+   "bytes": 224
+  },
+  {
+   "url": "https://web.archive.org/web/20260525020023id_/https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=9740787M&g_ti_cod=11933&c_ja_cod=10362",
+   "status": 200,
+   "type": "application/pdf",
+   "bytes": 506866
+  },
+  {
+   "url": "https://www.parcoursup.gouv.fr/",
+   "status": 403,
+   "type": "text/html; charset=UTF-8",
+   "bytes": 5530
+  },
+  {
+   "url": "https://dossierappel.parcoursup.fr/Candidats/carte",
+   "status": 404,
+   "type": "text/html",
+   "bytes": 49231
+  },
+  {
+   "url": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=2327",
+   "error": "RemoteProtocolError: Server disconnected without sending a response."
   }
  ]
 }

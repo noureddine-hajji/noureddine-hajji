@@ -1,0 +1,351 @@
+Rapport public Parcoursup session 2025
+Lycée Antoine Roussin - Diplôme de Comptabilité et de Gestion
+Les données de la formation
+Les tableaux suivants permettent de suivre l'évolution du nombre de candidats, par formation et par groupe, depuis ceux qui
+confirment le vœu jusqu'à ceux qui acceptent la proposition correspondante. Ces tableaux sont déclinés selon plusieurs éléments.
+Les données de la formation correspondent aux données de la phase principale, calculées au 10 juillet 2025.
+Elles ne prennent pas en compte les données de la phase de gestion des démissions.
+Lycée Antoine Roussin - Diplôme de Comptabilité et de Gestion (11933)
+Rappel des taux appliqués pour cette formation
+Taux minimum de candidats boursiers fixé par le recteur : 35%
+
+=== PAGE ===
+
+Synthèse des candidatures, classements et admissions
+Formation Jury Groupe Nombre de Nombre de Nombre de Nombre de Nombre de
+d'affectation places proposées candidats qui candidats candidats en candidats qui ont
+ont confirmé le classés (parmi position de accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le vœu) proposition
+d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Antoine Jury par Tous les 35 379 247 223 37
+Roussin - Diplôme défaut candidats
+de Comptabilité et
+de Gestion (11933)
+
+=== PAGE ===
+
+Suivi des candidats par sexe
+Formation Jury Groupe Sexe Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Antoine Jury par Tous les Féminin 193 123 116 16 43,2 %
+Roussin - Diplôme défaut candidats
+Masculin 186 124 107 21 56,8 %
+de Comptabilité
+et de Gestion
+Total 379 247 223 37 100 %
+(11933)
+
+=== PAGE ===
+
+Suivi des candidats par type de baccalauréat
+Formation Jury Groupe Type de bac Mention au Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation bac candidats candidats candidats en proposition
+qui ont classés position de Nombre Pourcentage
+confirmé le (parmi ceux recevoir une
+vœu qui ont proposition
+confirmé le d'admission
+vœu) (parmi ceux
+qui ont
+confirmé le
+vœu)
+Lycée Antoine Jury par Tous les Baccalauréat Échec au 1 0 0 0 0 %
+Roussin - défaut candidats Général bac
+Diplôme de
+Sans 59 31 19 4 20 %
+Comptabilité et
+mention
+de Gestion
+(11933)
+AB 75 64 58 10 50 %
+B 44 41 40 5 25 %
+TB 20 19 19 1 5 %
+TBF 1 1 1 0 0 %
+Total 200 156 137 20 100 %
+Baccalauréat Échec au 3 0 0 0 0 %
+Technologique bac
+Sans 29 5 4 2 11,8 %
+mention
+AB 63 51 47 10 58,8 %
+B 33 29 29 4 23,5 %
+TB 7 6 6 1 5,9 %
+
+=== PAGE ===
+
+Formation Jury Groupe Type de bac Mention au Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation bac candidats candidats candidats en proposition
+qui ont classés position de Nombre Pourcentage
+confirmé le (parmi ceux recevoir une
+vœu qui ont proposition
+confirmé le d'admission
+vœu) (parmi ceux
+qui ont
+confirmé le
+vœu)
+Total 135 91 86 17 100 %
+Baccalauréat Échec au 3 0 0 0
+Professionnel bac
+Sans 6 0 0 0
+mention
+AB 6 0 0 0
+B 2 0 0 0
+TB 3 0 0 0
+TBF 1 0 0 0
+Total 21 0 0 0
+Diplômes Sans 15 0 0 0
+étrangers mention
+équivalents au
+AB 7 0 0 0
+bac
+Total 22 0 0 0
+Autres diplômes Sans 1 0 0 0
+de niveau bac mention
+Total 1 0 0 0
+
+=== PAGE ===
+
+Suivi des candidats par profil
+Formation Jury Groupe Profil Nombre de Nombre de Nombre de Candidats ayant accepté la
+d'affectation candidats qui candidats candidats en proposition
+ont confirmé classés (parmi position de Nombre Pourcentage
+le vœu ceux qui ont recevoir une
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Antoine Jury par Tous les En terminale 299 228 209 37 100 %
+Roussin - défaut candidats
+En réorientation 40 14 10 0 0 %
+Diplôme de
+Comptabilité et
+Non scolarisés 18 4 4 0 0 %
+de Gestion
+(11933) Scolarité 21 1 0 0 0 %
+étrangère
+Autres 1 0 0 0 0 %
+Total 379 247 223 37 100 %
+
+=== PAGE ===
+
+Suivi des candidats par choix d’enseignements de spécialité en série générale et technologique, ou par spécialité en série
+professionnelle
+Les données de ces tableaux ont été calculées en prenant en compte tous les candidats qui ont suivi une scolarité française en terminale générale, technologique ou
+professionnelle depuis l'année scolaire 2020-2021.
+Formation Jury Type de bac EDS 1 & EDS 2 / Nombre de Nombre de Nombre de Nombre de
+d'affectation Spécialité candidats qui candidats candidats en candidats qui
+ont confirmé le classés (parmi position de ont accepté la
+vœu ceux qui ont recevoir une proposition
+confirmé le proposition
+vœu) d'admission
+(parmi ceux qui
+ont confirmé le
+vœu)
+Lycée Antoine Jury par Baccalauréat Mathématiques 55 48 45 5
+Roussin - Diplôme défaut Général Spécialité &
+de Comptabilité Sciences
+et de Gestion Economiques et
+(11933) Sociales Spécialité
+Autres doublettes 139 106 90 15
+Baccalauréat Msgn/ Gestion et 111 80 77 17
+Technologique Finance & Droit et
+Economie
+Autres doublettes 21 10 9 0
+Baccalauréat À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+Professionnel
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série générale, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+Formation Jury Doublette EDS Nombre de Nombre de Nombre de Nombre de
+d'affectation Significatives candidats qui ont candidats classés candidats en candidats qui ont
+confirmé le vœu (parmi ceux qui position de recevoir accepté la
+ont confirmé le une proposition proposition
+vœu) d'admission (parmi
+ceux qui ont
+confirmé le vœu)
+Lycée Antoine Jury par défaut Mathématiques 28,4 % 31,2 % 33,3 % 25 %
+Roussin - Diplôme de Spécialité & Sciences
+Comptabilité et de Economiques et
+Gestion (11933) Sociales Spécialité
+Autres doublettes 71,6 % 68,8 % 66,7 % 75 %
+Total 100 % 100 % 100 % 100 %
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série technologique, à différentes étapes de la procédure, en fonction de leurs doublettes d'enseignements de spécialité
+Formation Jury Doublette EDS Nombre de Nombre de Nombre de Nombre de
+d'affectation Significatives candidats qui ont candidats classés candidats en candidats qui ont
+confirmé le vœu (parmi ceux qui position de recevoir accepté la
+ont confirmé le une proposition proposition
+vœu) d'admission (parmi
+ceux qui ont
+confirmé le vœu)
+Lycée Antoine Jury par défaut Msgn/ Gestion et 84,1 % 88,9 % 89,5 % 100 %
+Roussin - Diplôme de Finance & Droit et
+Comptabilité et de Economie
+Gestion (11933)
+Autres doublettes 15,9 % 11,1 % 10,5 % 0 %
+Total 100 % 100 % 100 % 100 %
+À noter : Les doublettes d'enseignements de spécialité, relatives à la série générale ou technologique, ou les spécialités de la série professionnelle affichées sont présentées
+dans l'ordre décroissant de représentativité (calculée sur la base des candidats qui ont confirmé le vœu).
+
+=== PAGE ===
+
+Répartition des candidats de la série professionnelle, à différentes étapes de la procédure, en fonction de leur spécialité
+À noter : Les données ne sont pas statistiquement significatives. Elles ne sont pas affichées.
+
+=== PAGE ===
+
+Les critères utilisés en 2025
+Champs d'évaluation Critères retenus par la commission Eléments pris en compte pour Degré d'importance des critères
+d'examen des vœux l'évaluation des critères
+Résultats académiques Capacités rédactionnelles Résultats, notes et appréciations des Très important
+bulletins, relevés de notes ou fiche
+avenir dans les matières à caractère
+littéraire : français, langues vivantes,
+philosophie, H-Géo, économie,
+management, droit, gestion...
+Niveau en mathématiques Résultats, notes et appréciations des Très important
+bulletins, relevés de notes ou fiche
+avenir dans les matières à caractère
+scientifique : mathématiques, SVT,
+Physique-chimie...
+Compétences académiques, acquis Qualités d'expression Résultats, notes et appréciations des Essentiel
+méthodologiques, savoir-faire bulletins, relevés de notes ou fiche
+avenir dans les matières à caractère
+littéraire : français, langues vivantes,
+philosophie, H-Géo, économie,
+management, droit, gestion...
+Goût pour les chiffres Résultats, notes et appréciations des Essentiel
+bulletins, relevés de notes ou fiches
+avenir dans les matières à caractère
+scientifique : mathématiques, SVT,
+Physique-chimie...
+Compétences linguistiques Capacités d'expression en anglais. Très important
+Notes et appréciations des bulletins
+et/ou de la fiche avenir en anglais
+Savoir-être Autonomie dans le travail Capacité d'organisation et Essentiel
+autonomie dans le travail notés dans
+les appréciations, la fiche avenir et le
+projet personnel du candidat
+
+=== PAGE ===
+
+Champs d'évaluation Critères retenus par la commission Eléments pris en compte pour Degré d'importance des critères
+d'examen des vœux l'évaluation des critères
+Aptitudes à un travail soutenu Capacité de travail soutenu (niveau Très important
+classe prépa), à s'investir, goût de
+l'effort relevé dans les appréciations
+des bulletins, dans la fiche avenir et
+dans le projet du candidat
+Assiduité Assiduité relevé dans les Essentiel
+appréciation et dans la fiche avenir
+Motivation, connaissance de la Intérêt pour l'entreprise Appétence pour l'économie, le droit, Très important
+formation, cohérence du projet l'entreprise, l'organisation relevée
+dans la fiche avenir et le projet
+personnel du candidat
+Enthousiasme et attitude positive Attitude positive relevée dans les Très important
+appréciations et la fiche avenir
+Cohérence du parcours Cohérence du parcours de formation Important
+avec le projet personnel et
+professionnel du candidat et ses
+motivations
+Engagements, activités et centres d’ Curiosité pour le monde économique Intérêt pour la vie des entreprises, la Complémentaire
+intérêt, réalisations péri ou extra- gestion et le management ainsi que
+scolaires pour l'environnement économique
+et juridique constatés dans les
+stages, expériences et activités
+personnelles du candidat
+
+=== PAGE ===
+
+Prise en compte des enseignements de spécialité (EDS) en séries générale et technologique dans l'examen des
+vœux
+Prenez-vous en compte les enseignements de spécialité (voie générale et technologique) dans votre examen des candidatures ?
+Oui.
+Le poids dans l'examen des candidatures donné aux résultats académiques dans certains EDS :
+Est supérieur à celui donné à l'ensemble des autres matières.
+Quels sont les EDS pris en compte pour l'examen des candidatures ?
+Série Générale
+Histoire-Géographie, Géopolitique et Sciences politiques (EDS)
+Humanités, Littérature et Philosophie (EDS)
+Mathématiques Spécialité (EDS)
+Numérique et Sciences Informatiques (EDS)
+Physique-Chimie Spécialité (EDS)
+Sciences de l'ingénieur (EDS)
+Sciences de l'ingénieur et sciences physiques (EDS)
+Sciences Economiques et Sociales Spécialité (EDS)
+Série STMG
+Droit et Economie (EDS)
+Management (EDS)
+Msgn/ Gestion et Finance (EDS)
+Msgn/ Mercatique (EDS)
+
+=== PAGE ===
+
+Msgn/ Ressources humaines et communication (EDS)
+Msgn/ Systèmes d'information et de Gestion (EDS)
+Sciences de la gestion et numérique (EDS)
+
+=== PAGE ===
+
+Critères éliminatoires
+Préciser les critères quantitatifs voire qualitatifs qui conduisent à ne pas classer certains candidats lors de l’examen des
+candidatures
+La Commission d’Examen des Vœux se fonde sur un ensemble de critères qualitatifs et quantitatifs qui peuvent conduire au non
+classement d’une candidature lorsque le profil du candidat ne répond pas aux attendus du DCG.
+Les principaux éléments pouvant entraîner un non classement sont :
+Un parcours sans lien suffisant avec les compétences et exigences attendues en DCG ;
+Des résultats insuffisants dans les disciplines clés ;
+Une assiduité ou une attitude au travail jugée défaillante (absences répétées, manque d’implication, comportement non
+professionnel) ;
+Un projet de formation ou une lettre de motivation peu argumentée, démontrant une méconnaissance du contenu et des
+débouchés du DCG ;
+
+=== PAGE ===
+
+Les modalités d’examen des vœux
+Les modalités d'examen des voeux
+Une commission d'harmonisation s'est tenue pour définir les critères et élaborer un barème pour chaque critère.
+De là, a été élaboré une grille d'examen des voeux sur 20 points.
+Les dossiers ont été répartis par binôme (chaque binôme ayant eu accès aux mêmes dossiers simultanément).
+L'examen s'est fait en concertation au sein du binôme. Lorsque l'avis sur un dossier n'était pas unanime, un échange pouvait avoir
+lieu avec les autres membres de la commission.
+Nota : un bonus a été accordé à tous les candidats ayant participé au dispositif "cordées de la réussite".
+Avez-vous eu recours à un traitement algorithmique ?
+Un traitement algorithmique permettant essentiellement, à partir des données quantitatives et qualitatives figurant dans les
+dossiers, de calculer les moyennes des notes récupérées ou attribuées aux candidats, a été mis en œuvre par la commission d’
+examen des vœux afin de l’aider dans ses travaux, et non se substituer à elle.
+Ce traitement automatisé, dont le paramétrage a été effectué par la commission d’examen des vœux en fonction des critères
+que ses membres ont définis, a été utilisé pour effectuer une première analyse des candidatures et un pré-classement de ces
+dernières.
+La commission d’examen des vœux s’est en partie fondée sur ces éléments pour apprécier les mérites des candidatures.
+
+=== PAGE ===
+
+Nos conseils aux candidats pour la prochaine session
+Nos conseils aux candidats pour la prochaine session
+Souvent, les candidats n'ont pas de projet construit et connaissent insuffisamment le contenu de la formation au DCG, son
+niveau d'exigence et les débouchés professionnels (métiers possibles) ; ce qui transparait dans leur projet qui ne renseigne pas
+suffisamment la commission pour comprendre leurs motivations. La formation au DCG est un bac+3 de grade licence d'un niveau
+de classe préparatoire. Elle correspond aux trois premières années d'études vers l'expertise comptable. C'est une formation
+exigeante qui nécessite une forte capacité de travail personnel. C'est une formation très appréciée sur le marché du travail.
+Signature :
+Kossi ASSIMPAH,
+Chef d'établissement de l'établissement Lycée
+Antoine Roussin
