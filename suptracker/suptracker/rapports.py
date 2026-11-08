@@ -30,6 +30,7 @@ from . import journey as J
 HARVEST = Path(__file__).resolve().parents[1] / "data" / "rapports" / "harvest"
 BAC = {"Baccalauréat Général": "bg", "Baccalauréat Technologique": "bt", "Baccalauréat Professionnel": "bp"}
 IMPORTANCE = ("Essentiel", "Très important", "Important", "Complémentaire")
+USABLE = ("ok", "ok_repare")          # ok_repare: rebuilt by qpdf and COMPLETE (scripts/rapports_harvest.complete)
 LINK_RE = re.compile(r"g_ea_cod=([0-9A-Z]+)|g_ti_cod=(\d+)|c_ja_cod=(\d+)")
 
 
@@ -92,7 +93,7 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
         confirmes INTEGER, sies INTEGER, decision VARCHAR)""")
     if harvest is None or not (harvest / "pdf_index.csv").exists():
         return {"rapports": 0}
-    idx = {r["digest"]: r for r in _read(harvest / "pdf_index.csv") if r.get("status") == "ok"}
+    idx = {r["digest"]: r for r in _read(harvest / "pdf_index.csv") if r.get("status") in USABLE}
     syn: dict = {}
     for r in _read(harvest / "synthese.csv"):
         syn.setdefault(r["digest"], []).append(r)

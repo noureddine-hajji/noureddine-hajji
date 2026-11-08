@@ -1,6 +1,7 @@
 # Parcoursup public reports ("rapports publics"): per-formation doublette counts are published only in these PDFs.
 # The Parcoursup, SIES and Internet Archive hosts are blocked in the development sandbox, so this runner fetches them.
 #   mode "probe":   small samples to data/rapports/probe/ (design material)
+#   mode "repair":  the files left unread, tried again on every other capture of their URL, rebuilt by qpdf if needed
 #   mode "harvest": every report PDF archived by the Internet Archive, parsed into CSVs in data/rapports/harvest/
 #                   (resumable: each run stops after `budget` minutes and commits; push request.json again to continue)
 # Triggered by workflow_dispatch, or by a push of data/rapports/request.json on a claude/ branch (a new workflow can only be
@@ -10,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe or harvest"
+        description: "probe, harvest or repair"
         required: false
         default: "harvest"
   push:
@@ -33,7 +34,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install httpx "duckdb==2.0.0" pdfplumber
+      - run: pip install httpx "duckdb==2.0.0" pdfplumber pikepdf
       - name: Read the request
         id: req
         run: |
@@ -52,6 +53,9 @@ jobs:
       - name: Harvest archived reports
         if: steps.req.outputs.mode == 'harvest'
         run: python scripts/rapports_harvest.py data/rapports/harvest "${{ steps.req.outputs.budget }}" ${{ steps.req.outputs.enumerate }}
+      - name: Repair unread reports
+        if: steps.req.outputs.mode == 'repair'
+        run: python scripts/rapports_harvest.py data/rapports/harvest "${{ steps.req.outputs.budget }}" --repair
       - name: Commit
         if: always()
         run: |

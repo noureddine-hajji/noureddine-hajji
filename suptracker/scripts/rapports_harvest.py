@@ -5,6 +5,8 @@
      (c_ja_cod, g_ea_cod, g_ti_cod), so a prefix on "?g_ea_cod=" finds nothing (probe 1).
   2. FETCH + PARSE: each file not yet done is downloaded (`id_` = the original bytes) and parsed by rapports_parse;
      resumable: the state lives in data/rapports/harvest/ and each run stops after a time budget.
+  3. REPAIR (--repair): the files left unread (download 404, damaged PDF) are tried again on every other capture of
+     the same URL, as archived then rebuilt by qpdf; a rebuilt file counts only if COMPLETE (`complete`).
 Outputs (CSV, small, committed): pdf_index.csv (one row per archived file, with its status), doublettes.csv,
 synthese.csv, masked.csv. The PDFs themselves are not kept. Polite: one request at a time, pauses, back-off on 429/5xx,
 generic User-Agent.
@@ -85,6 +87,95 @@ def write(path: Path, cols, rows, append: bool = False):
         w.writerows(rows)
 
 
+def store(out: Path, r: dict, p: dict, status: str = "ok") -> None:
+    """Append a parsed report's rows and texts, and mark its index row (caller holds the lock)."""
+    key = {"digest": r["digest"], "timestamp": r["timestamp"], "session": p["session"]}
+    write(out / "doublettes.csv", DBL_COLS, [{**key, **d} for d in p["doublettes"]], append=True)
+    write(out / "synthese.csv", SYN_COLS, [{**key, **d} for d in p["synthese"]], append=True)
+    write(out / "masked.csv", MSK_COLS, [{**key, **d} for d in p["masked"]], append=True)
+    # the jury's own texts (criteria, EDS, eliminating criteria, method, algorithm, advice), gzip members appended
+    with gzip.open(out / "qualitatif.jsonl.gz", "at", encoding="utf-8") as g:
+        g.write(json.dumps({**key, "codes": p["codes"], **{k: p[k] for k in QUALI}}, ensure_ascii=False) + "\n")
+    r.update(status=status, session=p["session"], codes=";".join(p["codes"]), n_doublettes=len(p["doublettes"]),
+             n_synthese=len(p["synthese"]))
+
+
+def repaired(content: bytes) -> bytes:
+    """qpdf (pikepdf) rebuilds a damaged cross-reference table: a file cut after its last page is readable again."""
+    import io
+    import pikepdf
+    with pikepdf.open(io.BytesIO(content)) as pdf:
+        buf = io.BytesIO()
+        pdf.save(buf)
+        return buf.getvalue()
+
+
+def complete(p: dict) -> bool:
+    """A repaired report is used only when nothing was lost: every page has text and its last section (the signature
+    line) is there. Otherwise a table cut by the damage could pass the SIES check with missing doublette rows."""
+    return p["pages"] > 0 and p["pages_vides"] == 0 and p["fin"]
+
+
+def try_parse(content: bytes) -> tuple[dict | None, str, str]:
+    """(parsed, status, note): the file as archived, else repaired and complete; never a partial report."""
+    try:
+        return parse(content), "ok", ""
+    except Exception as e:  # noqa: BLE001
+        err = f"{type(e).__name__}: {e}"[:120]
+    try:
+        p = parse(repaired(content))
+    except Exception as e:  # noqa: BLE001
+        return None, "parse_error", f"{err}; repair: {type(e).__name__}"[:200]
+    if not complete(p):
+        return None, "incomplet", f"{err}; repaired, {p['pages_vides']} empty page(s), end {'found' if p['fin'] else 'missing'}"
+    return p, "ok_repare", f"repaired ({err})"[:200]
+
+
+def captures(http: httpx.Client, original: str) -> list[tuple[str, str]]:
+    """Every archived capture of this exact URL answered 200, newest first (timestamp, digest)."""
+    r = call(http, CDX, {"url": original, "output": "json", "fl": "timestamp,digest,statuscode", "filter": "statuscode:200"})
+    if r is None or r.status_code != 200 or not r.text.strip():
+        return []
+    rows = r.json()
+    return sorted({(ts, dg) for ts, dg, _ in rows[1:]}, reverse=True)
+
+
+def repair(http: httpx.Client, out: Path, budget_s: float, max_captures: int = 8) -> dict:
+    """The files a harvest could not read (download failed, or unreadable PDF): try the URL's other captures, newest
+    first, each as archived then repaired; the first complete one is kept. The archive link then names that capture."""
+    t0 = time.time()
+    idx = list(csv.DictReader(open(out / "pdf_index.csv", encoding="utf-8")))
+    todo = [r for r in idx if r["status"] in ("retry", "failed", "parse_error", "incomplet")]
+    for r in todo:
+        if time.time() - t0 > budget_s:
+            break
+        own = (r["timestamp"], r["digest"])
+        caps = [own] + [c for c in captures(http, r["original"]) if c != own]
+        notes = []
+        for ts, dg in caps[:max_captures]:
+            resp = call(http, f"https://web.archive.org/web/{ts}id_/{r['original']}", pause=1.0)
+            if resp is None or resp.status_code != 200 or not resp.content.startswith(b"%PDF"):
+                notes.append(f"{ts}: download {resp.status_code if resp is not None else 'none'}")
+                continue
+            p, status, note = try_parse(resp.content)
+            if p is None:
+                notes.append(f"{ts}: {note}")
+                r["status"] = status
+                continue
+            r["timestamp"] = ts                 # the archive link shows the capture actually read
+            store(out, r, p, status)
+            r["error"] = "; ".join(notes + [f"{ts}: {note or 'ok'}"])[:300]
+            break
+        else:
+            if r["status"] == "retry":
+                r["status"] = "failed"
+            r["error"] = "; ".join(notes)[:300] or r.get("error", "")
+        print(r["digest"], r["status"], r["error"][:160], flush=True)
+    write(out / "pdf_index.csv", INDEX_COLS, idx)
+    return {"repair_tried": len(todo), "total": len(idx),
+            "by_status": {s: sum(1 for r in idx if r["status"] == s) for s in sorted({r["status"] for r in idx})}}
+
+
 def fetch(http: httpx.Client, out: Path, budget_s: float, workers: int = 2) -> dict:
     """Download and parse the files still to do; `workers` downloads at a time (each paced), writes under one lock."""
     import threading
@@ -108,16 +199,9 @@ def fetch(http: httpx.Client, out: Path, budget_s: float, workers: int = 2) -> d
         except Exception as e:  # noqa: BLE001
             r["status"], r["error"] = "parse_error", f"{type(e).__name__}: {e}"[:200]
             return
-        key = {"digest": r["digest"], "timestamp": r["timestamp"], "session": p["session"]}
+        r["error"] = ""
         with lock:
-            write(out / "doublettes.csv", DBL_COLS, [{**key, **d} for d in p["doublettes"]], append=True)
-            write(out / "synthese.csv", SYN_COLS, [{**key, **d} for d in p["synthese"]], append=True)
-            write(out / "masked.csv", MSK_COLS, [{**key, **d} for d in p["masked"]], append=True)
-            # the jury's own texts (criteria, EDS, eliminating criteria, method, algorithm, advice), gzip members appended
-            with gzip.open(out / "qualitatif.jsonl.gz", "at", encoding="utf-8") as g:
-                g.write(json.dumps({**key, "codes": p["codes"], **{k: p[k] for k in QUALI}}, ensure_ascii=False) + "\n")
-            r.update(status="ok", session=p["session"], codes=";".join(p["codes"]), n_doublettes=len(p["doublettes"]),
-                     n_synthese=len(p["synthese"]), error="")
+            store(out, r, p)
             done[0] += 1
             if done[0] % 200 == 0:
                 write(out / "pdf_index.csv", INDEX_COLS, idx)
@@ -131,16 +215,16 @@ def fetch(http: httpx.Client, out: Path, budget_s: float, workers: int = 2) -> d
             "by_status": {s: sum(1 for r in idx if r["status"] == s) for s in sorted({r["status"] for r in idx})}}
 
 
-def main(out: str, budget_min: float, reenumerate: bool) -> None:
+def main(out: str, budget_min: float, reenumerate: bool, fix: bool = False) -> None:
     dest = Path(out)
     dest.mkdir(parents=True, exist_ok=True)
     with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
         if reenumerate or not (dest / "pdf_index.csv").exists():
             print("enumerated", enumerate_pdfs(http, dest), flush=True)
-        res = fetch(http, dest, budget_min * 60)
+        res = repair(http, dest, budget_min * 60) if fix else fetch(http, dest, budget_min * 60)
     (dest / "last_run.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
     print(json.dumps(res), flush=True)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else 300, "--enumerate" in sys.argv)
+    main(sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else 300, "--enumerate" in sys.argv, "--repair" in sys.argv)

@@ -14,6 +14,9 @@ the jury's texts.
   R5 wording and data: the jury's options only as quotes, the specialty labels the page highlights = journey.SPECIALTIES,
      vouvoiement, never a probability; the sources register lists the archive
   R6 mutation test (mutants built in memory, no source file written)
+  R7 repaired files (harvest --repair): a probe PDF cut after its last page is rebuilt and read exactly like the intact
+     file; a file cut inside its pages is never used (empty pages or no signature line); the build keeps "ok_repare"
+     rows and drops "incomplet" ones (own mutants: completeness ignored, repaired rows dropped)
 """
 from __future__ import annotations
 
@@ -36,6 +39,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from suptracker import journey as J  # noqa: E402
 from suptracker import rapports as RP  # noqa: E402
+import rapports_harvest as HARVEST  # noqa: E402
 import rapports_parse as PARSE  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
@@ -44,7 +48,7 @@ CHECKS = []
 CHANCE = re.compile(r"(?i)\bprobabilit|\d+\s*%\s*de chances|chances? d'[eê]tre (?:admis|pris)|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
 HOSTILE = '<img src=x onerror=alert(1)>'
-M = {"RP": RP, "PARSE": PARSE}
+M = {"RP": RP, "PARSE": PARSE, "H": HARVEST}
 
 
 def check(name):
@@ -351,6 +355,69 @@ def r6(c: Ctx):
             c.js = saved
     n = len(PY_MUTANTS) + len(JS_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
+
+
+def _r7(c: Ctx):
+    bad = []
+    probe = next(iter(sorted(PROBE.glob("*.pdf"))), None) if PROBE.exists() else None
+    if probe is not None:
+        b = probe.read_bytes()
+        full = PARSE.parse(b)
+        tail = b[:b.rfind(b"xref", 0, b.rfind(b"startxref"))]          # cross-reference table and trailer lost
+        p, st, _ = M["H"].try_parse(b)
+        if st != "ok":
+            bad.append(("intact", st))
+        p, st, _ = M["H"].try_parse(tail)
+        if st != "ok_repare" or p is None or p["doublettes"] != full["doublettes"] or p["synthese"] != full["synthese"]:
+            bad.append(("cut after the last page", st))
+        p, st, _ = M["H"].try_parse(b[:int(len(b) * 0.6)])               # cut inside the pages
+        if p is not None:
+            bad.append(("cut inside the pages used", st))
+    mem = duckdb.connect(":memory:")
+    mem.execute("CREATE SCHEMA core")
+    mem.execute("CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session INTEGER, nb_voe_pp INTEGER, ran_grp1 INTEGER, ran_grp2 INTEGER, ran_grp3 INTEGER)")
+    spec = craft(c, c.tmp / "h7")
+    mem.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?)", c.fy + [spec["e_row"]])
+    kept = sorted({dg for dg, _ in spec["want"].values()})
+    if len(kept) < 2:
+        return False, f"crafted harvest keeps {kept}"
+    rep, inc = kept[0], kept[1]
+    idx = list(csv.DictReader(open(c.tmp / "h7" / "pdf_index.csv", encoding="utf-8")))
+    for r in idx:
+        r["status"] = {rep: "ok_repare", inc: "incomplet"}.get(r["digest"], r["status"])
+    with open(c.tmp / "h7" / "pdf_index.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(idx[0]))
+        w.writeheader(); w.writerows(idx)
+    M["RP"].build(mem, c.tmp / "h7")
+    got = {d for (d,) in mem.execute("SELECT digest FROM core.rapport").fetchall()}
+    if rep not in got:
+        bad.append(("ok_repare dropped", rep))
+    if inc in got:
+        bad.append(("incomplet kept", inc))
+    return not bad, f"probe {probe.name if probe else None}; problems {bad}"
+
+
+@check("R7 repaired files: rebuilt only when complete and then read like the intact file; build keeps ok_repare, drops incomplet")
+def r7(c: Ctx):
+    ok, detail = _r7(c)
+    missed = []
+    for name, path, key, old, new in [
+            ("completeness ignored", ROOT / "scripts" / "rapports_harvest.py", "H",
+             'return p["pages"] > 0 and p["pages_vides"] == 0 and p["fin"]', "return True"),
+            ("repaired rows dropped", ROOT / "suptracker" / "rapports.py", "RP", 'USABLE = ("ok", "ok_repare")', 'USABLE = ("ok",)')]:
+        m = mutated(path, old, new, f"suptracker._mut7_{key}")
+        if m is None:
+            missed.append(f"{name} (anchor gone)"); continue
+        saved, M[key] = M[key], m
+        try:
+            if _r7(c)[0]:
+                missed.append(name)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            M[key] = saved
+            sys.modules.pop(f"suptracker._mut7_{key}", None)
+    return ok and not missed, detail + f"; 2 own mutants, missed {missed}"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

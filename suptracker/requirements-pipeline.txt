@@ -13,3 +13,5 @@ openpyxl>=3.1
 xlrd>=2.0
 # Parcoursup public reports (scripts/rapports_parse.py, red team R1)
 pdfplumber>=0.11
+# Repair of damaged report PDFs (scripts/rapports_harvest.py --repair, red team R7)
+pikepdf>=9
