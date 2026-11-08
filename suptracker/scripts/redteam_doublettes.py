@@ -287,8 +287,8 @@ def d4(c: Ctx):
                              ORDER BY 1, 2""").fetchall()
     for cod, ses in [(x, None) for x in cods] + multi:
         s = M["DB"].series(c.con, cod, ses) if ses is not None else M["DB"].series(c.con, cod)
-        lin = c.con.execute("SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? AND (? IS NULL OR session = ?)",
-                            [cod, ses, ses]).fetchone()[0]
+        lin = c.con.execute("""SELECT lineage_id FROM core.lineage WHERE cod_aff_form = ? AND (? IS NULL OR session = ?)
+                               ORDER BY session DESC LIMIT 1""", [cod, ses, ses]).fetchone()[0]
         if ses is not None and M["DB"].for_formation(c.con, cod, ses)["series"] != s:
             bad.append((cod, ses, "page block not from this session's lineage"))
         rows = c.con.execute("""SELECT fy.session, nb_voe_pp_bg, nb_voe_pc_bg, prop_tot_bg, nb_voe_pp_bt, nb_voe_pc_bt, prop_tot_bt,
@@ -634,7 +634,7 @@ def d9(c: Ctx):
                     missed.append(name)
             finally:
                 setattr(c, attr, src)
-    n = len(PY_MUTANTS) + (len(JOURNEY_MUTANTS) if has_break else 0) + len(JS_MUTANTS) + len(CSS_MUTANTS)
+    n = len(PY_MUTANTS) + (len(LINEAGE_MUTANTS) if has_multi else 0) + (len(JOURNEY_MUTANTS) if has_break else 0) + len(JS_MUTANTS) + len(CSS_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 
 
