@@ -112,10 +112,12 @@ def harvest(http, db: str, out: Path, live: Path, budget_s: float, pause: float 
     known = {r["digest"] for r in idx}
     # is the site open? a few fiches first
     closed = 0
-    for r in todo[:probe_codes]:
+    # probe fiches that already answered (a fiche left "retry" may be a formation gone for good, not a closed site)
+    probes = ([r for r in state.values() if r["status"] == "ok"] or [r for r in todo if r["status"] == "todo"] or todo)[:probe_codes]
+    for r in probes:
         url, _ = fetch_fiche(http, r["cod_aff_form"], pause)
         closed += url is None
-    if todo and closed == min(probe_codes, len(todo)):
+    if todo and probes and closed == len(probes):
         res = {"status": "closed", "checked_at": _now(), "todo": len(todo), "total": len(state)}
         prev = live / "last_run.json"
         # a closed site changes nothing: no commit (hence no deployment) every day; only the first closed run is written

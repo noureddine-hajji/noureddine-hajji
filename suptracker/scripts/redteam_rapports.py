@@ -487,12 +487,17 @@ def _r8(c: Ctx):
     out = {}
     try:
         L.codes = lambda db: [code, "999991", "999992"]
-        for name, open_ in (("closed", False), ("open", True), ("again", True)):
+        for name, open_ in (("closed", False), ("open", True), ("again", True), ("gone", True)):
             d = c.tmp / "live"
             if name == "closed":
                 shutil.rmtree(d, ignore_errors=True)
                 (d / "h").mkdir(parents=True)
             L.call = fake(open_)
+            if name == "gone":     # a formation gone for good (its fiche 404s) first in line must not read as a closed site
+                L.codes = lambda db: ["999994", "999995", "999996", code, "999997"]     # three never-read fiches 404 first
+                gone = fake(True)
+                L.call = lambda http, url, params=None, pause=0, tries=1: (_Resp(404, text="") if any(k in url for k in ("999994", "999995", "999996"))
+                                                                         else gone(http, url, params, pause, tries))
             out[name] = L.harvest(None, str(c.db), d / "h", d / "state", 600, pause=0)
             out[name + "_files"] = sorted(p.name for p in (d / "h").iterdir())
             out[name + "_idx"] = list(csv.DictReader(open(d / "h" / "pdf_index.csv", encoding="utf-8"))) if (d / "h" / "pdf_index.csv").exists() else []
@@ -505,6 +510,8 @@ def _r8(c: Ctx):
     idx = out["open_idx"]
     if len(idx) != 1 or idx[0]["source"] != "live" or idx[0]["digest"] != L.digest(pdf) or idx[0]["original"] != want_link or idx[0]["status"] != "ok":
         bad.append(("stored", [(r["source"], r["status"]) for r in idx]))
+    if out["gone"]["status"] != "open":
+        bad.append(("formations gone for good read as a closed site",))
     if len(out["again_idx"]) != 1:
         bad.append(("duplicated on resume", len(out["again_idx"])))
     # the build: same verification, the fiche is credited
@@ -559,6 +566,7 @@ def r8(c: Ctx):
     n_rep = c.con.execute("SELECT count(*) FROM core.rapport WHERE session = (SELECT max(session) FROM core.formation_year)").fetchone()[0]
     for name, path, key, old, new in [
             ("closed site not detected", ROOT / "scripts" / "rapports_live.py", "L", "if resp is not None and resp.status_code == 200 and not is_closed(resp):", "if resp is not None:"),
+            ("closed when the first fiches are gone", ROOT / "scripts" / "rapports_live.py", "L", 'probes = ([r for r in state.values() if r["status"] == "ok"] or [r for r in todo if r["status"] == "todo"] or todo)[:probe_codes]', "probes = todo[:probe_codes]"),
             ("link left escaped", ROOT / "scripts" / "rapports_live.py", "L", "u = urljoin(base, html.unescape(m.group(1)))", "u = urljoin(base, m.group(1))"),
             ("any host followed", ROOT / "scripts" / "rapports_live.py", "L", 'if u.startswith("https://") and "parcoursup.fr/" in u and u not in out:', "if u not in out:"),
             *([] if not n_rep else [("no priority", ROOT / "scripts" / "rapports_live.py", "L", "return sorted(allc - done, key=_num) + sorted(allc & done, key=_num)", "return sorted(allc, key=_num)")]),
@@ -576,7 +584,7 @@ def r8(c: Ctx):
         finally:
             M[key] = saved
             sys.modules.pop(f"suptracker._mut8_{key}", None)
-    return ok and not missed, detail + f"; {6 if n_rep else 5} own mutants (priority only where reports exist), missed {missed}"
+    return ok and not missed, detail + f"; {7 if n_rep else 6} own mutants (priority only where reports exist), missed {missed}"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:
