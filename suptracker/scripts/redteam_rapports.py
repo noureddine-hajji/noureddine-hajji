@@ -469,7 +469,7 @@ def _r8(c: Ctx):
     fiche = ('<a id="lien-rapp-pub" href="/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=X&amp;g_ti_cod=' + code +
              '&amp;c_ja_cod=1">Télécharger</a><a href="https://evil.example/telechargerRapportPublic?x=1">x</a>'
              '<a href="javascript:alert(1)//telechargerRapportPublic?x">y</a>')
-    want_link = "https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=X&g_ti_cod=" + code + "&c_ja_cod=1"
+    want_link = "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=X&g_ti_cod=" + code + "&c_ja_cod=1"
     bad = []
     links = L.report_links(fiche, L.FICHE.format(cod=code))
     if links != [want_link]:
@@ -523,6 +523,13 @@ def _r8(c: Ctx):
     if M["RP"].for_formation(mem, code, p["session"]):
         bad.append(("unverified live report kept",))
     credit = 'sur la fiche Parcoursup de la formation' in c.js and 'rp.source === "live"' in c.js
+    # the owner's priority: formations without a verified report of the latest session come first
+    order = L.codes(str(c.db))
+    with_rep = {x for (x,) in c.con.execute("""SELECT cod_aff_form FROM core.rapport
+        WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
+    flags = [x in with_rep for x in order]
+    if flags != sorted(flags) or len(set(order)) != len(order):
+        bad.append(("priority order",))
     return not bad and credit, f"links {links == [want_link]}; closed {out['closed']['status']}; problems {bad[:3]}; page credit {credit}"
 
 
@@ -549,10 +556,12 @@ process.stdout.write(JSON.stringify({ pend: rpPending(rp), src: rapportSource(rp
 def r8(c: Ctx):
     ok, detail = _r8(c)
     missed = []
+    n_rep = c.con.execute("SELECT count(*) FROM core.rapport WHERE session = (SELECT max(session) FROM core.formation_year)").fetchone()[0]
     for name, path, key, old, new in [
-            ("closed site not detected", ROOT / "scripts" / "rapports_live.py", "L", "return resp is None or resp.status_code == 404 or", "return resp is None or"),
+            ("closed site not detected", ROOT / "scripts" / "rapports_live.py", "L", "if resp is not None and resp.status_code == 200 and not is_closed(resp):", "if resp is not None:"),
             ("link left escaped", ROOT / "scripts" / "rapports_live.py", "L", "u = urljoin(base, html.unescape(m.group(1)))", "u = urljoin(base, m.group(1))"),
             ("any host followed", ROOT / "scripts" / "rapports_live.py", "L", 'if u.startswith("https://") and "parcoursup.fr/" in u and u not in out:', "if u not in out:"),
+            *([] if not n_rep else [("no priority", ROOT / "scripts" / "rapports_live.py", "L", "return sorted(allc - done, key=_num) + sorted(allc & done, key=_num)", "return sorted(allc, key=_num)")]),
             ("same PDF stored twice", ROOT / "scripts" / "rapports_live.py", "L", "            if dg in known:\n                continue\n", ""),
             ("live credited to the archive", ROOT / "suptracker" / "rapports.py", "RP", '"archive": url if live else f"https://web.archive.org/web/{cap}/{url}"', '"archive": f"https://web.archive.org/web/{cap}/{url}"')]:
         m = mutated(path, old, new, f"suptracker._mut8_{key}")
@@ -567,7 +576,7 @@ def r8(c: Ctx):
         finally:
             M[key] = saved
             sys.modules.pop(f"suptracker._mut8_{key}", None)
-    return ok and not missed, detail + f"; 5 own mutants, missed {missed}"
+    return ok and not missed, detail + f"; {6 if n_rep else 5} own mutants (priority only where reports exist), missed {missed}"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

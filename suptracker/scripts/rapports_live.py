@@ -33,7 +33,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from rapports_harvest import INDEX_COLS, UA, call, store, write  # noqa: E402
 from rapports_parse import parse  # noqa: E402
 
-FICHE = "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={cod}&typeBac=0&originePc=0"
+# between campaigns the fiches (with the last session's reports) stay on dossier.parcoursup.fr while dossierappel answers 404
+# (probe of 2026-11-09); during a campaign dossierappel serves them: each fiche is tried on both, in this order
+FICHE_HOSTS = ("dossier.parcoursup.fr", "dossierappel.parcoursup.fr")
+FICHE = "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={cod}&typeBac=0&originePc=0"
 LINK_RE = re.compile(r"""href=["']([^"']*telechargerRapportPublic\?[^"']+)["']""")
 SESSION_RE = re.compile(r"rapport d'analyse des candidatures de la session (\d{4})", re.I)
 STATE_COLS = ["cod_aff_form", "status", "fetched_at", "links", "digests", "error"]
@@ -60,13 +63,36 @@ def is_closed(resp) -> bool:
 
 
 def codes(db: str) -> list[str]:
+    """Every formation of the latest SIES campaign and of the latest cartographie session: first those with no verified
+    report of the latest SIES session (the owner's priority), then the others (refreshed)."""
     import duckdb
     con = duckdb.connect(db, read_only=True)
     try:
-        return [c for (c,) in con.execute("""SELECT cod_aff_form FROM core.cartographie
-            WHERE carto_session = (SELECT max(carto_session) FROM core.cartographie) ORDER BY cod_aff_form""").fetchall()]
+        has_rap = bool(con.execute("""SELECT count(*) FROM information_schema.tables WHERE table_schema = 'core'
+                                      AND table_name = 'rapport'""").fetchone()[0])
+        done = {c for (c,) in con.execute("""SELECT cod_aff_form FROM core.rapport
+            WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()} if has_rap else set()
+        allc = {c for (c,) in con.execute("""SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
+            UNION SELECT cod_aff_form FROM core.cartographie WHERE carto_session = (SELECT max(carto_session) FROM core.cartographie)""").fetchall()}
+        return sorted(allc - done, key=_num) + sorted(allc & done, key=_num)
     finally:
         con.close()
+
+
+def _num(c: str):
+    return (0, int(c)) if c.isdigit() else (1, c)
+
+
+def fetch_fiche(http, cod: str, pause: float):
+    """The fiche of a formation from the first host that serves it (url, response); (None, last response) if none does."""
+    last = None
+    for h in FICHE_HOSTS:
+        url = FICHE.replace("dossier.parcoursup.fr", h).format(cod=cod)
+        resp = call(http, url, pause=pause)
+        if resp is not None and resp.status_code == 200 and not is_closed(resp):
+            return url, resp
+        last = resp
+    return None, last
 
 
 def read_state(path: Path, all_codes: list[str]) -> dict:
@@ -79,15 +105,16 @@ def read_state(path: Path, all_codes: list[str]) -> dict:
 def harvest(http, db: str, out: Path, live: Path, budget_s: float, pause: float = 1.5, probe_codes: int = 3) -> dict:
     t0 = time.time()
     live.mkdir(parents=True, exist_ok=True)
-    state = read_state(live / "fiches.csv", codes(db))
-    todo = [r for r in state.values() if r["status"] in ("todo", "retry")]
+    order = codes(db)
+    state = read_state(live / "fiches.csv", order)
+    todo = [state[c] for c in order if state[c]["status"] in ("todo", "retry")]
     idx = list(csv.DictReader(open(out / "pdf_index.csv", encoding="utf-8"))) if (out / "pdf_index.csv").exists() else []
     known = {r["digest"] for r in idx}
     # is the site open? a few fiches first
     closed = 0
     for r in todo[:probe_codes]:
-        resp = call(http, FICHE.format(cod=r["cod_aff_form"]), pause=pause)
-        closed += is_closed(resp)
+        url, _ = fetch_fiche(http, r["cod_aff_form"], pause)
+        closed += url is None
     if todo and closed == min(probe_codes, len(todo)):
         res = {"status": "closed", "checked_at": _now(), "todo": len(todo), "total": len(state)}
         prev = live / "last_run.json"
@@ -99,10 +126,9 @@ def harvest(http, db: str, out: Path, live: Path, budget_s: float, pause: float 
     for r in todo:
         if time.time() - t0 > budget_s:
             break
-        url = FICHE.format(cod=r["cod_aff_form"])
-        resp = call(http, url, pause=pause)
+        url, resp = fetch_fiche(http, r["cod_aff_form"], pause)
         r["fetched_at"] = _now()
-        if resp is None or resp.status_code != 200:
+        if url is None:
             r["status"] = "retry" if r["status"] == "todo" else "failed"
             r["error"] = f"fiche {resp.status_code if resp is not None else 'none'}"
             continue
@@ -154,7 +180,7 @@ def _now() -> str:
 
 def main(db: str, out: str, live: str, budget_min: float) -> None:
     with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
-        res = harvest(http, db, Path(out), Path(live), budget_min * 60)
+        res = harvest(http, db, Path(out), Path(live), budget_min * 60, pause=1.0)
     print(json.dumps(res), flush=True)
 
 
