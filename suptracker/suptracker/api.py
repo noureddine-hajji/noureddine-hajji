@@ -39,6 +39,8 @@ from . import seo as SEO
 from . import doublettes as DBL
 from . import rapports as RP
 from . import carte as CA
+from . import appel as AP
+from . import selectivite as SEL
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -584,7 +586,9 @@ def formation(cod: str, session: int | None = None):
             # sprint "Rapports publics": this formation's own report (doublettes as published, the jury's criteria and texts)
             "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
-            "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # how far the list was called, every campaign (published ranks; a share only with one calling group)
+            "appel": AP.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -758,6 +762,21 @@ def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac",
             raise HTTPException(422, "deux spécialités différentes sont requises")
         dkey = J.doublette_key(spe1, spe2)
     return CA.zones(_con().cursor(), diplome, mention or None, dkey, mention_bac, serie)
+
+
+@app.get("/api/comprendre")
+def comprendre():
+    """How far the lists were called and when the offers came, per type of diploma (latest campaign, published counts)."""
+    return AP.by_type(_con().cursor())
+
+
+@app.get("/api/selectivite")
+def selectivite(diplome: str, mention: str | None = None):
+    """The "vraie sélectivité" matrix of a type of diploma (and mention): access rate x share of admits with "Bien" or better."""
+    res = SEL.points(_con().cursor(), diplome, mention or None)
+    if res is None:
+        raise HTTPException(404, "type de diplôme inconnu")
+    return res
 
 
 @app.get("/api/journey/vocab")
@@ -947,7 +966,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite"]
 
 
 @lru_cache(maxsize=1)

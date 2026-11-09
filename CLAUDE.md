@@ -36,6 +36,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Doublettes:** `doublettes.py` (proposal rates per doublette for a group, national; per bac route for a formation; `mart.spe_group`, `mart.spe_break`).
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
+  - **Comprendre l'appel / Vraie sélectivité:** `appel.py` (how far each list was called, offer timing per type), `selectivite.py` (access rate x mention matrix).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -337,6 +338,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     in `static/vendor/leaflet/` and loaded by the map page only (never the page shell, never a CDN); one tile URL
     (`CARTE_TILES`), the attribution, and a note that OpenStreetMap's servers see the IP address. The list works without the map.
   - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C10).
+- **Comprendre l'appel and Vraie sélectivité (owner, 2026-11-09).** The app PREPARES the choice of vœux: the student has no rank
+  yet, so no page asks for one. Depth of call = SUM of the calling groups' last-called ranks (groups split the candidates) /
+  ranked (`nb_cla_pp`), capped: at or beyond the ranked count it reads "toute la liste", never > 100 % (2022-2024: ~10 % of rows
+  exceed). Per type: medians (depth; the three published timing shares, zero-admit rows out). Matrix: x = official
+  `taux_acces_ens`, y = `pct_b + pct_tb + pct_tbf` (disjoint shares of the néo-bachelier admits); < 10 néo-bachelier admits or
+  no rate = not placed; quadrant lines = medians of the selection; names describe a position, never a cause ("élite",
+  "auto-censure" banned) or a chance. Red team `redteam_appel.py` (A1-A7).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

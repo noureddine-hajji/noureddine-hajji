@@ -1816,3 +1816,50 @@ It then writes the **longitudinal continuity report**: the share of 2025 formati
 2024, 2023 and 2022, the share covering the full span (in total and exact-only), and the share with an
 inferred link, both overall and by `fili`. Rows with NULL components count as *not evaluable*, never as
 passes. `--strict` returns a non-zero exit code on failure.
+
+
+## Comprendre l'appel and Vraie sélectivité (owner's request, 2026-11-09)
+
+The owner shared a UI brief built on students' and teachers' feedback about Parcoursup. SupCompass PREPARES the choice of
+vœux: the student has no rank yet, so these pages never ask for one. Three things from the brief can be answered with
+published figures only.
+
+**How far the list was called (formation page, tab "Y entrer").**
+- **Data check.** The calling groups split the candidates without overlap. So the SUM of the groups' last-called ranks
+  (`ran_grp1..3`) is the number of ranked candidates who got an offer in the main phase.
+  - In 2025 this sum equals the ranked count (`nb_cla_pp`) for 5 646 formations and exceeds it for 1 of 14 191.
+  - In 2022-2024 about one row in ten exceeds it.
+- **The card.** For every campaign it shows the candidates, the ranked, each group's last-called rank, the share of the ranked
+  who were called (min(1, sum / ranked)) and the places.
+  - A sum at or beyond the ranked count reads "toute la liste", never a share above 100 %.
+  - Example: BUT Mesures physiques in Le Mans, 2025: 740 + 108 = 848 = every ranked candidate, for 78 places.
+
+**Page "Comprendre l'appel" (`#/comprendre`).**
+- It explains three figures not to confuse: the access rate, the last-called rank, and the waiting-list position (which only
+  exists after the vœux).
+- Per type of diploma (types of at least 20 formations), it gives the median share of the ranked who were called and the share
+  of formations that called their whole list.
+- It gives the medians of the three published offer-timing shares: from the opening, before the bac results, before the end of
+  the main phase. Zero-admit rows are left out.
+
+**Page "Vraie sélectivité" (`#/selectivite/<type>/<mention>`).**
+- Each formation of the chosen type (and mention) is placed by two published figures:
+  - x: its official access rate;
+  - y: the share of its néo-bachelier admits with a "Bien" mention or better (`pct_b + pct_tb + pct_tbf`; the mention shares
+    are disjoint and add up to 100 %).
+- Formations with fewer than 10 néo-bachelier admits, or without an access rate, are counted apart.
+- The quadrant lines are the medians of the selection. The four names (Plus accessible, Très demandée, Admis souvent
+  mentionnés, Très sélective) describe a position, never a cause or a chance.
+- Each quadrant lists its formations with candidates per place: vœux divided by places, an order of magnitude.
+
+**Not taken from the brief, because nothing published supports it:** the admits' grades (no median /20 exists), the day-by-day
+call curve, an "algorithmic score", and rank bonuses for maths expertes, boursier status or the lycée.
+
+**Red team** `scripts/redteam_appel.py` (A1-A7), via `tests/test_appel.py`:
+- A1: the depth re-derived by SQL.
+- A2: the per-type medians.
+- A3: the matrix: placement, exclusions, medians and quadrants.
+- A4: both pages in Node on hostile data: escaping, labelled cells, "toute la liste", the caveat, no rank input.
+- A5: wording.
+- A6: wiring.
+- A7: 16 in-memory mutants, one skipped where the data cannot show it.

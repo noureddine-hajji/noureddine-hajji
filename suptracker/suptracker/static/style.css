@@ -363,3 +363,12 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .carte-pick select { width: 100%; max-width: 100%; min-height: 44px; }
 .carte-filters fieldset label { display: flex; align-items: center; gap: 8px; }
 .carte-filters fieldset label > .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* vraie sélectivité: tokens only; the dots are ink, never a zone colour or the accent */
+.sel-plot { width: 100%; max-width: 640px; height: auto; display: block; }
+.sel-grid { stroke: var(--line); stroke-width: 1; }
+.sel-med { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.sel-tick, .sel-axis { fill: var(--muted); font-size: var(--fs-xs); }
+.sel-q { fill: var(--ink); font-size: var(--fs-xs); font-weight: 600; stroke: var(--surface); stroke-width: 4px; paint-order: stroke; }
+.sel-dot { fill: var(--ink); fill-opacity: .45; cursor: pointer; }
+.sel-dot.on, .sel-dot:hover { fill-opacity: 1; }

@@ -793,6 +793,7 @@ async function viewFormation(cod, session) {
   ${previsionCard(d.prevision)}
   ${offerCard(r, d.apprentissage)}
   ${timingCard(r, d.history)}
+  ${appelCard(d.appel)}
   ${lyceeHere(r)}
   <div id="planb"></div>
   <div class="card"><h2>Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
@@ -2204,10 +2205,107 @@ function codesCard(codes) {
     <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés) ; France Travail (appellations du ROME, pour les métiers sans code Onisep). Licence Ouverte.</p></div>`;
 }
 
+// ---- Comprendre l'appel and the selectivity matrix (owner's request, 2026-11-09) ----
+// SupCompass prepares the choice of vœux: the student has no rank yet, and none is asked. Every figure is published (SIES)
+// or computed from published counts and says so; never a chance of admission.
+const APPEL_NOTE = "Des campagnes passées, pas des chances d'admission : vous n'avez pas encore de rang, ces chiffres montrent comment la liste a été appelée.";
+// how far the list of one formation was called, campaign by campaign (the calling groups split the candidates: their
+// last-called ranks add up to the candidates called)
+function appelCard(rows) {
+  const ok = (rows || []).filter((r) => r.groupes && r.groupes.length);
+  if (!ok.length) return "";
+  const last = ok[ok.length - 1], called = last.groupes.reduce((a, g) => a + g.rang, 0);
+  const lead = last.toute_la_liste
+    ? `En ${esc(last.session)}, <strong>toute la liste</strong> des ${fmt(last.classes)} candidats classés a reçu une proposition`
+    : last.profondeur != null ? `En ${esc(last.session)}, <strong>${pct(last.profondeur)}</strong> des ${fmt(last.classes)} candidats classés ont reçu une proposition` : "";
+  const places = last.places && called > last.places ? `, pour ${fmt(last.places)} places : la liste descend bien au-delà du nombre de places, car beaucoup de candidats choisissent une autre formation` : "";
+  return `<div class="card"><h2>Jusqu'où la liste a-t-elle été appelée ?</h2>
+    <p class="small">Le jury classe les candidats ; les propositions partent dans l'ordre du classement, au fil des places libérées. Le rang du dernier appelé de chaque groupe d'appel est publié.</p>
+    ${lead ? `<p class="info">${lead}${places}.</p>` : ""}
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Session</th><th class="num">Candidats</th><th class="num">Classés</th><th>Rang du dernier appelé</th><th class="num">Part des classés appelés</th><th class="num">Places</th></tr>
+      ${ok.map((r) => `<tr><td data-label="Session">${esc(r.session)}</td><td class="num" data-label="Candidats">${fmt(r.candidats)}</td><td class="num" data-label="Classés">${fmt(r.classes)}</td>
+        <td data-label="Rang du dernier appelé">${r.groupes.map((g) => `${esc(g.label || "Groupe")} : ${fmt(g.rang)}`).join("<br>")}</td>
+        <td class="num" data-label="Part des classés appelés">${r.toute_la_liste ? "toute la liste" : pct(r.profondeur)}</td><td class="num" data-label="Places">${fmt(r.places)}</td></tr>`).join("")}</table></div>
+    <p class="muted small">${APPEL_NOTE} Part des classés appelés : somme des rangs des derniers appelés de chaque groupe, divisée par le nombre de classés (calcul à partir des effectifs publiés). <a href="#/comprendre">Comprendre l'appel →</a></p></div>`;
+}
+async function viewComprendre() {
+  const d = await api("/api/comprendre");
+  if (!/^#\/comprendre/.test(location.hash)) return;
+  const ts = d.types.filter((t) => t.n >= 20);
+  const bts = d.types.find((t) => t.diplome === "BTS - BTSA - BTSM");
+  $view.innerHTML = `<div class="card"><h1>Comprendre l'appel</h1>
+    <p>Avant de choisir vos vœux, trois chiffres à ne pas confondre :</p>
+    <ul class="offer-list">
+      <li><strong>Le taux d'accès</strong> : la part des candidats qui ont reçu une proposition. Un taux bas peut venir du grand nombre de candidats pour les places, pas seulement du niveau demandé (voir la <a href="#/selectivite">vraie sélectivité</a>).</li>
+      <li><strong>Le rang du dernier appelé</strong> : chaque formation classe ses candidats ; les propositions partent dans l'ordre du classement, au fil des places libérées. Le rang du dernier candidat appelé l'an passé est publié pour chaque groupe d'appel.</li>
+      <li><strong>La position en liste d'attente</strong> : elle n'existera qu'après vos vœux, pendant la phase d'admission, et elle avance chaque jour au fil des désistements.</li>
+    </ul>
+    <p class="muted small">${APPEL_NOTE}</p></div>
+  <div class="card"><h2>Jusqu'où les listes ont été appelées, par type de diplôme (${esc(d.session)})</h2>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de diplôme</th><th class="num">Formations</th><th class="num">Part des classés appelés (médiane)</th><th class="num">Formations ayant appelé toute leur liste</th></tr>
+      ${ts.map((t) => `<tr><td data-label="Type de diplôme">${esc(t.diplome)}</td><td class="num" data-label="Formations">${fmt(t.n)}</td>
+        <td class="num" data-label="Part des classés appelés (médiane)">${pct(t.profondeur_mediane)}</td><td class="num" data-label="Formations ayant appelé toute leur liste">${pct(t.part_toute_la_liste)}</td></tr>`).join("")}</table></div>
+    <p class="muted small">Médiane sur les formations du type, calculée à partir des effectifs publiés (rangs des derniers appelés et candidats classés). Types d'au moins 20 formations.</p></div>
+  <div class="card"><h2>Quand arrivent les propositions ?</h2>
+    ${bts && bts.calendrier[0] != null ? `<p class="info">Une liste qui bouge lentement les premiers jours est normale : dans la moitié des BTS, ${pct(bts.calendrier[0])} au plus des futurs admis avaient leur proposition dès l'ouverture ; ${pct(bts.calendrier[1])} l'avaient avant les résultats du bac.</p>` : ""}
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de diplôme</th><th class="num">Dès l'ouverture</th><th class="num">Avant les résultats du bac</th><th class="num">Avant la fin de la phase principale</th></tr>
+      ${ts.map((t) => `<tr><td data-label="Type de diplôme">${esc(t.diplome)}</td>${t.calendrier.map((v, i) => `<td class="num" data-label="${["Dès l'ouverture", "Avant les résultats du bac", "Avant la fin de la phase principale"][i]}">${pct(v)}</td>`).join("")}</tr>`).join("")}</table></div>
+    <p class="muted small">Part des admis qui avaient déjà reçu leur proposition à chaque étape, publiée pour chaque formation ; médiane sur les formations du type qui ont des admis.</p></div>`;
+  $view.dataset.rendered = "comprendre";
+}
+// the selectivity matrix: official access rate x share of néo-bachelier admits with "Bien" or better; the quadrant lines
+// are the medians of the selection (fixed rule); names describe a position, never a cause or a chance
+const SEL_Q = ["Plus accessible", "Très demandée", "Admis souvent mentionnés", "Très sélective"];
+const SEL_Q_HELP = { "Plus accessible": "taux d'accès élevé, admis moins souvent mentionnés que la médiane", "Très demandée": "taux d'accès bas, admis moins souvent mentionnés : beaucoup de candidats pour les places",
+  "Admis souvent mentionnés": "taux d'accès élevé, admis souvent mentionnés : peu de candidats, mais de bons dossiers", "Très sélective": "taux d'accès bas et admis souvent mentionnés" };
+function selPlot(d, sel) {
+  const W = 640, H = 420, L = 48, B = 40, T = 12, R = 28, x = (v) => L + (W - L - R) * v / 100, y = (v) => H - B - (H - B - T) * v / 100;
+  const ticks = [0, 25, 50, 75, 100];
+  const dots = d.formations.map((f) => `<circle class="sel-dot${f.cod_aff_form === sel ? " on" : ""}" data-pick="${esc(f.cod_aff_form)}" cx="${x(f.taux_acces_ens).toFixed(1)}" cy="${y(f.part_bien_plus).toFixed(1)}" r="${f.cod_aff_form === sel ? 6 : 3.5}"><title>${esc(f.etablissement)} — ${esc(f.formation)} : taux d'accès ${pct(f.taux_acces_ens)}, admis avec mention Bien ou mieux ${pct(f.part_bien_plus)}</title></circle>`).join("");
+  const mx = x(d.mediane_taux), my = y(d.mediane_bien);
+  return `<svg class="sel-plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="Formations placées selon leur taux d'accès et la part de leurs admis avec mention Bien ou mieux">
+    ${ticks.map((t) => `<line x1="${x(t)}" y1="${y(0)}" x2="${x(t)}" y2="${y(100)}" class="sel-grid"/><text x="${x(t)}" y="${H - B + 16}" text-anchor="middle" class="sel-tick">${t} %</text>
+      <line x1="${x(0)}" y1="${y(t)}" x2="${x(100)}" y2="${y(t)}" class="sel-grid"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end" class="sel-tick">${t} %</text>`).join("")}
+    <line x1="${mx}" y1="${y(0)}" x2="${mx}" y2="${y(100)}" class="sel-med"/><line x1="${x(0)}" y1="${my}" x2="${x(100)}" y2="${my}" class="sel-med"/>
+    <text x="${x(99)}" y="${y(3)}" text-anchor="end" class="sel-q">Plus accessible</text><text x="${x(1)}" y="${y(3)}" class="sel-q">Très demandée</text>
+    <text x="${x(99)}" y="${y(96)}" text-anchor="end" class="sel-q">Admis souvent mentionnés</text><text x="${x(1)}" y="${y(96)}" class="sel-q">Très sélective</text>
+    ${dots}
+    <text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" class="sel-axis">Taux d'accès officiel</text>
+    <text x="12" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(T + H - B) / 2})" class="sel-axis">Admis avec mention Bien ou mieux</text></svg>`;
+}
+async function viewSelectivite(dArg, mArg) {
+  const FAC = await api("/api/carte");
+  const known = (lab) => FAC.diplomes.find((x) => x.label === lab);
+  const D = known(dArg) || known("BUT") || FAC.diplomes[0];
+  const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
+  const d = await api(`/api/selectivite?diplome=${encodeURIComponent(D.label)}${mention ? `&mention=${encodeURIComponent(mention)}` : ""}`);
+  if (!/^#\/selectivite/.test(location.hash)) return;
+  const by = Object.fromEntries(SEL_Q.map((q) => [q, d.formations.filter((f) => f.quadrant === q)]));
+  const goTo = (lab, m) => { location.hash = `#/selectivite/${encodeURIComponent(lab)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
+  const row = (f) => `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div></td>
+    <td class="num" data-label="Taux d'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Mention Bien ou mieux">${pct(f.part_bien_plus)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;
+  $view.innerHTML = `<div class="card"><h1>Vraie sélectivité</h1>
+    <p class="small">Un taux d'accès bas peut venir de nombreux candidats pour les places, ou d'admissions très exigeantes. Chaque formation est placée selon son <strong>taux d'accès officiel</strong> et la <strong>part de ses admis néo-bacheliers avec une mention Bien ou mieux</strong>.</p>
+    <div class="carte-pick"><label class="small">Type de diplôme <select id="sdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
+    <label class="small">Mention <select id="smen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label></div></div>
+  <div class="card"><div class="scroll">${d.formations.length ? selPlot(d, null) : `<p class="muted">Aucune formation placée.</p>`}</div>
+    <p class="muted small">Lignes pointillées : médianes de la sélection (taux d'accès ${pct(d.mediane_taux)}, mention Bien ou mieux ${pct(d.mediane_bien)}). Les quatre zones décrivent une position, pas une cause ni des chances d'admission. Données : SIES / MESR, session ${esc(d.session)}.</p></div>
+  ${SEL_Q.map((q) => `<details class="card"${q === "Très demandée" ? " open" : ""}><summary><strong>${esc(q)}</strong> · ${fmt(by[q].length)} formation${by[q].length > 1 ? "s" : ""} <span class="muted small">(${esc(SEL_Q_HELP[q])})</span></summary>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Taux d'accès</th><th class="num">Mention Bien ou mieux</th><th class="num">Candidats par place</th></tr>${by[q].slice(0, 40).map(row).join("")}</table></div>
+    ${by[q].length > 40 ? `<p class="muted small">40 premières sur ${fmt(by[q].length)} (ordre alphabétique) ; choisissez une mention pour réduire la liste.</p>` : ""}</details>`).join("")}
+  ${d.non_placees.length ? `<p class="muted small">${fmt(d.non_placees.length)} formation${d.non_placees.length > 1 ? "s" : ""} non placée${d.non_placees.length > 1 ? "s" : ""} : moins de ${fmt(d.min_admis)} admis néo-bacheliers, ou taux d'accès non publié.</p>` : ""}
+  <p class="muted small">Candidats par place : vœux confirmés divisés par les places, un ordre de grandeur (un même élève fait plusieurs vœux).</p>`;
+  $view.dataset.rendered = "selectivite";
+  document.getElementById("sdip").onchange = (e) => goTo(e.target.value, "");
+  document.getElementById("smen").onchange = (e) => goTo(D.label, e.target.value);
+  document.querySelectorAll(".sel-dot").forEach((c) => { c.onclick = () => { location.hash = `#/f/${encodeURIComponent(c.dataset.pick)}`; }; });
+}
+
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
-  carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats" };
-const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire"];
+  carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
+  comprendre: "comprendre", selectivite: "selectivite" };
+const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite"];
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
     if (el.dataset.tab === tab) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
@@ -2226,7 +2324,8 @@ function markTab(tab) {
 
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
-  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte" };
+  qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
+  comprendre: "comprendre", selectivite: "selectivite" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -2266,6 +2365,8 @@ async function route() {
     if (a === "parcours") return await viewParcours();
     if (a === "voeux") return await viewVoeux();
     if (a === "carte") return await viewCarte(b || "", c || "");
+    if (a === "comprendre") return await viewComprendre();
+    if (a === "selectivite") return await viewSelectivite(b || "", c || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
