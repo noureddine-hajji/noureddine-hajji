@@ -15,6 +15,11 @@ Their type of diploma and mention are those of the SIES formations that carry th
 `label_votes`), their académie that of their establishment (UAI), else of their département. Apprenticeship training is free
 for the apprentice (Code du travail, art. L6211-1): a private establishment outside State contract is "prive_app", never the
 fee-charging "prive" of Plan B's rule.
+
+Merge (owner's request, 2026-11-09): an apprenticeship offer of the SAME establishment (UAI) for the SAME diploma and mention
+(the same cartographie labels) as an initial formation of the latest SIES campaign is not listed apart: it is attached to that
+formation (`rattachee`), which then carries both labels, "Formation initiale" and "Apprentissage", and the CFA's name and
+Parcoursup page. Only the same UAI counts: another establishment of the same town is another school.
 """
 from __future__ import annotations
 
@@ -134,10 +139,29 @@ def _type_of(tf: str | None, typ: dict) -> str:
     return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")
 
 
+_CACHE: dict = {}
+
+
+def _fingerprint(con) -> tuple:
+    db = tuple(r[2] for r in con.execute("PRAGMA database_list").fetchall())
+    n = con.execute("""SELECT (SELECT count(*) FROM core.cartographie), (SELECT count(*) FROM core.formation_year),
+                              (SELECT max(session) FROM core.formation_year)""").fetchone()
+    return db + tuple(n)
+
+
 def apprentissage(con) -> list[dict]:
-    """The apprenticeship offers of the latest cartographie session that SIES does not publish (no statistics)."""
+    """The apprenticeship offers of the latest cartographie session that SIES does not publish (no statistics), each with
+    the initial formations it is attached to (`rattachee`: same UAI, same diploma and mention). Cached per warehouse."""
     if not _has_labels(con):
         return []
+    key = _fingerprint(con)
+    if key not in _CACHE:
+        _CACHE.clear()
+        _CACHE[key] = _apprentissage(con)
+    return _CACHE[key]
+
+
+def _apprentissage(con) -> list[dict]:
     rows = con.execute("""
         SELECT c.cod_aff_form, c.etab_nom, c.nom_long, c.commune, c.departement, c.etab_uai, c.lat, c.lon, c.types_etab,
                c.type_formation, c.mention_lib, c.internat, c.distance, c.amenag_sport, c.amenag_art, c.fiche_url, c.carto_session
@@ -148,6 +172,14 @@ def apprentissage(con) -> list[dict]:
     if not rows:
         return []
     pair, typ = label_votes(con)
+    initial: dict = {}                     # (UAI, type label, mention label) -> initial formations of the latest campaign
+    for cod, uais, tf, fl in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), c.type_formation, c.mention_lib
+            FROM core.formation_year f JOIN core.cartographie c USING (cod_aff_form)
+            WHERE f.session = (SELECT max(session) FROM core.formation_year) AND c.type_formation IS NOT NULL
+              AND NOT coalesce(f.apprentissage, false)""").fetchall():
+        for u in uais:
+            if u:
+                initial.setdefault((u, tf, fl), set()).add(cod)
     acad_rows = con.execute("""SELECT cod_uai, dep_lib, acad_mies FROM core.formation_year
                                WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL""").fetchall()
     by_uai, by_dep = {}, {}
@@ -164,8 +196,24 @@ def apprentissage(con) -> list[dict]:
                     "contrat_etab": tc, "select_form": None, "internat": internat, "distance": distance, "amenag_sport": sport,
                     "amenag_art": art, "taux_acces_ens": None, "type_key": None, "diplome": d, "mention": m,
                     "statut": statut_carto(tc), "payant": False, "apprentissage": True, "stats": False, "session_offre": sess,
-                    "fiche": fiche if (fiche or "").startswith(FICHE_PREFIX) else None})
+                    "fiche": fiche if (fiche or "").startswith(FICHE_PREFIX) else None,
+                    "rattachee": sorted(initial.get((uai, tf, fl), ())) if uai else []})
     return out
+
+
+def offres_par_formation(con) -> dict:
+    """{initial formation code: the apprenticeship offers attached to it (CFA, Parcoursup page)}."""
+    out: dict = {}
+    for a in apprentissage(con):
+        for cod in a["rattachee"]:
+            out.setdefault(cod, []).append({"cod_aff_form": a["cod_aff_form"], "etablissement": a["etablissement"],
+                                            "formation": a["formation"], "ville": a["ville"], "fiche": a["fiche"]})
+    return out
+
+
+def for_formation(con, cod: str) -> list:
+    """The apprenticeship offers attached to one initial formation (its page)."""
+    return offres_par_formation(con).get(cod, [])
 
 
 def facets(con) -> dict:
@@ -174,7 +222,7 @@ def facets(con) -> dict:
     rows = con.execute("""SELECT fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins FROM core.formation_year
                           WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()
     out: dict = {}
-    for r in [diplome_of(*r) for r in rows] + [(a["diplome"], a["mention"]) for a in apprentissage(con)]:
+    for r in [diplome_of(*r) for r in rows] + [(a["diplome"], a["mention"]) for a in apprentissage(con) if not a["rattachee"]]:
         d, m = r
         x = out.setdefault(d, {"n": 0, "mentions": {}})
         x["n"] += 1
@@ -200,6 +248,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         LEFT JOIN core.taxonomy_rule r USING (rule_id)
         ORDER BY f.g_ea_lib_vx, f.cod_aff_form""").fetchall()
     out = []
+    offres = offres_par_formation(con)
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
         if d != diplome or (mention and m != mention):
@@ -208,13 +257,16 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         if x["lat"] is not None:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
         x["mention"], x["statut"] = m, statut_of(x["contrat_etab"])
-        x["apprentissage"], x["stats"], x["fiche"] = bool(r[18]), True, None
-        if x["apprentissage"] and x["statut"] == "prive":
+        sies_app = bool(r[18])                # SIES's own "en apprentissage" formations (3 in 2025)
+        x["stats"], x["fiche"] = True, None
+        if sies_app and x["statut"] == "prive":
             x["statut"] = "prive_app"         # free for the apprentice: never the fee-charging rule
         x["payant"] = x["statut"] == "prive"
+        x["offres_app"] = offres.get(x["cod_aff_form"], [])
+        x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
         out.append(x)
-    out += [{k: v for k, v in a.items() if k != "diplome"} for a in apprentissage(con)
-            if a["diplome"] == diplome and (not mention or a["mention"] == mention)]
+    out += [{**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")}, "initiale": False, "offres_app": []}
+            for a in apprentissage(con) if not a["rattachee"] and a["diplome"] == diplome and (not mention or a["mention"] == mention)]
     if not out:
         return None
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]

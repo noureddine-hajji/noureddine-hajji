@@ -1,1 +1,1 @@
-{"mode": "repair", "budget_min": 60, "note": "repair run: the 32 files left unread (13 download 404, 19 damaged PDFs), every other capture of their URL, qpdf rebuild only when complete"}
+{"mode": "live", "budget_min": 20, "note": "first live run: checks whether the Parcoursup fiches are open (between campaigns they answer 404); the daily schedule on main takes over once merged"}

@@ -302,10 +302,15 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
   - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
-  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R7).
+  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R8).
   - Unread files (`--repair`, request mode "repair"): every other capture of the URL, as archived then rebuilt by qpdf
     (pikepdf); a rebuilt file is `ok_repare` only if COMPLETE (every page has text, the signature line is there), else `incomplet`
     and never used. Coverage is bounded by what the archive kept: the live fiches link the reports only during a campaign.
+  - Live harvest (`scripts/rapports_live.py`, mode "live", daily schedule on main): every fiche of the latest cartographie session,
+    its report link(s) (relative, `&amp;`-escaped; only parcoursup.fr hosts), each PDF once (archive digest form), rows with
+    `source` "live" in the SAME harvest files, hence the SAME verification. A closed site (404 / "indisponible") writes nothing
+    (no daily commit). The page credits the fiche ("lu le … sur la fiche Parcoursup"), not the archive. Red team R8.
+    A report of a session SIES has not published yet waits: it is used once SIES publishes that session.
 - **Carte (map of formations).**
   - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
   - Two levels: type of diploma, then mention (`carte.diplome_of`, fixed rules on the published labels; every formation in
@@ -318,12 +323,17 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     same cartographie labels (`label_votes`); académie by UAI, else département. A private CFA outside State contract is
     `prive_app` (free for the apprentice, Code du travail L6211-1), ticked by default; never the paid `prive`. Filter
     "Apprentissage" (hors / en). Unknown selectivity is neither sélective nor non sélective. Red team C9.
+  - Merge (owner, 2026-11-09): an apprenticeship offer of the SAME establishment (UAI, SIES or cartographie) for the SAME
+    cartographie type and mention as an initial formation of the latest SIES campaign is attached to it (`rattachee`), never listed
+    apart: the formation carries both labels ("formation initiale" + "apprentissage"; filter "hors" = `initiale`, "en" =
+    `apprentissage`) and lists the CFA with its Parcoursup page (map card and formation page, "Bon à savoir"). Another
+    establishment of the same town is NOT merged. Red team C10.
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
     in `static/vendor/leaflet/` and loaded by the map page only (never the page shell, never a CDN); one tile URL
     (`CARTE_TILES`), the attribution, and a note that OpenStreetMap's servers see the IP address. The list works without the map.
-  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C9).
+  - The list is never sorted by chances. Red team `redteam_carte.py` (C1-C10).
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

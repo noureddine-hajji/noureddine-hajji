@@ -582,7 +582,9 @@ def formation(cod: str, session: int | None = None):
             # picks the student's row in the browser, it is never sent
             "doublettes": DBL.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # sprint "Rapports publics": this formation's own report (doublettes as published, the jury's criteria and texts)
-            "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"])}
+            "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
+            "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:

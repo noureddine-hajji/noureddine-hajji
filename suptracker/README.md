@@ -900,6 +900,13 @@ carte"):**
     apprentissage (gratuit pour l'apprenti)", ticked by default: apprenticeship training is free for the apprentice (Code
     du travail, art. L6211-1), so Plan B's paid rule does not apply; it is never the "Privés (payants)" box;
   - a formation whose selectivity is not published counts as neither selective nor non-selective.
+- **Merged with the initial formation (owner's request, 2026-11-09).** An apprenticeship offer of the SAME establishment (UAI)
+  for the same diploma and mention (the same cartographie type and mention labels) as an initial formation of the latest
+  campaign is not listed apart: it is attached to that formation, which then carries both labels, "formation initiale" and
+  "apprentissage" (the filter's "hors apprentissage" keeps it, and so does "en apprentissage"), and lists the CFA with its
+  Parcoursup page, on the map card and in the formation page's "Bon à savoir" card. On real data 2 383 offers are attached
+  to 2 387 initial formations (14 offers match two); an offer of another establishment in the same town (2 153) stays apart,
+  since it is another school.
 - **The list.** It shows the formations in view, plus those without coordinates ("non localisée"), in pages of 20 on a
   phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
 
@@ -919,7 +926,7 @@ carte"):**
   - OpenStreetMap's tile servers are meant for moderate use. If the audience grows, switch `CARTE_TILES` to a tile
     provider.
 
-**Red team** `scripts/redteam_carte.py` (C1-C9), via `tests/test_carte.py`:
+**Red team** `scripts/redteam_carte.py` (C1-C10), via `tests/test_carte.py`:
 - C1: zones = "Mon parcours", run in Node.
 - C2: every drawn formation in exactly one group, and none without coordinates dropped from the list.
 - C3: the filters against an independent Python reading.
@@ -930,6 +937,8 @@ carte"):**
 - C8: about 30 mutants built in memory, all caught (a mutant is skipped where the data cannot show it: no paid institution, no double licence, no non-Parcoursup link).
 - C9: the apprenticeship layer re-derived by SQL (latest offer, not in SIES, once), no figure, status, type and mention vote,
   académie, the Parcoursup link only, and the card on hostile data in Node.
+- C10: the merge re-derived by SQL (same UAI, same labels), both labels, the CFA listed on the map and the formation page,
+  never apart; the card on hostile data.
 
 ## Each formation's own public report: doublettes and what the jury looks at (sprint "Rapports publics")
 
@@ -966,7 +975,13 @@ carte"):**
   - **Coverage.** The archive kept 5 408 distinct PDFs; 4 962 reports are verified after the repair (4 339 of the 14 252 formations of 2025): of the 32 files left
     unread, 7 were read on another capture, 8 rebuilt complete, 6 set aside as cut short, 11 had no readable capture.
     Parcoursup publishes no list of its reports: each one is linked from its formation's fiche, and only during a campaign.
-    A direct harvest of the live fiches is the way to cover every formation, once they reopen.
+  - **Live harvest** (`scripts/rapports_live.py`, mode `"live"`, and every day at 04:17 UTC on `main`): it reads every fiche
+    of the latest cartographie session (about 25 000), follows its report link(s) and parses each PDF into the same harvest
+    files (`source` = `live`), so the build verifies them exactly like the archived ones. While the fiches are closed
+    (between campaigns), the run stops after three fiches and writes nothing; once they reopen (December), each daily run
+    collects for up to 5 h 30 and the next one resumes (`data/rapports/live/fiches.csv`). A PDF the archive already had is
+    not stored twice. The page credits the fiche ("lu le … sur la fiche Parcoursup"). A report of a session SIES has not
+    published yet (2026 in December 2026) is kept and used as soon as SIES publishes that session. Red team R8.
 - `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
   - the formation code is the one printed in its tables (2024 on), or the `g_ti_cod` of its link for older reports;
   - its confirmed candidates must equal the SIES `nb_voe_pp` of that code and session;

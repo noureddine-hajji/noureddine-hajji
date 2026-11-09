@@ -83,7 +83,7 @@ def _read(path: Path) -> list[dict]:
 def build(con, harvest: Path | None = HARVEST) -> dict:
     con.execute("CREATE SCHEMA IF NOT EXISTS core")
     con.execute("""CREATE OR REPLACE TABLE core.rapport (cod_aff_form VARCHAR, session INTEGER, digest VARCHAR, capture VARCHAR,
-        url VARCHAR, confirmes INTEGER, en_position INTEGER, acceptes INTEGER, methode VARCHAR, n_formations INTEGER)""")
+        url VARCHAR, confirmes INTEGER, en_position INTEGER, acceptes INTEGER, methode VARCHAR, n_formations INTEGER, source VARCHAR)""")
     con.execute("""CREATE OR REPLACE TABLE core.rapport_doublette (cod_aff_form VARCHAR, session INTEGER, bac VARCHAR, rang INTEGER,
         libelle VARCHAR, doublette_key VARCHAR, autres BOOLEAN, confirmes INTEGER, classes INTEGER, en_position INTEGER,
         acceptes INTEGER)""")
@@ -121,9 +121,10 @@ def build(con, harvest: Path | None = HARVEST) -> dict:
             k = (code, s)
             if k not in chosen or r["timestamp"] > chosen[k]["capture"]:
                 chosen[k] = {"cod_aff_form": code, "session": s, "digest": dig, "capture": r["timestamp"], "url": r["original"],
-                             "confirmes": conf, "en_position": pos, "acceptes": acc, "methode": how, "n_formations": len(cands)}
+                             "confirmes": conf, "en_position": pos, "acceptes": acc, "methode": how, "n_formations": len(cands),
+                             "source": "live" if r.get("source") == "live" else "archive"}
     _insert(con, "INSERT INTO core.rapport_audit VALUES (?, ?, ?, ?, ?, ?, ?)", audit)
-    keys = ["cod_aff_form", "session", "digest", "capture", "url", "confirmes", "en_position", "acceptes", "methode", "n_formations"]
+    keys = ["cod_aff_form", "session", "digest", "capture", "url", "confirmes", "en_position", "acceptes", "methode", "n_formations", "source"]
     _insert(con, f"INSERT INTO core.rapport VALUES ({', '.join('?' * len(keys))})", [[v[k] for k in keys] for v in chosen.values()])
     used = {(v["digest"], v["cod_aff_form"]): v for v in chosen.values()}
     by_dig = {}
@@ -186,11 +187,13 @@ def for_formation(con, cod: str, session: int | None = None) -> dict | None:
     this code (its session is always shown)."""
     if not _has(con, "core", "rapport"):
         return None
-    r = con.execute("""SELECT session, digest, capture, url, confirmes, en_position, methode, n_formations FROM core.rapport
+    src_col = "source" if con.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'core'
+        AND table_name = 'rapport' AND column_name = 'source'""").fetchone()[0] else "'archive'"   # a warehouse built before the live harvest
+    r = con.execute(f"""SELECT session, digest, capture, url, confirmes, en_position, methode, n_formations, {src_col} FROM core.rapport
                        WHERE cod_aff_form = ? ORDER BY (session = ?) DESC, session DESC LIMIT 1""", [cod, session]).fetchone()
     if not r:
         return None
-    s, dig, cap, url, conf, pos, how, nf = r
+    s, dig, cap, url, conf, pos, how, nf, src = r
     voies = {}
     for bac, rang, lib, dkey, autres, c, cl, p, a in con.execute("""SELECT bac, rang, libelle, doublette_key, autres, confirmes,
             classes, en_position, acceptes FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? ORDER BY bac, rang""",
@@ -202,7 +205,9 @@ def for_formation(con, cod: str, session: int | None = None) -> dict | None:
     t = con.execute("SELECT data FROM core.rapport_texte WHERE digest = ?", [dig]).fetchone()
     textes = json.loads(t[0]) if t else None
     sessions = [x for (x,) in con.execute("SELECT session FROM core.rapport WHERE cod_aff_form = ? ORDER BY session", [cod]).fetchall()]
-    return {"session": s, "sessions": sessions, "capture": cap, "archive": f"https://web.archive.org/web/{cap}/{url}",
+    live = src == "live"                  # read on the Parcoursup fiche itself: the link is Parcoursup's (until the next campaign)
+    return {"session": s, "sessions": sessions, "capture": cap, "source": "live" if live else "archive",
+            "archive": url if live else f"https://web.archive.org/web/{cap}/{url}",
             "confirmes": conf, "en_position": pos, "taux_global": rate(pos, conf), "methode": how, "concours": nf > 1,
             "doublettes": voies, "masques": masked, "textes": textes}
 

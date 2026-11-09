@@ -17,6 +17,10 @@ the jury's texts.
   R7 repaired files (harvest --repair): a probe PDF cut after its last page is rebuilt and read exactly like the intact
      file; a file cut inside its pages is never used (empty pages or no signature line); the build keeps "ok_repare"
      rows and drops "incomplet" ones (own mutants: completeness ignored, repaired rows dropped)
+  R8 live harvest (rapports_live, fake Parcoursup): a closed site writes nothing; an open one reads the fiche's report link
+     (relative, &amp;-escaped; another host or a javascript: link is ignored), stores each PDF once (archive digest form,
+     source "live"), resumes without duplicates; the build keeps the same verification and credits the fiche, not the archive
+     (own mutants)
 """
 from __future__ import annotations
 
@@ -40,6 +44,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from suptracker import journey as J  # noqa: E402
 from suptracker import rapports as RP  # noqa: E402
 import rapports_harvest as HARVEST  # noqa: E402
+import rapports_live as LIVE  # noqa: E402
 import rapports_parse as PARSE  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
@@ -48,7 +53,7 @@ CHECKS = []
 CHANCE = re.compile(r"(?i)\bprobabilit|\d+\s*%\s*de chances|chances? d'[eê]tre (?:admis|pris)|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
 HOSTILE = '<img src=x onerror=alert(1)>'
-M = {"RP": RP, "PARSE": PARSE, "H": HARVEST}
+M = {"RP": RP, "PARSE": PARSE, "H": HARVEST, "L": LIVE}
 
 
 def check(name):
@@ -418,6 +423,103 @@ def r7(c: Ctx):
             M[key] = saved
             sys.modules.pop(f"suptracker._mut7_{key}", None)
     return ok and not missed, detail + f"; 2 own mutants, missed {missed}"
+
+
+class _Resp:
+    def __init__(self, code, content=b"", text=""):
+        self.status_code, self.content, self.text = code, content, text or content.decode("latin-1")
+
+
+def _r8(c: Ctx):
+    L = M["L"]
+    probe = next(iter(sorted(PROBE.glob("*.pdf"))), None) if PROBE.exists() else None
+    if probe is None:
+        return True, "no probe PDF"
+    pdf = probe.read_bytes()
+    code = PARSE.parse(pdf)["codes"][0]
+    fiche = ('<a id="lien-rapp-pub" href="/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=X&amp;g_ti_cod=' + code +
+             '&amp;c_ja_cod=1">Télécharger</a><a href="https://evil.example/telechargerRapportPublic?x=1">x</a>'
+             '<a href="javascript:alert(1)//telechargerRapportPublic?x">y</a>')
+    want_link = "https://dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=X&g_ti_cod=" + code + "&c_ja_cod=1"
+    bad = []
+    links = L.report_links(fiche, L.FICHE.format(cod=code))
+    if links != [want_link]:
+        bad.append(("links", links))
+    seen = []
+
+    def fake(open_):
+        def call(http, url, params=None, pause=0, tries=1):
+            seen.append(url)
+            if "afficherFicheFormation" in url:
+                return _Resp(200, text=fiche) if open_ else _Resp(404, text="")
+            return _Resp(200, pdf) if url == want_link else _Resp(404, text="")
+        return call
+    saved = (L.call, L.codes)
+    out = {}
+    try:
+        L.codes = lambda db: [code, "999991", "999992"]
+        for name, open_ in (("closed", False), ("open", True), ("again", True)):
+            d = c.tmp / "live"
+            if name == "closed":
+                shutil.rmtree(d, ignore_errors=True)
+                (d / "h").mkdir(parents=True)
+            L.call = fake(open_)
+            out[name] = L.harvest(None, str(c.db), d / "h", d / "state", 600, pause=0)
+            out[name + "_files"] = sorted(p.name for p in (d / "h").iterdir())
+            out[name + "_idx"] = list(csv.DictReader(open(d / "h" / "pdf_index.csv", encoding="utf-8"))) if (d / "h" / "pdf_index.csv").exists() else []
+    finally:
+        L.call, L.codes = saved
+    if not L.is_closed(_Resp(200, text="<h1>Service indisponible</h1>")) or L.is_closed(_Resp(200, text=fiche + " maintenance")):
+        bad.append(("closed page reading",))
+    if out["closed"]["status"] != "closed" or out["closed_files"]:
+        bad.append(("closed site wrote", out["closed_files"]))
+    idx = out["open_idx"]
+    if len(idx) != 1 or idx[0]["source"] != "live" or idx[0]["digest"] != L.digest(pdf) or idx[0]["original"] != want_link or idx[0]["status"] != "ok":
+        bad.append(("stored", [(r["source"], r["status"]) for r in idx]))
+    if len(out["again_idx"]) != 1:
+        bad.append(("duplicated on resume", len(out["again_idx"])))
+    # the build: same verification, the fiche is credited
+    mem = duckdb.connect(":memory:")
+    mem.execute("CREATE SCHEMA core")
+    mem.execute("CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session INTEGER, nb_voe_pp INTEGER, ran_grp1 INTEGER, ran_grp2 INTEGER, ran_grp3 INTEGER)")
+    p = PARSE.parse(pdf)
+    conf = sum(x["confirmes"] or 0 for x in p["synthese"] if x["code"] == code)
+    mem.execute("INSERT INTO core.formation_year VALUES (?, ?, ?, 0, 0, 0)", [code, p["session"], conf])
+    M["RP"].build(mem, c.tmp / "live" / "h")
+    blk = M["RP"].for_formation(mem, code, p["session"])
+    if not blk or blk["source"] != "live" or blk["archive"] != want_link:
+        bad.append(("build", blk and (blk["source"], blk["archive"])))
+    mem.execute("UPDATE core.formation_year SET nb_voe_pp = nb_voe_pp + 1")
+    M["RP"].build(mem, c.tmp / "live" / "h")
+    if M["RP"].for_formation(mem, code, p["session"]):
+        bad.append(("unverified live report kept",))
+    credit = 'sur la fiche Parcoursup de la formation' in c.js and 'rp.source === "live"' in c.js
+    return not bad and credit, f"links {links == [want_link]}; closed {out['closed']['status']}; problems {bad[:3]}; page credit {credit}"
+
+
+@check("R8 live harvest: closed site writes nothing, fiche link read, each PDF once, same verification, the fiche credited")
+def r8(c: Ctx):
+    ok, detail = _r8(c)
+    missed = []
+    for name, path, key, old, new in [
+            ("closed site not detected", ROOT / "scripts" / "rapports_live.py", "L", "return resp is None or resp.status_code == 404 or", "return resp is None or"),
+            ("link left escaped", ROOT / "scripts" / "rapports_live.py", "L", "u = urljoin(base, html.unescape(m.group(1)))", "u = urljoin(base, m.group(1))"),
+            ("any host followed", ROOT / "scripts" / "rapports_live.py", "L", 'if u.startswith("https://") and "parcoursup.fr/" in u and u not in out:', "if u not in out:"),
+            ("same PDF stored twice", ROOT / "scripts" / "rapports_live.py", "L", "            if dg in known:\n                continue\n", ""),
+            ("live credited to the archive", ROOT / "suptracker" / "rapports.py", "RP", '"archive": url if live else f"https://web.archive.org/web/{cap}/{url}"', '"archive": f"https://web.archive.org/web/{cap}/{url}"')]:
+        m = mutated(path, old, new, f"suptracker._mut8_{key}")
+        if m is None:
+            missed.append(f"{name} (anchor gone)"); continue
+        saved, M[key] = M[key], m
+        try:
+            if _r8(c)[0]:
+                missed.append(name)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            M[key] = saved
+            sys.modules.pop(f"suptracker._mut8_{key}", None)
+    return ok and not missed, detail + f"; 5 own mutants, missed {missed}"
 
 
 def run(db: Path, real: bool = False) -> list[dict]:

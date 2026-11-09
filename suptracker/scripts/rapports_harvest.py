@@ -29,7 +29,8 @@ UA = "SupCompass-research/1.0 (+https://github.com/noureddine-hajji/noureddine-h
 ROOTS = ("dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic",
          "dossierappel.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic")
 CDX = "https://web.archive.org/cdx/search/cdx"
-INDEX_COLS = ["timestamp", "original", "digest", "length", "status", "session", "codes", "n_doublettes", "n_synthese", "error"]
+INDEX_COLS = ["timestamp", "original", "digest", "length", "status", "session", "codes", "n_doublettes", "n_synthese", "error",
+              "source"]          # source: "" = the Internet Archive, "live" = the Parcoursup fiche itself (rapports_live)
 DBL_COLS = ["digest", "timestamp", "session", "code", "jury", "bac", "doublette", "confirmes", "classes", "en_position", "acceptes"]
 SYN_COLS = ["digest", "timestamp", "session", "code", "jury", "groupe", "places", "confirmes", "classes", "en_position", "acceptes"]
 QUALI = ("criteres", "eds", "options_citees", "eliminatoires", "modalites", "algorithme", "conseils")

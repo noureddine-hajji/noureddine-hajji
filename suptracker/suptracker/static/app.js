@@ -368,7 +368,8 @@ const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été en p
 function rapportSource(rp) {
   const d = String(rp.capture || "");
   const when = d.length >= 8 ? `${d.slice(6, 8)}/${d.slice(4, 6)}/${d.slice(0, 4)}` : "";
-  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), copie archivée le ${esc(when)} par l'Internet Archive : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
+  const where = rp.source === "live" ? `lu le ${esc(when)} sur la fiche Parcoursup de la formation` : `copie archivée le ${esc(when)} par l'Internet Archive`;
+  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), ${where} : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
 }
 function rapportDoublettes(rp, prof) {
   if (!rp || !rp.doublettes) return { html: "", hasBg: false };
@@ -484,7 +485,7 @@ const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
-  if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;
+  if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;   // a formation offering both has both labels
   if (g === "internat") return f.internat === o;
   if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
   if (g === "select") return f.select_form === (o === "oui" ? "formation sélective" : "formation non sélective");   // unknown: neither
@@ -535,6 +536,8 @@ function carteRing(group) {
 const carteMentionTail = (f) => (f.mention && !String(f.formation || "").toLowerCase().includes(String(f.mention).toLowerCase()) ? ` · ${esc(f.mention)}` : "");
 // an apprenticeship offer listed by the Parcoursup cartographie: no statistics are published, so no zone, no rate, no vœu here
 const CARTE_APP_NOTE = "Aucune statistique d'admission n'est publiée pour les formations en apprentissage : ni zone, ni taux d'accès. Il faut aussi trouver un employeur ; la formation est gratuite pour l'apprenti.";
+// the two routes a formation offers (owner, 2026-11-09): both labels when initial training and apprenticeship coexist
+const voieBadges = (f) => (f.initiale && f.apprentissage ? '<span class="badge">formation initiale</span> <span class="badge">apprentissage</span>' : f.apprentissage ? '<span class="badge">en apprentissage</span>' : "");
 const carteFiche = (f) => (f.fiche && /^https:\/\/dossierappel\.parcoursup\.fr\//.test(f.fiche) ? f.fiche : null);
 function carteAppDetail(f) {
   const url = carteFiche(f);
@@ -543,14 +546,21 @@ function carteAppDetail(f) {
     <p class="small muted">${CARTE_APP_NOTE}</p>
     <div class="toolbar">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Voir la fiche Parcoursup ↗</a>` : ""}</div></div>`;
 }
+// the apprenticeship offers attached to an initial formation (same establishment, same diploma): the CFA and its page
+function appOffers(list) {
+  if (!list || !list.length) return "";
+  return `<div class="small"><strong>Aussi en apprentissage</strong> <span class="muted">(pas de statistiques d'admission publiées pour cette voie)</span><ul class="offer-list">${list.map((o) => { const url = carteFiche(o);
+    return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul></div>`;
+}
 function carteDetail(f, hasProfile) {
   if (!f) return "";
   if (f.stats === false) return carteAppDetail(f);
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
-    <p class="small">${esc(f.formation)}${carteMentionTail(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
+    <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
     <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/parcours">Indiquez votre profil</a> pour voir votre zone.`}
     · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
+    ${appOffers(f.offres_app)}
     <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
 }
 function carteList(rows, hasProfile) {
@@ -561,7 +571,7 @@ function carteList(rows, hasProfile) {
       <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br><span class="badge">en apprentissage</span>${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">—</div><div class="muted small">pas de statistiques</div></div></div>`; }
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span> ` : ""}${voieBadges(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
@@ -757,7 +767,7 @@ async function viewFormation(cod, session) {
   $view.innerHTML = `
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>
-    <div>${esc(r.lib_for_voe_ins)}</div>
+    <div>${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
     <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · n° Parcoursup ${esc(r.cod_aff_form)} · code établissement ${esc(r.cod_uai)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)}</div>
     <div class="toolbar" style="margin-top:8px">
       <label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
@@ -779,7 +789,7 @@ async function viewFormation(cod, session) {
     </div></div>
   ${doubletteCard(d.doublettes, d.rapport)}
   ${previsionCard(d.prevision)}
-  ${offerCard(r)}
+  ${offerCard(r, d.apprentissage)}
   ${timingCard(r, d.history)}
   ${lyceeHere(r)}
   <div id="planb"></div>
@@ -1243,13 +1253,14 @@ function butInsertion(i) {
     <p class="muted small">${INS_NOTE} Après un BUT, la plupart des diplômés poursuivent leurs études : ces taux portent sur ceux qui sont partis travailler. Source : InserSup (SIES).</p>`;
 }
 
-function offerCard(r) {
+function offerCard(r, app) {
   const list = offerList(r);
-  if (!r.carto_session && !list.length) return "";
+  if (!r.carto_session && !list.length && !(app && app.length)) return "";
   const src = r.carto_session ? `cartographie Parcoursup ${r.carto_session}` : "libellé SIES";
   return `<div class="card"><h2>Bon à savoir ${tip("offer")}</h2>
     ${list.length ? `<ul class="offer-list">${list.map(([k, t]) => `<li><span aria-hidden="true">${OPT_ICON[k]}</span> ${esc(t)}</li>`).join("")}</ul>`
-      : `<p class="muted small">Ni internat, ni apprentissage, ni enseignement à distance, ni aménagement pour sportifs ou artistes de haut niveau ne sont signalés.</p>`}
+      : app && app.length ? "" : `<p class="muted small">Ni internat, ni apprentissage, ni enseignement à distance, ni aménagement pour sportifs ou artistes de haut niveau ne sont signalés.</p>`}
+    ${appOffers(app)}
     ${INTERNAT_LABEL[r.internat] ? `<p class="small muted">${r.acc_internat != null ? `${fmt(r.acc_internat)} admis logés à l'internat en ${r.session}${r.nb_voe_pp_internat ? ` (${fmt(r.nb_voe_pp_internat)} candidatures avec demande d'internat)` : ""}. ` : ""}L'internat de l'établissement ne garantit pas une place : elle se demande avec le vœu.</p>` : ""}
     <p class="small muted">Source : ${esc(src)}. Ces informations décrivent l'offre telle qu'elle est publiée aujourd'hui ; vérifiez-les sur la fiche Parcoursup.</p></div>`;
 }
