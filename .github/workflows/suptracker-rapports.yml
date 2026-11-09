@@ -63,6 +63,9 @@ jobs:
       - name: Collect reports from the live fiches
         if: steps.req.outputs.mode == 'live'
         run: python scripts/rapports_live.py data/suptracker.duckdb data/rapports/harvest data/rapports/live "${{ steps.req.outputs.budget }}"
+      - name: Probe the live Parcoursup reports
+        if: steps.req.outputs.mode == 'liveprobe'
+        run: python scripts/rapports_live.py --probe data/rapports/live
       - name: Commit
         if: always()
         run: |

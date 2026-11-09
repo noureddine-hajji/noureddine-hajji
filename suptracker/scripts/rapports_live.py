@@ -158,5 +158,46 @@ def main(db: str, out: str, live: str, budget_min: float) -> None:
     print(json.dumps(res), flush=True)
 
 
+
+
+
+# ------------------------------------------------------------------ probe (mode "liveprobe"): what Parcoursup serves today
+PROBE_REPORTS = [("0160006V", "2986", "1833"), ("0720083Z", "8710", "7269"), ("0670080Y", "31389", "24273")]   # owner's examples
+HOSTS = ("dossier.parcoursup.fr", "dossierappel.parcoursup.fr")
+
+
+def probe(http, out: Path, pause: float = 1.5) -> dict:
+    """Each owner's example as given, without its jury code, and on the other host; the fiche pages on both hosts."""
+    res = []
+    rap = "https://{h}/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod={u}&g_ti_cod={t}{j}"
+    for u, t, j in PROBE_REPORTS:
+        for h in HOSTS:
+            for jj in (f"&c_ja_cod={j}", ""):
+                url = rap.format(h=h, u=u, t=t, j=jj)
+                r = call(http, url, pause=pause)
+                row = {"url": url, "status": None if r is None else r.status_code, "pdf": bool(r is not None and r.content.startswith(b"%PDF")),
+                       "bytes": None if r is None else len(r.content), "type": None if r is None else r.headers.get("content-type")}
+                if row["pdf"]:
+                    try:
+                        p = parse(r.content)
+                        row.update(session=p["session"], codes=p["codes"], n_doublettes=len(p["doublettes"]))
+                    except Exception as e:  # noqa: BLE001
+                        row["parse_error"] = f"{type(e).__name__}: {e}"[:120]
+                res.append(row)
+            fiche = f"https://{h}/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={t}&typeBac=0&originePc=0"
+            r = call(http, fiche, pause=pause)
+            res.append({"url": fiche, "status": None if r is None else r.status_code, "closed": is_closed(r),
+                        "links": report_links(r.text, fiche) if r is not None else [],
+                        "sessions": SESSION_RE.findall(r.text) if r is not None else []})
+    summary = {"checked_at": _now(), "results": res}
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "probe.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), encoding="utf-8")
+    return summary
+
+
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4]) if len(sys.argv) > 4 else 300)
+    if sys.argv[1] == "--probe":
+        with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
+            print(json.dumps(probe(http, Path(sys.argv[2])), ensure_ascii=False)[:4000], flush=True)
+    else:
+        main(sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4]) if len(sys.argv) > 4 else 300)

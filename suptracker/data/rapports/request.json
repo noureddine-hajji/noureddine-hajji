@@ -1,1 +1,1 @@
-{"mode": "live", "budget_min": 20, "note": "first live run: checks whether the Parcoursup fiches are open (between campaigns they answer 404); the daily schedule on main takes over once merged"}
+{"mode": "liveprobe", "note": "the owner reaches 2025 reports on dossier.parcoursup.fr by hand: probe his 3 examples (as given, without the jury code, on both hosts) and the fiche pages"}
