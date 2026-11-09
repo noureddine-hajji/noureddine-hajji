@@ -1,12 +1,6 @@
 {
- "status": "open",
- "checked_at": "20261109145906",
- "new_pdfs": 5356,
- "total": 26509,
- "by_status": {
-  "ok": 5498,
-  "sans_rapport": 646,
-  "retry": 153,
-  "todo": 20212
- }
+ "status": "closed",
+ "checked_at": "20261109150132",
+ "todo": 20365,
+ "total": 26509
 }
