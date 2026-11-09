@@ -158,6 +158,9 @@ def harvest(http, db: str, out: Path, live: Path, budget_s: float, pause: float 
             n_pdf += 1
         r["digests"], r["error"] = ";".join(digs), "; ".join(errs)
         r["status"] = "ok" if digs and not errs else "retry" if r["status"] == "todo" else "failed"
+        seen = sum(1 for x in state.values() if x["status"] not in ("todo",))
+        if seen % 100 == 0:                     # progress in the run log (read by the owner's questions)
+            print(f"{seen} fiches lues sur {len(state)}, {n_pdf} nouveaux PDF, {time.time() - t0:.0f} s", flush=True)
         if n_pdf and n_pdf % 200 == 0:
             _save(out, live, idx, state)
     _save(out, live, idx, state)
