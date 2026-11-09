@@ -85,6 +85,8 @@ class Ctx:
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
             "/api/carte": "/api/carte", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
+            "/api/comprendre": "/api/comprendre",
+            "/api/selectivite": "/api/selectivite?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
             "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",
