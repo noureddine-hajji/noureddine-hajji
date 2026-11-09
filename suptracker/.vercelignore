@@ -10,3 +10,4 @@ requirements-pipeline.txt
 **/data/probe/
 **/data/sources/
 **/data/rapports/
+**/docs/brief-ui/
