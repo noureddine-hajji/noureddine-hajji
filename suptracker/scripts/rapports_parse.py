@@ -47,7 +47,8 @@ def _is_title(row: list) -> bool:
 
 def parse(content: bytes) -> dict:
     import pdfplumber
-    out = {"session": None, "codes": [], "synthese": [], "doublettes": [], "masked": [], "pages": 0, "criteres": []}
+    out = {"session": None, "codes": [], "synthese": [], "doublettes": [], "masked": [], "pages": 0, "criteres": [],
+           "pages_vides": 0, "fin": False}
     last_kind = None
     texts = []
     crit_carry = ""
@@ -57,6 +58,7 @@ def parse(content: bytes) -> dict:
         for page in pdf.pages:
             text = page.extract_text() or ""
             texts.append(text)
+            out["pages_vides"] += not text.strip()
             if out["session"] is None and (m := SESSION_RE.search(text)):
                 out["session"] = int(m.group(1))
             for t in page.extract_tables():
@@ -121,6 +123,7 @@ def parse(content: bytes) -> dict:
                         out["doublettes"].append({"code": code, "jury": carry["jury"], "bac": carry["bac"], "doublette": label,
                                                   "confirmes": nums[0], "classes": nums[1], "en_position": nums[2],
                                                   "acceptes": nums[3]})
+    out["fin"] = bool(re.search(r"Signature\s*:", "\n".join(texts[-2:])))   # the report's last section: nothing lost after it
     crit_text = "\n".join(f"{c['critere']} : {c['elements']} ({c['importance']})." for c in out["criteres"])
     out.update(qualitative("\n".join(texts), crit_text))
     return out

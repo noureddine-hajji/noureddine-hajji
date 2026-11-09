@@ -227,7 +227,12 @@ CARTO_RULES = {
     "amenagement": [("amg",), ("amenagement",)],
 }
 CARTO_COLS = """cod_aff_form VARCHAR, fiche_url VARCHAR, lat DOUBLE, lon DOUBLE, carto_session BIGINT, etablissement_id_paysage VARCHAR, composante_id_paysage VARCHAR,
-  apprentissage BOOLEAN, internat VARCHAR, distance VARCHAR, amenag_sport BOOLEAN, amenag_art BOOLEAN"""
+  apprentissage BOOLEAN, internat VARCHAR, distance VARCHAR, amenag_sport BOOLEAN, amenag_art BOOLEAN,
+  etab_uai VARCHAR, etab_nom VARCHAR, types_etab VARCHAR, type_formation VARCHAR, nom_long VARCHAR, mention_lib VARCHAR,
+  commune VARCHAR, departement VARCHAR"""
+# the cartographie's own labels (ODS field names): the map lists the apprenticeship offers SIES does not publish
+CARTO_LABELS = {"etab_uai": "etab_uai", "etab_nom": "etab_nom", "types_etab": "tc", "type_formation": "tf", "nom_long": "nm",
+                "mention_lib": "fl", "commune": "commune", "departement": "departement"}
 
 
 def _exact_first(cols: list[str], rules: dict) -> dict:
@@ -286,7 +291,8 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
       CASE WHEN amg_raw IS NULL THEN NULL WHEN contains(amg_raw, 'partiellement a distance') THEN 'partielle'
            WHEN contains(amg_raw, 'a distance') THEN 'totale' ELSE 'aucune' END AS distance,
       CASE WHEN amg_raw IS NULL THEN NULL ELSE contains(amg_raw, 'sportif') END AS amenag_sport,
-      CASE WHEN amg_raw IS NULL THEN NULL ELSE contains(amg_raw, 'artiste') END AS amenag_art
+      CASE WHEN amg_raw IS NULL THEN NULL ELSE contains(amg_raw, 'artiste') END AS amenag_art,
+      {", ".join(CARTO_LABELS)}
     FROM (
       SELECT {_text(m['cod_aff_form'], True)} AS cod_aff_form,
              {(_text(m['fiche_url']) if m['fiche_url'] else 'NULL')} AS fiche_url,
@@ -297,6 +303,7 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
              {_fold(m['amenagement'])} AS amg_raw,
              {pays('etablissement_id_paysage')} AS etablissement_id_paysage,
              {pays('composante_id_paysage')} AS composante_id_paysage,
+             {", ".join(f"{pays(src)} AS {k}" for k, src in CARTO_LABELS.items())},
              row_number() OVER (PARTITION BY {_text(m['cod_aff_form'], True)} ORDER BY {order}) AS rn
       FROM read_parquet('{path}')) WHERE rn = 1 AND cod_aff_form IS NOT NULL
     """)

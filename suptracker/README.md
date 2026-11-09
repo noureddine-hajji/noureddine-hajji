@@ -885,8 +885,21 @@ carte"):**
   of establishment (public; private under contract / EESC; private, i.e. fee-charging, unticked by default: Plan B's rule),
   boarding (mixed, girls, boys), arrangements (on site, partly or fully at a distance, top-level athletes, confirmed
   artists), others (selective or not), the student's zone; plus name or town, académie and around a town (10 to 200 km;
-  the map centres on it). No apprenticeship filter: apprenticeship is nearly absent from the SIES statistics after 2022
-  (a note says so).
+  the map centres on it); and **Apprentissage** (hors apprentissage / en apprentissage), as on Parcoursup.
+- **Apprenticeship offers (owner's request, 2026-11-08).** SIES has published no statistics for apprenticeship offers since
+  2022: they have their own codes, absent from the vœux files (3 left in 2025, against 11 251 in the 2026 cartographie). The
+  map lists them from the Parcoursup cartographie, latest session:
+  - only the offers absent from the latest SIES campaign, each once (`carte.apprentissage`);
+  - no zone, no access rate, never "Ajouter à mes vœux" (which reads SIES rows); the card says so and links to the
+    offer's Parcoursup page (only a `https://dossierappel.parcoursup.fr/` link is kept);
+  - the type of diploma and the mention are those of the SIES formations that carry the same cartographie labels (the
+    most frequent reading, `carte.label_votes`); a label no SIES formation carries keeps its published type and mention
+    (a list of types, "A,B", takes its first part SIES knows);
+  - the académie is that of the establishment (UAI) in SIES, else of its département;
+  - a private establishment outside State contract offering apprenticeship gets its own box, "Privés hors contrat, en
+    apprentissage (gratuit pour l'apprenti)", ticked by default: apprenticeship training is free for the apprentice (Code
+    du travail, art. L6211-1), so Plan B's paid rule does not apply; it is never the "Privés (payants)" box;
+  - a formation whose selectivity is not published counts as neither selective nor non-selective.
 - **The list.** It shows the formations in view, plus those without coordinates ("non localisée"), in pages of 20 on a
   phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
 
@@ -906,7 +919,7 @@ carte"):**
   - OpenStreetMap's tile servers are meant for moderate use. If the audience grows, switch `CARTE_TILES` to a tile
     provider.
 
-**Red team** `scripts/redteam_carte.py` (C1-C8), via `tests/test_carte.py`:
+**Red team** `scripts/redteam_carte.py` (C1-C9), via `tests/test_carte.py`:
 - C1: zones = "Mon parcours", run in Node.
 - C2: every drawn formation in exactly one group, and none without coordinates dropped from the list.
 - C3: the filters against an independent Python reading.
@@ -914,7 +927,9 @@ carte"):**
 - C5: OpenStreetMap hosting, attribution and the IP note.
 - C6: hostile data, markers naming their zone, distinct shapes, wording, no position sent.
 - C7: the wiring.
-- C8: 14 mutants built in memory, all caught.
+- C8: about 30 mutants built in memory, all caught (a mutant is skipped where the data cannot show it: no paid institution, no double licence, no non-Parcoursup link).
+- C9: the apprenticeship layer re-derived by SQL (latest offer, not in SIES, once), no figure, status, type and mention vote,
+  académie, the Parcoursup link only, and the card on hostile data in Node.
 
 ## Each formation's own public report: doublettes and what the jury looks at (sprint "Rapports publics")
 
@@ -944,6 +959,14 @@ carte"):**
     headers, title rows, masked bac types; the jury's sections by their headings, never the signature);
   - CSVs plus `qualitatif.jsonl.gz` in `data/rapports/harvest/`.
   - It is resumable: each run stops after its time budget, and pushing `data/rapports/request.json` again continues it.
+  - **Repair** (`"mode": "repair"`, `--repair`): the files left unread (a download answering 404, a damaged PDF) are tried
+    again on every other capture of the same URL, newest first, as archived then rebuilt by qpdf (pikepdf). A rebuilt file
+    is used only when COMPLETE: every page has text and the report's last section (the signature line) is there. Otherwise
+    it stays "incomplet" and is never used, since a table cut by the damage could still pass the SIES check. Red team R7.
+  - **Coverage.** The archive kept 5 408 distinct PDFs; 4 962 reports are verified after the repair (4 339 of the 14 252 formations of 2025): of the 32 files left
+    unread, 7 were read on another capture, 8 rebuilt complete, 6 set aside as cut short, 11 had no readable capture.
+    Parcoursup publishes no list of its reports: each one is linked from its formation's fiche, and only during a campaign.
+    A direct harvest of the live fiches is the way to cover every formation, once they reopen.
 - `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
   - the formation code is the one printed in its tables (2024 on), or the `g_ti_cod` of its link for older reports;
   - its confirmed candidates must equal the SIES `nb_voe_pp` of that code and session;

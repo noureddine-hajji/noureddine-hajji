@@ -470,28 +470,31 @@ function carteMerge(neutral, stage2, ok) {
   return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
 }
 // the filter groups, inspired by the Parcoursup map: each group is a list of ticked options; an empty group keeps all.
-// "prive" (fee-charging private institutions) is never ticked by default (Plan B's rule)
+// "prive" (fee-charging private institutions) is never ticked by default (Plan B's rule); "prive_app" is a private establishment
+// outside State contract offering APPRENTICESHIP, free for the apprentice (Code du travail, art. L6211-1): ticked by default
 const CARTE_GROUPS = [
-  ["statut", "Types d'établissement", [["public", "Publics"], ["contrat", "Privés sous contrat avec l'État / EESC"], ["prive", "Privés (payants)"]]],
+  ["statut", "Types d'établissement", [["public", "Publics"], ["contrat", "Privés sous contrat avec l'État / EESC"], ["prive_app", "Privés hors contrat, en apprentissage (gratuit pour l'apprenti)"], ["prive", "Privés (payants)"]]],
+  ["app", "Apprentissage", [["non", "Formations hors apprentissage"], ["oui", "Formations en apprentissage"]]],
   ["internat", "Internat", [["mixte", "Internat filles et garçons"], ["filles", "Internat pour filles"], ["garcons", "Internat pour garçons"]]],
   ["amenag", "Aménagements", [["presentiel", "Enseignement en présentiel"], ["partielle", "Enseignement partiellement à distance"], ["totale", "Enseignement entièrement à distance"],
     ["sport", "Aménagements pour sportifs de haut niveau"], ["art", "Aménagements pour artistes confirmés"]]],
   ["select", "Autres", [["oui", "Formations sélectives"], ["non", "Formations non sélectives"]]],
 ];
-const CARTE_DEFAULT = { statut: ["public", "contrat"] };
+const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
+  if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;
   if (g === "internat") return f.internat === o;
   if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
-  if (g === "select") return o === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective";
+  if (g === "select") return f.select_form === (o === "oui" ? "formation sélective" : "formation non sélective");   // unknown: neither
   if (g === "zones") return carteZone(f) === o;
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
 function carteFilter(rows, F, skip) {
   const q = (F.q || "").trim().toLowerCase();
-  const groups = ["statut", "internat", "amenag", "select", "zones"].filter((g) => g !== skip);
+  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter((g) => g !== skip);
   return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
     && (!F.academie || f.academie === F.academie)
     && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
@@ -503,7 +506,7 @@ function carteMarker(f) {
   const shape = z === "cible" ? `<rect x="3" y="3" width="12" height="12" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
     : z === "ambitieux" ? `<path d="M9,1.5L16.5,15.5L1.5,15.5Z" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
       : `<circle cx="9" cy="9" r="6.5" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
-  return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}">${shape}</svg>`;
+  return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage ? ", en apprentissage" : ""}">${shape}</svg>`;
 }
 // points closer than a cell on screen are drawn as one group: a ring split by zone, with its count
 function carteClusters(pts, cell) {
@@ -530,8 +533,19 @@ function carteRing(group) {
 }
 // the mention when the formation's own label does not already say it (CPGE "ECG", BTS options...)
 const carteMentionTail = (f) => (f.mention && !String(f.formation || "").toLowerCase().includes(String(f.mention).toLowerCase()) ? ` · ${esc(f.mention)}` : "");
+// an apprenticeship offer listed by the Parcoursup cartographie: no statistics are published, so no zone, no rate, no vœu here
+const CARTE_APP_NOTE = "Aucune statistique d'admission n'est publiée pour les formations en apprentissage : ni zone, ni taux d'accès. Il faut aussi trouver un employeur ; la formation est gratuite pour l'apprenti.";
+const carteFiche = (f) => (f.fiche && /^https:\/\/dossierappel\.parcoursup\.fr\//.test(f.fiche) ? f.fiche : null);
+function carteAppDetail(f) {
+  const url = carteFiche(f);
+  return `<div class="card carte-sel"><h3>${esc(f.etablissement)}</h3>
+    <p class="small">${esc(f.formation)}${carteMentionTail(f)} <span class="badge">en apprentissage</span><br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}</span></p>
+    <p class="small muted">${CARTE_APP_NOTE}</p>
+    <div class="toolbar">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Voir la fiche Parcoursup ↗</a>` : ""}</div></div>`;
+}
 function carteDetail(f, hasProfile) {
   if (!f) return "";
+  if (f.stats === false) return carteAppDetail(f);
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
     <p class="small">${esc(f.formation)}${carteMentionTail(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
@@ -542,6 +556,10 @@ function carteDetail(f, hasProfile) {
 function carteList(rows, hasProfile) {
   const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
   return `<div class="carte-list">${part.map((f) => { const z = carteZone(f);
+    if (f.stats === false) { const url = carteFiche(f);
+      return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(f.etablissement)}</strong> ↗</a>` : `<strong>${esc(f.etablissement)}</strong>`} <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br><span class="badge">en apprentissage</span>${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <div class="num"><div class="big">—</div><div class="muted small">pas de statistiques</div></div></div>`; }
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
       <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span>` : ""}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
@@ -571,7 +589,7 @@ async function viewCarte(dArg, mArg) {
   if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
   if (Z) track("journey", { stage: "stage2" });
   const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
-  const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres", {}) || {}) };
+  const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [g, , opts] of CARTE_GROUPS) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
@@ -591,7 +609,7 @@ async function viewCarte(dArg, mArg) {
       <p class="muted small" id="carte-count"></p>
       <div id="carte-sel"></div>
       <div class="card"><h2>Formations de la carte</h2><div id="carte-items"></div>
-      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(L0.session)}.</p></div>
+      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(L0.session)}${L0.offre_apprentissage ? ` ; apprentissage : cartographie Parcoursup ${esc(L0.offre_apprentissage)}` : ""}.</p></div>
     </div></div>`;
   $view.dataset.rendered = "carte";
   const box = document.getElementById("carte-osm");
@@ -619,7 +637,7 @@ async function viewCarte(dArg, mArg) {
       ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
       ${CARTE_GROUPS.map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
         ${g === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
-      <p class="muted small">L'apprentissage est presque absent des statistiques après 2022 : pas de filtre. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
+      <p class="muted small">Formations en apprentissage : offre ${esc(L0.offre_apprentissage || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
     document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
     document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
     const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
@@ -668,7 +686,7 @@ async function viewCarte(dArg, mArg) {
     if (focus && f && f.lat != null && carteUI.map) carteUI.map.setView([f.lat, f.lon], Math.max(carteUI.map.getZoom(), 12));
     if (focus) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
   }
-  function save(repanel = true) { store.set("carteFiltres", F); carteUI.page = 0; if (repanel) panel(); draw(); }
+  function save(repanel = true) { store.set("carteFiltres2", F); carteUI.page = 0; if (repanel) panel(); draw(); }
   document.getElementById("cdip").onchange = (e) => goTo(e.target.value, "");
   document.getElementById("cmen").onchange = (e) => goTo(D.label, e.target.value);
   panel();
