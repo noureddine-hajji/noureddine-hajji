@@ -365,11 +365,13 @@ function pickRapport(rp, dkey) {
   return other ? { ...other, source: "autres" } : null;
 }
 const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été en position de recevoir une proposition en phase principale : le taux d'accès de la formation, détaillé par doublette, calculé à partir des effectifs publiés dans son rapport. Seuls y figurent les candidats scolarisés en terminale en France depuis 2020-2021. Ce sont des résultats passés, pas des chances d'admission.";
+// a report SIES has not published the figures of yet (owner's choice: shown, with this mark)
+const rpPending = (rp) => (rp && rp.recoupe === false ? ` <span class="badge warnb">pas encore recoupé avec les chiffres de ${esc(rp.session)}</span>` : "");
 function rapportSource(rp) {
   const d = String(rp.capture || "");
   const when = d.length >= 8 ? `${d.slice(6, 8)}/${d.slice(4, 6)}/${d.slice(0, 4)}` : "";
   const where = rp.source === "live" ? `lu le ${esc(when)} sur la fiche Parcoursup de la formation` : `copie archivée le ${esc(when)} par l'Internet Archive`;
-  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), ${where} : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation.`;
+  return `Source : rapport public Parcoursup de la session ${esc(rp.session)} (commission d'examen des vœux de la formation), ${where} : <a href="${esc(rp.archive)}" target="_blank" rel="noopener">voir le rapport ↗</a>. ${rp.recoupe === false ? `Pas encore recoupé avec les chiffres de ${esc(rp.session)} : le ministère ne les a pas encore publiés ; le rapport sera vérifié dès leur publication.` : "Ses candidats confirmés égalent ceux publiés par le ministère pour cette formation."}`;
 }
 function rapportDoublettes(rp, prof) {
   if (!rp || !rp.doublettes) return { html: "", hasBg: false };
@@ -388,7 +390,7 @@ function rapportDoublettes(rp, prof) {
   const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres doublettes » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
     <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une doublette autre que celles détaillées" : "cette doublette"} ont été en position de recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses doublettes les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
   const { bg: bgRows = [] } = rp.doublettes;
-  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})</h3>${head}${blocks}
+  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${blocks}
     <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
 }
 // what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it
@@ -421,7 +423,7 @@ function juryCard(rp) {
     ${me ? `<p class="small">Vous suivez <strong>Mathématiques expertes</strong> : ${opts.maths_expertes ? "le rapport de cette formation la cite (voir ci-dessous)." : "le rapport de cette formation ne la cite pas. Cela ne veut pas dire qu'elle ne compte pas : regardez les attendus de la fiche Parcoursup."}</p>` : ""}
     ${Object.entries(opts).map(([k, quotes]) => `<p class="small"><strong>${esc(RP_OPTIONS[k] || k)}</strong></p>${quotes.map((q) => `<blockquote class="rp-quote">« ${esc(q)} »</blockquote>`).join("")}`).join("")}` : "";
   const fold = (title, txt) => (txt ? `<details class="dip"><summary>${title}</summary><p class="small">${rpText(txt)}</p></details>` : "");
-  return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}</h2>
+  return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}${rpPending(rp)}</h2>
     <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
     ${critHtml}${edsHtml}${optHtml}
     ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
@@ -1916,7 +1918,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}

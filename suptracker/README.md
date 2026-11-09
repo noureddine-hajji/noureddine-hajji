@@ -980,8 +980,13 @@ carte"):**
     files (`source` = `live`), so the build verifies them exactly like the archived ones. While the fiches are closed
     (between campaigns), the run stops after three fiches and writes nothing; once they reopen (December), each daily run
     collects for up to 5 h 30 and the next one resumes (`data/rapports/live/fiches.csv`). A PDF the archive already had is
-    not stored twice. The page credits the fiche ("lu le … sur la fiche Parcoursup"). A report of a session SIES has not
-    published yet (2026 in December 2026) is kept and used as soon as SIES publishes that session. Red team R8.
+    not stored twice. The page credits the fiche ("lu le … sur la fiche Parcoursup"). Red team R8.
+  - **Not yet cross-checked (the owner's choice, 2026-11-09).** In December 2026 the fiches carry the 2026 reports, and SIES
+    has not published 2026. Such a report is shown when it was read on the formation's live fiche, prints the formation's
+    code in its tables and its counts hold together (confirmed > 0, en position <= confirmed); it carries the mark "pas encore
+    recoupé avec les chiffres de 2026" on the doublette card, the jury card and in Mes vœux. Once SIES publishes 2026, the
+    ordinary check applies and a report that does not match is dropped. An archived report is never shown unverified.
+    Red team R9.
 - `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
   - the formation code is the one printed in its tables (2024 on), or the `g_ti_cod` of its link for older reports;
   - its confirmed candidates must equal the SIES `nb_voe_pp` of that code and session;

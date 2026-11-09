@@ -21,6 +21,10 @@ the jury's texts.
      (relative, &amp;-escaped; another host or a javascript: link is ignored), stores each PDF once (archive digest form,
      source "live"), resumes without duplicates; the build keeps the same verification and credits the fiche, not the archive
      (own mutants)
+  R9 not yet cross-checked (owner's choice): a report read on the LIVE fiche, for a session SIES has not published, with its
+     code printed and coherent counts, is kept with recoupe = false; an archived one, one without a printed code, one of a
+     published session that does not match, or one with en position > confirmed is not; the page marks it "pas encore recoupé
+     avec les chiffres de <session>" on both cards and in Mes vœux (Node)
 """
 from __future__ import annotations
 
@@ -84,20 +88,28 @@ def craft(c: Ctx, dest: Path) -> dict:
     e, se, ve = c.con.execute("""SELECT cod_aff_form, session, nb_voe_pp FROM core.formation_year WHERE session = ? AND nb_voe_pp > 30
                                  AND cod_aff_form NOT IN (?, ?, ?, ?) ORDER BY hash(cod_aff_form) LIMIT 1""", [sf, a, b, d, f]).fetchone()
     U = "https://dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic?g_ea_cod=0000000X&g_ti_cod={}&c_ja_cod=1"
-    idx = [  # digest, ts, url, session, codes
+    sn = max(x[1] for x in c.fy + [(e, se)]) + 1            # a session SIES has not published
+    idx = [  # digest, ts, url, session, codes, source
         ("A1", "20250101000000", U.format(a), sa, a),            # printed code, verified, older capture
         ("A2", "20260101000000", U.format(a), sa, a),            # same report, later capture: wins
         ("B1", "20260101000000", U.format(b), sb, b),            # confirmed off by one: rejected
         ("D1", "20240101000000", U.format(d), sd, ""),           # old report: no printed code, g_ti_cod checked
         ("E1", "20240101000000", U.format("999999"), sb, ""),    # old report whose g_ti_cod is another code: rejected
         ("F1", "20260101000000", U.format(f), sf, f"{f};{e}"),   # a concours report printing two formations
+        ("L1", "20261215000000", U.format(a), sn, a, "live"),    # live, unpublished session, code printed: kept, not cross-checked
+        ("L2", "20261215000000", U.format(b), sn, b),            # archived, unpublished session: rejected
+        ("L3", "20261215000000", U.format(d), sn, "", "live"),   # live, no printed code: rejected
+        ("L4", "20261215000000", U.format(a), sa, a, "live"),    # live, published session, does not match: rejected
+        ("L5", "20261215000000", U.format(f), sn, f, "live"),    # live, en position > confirmed: rejected
+        ("L6", "20261215000000", U.format("777777"), sa, "777777", "live"),   # live, published session, code SIES lacks: rejected
     ]
     syn = [("A1", a, va, 5), ("A2", a, va, 6), ("B1", b, vb + 1, 7), ("D1", "", vd, 8), ("E1", "", vb, 9),
-           ("F1", f, vf, 10), ("F1", e, ve, 11)]
+           ("F1", f, vf, 10), ("F1", e, ve, 11), ("L1", a, 30, 10), ("L2", b, 30, 10), ("L3", "", 30, 10), ("L4", a, va + 2, 10),
+           ("L5", f, 10, 20), ("L6", "777777", 30, 10)]
     with open(dest / "pdf_index.csv", "w", newline="", encoding="utf-8") as fh:
-        w = csv.writer(fh); w.writerow(["timestamp", "original", "digest", "length", "status", "session", "codes", "n_doublettes", "n_synthese", "error"])
-        for dg, ts, url, s, codes in idx:
-            w.writerow([ts, url, dg, 1, "ok", s, codes, 0, 0, ""])
+        w = csv.writer(fh); w.writerow(["timestamp", "original", "digest", "length", "status", "session", "codes", "n_doublettes", "n_synthese", "error", "source"])
+        for dg, ts, url, s, codes, *src in idx:
+            w.writerow([ts, url, dg, 1, "ok", s, codes, 0, 0, "", (src or [""])[0]])
     with open(dest / "synthese.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh); w.writerow(["digest", "timestamp", "session", "code", "jury", "groupe", "places", "confirmes", "classes", "en_position", "acceptes"])
         for dg, code, conf, pos in syn:
@@ -125,10 +137,10 @@ def craft(c: Ctx, dest: Path) -> dict:
                                         "Série STL": ["Physique-Chimie et Mathématiques", "Critères « parcours en cordée de la réussite »", "Oui"]}},
                                 "options_citees": {"maths_expertes": [HOSTILE + " mathématiques expertes"]}, "eliminatoires": HOSTILE,
                                 "modalites": HOSTILE, "algorithme": HOSTILE, "conseils": HOSTILE}) + "\n")
-    want = {(a, sa): ("A2", va), (d, sd): ("D1", vd), (f, sf): ("F1", vf), (e, sf): ("F1", ve)}
+    want = {(a, sa): ("A2", va), (d, sd): ("D1", vd), (f, sf): ("F1", vf), (e, sf): ("F1", ve), (a, sn): ("L1", 30)}
     rows = {(a, sa): [("bg", "MATHS+PC", False, 40, 20), ("bg", None, True, 25, 5), ("bt", None, False, 9, 3)],
             (d, sd): [("bg", "MATHS+SES", False, 50, 0)], (f, sf): [("bg", None, True, 70, 50)], (e, sf): [("bg", None, True, 80, 40)]}
-    return {"want": want, "rows": rows, "a": (a, sa), "masked": {(a, sa, "bp")}, "e_row": (e, se, ve, None, None, None)}
+    return {"want": want, "rows": rows, "a": (a, sa), "pending": {(a, sn)}, "masked": {(a, sa, "bp")}, "e_row": (e, se, ve, None, None, None)}
 
 
 def built(c: Ctx):
@@ -173,9 +185,11 @@ def r2(c: Ctx):
     mem, spec, res = built(c)
     got = {(cd, s): (dg, conf) for cd, s, dg, conf in mem.execute("SELECT cod_aff_form, session, digest, confirmes FROM core.rapport").fetchall()}
     audit = mem.execute("SELECT digest, decision FROM core.rapport_audit ORDER BY 1").fetchall()
-    rejected = {d for d, dec in audit if dec != "retenu"}
-    ok = got == spec["want"] and {"B1", "E1"} <= rejected and "A2" not in rejected
-    return ok, f"kept {sorted(got)} want {sorted(spec['want'])}; rejected {sorted(rejected)}; build {res}"
+    rejected = {d for d, dec in audit if dec == "écarté"}
+    rec = {(cd, s): r for cd, s, r in mem.execute("SELECT cod_aff_form, session, recoupe FROM core.rapport").fetchall()}
+    flags = all(bool(rec[k]) == (k not in spec["pending"]) for k in rec)
+    ok = got == spec["want"] and {"B1", "E1", "L2", "L3", "L4", "L5", "L6"} <= rejected and not {"A2", "L1"} & rejected and flags
+    return ok, f"kept {sorted(got)} want {sorted(spec['want'])}; rejected {sorted(rejected)}; not cross-checked flags {flags}; build {res}"
 
 
 @check("R3 figures: served rows = harvested counts, rate re-derived, the student's row (Python and page twins), EDS lists cut")
@@ -223,6 +237,14 @@ const [b, keys] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(keys.map((k) => { const x = pickRapport(b, k); return x ? [x.source, x.taux] : [null, null]; })));"""
     r = subprocess.run([node, "-e", prog], input=json.dumps([block, keys]), capture_output=True, text=True, timeout=60)
     return json.loads(r.stdout) if r.returncode == 0 else "error: " + r.stderr[-200:]
+
+
+def node(prog: str, data=None):
+    n = shutil.which("node")
+    if not n:
+        return None
+    r = subprocess.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
+    return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-400:]}
 
 
 def node_render(js: str, block: dict, block_nobg: dict):
@@ -301,6 +323,11 @@ PY_MUTANTS = [
     ("student's doublette ignored", 'mine = next((x for x in rows if x["key"] == dkey), None)', "mine = None"),
     ("concours rows dropped", 'targets = [used[(dig, r["code"])]] if r["code"] and (dig, r["code"]) in used else \\', 'targets = [] if r["code"] else \\'),
     ("masked routes lost", 'msk.add((v["cod_aff_form"], v["session"], b))', "pass"),
+    ("an archived report kept unverified", 'ref is None and r.get("source") == "live" and how == "code_imprime"', 'ref is None and how == "code_imprime"'),
+    ("a report without its printed code kept", 'r.get("source") == "live" and how == "code_imprime"', 'r.get("source") == "live"'),
+    ("a published session kept unverified", "and s is not None and max_sies is not None and s > max_sies and", "and s is not None and max_sies is not None and"),
+    ("incoherent counts kept", "s > max_sies and conf > 0 and pos <= conf", "s > max_sies and conf > 0"),
+    ("not cross-checked shown as verified", '"source": "live" if r.get("source") == "live" else "archive", "recoupe": ok}', '"source": "live" if r.get("source") == "live" else "archive", "recoupe": True}'),
 ]
 JS_MUTANTS = [
     ("label unescaped", "<td>${esc(x.libelle)}", "<td>${x.libelle}"),
@@ -308,9 +335,11 @@ JS_MUTANTS = [
     ("criterion unescaped", '<td data-label="Critère">${esc(c.critere)}</td>', '<td data-label="Critère">${c.critere}</td>'),
     ("estimate kept beside the published figure", "const est = own.hasBg ? null : estimateDoublette(d.series, g, dkey);", "const est = estimateDoublette(d.series, g, dkey);"),
     ("figure without its label", '<td class="num" data-label="Taux d\'accès">${pct1(x.taux)}', '<td class="num">${pct1(x.taux)}'),
-    ("caveat dropped", "Ce sont des résultats passés, pas des chances d'admission.\";\nfunction rapportSource", "\";\nfunction rapportSource"),
+    ("caveat dropped", "Ce sont des résultats passés, pas des chances d'admission.\";\n// a report SIES", "\";\n// a report SIES"),
     ("page uses the group bucket", "const other = rows.find((x) => x.autres);", "const other = null;"),
     ("source link dropped", "voir le rapport ↗</a>", "</a>"),
+    ("mark dropped from the doublette card", "(rapport public ${esc(rp.session)})${rpPending(rp)}</h3>", "(rapport public ${esc(rp.session)})</h3>"),
+    ("mark always empty", 'const rpPending = (rp) => (rp && rp.recoupe === false ?', "const rpPending = (rp) => (false ?"),
 ]
 
 
@@ -327,7 +356,7 @@ def mutated(path: Path, old: str, new: str, name: str):
 
 @check("R6 mutation test: selection, rate, pick, escaping, labels, wording and source bugs are each caught")
 def r6(c: Ctx):
-    fns = [r1, r2, r3, r4, r5]
+    fns = [r1, r2, r3, r4, r5, r9]
     missed = []
 
     def caught():
@@ -495,6 +524,25 @@ def _r8(c: Ctx):
         bad.append(("unverified live report kept",))
     credit = 'sur la fiche Parcoursup de la formation' in c.js and 'rp.source === "live"' in c.js
     return not bad and credit, f"links {links == [want_link]}; closed {out['closed']['status']}; problems {bad[:3]}; page credit {credit}"
+
+
+@check("R9 not yet cross-checked: kept only from the live fiche of an unpublished session (R2 crafted rows); the page marks it everywhere")
+def r9(c: Ctx):
+    js = c.js
+    fn = "\n".join(m.group(0) for m in (re.search(r"const esc = .*", js), re.search(r"const rpPending = .*", js),
+                                          re.search(r"function rapportSource\(rp\) \{.*?\n\}", js, re.S)) if m)
+    o = node(fn + """
+const rp = { recoupe: false, session: 2026, capture: "20261215000000", source: "live", archive: "https://dossierappel.parcoursup.fr/x" };
+process.stdout.write(JSON.stringify({ pend: rpPending(rp), src: rapportSource(rp), ok: rpPending({ ...rp, recoupe: true }), ok2: rapportSource({ ...rp, recoupe: true }) }));""")
+    if o is None:
+        return True, "node not installed"
+    if "error" in o:
+        return False, o["error"]
+    mark = "pas encore recoupé avec les chiffres de 2026"
+    page = (mark in o["pend"] and "recoupé avec les chiffres de 2026" in o["src"] and not o["ok"] and "égalent" in o["ok2"]
+            and "${rpPending(rp)}</h3>" in js and "${rpPending(rp)}</h2>" in js and "pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}" in js)
+    ok2, detail = r2(c)
+    return page and ok2, f"page marks {page}; selection {ok2}"
 
 
 @check("R8 live harvest: closed site writes nothing, fiche link read, each PDF once, same verification, the fiche credited")

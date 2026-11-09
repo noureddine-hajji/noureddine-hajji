@@ -302,7 +302,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
   - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
-  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R8).
+  - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R9).
   - Unread files (`--repair`, request mode "repair"): every other capture of the URL, as archived then rebuilt by qpdf
     (pikepdf); a rebuilt file is `ok_repare` only if COMPLETE (every page has text, the signature line is there), else `incomplet`
     and never used. Coverage is bounded by what the archive kept: the live fiches link the reports only during a campaign.
@@ -310,7 +310,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     its report link(s) (relative, `&amp;`-escaped; only parcoursup.fr hosts), each PDF once (archive digest form), rows with
     `source` "live" in the SAME harvest files, hence the SAME verification. A closed site (404 / "indisponible") writes nothing
     (no daily commit). The page credits the fiche ("lu le … sur la fiche Parcoursup"), not the archive. Red team R8.
-    A report of a session SIES has not published yet waits: it is used once SIES publishes that session.
+  - Not yet cross-checked (owner's choice, 2026-11-09): a LIVE report of a session SIES has not published (session > SIES's
+    latest), with the formation code printed in its tables and coherent counts (confirmed > 0, en position <= confirmed), is
+    kept with `recoupe` = false and marked "pas encore recoupé avec les chiffres de <session>" on both cards and in Mes vœux.
+    An archived report, a published session (match or drop), a code SIES lacks in a published session: never. Red team R9.
 - **Carte (map of formations).**
   - The zones are the `journey.stage2` rows (`/api/journey/stage2`), never recomputed. With no profile, there are no zones.
   - Two levels: type of diploma, then mention (`carte.diplome_of`, fixed rules on the published labels; every formation in
