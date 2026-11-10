@@ -51,7 +51,7 @@ def test_durations_table_lists_the_parallel_files():
     assert set(w) == files, f"add to tests/durations.json: {sorted(files - set(w))}; drop: {sorted(set(w) - files)}"
 
 
-def test_build_cache_key_follows_every_input(tmp_path):
+def test_build_cache_key_follows_every_input(tmp_path, monkeypatch):
     """tests/synthetic.py cached_build: same inputs share one build; any changed input is a new build."""
     from synthetic import _inputs_key, make_raw
     a, b = tmp_path / "a" / "raw", tmp_path / "b" / "raw"
@@ -66,3 +66,9 @@ def test_build_cache_key_follows_every_input(tmp_path):
     x.write_bytes(b"1")
     y.write_bytes(b"2")
     assert _inputs_key(a, {"success_source": x}) != _inputs_key(a, {"success_source": y})   # an argument file's content
+    ext = tmp_path / "ext"                                                             # a data directory outside the repository
+    (ext / "sources").mkdir(parents=True)
+    monkeypatch.setenv("SUPTRACKER_DATA", str(ext))
+    k1 = _inputs_key(a, {})
+    (ext / "sources" / "new.xlsx").write_bytes(b"1")
+    assert _inputs_key(a, {}) != k1                                                   # a source added there (Codex, PR #42)

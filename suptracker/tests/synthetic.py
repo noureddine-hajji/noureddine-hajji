@@ -989,13 +989,16 @@ def _inputs_key(raw_dir: Path, kwargs: dict) -> str:
     _digest_path(h, raw_dir)
     _digest_arg(h, kwargs)
     h.update(repr(sorted((k, v) for k, v in os.environ.items() if k.startswith("SUPTRACKER"))).encode())
-    data = _ROOT / "data"
-    for f in sorted(x for x in data.rglob("*") if x.is_file()):
-        rel = f.relative_to(data)
-        if rel.parts[0] == "raw" or f.name in _OUTPUTS:
-            continue
-        st = f.stat()
-        h.update(f"{rel}|{st.st_size}|{st.st_mtime_ns}".encode())
+    # the repository's data/ (report harvest) AND the configured data directory (default sources), Codex on PR #42
+    dirs = dict.fromkeys([_ROOT / "data", Path(os.environ.get("SUPTRACKER_DATA", _ROOT / "data"))])
+    for data in dirs:
+        h.update(f"[{data}]".encode())
+        for f in sorted(x for x in data.rglob("*") if x.is_file()) if data.is_dir() else []:
+            rel = f.relative_to(data)
+            if rel.parts[0] == "raw" or f.name in _OUTPUTS:
+                continue
+            st = f.stat()
+            h.update(f"{rel}|{st.st_size}|{st.st_mtime_ns}".encode())
     return h.hexdigest()[:24]
 
 
