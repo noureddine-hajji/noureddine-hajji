@@ -350,7 +350,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **Formations semblables (owner, 2026-11-10).**
   - Used ONLY where the formation's own report lacks the part: no own bac général table (doublettes), no readable own texts
     (jury). Similar = same `fili` + `fil_lib_voe_acc`, same session. Verified reports only (`recoupe`); a concours report counts
-    once (digest). FCIL and "Licence professionnelle" group unrelated formations, so they get none.
+    once (digest) WITHIN EACH group it covers, read from that group's own formation (Codex). FCIL and "Licence professionnelle" group unrelated formations, so they get none.
   - Doublette k: pooled over the reports that DETAIL k, with "all bac général" taken from the same reports; a formation's own
     "Autres doublettes" is never pooled. Thresholds: 3 reports and 20 candidates.
     The figure for the formation is an ESTIMATION: its bac général proposal rate x (k / all), capped at 100

@@ -80,12 +80,13 @@ def crafted():
     con.execute("CREATE SCHEMA core")
     con.execute("""CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session INTEGER, fili VARCHAR, fil_lib_voe_acc VARCHAR,
         g_ea_lib_vx VARCHAR, ville_etab VARCHAR, acad_mies VARCHAR)""")
-    fy = [(c, 2025, "BUT", "X", f"Etab {c}", "Ville", "Aca") for c in "ABCDEFG"] + [(c, 2025, "Autre formation", "FCIL", f"Etab {c}", "V", "A") for c in "HIJ"]
+    fy = [(c, 2025, "BUT", "X", f"Etab {c}", "Ville", "Aca") for c in "ABCDEFG"] + [(c, 2025, "Autre formation", "FCIL", f"Etab {c}", "V", "A") for c in "HIJ"] \
+        + [("K", 2025, "BUT", "Y", "Etab K", "Ville", "Aca")]           # Codex (PR #41): dDE also covers K, of another group
     con.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?, ?)", fy)
     con.execute("CREATE TABLE core.rapport (cod_aff_form VARCHAR, session INTEGER, digest VARCHAR, recoupe BOOLEAN)")
     con.executemany("INSERT INTO core.rapport VALUES (?, ?, ?, ?)", [("A", 2025, "dA", True), ("B", 2025, "dB", True),
         ("D", 2025, "dDE", True), ("E", 2025, "dDE", True), ("F", 2025, "dF", False), ("G", 2025, "dG", True),
-        ("H", 2025, "dH", True), ("I", 2025, "dI", True), ("J", 2025, "dJ", True)])
+        ("H", 2025, "dH", True), ("I", 2025, "dI", True), ("J", 2025, "dJ", True), ("K", 2025, "dDE", True)])
     con.execute("""CREATE TABLE core.rapport_doublette (cod_aff_form VARCHAR, session INTEGER, bac VARCHAR, rang INTEGER,
         doublette_key VARCHAR, autres BOOLEAN, confirmes INTEGER, en_position INTEGER)""")
     rows = []
@@ -93,7 +94,8 @@ def crafted():
                      "B": [("MATHS+SES", 60, 30), (None, 40, 10)],
                      "D": [("MATHS+SES", 20, 12), ("HGGSP+SES", 10, 1)], "E": [("MATHS+SES", 20, 12), ("HGGSP+SES", 10, 1)],
                      "F": [("MATHS+SES", 500, 500)],
-                     "H": [("MATHS+SES", 100, 100)], "I": [("MATHS+SES", 100, 100)], "J": [("MATHS+SES", 100, 100)]}.items():
+                     "H": [("MATHS+SES", 100, 100)], "I": [("MATHS+SES", 100, 100)], "J": [("MATHS+SES", 100, 100)],
+                     "K": [("MATHS+SES", 40, 20)]}.items():
         for i, (k, c, p) in enumerate(tab):
             rows.append((cod, 2025, "bg", i + 1, k, k is None, c, p))
     rows.append(("A", 2025, "bt", 1, "STMG", False, 999, 999))                   # techno rows are not bac général
@@ -142,8 +144,13 @@ def k1(c: Ctx):
     eds_ok = j and j["eds"]["oui"] == 2 and j["eds"]["non"] == 1 and j["eds"]["non_dit"] == 1 \
         and j["eds"]["generale"] == {"Mathématiques Spécialité": 2, HOSTILE: 1} and j["eds"]["autres"] == {"Série STMG": {"Droit et économie": 1}}
     opts_ok = j and j["options"] == {"maths_expertes": 2, "lv3": 1}
-    ok = got == want and keys == ["MATHS+SES"] and rates and generic and peers == ["A", "B", "D", "E", "G"] and champs_ok and eds_ok and opts_ok
-    return ok, (f"pool {got == want} ({got}); served {keys}; rates {rates}; generic label {generic}; peers {peers}; "
+    # a report covering two groups counts once in EACH, read from that group's own formation (K's table, not D's)
+    other = con.execute("SELECT doublette_key, n_rapports, confirmes, en_position, tous_confirmes FROM mart.semblable_dbl WHERE filiere = 'Y'").fetchall()
+    other_j = con.execute("SELECT n_rapports FROM mart.semblable_jury WHERE filiere = 'Y'").fetchall()
+    shared = other == [("MATHS+SES", 1, 40, 20, 40)] and other_j == [(1,)]
+    ok = got == want and keys == ["MATHS+SES"] and rates and generic and peers == ["A", "B", "D", "E", "G"] and champs_ok and eds_ok and opts_ok \
+        and shared
+    return ok, (f"pool {got == want} ({got}); served {keys}; rates {rates}; generic label {generic}; peers {peers}; shared report in both groups {shared}; "
                 f"jury fields {bool(champs_ok)}; specialties {bool(eds_ok)}; options {bool(opts_ok)}")
 
 
@@ -178,31 +185,25 @@ def k2(c: Ctx):
                      WHERE coalesce(r.recoupe, true) AND f.fil_lib_voe_acc NOT IN ({", ".join(repr(x) for x in sorted(SB.GENERIC))})
                        AND f.fili IS NOT NULL
                      GROUP BY ALL),
-             first AS (SELECT r.digest, r.session, min(d.cod_aff_form) cod FROM core.rapport r
-                       JOIN core.rapport_doublette d USING (cod_aff_form, session) WHERE d.bac = 'bg' GROUP BY ALL),
+             first AS (SELECT r.session, f.fili, f.fil_lib_voe_acc fil, r.digest, min(d.cod_aff_form) cod FROM core.rapport r
+                       JOIN core.formation_year f USING (cod_aff_form, session)
+                       JOIN core.rapport_doublette d USING (cod_aff_form, session) WHERE d.bac = 'bg' AND coalesce(r.recoupe, true) GROUP BY ALL),
              rows AS (SELECT rep.session, rep.fili, rep.fil, rep.digest, d.doublette_key k, d.autres, d.confirmes c, d.en_position p
-                      FROM rep JOIN first USING (digest, session)
+                      FROM rep JOIN first USING (session, fili, fil, digest)
                       JOIN core.rapport_doublette d ON d.session = rep.session AND d.bac = 'bg' AND d.cod_aff_form = first.cod),
              tot AS (SELECT session, fili, fil, digest, sum(c) tc, sum(p) tp FROM rows GROUP BY ALL)
         SELECT rows.session, rows.fili, rows.fil, k, count(*), sum(c), sum(p), sum(tc), sum(tp)
         FROM rows JOIN tot USING (session, fili, fil, digest)
         WHERE NOT coalesce(autres, false) AND k IS NOT NULL GROUP BY ALL ORDER BY ALL""").fetchall()
     got = con.execute("SELECT * FROM mart.semblable_dbl ORDER BY ALL").fetchall()
-    # the build keeps the FIRST group a concours report is met in: compare only the groups no shared report spans
-    multi = {d for (d,) in con.execute("""SELECT r.digest FROM core.rapport r JOIN core.formation_year f USING (cod_aff_form, session)
-        GROUP BY r.digest HAVING count(DISTINCT (f.fili, f.fil_lib_voe_acc)) > 1""").fetchall()}
-    spans = {(s, fi, fl) for s, fi, fl, d in con.execute("""SELECT r.session, f.fili, f.fil_lib_voe_acc, r.digest FROM core.rapport r
-        JOIN core.formation_year f USING (cod_aff_form, session)""").fetchall() if d in multi}
-    w = [r for r in want if tuple(r[:3]) not in spans]
-    g = [r for r in got if tuple(r[:3]) not in spans]
+    # Codex (PR #41): every group compared, those a shared report spans included (it counts once in each)
+    w, g = [tuple(r) for r in want], [tuple(r) for r in got]
     dbl_ok = w == g and (len(g) > 0 or not c.real)
     # jury counts of a sample of groups, from the texts
     from suptracker import rapports as RP
     groups = con.execute("SELECT session, fili, filiere, n_rapports, data FROM mart.semblable_jury ORDER BY hash(filiere) LIMIT 25").fetchall()
     bad = []
     for s, fi, fl, n, data in groups:
-        if (s, fi, fl) in spans:
-            continue
         digs = [d for (d,) in con.execute("""SELECT DISTINCT r.digest FROM core.rapport r JOIN core.formation_year f USING (cod_aff_form, session)
             WHERE r.session = ? AND f.fili = ? AND f.fil_lib_voe_acc = ? AND coalesce(r.recoupe, true)""", [s, fi, fl]).fetchall()]
         texts = [json.loads(t) for t in (RP.texte(con, d) for d in digs) if t]
@@ -411,7 +412,11 @@ PY_MUTANTS = [
     ("autres pooled", "            if autres or not key:\n                continue\n", "            if not key:\n                key = \"AUTRES\"\n"),
     ("all bac général over every report", "a[3] += tc; a[4] += tp", "a[3] += 0; a[4] += 0"),
     ("unchecked reports used", "WHERE coalesce(r.recoupe, true) AND f.fil_lib_voe_acc IS NOT NULL", "WHERE f.fil_lib_voe_acc IS NOT NULL"),
-    ("concours counted twice", "        by_dig.setdefault(dig, (s, fili, fil))", "        by_dig[dig + cod] = (s, fili, fil)"),
+    ("concours counted twice", "        covers.setdefault((s, fili, fil, dig), set()).add(cod)", "        covers.setdefault((s, fili, fil, dig + cod), {cod})"),
+    ("shared report kept in one group only", "        covers.setdefault((s, fili, fil, dig), set()).add(cod)",
+     "        if any(k[3] == dig and k[:3] != (s, fili, fil) for k in covers):\n            continue\n        covers.setdefault((s, fili, fil, dig), set()).add(cod)"),
+    ("shared report read from another group's formation", "first = next((c for c in sorted(cods) if (c, s) in tables), None)",
+     "first = next((c for c in sorted(x for k, v in covers.items() if k[0] == s and k[3] == dig for x in v) if (c, s) in tables), None)"),
     ("generic labels kept", 'GENERIC = {"FCIL", "Licence professionnelle"}', "GENERIC = set()"),
     ("threshold dropped", "if n >= MIN_REPORTS and c >= MIN_CANDIDATS]", "if n >= 1]"),
     ("lowest importance kept", "IMPORTANCES.index(imp) < IMPORTANCES.index(best[k])", "IMPORTANCES.index(imp) > IMPORTANCES.index(best[k])"),

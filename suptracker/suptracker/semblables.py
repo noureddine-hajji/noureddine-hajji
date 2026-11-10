@@ -117,28 +117,25 @@ def build(con, textes: Path | None = None) -> dict:
         data VARCHAR)""")
     if not _has(con, "core", "rapport") or not _has(con, "core", "rapport_doublette"):
         return {"groupes": 0}
-    reps = _reports(con)
-    by_dig = {}                                  # digest -> (session, fili, filiere): a concours report counts once
-    for s, fili, fil, dig, cod in reps:
+    # Codex (PR #41): a concours report counts once WITHIN each group it covers (a PDF can cover formations of several groups)
+    covers = {}                                  # (session, fili, filiere, digest) -> the codes of that group it covers
+    for s, fili, fil, dig, cod in _reports(con):
         if fil in GENERIC:
             continue
-        by_dig.setdefault(dig, (s, fili, fil))
-    # each report's bac général rows, read once per digest (the first formation it covers carries them)
-    rows = {}
-    for dig, cod, s, key, autres, c, p in con.execute("""SELECT r.digest, d.cod_aff_form, d.session, d.doublette_key, d.autres,
-            d.confirmes, d.en_position FROM core.rapport_doublette d
-            JOIN core.rapport r ON r.cod_aff_form = d.cod_aff_form AND r.session = d.session
-            WHERE d.bac = 'bg' ORDER BY r.digest, d.cod_aff_form, d.rang""").fetchall():
-        first = rows.setdefault(dig, {"cod": cod, "rows": []})
-        if first["cod"] == cod:
-            first["rows"].append((key, bool(autres), c or 0, p or 0))
+        covers.setdefault((s, fili, fil, dig), set()).add(cod)
+    # each formation's bac général rows; in a group, a report is read from the first formation of THAT group it covers
+    tables = {}
+    for cod, s, key, autres, c, p in con.execute("""SELECT d.cod_aff_form, d.session, d.doublette_key, d.autres,
+            d.confirmes, d.en_position FROM core.rapport_doublette d WHERE d.bac = 'bg' ORDER BY d.cod_aff_form, d.rang""").fetchall():
+        tables.setdefault((cod, s), []).append((key, bool(autres), c or 0, p or 0))
     pool = {}
-    for dig, (s, fili, fil) in by_dig.items():
-        r = rows.get(dig)
-        if not r or not r["rows"]:
+    for (s, fili, fil, dig), cods in covers.items():
+        first = next((c for c in sorted(cods) if (c, s) in tables), None)
+        if first is None:
             continue
-        tc, tp = sum(x[2] for x in r["rows"]), sum(x[3] for x in r["rows"])
-        for key, autres, c, p in r["rows"]:
+        rws = tables[(first, s)]
+        tc, tp = sum(x[2] for x in rws), sum(x[3] for x in rws)
+        for key, autres, c, p in rws:
             if autres or not key:
                 continue
             a = pool.setdefault((s, fili, fil, key), [0, 0, 0, 0, 0])
@@ -148,9 +145,9 @@ def build(con, textes: Path | None = None) -> dict:
         con.executemany("INSERT INTO mart.semblable_dbl VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", dbl)
     texts = _texts(con, textes)
     groups = {}
-    for dig, key in by_dig.items():
+    for (s, fili, fil, dig) in covers:
         if dig in texts:
-            groups.setdefault(key, []).append(texts[dig])
+            groups.setdefault((s, fili, fil), []).append(texts[dig])
     jury = [(s, fi, fl, len(ts), json.dumps(jury_counts(ts), ensure_ascii=False)) for (s, fi, fl), ts in sorted(groups.items())]
     if jury:
         con.executemany("INSERT INTO mart.semblable_jury VALUES (?, ?, ?, ?, ?)", jury)

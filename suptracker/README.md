@@ -1898,7 +1898,7 @@ and `fil_lib_voe_acc`, for example every BUT Gestion des entreprises et des admi
   - For a doublette, the reports that detail it are added up: candidates in position to receive a proposal, out of
     candidates who confirmed. "All bac général" is taken from the same reports.
   - A formation's own "Autres doublettes" row is never pooled.
-  - Minimum: 3 reports and 20 candidates. Reports not yet cross-checked are left out, and a concours report counts once.
+  - Minimum: 3 reports and 20 candidates. Reports not yet cross-checked are left out, and a concours report counts once in each group of similar formations it covers, read from that group's own formation.
   - The figure for the formation is an estimation: its bac général proposal rate × (doublette / all bac général in those
     reports), capped at 100.
   - It comes before the national group estimate. A figure from the formation's own report is never shown beside it. The
