@@ -87,6 +87,9 @@ jobs:
           size=$(stat -c %s data/suptracker.duckdb)
           echo "warehouse: $size bytes"
           test "$size" -lt 95000000 || { echo "::error::warehouse exceeds GitHub's 100 MB file limit"; exit 1; }
+          tsize=$(stat -c %s data/rapport_textes.duckdb)
+          echo "report texts: $tsize bytes"
+          test "$tsize" -lt 95000000 || { echo "::error::report texts exceed GitHub's 100 MB file limit"; exit 1; }
       - name: Commit warehouse
         run: |
           # Commit only when the SIES inputs or the pipeline code changed: the warehouse
@@ -99,7 +102,7 @@ jobs:
           echo "$fp" > data/fingerprint.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/suptracker.duckdb data/verification data/fingerprint.txt
+          git add data/suptracker.duckdb data/rapport_textes.duckdb data/verification data/fingerprint.txt
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Refresh SIES warehouse ($(date -u +%Y-%m-%d))"
           git push

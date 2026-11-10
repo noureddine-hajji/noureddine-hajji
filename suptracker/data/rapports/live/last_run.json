@@ -1,0 +1,11 @@
+{
+ "status": "open",
+ "checked_at": "20261110060036",
+ "new_pdfs": 1,
+ "total": 26509,
+ "by_status": {
+  "ok": 16090,
+  "sans_rapport": 8812,
+  "failed": 1607
+ }
+}

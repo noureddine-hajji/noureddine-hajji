@@ -39,7 +39,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         indicators.build_peers(con)
         journey.build_journey(con)
         doublettes.build(con)
-        rapports.build(con)
+        rapports.build(con, textes=rapports.textes_path(db_path))
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
         calibration.build_calibration(con)

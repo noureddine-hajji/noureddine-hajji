@@ -1,1 +1,1 @@
-{"mode": "repair", "budget_min": 60, "note": "repair run: the 32 files left unread (13 download 404, 19 damaged PDFs), every other capture of their URL, qpdf rebuild only when complete"}
+{"mode": "live", "budget_min": 330, "note": "live harvest run 4 (after run 3: 22 859 of 26 509 fiches read, 10 181 live PDFs, 3 650 left + 763 to retry)"}

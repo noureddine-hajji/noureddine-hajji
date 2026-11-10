@@ -900,6 +900,13 @@ carte"):**
     apprentissage (gratuit pour l'apprenti)", ticked by default: apprenticeship training is free for the apprentice (Code
     du travail, art. L6211-1), so Plan B's paid rule does not apply; it is never the "Privés (payants)" box;
   - a formation whose selectivity is not published counts as neither selective nor non-selective.
+- **Merged with the initial formation (owner's request, 2026-11-09).** An apprenticeship offer of the SAME establishment (UAI)
+  for the same diploma and mention (the same cartographie type and mention labels) as an initial formation of the latest
+  campaign is not listed apart: it is attached to that formation, which then carries both labels, "formation initiale" and
+  "apprentissage" (the filter's "hors apprentissage" keeps it, and so does "en apprentissage"), and lists the CFA with its
+  Parcoursup page, on the map card and in the formation page's "Bon à savoir" card. On real data 2 383 offers are attached
+  to 2 387 initial formations (14 offers match two); an offer of another establishment in the same town (2 153) stays apart,
+  since it is another school.
 - **The list.** It shows the formations in view, plus those without coordinates ("non localisée"), in pages of 20 on a
   phone and 40 on a wide screen. It is sorted by name, or by distance around a town, never by chances.
 
@@ -919,7 +926,7 @@ carte"):**
   - OpenStreetMap's tile servers are meant for moderate use. If the audience grows, switch `CARTE_TILES` to a tile
     provider.
 
-**Red team** `scripts/redteam_carte.py` (C1-C9), via `tests/test_carte.py`:
+**Red team** `scripts/redteam_carte.py` (C1-C10), via `tests/test_carte.py`:
 - C1: zones = "Mon parcours", run in Node.
 - C2: every drawn formation in exactly one group, and none without coordinates dropped from the list.
 - C3: the filters against an independent Python reading.
@@ -930,6 +937,8 @@ carte"):**
 - C8: about 30 mutants built in memory, all caught (a mutant is skipped where the data cannot show it: no paid institution, no double licence, no non-Parcoursup link).
 - C9: the apprenticeship layer re-derived by SQL (latest offer, not in SIES, once), no figure, status, type and mention vote,
   académie, the Parcoursup link only, and the card on hostile data in Node.
+- C10: the merge re-derived by SQL (same UAI, same labels), both labels, the CFA listed on the map and the formation page,
+  never apart; the card on hostile data.
 
 ## Each formation's own public report: doublettes and what the jury looks at (sprint "Rapports publics")
 
@@ -958,6 +967,9 @@ carte"):**
   - download, then parsing by `scripts/rapports_parse.py` (pdfplumber table extraction: continuation pages, repeated
     headers, title rows, masked bac types; the jury's sections by their headings, never the signature);
   - CSVs plus `qualitatif.jsonl.gz` in `data/rapports/harvest/`.
+  - `rapports.build` checks each report against SIES. The jury texts of the reports it keeps go to `data/rapport_textes.duckdb`, a
+    file beside the warehouse that is built and committed with it. With the live harvest (about 12 000 texts, 19 MB), keeping
+    them in the warehouse pushed it over the 95 MB guard.
   - It is resumable: each run stops after its time budget, and pushing `data/rapports/request.json` again continues it.
   - **Repair** (`"mode": "repair"`, `--repair`): the files left unread (a download answering 404, a damaged PDF) are tried
     again on every other capture of the same URL, newest first, as archived then rebuilt by qpdf (pikepdf). A rebuilt file
@@ -966,7 +978,26 @@ carte"):**
   - **Coverage.** The archive kept 5 408 distinct PDFs; 4 962 reports are verified after the repair (4 339 of the 14 252 formations of 2025): of the 32 files left
     unread, 7 were read on another capture, 8 rebuilt complete, 6 set aside as cut short, 11 had no readable capture.
     Parcoursup publishes no list of its reports: each one is linked from its formation's fiche, and only during a campaign.
-    A direct harvest of the live fiches is the way to cover every formation, once they reopen.
+  - **Live harvest** (`scripts/rapports_live.py`, mode `"live"`, and every day at 04:17 UTC on `main`): it reads every fiche
+    of the latest cartographie session (about 25 000), follows its report link(s) and parses each PDF into the same harvest
+    files (`source` = `live`), so the build verifies them exactly like the archived ones. While the fiches are closed
+    (between campaigns), the run stops after three fiches and writes nothing; once they reopen (December), each daily run
+    collects for up to 5 h 30 and the next one resumes (`data/rapports/live/fiches.csv`). A PDF the archive already had is
+    not stored twice. The page credits the fiche ("lu le … sur la fiche Parcoursup"). Red team R8.
+  - **First full live pass (2026-11-08 to 2026-11-10, 2025 reports on dossier.parcoursup.fr, 4 runs).** All 26 509 fiches
+    were read:
+    - 16 090 link a report;
+    - 8 812 link none;
+    - 1 607 failed twice.
+
+    The build verifies 13 215 reports (3 785 set aside by the SIES check). In 2025 that is 12 592 of the 14 252 formations
+    (4 339 from the archive alone), and 9 776 of them have a per-doublette table.
+  - **Not yet cross-checked (the owner's choice, 2026-11-09).** In December 2026 the fiches carry the 2026 reports, and SIES
+    has not published 2026. Such a report is shown when it was read on the formation's live fiche, prints the formation's
+    code in its tables and its counts hold together (confirmed > 0, en position <= confirmed); it carries the mark "pas encore
+    recoupé avec les chiffres de 2026" on the doublette card, the jury card and in Mes vœux. Once SIES publishes 2026, the
+    ordinary check applies and a report that does not match is dropped. An archived report is never shown unverified.
+    Red team R9.
 - `suptracker/rapports.py` (at build) keeps a report only when it is identified and verified:
   - the formation code is the one printed in its tables (2024 on), or the `g_ti_cod` of its link for older reports;
   - its confirmed candidates must equal the SIES `nb_voe_pp` of that code and session;
@@ -1796,3 +1827,50 @@ It then writes the **longitudinal continuity report**: the share of 2025 formati
 2024, 2023 and 2022, the share covering the full span (in total and exact-only), and the share with an
 inferred link, both overall and by `fili`. Rows with NULL components count as *not evaluable*, never as
 passes. `--strict` returns a non-zero exit code on failure.
+
+
+## Comprendre l'appel and Vraie sélectivité (owner's request, 2026-11-09)
+
+The owner shared a UI brief built on students' and teachers' feedback about Parcoursup. SupCompass PREPARES the choice of
+vœux: the student has no rank yet, so these pages never ask for one. Three things from the brief can be answered with
+published figures only.
+
+**How far the list was called (formation page, tab "Y entrer").**
+- **Data check.** The calling groups split the candidates without overlap. So the SUM of the groups' last-called ranks
+  (`ran_grp1..3`) is the number of ranked candidates who got an offer in the main phase.
+  - In 2025 this sum equals the ranked count (`nb_cla_pp`) for 5 646 formations and exceeds it for 1 of 14 191.
+  - In 2022-2024 about one row in ten exceeds it.
+- **The card.** For every campaign it shows the candidates, the ranked, each group's last-called rank, the share of the ranked
+  who were called (min(1, sum / ranked)) and the places.
+  - A sum at or beyond the ranked count reads "toute la liste", never a share above 100 %.
+  - Example: BUT Mesures physiques in Le Mans, 2025: 740 + 108 = 848 = every ranked candidate, for 78 places.
+
+**Page "Comprendre l'appel" (`#/comprendre`).**
+- It explains three figures not to confuse: the access rate, the last-called rank, and the waiting-list position (which only
+  exists after the vœux).
+- Per type of diploma (types of at least 20 formations), it gives the median share of the ranked who were called and the share
+  of formations that called their whole list.
+- It gives the medians of the three published offer-timing shares: from the opening, before the bac results, before the end of
+  the main phase. Zero-admit rows are left out.
+
+**Page "Vraie sélectivité" (`#/selectivite/<type>/<mention>`).**
+- Each formation of the chosen type (and mention) is placed by two published figures:
+  - x: its official access rate;
+  - y: the share of its néo-bachelier admits with a "Bien" mention or better (`pct_b + pct_tb + pct_tbf`; the mention shares
+    are disjoint and add up to 100 %).
+- Formations with fewer than 10 néo-bachelier admits, or without an access rate, are counted apart.
+- The quadrant lines are the medians of the selection. The four names (Plus accessible, Très demandée, Admis souvent
+  mentionnés, Très sélective) describe a position, never a cause or a chance.
+- Each quadrant lists its formations with candidates per place: vœux divided by places, an order of magnitude.
+
+**Not taken from the brief, because nothing published supports it:** the admits' grades (no median /20 exists), the day-by-day
+call curve, an "algorithmic score", and rank bonuses for maths expertes, boursier status or the lycée.
+
+**Red team** `scripts/redteam_appel.py` (A1-A7), via `tests/test_appel.py`:
+- A1: the depth re-derived by SQL.
+- A2: the per-type medians.
+- A3: the matrix: placement, exclusions, medians and quadrants.
+- A4: both pages in Node on hostile data: escaping, labelled cells, "toute la liste", the caveat, no rank input.
+- A5: wording.
+- A6: wiring.
+- A7: 16 in-memory mutants, one skipped where the data cannot show it.

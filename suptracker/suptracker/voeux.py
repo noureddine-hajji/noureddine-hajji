@@ -85,7 +85,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
         b = RP.for_formation(con, cod)
         x = RP.pick(b, dkey)
         return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
-                "en_position": x["en_position"]} if x else None
+                "en_position": x["en_position"], "recoupe": b["recoupe"]} if x else None
     out = []
     for c in cods:
         if c not in meta:

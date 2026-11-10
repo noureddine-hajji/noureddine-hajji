@@ -324,6 +324,16 @@ def make_raw(raw_dir: Path, seed: int = 7) -> dict:
          "int": "", "amg": "Enseignement en présentiel", "tf": "Formation professionnelle,BTS - BTSA - BTSM",   # a list of types
          "fl": "BTS - Mention inédite", "nm": "BTS - Mention inédite - en apprentissage", "tc": "Publics", "etab_uai": "0131234E",
          "etab_nom": "Lycée Exemple Marseille (Marseille - 13)", "commune": "Marseille", "departement": "Marseille"},
+        # the same diploma as 1103 at the SAME establishment (UAI): attached to 1103; at another establishment of the
+        # same town: listed apart
+        {"gta": "9905", "annee": 2026, "etab_gps": "48.85, 2.35", "fiche": fiche.format(9905), "app": "Formations en apprentissage",
+         "int": "", "amg": "Enseignement en présentiel", "tf": "BTS - BTSA - BTSM", "fl": "BTS - Systèmes numériques",
+         "nm": "BTS - Production - Systèmes numériques - en apprentissage", "tc": "Publics", "etab_uai": "0751234A",
+         "etab_nom": "CFA de l'université Exemple Paris (Paris - 75)", "commune": "Paris", "departement": "Paris"},
+        {"gta": "9906", "annee": 2026, "etab_gps": "48.86, 2.36", "fiche": fiche.format(9906), "app": "Formations en apprentissage",
+         "int": "", "amg": "Enseignement en présentiel", "tf": "BTS - BTSA - BTSM", "fl": "BTS - Systèmes numériques",
+         "nm": "BTS - Production - Systèmes numériques - en apprentissage", "tc": "Privés", "etab_uai": "0759999Z",
+         "etab_nom": "Autre CFA (Paris - 75)", "commune": "Paris", "departement": "Paris"},
         {"gta": "9903", "annee": 2025, "etab_gps": "44.84, -0.58", "fiche": fiche.format(9903), "app": "Formations en apprentissage",
          "int": "", "amg": "Enseignement en présentiel", "tf": "BUT", "fl": "BUT - Génie mécanique et productique",
          "nm": "BUT - Génie mécanique et productique - en apprentissage", "tc": "Publics", "etab_uai": "0331234C",

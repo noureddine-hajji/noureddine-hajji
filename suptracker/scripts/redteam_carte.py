@@ -14,6 +14,9 @@
      vouvoiement; nothing about the position or the town is sent (no API call carries them)
   C7 wiring: route, menu entries, analytics route, cache policies, release guard, sources register
   C8 mutation test (in memory)
+  C10 merge: an apprenticeship offer of the SAME establishment (UAI) for the same diploma and mention as an initial formation is
+     attached to it (both labels, the CFA listed, never apart); any other offer stays apart; the formation page gets the same
+     list; re-derived by SQL
   C9 apprenticeship (cartographie offers SIES does not publish): the layer re-derived by SQL (latest cartographie session,
      not in the latest SIES campaign, never twice); no zone, no rate, no paid flag, never a vœu; status, type and mention
      (vote of the SIES formations with the same labels) and académie (UAI, else département) re-derived; the Parcoursup
@@ -175,7 +178,7 @@ process.stdout.write(JSON.stringify(carteClusters(pts, cell).map((g) => g.map((p
 def craft(i, **kw):
     base = {"cod_aff_form": str(i), "etablissement": f"Lycée {i}", "formation": "BTS X", "ville": "Lyon", "academie": "Lyon", "lat": 45.76,
             "lon": 4.84, "statut": "public", "select_form": "formation sélective", "internat": "non", "distance": "aucune",
-            "amenag_sport": False, "amenag_art": False, "zone": "cible", "apprentissage": False, "stats": True}
+            "amenag_sport": False, "amenag_art": False, "zone": "cible", "apprentissage": False, "initiale": True, "stats": True, "offres_app": []}
     return {**base, **kw}
 
 
@@ -183,8 +186,9 @@ CRAFT = [craft(1, internat="mixte"), craft(2, statut="prive", zone="securite", v
          craft(3, statut="contrat", select_form="formation non sélective", internat=None, zone=None, ville="Paris", academie="Paris", lat=48.85, lon=2.35),
          craft(4, lat=None, lon=None, zone="ambitieux", academie="Polynésie", distance="totale"),
          craft(5, internat="filles", distance="partielle", amenag_sport=True), craft(6, internat="garcons", amenag_art=True, distance=None),
-         craft(7, statut="prive_app", apprentissage=True, stats=False, select_form=None, zone=None, internat="mixte"),
-         craft(8, statut="public", apprentissage=True, stats=False, select_form=None, zone=None, lat=None, lon=None)]
+         craft(7, statut="prive_app", apprentissage=True, initiale=False, stats=False, select_form=None, zone=None, internat="mixte"),
+         craft(8, statut="public", apprentissage=True, initiale=False, stats=False, select_form=None, zone=None, lat=None, lon=None),
+         craft(9, apprentissage=True, offres_app=[{"cod_aff_form": "99", "etablissement": "CFA", "formation": "BTS X", "ville": "Lyon", "fiche": None}])]
 FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"academie": "Lyon"}, {"select": ["non"]}, {"internat": ["mixte", "filles"]},
            {"amenag": ["presentiel"]}, {"amenag": ["totale", "sport"]}, {"amenag": ["art"]}, {"zones": ["cible", "autre"]}, {"q": "lycée 1"},
            {"autour": {"lat": 45.76, "lon": 4.84, "km": 10}}, {"autour": {"lat": 45.76, "lon": 4.84, "km": 1}, "statut": ["public", "contrat", "prive"]},
@@ -195,7 +199,7 @@ FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"acade
 def has(f, g, o):
     z = f["zone"] if f["zone"] in ("securite", "cible", "ambitieux") else "autre"
     return {"statut": lambda: f["statut"] == o, "internat": lambda: f["internat"] == o, "zones": lambda: z == o,
-            "app": lambda: bool(f.get("apprentissage")) == (o == "oui"),
+            "app": lambda: bool(f.get("apprentissage")) if o == "oui" else bool(f.get("initiale")),
             "select": lambda: f["select_form"] == ("formation sélective" if o == "oui" else "formation non sélective"),
             "amenag": lambda: (f["distance"] in (None, "aucune")) if o == "presentiel" else bool(f["amenag_sport"]) if o == "sport"
             else bool(f["amenag_art"]) if o == "art" else f["distance"] == o}[g]()
@@ -267,7 +271,8 @@ def c4(c: Ctx):
                 continue                            # apprenticeship offers: C9
             if f["payant"] != (f["contrat_etab"] in PB.PAID_CONTRACTS) or f["statut"] != ("public" if f["contrat_etab"] == "Public" else "prive" if f["payant"] else "contrat"):
                 bad.append((d["label"], "status", f["cod_aff_form"]))
-    if sorted(seen) != sorted([r[0] for r in rows] + list(app_codes(c.con))) or any(v != 1 for v in seen.values()):
+    apart = {a for a, ys in attach(c.con).items() if not ys}
+    if sorted(seen) != sorted([r[0] for r in rows] + list(apart)) or any(v != 1 for v in seen.values()):
         bad.append(("coverage", len(seen), len(rows)))
     for d in c.sample[:2]:
         men = next(x for x in c.fac["diplomes"] if x["label"] == d)["mentions"][0]
@@ -361,6 +366,23 @@ def app_codes(con) -> set:
         EXCEPT SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
 
 
+def attach(con) -> dict:
+    """Independent: {apprenticeship offer: initial formations of the latest SIES campaign, same UAI (SIES or cartographie),
+    same cartographie type and mention labels; SIES's own apprenticeship formations are not initial}."""
+    codes = app_codes(con)
+    if not codes:
+        return {}
+    off = {r[0]: r[1:] for r in con.execute("SELECT cod_aff_form, etab_uai, type_formation, mention_lib FROM core.cartographie").fetchall()}
+    ini = con.execute("""SELECT f.cod_aff_form, f.cod_uai, c.etab_uai, c.type_formation, c.mention_lib FROM core.formation_year f, core.cartographie c
+        WHERE c.cod_aff_form = f.cod_aff_form AND f.session = (SELECT max(session) FROM core.formation_year)
+        AND f.apprentissage IS NOT TRUE""").fetchall()
+    out = {}
+    for a in codes:
+        u, tf, fl = off[a]
+        out[a] = sorted({y for y, u1, u2, tf2, fl2 in ini if u and u in (u1, u2) and (tf2, fl2) == (tf, fl)})
+    return out
+
+
 def _fold(x):
     import unicodedata
     return unicodedata.normalize("NFKD", x or "").encode("ascii", "ignore").decode().lower().strip()
@@ -373,7 +395,7 @@ STATUT_CARTO = {"Publics": "public", "Privés en contrat avec l’Etat / EESC": 
 
 @check("C9 apprenticeship: layer re-derived (latest offer, not in SIES, once), no zone/rate/paid/vœu, status, vote, académie, link, card")
 def c9(c: Ctx):
-    want = app_codes(c.con)
+    want = {a for a, ys in attach(c.con).items() if not ys}
     rows = [a for d in c.fac["diplomes"] for a in (M["CA"].formations(c.con, d["label"]) or {"formations": []})["formations"] if not a["stats"]]
     got = [a["cod_aff_form"] for a in rows]
     bad = [("label", t, M["CA"].statut_carto(t), v) for t, v in STATUT_CARTO.items() if M["CA"].statut_carto(t) != v]
@@ -381,7 +403,7 @@ def c9(c: Ctx):
     bad += [("unread label", t) for t in labels - set(STATUT_CARTO)]
     if sorted(got) != sorted(want) or len(set(got)) != len(got):
         bad.append(("layer", len(got), len(want)))
-    if c.real and len(want) < 1000:
+    if c.real and len(app_codes(c.con)) < 1000:
         bad.append(("real layer too small", len(want)))
     info = {r[0]: r[1:] for r in c.con.execute("""SELECT cod_aff_form, types_etab, type_formation, mention_lib, etab_uai, departement, fiche_url
                                                   FROM core.cartographie""").fetchall()} if want else {}
@@ -452,6 +474,56 @@ process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteDetail(f, true), l:
     return not bad and not wrong, f"{len(got)} apprenticeship offers (want {len(want)}); problems {bad[:3]}; page problems {wrong}"
 
 
+@check("C10 merge: same UAI and diploma -> attached to the initial formation (both labels, CFA listed, not apart); page twin")
+def c10(c: Ctx):
+    att = attach(c.con)
+    if not att:
+        return True, "no apprenticeship labels in this warehouse"
+    want_by_ini = {}
+    for a, ys in att.items():
+        for y in ys:
+            want_by_ini.setdefault(y, set()).add(a)
+    bad, n_both = [], 0
+    rows = [f for d in c.fac["diplomes"] for f in (M["CA"].formations(c.con, d["label"]) or {"formations": []})["formations"]]
+    listed = {f["cod_aff_form"] for f in rows}
+    for f in rows:
+        got = {o["cod_aff_form"] for o in f.get("offres_app") or []}
+        if f["stats"]:
+            if got != want_by_ini.get(f["cod_aff_form"], set()):
+                bad.append((f["cod_aff_form"], "offers", sorted(got)[:3]))
+            if got and not (f["apprentissage"] and f["initiale"]):
+                bad.append((f["cod_aff_form"], "both labels"))
+            n_both += bool(got)
+    if any(a in listed for a, ys in att.items() if ys):
+        bad.append(("attached offer listed apart",))
+    if c.real and n_both < 1000:
+        bad.append(("too few merges", n_both))
+    sample = next(iter(sorted(want_by_ini)), None)
+    if sample and {o["cod_aff_form"] for o in M["CA"].for_formation(c.con, sample)} != want_by_ini[sample]:
+        bad.append((sample, "formation page"))
+    # the page: both labels and the CFA list, escaped
+    js = carte_js(c.js)
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
+    prog = helpers + "\n" + (zz.group(0) if zz else "") + """
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const voeux = { has: () => false, get: () => [], MAX: 10 };
+""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
+const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify({ d: carteDetail(f, true), l: carteList([f], true) }));"""
+    f = {**CRAFT[8], "etablissement": HOSTILE, "offres_app": [{"cod_aff_form": "99", "etablissement": HOSTILE, "formation": "x", "ville": HOSTILE,
+                                                            "fiche": "https://dossierappel.parcoursup.fr/x?g_ta_cod=99"}]}
+    o = node(prog, [f])
+    if isinstance(o, dict) and "error" in o:
+        return False, o["error"]
+    if o is not None:
+        flat = json.dumps(o)
+        page = {"raw tag": "<img" in flat, "labels": not ("formation initiale" in o["d"] and "apprentissage</span>" in o["d"] and "formation initiale" in o["l"]),
+                "CFA listed": "Aussi en apprentissage" not in o["d"] or 'href="https://dossierappel.parcoursup.fr/x?g_ta_cod=99"' not in o["d"]}
+        bad += [("page", k) for k, v in page.items() if v]
+    return not bad, f"{sum(1 for ys in att.values() if ys)} offers attached to {len(want_by_ini)} initial formations ({n_both} served with both labels); problems {bad[:3]}"
+
+
 PY_MUTANTS = [
     ("paid flag lost", 'x["payant"] = x["statut"] == "prive"', 'x["payant"] = False'),
     ("an older campaign", "FROM core.formation_year f JOIN s ON f.session = s.s", "FROM core.formation_year f JOIN s ON f.session = s.s - 1"),
@@ -462,6 +534,9 @@ PY_MUTANTS = [
     ("SIES formations listed again as apprenticeship", "AND c.cod_aff_form NOT IN (SELECT", "AND c.cod_aff_form IN (SELECT cod_aff_form FROM core.cartographie) OR c.cod_aff_form IN (SELECT"),
     ("apprenticeship private filed as paid", 'return "prive_app"\n    return None', 'return "prive"\n    return None'),
     ("outside contract read as under contract", 'if "hors contrat" in t:', 'if False:'),
+    ("attached by town, not by establishment", 'sorted(initial.get((uai, tf, fl), ())) if uai else []', 'sorted({y for (u2, t2, f2), ys in initial.items() if (t2, f2) == (tf, fl) for y in ys})[:1] if uai else []'),
+    ("attachment ignores the mention", "initial.setdefault((u, tf, fl), set()).add(cod)", "initial.setdefault((u, tf, None), set()).add(cod)"),
+    ("attached offers still listed apart", "for a in apprentissage(con) if not a[\"rattachee\"] and a[\"diplome\"] == diplome", "for a in apprentissage(con) if a[\"diplome\"] == diplome"),
     ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
     ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),
@@ -483,7 +558,10 @@ JS_MUTANTS = [
     ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage', 'aria-label="${esc(f.etablissement)}${f.apprentissage'),
     ("one shape for all", 'const shape = z === "cible" ?', 'const shape = false ?'),
     ("caveat dropped", "ce ne sont pas des chances d'admission", "voici vos résultats"),
-    ("apprenticeship filter inverted", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;', 'if (g === "app") return o === "oui" ? !f.apprentissage : !!f.apprentissage;'),
+    ("apprenticeship filter inverted", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.initiale : !!f.apprentissage;'),
+    ("a formation offering both loses one label", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;'),
+    ("both labels dropped", "const voieBadges = (f) => (f.initiale && f.apprentissage ?", "const voieBadges = (f) => (false ?"),
+    ("CFA name unescaped", "return `<li>${esc(o.etablissement)}", "return `<li>${o.etablissement}"),
     ("apprenticeship offer shown as a formation with figures", "if (f.stats === false) return carteAppDetail(f);", ""),
     ("free apprenticeship unticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };', 'const CARTE_DEFAULT = { statut: ["public", "contrat"] };'),
     ("unknown selectivity read as non selective", 'return f.select_form === (o === "oui" ? "formation sélective" : "formation non sélective");', 'return o === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective";'),
@@ -493,7 +571,7 @@ JS_MUTANTS = [
 
 @check("C8 mutation test: zones, filters, paid rule, groups, escaping, markers, OpenStreetMap hosting and wording bugs are each caught")
 def c8(c: Ctx):
-    fns = [c1, c2, c3, c4, c5, c6, c7, c9]
+    fns = [c1, c2, c3, c4, c5, c6, c7, c9, c10]
     missed = []
 
     def caught():
