@@ -984,6 +984,14 @@ carte"):**
     (between campaigns), the run stops after three fiches and writes nothing; once they reopen (December), each daily run
     collects for up to 5 h 30 and the next one resumes (`data/rapports/live/fiches.csv`). A PDF the archive already had is
     not stored twice. The page credits the fiche ("lu le … sur la fiche Parcoursup"). Red team R8.
+  - **First full live pass (2026-11-08 to 2026-11-10, 2025 reports on dossier.parcoursup.fr, 4 runs).** All 26 509 fiches
+    were read:
+    - 16 090 link a report;
+    - 8 812 link none;
+    - 1 607 failed twice.
+
+    The build verifies 13 215 reports (3 785 set aside by the SIES check). In 2025 that is 12 592 of the 14 252 formations
+    (4 339 from the archive alone), and 9 776 of them have a per-doublette table.
   - **Not yet cross-checked (the owner's choice, 2026-11-09).** In December 2026 the fiches carry the 2026 reports, and SIES
     has not published 2026. Such a report is shown when it was read on the formation's live fiche, prints the formation's
     code in its tables and its counts hold together (confirmed > 0, en position <= confirmed); it carries the mark "pas encore
