@@ -887,6 +887,23 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
         raise HTTPException(422, str(exc)) from None
 
 
+@app.get("/api/voeux/completer")
+def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+                    serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
+                    academie: str | None = Query(None, max_length=80), paid: int = Query(0, ge=0, le=1)):
+    """"Compléter ma liste": when the list has no sure safety, safety vœux of the same filières (Plan B's rules). Same
+    inputs as /api/voeux, no analytics event, never shared-cached."""
+    _journey_ready()
+    if serie == "bg" and (not spe1 or not spe2):
+        raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
+    dkey = _dkey(spe1, spe2) if serie == "bg" else None
+    try:
+        return VX.completer(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
+                            academie=academie or None, include_paid=bool(paid))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
 @app.get("/api/metiers")
 def metiers():
     """Sprint 12: every Onisep job with its search labels, sent whole so the page searches it locally: what a student
@@ -969,7 +986,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer"]
 
 
 @lru_cache(maxsize=1)

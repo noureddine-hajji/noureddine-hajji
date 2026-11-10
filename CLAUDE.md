@@ -189,6 +189,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     (`pytest -n auto --dist loadfile --shard=i/3`, files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
+  - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
+    split any red team whose single real-data file grows past ~10 min the same way.
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
   - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
@@ -251,6 +253,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - The reading only COUNTS zones with fixed rules; an uncertain safety is not sure; never a combined chance of admission.
     Parcoursup vœux are not ranked: no ordering.
   - The list lives in localStorage (codes only, validated, deduplicated, max 10); `/api/voeux` records no analytics event.
+  - "Compléter ma liste" (owner, 2026-11-10): only on `aucune_securite`; Plan B's rules restricted to a SURE safety (same
+    `fil_lib_voe_acc` as a listed vœu, `planb.usable`, not listed, no shared concours pool, paid only on request and flagged, 2 per
+    establishment, 3 per filière, académie then distance to the nearest vœu of the filière); `/api/voeux/completer` no-store, no
+    analytics. Red team V7-V9.
 - **Prévision n+1 (formation page).**
   - Ranges of published indicators for the campaign after the latest, never a probability; each range is computed apart.
   - The method is the sprint-5 one: predictor chosen on 2024, ranges from 2024 errors, tested on 2025 (coverage printed as

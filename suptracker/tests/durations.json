@@ -3,7 +3,10 @@
  "tests/test_bmo.py": 307,
  "tests/test_calibration.py": 154,
  "tests/test_campaign.py": 10,
- "tests/test_carte.py": 1079,
+ "tests/test_carte.py": 240,
+ "tests/test_carte_mutants_1.py": 300,
+ "tests/test_carte_mutants_2.py": 300,
+ "tests/test_carte_mutants_3.py": 300,
  "tests/test_cereq.py": 142,
  "tests/test_doublettes.py": 742,
  "tests/test_emploi2030.py": 190,
@@ -32,5 +35,5 @@
  "tests/test_shards.py": 30,
  "tests/test_success.py": 340,
  "tests/test_ux.py": 2,
- "tests/test_voeux.py": 232
+ "tests/test_voeux.py": 540
 }

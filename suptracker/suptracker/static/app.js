@@ -1993,7 +1993,7 @@ function bindVoeuButton(after) {
 }
 // messages: one fixed rule each, read from the server's counts (voeux.read_list); never a combined chance
 const VX_MSG = {
-  aucune_securite: "Aucun vœu de sécurité sûr dans votre liste : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé (le bouton « Voir un plan B » en propose).",
+  aucune_securite: "Aucun vœu de sécurité sûr dans votre liste : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé. La carte « Compléter ma liste » ci-dessous en propose dans les filières de vos vœux.",
   majorite_ambitieuse: "Plus de la moitié des vœux situés sont ambitieux ou hors-profil.",
   hors_profil: "Au moins un vœu est hors-profil : moins de 2 % des admis 2022–2025 avaient votre mention ou moins.",
   non_ouvert: "Au moins un vœu n'est pas ouvert à votre série (groupes d'appel, ou presque aucun admis de votre série) : vérifiez la fiche Parcoursup.",
@@ -2051,6 +2051,10 @@ async function viewVoeux() {
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : ""}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
+  if (L.messages.some((m) => m.code === "aucune_securite")) {
+    $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
+    loadCompleter(qs, marker, rate, false);
+  }
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
     el.onclick = () => {
@@ -2069,6 +2073,52 @@ async function viewVoeux() {
       } });
     };
   });
+}
+
+// "Compléter ma liste" (owner, 2026-11-10): with no sure safety in the list, safety vœux of the same filières, read by the
+// server with Plan B's rules (same programme, a solid reading, 2 per establishment, académie then distance, paid private
+// institutions only on request and flagged). Zones of past admitted cohorts: never a chance.
+let vxCompleterSeq = 0;
+async function loadCompleter(qs, marker, rate, paid) {
+  const box = () => document.getElementById("vx-completer");
+  // Codex (PR #44): the paid toggle can fire twice before the first answer; only the LATEST request may draw the card
+  const req = String(++vxCompleterSeq);
+  if (box()) box().dataset.req = req;
+  const current = () => $view.dataset.rendered === marker && box() && box().dataset.req === req;
+  const q = new URLSearchParams(qs);
+  q.set("paid", paid ? "1" : "0");
+  let d;
+  try { d = await api(`/api/voeux/completer?${q}`); } catch (e) {
+    if (current()) box().innerHTML = `<p class="muted small">Suggestions indisponibles pour le moment.</p>`;
+    return;
+  }
+  if (!current()) return;                     // the user navigated, changed the list or toggled again meanwhile
+  if (!d.needed) { box().remove(); return; }
+  const full = voeux.get().length >= voeux.MAX;
+  const groups = d.filieres.map((g) => {
+    const title = `${g.fili ? `${esc(g.fili)} · ` : ""}${esc(g.filiere)}`;
+    if (!g.formations.length) return `<h3>${title}</h3><p class="muted small">Aucune formation de cette filière n'est en zone sécurité sans incertitude pour votre profil, d'après les admis des campagnes passées.</p>`;
+    const rows = g.formations.map((f) => {
+      const pos = f.bounds ? (f.bounds[1] - f.bounds[0] < 0.005 ? pc1(f.bounds[0]) : `${pc1(f.bounds[0])} – ${pc1(f.bounds[1])}`) : pc1(f.position);
+      return `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${f.complement ? `${esc(f.complement)} · ` : ""}${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}${f.paid ? ' · <span class="badge warnb">privé payant</span>' : ""}</div></td>
+        <td data-label="Zone"><span class="badge" style="border-color:${ZONES.securite.color};color:${ZONES.securite.color}">${ZONES.securite.label}</span></td>
+        <td class="num" data-label="${rate}">${fmt(f.taux_acces_ens)} %</td>
+        <td class="num" data-label="Votre mention ou moins">${pos}</td>
+        <td class="num" data-label="Distance au plus proche de vos vœux">${f.km != null ? `${fmt(f.km)} km` : "—"}</td>
+        <td class="acts"><button type="button" class="small" data-vxadd="${esc(f.cod_aff_form)}"${full ? " disabled" : ""}>ajouter à mes vœux</button></td></tr>`;
+    }).join("");
+    return `<h3>${title}</h3><div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Distance</th><th></th></tr>${rows}</table></div>`;
+  }).join("");
+  const paidBox = d.include_paid || d.hidden_paid ? `<label class="small"><input type="checkbox" id="vx-paid"${d.include_paid ? " checked" : ""}> Montrer aussi les établissements privés payants${d.include_paid ? "" : ` (${fmt(d.hidden_paid)} écartés)`}</label>` : "";
+  box().innerHTML = `<h2>Compléter ma liste : des vœux de sécurité possibles</h2>
+    <p class="small">Dans les filières de vos vœux, des formations où votre profil se situe en zone sécurité sans incertitude : la cohorte admise ressemble à votre profil et le taux d'accès est élevé.</p>
+    ${groups}${paidBox}
+    <p class="muted small">Ce sont des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission ; vérifiez chaque fiche Parcoursup. Mêmes règles que le plan B : une lecture solide seulement, deux formations au plus par établissement, votre académie d'abord, puis la distance au plus proche de vos vœux de la filière.${full ? ` Votre liste compte déjà ${voeux.MAX} vœux : retirez-en un pour en ajouter un autre.` : ""}</p>`;
+  box().querySelectorAll("[data-vxadd]").forEach((el) => {
+    el.onclick = () => { if (voeux.add(el.dataset.vxadd)) viewVoeux(); };
+  });
+  const cb = document.getElementById("vx-paid");
+  if (cb) cb.onchange = () => loadCompleter(qs, marker, rate, cb.checked);
 }
 
 // ---- Sprint 12: "Du métier aux formations" (the jobs card read backwards; the catalogue is searched here) ----

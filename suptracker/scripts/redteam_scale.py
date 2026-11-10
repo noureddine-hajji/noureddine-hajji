@@ -81,7 +81,8 @@ class Ctx:
             "/api/journey/vocab": "/api/journey/vocab", "/api/journey/stage1": f"/api/journey/stage1?{bg}",
             "/api/journey/stage2": f"/api/journey/stage2?{bg}&mention=ab&type={self.type_key}",
             "/api/lycees": "/api/lycees", "/api/planb/{cod}": f"/api/planb/{c}?{bg}",
-            "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/continuity": "/api/continuity",
+            "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/voeux/completer": f"/api/voeux/completer?{bg}&ids={c}",
+            "/api/continuity": "/api/continuity",
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
             "/api/carte": "/api/carte", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
@@ -150,7 +151,8 @@ def s2(c: Ctx):
                 recorders.append(route)
                 if "s-maxage" in cc or "public" in cc:
                     bad.append((route, cc))
-        personal = cl.get(c.samples()["/api/voeux"]).headers.get("cache-control")
+        personal = {cl.get(c.samples()[r]).headers.get("cache-control") for r in ("/api/voeux", "/api/voeux/completer")}
+        personal = personal.pop() if len(personal) == 1 else personal
     return not bad and personal == "no-store" and "/api/search" in recorders, \
         f"recording routes {recorders}; shared-cached {bad}; Mes vœux {personal}"
 
@@ -394,6 +396,7 @@ def s7(c: Ctx):
     mutants = [
         ("search shared-cached (its count lost)", lambda: swap(r"/api/search", CACHE.PUBLIC), (s2,)),
         ("Mes vœux shared-cached", lambda: swap(r"/api/voeux", CACHE.PUBLIC), (s2,)),
+        ("'Compléter ma liste' shared-cached", lambda: swap(r"/api/voeux/completer", CACHE.PUBLIC), (s2,)),
         ("a route left without a policy", lambda: set_policy([x for x in saved_pol if x[0] != r"/api/planb/[^/]+"]), (s1,)),
         ("errors cached", lambda: setattr(CACHE, "header", cache_errors), (s3,)),
         ("assets immutable whatever their version", lambda: swap(r"/static/.+", CACHE.IMMUTABLE), (s3,)),

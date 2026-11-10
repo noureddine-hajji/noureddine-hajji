@@ -45,8 +45,20 @@ def _ok(path):
         return False
 
 
-@pytest.mark.skipif(not (REAL_DB.exists() and _ok(REAL_DB)), reason="real warehouse not available")
+REAL_OK = REAL_DB.exists() and _ok(REAL_DB)
+MUTANT_PARTS = 3          # C8 on real data (12 min) runs in tests/test_carte_mutants_{1,2,3}.py, spread over the CI shards
+
+
+@pytest.mark.skipif(not REAL_OK, reason="real warehouse not available")
 def test_red_team_on_real_data():
     import redteam_carte as R
-    failed = [r for r in R.run(REAL_DB, real=True) if not r["ok"]]
+    checks = {fn.check_name.split()[0] for fn in R.CHECKS} - {"C8"}
+    failed = [r for r in R.run(REAL_DB, real=True, checks=checks) if not r["ok"]]
     assert not failed, failed
+
+
+def real_mutants(i: int):
+    """Part i (1-based) of C8's mutants on the real warehouse."""
+    import redteam_carte as R
+    res = R.run(REAL_DB, real=True, checks={"C8"}, part=(i - 1, MUTANT_PARTS))
+    assert len(res) == 1 and res[0]["ok"], res

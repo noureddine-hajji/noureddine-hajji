@@ -141,3 +141,61 @@ def read_list(voeux: list[dict]) -> dict:
             msgs.append(("info", "equilibree"))
     return {"n": len(voeux), "zones": n, "securite_sure": sure, "situes": situated,
             "messages": [{"niveau": a, "code": b} for a, b in msgs]}
+
+
+# ---- "Compléter ma liste" (owner, 2026-11-10): when the list has no SURE safety, safety vœux of the same filières ----
+# Plan B's rules, restricted to the zone "sécurité" read with certainty: same detailed programme (fil_lib_voe_acc) as a vœu
+# of the list, a solid reading (planb.usable), never a formation already listed or of the same concours pool, fee-charging
+# private institutions only on request (flagged), at most 2 per establishment, the student's académie first, then the
+# distance to the nearest vœu of that filière. Zones of past admitted cohorts, never a chance.
+SUGG_PER_FILIERE = 3
+
+
+def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
+              academie: str | None = None, include_paid: bool = False, per_filiere: int = SUGG_PER_FILIERE) -> dict:
+    ev = evaluate(con, ids, serie=serie, dkey=dkey, mention=mention, academie=academie)
+    needed = any(m["code"] == "aucune_securite" for m in ev["lecture"]["messages"])
+    base = {"session": ev["session"], "needed": needed, "include_paid": include_paid, "per_filiere": per_filiere,
+            "filieres": [], "hidden_paid": 0}
+    if not needed:
+        return base
+    listed = {v["cod_aff_form"] for v in ev["voeux"]}
+    groups = {}
+    for v in ev["voeux"]:
+        if v["status"] == "ok" and v.get("type_key") and v.get("filiere"):
+            groups.setdefault((v["type_key"], v["filiere"]), []).append(v["cod_aff_form"])
+    hidden = 0
+    for (tk, fil), mine in groups.items():
+        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie)["formations"]
+        by_cod = {f["cod_aff_form"]: f for f in rows}
+        targets = [by_cod[c] for c in mine if c in by_cod]
+        pool = []
+        for f in rows:
+            if f["filiere"] != fil or f["cod_aff_form"] in listed or not PB.usable(f):
+                continue
+            if f["zone"] != "securite" or f["uncertain"]:
+                continue
+            if any(PB.same_pool(t, f) for t in targets):
+                continue
+            if PB.paid(f) and not include_paid:
+                hidden += 1
+                continue
+            kms = [PB.haversine_km((t.get("lat"), t.get("lon")), (f.get("lat"), f.get("lon"))) for t in targets]
+            kms = [k for k in kms if k is not None]
+            pool.append((f, min(kms) if kms else None))
+        pool.sort(key=lambda x: (0 if academie and x[0]["academie"] == academie else 1,
+                                 x[1] if x[1] is not None else float("inf"), PB._tiebreak(x[0]["cod_aff_form"])))
+        out, per_etab = [], {}
+        for f, km in pool:
+            key = (f["etablissement"], f["ville"])
+            if per_etab.get(key, 0) >= PB.MAX_PER_ETABLISSEMENT:
+                continue
+            per_etab[key] = per_etab.get(key, 0) + 1
+            out.append(PB._view(f, "securite", km))
+            if len(out) >= per_filiere:
+                break
+        fili = next((t.get("fili") for t in targets if t.get("fili")), None)     # "Informatique" is a licence AND a BUT
+        base["filieres"].append({"filiere": fil, "fili": fili, "type_key": tk, "pour": mine, "n_candidates": len(pool),
+                                 "formations": out})
+    base["hidden_paid"] = hidden
+    return base
