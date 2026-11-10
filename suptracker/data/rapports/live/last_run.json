@@ -1,13 +1,11 @@
 {
  "status": "open",
- "checked_at": "20261110020954",
- "new_pdfs": 2032,
+ "checked_at": "20261110060036",
+ "new_pdfs": 1,
  "total": 26509,
  "by_status": {
-  "ok": 12470,
-  "sans_rapport": 8782,
-  "todo": 3650,
-  "failed": 844,
-  "retry": 763
+  "ok": 16090,
+  "sans_rapport": 8812,
+  "failed": 1607
  }
 }
