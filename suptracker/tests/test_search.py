@@ -225,6 +225,9 @@ def test_committed_warehouse_carries_the_index_of_this_code():
     try:
         version = c.execute("SELECT version FROM mart.search_index").fetchone()[0]
         assert version == S.INDEX_VERSION, "search.py changed since the warehouse was built: run the suptracker-data workflow on this branch"
-        assert S.stored_index(c) is not None
+        stored = S.stored_index(c)
+        assert stored is not None
+        built = S.build_index(c)                             # and it is the index of THIS data, not of an earlier build
+        assert all(getattr(stored, k) == getattr(built, k) for k in FIELDS)
     finally:
         c.close()

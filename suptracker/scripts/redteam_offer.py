@@ -202,6 +202,7 @@ def o13(con, real):
     c = duckdb.connect(str(tmp))
     for col in ("apprentissage", "internat", "distance", "amenag_sport", "amenag_art", "carto_session"):
         c.execute(f"ALTER TABLE core.formation_year DROP COLUMN IF EXISTS {col}")
+    c.execute("DROP TABLE IF EXISTS mart.search_index")      # such a warehouse predates the stored index too: it is built here
     c.close()
     c = duckdb.connect(str(tmp), read_only=True)
     try:
