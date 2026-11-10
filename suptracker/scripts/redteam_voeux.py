@@ -79,6 +79,9 @@ class Ctx:
         self.lists.append((rng.sample(cods, min(7, len(cods))) + untyped[:1] + ["999999999"])[:10])
         self.profiles = profiles()
         self._full = {}
+        # the reference's stage2 memo is keyed by id(con): a new warehouse may reuse a closed one's id (pytest runs the
+        # synthetic fixture, then the real warehouse, in one process), so a context always starts from an empty memo
+        _STAGE2.clear()
 
     def full(self, serie, dkey, mention, tk):
         k = (serie, dkey, mention, tk)
