@@ -10,11 +10,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import passerelles as PA  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 from synthetic import (PASSERELLES_PAYSAGE, REO_SYN_ALIASES, SUCCESS_TABLE, make_monmaster_raw, make_raw,  # noqa: E402
                        make_success_xlsx)
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 REAL_XLSX = SU.source_path(ROOT / "data" / "sources")
@@ -27,7 +27,7 @@ def syn(tmp_path_factory):
     make_raw(d / "raw")
     make_monmaster_raw(d / "raw")
     plan = make_success_xlsx(d / "b1.xlsx")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None)
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None)
     return db, d / "b1.xlsx", d / "raw", plan
 
 

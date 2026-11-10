@@ -10,8 +10,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
@@ -20,7 +20,7 @@ REAL_DB = ROOT / "data" / "suptracker.duckdb"
 def db(tmp_path_factory):
     d = tmp_path_factory.mktemp("lycee")
     make_raw(d / "raw")
-    return build_mod.build(d / "raw", d / "w.duckdb", success_source=None)
+    return cached_build(d / "raw", d / "w.duckdb", success_source=None)
 
 
 def test_latest_year_references_and_academie(db):

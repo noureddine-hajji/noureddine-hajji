@@ -10,10 +10,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import cereq as CQ  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 from synthetic import SUCCESS_TABLE, make_cereq_xlsx, make_insertion_raw, make_raw, make_success_xlsx  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
@@ -25,7 +25,7 @@ def syn(tmp_path_factory):
     make_insertion_raw(d / "raw")
     make_success_xlsx(d / "b1.xlsx")
     make_cereq_xlsx(d / "cereq.xlsx")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None, cereq_source=d / "cereq.xlsx")
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None, cereq_source=d / "cereq.xlsx")
     con = duckdb.connect(str(db))
     SU.attach(con, d / "b1.xlsx", SUCCESS_TABLE, paysage_table={"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"})
     # real diploma codes for the synthetic BTS (the insertion fixture uses placeholders): comptabilité = NSF 314 (tertiary),

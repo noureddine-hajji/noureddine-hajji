@@ -10,15 +10,15 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from suptracker import analytics as A  # noqa: E402
-from suptracker import build as build_mod  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def warehouse(tmp_path_factory):
     d = tmp_path_factory.mktemp("analytics")
     make_raw(d / "raw")
-    return build_mod.build(d / "raw", d / "w.duckdb")
+    return cached_build(d / "raw", d / "w.duckdb")
 
 
 def test_red_team(warehouse):

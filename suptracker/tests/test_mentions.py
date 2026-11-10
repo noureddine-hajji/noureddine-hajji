@@ -9,9 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
@@ -20,7 +20,7 @@ REAL_DB = ROOT / "data" / "suptracker.duckdb"
 def db(tmp_path_factory):
     d = tmp_path_factory.mktemp("mentions")
     make_raw(d / "raw")
-    return build_mod.build(d / "raw", d / "w.duckdb")
+    return cached_build(d / "raw", d / "w.duckdb")
 
 
 def test_worked_example():

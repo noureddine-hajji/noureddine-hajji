@@ -10,11 +10,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import insertion as I  # noqa: E402
 from suptracker import poursuite as PO  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 from synthetic import INSERTION_PAYSAGE, SUCCESS_TABLE, make_insertion_raw, make_raw, make_success_xlsx  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 TRUTH = {"1116": "ok", "1117": "options", "1102": "etablissement_absent", "1123": "non_publie", "1124": "non_trouve", "1130": "ok"}
@@ -26,7 +26,7 @@ def syn(tmp_path_factory):
     make_raw(d / "raw")
     make_insertion_raw(d / "raw")
     make_success_xlsx(d / "b1.xlsx")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None)
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None)
     con = duckdb.connect(str(db))
     SU.attach(con, d / "b1.xlsx", SUCCESS_TABLE, paysage_table={"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"})
     con.execute("""CREATE OR REPLACE TABLE core.but_success_link AS SELECT 2025 AS session, '1101' AS cod_aff_form,

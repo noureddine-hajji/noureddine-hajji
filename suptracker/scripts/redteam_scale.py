@@ -286,8 +286,16 @@ def ci_ok(ci: str, mon: str) -> tuple[bool, str]:
     timed = timed_test_files()
     serial = bool(par and ser) and all(f"--ignore={t}" in par.group(1) and t in ser.group(1).split() for t in timed)
     sched = re.search(r"schedule:\s*\n\s*- cron:", mon) is not None and "vars.SUPTRACKER_URL" in mon and "scripts/monitor.py" in mon
-    return all((push, pr, cancel, bool(par), serial, sched)), (f"push only main {push}; PR {pr}; cancel stale {cancel}; parallel {bool(par)}; "
-                                                                f"timed red teams {timed} serial {serial}; monitor scheduled {sched}")
+    # CI speed-up: every shard 1..n of the matrix runs with --shard=i/n, and the "test" check fails when any job fails
+    m = re.search(r"shard:\s*\[([\d, ]+)\]", ci)
+    shards = [int(x) for x in m.group(1).split(",")] if m else []
+    n = re.search(r"--shard=\$\{\{ matrix\.shard \}\}/(\d+)", par.group(1)) if par else None
+    sharded = bool(shards and n) and shards == list(range(1, int(n.group(1)) + 1))
+    gate = re.search(r"\n  test:\n(?:    .*\n|\s*\n)*?    if: always\(\)\n    needs: \[shard, timed\]", ci) is not None \
+        and 'test "${{ needs.shard.result }}" = success && test "${{ needs.timed.result }}" = success' in ci
+    return all((push, pr, cancel, bool(par), serial, sched, sharded, gate)), (
+        f"push only main {push}; PR {pr}; cancel stale {cancel}; parallel {bool(par)}; timed red teams {timed} serial {serial}; "
+        f"monitor scheduled {sched}; shards {shards} with --shard=i/{n.group(1) if n else None} {sharded}; test check gates every job {gate}")
 
 
 def fake_site(c: Ctx, break_=None):
@@ -345,6 +353,10 @@ CI_MUTANTS = [
     ("stale runs not cancelled", "cancel-in-progress: true", "cancel-in-progress: false"),
     ("timing check run in parallel", " --ignore=tests/test_analytics.py", ""),
     ("Plan B latency check run in parallel", " --ignore=tests/test_planb.py", ""),
+    ("a shard left out of the matrix", "shard: [1, 2, 3]", "shard: [1, 2]"),
+    ("shards split for another count", "--shard=${{ matrix.shard }}/3", "--shard=${{ matrix.shard }}/4"),
+    ("test check ignores the timed job", ' && test "${{ needs.timed.result }}" = success', ""),
+    ("test check skipped when a shard fails", "    if: always()\n    needs: [shard, timed]", "    needs: [shard, timed]"),
 ]
 MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 */6 * * *\"\n", "")]
 

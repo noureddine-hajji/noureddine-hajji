@@ -11,8 +11,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from suptracker import appel as AP  # noqa: E402
-from suptracker import build as build_mod  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
@@ -28,7 +28,7 @@ def test_depth_reads_the_whole_list_never_above_100():
 def syn(tmp_path_factory):
     d = tmp_path_factory.mktemp("appel")
     make_raw(d / "raw")
-    return build_mod.build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None)
+    return cached_build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None)
 
 
 def test_red_team_on_synthetic(syn):

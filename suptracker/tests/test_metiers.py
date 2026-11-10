@@ -10,10 +10,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import metiers as MT  # noqa: E402
 from suptracker import onisep as ON  # noqa: E402
 from synthetic import make_onisep_zips, make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
@@ -23,7 +23,7 @@ def syn(tmp_path_factory):
     d = tmp_path_factory.mktemp("metiers")
     make_raw(d / "raw")
     src = make_onisep_zips(d / "sources")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None, onisep_sources=src)
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None, onisep_sources=src)
     return db, src
 
 

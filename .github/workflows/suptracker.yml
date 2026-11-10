@@ -10,13 +10,18 @@ on:
 concurrency:
   group: suptracker-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+# CI speed-up (after PR #41 took 56 min in one job): the test files are split over 3 runners by their measured
+# duration (tests/conftest.py --shard, tests/durations.json; tests/test_shards.py checks each file runs exactly once),
+# the timed red teams get a runner of their own, and the "test" job reports all of them under the old check name.
 jobs:
-  test:
+  shard:
+    name: shard ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
-    # 60, not 40: since sprints 15-16 the red teams also run on the real warehouse with their mutants (θ, per-job axes);
-    # PR #32's run took 37 min against the 40-min limit. 90, not 60: PR #41 (similar formations, real-data red teams) took
-    # 52 min in the parallel step and the serial timed tests were cut at 60
-    timeout-minutes: 90
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: suptracker
@@ -28,7 +33,29 @@ jobs:
           cache: pip
           cache-dependency-path: suptracker/requirements-pipeline.txt
       - run: pip install -r requirements-pipeline.txt
-      # the red teams are independent: one worker per core, a test file per worker. Red teams that MEASURE TIME
-      # (analytics R16, Plan B B11, search R12) run alone afterwards, never next to busy workers.
-      - run: python -m pytest -q -n auto --dist loadfile --ignore=tests/test_analytics.py --ignore=tests/test_planb.py --ignore=tests/test_search.py
+      # the red teams are independent: one worker per core, a test file per worker; the synthetic warehouse is built
+      # once per set of inputs and shared (tests/synthetic.py cached_build). Red teams that MEASURE TIME
+      # (analytics R16, Plan B B11, search R12) run in the "timed" job, never next to busy workers.
+      - run: python -m pytest -q -n auto --dist loadfile --ignore=tests/test_analytics.py --ignore=tests/test_planb.py --ignore=tests/test_search.py --shard=${{ matrix.shard }}/3
+  timed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: suptracker/requirements-pipeline.txt
+      - run: pip install -r requirements-pipeline.txt
       - run: python -m pytest -q tests/test_analytics.py tests/test_planb.py tests/test_search.py
+  test:
+    # the check name the repository already knows: green only when every shard and the timed job are green
+    if: always()
+    needs: [shard, timed]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.shard.result }}" = success && test "${{ needs.timed.result }}" = success
