@@ -499,7 +499,9 @@ def ui_completer(js: str) -> tuple[bool, str]:
            if re.search(r"\b[fg]\.(?:etablissement|filiere|fili|complement|ville|academie|cod_aff_form)\b", m) and not m.lstrip().startswith("esc(")]
     cells = re.findall(r'<td class="num"[^>]*>', f)
     labelled = bool(cells) and all("data-label=" in x for x in cells)
-    race = "if ($view.dataset.rendered !== marker || !box()) return;" in f
+    race = ("const current = () => $view.dataset.rendered === marker && box() && box().dataset.req === req;" in f
+            and "const req = String(++vxCompleterSeq);" in f and "if (box()) box().dataset.req = req;" in f
+            and "if (!current()) return;" in f and "if (current()) box().innerHTML" in f)
     words = all(w in f for w in ("pas des chances d'admission", "vérifiez chaque fiche Parcoursup", "zone sécurité sans incertitude",
                                  "privé payant"))
     no_chance = not re.search(r"(?i)\d+\s*% de chances|probabilit|vous serez admis", f)
@@ -541,7 +543,9 @@ COMPLETER_UI_MUTANTS = [
     ("unescaped establishment", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${f.complement',
      '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a><div class="muted small">${f.complement'),
     ("unescaped filière title", "${esc(g.filiere)}", "${g.filiere}"),
-    ("race unguarded", "if ($view.dataset.rendered !== marker || !box()) return;", ""),
+    ("race unguarded", "if (!current()) return;", ""),
+    ("an older paid-toggle answer drawn (Codex)", " && box().dataset.req === req;", ";"),
+    ("an older failed request draws its error", "if (current()) box().innerHTML", "if (box()) box().innerHTML"),
     ("caveat dropped", "pas des chances d'admission ; vérifiez", "vérifiez"),
     ("paid flag dropped", "${f.paid ? ' · <span class=\"badge warnb\">privé payant</span>' : \"\"}", ""),
     ("distance cell unlabelled", '<td class="num" data-label="Distance au plus proche de vos vœux">', '<td class="num">'),

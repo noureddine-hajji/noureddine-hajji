@@ -2078,16 +2078,21 @@ async function viewVoeux() {
 // "Compléter ma liste" (owner, 2026-11-10): with no sure safety in the list, safety vœux of the same filières, read by the
 // server with Plan B's rules (same programme, a solid reading, 2 per establishment, académie then distance, paid private
 // institutions only on request and flagged). Zones of past admitted cohorts: never a chance.
+let vxCompleterSeq = 0;
 async function loadCompleter(qs, marker, rate, paid) {
   const box = () => document.getElementById("vx-completer");
+  // Codex (PR #44): the paid toggle can fire twice before the first answer; only the LATEST request may draw the card
+  const req = String(++vxCompleterSeq);
+  if (box()) box().dataset.req = req;
+  const current = () => $view.dataset.rendered === marker && box() && box().dataset.req === req;
   const q = new URLSearchParams(qs);
   q.set("paid", paid ? "1" : "0");
   let d;
   try { d = await api(`/api/voeux/completer?${q}`); } catch (e) {
-    if ($view.dataset.rendered === marker && box()) box().innerHTML = `<p class="muted small">Suggestions indisponibles pour le moment.</p>`;
+    if (current()) box().innerHTML = `<p class="muted small">Suggestions indisponibles pour le moment.</p>`;
     return;
   }
-  if ($view.dataset.rendered !== marker || !box()) return;               // the user navigated or changed the list meanwhile
+  if (!current()) return;                     // the user navigated, changed the list or toggled again meanwhile
   if (!d.needed) { box().remove(); return; }
   const full = voeux.get().length >= voeux.MAX;
   const groups = d.filieres.map((g) => {
