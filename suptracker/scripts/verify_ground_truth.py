@@ -161,7 +161,10 @@ def check_taux_live(con, n: int, seed: int = 0) -> list[dict]:
 
     out = []
     rng = random.Random(seed)
-    ids = {d.year: d.ods_ids[0] for d in config.DATASETS if d.kind == "voeux"}
+    # the id each campaign was really ingested from (the rolling id moves to the next campaign when SIES publishes it)
+    from suptracker.ingest import load_manifest
+    man = load_manifest()
+    ids = {d.year: (man.get(d.key) or {}).get("ods_id") or d.ods_ids[-1] for d in config.DATASETS if d.kind == "voeux"}
     for year in config.YEARS:
         keys = [r[0] for r in con.execute(
             "SELECT cod_aff_form FROM core.formation_year WHERE session = ? AND taux_acces_ens IS NOT NULL",

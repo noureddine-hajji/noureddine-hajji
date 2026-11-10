@@ -14,7 +14,15 @@ on:
         required: false
         default: "\\.(xlsx|xls|csv|ods)(\\?|$)"
   schedule:
-    - cron: "17 3 1 * *"   # monthly; SIES republishes rarely
+    # weekly (Mondays): the 2027 cartographie (mid-December) and the SIES 2026 campaign (early 2027) reach the site within a
+    # week; an unchanged rebuild commits nothing (fingerprint below)
+    - cron: "17 3 * * 1"
+  # Campaign 2027 readiness: the daily live harvest commits new report PDFs to main; rebuild then, so they reach the site
+  # the same day (a push made with the workflow token never triggers another workflow, a completed run does).
+  workflow_run:
+    workflows: [suptracker-rapports]
+    types: [completed]
+    branches: [main]          # the daily schedule; a claude/ branch's harvest is rebuilt there by hand
 permissions:
   contents: write
 concurrency:
@@ -49,8 +57,32 @@ jobs:
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Probe source files ($(date -u +%Y-%m-%d))"
           git push
+  # After a harvest run: rebuild only when it committed new reports (the harvest files differ from those of the last
+  # published warehouse, data/harvest_fingerprint.txt); a closed site writes nothing and costs no build.
+  harvest-changed:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.fp.outputs.changed }}
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - id: fp
+        run: |
+          fp=$(git ls-files -s -- data/rapports/harvest | sha256sum | cut -d' ' -f1)
+          if [ -f data/harvest_fingerprint.txt ] && [ "$(cat data/harvest_fingerprint.txt)" = "$fp" ]; then
+            echo "no new report since the last published warehouse"; echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
   build-data:
-    if: inputs.probe_page == '' || inputs.probe_page == null
+    needs: [harvest-changed]
+    if: >-
+      always() && (inputs.probe_page == '' || inputs.probe_page == null) &&
+      (github.event_name != 'workflow_run' || needs.harvest-changed.outputs.changed == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -94,15 +126,17 @@ jobs:
         run: |
           # Commit only when the SIES inputs or the pipeline code changed: the warehouse
           # is a 40+ MB binary, and an identical rebuild must not grow the git history.
+          # the harvested reports are an input too: without them, a day's new reports never reached the site
           fp=$( { jq -r '.[].sha256' data/raw/manifest.json | sort; \
-                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources; } | sha256sum | cut -d' ' -f1 )
+                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources data/rapports/harvest; } | sha256sum | cut -d' ' -f1 )
           if [ -f data/fingerprint.txt ] && [ "$(cat data/fingerprint.txt)" = "$fp" ]; then
             echo "SIES exports and pipeline unchanged since the last published warehouse"; exit 0
           fi
           echo "$fp" > data/fingerprint.txt
+          git ls-files -s -- data/rapports/harvest | sha256sum | cut -d' ' -f1 > data/harvest_fingerprint.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/suptracker.duckdb data/rapport_textes.duckdb data/verification data/fingerprint.txt
+          git add data/suptracker.duckdb data/rapport_textes.duckdb data/verification data/fingerprint.txt data/harvest_fingerprint.txt
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Refresh SIES warehouse ($(date -u +%Y-%m-%d))"
           git push
