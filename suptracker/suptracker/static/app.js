@@ -2452,6 +2452,25 @@ function selPlot(d, sel) {
     <text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" class="sel-axis">Taux d'accès officiel</text>
     <text x="12" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(T + H - B) / 2})" class="sel-axis">Admis avec mention Bien ou mieux</text></svg>`;
 }
+// the formations the matrix cannot place are NAMED with their reason and their published counts (a quarter of the
+// formations of a campaign: nearly all have fewer than 10 néo-bachelier admits, so one person would move the share a lot)
+function selWhy(f, d) {
+  if (f.raison === "aucun_admis") return `aucun admis en ${esc(d.session)}`;
+  if (f.raison === "peu_neobac") return `${fmt(f.admis_neobac)} admis néo-bachelier${f.admis_neobac > 1 ? "s" : ""} sur ${fmt(f.admis)} admis`;
+  return f.raison === "sans_taux" ? "taux d'accès non publié" : "mentions des admis non publiées";
+}
+function selApart(d) {
+  const n = d.non_placees.length;
+  if (!n) return "";
+  const parts = [["peu_neobac", `moins de ${fmt(d.min_admis)} admis néo-bacheliers`], ["aucun_admis", "aucun admis"], ["sans_taux", "taux d'accès non publié"], ["sans_mentions", "mentions non publiées"]]
+    .filter(([k]) => d.raisons[k]).map(([k, t]) => `${fmt(d.raisons[k])} : ${t}`).join(" · ");
+  const row = (f) => `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée : ${selWhy(f, d)}</div></td>
+    <td class="num" data-label="Taux d'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;
+  return `<details class="card" id="sel-apart"><summary><strong>Non placées sur le graphique</strong> · ${fmt(n)} formation${n > 1 ? "s" : ""} <span class="muted small">(${parts})</span></summary>
+    <p class="small">La part des mentions n'est publiée que pour les admis néo-bacheliers (les élèves qui viennent d'obtenir leur bac). Avec moins de ${fmt(d.min_admis)} néo-bacheliers admis, une seule personne déplace beaucoup ce chiffre : la formation n'est pas placée, mais son taux d'accès officiel reste indiqué ici. Les autres admis ne sont pas des néo-bacheliers (réorientation, reprise d'études…) ; leurs mentions ne sont pas publiées.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Taux d'accès</th><th class="num">Candidats par place</th></tr>${d.non_placees.slice(0, 40).map(row).join("")}</table></div>
+    ${n > 40 ? `<p class="muted small">40 premières sur ${fmt(n)} (ordre alphabétique) ; choisissez une mention pour réduire la liste.</p>` : ""}</details>`;
+}
 async function viewSelectivite(dArg, mArg) {
   const FAC = await api("/api/carte");
   const known = (lab) => FAC.diplomes.find((x) => x.label === lab);
@@ -2472,7 +2491,7 @@ async function viewSelectivite(dArg, mArg) {
   ${SEL_Q.map((q) => `<details class="card"${q === "Très demandée" ? " open" : ""}><summary><strong>${esc(q)}</strong> · ${fmt(by[q].length)} formation${by[q].length > 1 ? "s" : ""} <span class="muted small">(${esc(SEL_Q_HELP[q])})</span></summary>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Taux d'accès</th><th class="num">Mention Bien ou mieux</th><th class="num">Candidats par place</th></tr>${by[q].slice(0, 40).map(row).join("")}</table></div>
     ${by[q].length > 40 ? `<p class="muted small">40 premières sur ${fmt(by[q].length)} (ordre alphabétique) ; choisissez une mention pour réduire la liste.</p>` : ""}</details>`).join("")}
-  ${d.non_placees.length ? `<p class="muted small">${fmt(d.non_placees.length)} formation${d.non_placees.length > 1 ? "s" : ""} non placée${d.non_placees.length > 1 ? "s" : ""} : moins de ${fmt(d.min_admis)} admis néo-bacheliers, ou taux d'accès non publié.</p>` : ""}
+  ${selApart(d)}
   <p class="muted small">Candidats par place : vœux confirmés divisés par les places, un ordre de grandeur (un même élève fait plusieurs vœux).</p>`;
   $view.dataset.rendered = "selectivite";
   document.getElementById("sdip").onchange = (e) => goTo(e.target.value, "");

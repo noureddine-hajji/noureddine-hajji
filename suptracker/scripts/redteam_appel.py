@@ -129,15 +129,26 @@ def a3(c: Ctx):
         res = M["SEL"].points(c.con, d)
         if res is None:
             continue
-        rows = {cod: (t, b, tb, tbf, neo) for cod, t, b, tb, tbf, neo, *lab in c.con.execute("""SELECT cod_aff_form, taux_acces_ens, pct_b,
-            pct_tb, pct_tbf, acc_neobac, fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins FROM core.formation_year
+        rows = {cod: (t, b, tb, tbf, neo, tot) for cod, t, b, tb, tbf, neo, tot, *lab in c.con.execute("""SELECT cod_aff_form, taux_acces_ens, pct_b,
+            pct_tb, pct_tbf, acc_neobac, acc_tot, fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins FROM core.formation_year
             WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall() if CA.diplome_of(*lab)[0] == d}
-        placed = {cod: (t, round(b + tb + (tbf or 0), 1)) for cod, (t, b, tb, tbf, neo) in rows.items()
+        placed = {cod: (t, round(b + tb + (tbf or 0), 1)) for cod, (t, b, tb, tbf, neo, tot) in rows.items()
                   if t is not None and neo is not None and neo >= 10 and b is not None and tb is not None}
         got = {f["cod_aff_form"]: (f["taux_acces_ens"], f["part_bien_plus"]) for f in res["formations"]}
         apart = {f["cod_aff_form"] for f in res["non_placees"]}
         if got != placed or apart != set(rows) - set(placed):
             bad.append((d, "placement", len(got), len(placed)))
+            continue
+        # every formation left out is named with ITS reason and published counts (never only counted)
+        want = {}
+        for cod in apart:
+            t, b, tb, tbf, neo, tot = rows[cod]
+            want[cod] = ("aucun_admis" if tot == 0 else "peu_neobac" if neo is None or neo < 10 else
+                         "sans_taux" if t is None else "sans_mentions", neo, tot, t)
+        seen = {f["cod_aff_form"]: (f.get("raison"), f["admis_neobac"], f.get("admis"), f["taux_acces_ens"]) for f in res["non_placees"]}
+        counts = {k: sum(1 for v in want.values() if v[0] == k) for k in ("aucun_admis", "peu_neobac", "sans_taux", "sans_mentions")}
+        if seen != want or res.get("raisons") != {k: n for k, n in counts.items() if n} or any(not f["etablissement"] for f in res["non_placees"]):
+            bad.append((d, "non placées", [k for k in want if seen.get(k) != want[k]][:2]))
             continue
         if placed:
             mt, mb = median(v[0] for v in placed.values()), median(v[1] for v in placed.values())
@@ -147,7 +158,28 @@ def a3(c: Ctx):
                     f["quadrant"] != names[(f["taux_acces_ens"] >= mt, f["part_bien_plus"] >= mb)] for f in res["formations"]):
                 bad.append((d, "quadrants"))
         n += len(placed)
-    return not bad and n > 0, f"{n} formations placed and re-derived; problems {bad[:3]}"
+    # one crafted formation per reason (a fixture may hold no zero-admit or unpublished row): each is named with ITS reason
+    mem = duckdb.connect(":memory:")
+    mem.execute("CREATE SCHEMA core")
+    mem.execute("""CREATE TABLE core.formation_year (session INTEGER, cod_aff_form VARCHAR, g_ea_lib_vx VARCHAR, lib_for_voe_ins VARCHAR,
+        ville_etab VARCHAR, fili VARCHAR, form_lib_voe_acc VARCHAR, fil_lib_voe_acc VARCHAR, taux_acces_ens DOUBLE, pct_b DOUBLE,
+        pct_tb DOUBLE, pct_tbf DOUBLE, acc_neobac BIGINT, nb_voe_pp BIGINT, capa_fin BIGINT, acc_tot BIGINT)""")
+    cases = {"placee": (60.0, 10.0, 5.0, 1.0, 10, 30, None), "vide": (None, None, None, None, 0, 0, "aucun_admis"),
+             "peu": (76.0, 0.0, 0.0, 0.0, 6, 28, "peu_neobac"), "taux": (None, 10.0, 5.0, 1.0, 20, 30, "sans_taux"),
+             "mentions": (60.0, None, None, None, 20, 30, "sans_mentions")}
+    for cod, (t, b, tb, tbf, neo, tot, _) in cases.items():
+        mem.execute("INSERT INTO core.formation_year VALUES (2025, ?, 'IUT X', 'BUT - Science des données', 'Albi', 'BUT', 'BUT - Service', "
+                    "'Science des données', ?, ?, ?, ?, ?, 300, 30, ?)", [cod, t, b, tb, tbf, neo, tot])
+    label = CA.diplome_of("BUT", "BUT - Service", "Science des données", "BUT - Science des données")[0]
+    res = M["SEL"].points(mem, label)
+    mem.close()
+    crafted = ([f["cod_aff_form"] for f in res["formations"]] == ["placee"]
+               and {f["cod_aff_form"]: (f["raison"], f["admis_neobac"], f["admis"]) for f in res["non_placees"]}
+               == {k: (v[6], v[4], v[5]) for k, v in cases.items() if v[6]}
+               and res["raisons"] == {"aucun_admis": 1, "peu_neobac": 1, "sans_taux": 1, "sans_mentions": 1})
+    if not crafted:
+        bad.append(("crafted", "reasons", res["raisons"]))
+    return not bad and n > 0, f"{n} formations placed and re-derived; one crafted formation per reason {crafted}; problems {bad[:3]}"
 
 
 @check("A4 pages on hostile data (Node): escaped, labelled cells, 'toute la liste' never a share, caveat, no rank input")
@@ -157,21 +189,35 @@ def a4(c: Ctx):
     plot = block(c.js, "const SEL_Q = [", "async function viewSelectivite(")
     prog = helpers + "\n" + part + "\n" + plot + """
 const [rows, sel] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify({ card: appelCard(rows), plot: selPlot(sel, null) }));"""
+process.stdout.write(JSON.stringify({ card: appelCard(rows), plot: selPlot(sel, null), apart: selApart(sel), none: selApart({ ...sel, non_placees: [] }) }));"""
     rows = [{"session": 2024, "candidats": 900, "classes": 800, "places": 78, "groupes": [{"label": HOSTILE, "rang": 500}], "un_groupe": True,
              "profondeur": 62.5, "toute_la_liste": False},
             {"session": 2025, "candidats": 905, "classes": 848, "places": 78, "groupes": [{"label": HOSTILE, "rang": 740}, {"label": "B", "rang": 200}],
              "un_groupe": False, "profondeur": 100.0, "toute_la_liste": True}]
-    sel = {"mediane_taux": 50, "mediane_bien": 20, "formations": [{"cod_aff_form": "1", "etablissement": HOSTILE, "formation": HOSTILE,
-                                                                      "taux_acces_ens": 30, "part_bien_plus": 40, "quadrant": "Très sélective"}]}
+    sel = {"mediane_taux": 50, "mediane_bien": 20, "session": 2025, "min_admis": 10,
+           "formations": [{"cod_aff_form": "1", "etablissement": HOSTILE, "formation": HOSTILE,
+                           "taux_acces_ens": 30, "part_bien_plus": 40, "quadrant": "Très sélective"}],
+           "raisons": {"peu_neobac": 41, "aucun_admis": 1},
+           "non_placees": [{"cod_aff_form": "2469", "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "taux_acces_ens": 76.0,
+                            "admis_neobac": 6, "admis": 28, "candidats_par_place": 13.0, "raison": "peu_neobac"},
+                           {"cod_aff_form": "9", "etablissement": "Lycée Z", "formation": "BTS Z", "ville": "Albi", "taux_acces_ens": None,
+                            "admis_neobac": 0, "admis": 0, "candidats_par_place": None, "raison": "aucun_admis"}]
+           + [{"cod_aff_form": str(100 + i), "etablissement": f"Lycée {i}", "formation": "BTS", "ville": "Albi", "taux_acces_ens": 50.0,
+               "admis_neobac": 1, "admis": 12, "candidats_par_place": 2.0, "raison": "peu_neobac"} for i in range(40)]}
     o = node(prog, [rows, sel])
     if o is None:
         return True, "node not installed"
     if "error" in o:
         return False, o["error"]
-    card, plot = o["card"], o["plot"]
-    raw = "<img" in card or "<img" in plot
-    cells = re.findall(r'<td class="num"([^>]*)>', card)
+    card, plot, apart = o["card"], o["plot"], o["apart"]
+    raw = "<img" in card or "<img" in plot or "<img" in apart
+    cells = re.findall(r'<td class="num"([^>]*)>', card + apart)
+    # the formations the graph leaves out: named, linked, each with its reason and counts; nothing when there is none
+    named = ('<a href="#/f/2469">' in apart and "Non placée : 6 admis néo-bacheliers sur 28 admis" in apart
+             and "Non placée : aucun admis en 2025" in apart and "Non placée : 1 admis néo-bachelier sur 12 admis" in apart
+             and 'data-label="Taux d\'accès">76 %' in apart and "42 formations" in apart
+             and "41 : moins de 10 admis néo-bacheliers · 1 : aucun admis" in apart
+             and apart.count("<tr><td") == 40 and "40 premières sur 42" in apart and o["none"] == "")
     unlabelled = [x for x in cells if "data-label" not in x]
     shares = re.findall(r'data-label="Part des classés appelés">([^<]*)</td>', card)
     whole = shares == ["62,5 %", "toute la liste"]
@@ -179,8 +225,9 @@ process.stdout.write(JSON.stringify({ card: appelCard(rows), plot: selPlot(sel, 
     caveat = "pas des chances d'admission" in card and "vous n'avez pas encore de rang" in card
     views = block(c.js, "// ---- Comprendre l'appel and the selectivity matrix", "// ---- lot 1 UI:")
     no_rank_input = not re.search(r"(?i)<input[^>]*rang|votre rang", views)
-    ok = not raw and not unlabelled and whole and lead and caveat and no_rank_input
-    return ok, f"raw tag {raw}; unlabelled figure cells {len(unlabelled)}; 'toute la liste' {whole}; lead {lead}; caveat {caveat}; no rank asked {no_rank_input}"
+    ok = not raw and not unlabelled and whole and lead and caveat and no_rank_input and named
+    return ok, (f"raw tag {raw}; unlabelled figure cells {len(unlabelled)}; 'toute la liste' {whole}; lead {lead}; caveat {caveat}; "
+                f"no rank asked {no_rank_input}; non-placed formations named with their reason {named}")
 
 
 @check("A5 wording: no chance, probability or promise; vouvoiement; quadrant names describe positions")
@@ -205,8 +252,9 @@ def a6(c: Ctx):
     an = {"comprendre", "selectivite"} <= set(analytics.ROUTES)
     rel = '"comprendre_appel": ("app.js", "async function viewComprendre(")' in (ROOT / "tests" / "test_release.py").read_text()
     card = "${appelCard(d.appel)}" in c.js and '"appel": AP.for_formation(' in (ROOT / "suptracker" / "api.py").read_text()
-    ok = route and menus and pol and an and rel and card
-    return ok, f"routes {route}; menus {menus}; cache {pol}; analytics {an}; release {rel}; formation card {card}"
+    apart = "\n  ${selApart(d)}\n" in block(c.js, "async function viewSelectivite(", "// ---- lot 1 UI:")
+    ok = route and menus and pol and an and rel and card and apart
+    return ok, f"routes {route}; menus {menus}; cache {pol}; analytics {an}; release {rel}; formation card {card}; non-placed list on the page {apart}"
 
 
 PY_MUTANTS = [
@@ -216,7 +264,10 @@ PY_MUTANTS = [
     ("AP", "appel.py", "zero-admit timing kept", "if admits and all(v is not None for v in (t0, t1, t2)):", "if all(v is not None for v in (t0, t1, t2)):"),
     ("AP", "appel.py", "mean instead of median", 'round(100 * median(x["depths"]), 1)', 'round(100 * sum(x["depths"]) / len(x["depths"]), 1)'),
     ("SEL", "selectivite.py", "TB only", 'x["part_bien_plus"] = round(b + tb + (tbf or 0), 1)', 'x["part_bien_plus"] = round(tb + (tbf or 0), 1)'),
-    ("SEL", "selectivite.py", "small cohorts placed", "if taux is None or neo is None or neo < MIN_ADMITS", "if taux is None or neo is None"),
+    ("SEL", "selectivite.py", "small cohorts placed", "    if neo is None or neo < MIN_ADMITS:\n", "    if neo is None:\n"),
+    ("SEL", "selectivite.py", "non-placed formation without its reason", '            x["raison"] = why\n', '            x["raison"] = "peu_neobac"\n'),
+    ("SEL", "selectivite.py", "all admits shown as néo-bacheliers", '"admis_neobac": neo, "admis": tot,', '"admis_neobac": neo, "admis": neo,'),
+    ("SEL", "selectivite.py", "reasons not counted", '"raisons": {k: n for k in RAISONS if', '"raisons": {k: n for k in RAISONS[:1] if'),
     ("SEL", "selectivite.py", "quadrants on the mean", "med_t = median(p[\"taux_acces_ens\"] for p in placed)", "med_t = sum(p[\"taux_acces_ens\"] for p in placed) / len(placed)"),
     ("SEL", "selectivite.py", "quadrant axes swapped", "return QUADRANTS[(taux >= med_taux, bien >= med_bien)]", "return QUADRANTS[(bien >= med_bien, taux >= med_taux)]"),
 ]
@@ -229,6 +280,15 @@ JS_MUTANTS = [
     ("rank asked", "<p class=\"small\">Le jury classe les candidats ;", '<input placeholder="votre rang"><p class="small">Le jury classe les candidats ;'),
     ("position note dropped", "décrivent une position, pas une cause ni des chances", "décrivent la situation"),
     ("menu entry dropped", '<a href="#/selectivite" data-tab="selectivite">Vraie sélectivité</a>', ""),
+    ("non-placed formations only counted", "\n  ${selApart(d)}\n", "\n  ${fmt(d.non_placees.length)} non placées\n"),
+    ("non-placed name unescaped", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée',
+     '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée'),
+    ("néo-bachelier and total admits swapped", "${fmt(f.admis_neobac)} admis néo-bachelier${f.admis_neobac > 1 ? \"s\" : \"\"} sur ${fmt(f.admis)} admis",
+     "${fmt(f.admis)} admis néo-bachelier${f.admis_neobac > 1 ? \"s\" : \"\"} sur ${fmt(f.admis_neobac)} admis"),
+    ("reason dropped from the row", '<div class="small">Non placée : ${selWhy(f, d)}</div>', ""),
+    ("non-placed figure without its label", '<td class="num" data-label="Taux d\'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;\n  return `<details',
+     '<td class="num">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;\n  return `<details'),
+    ("whole non-placed list rendered", "${d.non_placees.slice(0, 40).map(row).join(\"\")}", "${d.non_placees.map(row).join(\"\")}"),
 ]
 
 
