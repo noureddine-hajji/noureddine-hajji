@@ -14,8 +14,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     # 60, not 40: since sprints 15-16 the red teams also run on the real warehouse with their mutants (θ, per-job axes);
-    # PR #32's run took 37 min against the 40-min limit
-    timeout-minutes: 60
+    # PR #32's run took 37 min against the 40-min limit. 90, not 60: PR #41 (similar formations, real-data red teams) took
+    # 52 min in the parallel step and the serial timed tests were cut at 60
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: suptracker
