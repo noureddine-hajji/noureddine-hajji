@@ -10,10 +10,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import licence_master as LM  # noqa: E402
 from synthetic import (INSERTION_PAYSAGE, SUCCESS_TABLE, make_insertion_raw, make_monmaster_raw, make_onisep_zips,  # noqa: E402
                        make_raw, make_success_xlsx)
+from synthetic import cached_build  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
@@ -60,7 +60,7 @@ def syn(tmp_path_factory):
     make_insertion_raw(d / "raw")
     make_success_xlsx(d / "b1.xlsx")
     src = make_onisep_zips(d / "sources")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None, cereq_source=None,
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=d / "b1.xlsx", poursuite_sources=None, cereq_source=None,
                          onisep_sources=src)
     con = duckdb.connect(str(db))
     SU.attach(con, d / "b1.xlsx", SUCCESS_TABLE, paysage_table={"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"})

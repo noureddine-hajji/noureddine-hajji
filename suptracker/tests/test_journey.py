@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 from synthetic import DOUBLETTES, SPLIT_LABEL, make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 persona = importlib.import_module("verify_persona")
 
@@ -21,7 +21,7 @@ persona = importlib.import_module("verify_persona")
 def wh(tmp_path_factory):
     d = tmp_path_factory.mktemp("journey")
     plan = make_raw(d / "raw")
-    db = build_mod.build(d / "raw", d / "w.duckdb")
+    db = cached_build(d / "raw", d / "w.duckdb")
     con = duckdb.connect(str(db), read_only=True)
     yield con, plan, db
     con.close()

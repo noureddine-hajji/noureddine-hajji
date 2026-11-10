@@ -1919,3 +1919,26 @@ and `fil_lib_voe_acc`, for example every BUT Gestion des entreprises et des admi
   - K7: the profile bar.
   - K8: wording and wiring.
   - K9: mutation test.
+
+## Faster CI: three runners and one synthetic build per input set (2026-11-10)
+
+PR #41's single CI job took 56 minutes (52 for the parallel step), past the old 60-minute limit once the timed tests ran.
+
+- **Where the time went (measured per file, local run, 4 workers).** The parallel step is 141 CPU-minutes.
+  - The real-data red teams weigh the most: carte 15 min, doublettes 10 min.
+  - 32 of the 36 test files rebuilt the same synthetic warehouse, 1 to 2 minutes each.
+- **Three runners.** `tests/conftest.py` adds `--shard i/n`. It spreads the test files by their measured duration
+  (`tests/durations.json`, heaviest first onto the lightest shard). A file missing from the table still runs, with a default weight.
+  - The workflow runs shards 1/3, 2/3 and 3/3 side by side.
+  - The timed red teams (analytics, Plan B, search) get a runner of their own, so nothing else runs beside them.
+  - A final `test` job is green only when every shard and the timed job are green; it keeps the check name the repository knows.
+- **One synthetic build per input set.** `tests/synthetic.py` `cached_build` builds once and copies the warehouse to each test.
+  - The key covers everything the build reads: the package code, the fixture, the raw files and the argument files (by content),
+    the `SUPTRACKER*` environment, and every `data/` file that is not a build output (by size and time).
+  - Any change of input is a new build, so a copy is never stale. xdist workers share it through a file lock.
+  - `SUPTRACKER_NO_BUILD_CACHE=1` builds every time.
+- **Guards.**
+  - `tests/test_shards.py` collects each CI shard and checks that every test file runs in exactly one, with no empty shard.
+    It also checks that `durations.json` lists exactly the parallel files, and that the build cache key changes with each input.
+  - Red team S6 checks that the matrix lists shards 1..n with `--shard=i/n`, and that the `test` job fails when any job fails.
+    S7 adds four mutants: a shard left out, another shard count, the timed job ignored, and the gate skipped on a failure.

@@ -10,9 +10,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 from synthetic import SUCCESS_TABLE, make_raw, make_success_xlsx  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 REAL_XLSX = SU.source_path(ROOT / "data" / "sources")
@@ -24,7 +24,7 @@ def syn(tmp_path_factory):
     make_raw(d / "raw")
     xlsx = d / "sies_reussite_licence_test.xlsx"
     plan = make_success_xlsx(xlsx)
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=None)
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=None)
     return db, xlsx, plan
 
 

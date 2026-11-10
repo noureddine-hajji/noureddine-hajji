@@ -11,10 +11,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import evidence as E  # noqa: E402
 from suptracker import success as SU  # noqa: E402
 from synthetic import SUCCESS_TABLE, make_raw, make_success_xlsx  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 SYN_PAYSAGE = {"PARIS": "UNIVERSITE EXEMPLE PARIS (CITE)"}
@@ -26,7 +26,7 @@ def syn(tmp_path_factory):
     plan = make_raw(d / "raw")
     xlsx = d / "sies_reussite_licence_test.xlsx"
     make_success_xlsx(xlsx)
-    return build_mod.build(d / "raw", d / "w.duckdb", success_source=None), xlsx, plan
+    return cached_build(d / "raw", d / "w.duckdb", success_source=None), xlsx, plan
 
 
 def test_successions_and_2025_fill(syn):

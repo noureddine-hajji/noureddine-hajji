@@ -10,10 +10,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import poursuite as P  # noqa: E402
 from synthetic import (POURSUITE_ALIASES, POURSUITE_PAYSAGE, POURSUITE_RULES, SUCCESS_TABLE,  # noqa: E402
                        make_poursuite_xlsx, make_raw, make_success_xlsx)
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 REAL_SOURCES = P.find_sources(ROOT / "data" / "sources")
@@ -26,7 +26,7 @@ def syn(tmp_path_factory):
     make_raw(d / "raw")
     plan = make_poursuite_xlsx(d / "src")
     make_success_xlsx(d / "b1.xlsx")
-    db = build_mod.build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None)
+    db = cached_build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None)
     return db, plan, d / "b1.xlsx"
 
 

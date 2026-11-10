@@ -946,3 +946,88 @@ def make_onisep_zips(d: Path) -> dict:
         out[kind] = p
     (d / "ONISEP-Metiers.csv").write_text("libellé métier;lien site onisep.fr\ncomptable;x\n")   # not a sheet: ignored
     return out
+
+
+# ---- CI speed-up: one synthetic build per set of inputs, shared by the test files of a run --------------------
+_ROOT = Path(__file__).resolve().parents[1]
+_OUTPUTS = {"suptracker.duckdb", "suptracker.duckdb.wal", "suptracker.building", "rapport_textes.duckdb"}
+
+
+def _digest_path(h, p: Path) -> None:
+    """Content of a file, or of every file under a directory (sorted relative paths)."""
+    p = Path(p)
+    files = sorted(x for x in p.rglob("*") if x.is_file()) if p.is_dir() else [p] if p.exists() else []
+    h.update(f"<{len(files)}>".encode())
+    for f in files:
+        h.update(str(f.relative_to(p) if p.is_dir() else f.name).encode())
+        h.update(f.read_bytes())
+
+
+def _digest_arg(h, v) -> None:
+    if isinstance(v, Path):
+        _digest_path(h, v)
+    elif isinstance(v, dict):
+        for k in sorted(v, key=str):
+            h.update(repr(k).encode())
+            _digest_arg(h, v[k])
+    elif isinstance(v, (list, tuple)):
+        for x in v:
+            _digest_arg(h, x)
+    else:
+        h.update(repr(v).encode())
+
+
+def _inputs_key(raw_dir: Path, kwargs: dict) -> str:
+    """Everything build() reads: the code, this fixture, the raw files, the arguments (by content) and every file of
+    data/ that is not a build output (default sources, report harvest), by path, size and modification time."""
+    import hashlib
+    import os
+    h = hashlib.sha256()
+    for f in sorted((_ROOT / "suptracker").rglob("*.py")) + [Path(__file__)]:
+        h.update(f.name.encode())
+        h.update(f.read_bytes())
+    _digest_path(h, raw_dir)
+    _digest_arg(h, kwargs)
+    h.update(repr(sorted((k, v) for k, v in os.environ.items() if k.startswith("SUPTRACKER"))).encode())
+    # the repository's data/ (report harvest) AND the configured data directory (default sources), Codex on PR #42
+    dirs = dict.fromkeys([_ROOT / "data", Path(os.environ.get("SUPTRACKER_DATA", _ROOT / "data"))])
+    for data in dirs:
+        h.update(f"[{data}]".encode())
+        for f in sorted(x for x in data.rglob("*") if x.is_file()) if data.is_dir() else []:
+            rel = f.relative_to(data)
+            if rel.parts[0] == "raw" or f.name in _OUTPUTS:
+                continue
+            st = f.stat()
+            h.update(f"{rel}|{st.st_size}|{st.st_mtime_ns}".encode())
+    return h.hexdigest()[:24]
+
+
+def cached_build(raw_dir: Path, db_path: Path, **kwargs) -> Path:
+    """build.build(raw_dir, db_path, **kwargs), built once per set of inputs and copied: several test files of a run
+    (and xdist workers, through a file lock) share it. Any change of input is a new key, so a cached copy is never stale.
+    SUPTRACKER_NO_BUILD_CACHE=1 builds every time."""
+    import fcntl
+    import os
+    import shutil
+    import tempfile
+
+    from suptracker import build as build_mod
+
+    if os.environ.get("SUPTRACKER_NO_BUILD_CACHE"):
+        return build_mod.build(raw_dir, db_path, **kwargs)
+    cache = Path(os.environ.get("SUPTRACKER_BUILD_CACHE", Path(tempfile.gettempdir()) / "suptracker-build-cache"))
+    cache.mkdir(parents=True, exist_ok=True)
+    key = _inputs_key(Path(raw_dir), kwargs)
+    slot = cache / key
+    with open(cache / f"{key}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if not (slot / "done").exists():
+            shutil.rmtree(slot, ignore_errors=True)
+            slot.mkdir()
+            build_mod.build(raw_dir, slot / db_path.name, **kwargs)
+            (slot / "done").write_text(key)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    for f in slot.iterdir():
+        if f.name != "done":
+            shutil.copy2(f, db_path.parent / (db_path.name if f.name == db_path.name else f.name))
+    return db_path

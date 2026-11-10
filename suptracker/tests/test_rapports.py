@@ -10,9 +10,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from suptracker import build as build_mod  # noqa: E402
 from suptracker import rapports as RP  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 REAL_DB = ROOT / "data" / "suptracker.duckdb"
 PROBE = ROOT / "data" / "rapports" / "probe" / "pdf"
@@ -41,7 +41,7 @@ def test_empty_harvest_is_safe(tmp_path):
 def syn(tmp_path_factory):
     d = tmp_path_factory.mktemp("rp")
     make_raw(d / "raw")
-    return build_mod.build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None)
+    return cached_build(d / "raw", d / "w.duckdb", success_source=None, poursuite_sources=None, cereq_source=None)
 
 
 def test_red_team_on_synthetic(syn):

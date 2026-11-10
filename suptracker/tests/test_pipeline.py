@@ -15,6 +15,7 @@ from suptracker import build as build_mod  # noqa: E402
 from suptracker.crosswalk import EXACT, INFERRED  # noqa: E402
 from suptracker.urls import extract_cod_aff_form, is_uai  # noqa: E402
 from synthetic import make_raw  # noqa: E402
+from synthetic import cached_build  # noqa: E402
 
 verify = importlib.import_module("verify_ground_truth")
 
@@ -23,7 +24,7 @@ verify = importlib.import_module("verify_ground_truth")
 def built(tmp_path_factory):
     d = tmp_path_factory.mktemp("wh")
     plan = make_raw(d / "raw")
-    db = build_mod.build(d / "raw", d / "w.duckdb")
+    db = cached_build(d / "raw", d / "w.duckdb")
     return d, db, plan
 
 
