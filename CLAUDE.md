@@ -273,7 +273,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   report of the newest report session read. Tests: `tests/test_campaign.py`.
 - **Search.**
   - The index is stored at build in `mart.search_index` (compressed JSON, never pickle; `INDEX_VERSION` = digest of `search.py`, a
-    stale version is rebuilt on the spot). The first search of a serverless instance must never build it (4 s on the live site).
+    stale version is rebuilt on the spot). The first search of a serverless instance must never build it (4 s on the live site):
+    after ANY change to `search.py`, run the data workflow on the branch (a test fails on a committed warehouse with another version).
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
   - `clean_complement` handles establishment names containing " - ".

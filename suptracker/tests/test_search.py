@@ -205,3 +205,26 @@ def test_search_quality_gate_on_real_data():
         E.GOLD[:] = gold
     failed = [r for r in R.run(real, n_load=300) if not r["ok"]]
     assert not failed, failed
+
+
+def _real_has_index():
+    try:
+        c = duckdb.connect(str(REAL_DB), read_only=True)
+        n = c.execute("SELECT count(*) FROM mart.search_index").fetchone()[0]
+        c.close()
+        return n > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@pytest.mark.skipif(not (REAL_DB.exists() and _real_has_index()), reason="real warehouse without a stored search index")
+def test_committed_warehouse_carries_the_index_of_this_code():
+    """A change to search.py makes the stored index stale: the live site would build it again at the first search of every
+    instance (4 s). Rebuild the warehouse on the branch (suptracker-data workflow) before merging."""
+    c = duckdb.connect(str(REAL_DB), read_only=True)
+    try:
+        version = c.execute("SELECT version FROM mart.search_index").fetchone()[0]
+        assert version == S.INDEX_VERSION, "search.py changed since the warehouse was built: run the suptracker-data workflow on this branch"
+        assert S.stored_index(c) is not None
+    finally:
+        c.close()

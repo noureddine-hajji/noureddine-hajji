@@ -2035,6 +2035,9 @@ A full walk through the app on a phone, the warehouse and the live monitor's log
   - The text functions (`fold`, `stem`, tokens, place keys) are memoised: same results, a rebuild in 1.4 s instead of 2 s.
 - **The profile bar told a new visitor "les zones de vos vœux ne peuvent pas être lues"** when they have no vœu yet. With an
   empty list it now says what the profile brings.
+- **Measured on the rebuilt warehouse (84.7 MB):** the first search of a fresh process takes 0.37 s instead of 2.06 s.
+- **Guard.** A test fails when the committed warehouse carries the index of another version of `search.py`: the warehouse must
+  be rebuilt on the branch (data workflow) before such a change is merged.
 - **Tests (`tests/test_search.py`).**
   - The stored index equals a rebuilt one and is the one used.
   - Another code version rebuilds it.
