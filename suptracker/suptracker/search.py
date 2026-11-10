@@ -34,6 +34,7 @@ import threading
 import unicodedata
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import duckdb
 
@@ -51,6 +52,10 @@ TOKEN_SYNONYMS = {"st": "saint", "ste": "sainte", "inge": "ingenieur", "ingenieu
                   "infos": "informatique", "idf": "ile de france"}
 
 
+# Product audit (2026-11-10): the index was built in ~2 s at the first search of each instance (4 s measured on the live
+# site, where the background warm-up gets no CPU between requests). Labels repeat across formations, so the pure text
+# functions are memoised: the same results, an index built several times faster.
+@lru_cache(maxsize=200_000)
 def fold(s: str | None) -> str:
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode().lower()
     s = re.sub(r"\b((?:[a-z]\.){2,}[a-z]?)", lambda m: m.group(1).replace(".", ""), s)  # I.U.T -> iut
@@ -58,6 +63,7 @@ def fold(s: str | None) -> str:
     return " ".join(TOKEN_SYNONYMS.get(t, t) for t in s.split())
 
 
+@lru_cache(maxsize=200_000)
 def stem(t: str) -> str:
     if len(t) > 5 and t.endswith("ieres"):
         return t[:-5] + "ier"          # infirmieres -> infirmier
@@ -68,8 +74,13 @@ def stem(t: str) -> str:
     return t
 
 
+@lru_cache(maxsize=200_000)
+def _tokens(s: str | None) -> tuple[str, ...]:
+    return tuple(stem(t) for t in fold(s).split())
+
+
 def tokens(s: str | None) -> list[str]:
-    return [stem(t) for t in fold(s).split()]
+    return list(_tokens(s))
 
 
 # --------------------------------------------------------------------------- phrases & tags
@@ -229,6 +240,7 @@ _INTERNAT = re.compile(r"\b(?:avec\s+(?:un\s+|l\s+)?)?internats?\b")
 PUBLIC = tuple(c for c in SUMMARY if c not in ("detail_forma", "dep_lib", "region_etab_aff", "capa_fin"))
 
 
+@lru_cache(maxsize=50_000)
 def _place_key(s: str | None) -> str:
     s = fold(s)
     s = re.sub(r"\b\d+(er|e|eme)?\b|\barrondissement\b|\bcedex\b", " ", s)
@@ -247,7 +259,8 @@ def build_index(con: duckdb.DuckDBPyConnection) -> Index:
     cur.execute(f"""
       SELECT {', '.join(col(c) for c in SUMMARY)}
       FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
-      QUALIFY row_number() OVER (PARTITION BY l.lineage_id ORDER BY fy.session DESC) = 1""")
+      QUALIFY row_number() OVER (PARTITION BY l.lineage_id ORDER BY fy.session DESC) = 1
+      ORDER BY fy.cod_aff_form, fy.session""")
     cols = [d[0] for d in cur.description]
     docs = [dict(zip(cols, r)) for r in cur.fetchall()]
     postings: dict[str, dict[str, set[int]]] = {k: defaultdict(set) for k in FIELD_W}
@@ -296,6 +309,50 @@ def build_index(con: duckdb.DuckDBPyConnection) -> Index:
                  dict(by_uai), {d["cod_aff_form"]: i for i, d in enumerate(docs)}, double)
 
 
+# ---- the index, stored in the warehouse at build time (product audit, 2026-11-10) ---------------------------------
+# Building it takes ~2 s (4 s measured for the first search on the live site, on every new serverless instance: the
+# background warm-up gets no CPU between requests). The build stores it in mart.search_index as compressed JSON (never
+# pickle: a warehouse must not be able to run code); loading takes ~0.25 s. INDEX_VERSION is the digest of this module:
+# an index stored by another version of the code is ignored and rebuilt on the spot, so a stale index is never served.
+INDEX_VERSION = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
+
+
+def dump_index(ix: Index) -> bytes:
+    import json
+    import zlib
+    d = {"docs": ix.docs, "postings": {f: {t: sorted(ids) for t, ids in p.items()} for f, p in ix.postings.items()},
+         "vocab": ix.vocab, "df": dict(ix.df), "places": {k: [[i, w] for i, w in v.items()] for k, v in ix.places.items()},
+         "label_df": dict(ix.label_df), "by_uai": ix.by_uai, "by_cod": ix.by_cod, "double": sorted(ix.double)}
+    return zlib.compress(json.dumps(d, ensure_ascii=False, separators=(",", ":")).encode(), 6)
+
+
+def load_index(blob: bytes) -> Index:
+    import json
+    import zlib
+    d = json.loads(zlib.decompress(blob))
+    return Index(d["docs"], {f: {t: set(ids) for t, ids in p.items()} for f, p in d["postings"].items()}, d["vocab"],
+                 Counter(d["df"]), {k: {i: w for i, w in v} for k, v in d["places"].items()}, Counter(d["label_df"]),
+                 d["by_uai"], d["by_cod"], set(d["double"]))
+
+
+def persist(con: duckdb.DuckDBPyConnection) -> dict:
+    """Called at the end of the warehouse build: the index of THIS warehouse, by THIS version of the search code."""
+    blob = dump_index(build_index(con))
+    con.execute("CREATE SCHEMA IF NOT EXISTS mart")
+    con.execute("CREATE OR REPLACE TABLE mart.search_index (version VARCHAR, data BLOB)")
+    con.execute("INSERT INTO mart.search_index VALUES (?, ?)", [INDEX_VERSION, blob])
+    return {"version": INDEX_VERSION, "bytes": len(blob)}
+
+
+def stored_index(con: duckdb.DuckDBPyConnection) -> Index | None:
+    """The stored index when it was built by this version of the code, else None (the caller builds it)."""
+    try:
+        row = con.execute("SELECT data FROM mart.search_index WHERE version = ? LIMIT 1", [INDEX_VERSION]).fetchone()
+        return load_index(bytes(row[0])) if row else None
+    except Exception:  # noqa: BLE001 - no table (older warehouse) or an unreadable blob: build it
+        return None
+
+
 _CACHE: dict[str, Index] = {}
 _LOCK = threading.Lock()
 
@@ -314,7 +371,7 @@ def get_index(con: duckdb.DuckDBPyConnection) -> Index:
     key = _db_key(con)
     with _LOCK:
         if key not in _CACHE:
-            _CACHE[key] = build_index(con)
+            _CACHE[key] = stored_index(con) or build_index(con)
         return _CACHE[key]
 
 

@@ -13,12 +13,17 @@ const tip = (key) => {
 };
 const label = (f) => META?.fields?.[f]?.label || f;
 
+// A FastAPI validation error carries a LIST of objects: shown raw, the page read "[object Object]" (product audit, 2026-11-10)
+function apiErrorText(detail) {
+  if (typeof detail === "string" && detail) return detail;
+  return "La page n'a pas pu être chargée (demande refusée par le serveur). Rechargez-la ou revenez à l'accueil.";
+}
 async function api(path) {
   const r = await fetch(path);
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail || msg; } catch (_) { /* non-JSON error body */ }
-    throw new Error(msg);
+    throw new Error(apiErrorText(msg));
   }
   return r.json();
 }
@@ -78,7 +83,8 @@ const profileBar = {
     const raw = store.get("profile", null);
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       this.key = ""; this.data = null;
-      el.innerHTML = `<span class="pb-who">Pas encore de profil : les zones de vos vœux ne peuvent pas être lues.</span>
+      const has = voeux.get().length > 0;
+      el.innerHTML = `<span class="pb-who">${has ? "Pas encore de profil : les zones de vos vœux ne peuvent pas être lues." : "Indiquez votre bac et votre mention pour voir où vous vous situez dans chaque formation."}</span>
         <a class="pb-link" href="#/parcours">Indiquer mon bac et ma mention</a>`;
       return;
     }
@@ -1488,7 +1494,11 @@ async function viewCompare() {
 }
 
 async function viewSpecialites(session, ftype) {
-  const d = await api(`/api/specialites?session=${session || ""}&formation_type=${encodeURIComponent(ftype || "")}`);
+  // product audit (2026-11-10): an empty "session=" is a 422 for the API, and the page showed "[object Object]"
+  const sq = new URLSearchParams();
+  if (/^\d{4}$/.test(String(session || ""))) sq.set("session", session);
+  if (ftype) sq.set("formation_type", ftype);
+  const d = await api(`/api/specialites${sq.toString() ? `?${sq}` : ""}`);
   const max = Math.max(1, ...d.rows.map((r) => r.pct_acceptations || 0));
   $view.innerHTML = `<div class="card"><h2>Doublettes de spécialités des admis</h2>
     <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par doublette : c'est une répartition, pas un taux d'accès.</p>
