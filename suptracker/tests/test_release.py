@@ -44,6 +44,8 @@ FEATURE_ENTRY_POINTS = {
     "carte": ("app.js", "function viewCarte("),
     "comprendre_appel": ("app.js", "async function viewComprendre("),
     "selectivite": ("app.js", "async function viewSelectivite("),
+    "profil_visible": ("app.js", "const profileBar = {"),
+    "formations_semblables": ("app.js", "function semblablesJuryCard("),
 }
 
 

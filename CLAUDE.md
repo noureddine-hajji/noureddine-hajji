@@ -37,6 +37,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Mes vœux (sprint 11):** `voeux.py` (the student's list of up to 10 vœux read for the current profile, `#/voeux`).
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Comprendre l'appel / Vraie sélectivité:** `appel.py` (how far each list was called, offer timing per type), `selectivite.py` (access rate x mention matrix).
+  - **Formations semblables:** `semblables.py` (pooled doublettes and jury counts from the verified reports of the same diploma and mention).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -346,6 +347,23 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   `taux_acces_ens`, y = `pct_b + pct_tb + pct_tbf` (disjoint shares of the néo-bachelier admits); < 10 néo-bachelier admits or
   no rate = not placed; quadrant lines = medians of the selection; names describe a position, never a cause ("élite",
   "auto-censure" banned) or a chance. Red team `redteam_appel.py` (A1-A7).
+- **Formations semblables (owner, 2026-11-10).**
+  - Used ONLY where the formation's own report lacks the part: no own bac général table (doublettes), no readable own texts
+    (jury). Similar = same `fili` + `fil_lib_voe_acc`, same session. Verified reports only (`recoupe`); a concours report counts
+    once (digest). FCIL and "Licence professionnelle" group unrelated formations, so they get none.
+  - Doublette k: pooled over the reports that DETAIL k, with "all bac général" taken from the same reports; a formation's own
+    "Autres doublettes" is never pooled. Thresholds: 3 reports and 20 candidates.
+    The figure for the formation is an ESTIMATION: its bac général proposal rate x (k / all), capped at 100
+    (`semblables.estimate`, page twin `estimateSemblable`). It comes before the national group estimate; a published figure is
+    never beside it. The formation page, the evolution chart and Mes vœux show the same figure.
+  - Jury: COUNTS of reports per field and importance (the field's highest importance in each report), per specialty and per
+    option cited; never a mean or a score. The card says "pas le rapport de cette formation", the fiche Parcoursup fait foi, and
+    it links the formations' own pages. Precomputed at build (`mart.semblable_dbl`, `mart.semblable_jury`).
+    Red team `redteam_semblables.py` (K1-K9).
+- **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
+  It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
+  The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
+  when there is no profile. Red team K7.
 - **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 

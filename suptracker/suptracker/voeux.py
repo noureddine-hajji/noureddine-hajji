@@ -14,6 +14,7 @@ import re
 
 from . import doublettes as DB
 from . import rapports as RP
+from . import semblables as SB
 from . import journey as J
 from . import planb as PB
 
@@ -86,6 +87,15 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
         x = RP.pick(b, dkey)
         return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
                 "en_position": x["en_position"], "recoupe": b["recoupe"]} if x else None
+    def semblable(cod):
+        """Where the formation's own report has no bac général table: the estimate from its similar formations' reports."""
+        if serie != "bg" or not dkey:
+            return None
+        b = RP.for_formation(con, cod)
+        if b and (b["doublettes"].get("bg") or []):
+            return None
+        est = SB.estimate(DB.series(con, cod)["bg"], SB.for_formation(con, cod), dkey)
+        return {k: v for k, v in est.items() if k != "trend"} if est else None
     out = []
     for c in cods:
         if c not in meta:
@@ -101,7 +111,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
                         "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c),
                         # sprint "Rapports publics": the formation's OWN published figure for the doublette, when its report exists
-                        "rapport": rapport(c)})
+                        "rapport": rapport(c), "semblable": semblable(c)})
     return {"session": latest, "serie": serie, "mention": mention, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, doublettes, rapports, ia_exposition, crosswalk, licence_master, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, success
+from . import bmo, config, cereq, doublettes, rapports, ia_exposition, crosswalk, licence_master, emploi2030, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, semblables, success
 from .ingest import load_manifest
 
 
@@ -40,6 +40,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         journey.build_journey(con)
         doublettes.build(con)
         rapports.build(con, textes=rapports.textes_path(db_path))
+        semblables.build(con, rapports.textes_path(db_path))
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
         calibration.build_calibration(con)
