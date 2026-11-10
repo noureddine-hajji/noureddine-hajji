@@ -46,8 +46,6 @@ FEATURE_ENTRY_POINTS = {
     "selectivite": ("app.js", "async function viewSelectivite("),
     "profil_visible": ("app.js", "const profileBar = {"),
     "formations_semblables": ("app.js", "function semblablesJuryCard("),
-    "voeux_completer": ("app.js", "async function loadCompleter("),
-    "projet_motive": ("app.js", "function projetCard("),
 }
 
 

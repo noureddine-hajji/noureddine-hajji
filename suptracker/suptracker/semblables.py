@@ -106,8 +106,7 @@ def jury_counts(texts: list[dict]) -> dict:
                 bucket[it] = bucket.get(it, 0) + 1
         for k in (t.get("options_citees") or {}):
             opts[k] = opts.get(k, 0) + 1
-    from .projet import similar_counts                  # "Préparer son projet motivé": how many cite it, field x importance
-    return {"n": len(texts), "champs": champs, "eds": eds, "options": opts, "projet": similar_counts(texts)}
+    return {"n": len(texts), "champs": champs, "eds": eds, "options": opts}
 
 
 def build(con, textes: Path | None = None) -> dict:

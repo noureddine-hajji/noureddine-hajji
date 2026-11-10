@@ -59,7 +59,6 @@ POLICY = [
     (r"/api/selectivite", PUBLIC, "selectivity matrix of a type of diploma (no profile)"),
     (r"/api/metiers", PUBLIC, "job catalogue (no parameter: searched in the browser)"),
     (r"/api/metier/[^/]+", PUBLIC, "one job and the formations preparing it"),
-    (r"/api/projet/[^/]+", PUBLIC, "the jury's points for one formation's projet motivé (no profile, no list)"),
     (r"/static/.+", "asset", "front-end files"),
 ]
 _COMPILED = [(re.compile(f"^{p}$"), pol, why) for p, pol, why in POLICY]

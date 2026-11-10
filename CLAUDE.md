@@ -376,12 +376,6 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     option cited; never a mean or a score. The card says "pas le rapport de cette formation", the fiche Parcoursup fait foi, and
     it links the formations' own pages. Precomputed at build (`mart.semblable_dbl`, `mart.semblable_jury`).
     Red team `redteam_semblables.py` (K1-K9).
-- **Projet motivé (owner, 2026-11-10).** A list of points to check only (no drafting area), on the formation page (first card of the
-  jury tab) and in Mes vœux (one folded block per vœu, `/api/projet/{cod}`, public cache, no event). Points = the criteria whose wording
-  or elements name the projet motivé / lettre de motivation (`projet.PROJET`), VERBATIM, by importance then the jury's order; the
-  eliminating lines naming it; the advice. Without own texts: COUNTS from similar formations (`mart.semblable_jury` key `projet`),
-  labelled "pas le rapport de cette formation". Nothing written for the student, nothing scored, never a chance; the fiche fait foi.
-  Red team `redteam_projet.py` (J1-J6).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

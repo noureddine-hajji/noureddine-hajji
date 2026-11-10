@@ -385,8 +385,3 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .profile-bar .pb-alert { background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--r-sm); padding: 2px 8px; font-weight: 600; }
 @media (max-width: 720px) { .profile-bar a { min-height: 44px; } }
 .sem-list { margin: 4px 0 8px; padding-left: 20px; }
-
-/* "Préparer son projet motivé": the jury's points, one per line */
-.pj-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
-.pj-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
-.pj-list li:last-child { border-bottom: 0; }
