@@ -49,7 +49,64 @@ const voeux = {
   has(cod) { return this.get().includes(cod); },
   add(cod) { const v = this.get(); if (!v.includes(cod) && v.length < this.MAX) { v.push(cod); this.set(v); } return v.includes(cod); },
   remove(cod) { this.set(this.get().filter((c) => c !== cod)); },
-  render() { const n = this.get().length; document.querySelectorAll('[data-count="voeux"]').forEach((el) => { el.textContent = n; el.hidden = n === 0 && !!el.closest(".tabbar"); }); },
+  render() { const n = this.get().length; document.querySelectorAll('[data-count="voeux"]').forEach((el) => { el.textContent = n; el.hidden = n === 0 && !!el.closest(".tabbar"); }); profileBar.render(); },
+};
+
+// ---- point 4 of the UI brief: the profile and the zones of "Mes vœux", at the top of every page ----
+// The stored profile is never trusted: the same cleaning as "Mes vœux". vxQuery is the ONE query both send, so the bar and
+// the page always count the same zones (red team P2). Counts only, never a chance.
+function vxProfile(p) {
+  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
+  const mention = ["sansmention", "ab", "b", "tb"].includes(p.mention) ? p.mention : "ab";
+  return { ...p, serie, mention };
+}
+function vxQuery(ids, prof) {
+  const qs = new URLSearchParams({ ids: ids.join(","), serie: prof.serie, mention: prof.mention });
+  if (prof.serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
+  if (prof.academie) qs.set("academie", prof.academie);
+  return qs;
+}
+const PB_ZONES = ["securite", "cible", "ambitieux"];
+const profileBar = {
+  key: "", data: null, tab: "home",
+  render(tab) {
+    if (tab) this.tab = tab;
+    const el = document.getElementById("profile-bar");
+    if (!el) return;
+    if (this.tab === "stats") { el.hidden = true; return; }
+    el.hidden = false;
+    const raw = store.get("profile", null);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      this.key = ""; this.data = null;
+      el.innerHTML = `<span class="pb-who">Pas encore de profil : les zones de vos vœux ne peuvent pas être lues.</span>
+        <a class="pb-link" href="#/parcours">Indiquer mon bac et ma mention</a>`;
+      return;
+    }
+    const prof = vxProfile(raw);
+    const ids = voeux.get();
+    let list;
+    if (!ids.length) { this.key = ""; this.data = null; list = `<a class="pb-link" href="#/voeux">Mes vœux : aucun pour l'instant</a>`; }
+    else {
+      const k = vxQuery(ids, prof).toString();
+      if (this.key !== k) {
+        this.key = k; this.data = null;
+        api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })
+          .catch(() => { if (this.key === k) { this.data = { error: true }; this.render(); } });
+      }
+      const d = this.data;
+      if (!d) list = `<span class="pb-list muted">Mes vœux : lecture…</span>`;
+      else if (d.error || !d.lecture) list = `<a class="pb-link" href="#/voeux">Mes vœux : ${fmt(ids.length)}</a>`;
+      else {
+        const z = d.lecture.zones, other = (z.hors_profil || 0) + (z.non_ouvert || 0) + (z.indetermine || 0) + (z.non_situe || 0);
+        const parts = PB_ZONES.map((k2) => `<span class="pb-zone"><i class="pb-dot pb-${k2}" style="background:${ZONES[k2].color}" aria-hidden="true"></i>${fmt(z[k2] || 0)} ${esc(ZONES[k2].label.replace(/^Vœu (de )?/, ""))}</span>`);
+        if (other) parts.push(`<span class="pb-zone">${fmt(other)} autre${other > 1 ? "s" : ""}</span>`);
+        const alert = d.lecture.messages.some((m) => m.code === "aucune_securite")
+          ? `<a class="pb-alert" href="#/voeux">Aucun vœu de sécurité sûr</a>` : "";
+        list = `<a class="pb-list" href="#/voeux" aria-label="Mes vœux, zones pour votre profil">Mes vœux : ${parts.join(" · ")}</a>${alert}`;
+      }
+    }
+    el.innerHTML = `<a class="pb-who" href="#/parcours" aria-label="Votre profil, le modifier dans Mon parcours">${profileLine(prof, prof.serie)}</a>${list}`;
+  },
 };
 
 // ---- SVG primitives --------------------------------------------------------
@@ -306,6 +363,32 @@ function estimateDoublette(series, g, dkey) {
   return { taux: cap(bg.taux), base: bg.taux, ratio: Math.round(r * 1000) / 1000, source: p.source, label: p.label, fragile: !!bg.fragile,
     estimation: true, trend: bg.trend.map((t) => ({ session: t.session, taux: cap(t.taux) })), mine: p.taux, tous: g.tous.taux };
 }
+// owner's request (2026-11-10): where this formation's own report has no bac général table, the ratio comes from the verified
+// reports of its similar formations (same diploma, same mention), pooled over the reports that detail the doublette (twin of
+// semblables.estimate): this formation's bac général rate x (doublette / all bac général of the same reports), capped at 100
+function estimateSemblable(series, sem, dkey) {
+  const x = sem && dkey ? (sem.doublettes || []).find((r) => r.key === dkey) : null, { bg } = series || {};
+  if (!x || !bg || bg.taux === null || bg.taux === undefined || x.taux === null || x.taux === undefined || !x.tous_taux) return null;
+  const r = x.taux / x.tous_taux;
+  const cap = (v) => (v === null || v === undefined ? null : Math.round(Math.min(100, v * r) * 10) / 10);
+  return { taux: cap(bg.taux), base: bg.taux, ratio: Math.round(r * 1000) / 1000, source: "semblables", label: x.label,
+    n_rapports: x.n_rapports, mine: x.taux, tous: x.tous_taux, fragile: !!bg.fragile, estimation: true,
+    trend: bg.trend.map((t) => ({ session: t.session, taux: cap(t.taux) })) };
+}
+const ownHasBg = (rp) => { const { bg: rows = [] } = (rp && rp.doublettes) || {}; return !!rows.length; };
+const semName = (sem) => `${esc(sem.fili === "Licence_Las" ? "L.AS" : sem.fili)} ${esc(sem.filiere)}`;
+function semblablesDoublettes(sem, dkey, est) {
+  if (!sem || !(sem.doublettes || []).length) return "";
+  const mine = dkey ? sem.doublettes.find((x) => x.key === dkey) : null;
+  const rows = [mine, ...sem.doublettes.filter((x) => x !== mine).slice(0, 6)].filter(Boolean);
+  return `<h4>Dans les formations semblables (${semName(sem)}, rapports publics ${esc(sem.session)})</h4>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Doublette</th><th class="num">Taux d'accès</th><th class="num">Candidats</th><th class="num">Rapports</th></tr>
+    ${rows.map((x) => `<tr${x === mine ? ' class="dbl-mine"' : ""}><td>${x === mine ? "Votre doublette : " : ""}${esc(x.label)}</td>
+      <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${rateBar(x.taux, "var(--voie-bg)")}</td>
+      <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td>
+      <td class="num" data-label="Rapports">${fmt(x.n_rapports)}</td></tr>`).join("")}</table></div>
+    <p class="muted small">Pour chaque doublette, les rapports des formations semblables qui la détaillent (au moins ${fmt(sem.min_rapports)} rapports et ${fmt(sem.min_candidats)} candidats), additionnés : candidats en position de recevoir une proposition en phase principale sur candidats ayant confirmé le vœu. Ce ne sont pas les chiffres de cette formation, et ce ne sont pas des chances d'admission.${dkey && !mine && est === null ? " Votre doublette n'est détaillée dans aucun ou dans trop peu de ces rapports." : ""}</p>`;
+}
 // Codex (PR #37): the pooled figures say which campaigns they cumulate; a group with a counting break (doublettes.BREAK_*)
 // names the left-out campaigns and why, next to the figures
 function dblCampagnes(g) {
@@ -315,7 +398,7 @@ function dblCampagnes(g) {
   return `campagnes ${span} cumulées${out.length ? ` · ${out.join(" et ")} ${out.length > 1 ? "écartées" : "écartée"} : rupture de comptage dans les données publiées (candidats multipliés par 2 ou 3 sans hausse des propositions), ces campagnes ne sont dans aucun chiffre de ce bloc ni dans l'estimation` : ""}`;
 }
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
-function doubletteCard(d, rp) {
+function doubletteCard(d, rp, sem) {
   if (!d) return "";
   const prof = store.get("profile", null) || {};
   const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
@@ -325,6 +408,11 @@ function doubletteCard(d, rp) {
     return `<tr${s === myVoie ? ' class="dbl-mine"' : ""}><td>${voiePill(s)}${s === myVoie ? ' <span class="estim">votre bac</span>' : ""}</td>
       <td class="num" data-label="Taux de proposition">${pct1(v.taux)}${v.taux !== null && v.taux !== undefined ? rateBar(v.taux, VOIES[s].color) : ""}</td>
       <td class="num" data-label="Candidats">${fmt(v.candidats)}${v.fragile && v.candidats ? ' <span class="badge warnb">peu de candidats</span>' : ""}</td></tr>`; }).join("");
+  const dkey0 = profileDkey(prof);
+  // where this formation's own report has no bac général table: the similar formations' reports, then the national group
+  const semEst = own.hasBg ? null : estimateSemblable(d.series, sem, dkey0);
+  const semBlock = own.hasBg ? "" : `${semEst ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(semEst.taux)}</strong> <span class="estim">estimation à partir de ${fmt(semEst.n_rapports)} rapports de formations semblables</span>${rateBar(semEst.taux, "var(--voie-bg)")}</p>
+      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(semEst.base)}${semEst.fragile ? ", peu de candidats" : ""}) × écart de votre doublette dans ${fmt(semEst.n_rapports)} rapports publics ${esc(sem.session)} de formations semblables (${semName(sem)}) : ${pct1(semEst.mine)} contre ${pct1(semEst.tous)} pour tous les bacheliers généraux de ces mêmes rapports. ${rp ? "Le rapport de cette formation ne détaille pas les doublettes" : "Cette formation n'a pas de rapport public vérifié pour cette session"} : ce chiffre suppose que l'écart mesuré dans les formations semblables vaut aussi ici.</p></div>` : ""}${semblablesDoublettes(sem, dkey0, semEst)}`;
   let dbl;
   if (d.status !== "ok") dbl = `<p class="muted small">Pas de donnée par doublette pour ce type de formation : le ministère ne la publie que pour les groupes de formations qu'il suit.</p>`;
   else {
@@ -332,7 +420,7 @@ function doubletteCard(d, rp) {
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
     // the estimate is only shown when this formation's report gives no bac général figure
-    const est = own.hasBg ? null : estimateDoublette(d.series, g, dkey);
+    const est = own.hasBg || semEst ? null : estimateDoublette(d.series, g, dkey);
     const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
       <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
     dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>
@@ -350,7 +438,7 @@ function doubletteCard(d, rp) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
     ${own.html}
-    <h3>Par doublette de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${dbl}</div>`;
+    <h3>Par doublette de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${semBlock}${dbl}</div>`;
 }
 // ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
 const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
@@ -430,8 +518,39 @@ function juryCard(rp) {
     <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
+// owner's request (2026-11-10): no readable jury texts in this formation's own report, so the counts of what the commissions of
+// its similar formations published (same diploma, same mention), never their average, never this formation's own criteria
+const SEM_CRIT_N = 8;
+function semblablesJuryCard(sem, rp) {
+  if (!sem || !sem.jury) return "";
+  const J = sem.jury, n = J.n, prof = store.get("profile", null) || {};
+  const champs = Object.keys(sem.champs || {});
+  const cell = (k, i) => `<td class="num" data-label="${esc(i)}">${fmt(J.champs[k][i] || 0)}</td>`;
+  const critHtml = `<h3>L'importance donnée à chaque critère</h3><div class="scroll"><table class="stack"><tr class="stack-head"><th>Critère</th>${RP_IMP.map((i) => `<th class="num">${esc(i)}</th>`).join("")}<th class="num">Non noté</th></tr>
+    ${champs.map((k) => { const noted = RP_IMP.reduce((a, i) => a + (J.champs[k][i] || 0), 0);
+      return `<tr><td>${esc(sem.champs[k])}</td>${RP_IMP.map((i) => cell(k, i)).join("")}<td class="num" data-label="Non noté">${fmt(n - noted)}</td></tr>`; }).join("")}
+    </table></div><p class="muted small">Nombre de rapports, sur ${fmt(n)}, qui donnent à ce critère cette importance (la plus haute, quand un rapport en note plusieurs lignes). « Non noté » : le rapport ne note pas ce critère.</p>`;
+  const mySpe = [prof.spe1, prof.spe2].filter((x) => typeof x === "string" && RP_SPE[x]).map((x) => RP_SPE[x].toLowerCase());
+  const spe = Object.entries(J.eds.generale || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const speLine = ([lab, c]) => `<li>${mySpe.includes(lab.toLowerCase()) ? `<mark>${esc(lab)}</mark>` : esc(lab)} : ${fmt(c)} rapport${c > 1 ? "s" : ""} sur ${fmt(n)}</li>`;
+  const others = Object.entries(J.eds.autres || {}).sort((a, b) => a[0].localeCompare(b[0]));
+  const edsHtml = `<h3>Les spécialités de terminale</h3>
+    <p class="small">${fmt(J.eds.oui)} rapport${J.eds.oui > 1 ? "s" : ""} sur ${fmt(n)} disent prendre en compte les enseignements de spécialité, ${fmt(J.eds.non)} disent ne pas les prendre en compte${J.eds.non_dit ? `, ${fmt(J.eds.non_dit)} ne le disent pas` : ""}.</p>
+    ${spe.length ? `<p class="small">Spécialités de la série générale citées :</p><ul class="small sem-list">${spe.slice(0, SEM_CRIT_N).map(speLine).join("")}</ul>
+      ${spe.length > SEM_CRIT_N ? `<details class="dip"><summary>Les ${fmt(spe.length - SEM_CRIT_N)} autres spécialités citées</summary><ul class="small sem-list">${spe.slice(SEM_CRIT_N).map(speLine).join("")}</ul></details>` : ""}` : ""}
+    ${others.length ? `<details class="dip"><summary>Séries technologiques</summary>${others.map(([serie, items]) => `<p class="small"><strong>${esc(serie)}</strong> : ${Object.entries(items).sort((a, b) => b[1] - a[1]).map(([lab, c]) => `${esc(lab)} (${fmt(c)})`).join(" · ")}</p>`).join("")}</details>` : ""}`;
+  const opts = Object.entries(J.options || {}).sort((a, b) => b[1] - a[1]);
+  const optHtml = opts.length ? `<h3>Options et parcours cités</h3><ul class="small sem-list">${opts.map(([k, c]) => `<li>${esc(RP_OPTIONS[k] || k)} : citée dans ${fmt(c)} rapport${c > 1 ? "s" : ""} sur ${fmt(n)}</li>`).join("")}</ul>
+    <p class="muted small">Une option qu'un rapport ne cite pas peut compter quand même : regardez les attendus de la fiche Parcoursup.</p>` : "";
+  const list = sem.formations || [];
+  const links = list.length ? `<details class="dip"><summary>Lire les rapports de ces formations (${fmt(list.length)})</summary><ul class="small sem-list">${list.map((f) => `<li><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a> · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</li>`).join("")}</ul></details>` : "";
+  return `<div class="card"><h2>Ce que regardent les jurys de formations semblables <span class="estim">pas le rapport de cette formation</span></h2>
+    <p class="small">${rp ? `Le rapport public ${esc(rp.session)} de cette formation ne donne pas de critères lisibles.` : `Cette formation n'a pas de rapport public vérifié pour la session ${esc(sem.session)}.`} Voici ce que disent ${fmt(n)} rapports publics ${esc(sem.session)} de formations du même diplôme et de la même mention (${semName(sem)}), vérifiés avec les chiffres du ministère. Le jury de cette formation peut avoir d'autres attentes : sa fiche Parcoursup fait foi.</p>
+    ${critHtml}${edsHtml}${optHtml}${links}
+    <p class="muted small">Des comptes de rapports, jamais une moyenne ni une note : ils décrivent l'examen des dossiers dans des formations semblables, pas des chances d'admission.</p></div>`;
+}
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
-function doubletteCharts(d, years) {
+function doubletteCharts(d, years, sem, rp) {
   if (!d) return "";
   const at = (trend, k) => years.map((y) => { const r = trend.find((x) => x.session === y); return r ? r[k] : null; });
   const series = ["bg", "bt", "bp"].map((s) => ({ name: VOIES[s].label, color: VOIES[s].color, values: at(d.series[s].trend, "taux"),
@@ -440,9 +559,12 @@ function doubletteCharts(d, years) {
   if (d.status === "ok") {
     const g = d.groupe, mine = pickDoublette(g, profileDkey(store.get("profile", null)));
     const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--muted)", values: at(g.tous.trend, "taux") }];
-    const est = estimateDoublette(d.series, g, profileDkey(store.get("profile", null)));
+    const dk = profileDkey(store.get("profile", null));
+    // the formation page's estimate: none beside a published figure, the similar formations first, then the national group
+    const sEst = ownHasBg(rp) ? null : estimateSemblable(d.series, sem, dk);
+    const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);
     if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes, groupe national (estimation)" : `Votre doublette : ${mine.label}, groupe national`, color: "var(--voie-bt)", values: at(mine.trend, "taux") });
-    if (est) lines.unshift({ name: "Votre doublette dans cette formation (estimation)", color: "var(--voie-bg)", values: at(est.trend, "taux") });
+    if (est) lines.unshift({ name: sEst ? `Votre doublette dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Votre doublette dans cette formation (estimation)", color: "var(--voie-bg)", values: at(est.trend, "taux") });
     second = `<div class="card"><h3>Votre doublette : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${legend(lines)}${lineChart(years, lines)}
       <p class="muted small">${DBL_CAVEAT}</p></div>`;
   }
@@ -789,7 +911,7 @@ async function viewFormation(cod, session) {
       <div><div class="muted small">Part des terminales générales parmi les candidats appelés (PP) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
-  ${doubletteCard(d.doublettes, d.rapport)}
+  ${doubletteCard(d.doublettes, d.rapport, d.semblables)}
   ${previsionCard(d.prevision)}
   ${offerCard(r, d.apprentissage)}
   ${timingCard(r, d.history)}
@@ -811,7 +933,7 @@ async function viewFormation(cod, session) {
       <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
   </div>
 `],
-    ["jury", "Ce que regarde le jury", juryCard(d.rapport)],
+    ["jury", "Ce que regarde le jury", juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport)],
     ["reussite", "Réussir et poursuivre", `
   ${successCard(d.success)}
   ${masterCard(d.master)}
@@ -1321,7 +1443,7 @@ async function viewEvolution(cod) {
       ${legend([{ name: "Taux d'accès" }, { name: "Part des terminales générales parmi les appelés" }])}
       ${lineChart(years, [{ name: "Taux d'accès", values: col("taux_acces_ens") }, { name: "Part term. gén.", values: col("part_terminale_generale_en_position_admis_pp") }])}</div>
     <div class="card"><h3>Admis néo-bacheliers par série de bac ${tip("mentions")}</h3>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
-    ${doubletteCharts(f.doublettes, years)}
+    ${doubletteCharts(f.doublettes, years, f.semblables, f.rapport)}
     <div class="card"><h3>Admis par mention au bac ${tip("mentions")}</h3>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
     <div class="card"><h3>Boursiers, femmes, origine</h3>
       ${legend([{ name: "% boursiers" }, { name: "% femmes" }, { name: "% même académie" }, { name: "% même établissement" }])}
@@ -1417,7 +1539,7 @@ async function viewQualite() {
 // ---- student positioning journey -------------------------------------------
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (_) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* storage blocked */ } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* storage blocked */ } if (k === "profile") profileBar.render(); },
 };
 const pc1 = (v) => (v === null || v === undefined) ? "—" : `${fmt(100 * v, 1)} %`;
 const ZONES = {
@@ -1883,9 +2005,8 @@ const VX_PLANB = ["ambitieux", "hors_profil", "cible"];
 async function viewVoeux() {
   const ids = voeux.get();
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
-  const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
-  const mention = ["sansmention", "ab", "b", "tb"].includes(p.mention) ? p.mention : "ab";
-  const prof = { ...p, serie, mention };
+  const prof = vxProfile(p);                                             // stored profile: never trusted
+  const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
     <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p></div>`;
@@ -1895,9 +2016,7 @@ async function viewVoeux() {
     $view.dataset.rendered = "voeux:0";
     return;
   }
-  const qs = new URLSearchParams({ ids: ids.join(","), serie, mention });
-  if (serie === "bg") { qs.set("spe1", p.spe1 || "MATHS"); qs.set("spe2", p.spe2 || "SES"); }
-  if (p.academie) qs.set("academie", p.academie);
+  const qs = vxQuery(ids, prof);                                        // the profile bar sends the same query
   const marker = `voeux:${qs}`;
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
@@ -1919,7 +2038,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : ""}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
@@ -1930,7 +2049,7 @@ async function viewVoeux() {
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : ""}<th></th></tr>
     ${rows}</table></div>
-    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : estimation pour chaque formation (son taux des bacheliers généraux × l'écart national de votre doublette dans son groupe) ; aucune donnée publique ne donne les doublettes par établissement." : ""}</p>
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : ""}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
@@ -2354,6 +2473,7 @@ async function route() {
   // filled by a late async answer (the lycée suggestion of a search, found in review)
   delete $view.dataset.rendered;
   markTab(TAB_OF[a] || "home");
+  profileBar.render(TAB_OF[a] || "home");
   try {
     if (a === "stats") return await viewStats(b);
     if (a === "s") return await viewSearch(b || "", c || "");

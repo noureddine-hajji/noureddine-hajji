@@ -1874,3 +1874,48 @@ call curve, an "algorithmic score", and rank bonuses for maths expertes, boursie
 - A5: wording.
 - A6: wiring.
 - A7: 16 in-memory mutants, one skipped where the data cannot show it.
+
+## Profile bar and similar formations (owner's request, 2026-11-10)
+
+**Profile bar (point 4 of the UI brief).**
+- What it shows, at the top of every page:
+  - the stored profile: bac, doublette, mention, académie;
+  - the zone counts of Mes vœux, for example « 3 sécurité · 0 cible · 2 ambitieux ».
+- An alert appears when the server's reading of the list says there is no safe vœu (`aucune_securite`), the same message as
+  the Mes vœux page.
+- It sends the same query as Mes vœux (`vxQuery`), so both always count the same zones.
+- Without a profile, it links to Mon parcours. With an empty list, it sends nothing. On a phone it wraps under the search bar.
+
+**Similar formations (`semblables.py`).** When a formation's own public report has no bac général table by doublette, or no
+readable jury texts, the page reads the verified reports of the formations of the same diploma and mention: same SIES `fili`
+and `fil_lib_voe_acc`, for example every BUT Gestion des entreprises et des administrations, same session.
+- **Data check (2026-11-10, 2025 session, a shared report counted in each group it covers):**
+  - 7 582 formations have no bac général table of their own. 4 198 of them get similar-formation figures (2 229 for
+    Maths + SES).
+  - 1 660 formations have no verified report. 1 526 of them get the jury counts of their similar formations.
+  - FCIL and "Licence professionnelle" group unrelated formations, so they get none.
+- **Doublettes.**
+  - For a doublette, the reports that detail it are added up: candidates in position to receive a proposal, out of
+    candidates who confirmed. "All bac général" is taken from the same reports.
+  - A formation's own "Autres doublettes" row is never pooled.
+  - Minimum: 3 reports and 20 candidates. Reports not yet cross-checked are left out, and a concours report counts once in each group of similar formations it covers, read from that group's own formation.
+  - The figure for the formation is an estimation: its bac général proposal rate × (doublette / all bac général in those
+    reports), capped at 100.
+  - It comes before the national group estimate. A figure from the formation's own report is never shown beside it. The
+    formation page, the evolution chart and Mes vœux show the same figure.
+- **Jury.**
+  - Counts of reports per evaluation field and published importance (the highest one when a report rates several rows of the
+    field), per specialty and per option cited. Never a mean or a score.
+  - The card says it is not this formation's report and that the formation's Parcoursup page prevails.
+  - It links the similar formations' own pages, where their texts are shown in full.
+- **Build.** The pooled figures are precomputed: `mart.semblable_dbl`, `mart.semblable_jury`.
+- **Red team `redteam_semblables.py`:**
+  - K1: crafted reports with hand-computed answers.
+  - K2: SQL re-derivation, and jury counts with an independent field mapping.
+  - K3: the own report is never read through this block.
+  - K4: the Python and page twins of the estimate agree.
+  - K5: the same figure on every page.
+  - K6: rendering on hostile data.
+  - K7: the profile bar.
+  - K8: wording and wiring.
+  - K9: mutation test.
