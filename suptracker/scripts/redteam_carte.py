@@ -557,7 +557,7 @@ JS_MUTANTS = [
     ("name unescaped", "<strong>${esc(f.etablissement)}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>", "<strong>${f.etablissement}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>"),
     ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage', 'aria-label="${esc(f.etablissement)}${f.apprentissage'),
     ("one shape for all", 'const shape = z === "cible" ?', 'const shape = false ?'),
-    ("caveat dropped", "ce ne sont pas des chances d'admission", "voici vos résultats"),
+    ("caveat dropped", "à partir des admis des campagnes passées : ce ne sont pas des chances d'admission", "à partir des admis des campagnes passées : voici vos résultats"),
     ("apprenticeship filter inverted", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.initiale : !!f.apprentissage;'),
     ("a formation offering both loses one label", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;'),
     ("both labels dropped", "const voieBadges = (f) => (f.initiale && f.apprentissage ?", "const voieBadges = (f) => (false ?"),

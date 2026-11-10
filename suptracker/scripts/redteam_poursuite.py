@@ -503,8 +503,10 @@ UI_MUTANTS = [
 def p10(c: Ctx):
     missed = []
     js = APP_JS.read_text()
+    a = js.index("// ---- Sprint 6: success beyond licence")   # mutate the card's own copy (the shell validates the profile too)
     for name, old, new in UI_MUTANTS:
-        if old not in js or ui(js.replace(old, new, 1))[0]:
+        k = js.find(old, a) if old in js[a:] else js.find(old)
+        if k < 0 or ui(js[:k] + new + js[k + len(old):])[0]:
             missed.append(name)
     saved = {"num": P._num, "aliases": dict(P.NAME_ALIASES), "rules": dict(P.BUT_NAME_RULES), "spe": dict(P.SPECIALTY_ALIASES),
              "site": dict(P.BUT_SITE_OVERRIDES), "c_overrides": c.overrides,
