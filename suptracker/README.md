@@ -1889,10 +1889,10 @@ call curve, an "algorithmic score", and rank bonuses for maths expertes, boursie
 **Similar formations (`semblables.py`).** When a formation's own public report has no bac général table by doublette, or no
 readable jury texts, the page reads the verified reports of the formations of the same diploma and mention: same SIES `fili`
 and `fil_lib_voe_acc`, for example every BUT Gestion des entreprises et des administrations, same session.
-- **Data check (2026-11-10, 2025 session):**
-  - 7 582 formations have no bac général table of their own. 4 197 of them get similar-formation figures (2 233 for
+- **Data check (2026-11-10, 2025 session, a shared report counted in each group it covers):**
+  - 7 582 formations have no bac général table of their own. 4 198 of them get similar-formation figures (2 229 for
     Maths + SES).
-  - 1 660 formations have no verified report. 1 523 of them get the jury counts of their similar formations.
+  - 1 660 formations have no verified report. 1 526 of them get the jury counts of their similar formations.
   - FCIL and "Licence professionnelle" group unrelated formations, so they get none.
 - **Doublettes.**
   - For a doublette, the reports that detail it are added up: candidates in position to receive a proposal, out of
