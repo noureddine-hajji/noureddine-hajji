@@ -22,6 +22,7 @@ from . import analytics as A
 from . import config
 from . import journey as J
 from . import planb as PB
+from . import projet as PJ
 from . import voeux as VX
 from . import cache as CACHE
 from . import metiers as MT
@@ -309,6 +310,14 @@ METHODOLOGY = {
         "adaptée), jamais une moyenne, et le nombre de métiers selon la projection 2030 (règle fixe). Un repère n'apparaît "
         "que si l'écart du master et celui des débouchés directs de la licence ne se chevauchent pas. Un master sans fiche "
         "Onisep affiche « métiers non documentés ». Ce ne sont jamais des chances d'admission ou d'emploi."),
+    "projet_motive": (
+        "Le projet de formation motivé est le court texte que Parcoursup demande pour chaque vœu. Le rapport public d'une "
+        "formation liste les critères de son jury, ce qu'il regarde pour chacun et leur importance. « Préparer votre projet "
+        "motivé » garde les critères dont le jury dit qu'il les évalue sur le projet motivé (ou la lettre de motivation), mot "
+        "pour mot, du plus important au moins important, puis les lignes de ses critères éliminatoires qui le citent et ses "
+        "conseils. Sans rapport lisible pour la formation, il compte les rapports de formations semblables qui le citent, par "
+        "critère et par importance : ce ne sont pas les critères de cette formation. Rien n'est écrit à votre place, rien n'est "
+        "noté, et ce ne sont pas des chances d'admission : la fiche Parcoursup de la formation fait foi."),
     "voeux": (
         "« Mes vœux » relit votre liste (10 vœux au maximum, comme sur Parcoursup) pour votre profil actuel, avec le même "
         "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
@@ -588,6 +597,8 @@ def formation(cod: str, session: int | None = None):
             "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the verified reports of similar formations (same diploma and mention), read where the own report lacks a part
             "semblables": SB.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # "Préparer son projet motivé" (owner, 2026-11-10): the jury's own points, else the similar formations' counts
+            "projet": PJ.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
@@ -904,6 +915,19 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("
         raise HTTPException(422, str(exc)) from None
 
 
+@app.get("/api/projet/{cod}")
+def projet(cod: str):
+    """"Préparer son projet motivé": the points to check for one formation (no profile, no list: shared-cacheable).
+    Mes vœux reads it for each vœu, one formation at a time."""
+    if not cod.isdigit() or len(cod) > 9:
+        raise HTTPException(422, "code formation invalide")
+    con = _con().cursor()
+    rec = con.execute("SELECT max(session) FROM core.formation_year WHERE cod_aff_form = ?", [cod]).fetchone()
+    if not rec or rec[0] is None:
+        raise HTTPException(404, "formation inconnue")
+    return {"cod_aff_form": cod, "projet": PJ.for_formation(con, cod, rec[0])}
+
+
 @app.get("/api/metiers")
 def metiers():
     """Sprint 12: every Onisep job with its search labels, sent whole so the page searches it locally: what a student
@@ -986,7 +1010,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "projet_motive"]
 
 
 @lru_cache(maxsize=1)

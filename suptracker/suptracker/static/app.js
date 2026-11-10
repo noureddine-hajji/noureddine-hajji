@@ -549,6 +549,39 @@ function semblablesJuryCard(sem, rp) {
     ${critHtml}${edsHtml}${optHtml}${links}
     <p class="muted small">Des comptes de rapports, jamais une moyenne ni une note : ils décrivent l'examen des dossiers dans des formations semblables, pas des chances d'admission.</p></div>`;
 }
+// ---- "Préparer son projet motivé" (owner, 2026-11-10): the points to check, in the jury's own words -------------------
+// The server keeps the criteria whose wording or elements name the projet motivé (or the lettre de motivation), ordered by the
+// jury's importance, the lines of its eliminating criteria that name it, and its advice. Without readable texts of its own, the
+// similar formations' reports give COUNTS. Nothing is written for the student, nothing is scored, nothing is promised.
+const PJ_CAVEAT = "Ces points ne rédigent pas votre texte et ne disent pas vos chances : ils décrivent ce que le jury a examiné. La fiche Parcoursup de la formation fait foi.";
+function projetBody(pj) {
+  if (!pj) return `<p class="muted small">Aucun rapport public ne permet de lister les points du jury pour cette formation. Sa fiche Parcoursup fait foi.</p>`;
+  const impCls = (i) => { const k = RP_IMP.indexOf(i); return k < 0 ? "" : ` imp${k}`; };
+  if (pj.source === "rapport") {
+    const pts = pj.points.length
+      ? `<ul class="pj-list">${pj.points.map((p) => `<li><span class="rp-imp${impCls(p.importance)}">${esc(p.importance || "importance non précisée")}</span> <strong>${esc(p.critere)}</strong>
+          <div class="small">Le jury regarde : « ${esc(p.elements)} »</div><div class="muted small">${esc(p.champ)}</div></li>`).join("")}</ul>`
+      : `<p class="small">Ce rapport ne cite le projet motivé dans aucun de ses ${fmt(pj.n_criteres)} critères : son jury dit examiner le reste du dossier (bulletins, fiche Avenir).</p>`;
+    const rest = pj.points.length && pj.autres_criteres ? `<p class="muted small">Le jury examine aussi ${fmt(pj.autres_criteres)} autre${pj.autres_criteres > 1 ? "s critères" : " critère"} dans le reste du dossier : le projet motivé n'en est qu'une partie.</p>` : "";
+    const elim = pj.eliminatoires.length ? `<h3>Ce que le jury écarte</h3><p class="small">Les lignes de ses critères éliminatoires qui citent le projet motivé ou la lettre de motivation :</p>
+      ${pj.eliminatoires.map((l) => `<blockquote class="rp-quote">« ${esc(l)} »</blockquote>`).join("")}` : "";
+    const cons = pj.conseils ? `<details class="dip"><summary>Les conseils du jury pour la prochaine session</summary><p class="small">${rpText(pj.conseils)}</p></details>` : "";
+    return `<p class="small">D'après le rapport public ${esc(pj.session)} de cette formation${rpPending(pj)} : les critères que son jury dit évaluer sur le projet de formation motivé (ou la lettre de motivation), repris mot pour mot, du plus important au moins important. Relisez votre texte avec ces points.</p>
+      ${pts}${rest}${elim}${cons}
+      <p class="muted small">${PJ_CAVEAT}</p>
+      <p class="muted small">${rapportSource({ session: pj.session, capture: pj.capture, archive: pj.archive, source: pj.live ? "live" : "archive", recoupe: pj.recoupe })}</p>`;
+  }
+  const champs = [...pj.champs].sort((a, b) => b.n - a.n);
+  const imps = (c) => [...RP_IMP.filter((i) => c.importances[i]).map((i) => `${esc(i)} ${fmt(c.importances[i])}`),
+    ...(c.importances[""] ? [`importance non précisée ${fmt(c.importances[""])}`] : [])].join(", ");
+  return `<p class="small"><span class="estim">pas le rapport de cette formation</span> Cette formation n'a pas de rapport public lisible. Sur ${fmt(pj.n_rapports)} rapports publics ${esc(pj.session)} de formations semblables (${semName(pj)}), ${fmt(pj.n_cite)} citent le projet motivé ou la lettre de motivation dans leurs critères. Les critères où ils le citent, avec l'importance qu'ils leur donnent :</p>
+    ${champs.length ? `<ul class="pj-list">${champs.map((c) => `<li><strong>${esc(c.label)}</strong><div class="small">Dans ${fmt(c.n)} rapport${c.n > 1 ? "s" : ""} : ${imps(c)}</div></li>`).join("")}</ul>` : ""}
+    <p class="muted small">Des comptes de rapports d'autres formations, pas les critères de celle-ci : son jury peut avoir d'autres attentes. ${PJ_CAVEAT}</p>`;
+}
+function projetCard(pj) {
+  return `<div class="card" id="projet-motive"><h2>Préparer votre projet motivé : les points à vérifier ${tip("projet_motive")}</h2>${projetBody(pj)}</div>`;
+}
+
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
 function doubletteCharts(d, years, sem, rp) {
   if (!d) return "";
@@ -933,7 +966,7 @@ async function viewFormation(cod, session) {
       <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
   </div>
 `],
-    ["jury", "Ce que regarde le jury", juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport)],
+    ["jury", "Ce que regarde le jury", projetCard(d.projet) + (juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport))],
     ["reussite", "Réussir et poursuivre", `
   ${successCard(d.success)}
   ${masterCard(d.master)}
@@ -2051,6 +2084,25 @@ async function viewVoeux() {
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : ""}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
+  const pjRows = d.voeux.filter((v) => v.status !== "absente");
+  if (pjRows.length) {
+    $view.insertAdjacentHTML("beforeend", `<section class="card" id="vx-projets"><h2>Préparer vos projets motivés ${tip("projet_motive")}</h2>
+      <p class="small">Pour chaque vœu, les points que son jury dit évaluer sur le projet de formation motivé, d'après son rapport public. Ouvrez un vœu pour les lire.</p>
+      ${pjRows.map((v) => `<details class="dip" data-pjcod="${esc(v.cod_aff_form)}"><summary>${esc(v.etablissement)} · ${esc(v.filiere)}</summary><div class="pj-body"><p class="muted small">Lecture du rapport…</p></div></details>`).join("")}</section>`);
+    $view.querySelectorAll("[data-pjcod]").forEach((el) => {
+      el.addEventListener("toggle", async () => {
+        if (!el.open || el.dataset.loaded) return;
+        el.dataset.loaded = "1";
+        const body = el.querySelector(".pj-body");
+        let r;
+        try { r = await api(`/api/projet/${encodeURIComponent(el.dataset.pjcod)}`); } catch (e) {
+          if (el.isConnected) { body.innerHTML = `<p class="muted small">Points indisponibles pour le moment.</p>`; delete el.dataset.loaded; }
+          return;
+        }
+        if (el.isConnected) body.innerHTML = projetBody(r.projet);        // the user may have left the page meanwhile
+      });
+    });
+  }
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false);

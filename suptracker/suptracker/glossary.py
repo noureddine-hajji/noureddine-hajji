@@ -58,6 +58,9 @@ GLOSSARY = {
     "du_metier_aux_formations": ("Du métier aux formations", "Pour un métier, les diplômes qui y mènent d'après l'Onisep et les "
                                  "formations Parcoursup qui préparent ces diplômes. La liste est nationale : ce n'est pas "
                                  "une promesse d'emploi.", "metier_formations"),
+    "projet_motive": ("Projet de formation motivé", "Le court texte que Parcoursup demande pour chaque vœu. SupCompass "
+                      "liste les critères que le jury de la formation dit évaluer sur ce texte, repris de son rapport public : "
+                      "des points à vérifier en relisant, pas une note ni une chance d'admission.", "projet_motive"),
     "mes_voeux": ("Mes vœux", "Votre liste de formations (10 au maximum, comme sur Parcoursup), relue pour votre profil actuel : "
                   "chaque vœu reçoit sa zone, et la liste est lue avec des règles simples qui comptent les zones. Ce ne "
                   "sont pas des chances d'admission.", "voeux"),

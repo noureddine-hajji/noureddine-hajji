@@ -84,6 +84,7 @@ class Ctx:
             "/api/voeux": f"/api/voeux?{bg}&ids={c}", "/api/voeux/completer": f"/api/voeux/completer?{bg}&ids={c}",
             "/api/continuity": "/api/continuity",
             "/api/metiers": "/api/metiers", "/api/metier/{met_id}": f"/api/metier/{self.met_id}",
+            "/api/projet/{cod}": f"/api/projet/{c}",
             "/api/carte": "/api/carte", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/comprendre": "/api/comprendre",
