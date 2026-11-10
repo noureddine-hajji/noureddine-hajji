@@ -1942,3 +1942,38 @@ PR #41's single CI job took 56 minutes (52 for the parallel step), past the old 
     It also checks that `durations.json` lists exactly the parallel files, and that the build cache key changes with each input.
   - Red team S6 checks that the matrix lists shards 1..n with `--shard=i/n`, and that the `test` job fails when any job fails.
     S7 adds four mutants: a shard left out, another shard count, the timed job ignored, and the gate skipped on a failure.
+
+## Ready for the 2027 campaign (2026-11-10)
+
+The 2027 campaign opens in December (catalogue) and January (vœux). Three things would have gone wrong silently.
+
+- **The SIES rollover.**
+  - `fr-esr-parcoursup` always holds the latest campaign. When SIES publishes 2026 (expected early 2027, as 2025 came out
+    in March 2026), it moves to 2026, and 2025 gets a frozen `fr-esr-parcoursup_2025`.
+  - The registry read `parcoursup_2025` from the rolling id and trusted its own year over the file's. The monthly refresh would
+    have loaded 2026 under 2025 and dropped 2025.
+  - Now each vœux file is kept only if its own `session` column (SIES alias `annee`) is the registry year
+    (`ingest.check_session`). `parcoursup_2025` tries the frozen id first, then the rolling one.
+  - If the rolling id already holds 2026 before the frozen copy is out, the refresh stops with an error: it never publishes
+    the wrong year.
+  - `parcoursup_2026` is an optional slot. When SIES publishes it, the file is ingested and the run shows a warning
+    "Nouvelle campagne SIES". The site is not built on it until `config.YEARS` is updated (labels, forecasts, hold-outs).
+  - The live check in `verify_ground_truth` reads each campaign from the id it was really ingested from.
+- **New reports reached the site only when code changed.**
+  - The warehouse fingerprint left out `data/rapports/harvest`, so a day's new reports never published a new warehouse.
+    They are now part of the fingerprint.
+  - The data workflow also runs after each successful harvest run on `main` (`workflow_run`). It rebuilds only when the
+    harvest files differ from those of the last published warehouse (`data/harvest_fingerprint.txt`). While the fiches are
+    closed, the harvest writes nothing and no build runs.
+  - The scheduled refresh is now weekly (Mondays), so the 2027 cartographie (mid-December) and the SIES 2026 campaign reach
+    the site within a week.
+- **The live harvest's order.**
+  - Formations come first when they have no report of the NEWEST report session read (`max(core.rapport.session)`).
+    It used to be the latest SIES session.
+  - In January the fiches link 2026 reports while SIES stops at 2025. Under the old rule, every formation already holding a
+    2025 report would have waited behind the others.
+  - Those 2026 reports stay "pas encore recoupé" until SIES 2026 is built (rule R9), then they are cross-checked or dropped.
+- **Tests (`tests/test_campaign.py`).**
+  - Today's layout; the rollover; a rollover before the frozen id exists (the refresh stops); the session check on text values.
+  - The live harvest's order.
+  - The data workflow: the trigger, the harvest in the fingerprint, the gate, the weekly schedule.

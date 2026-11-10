@@ -530,10 +530,11 @@ def _r8(c: Ctx):
     if M["RP"].for_formation(mem, code, p["session"]):
         bad.append(("unverified live report kept",))
     credit = 'sur la fiche Parcoursup de la formation' in c.js and 'rp.source === "live"' in c.js
-    # the owner's priority: formations without a verified report of the latest session come first
+    # the owner's priority: formations without a report of the newest report session read come first (campaign 2027: the
+    # fiches link 2026 reports while SIES stops at 2025)
     order = L.codes(str(c.db))
     with_rep = {x for (x,) in c.con.execute("""SELECT cod_aff_form FROM core.rapport
-        WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
+        WHERE session = (SELECT max(session) FROM core.rapport)""").fetchall()}
     flags = [x in with_rep for x in order]
     if flags != sorted(flags) or len(set(order)) != len(order):
         bad.append(("priority order",))

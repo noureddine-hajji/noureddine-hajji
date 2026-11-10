@@ -2,6 +2,7 @@
  "tests/test_appel.py": 184,
  "tests/test_bmo.py": 307,
  "tests/test_calibration.py": 154,
+ "tests/test_campaign.py": 10,
  "tests/test_carte.py": 1079,
  "tests/test_cereq.py": 142,
  "tests/test_doublettes.py": 742,

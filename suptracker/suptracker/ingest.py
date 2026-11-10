@@ -90,6 +90,29 @@ def _ingest_file(ds, raw_dir: Path, dest: Path) -> dict:
             "rows": len(df), "columns": len(df.columns), "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 
+def sessions(path: Path) -> set[int]:
+    """The Parcoursup sessions a downloaded vœux file really holds (its own "session" column, SIES alias "annee")."""
+    names = pq.ParquetFile(path).schema_arrow.names
+    col = next((c for c in ("session", "annee") if c in names), None)
+    if col is None:
+        return set()
+    out = set()
+    for v in pq.read_table(path, columns=[col]).column(0).to_pylist():
+        try:
+            out.add(int(float(str(v).strip())))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def check_session(ds, path: Path) -> str | None:
+    """None when a vœux file holds exactly its registry year, else why it is refused."""
+    if ds.kind != "voeux" or ds.year is None:
+        return None
+    got = sessions(path)
+    return None if got == {ds.year} else f"holds session(s) {sorted(got) or 'none'}, not {ds.year}"
+
+
 def _sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fh:
@@ -132,6 +155,12 @@ def ingest(raw_dir: Path = config.RAW_DIR, only: set[str] | None = None, force: 
                 last_err = exc
                 print(f"[fail] {ods_id}: {exc}", file=sys.stderr)
                 continue
+            refused = check_session(ds, dest)
+            if refused:                       # e.g. the rolling id already moved to the next campaign: try the next id
+                dest.unlink(missing_ok=True)
+                last_err = RuntimeError(f"{ods_id} {refused}")
+                print(f"[skip] {ds.key}: {ods_id} {refused}", file=sys.stderr)
+                continue
             meta = pq.ParquetFile(dest).metadata
             manifest[ds.key] = {
                 "ods_id": ods_id,
@@ -147,8 +176,17 @@ def ingest(raw_dir: Path = config.RAW_DIR, only: set[str] | None = None, force: 
             last_err = None
             break
         if last_err is not None:
-            raise RuntimeError(f"could not ingest {ds.key}: {last_err}") from last_err
+            if not ds.optional:
+                raise RuntimeError(f"could not ingest {ds.key}: {last_err}") from last_err
+            print(f"[warn] optional {ds.key} not ingested: {last_err}", file=sys.stderr)
+            manifest.pop(ds.key, None)
+            dest.unlink(missing_ok=True)
     (raw_dir / MANIFEST).write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+    nxt = manifest.get(f"parcoursup_{config.NEXT_YEAR}")
+    if nxt:                               # GitHub Actions shows this as a warning on the run (and in its summary)
+        print(f"::warning title=Nouvelle campagne SIES::SIES a publié la session {config.NEXT_YEAR} "
+              f"({nxt['rows']} formations, {nxt['ods_id']}). Le site affiche toujours {min(config.YEARS)}-{max(config.YEARS)} : "
+              f"ajouter {config.NEXT_YEAR} à config.YEARS (sprint de mise à jour).")
     return manifest
 
 

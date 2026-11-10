@@ -18,7 +18,7 @@ ODBL = "Open Database License (ODbL) 1.0"
 
 SOURCES = (
     {"key": "parcoursup", "title": "Parcoursup 2022-2025 : vœux et réponses des établissements", "producer": "MESR-SIES",
-     "access": "ods", "datasets": ("parcoursup_2022", "parcoursup_2023", "parcoursup_2024", "parcoursup_2025"),
+     "access": "ods", "datasets": ("parcoursup_2022", "parcoursup_2023", "parcoursup_2024", "parcoursup_2025", "parcoursup_2026"),
      "granularity": "formation", "keys": ("cod_aff_form", "cod_uai", "etablissement_id_paysage"),
      "feeds": ("acces", "profil_admis"), "status": "en_ligne", "licence": LICENCE_OUVERTE,
      "url": "https://www.data.gouv.fr/datasets/parcoursup-2025-voeux-de-poursuite-detudes-et-de-reorientation-dans-lenseignement-superieur-et-reponses-des-etablissements"},

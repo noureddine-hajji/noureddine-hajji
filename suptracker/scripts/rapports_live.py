@@ -63,15 +63,16 @@ def is_closed(resp) -> bool:
 
 
 def codes(db: str) -> list[str]:
-    """Every formation of the latest SIES campaign and of the latest cartographie session: first those with no verified
-    report of the latest SIES session (the owner's priority), then the others (refreshed)."""
+    """Every formation of the latest SIES campaign and of the latest cartographie session: first those with no report of
+    the NEWEST report session already read (the owner's priority), then the others (refreshed). Campaign 2027: the fiches
+    then link the 2026 reports, SIES still stops at 2025, so the newest session read is the one to complete."""
     import duckdb
     con = duckdb.connect(db, read_only=True)
     try:
         has_rap = bool(con.execute("""SELECT count(*) FROM information_schema.tables WHERE table_schema = 'core'
                                       AND table_name = 'rapport'""").fetchone()[0])
         done = {c for (c,) in con.execute("""SELECT cod_aff_form FROM core.rapport
-            WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()} if has_rap else set()
+            WHERE session = (SELECT max(session) FROM core.rapport)""").fetchall()} if has_rap else set()
         allc = {c for (c,) in con.execute("""SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
             UNION SELECT cod_aff_form FROM core.cartographie WHERE carto_session = (SELECT max(carto_session) FROM core.cartographie)""").fetchall()}
         return sorted(allc - done, key=_num) + sorted(allc & done, key=_num)

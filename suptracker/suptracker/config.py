@@ -12,6 +12,9 @@ ODS_BASE = os.environ.get(
 EDU_ODS_BASE = os.environ.get("EDU_ODS_BASE", "https://data.education.gouv.fr/api/explore/v2.1")
 
 YEARS: tuple[int, ...] = (2022, 2023, 2024, 2025)
+# The campaign after YEARS: ingested when SIES publishes it (never under another year), but not built until the
+# site is updated for it (labels, forecasts, hold-outs); ingest.py flags its arrival.
+NEXT_YEAR = max(YEARS) + 1
 LATEST_YEAR = max(YEARS)
 
 DATA_DIR = Path(os.environ.get("SUPTRACKER_DATA", Path(__file__).resolve().parents[1] / "data"))
@@ -36,7 +39,11 @@ class Dataset:
 
 
 DATASETS: tuple[Dataset, ...] = (
-    Dataset("parcoursup_2025", ("fr-esr-parcoursup",), "voeux", 2025),
+    # The rolling id "fr-esr-parcoursup" holds the LATEST campaign: when SIES publishes the next one, it moves to the new
+    # campaign and the previous one gets a frozen "_<year>" id. Each file is kept only if its own session column is the
+    # registry year (ingest.check_session), so a rollover never loads one campaign under another's year.
+    Dataset("parcoursup_2026", ("fr-esr-parcoursup_2026", "fr-esr-parcoursup"), "voeux", 2026, optional=True),
+    Dataset("parcoursup_2025", ("fr-esr-parcoursup_2025", "fr-esr-parcoursup"), "voeux", 2025),
     Dataset("parcoursup_2024", ("fr-esr-parcoursup_2024",), "voeux", 2024),
     Dataset("parcoursup_2023", ("fr-esr-parcoursup_2023",), "voeux", 2023),
     Dataset("parcoursup_2022", ("fr-esr-parcoursup_2022",), "voeux", 2022),

@@ -259,6 +259,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Rates: errors in points, clipped to [0, 100]. Counts: proportional errors, rounded outwards. Zero-admit campaigns'
     `pct_*` are ignored. The access rate is NOT re-forecast: it is sprint 5's `mart.forecast` range (both pages agree), served only with two
     PUBLISHED rates (sprint 5's n_hist counts campaigns, rate or not).
+- **Campaign rollover (2027 readiness).** `fr-esr-parcoursup` is the LATEST campaign, it moves when SIES publishes the next one:
+  every vœux file is kept only if its own `session` column is the registry year (`ingest.check_session`); a year reads its frozen
+  `_<year>` id first. `parcoursup_<NEXT_YEAR>` is an optional slot: ingested and flagged ("Nouvelle campagne SIES"), never built
+  until `config.YEARS` is updated by hand. The warehouse fingerprint includes `data/rapports/harvest`; the data workflow runs
+  weekly and after each successful harvest on main (only when the harvest changed). The live harvest reads first the fiches with no
+  report of the newest report session read. Tests: `tests/test_campaign.py`.
 - **Search.**
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
