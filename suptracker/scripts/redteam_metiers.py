@@ -360,7 +360,7 @@ def vercel_ignored(path: str, text: str) -> bool:
 
 
 BUNDLE_OUT = ("data/sources", "data/probe")          # owner uploads and probes: never read when serving
-BUNDLE_IN = ("data/suptracker.duckdb", "suptracker/api.py", "suptracker/static/app.js", "requirements.txt")
+BUNDLE_IN = ("data/suptracker.duckdb", "data/rapport_textes.duckdb", "suptracker/api.py", "suptracker/static/app.js", "requirements.txt")
 
 
 def deploy_ok(text: str) -> bool:

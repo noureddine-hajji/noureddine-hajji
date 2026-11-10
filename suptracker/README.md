@@ -967,6 +967,9 @@ carte"):**
   - download, then parsing by `scripts/rapports_parse.py` (pdfplumber table extraction: continuation pages, repeated
     headers, title rows, masked bac types; the jury's sections by their headings, never the signature);
   - CSVs plus `qualitatif.jsonl.gz` in `data/rapports/harvest/`.
+  - `rapports.build` checks each report against SIES. The jury texts of the reports it keeps go to `data/rapport_textes.duckdb`, a
+    file beside the warehouse that is built and committed with it. With the live harvest (about 12 000 texts, 19 MB), keeping
+    them in the warehouse pushed it over the 95 MB guard.
   - It is resumable: each run stops after its time budget, and pushing `data/rapports/request.json` again continues it.
   - **Repair** (`"mode": "repair"`, `--repair`): the files left unread (a download answering 404, a damaged PDF) are tried
     again on every other capture of the same URL, newest first, as archived then rebuilt by qpdf (pikepdf). A rebuilt file

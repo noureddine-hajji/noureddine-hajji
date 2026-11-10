@@ -301,7 +301,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Rate = en_position / confirmed, the formation's access rate broken down by doublette, computed from published counts
     and shown with them. The table covers only candidates schooled in terminale in France since 2020-2021: say so.
     "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
-  - Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
+  - Jury texts live in `data/rapport_textes.duckdb` beside the warehouse (built and committed with it; they alone pushed it over 95 MB),
+    read by digest (`rapports.texte`). Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
   - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R9).
   - Unread files (`--repair`, request mode "repair"): every other capture of the URL, as archived then rebuilt by qpdf
