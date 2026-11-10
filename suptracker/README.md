@@ -1977,3 +1977,42 @@ The 2027 campaign opens in December (catalogue) and January (vœux). Three thing
   - Today's layout; the rollover; a rollover before the frozen id exists (the refresh stops); the session check on text values.
   - The live harvest's order.
   - The data workflow: the trigger, the harvest in the fingerprint, the gate, the weekly schedule.
+
+## "Compléter ma liste" in Mes vœux (owner's request, 2026-11-10)
+
+When the reading of the list says "aucun vœu de sécurité sûr", the page shows a card of safety vœux in the filières the
+student already chose.
+
+- **Rules (`voeux.completer`, `/api/voeux/completer`).** These are Plan B's rules, restricted to a safety read with certainty:
+  - for each (type, programme `fil_lib_voe_acc`) of the student's vœux;
+  - the formations in the zone "sécurité" without uncertainty, with a solid reading (`planb.usable`);
+  - not already listed, and not of the same concours pool as a listed vœu;
+  - fee-charging private institutions only on request, then flagged "privé payant";
+  - at most 2 per establishment and 3 per filière;
+  - the student's académie first, then the distance to the nearest vœu of that filière.
+  - A filière with no such formation is said so. With a sure safety in the list, nothing is computed.
+- **Data check (real warehouse, bac général MATHS + SES).**
+  - For a list of selective formations: 58 safety alternatives in Droit, 25 in Informatique, 2 in BUT GEA, none in some
+    Psychologie programmes.
+  - It takes about one second per list.
+  - "Informatique" is both a licence and a BUT, so each group carries its type.
+- **Route and privacy.** The route takes the same inputs as `/api/voeux`. It records no analytics event and is `no-store`.
+- **Page.**
+  - The card loads only on the `aucune_securite` message, and its render is race-guarded.
+  - Each row has "ajouter à mes vœux" (disabled at 10 vœux). A box shows the paid institutions left out.
+  - Every figure cell carries its `data-label`.
+  - The text says these are zones of past admitted cohorts, "pas des chances d'admission".
+  - Playwright: light, dark and phone views, no JS error, no horizontal scroll, and adding a suggestion updates the list.
+- **Red team (`redteam_voeux.py`).**
+  - V7 re-derives every suggestion independently, with the paid toggle on and off. It also runs with 10 per filière on a
+    programme where one establishment has 3 or more safeties, so the cap of 2 shows.
+  - V8 checks the route's inputs, the absence of analytics, `no-store`, and the card's escaping, labels, race guard, wording and wiring.
+  - V9 is the mutation test: 17 mutants (10 Python, 7 page), all caught on real data.
+
+## The carte red team no longer sets the CI pace (2026-11-10)
+
+On real data, the carte red team took 13 minutes, 12.4 of them in C8, its mutation test.
+- `redteam_carte.run` now takes `checks=` and `part=(i, n)`.
+- `tests/test_carte.py` runs every check but C8 on real data.
+- `tests/test_carte_mutants_{1,2,3}.py` each run every third mutant. They are separate files, so the CI shard planner
+  spreads them. Each part must catch all its mutants, and the three parts cover every mutant once.

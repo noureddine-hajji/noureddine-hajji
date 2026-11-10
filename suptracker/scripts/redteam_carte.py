@@ -60,7 +60,7 @@ def check(name):
 
 class Ctx:
     def __init__(self, db: Path, real: bool = False):
-        self.db, self.real = db, real
+        self.db, self.real, self.part = db, real, None
         self.con = duckdb.connect(str(db), read_only=True)
         self.js = (STATIC / "app.js").read_text()
         self.html = (STATIC / "index.html").read_text()
@@ -592,7 +592,11 @@ def c8(c: Ctx):
     links = any(not (u or "").startswith("https://dossierappel.parcoursup.fr/") for cod, u in
                 c.con.execute("SELECT cod_aff_form, fiche_url FROM core.cartographie WHERE apprentissage IS TRUE").fetchall() if cod in shown)
     skipped = {n for n, cond in (("paid flag lost", paid), ("double licences missed", dbl), ("any link kept", links)) if not cond}
-    for name, old, new in [m for m in PY_MUTANTS if m[0] not in skipped]:
+    # CI speed-up: c.part = (i, n) runs every n-th mutant from the i-th (tests/test_carte_mutants_*.py spread them over shards)
+    mine = lambda k: c.part is None or k % c.part[1] == c.part[0]  # noqa: E731
+    py = [m for k, m in enumerate(PY_MUTANTS) if mine(k) and m[0] not in skipped]
+    js_m = [m for k, m in enumerate(JS_MUTANTS, start=len(PY_MUTANTS)) if mine(k)]
+    for name, old, new in py:
         src = path.read_text()
         if old not in src:
             missed.append(f"{name} (anchor gone)"); continue
@@ -607,7 +611,7 @@ def c8(c: Ctx):
         finally:
             M["CA"] = saved
             sys.modules.pop("suptracker._mut_ca", None)
-    for name, old, new in JS_MUTANTS:
+    for name, old, new in js_m:
         if old not in c.js:
             missed.append(f"{name} (anchor gone)"); continue
         saved, c.js = c.js, c.js.replace(old, new, 1)
@@ -616,14 +620,19 @@ def c8(c: Ctx):
                 missed.append(name)
         finally:
             c.js = saved
-    n = len(PY_MUTANTS) - len(skipped) + len(JS_MUTANTS)
-    return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
+    n = len(py) + len(js_m)
+    part = f" (part {c.part[0] + 1}/{c.part[1]})" if c.part else ""
+    return not missed and n > 0, f"{n - len(missed)}/{n} mutants caught by a failing check{part}" + (f"; missed {missed}" if missed else "")
 
 
-def run(db: Path, real: bool = False) -> list[dict]:
+def run(db: Path, real: bool = False, checks: set[str] | None = None, part: tuple[int, int] | None = None) -> list[dict]:
+    """checks: the check ids to run (e.g. {"C8"}), all by default; part: (i, n) for C8's mutants (CI speed-up)."""
     c = Ctx(db, real)
+    c.part = part
     out = []
     for fn in CHECKS:
+        if checks is not None and fn.check_name.split()[0] not in checks:
+            continue
         try:
             ok, detail = fn(c)
         except Exception as e:  # noqa: BLE001

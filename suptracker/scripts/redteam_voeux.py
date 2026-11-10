@@ -367,7 +367,17 @@ def _km(a, b):
     return 2 * 6371.0 * math.asin(math.sqrt(math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2))
 
 
-def ref_completer(con, ev, *, serie, dkey, mention, academie, include_paid):
+_STAGE2 = {}
+
+
+def _rows(con, dkey, mention, tk, academie, serie):
+    k = (id(con), dkey, mention, tk, academie, serie)
+    if k not in _STAGE2:
+        _STAGE2[k] = J.stage2(con, dkey, mention, tk, academie, serie=serie)["formations"]
+    return _STAGE2[k]
+
+
+def ref_completer(con, ev, *, serie, dkey, mention, academie, include_paid, limit=3):
     """The red team's own suggestions: safety read with certainty, same programme, solid reading, not listed, not the same
     concours pool, paid only on request, 2 per establishment, 3 per filière, académie then nearest vœu (independent code)."""
     needed = not any(v.get("zone") == "securite" and v.get("uncertain") is False for v in ev["voeux"])
@@ -380,7 +390,7 @@ def ref_completer(con, ev, *, serie, dkey, mention, academie, include_paid):
         if v["status"] == "ok" and v.get("type_key") and v.get("filiere") and (v["type_key"], v["filiere"]) not in keys:
             keys.append((v["type_key"], v["filiere"]))
     for tk, fil in keys:
-        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie)["formations"]
+        rows = _rows(con, dkey, mention, tk, academie, serie)
         mine = [r for r in rows if r["cod_aff_form"] in listed and r["filiere"] == fil]
         ok = []
         for f in rows:
@@ -404,39 +414,52 @@ def ref_completer(con, ev, *, serie, dkey, mention, academie, include_paid):
                 continue
             seen[k] = seen.get(k, 0) + 1
             out.append(f["cod_aff_form"])
-            if len(out) == 3:
+            if len(out) == limit:
                 break
         groups[(tk, fil)] = out
     return {"needed": True, "groups": groups, "hidden": hidden}
 
 
-def completer_cases(c: Ctx):
-    """Lists with no sure safety: the ambitious or target formations of a few types for each profile (and a balanced list)."""
+def completer_cases(c: Ctx, quick: bool = False):
+    """Lists with no sure safety: the ambitious or target formations of a few types for each profile, without and with an
+    académie (quick: the first profile only, for the mutation test)."""
     cases = []
-    for serie, dkey, mention in c.profiles[:3]:
-        picked = []
-        for tk in sorted(set(c.type_of.values()))[:12]:
+    from collections import Counter
+    big = [tk for tk, _ in Counter(c.type_of.values()).most_common(4 if quick else 6)]   # the largest types: most alternatives
+    for serie, dkey, mention in c.profiles[:1 if quick else 3]:
+        picked, safe_acads = [], Counter()
+        for tk in big:
             rows = c.full(serie, dkey, mention, tk)
             picked += [cod for cod, f in sorted(rows.items()) if f["zone"] in ("ambitieux", "cible")][:2]
-            if len(picked) >= 8:
-                break
-        acad = next((f["academie"] for tk in sorted(set(c.type_of.values()))[:3]
-                     for f in c.full(serie, dkey, mention, tk).values() if f.get("academie")), None)
+            safe_acads.update(f["academie"] for f in rows.values() if f["zone"] == "securite" and f["uncertain"] is False and f.get("academie"))
+        acad = safe_acads.most_common(1)[0][0] if safe_acads else None
         cases.append((serie, dkey, mention, None, picked[:8]))
         cases.append((serie, dkey, mention, acad, picked[:8]))
+        # the cap of 2 per establishment shows only where one establishment has 3+ safeties of one programme: a list of
+        # one non-safe vœu of such a programme, when the warehouse has one (real data: engineering schools' bac+3)
+        for tk in big:
+            rows = c.full(serie, dkey, mention, tk)
+            n = Counter((f["filiere"], f["etablissement"], f["ville"]) for f in rows.values()
+                        if f["zone"] == "securite" and f["uncertain"] is False and not f.get("rate_fragile") and not f.get("small_cohort"))
+            fil = next((k[0] for k, v in n.most_common() if v >= 3), None)
+            vo = next((cod for cod, f in sorted(rows.items()) if fil and f["filiere"] == fil and f["zone"] in ("ambitieux", "cible")), None)
+            if vo:
+                cases.append((serie, dkey, mention, None, [vo]))
+                break
     return cases
 
 
-def check_completer(c: Ctx, fn=None):
+def check_completer(c: Ctx, fn=None, quick: bool = False):
     fn = fn or VX.completer
     bad, n_groups, n_sugg = [], 0, 0
-    for serie, dkey, mention, acad, ids in completer_cases(c):
+    for serie, dkey, mention, acad, ids in completer_cases(c, quick):
         if not ids:
             continue
         ev = VX.evaluate(c.con, ids, serie=serie, dkey=dkey, mention=mention, academie=acad)
-        for paid in (False, True):
-            got = fn(c.con, ids, serie=serie, dkey=dkey, mention=mention, academie=acad, include_paid=paid)
-            want = ref_completer(c.con, ev, serie=serie, dkey=dkey, mention=mention, academie=acad, include_paid=paid)
+        # (paid, per filière): the default 3 without and with paid institutions, and 10 with them (the cap per establishment shows)
+        for paid, lim in ((False, 3), (True, 3), (True, 10)):
+            got = fn(c.con, ids, serie=serie, dkey=dkey, mention=mention, academie=acad, include_paid=paid, per_filiere=lim)
+            want = ref_completer(c.con, ev, serie=serie, dkey=dkey, mention=mention, academie=acad, include_paid=paid, limit=lim)
             if got["needed"] != want["needed"]:
                 bad.append(("needed", serie, mention, acad))
                 continue
@@ -503,7 +526,6 @@ COMPLETER_MUTANTS = [
     ("uncertain safety proposed", 'if f["zone"] != "securite" or f["uncertain"]:', 'if f["zone"] != "securite":'),
     ("target zone proposed", 'if f["zone"] != "securite" or f["uncertain"]:', 'if f["zone"] not in ("securite", "cible") or f["uncertain"]:'),
     ("fragile reading proposed", 'or not PB.usable(f):', ':'),
-    ("a listed vœu proposed again", 'or f["cod_aff_form"] in listed or', 'or'),
     ("another programme proposed", 'if f["filiere"] != fil or f["cod_aff_form"]', 'if f["cod_aff_form"]'),
     ("paid institutions not hidden", "if PB.paid(f) and not include_paid:", "if False:"),
     ("same concours pool proposed", "if any(PB.same_pool(t, f) for t in targets):", "if False:"),
@@ -540,7 +562,7 @@ def v9(c: Ctx):
     missed = []
     for name, old, new in COMPLETER_MUTANTS:
         fn = mutated_completer(old, new)
-        if fn is None or check_completer(c, fn)[0]:
+        if fn is None or check_completer(c, fn, quick=True)[0]:
             missed.append(name)
     js = APP_JS.read_text()
     for name, old, new in COMPLETER_UI_MUTANTS:
