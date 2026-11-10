@@ -77,6 +77,74 @@ def test_index_is_built_once_per_warehouse(con):
     assert a is b and len(S._CACHE) == 1
 
 
+FIELDS = ("docs", "postings", "vocab", "df", "places", "label_df", "by_uai", "by_cod", "double")
+
+
+def test_stored_index_equals_a_rebuilt_one_and_is_used(con, monkeypatch):
+    """Product audit (2026-11-10): the build stores the index (mart.search_index); the first search of an instance loads it
+    instead of building it (4 s measured on the live site)."""
+    stored = S.stored_index(con)
+    assert stored is not None, "the warehouse build did not store the search index"
+    built = S.build_index(con)
+    assert all(getattr(stored, k) == getattr(built, k) for k in FIELDS)
+    S._CACHE.clear()
+    monkeypatch.setattr(S, "build_index", lambda c: (_ for _ in ()).throw(AssertionError("built although stored")))
+    assert S.get_index(con).by_cod == built.by_cod
+
+
+def test_an_index_stored_by_another_code_version_is_rebuilt(con, monkeypatch):
+    monkeypatch.setattr(S, "INDEX_VERSION", "another-version")
+    assert S.stored_index(con) is None                       # never a stale index
+    S._CACHE.clear()
+    assert S.get_index(con).docs                             # built on the spot
+
+
+def test_stored_index_is_data_not_code(con):
+    import json
+    import zlib
+    blob = con.execute("SELECT data FROM mart.search_index").fetchone()[0]
+    assert isinstance(json.loads(zlib.decompress(bytes(blob))), dict)      # compressed JSON, never a pickle
+
+
+@pytest.mark.parametrize("detail", [[{"type": "int_parsing", "loc": ["query", "session"]}], {"a": 1}, None, ""])
+def test_page_never_shows_a_raw_validation_error(detail):
+    """The Spécialités page showed "[object Object]": a FastAPI 422 carries a list of objects."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    i = js.index("function apiErrorText(")
+    fn = js[i: js.index("async function api(", i)]
+    out = subprocess.run([node, "-e", fn + "process.stdout.write(apiErrorText(JSON.parse(process.argv[1])));", __import__("json").dumps(detail)],
+                         capture_output=True, text=True, timeout=60).stdout
+    assert "object" not in out and out.startswith("La page n'a pas pu être chargée")
+    kept = subprocess.run([node, "-e", fn + "process.stdout.write(apiErrorText('formation inconnue'));"], capture_output=True, text=True, timeout=60).stdout
+    assert kept == "formation inconnue"
+
+
+def test_specialites_page_sends_no_empty_parameter():
+    js = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    assert "session=${session || \"\"}" not in js and 'if (/^\\d{4}$/.test(String(session || ""))) sq.set("session", session);' in js
+
+
+def test_specialites_api_default_and_empty(con, monkeypatch, tmp_path_factory):
+    from fastapi.testclient import TestClient
+
+    from suptracker import api
+    db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()[0]
+    monkeypatch.setenv("SUPTRACKER_DB", db)
+    monkeypatch.setenv("SUPTRACKER_ANALYTICS", "off")
+    api._con.cache_clear()
+    try:
+        cl = TestClient(api.app)
+        assert cl.get("/api/specialites").status_code == 200              # what the page now sends on a first visit
+        assert cl.get("/api/specialites?session=&formation_type=").status_code == 422   # what it used to send
+    finally:
+        api._con.cache_clear()
+
+
 @pytest.mark.parametrize("q", ["", " ", "%", "' OR 1=1 --", "<script>alert(1)</script>", "x" * 5000, "de la", "🙂"])
 def test_hostile_inputs_are_inert(con, q):
     r = S.search(con, q)
@@ -137,3 +205,29 @@ def test_search_quality_gate_on_real_data():
         E.GOLD[:] = gold
     failed = [r for r in R.run(real, n_load=300) if not r["ok"]]
     assert not failed, failed
+
+
+def _real_has_index():
+    try:
+        c = duckdb.connect(str(REAL_DB), read_only=True)
+        n = c.execute("SELECT count(*) FROM mart.search_index").fetchone()[0]
+        c.close()
+        return n > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@pytest.mark.skipif(not (REAL_DB.exists() and _real_has_index()), reason="real warehouse without a stored search index")
+def test_committed_warehouse_carries_the_index_of_this_code():
+    """A change to search.py makes the stored index stale: the live site would build it again at the first search of every
+    instance (4 s). Rebuild the warehouse on the branch (suptracker-data workflow) before merging."""
+    c = duckdb.connect(str(REAL_DB), read_only=True)
+    try:
+        version = c.execute("SELECT version FROM mart.search_index").fetchone()[0]
+        assert version == S.INDEX_VERSION, "search.py changed since the warehouse was built: run the suptracker-data workflow on this branch"
+        stored = S.stored_index(c)
+        assert stored is not None
+        built = S.build_index(c)                             # and it is the index of THIS data, not of an earlier build
+        assert all(getattr(stored, k) == getattr(built, k) for k in FIELDS)
+    finally:
+        c.close()

@@ -272,6 +272,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   weekly and after each successful harvest on main (only when the harvest changed). The live harvest reads first the fiches with no
   report of the newest report session read. Tests: `tests/test_campaign.py`.
 - **Search.**
+  - The index is stored at build in `mart.search_index` (compressed JSON, never pickle; `INDEX_VERSION` = digest of `search.py`, a
+    stale version is rebuilt on the spot). The first search of a serverless instance must never build it (4 s on the live site):
+    after ANY change to `search.py`, run the data workflow on the branch (a test fails on a committed warehouse with another version).
   - Gold set and holdouts must stay at 100 %.
   - The tie-break is an attribute-neutral hash.
   - `clean_complement` handles establishment names containing " - ".
@@ -380,7 +383,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
   when there is no profile. Red team K7.
-- **Front-end.** Escape every stored string with `esc()`. Async renders must check that their
+- **Front-end.** Never send an empty query parameter (`session=` is a 422); errors go through `apiErrorText` (a 422's detail is a
+  list: never shown raw). Escape every stored string with `esc()`. Async renders must check that their
   target element is still the one on the page (navigation races).
 
 ## Status (2026-11-02)

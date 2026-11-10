@@ -2016,3 +2016,31 @@ On real data, the carte red team took 13 minutes, 12.4 of them in C8, its mutati
 - `tests/test_carte.py` runs every check but C8 on real data.
 - `tests/test_carte_mutants_{1,2,3}.py` each run every third mutant. They are separate files, so the CI shard planner
   spreads them. Each part must catch all its mutants, and the three parts cover every mutant once.
+
+## Product audit, 2026-11-10: three defects found and fixed
+
+A full walk through the app on a phone, the warehouse and the live monitor's logs found three defects.
+
+- **The Spécialités page was broken.**
+  - Opened from the menu, it sent `session=` (empty). The API answers 422, and the page showed "[object Object]".
+  - The page now sends only the parameters it has.
+  - `apiErrorText` never shows a raw validation error: a FastAPI 422 carries a list of objects.
+- **The first search of an instance took about 4 s on the live site** (monitor logs: 4.0 s and 4.1 s; 2 s locally).
+  - The index was built at the first search. The background warm-up gets no CPU between requests on a serverless instance.
+  - The build now stores the index in `mart.search_index` as compressed JSON (2.3 MB; the warehouse is 85.5 MB), never a
+    pickle. Loading it takes 0.3 s.
+  - `INDEX_VERSION` is the digest of `search.py`. An index stored by another version of the code is ignored and rebuilt on
+    the spot, so a stale index is never served.
+  - The documents are read in a fixed order, so the stored index and a rebuilt one are equal.
+  - The text functions (`fold`, `stem`, tokens, place keys) are memoised: same results, a rebuild in 1.4 s instead of 2 s.
+- **The profile bar told a new visitor "les zones de vos vœux ne peuvent pas être lues"** when they have no vœu yet. With an
+  empty list it now says what the profile brings.
+- **Measured on the rebuilt warehouse (84.7 MB):** the first search of a fresh process takes 0.37 s instead of 2.06 s.
+- **Guard.** A test fails when the committed warehouse carries the index of another version of `search.py`: the warehouse must
+  be rebuilt on the branch (data workflow) before such a change is merged.
+- **Tests (`tests/test_search.py`).**
+  - The stored index equals a rebuilt one and is the one used.
+  - Another code version rebuilds it.
+  - The blob is JSON.
+  - The error text never contains "object".
+  - The Spécialités call and API (200 by default, 422 on the old call).
