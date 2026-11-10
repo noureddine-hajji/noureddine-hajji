@@ -27,6 +27,7 @@ POLICY = [
     (r"/api/search", NO_STORE, "records a search event"),
     (r"/api/e", NO_STORE, "audience beacon"),
     (r"/api/voeux", NO_STORE, "the student's personal list: never kept by a shared cache"),
+    (r"/api/voeux/completer", NO_STORE, "safety vœux for the student's personal list: never kept by a shared cache"),
     (r"/api/stats", NO_STORE, "private dashboard (token)"),
     (r"/api/version", NO_STORE, "what is live right now"),
     (r"/healthz", NO_STORE, "liveness"),
