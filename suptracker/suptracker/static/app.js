@@ -315,7 +315,7 @@ async function viewSearch(q, rawParams) {
     ${d.results.map((r) => `<div class="result"><div>
         <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
         ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
-        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}
+        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}
         <span class="muted small">${r.session} · ${r.lineage_years} campagne(s)</span>
         ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
       </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
@@ -687,7 +687,7 @@ function carteDetail(f, hasProfile) {
   if (f.stats === false) return carteAppDetail(f);
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
-    <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
+    <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}${autresBadge(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
     <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/parcours">Indiquez votre profil</a> pour voir votre zone.`}
     · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
     ${appOffers(f.offres_app)}
@@ -701,7 +701,7 @@ function carteList(rows, hasProfile) {
       <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br><span class="badge">en apprentissage</span>${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">—</div><div class="muted small">pas de statistiques</div></div></div>`; }
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span> ` : ""}${voieBadges(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span> ` : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
@@ -837,6 +837,21 @@ async function viewCarte(dArg, mArg) {
 // summaryBand: four figures read at a glance (official access rate, the student's zone, admits, jobs); every tile opens its tab.
 // The zone tile is filled by the Plan B answer (same profile, same zone as « Mon parcours »); without a stored profile it asks for one.
 const fmt2 = (x) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// who the admits are (owner, 2026-11-10): the PUBLISHED counts of néo-bacheliers and other admits (suptracker/admis.py);
+// the bar is drawn only when they add up to the published total; the label in lists comes from the server's fixed rule
+const AUTRES_LABEL = "Majorité d'admis hors néo-bacheliers";
+const autresBadge = (x) => (x && x.autres_majoritaires ? ` <span class="badge autres" title="Plus d'admis déjà bacheliers ou venus d'un autre parcours (réorientation, reprise d'études…) que de néo-bacheliers, sur au moins 10 admis">${AUTRES_LABEL}</span>` : "");
+function admisBar(a) {
+  if (!a) return "";
+  const head = `<strong>Qui sont les admis ${esc(a.session)} ?</strong>`;
+  const note = `<p class="muted small">Néo-bacheliers : ils passaient le bac l'année de leur admission. Autres admis : ils avaient déjà le bac ou venaient d'un autre parcours (réorientation, reprise d'études…) ; le SIES ne les détaille pas. Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.</p>`;
+  if (!a.coherent) return `<div class="adm"><p class="small">${head} ${fmt(a.admis_neobac)} néo-bacheliers et ${fmt(a.admis_autres)} autres admis publiés, pour ${fmt(a.admis)} admis : les deux effectifs ne font pas exactement le total publié, la répartition n'est pas dessinée.</p>${note}</div>`;
+  const w = (n) => (100 * n / a.admis).toFixed(2);
+  return `<div class="adm"><p class="small">${head}${autresBadge(a)}</p>
+    <div class="adm-bar" role="img" aria-label="${fmt(a.admis_neobac)} néo-bacheliers et ${fmt(a.admis_autres)} autres admis sur ${fmt(a.admis)} admis"><span class="neo" style="width:${w(a.admis_neobac)}%"></span><span class="autres" style="width:${w(a.admis_autres)}%"></span></div>
+    <p class="small"><span class="adm-key neo"></span>${fmt(a.admis_neobac)} néo-bacheliers${a.pct_neobac != null ? ` (${pct(a.pct_neobac)} des admis)` : ""} · <span class="adm-key autres"></span>${fmt(a.admis_autres)} autres admis</p>${note}</div>`;
+}
+const admisCell = (a) => (!a ? "—" : `${fmt(a.admis_neobac)} / ${fmt(a.admis_autres)}${a.coherent ? "" : ` <span class="muted small">(total publié ${fmt(a.admis)})</span>`}${autresBadge(a)}`);
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
   const jobs = d.metiers && d.metiers.status === "ok" ? d.metiers.metiers.length : null;
@@ -850,6 +865,7 @@ function summaryBand(r, d) {
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
+    ${admisBar(d.admis)}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
 function fillZoneTile(target) {
@@ -1476,6 +1492,7 @@ async function viewCompare() {
     ["Vœux (toutes phases)", (f) => fmt(f.record.voe_tot) + (f.record.subwish_flag ? " ⚠ sous-vœu" : "")],
     ["Classés (PP)", (f) => fmt(f.record.nb_cla_pp)], ["Proposés", (f) => fmt(f.record.prop_tot)],
     ["Admis", (f) => fmt(f.record.acc_tot) + (f.record.low_n_flag ? " ⚠" : "")],
+    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],
     ["% TB + TBF", (f) => pct(metric(f, "pct_tb_tbf").value)], ["% boursiers", (f) => pct(f.record.pct_bours)],
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
     ["% même académie", (f) => pct(f.record.pct_aca_orig)],
@@ -2042,7 +2059,7 @@ async function viewVoeux() {
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>`;
-    const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}`;
+    const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v)}${flags}</td>
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>

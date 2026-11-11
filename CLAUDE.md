@@ -38,6 +38,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Prévision n+1:** `prevision.py` (calibrated next-campaign ranges of every indicator with a history, formation page).
   - **Comprendre l'appel / Vraie sélectivité:** `appel.py` (how far each list was called, offer timing per type), `selectivite.py` (access rate x mention matrix).
   - **Formations semblables:** `semblables.py` (pooled doublettes and jury counts from the verified reports of the same diploma and mention).
+  - **Qui sont les admis:** `admis.py` (néo-bacheliers vs other admits: formation page bar, list label).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -380,6 +381,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     option cited; never a mean or a score. The card says "pas le rapport de cette formation", the fiche Parcoursup fait foi, and
     it links the formations' own pages. Precomputed at build (`mart.semblable_dbl`, `mart.semblable_jury`).
     Red team `redteam_semblables.py` (K1-K9).
+- **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
+  split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
+  only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
+  néo-bacheliers" = counts add up, >= 10 admits, `acc_at > acc_neobac` (tie = no label), one rule in `admis.py`, added to NEW dicts
+  (search results are shared index documents: never modify them). Apprenticeship offers and non-situated vœux are never labelled.
+  Own tokens `--adm-*`. Red team `redteam_admis.py` (H1-H6).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

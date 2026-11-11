@@ -2051,3 +2051,39 @@ A full walk through the app on a phone, the warehouse and the live monitor's log
   - The blob is JSON.
   - The error text never contains "object".
   - The Spécialités call and API (200 by default, 422 on the old call).
+
+## Qui sont les admis ? Néo-bacheliers and other admits (owner's request, 2026-11-10)
+
+A quarter of the admits are not néo-bacheliers, and a page that reads only the bac mentions hides them. SIES publishes, per
+formation and campaign, the admits, the néo-bachelier admits (they passed the bac that year) and the other admits (already
+holding the bac or another route: reorientation, return to studies...). SIES does not split the other admits further.
+
+**What the data says (2025).**
+- 175 502 of the 660 752 admits are not néo-bacheliers (26.6 %).
+- They are the majority in 2 067 formations. The share varies by type: travail social 58 %, IFSI 37 %, licence 35 %, BTS 23 %,
+  BUT 17 %, CPGE 6 %.
+- The two published counts add up to the total on every row of 2024 and 2025, and on all but 21 (2022) and 15 (2023) rows,
+  where they miss it by one or two.
+
+**Formation page.** "L'essentiel" gets a line "Qui sont les admis <session> ?":
+- a two-part bar from the published counts, drawn only when they add up to the published total (otherwise the counts are given
+  and the page says they do not add up);
+- the counts, and the published share of néo-bacheliers;
+- a note: the mentions and bac series SIES publishes cover the néo-bacheliers only.
+
+**Lists.** Search, map (list and card), comparator ("Néo-bacheliers / autres admis" row) and Mes vœux carry the label "Majorité
+d'admis hors néo-bacheliers" when, in the campaign shown, the counts add up, there are at least 10 admits and the other admits
+strictly outnumber the néo-bacheliers (5 220 formation-campaigns, 1 434 in 2025).
+- One rule, on the server (`suptracker/admis.py`); the routes add the flag to NEW dicts (search results come from shared index
+  documents, which are never modified, so the search index and its version do not change).
+- Apprenticeship offers of the map and vœux that are not situated are never labelled.
+- Own colour tokens `--adm-neo` / `--adm-autres` in both themes, never a zone's, a route's or the accent; every colour is named
+  in text.
+
+**Red team** `scripts/redteam_admis.py` (H1-H6), via `tests/test_admis.py`:
+- H1: the rule re-derived in SQL on all 55 844 rows, edge rows, and a crafted warehouse (two campaigns that disagree, a tie,
+  counts that miss the total, rows outside the list, untouched inputs).
+- H2: every route (search by words and by code, formation, comparator, map, Mes vœux) against SQL; the index documents untouched.
+- H3: the page in Node: the bar, its widths and text alternative, the label only from the flag, the comparator cell.
+- H4: wording. H5: wiring and design tokens.
+- H6: 24 seeded bugs, each caught (on the synthetic and the real warehouse). 11 s on real data.
