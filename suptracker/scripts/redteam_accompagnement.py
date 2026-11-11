@@ -250,6 +250,8 @@ def t2(c: Ctx):
     crafted["evenements"] = [dict(e) for e in crafted["evenements"]]
     for e in crafted["evenements"]:
         e["sur_supcompass"] = "Virgule, point-virgule; antislash \\ et\nretour"
+    if crafted["evenements"]:
+        crafted["evenements"][0]["verifie"] = False          # dates still present: an unverified step must not be exported
     for label, cl in (("served", cal), ("crafted", crafted)):
         txt = C.ics(cl)
         parsed, err = parse_ics(txt)
@@ -563,6 +565,9 @@ def t6(c: Ctx):
         bad.append("unescaped name")
     if any(u.startswith("/api/voeux?") for u in r["plainCalls"]) or "Zone" in r["plain"] or "Aucun profil n'a été joint" not in r["plain"]:
         bad.append("zones read without a joined profile")
+    for h, lab in ((r["zoned"], "zoned"), (r["plain"], "plain"), (r["reo"], "reo")):
+        if not all(f'href="#/f/{cod}"' in h for cod in cods):
+            bad.append(("the list is not shown", lab))
     if "Accès estimé hors terminale" not in r["reo"] or "Zone pour ce profil" in r["reo"]:
         bad.append("reorientation reading")
     for h in (r["zoned"], r["plain"], r["reo"]):
