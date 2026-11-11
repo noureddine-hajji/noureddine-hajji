@@ -433,7 +433,7 @@ def t4(c: Ctx):
             bad.append(("missing", need))
     if r["race"] != "OTHER PAGE":
         bad.append("a late answer drew over another page")
-    if "est terminée" in r["none"] or "calendrier.ics" in r["none"] or "n'ont pas pu être lues" not in r["none"]:
+    if "est terminée" in r["none"] or "calendrier.ics" in r["none"] or "Les dates officielles n'ont pas pu être lues" not in r["none"]:
         bad.append("no date read: the page says the campaign is over or offers an empty .ics")
     return not bad, f"{len(bad)} problems {bad[:4]}"
 
@@ -738,15 +738,16 @@ JS_MUTANTS = [
     ("stored choices not validated", '.filter((c) => typeof c === "string" && codes.has(c))', '.filter((c) => typeof c === "string")'),
     ("missing doublette not said", ': "absente des données 2022–2025"}', ': ""}'),
     ("codes not validated", 'if (/^\\d{1,9}$/.test(c) && !out.includes(c)', "if (c && !out.includes(c)"),
-    ("académie shared", 'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", v: "voie", t: "statut" };',
-     'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", v: "voie", t: "statut", academie: "academie" };'),
+    ("académie shared", 'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut" };',
+     'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut", academie: "academie" };'),
     ("profile always in the link", "url.value = shareLink(ids, box && box.checked ? prof : null);", "url.value = shareLink(ids, prof);"),
     ("zones without a profile", "const zoned = prof && !isReo(prof);", "const zoned = !isReo(prof);"),
     ("merge replaces the list", "for (const c of fresh) if (voeux.add(c)) n++;", 'VOEUX = []; for (const c of fresh) if (voeux.add(c)) n++;'),
     ("list race", "  if ($view.dataset.rendered !== marker) return;\n  const rows = d.voeux.map", "  const rows = d.voeux.map"),
     ("list name unescaped", '<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")}',
      '<a href="#/f/${esc(v.cod_aff_form)}">${v.etablissement}</a><div class="muted small">${esc(v.filiere || v.formation || "")}'),
-    ("share card dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids)}", "rien n'en est enregistré sur le serveur.</p>${howto}</div>"),
+    ("share card dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get(\"profile\", null))}",
+     "rien n'en est enregistré sur le serveur.</p>${howto}</div>"),
     ("chance wording", "Des parts d'admis des campagnes passées, pas des chances d'admission. Les vœux", "Vos chances d'admission. Les vœux"),
     ("tutoiement", "Choisissez trois spécialités de première.", "Choisis tes trois spécialités de première."),
 ]
