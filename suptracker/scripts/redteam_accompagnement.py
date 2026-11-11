@@ -302,6 +302,18 @@ def t3(c: Ctx):
             bad.append("a parameter changes the answer")
         if len(tc.events) != n0:
             bad.append("an audience event recorded")
+        # nothing verified: no empty VCALENDAR (not a valid file), a 404
+        empty = types.SimpleNamespace(**{k: getattr(M["CAL"], k) for k in dir(M["CAL"]) if not k.startswith("__")})
+        empty.calendar = lambda base=None: {**M["CAL"].calendar(), "evenements": [{**e, "verifie": False, "debut": None, "fin": None}
+                                                                              for e in M["CAL"].calendar()["evenements"]]}
+        from suptracker import api as _api
+        saved_cal = _api.CALR
+        _api.CALR = empty
+        try:
+            if tc.get("/api/calendrier.ics").status_code != 404:
+                bad.append("an empty .ics served")
+        finally:
+            _api.CALR = saved_cal
     if '(r"/api/calendrier", PUBLIC,' not in c.cache or '(r"/api/calendrier\\.ics", PUBLIC,' not in c.cache:
         bad.append("cache policies")
     sys.path.insert(0, str(ROOT / "scripts"))
@@ -309,10 +321,21 @@ def t3(c: Ctx):
     with tempfile.TemporaryDirectory() as tmp:
         Path(tmp, "request.json").write_text(json.dumps({"urls": ["https://evil.example/cal.pdf", "http://www.parcoursup.gouv.fr/x.pdf",
                                                                     "https://www.parcoursup.gouv.fr.evil.example/x.pdf"]}))
-        F.main(tmp)
-        log = json.loads(Path(tmp, "fetch_log.json").read_text())
-        if any(not str(x["status"]).startswith("refused") for x in log) or len(list(Path(tmp).iterdir())) != 2:
-            bad.append(("a foreign host fetched", log))
+        Path(tmp, "fetch_log.json").write_text('[{"previous": true}]')
+        rc = F.main(tmp)
+        if rc == 0 or json.loads(Path(tmp, "fetch_log.json").read_text()) != [{"previous": True}]:
+            bad.append("a run that read no PDF replaced the previous log")
+        # a redirect off parcoursup.gouv.fr is refused even when the first address is official
+        import httpx
+        saved_get = F.httpx.get
+        F.httpx.get = lambda url, **k: httpx.Response(200, content=b"%PDF-1.4", request=httpx.Request("GET", "https://evil.example/x.pdf"))
+        try:
+            Path(tmp, "request.json").write_text(json.dumps({"urls": ["https://www.parcoursup.gouv.fr/x.pdf"]}))
+            F.main(tmp)
+        finally:
+            F.httpx.get = saved_get
+        if any(p.suffix in (".pdf", ".txt") for p in Path(tmp).iterdir()):
+            bad.append("a redirect to another host was saved")
     from suptracker import sources as S
     src = [s for s in S.SOURCES if s["key"] == "calendrier_parcoursup"]
     if not src or src[0]["access"] not in S.ACCESS or "parcoursup.gouv.fr" not in (src[0]["url"] or ""):
@@ -373,11 +396,13 @@ def t4(c: Ctx):
     API = { "/api/calendrier": IN.cal };
     for (const day of ["2026-11-11", "2027-02-01", "2027-06-05", "2027-10-01"]) { NOW = day; await viewCalendrier(); out[day] = $view.innerHTML; }
     API = { "/api/calendrier": IN.crafted }; NOW = "2026-11-11"; await viewCalendrier(); out.crafted = $view.innerHTML;
+    API = { "/api/calendrier": IN.none }; NOW = "2027-10-01"; await viewCalendrier(); out.none = $view.innerHTML;
     // a race: the page is left while the calendar loads
     API = { "/api/calendrier": IN.cal }; const slow = viewCalendrier(); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; await slow; out.race = $view.innerHTML;
     console.log(JSON.stringify(out));
     """
-    r = run_page(c, script, {"cal": cal, "crafted": crafted})
+    none = {**cal, "evenements": [{**e, "verifie": False, "debut": None, "fin": None} for e in cal["evenements"]]}
+    r = run_page(c, script, {"cal": cal, "crafted": crafted, "none": none})
     if r is None:
         return True, "node absent: skipped"
     if "error" in r:
@@ -408,6 +433,8 @@ def t4(c: Ctx):
             bad.append(("missing", need))
     if r["race"] != "OTHER PAGE":
         bad.append("a late answer drew over another page")
+    if "est terminée" in r["none"] or "calendrier.ics" in r["none"] or "n'ont pas pu être lues" not in r["none"]:
+        bad.append("no date read: the page says the campaign is over or offers an empty .ics")
     return not bad, f"{len(bad)} problems {bad[:4]}"
 
 
@@ -431,16 +458,18 @@ def t5(c: Ctx):
     const out = {}; JV = IN.jv;
     const keys = Object.keys(IN.stage);
     API = {};
-    for (const k of keys) { const [a, b] = k.split("+"); API[`/api/journey/stage1?spe1=${a}&spe2=${b}`] = IN.stage[k] || new Error("404"); }
+    for (const k of keys) { const [a, b] = k.split("+"); API[`/api/journey/stage1?spe1=${a}&spe2=${b}`] = IN.stage[k] || new Error("Doublette absente des données SIES 2022–2025"); }
     store.d = { premiere: IN.trio }; await viewPremiere(); out.html = $view.innerHTML; out.calls = CALLS.slice();
     out.pairs = premiereDoublettes(IN.trio); out.pairsDup = premiereDoublettes([IN.trio[0], IN.trio[0], IN.trio[1]]);
     // a missing doublette and a crafted hostile, rare row
-    const [a, b] = keys[1].split("+"); API[`/api/journey/stage1?spe1=${a}&spe2=${b}`] = new Error("404");
+    const [a, b] = keys[1].split("+"); API[`/api/journey/stage1?spe1=${a}&spe2=${b}`] = new Error("Doublette absente des données SIES 2022–2025");
     const [c0, c1] = keys[0].split("+");
     API[`/api/journey/stage1?spe1=${c0}&spe2=${c1}`] = IN.crafted;
     await viewPremiere(); out.missing = $view.innerHTML;
     // stored hostile choices are ignored
     store.d = { premiere: ["<b>", IN.trio[0], "ZZZ"] }; CALLS = []; await viewPremiere(); out.hostile = $view.innerHTML; out.hostileCalls = CALLS.slice();
+    store.d = { premiere: IN.trio }; API[`/api/journey/stage1?spe1=${a}&spe2=${b}`] = new Error("Erreur interne"); await viewPremiere(); out.down = $view.innerHTML;
+    JV = null; API["/api/journey/vocab"] = IN.jv; const slow = viewPremiere(); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; await slow; out.race = $view.innerHTML;
     console.log(JSON.stringify(out));
     """
     r = run_page(c, script, {"jv": jv, "stage": stage, "trio": trio, "crafted": crafted})
@@ -484,6 +513,10 @@ def t5(c: Ctx):
         bad.append("missing doublette, escaping or rare flag")
     if "Choisissez trois spécialités différentes" not in r["hostile"] or any("stage1" in u for u in r["hostileCalls"]):
         bad.append("stored hostile choices used")
+    if "lecture impossible pour le moment" not in r["down"]:
+        bad.append("a server failure is said as an absent doublette")
+    if r["race"] != "OTHER PAGE":
+        bad.append("a late answer drew over another page")
     if "pas un conseil de spécialités ni une chance d'admission" not in h:
         bad.append("the caveat")
     return not bad, f"doublettes {keys}; {len(rows)} rows; {len(bad)} problems {bad[:4]}"
@@ -503,11 +536,12 @@ def t6(c: Ctx):
         from urllib.parse import urlencode
         q = urlencode({"ids": ",".join(cods), "serie": "bg", "mention": "b", "spe1": prof["spe1"], "spe2": prof["spe2"]})
         vx = tc.get(f"/api/voeux?{q}").json()
+        vxp = tc.get(f"/api/voeux?{urlencode({'ids': ','.join(cods), 'serie': 'bp', 'mention': 'b'})}").json()
         ro = tc.get("/api/reorientation/voeux", params={"ids": ",".join(cods)}).json()
     vx["voeux"][0] = {**vx["voeux"][0], "etablissement": HOSTILE}
     script = r"""
     const out = {}; JV = IN.jv;
-    out.codes = shareCodes("12,abc,12,<b>,1234567890,3," + Array.from({ length: 12 }, (_, i) => 100 + i).join(","));
+    out.codes = shareCodes("12,abc,12,<b>,1234567890, 3 ," + Array.from({ length: 12 }, (_, i) => 100 + i).join(","));
     out.p0 = shareProfile("s=bg&a=" + IN.p.spe1 + "&b=" + IN.p.spe2 + "&m=b&academie=Lyon&lycee=X&z=1");
     out.pBad = shareProfile("s=bg&a=" + IN.p.spe1 + "&b=" + IN.p.spe1 + "&m=b");
     out.pHost = shareProfile("s=<b>&m=<i>");
@@ -521,6 +555,11 @@ def t6(c: Ctx):
     CALLS = []; await viewListe(IN.cods.join(","), out.link1.split("/").pop()); out.zoned = $view.innerHTML; out.zonedCalls = CALLS.slice();
     CALLS = []; await viewListe(IN.cods.join(","), ""); out.plain = $view.innerHTML; out.plainCalls = CALLS.slice();
     CALLS = []; await viewListe(IN.cods.join(","), "t=r"); out.reo = $view.innerHTML;
+    API["/api/voeux"] = IN.vxp; await viewListe(IN.cods.join(","), "s=bp&m=b"); out.bp = $view.innerHTML; API["/api/voeux"] = IN.vx;
+    await viewListe(IN.cods.join(","), "s=xx&m=b"); out.unread = $view.innerHTML;
+    out.linkBp = shareLink(IN.cods, vxProfile({ serie: "bp", mention: "b", voie: "accompagnement soins et services a la personne", voie_label: "ASSP" }));
+    JV = null; API["/api/journey/vocab"] = IN.jv; const slow0 = viewListe(IN.cods.join(","), ""); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; await slow0; out.race0 = $view.innerHTML; JV = IN.jv;
+    $view.innerHTML = shareCard(IN.cods, false); bindShare(IN.cods, null); out.cardNone = $view.innerHTML; out.urlNone = els["share-url"].value;
     // merge: 9 vœux already, three shared -> one added, the student's own list and profile kept
     VOEUX = ["1", "2", "3", "4", "5", "6", "7", "8", IN.cods[0]]; store.d = { profile: { serie: "bt", mention: "tb" } };
     await viewListe(IN.cods.join(","), out.link1.split("/").pop()); out.mergeHtml = $view.innerHTML; els["liste-add"].onclick();
@@ -528,16 +567,40 @@ def t6(c: Ctx):
     // a race
     const slow = viewListe(IN.cods.join(","), ""); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; await slow; out.race = $view.innerHTML;
     // the share card: the box off -> no profile in the link
-    $view.innerHTML = shareCard(IN.cods); bindShare(IN.cods, vxProfile(IN.p)); out.card = $view.innerHTML; out.url0 = els["share-url"] ? els["share-url"].value : null;
+    $view.innerHTML = shareCard(IN.cods, true); bindShare(IN.cods, vxProfile(IN.p)); out.card = $view.innerHTML; out.url0 = els["share-url"] ? els["share-url"].value : null;
     els["share-prof"].checked = true; els["share-prof"].onchange(); out.url1 = els["share-url"].value;
     console.log(JSON.stringify(out));
     """
-    r = run_page(c, script, {"jv": jv, "p": prof, "cods": cods, "vx": vx, "ro": ro})
+    r = run_page(c, script, {"jv": jv, "p": prof, "cods": cods, "vx": vx, "ro": ro, "vxp": vxp})
     if r is None:
         return True, "node absent: skipped"
     if "error" in r:
         return False, r["error"]
     bad = []
+    # bac pro: the official column is the official rate, never the series estimate
+    import html as H
+    for v in vxp["voeux"]:
+        if v.get("status") == "ok":
+            row = re.search(rf'href="#/f/{v["cod_aff_form"]}">.*?</tr>', r["bp"], re.S)
+            cell = re.search(r'data-label="Taux d\'accès officiel[^"]*">(.*?)</td>', row.group(0), re.S) if row else None
+            want = "—" if v.get("taux_acces_all") is None else (f"{v['taux_acces_all']:.1f}".rstrip("0").rstrip(".").replace(".", ",") + " %")
+            if not cell or H.unescape(cell.group(1)).replace("\u202f", " ").strip() != want:
+                bad.append(("bac pro: an estimate under the official label", v["cod_aff_form"], cell and cell.group(1), want)); break
+    if "Le profil joint n'a pas pu être lu" not in r["unread"]:
+        bad.append("an unreadable joined profile is said as none")
+    if "v=" in r["linkBp"] or "accompagnement" in r["linkBp"] or "ASSP" in r["linkBp"]:
+        bad.append(("the bac pro route in the link", r["linkBp"]))
+    if r["race0"] != "OTHER PAGE":
+        bad.append("a late answer drew over another page before the vocabulary")
+    if 'id="share-prof"' in r["cardNone"] or r["urlNone"] != f"https://supcompass.example/#/liste/{','.join(cods)}":
+        bad.append("no stored profile: the box is offered or a profile is shared")
+    for fn in ("viewVoeux", "viewVoeuxReo"):
+        body = c.js[c.js.index(f"async function {fn}("):]
+        body = body[:body.index("\n}\n")]
+        if 'bindShare(ids, store.get("profile", null) ? prof : null);' not in body or 'shareCard(ids, !!store.get("profile", null))' not in body:
+            bad.append(("Mes vœux shares a default profile", fn))
+    if not re.search(r'const TAB_OF = \{[^}]*liste: "liste"', c.js) or 'this.tab === "liste"' not in top(c.js, "profileBar"):
+        bad.append("the shared list shows the recipient's own tab and profile bar")
     if r["codes"] != ["12", "3", "100", "101", "102", "103", "104", "105", "106", "107"]:
         bad.append(("codes", r["codes"]))
     p0 = r["p0"] or {}
@@ -581,7 +644,7 @@ def t6(c: Ctx):
         bad.append("the merge does not say what is left out")
     if r["race"] != "OTHER PAGE":
         bad.append("a late answer drew over another page")
-    if "Rien n'est enregistré sur le serveur" not in r["card"] or "jamais l'académie ni le lycée" not in r["card"]:
+    if "Le lien lui-même n'est jamais envoyé au serveur" not in r["card"] or "jamais l'académie ni le lycée" not in r["card"]:
         bad.append("the share card's privacy line")
     return not bad, f"{len(bad)} problems {bad[:5]}"
 
@@ -590,7 +653,9 @@ def t6(c: Ctx):
 def t7(c: Ctx):
     js, bad = c.js, []
     sec = block(js, BLOCK_START, BLOCK_END)
-    text = " ".join(a or b for a, b in re.findall(r"`([^`]*)`|\"([^\"]*)\"", sec))
+    text = " ".join(a or b or q for a, b, q in re.findall(r"`([^`]*)`|\"([^\"]*)\"|'([^'\n]*)'", sec))
+    C = M["CAL"]                                             # the module in use (a mutant included), not the file on disk
+    text += " " + " ".join([*C.SUR_SUPCOMPASS.values(), *C.STEPS.values(), *(r[2] for r in C.RULES)])
     words = re.sub(r"<[^>]+>|\$\{[^}]*\}", " ", text)
     if CHANCE.search(words):
         bad.append(("chance wording", CHANCE.search(words).group(0)))
@@ -604,7 +669,7 @@ def t7(c: Ctx):
             bad.append(("route name", name))
         if f'"{name}"' not in c.analytics.split("ROUTES = (", 1)[1].split(")", 1)[0]:
             bad.append(("analytics route", name))
-    if not re.search(r'const TAB_OF = \{[^}]*liste: "voeux"', js) or not re.search(r'const MORE_TABS = \[[^\]]*"calendrier", "accompagner"\]', js):
+    if not re.search(r'const TAB_OF = \{[^}]*liste: "liste"', js) or not re.search(r'const MORE_TABS = \[[^\]]*"calendrier", "accompagner"\]', js):
         bad.append("tabs")
     for href in ("#/calendrier", "#/accompagner"):
         if c.html.count(f'href="{href}"') != 2:
@@ -614,12 +679,20 @@ def t7(c: Ctx):
     for fn in ("viewVoeux", "viewVoeuxReo"):
         body = js[js.index(f"async function {fn}("):]
         body = body[:body.index("\n}\n")]
-        if "${shareCard(ids)}" not in body or "bindShare(ids, prof);" not in body or 'class="print-only' not in body:
+        if "${shareCard(ids, " not in body or "bindShare(ids, " not in body or 'class="print-only' not in body:
             bad.append(("share card, binding or print line", fn))
     pm = re.search(r"@media print \{(.*?)\n\}", c.css, re.S)
+    pr = re.search(r":root:root:root \{([^}]*)\}", pm.group(1) if pm else "")
+    if not pr or not all(t in pr.group(1) for t in ("--ink: #000000;", "--surface: #ffffff;", "--bg: #ffffff;", "--warn-bg: #ffffff;", "--muted: #444444;")):
+        bad.append("print keeps the dark theme's colours")
     if not pm or not all(x in pm.group(1) for x in ("nav", ".tabbar", "#profile-bar", ".no-print", "button", ".print-only { display: block")) \
             or ".print-only { display: none; }" not in c.css:
         bad.append("print styles")
+    dec = node(top(c.js, "safeDecode") + 'console.log(JSON.stringify([safeDecode("%E0%A4%A"), safeDecode("a%20b")]))')
+    if dec is not None and dec != ["%E0%A4%A", "a b"]:
+        bad.append(("a malformed link breaks the router", dec))
+    if ".map(safeDecode)" not in top(c.js, "route"):
+        bad.append("the router does not decode safely")
     for k in ("calendrier", "accompagner", "premiere", "liste_partagee"):
         if f'"{k}"' not in c.api.split("FEATURES = [", 1)[1].split("]", 1)[0]:
             bad.append(("feature", k))
@@ -648,6 +721,7 @@ PY_MUTANTS = [
     ("ics not folded", 'if len((cur + ch).encode()) > (75 if not out else 74):', "if False:"),
     ("ics commas not escaped", '.replace(",", "\\\\,")', ""),
     ("ics unverified dates", '        if not e["verifie"]:\n            continue\n        d1', "        d1"),
+    ("tutoiement in the calendar", "Vérifiez sur parcoursup.gouv.fr que les formations", "Vérifie sur parcoursup.gouv.fr que tes formations"),
     ("ics stamp from the clock", 'stamp = (cal.get("lu_le") or "2026-01-01").replace("-", "") + "T000000Z"',
      'import time as _t; stamp = _t.strftime("%Y%m%dT%H%M%SZ", _t.gmtime(_t.time() + __import__("random").random() * 1e6))'),
 ]
@@ -676,8 +750,25 @@ JS_MUTANTS = [
     ("chance wording", "Des parts d'admis des campagnes passées, pas des chances d'admission. Les vœux", "Vos chances d'admission. Les vœux"),
     ("tutoiement", "Choisissez trois spécialités de première.", "Choisis tes trois spécialités de première."),
 ]
+JS_MUTANTS += [
+    ("bac pro estimate as official", '(prof.serie === "bg" ? v.taux_acces_ens : v.taux_acces_all)', "v.taux_acces_ens"),
+    ("default profile shared", 'bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)\n}',
+     "bindShare(ids, prof);\n}"),
+    ("box without a profile", '${withProfile ? `<label class="small"><input type="checkbox" id="share-prof">', '${true ? `<label class="small"><input type="checkbox" id="share-prof">'),
+    ("over when nothing read", '  const head = !nOk ? "Les dates officielles n\'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr."\n    : next', "  const head = next"),
+    ("list race before vocabulary", '  JV = JV || await api("/api/journey/vocab").catch(() => null);\n  if ($view.dataset.rendered !== marker) return;',
+     '  JV = JV || await api("/api/journey/vocab").catch(() => null);'),
+    ("premiere race", '  JV = JV || await api("/api/journey/vocab");\n  if ($view.dataset.rendered !== first) return;', '  JV = JV || await api("/api/journey/vocab");'),
+    ("failure said absent", '/absente/i.test(e.message) ? "absente" : "indisponible"', '"absente"'),
+    ("codes not trimmed", "const c = c0.trim();", "const c = c0;"),
+    ("route in the link", '    if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }\n  }',
+     '    if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }\n    else if (prof.voie) q.set("v", prof.voie);\n  }'),
+    ("unsafe decoding", "function safeDecode(x) { try { return decodeURIComponent(x); } catch (_) { return x; } }", "function safeDecode(x) { return decodeURIComponent(x); }"),
+    ("profile bar on a shared list", 'if (this.tab === "stats" || this.tab === "liste")', 'if (this.tab === "stats")'),
+]
 TEXT_MUTANTS = [("cache", "calendar shared nowhere", '(r"/api/calendrier", PUBLIC,', '(r"/api/calendrier", NO_STORE,'),
                 ("css", "print keeps the menus", "  header, nav, .tabbar,", "  header,"),
+                ("css", "print in dark colours", "  :root:root:root { --bg: #ffffff;", "  :root:root:root { --bgx: #ffffff;"),
                 ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Accompagner un élève</a>\n</div>', "</div>")]
 
 

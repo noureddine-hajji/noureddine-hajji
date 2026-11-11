@@ -2271,3 +2271,26 @@ seconde/première students choose specialties before Parcoursup. The product aud
 - T6: the shared list (validation, link round trip, profile only on request, reading per profile, merge, race).
 - T7: wording and wiring.
 - T8: seeded bugs, each caught.
+
+**Independent review** (a second agent, not shown the red team's conclusions). All its findings are fixed:
+- The shared list showed the bac techno / pro series ESTIMATE under "Taux d'accès officiel": it now shows the official rate.
+- A student with no stored profile could share the page's default profile (MATHS + SES): the box is offered only with a stored
+  profile.
+- Unread dates: the page said "campagne terminée" and the .ics was an empty file. The page now says the dates must be checked,
+  and the .ics answers 404.
+- Fetch script:
+  - a run that reads no PDF keeps the previous log and fails;
+  - a redirect off parcoursup.gouv.fr is refused;
+  - the PDFs are no longer committed (their illustrations are not under the Licence Ouverte), only their text and digest;
+  - the workflow runs weekly.
+- Printing in dark mode gave light text on white paper: the print rules redefine the colour tokens.
+- Robustness:
+  - a cut link ("%E0%A4%A") no longer breaks the router;
+  - races before the page marker are closed;
+  - a choice made while the doublettes load is kept;
+  - a server failure is no longer said as "absent".
+- The shared list hides the recipient's own profile bar and tab.
+- "Today" is Paris's date.
+- The link no longer carries the bac pro route (data minimisation), and codes are trimmed.
+- Wording: official step names, and the complementary phase as the PDF words it.
+Each review gap is now a red-team check with a mutant.

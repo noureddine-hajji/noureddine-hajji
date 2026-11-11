@@ -51,7 +51,8 @@ SOURCES = (
      "url": "https://www.enseignementsup-recherche.gouv.fr/fr/parcours-et-reussite-en-master-l-universite-les-resultats-de-la-session-2024-100403"},
     {"key": "calendrier_parcoursup", "title": "Calendrier officiel Parcoursup 2026-2027 (PDF)", "producer": "MESR (Parcoursup)",
      "access": "download", "granularity": "national (fetched by the suptracker-calendrier workflow into data/calendrier/)",
-     "keys": ("date",), "feeds": ("calendrier",), "status": "en_ligne", "sprint": 22, "licence": LICENCE_OUVERTE,
+     "keys": ("date",), "feeds": ("calendrier",), "status": "en_ligne", "sprint": 22,
+     "licence": "document public du ministère (texte et dates seulement : les illustrations ne sont pas reprises)",
      "url": "https://www.parcoursup.gouv.fr/sites/default/files/database/documents/2026-10/calendrier-parcoursup-2027-805_1.pdf"},
     # ---------------------------------------------------------------- roadmap (sprints 4-8)
     {"key": "ips_lycees", "title": "Indices de position sociale des lycées (à partir de 2023)", "producer": "MENJ-DEPP",

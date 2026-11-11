@@ -915,8 +915,12 @@ def calendrier():
 
 @app.get("/api/calendrier.ics")
 def calendrier_ics():
-    """Sprint 22: the verified dates as all-day events, to add to a phone's calendar."""
-    return Response(CALR.ics(CALR.calendar()), media_type="text/calendar; charset=utf-8",
+    """Sprint 22: the verified dates as all-day events, to add to a phone's calendar (none verified = 404: an empty
+    VCALENDAR is not a valid file, review)."""
+    cal = CALR.calendar()
+    if not any(e["verifie"] for e in cal["evenements"]):
+        raise HTTPException(404, "Les dates officielles n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr")
+    return Response(CALR.ics(cal), media_type="text/calendar; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="parcoursup-{CALR.CAMPAGNE}.ics"'})
 
 

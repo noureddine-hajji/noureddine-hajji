@@ -5,6 +5,8 @@
 name: suptracker-calendrier
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 1"        # weekly: a corrected version of the official PDF is read without waiting (default branch only)
   push:
     branches: ["claude/**"]
     paths: ["suptracker/data/calendrier/request.json"]

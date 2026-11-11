@@ -3,7 +3,7 @@
 The calendar is a PDF published on parcoursup.gouv.fr. That host is blocked in the development sandbox, so the
 `suptracker-calendrier` workflow fetches it (every published version) into data/calendrier/ with its extracted text
 (`scripts/calendrier_fetch.py`). This module reads the dates from that text with one fixed rule per step, each anchored on the
-official wording. A date is served only if:
+official wording (the step names are the official headings or dated lines). A date is served only if:
   * every fetched version of the document prints it identically (the first version of the 2027 PDF says "samedi 10 juin 2027"
     in a heading where the later ones say "samedi 10 juillet": headings are not read, and a disagreement drops the date);
   * its printed weekday is the true weekday of that date (10 June 2027 is a Thursday).
@@ -29,7 +29,7 @@ _Y = r"\s+(\d{4})"
 RULES = (
     ("carte", 1, "Ouverture de la carte des formations 2027 sur parcoursup.gouv.fr",
      _D + _Y + r"\s*[-—–]\s*ouverture de la carte"),
-    ("voeux", 2, "Inscription et formulation des vœux",
+    ("voeux", 2, "Je m'inscris pour formuler mes vœux",
      r"du\s+" + _D + r"\s+au\s+" + _D + _Y),
     ("fin_voeux", 2, "Dernier jour pour formuler vos vœux",
      _D + _Y + r"\s*[-—–]\s*dernier jour pour formuler"),
@@ -56,7 +56,7 @@ SUR_SUPCOMPASS = {
     "confirmation": "SupCompass ne remplace pas votre dossier : chaque vœu se confirme sur Parcoursup.",
     "admission": "Les réponses arrivent au fur et à mesure. « Comprendre l'appel » montre jusqu'où les listes ont été appelées les années passées, sans jamais prédire votre rang.",
     "classement": "Ce classement se fait sur Parcoursup ; vos vœux sur SupCompass ne sont pas classés.",
-    "complementaire": "Si vous n'avez pas de proposition, la phase complémentaire permet de nouveaux vœux dans des formations qui ont encore des places.",
+    "complementaire": "La phase complémentaire permet de formuler jusqu'à 10 nouveaux vœux dans des formations qui ont encore des places.",
     "fin_principale": "Pensez à répondre aux propositions dans les délais affichés sur Parcoursup.",
     "fin_complementaire": "Fin de la procédure Parcoursup 2027.",
 }

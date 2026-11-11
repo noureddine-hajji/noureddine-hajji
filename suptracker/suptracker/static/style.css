@@ -420,6 +420,9 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .home-more { margin: 0 0 14px; }
 .print-only { display: none; }
 @media print {                                       /* paper is white whatever the screen's theme */
+  :root:root:root { --bg: #ffffff; --surface: #ffffff; --ink: #000000; --muted: #444444; --line: #999999; --accent-soft: #ffffff;
+    --warn-bg: #ffffff; --warn-ink: #000000; --info-bg: #ffffff; --zone-securite: #1e7a46; --zone-cible: #2b5fd9;
+    --zone-ambitieux: #c4581f; color-scheme: light; }                /* beats the dark theme's tokens (review) */
   header, nav, .tabbar, .more-menu, #search, #profile-bar, footer, .feedback, .no-print, button { display: none !important; }
   .print-only { display: block; }
   body, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; }

@@ -93,7 +93,7 @@ const profileBar = {
     if (tab) this.tab = tab;
     const el = document.getElementById("profile-bar");
     if (!el) return;
-    if (this.tab === "stats") { el.hidden = true; return; }
+    if (this.tab === "stats" || this.tab === "liste") { el.hidden = true; return; }   // sprint 22: a shared list is someone else's
     el.hidden = false;
     const raw = store.get("profile", null);
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -2158,13 +2158,13 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids)}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false);
   }
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
-  bindShare(ids, prof);                                                  // sprint 22
+  bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
     el.onclick = () => {
       const tr = el.closest("tr");
@@ -2755,9 +2755,9 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids)}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
-  bindShare(ids, prof);                                                  // sprint 22
+  bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
 }
 
 // ---- sprint 22: accompaniment (owner's go, 2026-11-11): the official calendar, a page for the adults who help, an entry for
@@ -2765,7 +2765,11 @@ async function viewVoeuxReo(ids, prof) {
 // carries the formation codes (and, only if the student ticks the box, the profile) in the part of the address after "#",
 // which the browser never sends to a server.
 const pad2 = (n) => String(n).padStart(2, "0");
-const localIso = (t = new Date()) => `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+// Parcoursup's dates are Paris dates: a student in Nouméa or Papeete must not read a deadline as past while it is still open (review)
+const localIso = (t = new Date()) => {
+  try { return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(t); }
+  catch (_) { return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`; }
+};
 const frDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
 const CAL_LINKS = { voeux: "#/voeux", fin_voeux: "#/voeux", admission: "#/comprendre", carte: "#/carte" };
@@ -2794,12 +2798,15 @@ async function viewCalendrier() {
       <p class="small muted">Sur SupCompass : ${esc(e.sur_supcompass)}${CAL_LINKS[e.key] ? ` <a href="${CAL_LINKS[e.key]}">Y aller</a>` : ""}</p></li>`;
   };
   const steps = Object.keys(d.etapes).map(Number).sort((a, b) => a - b);
-  const head = next ? (next.debut <= today ? `En ce moment : <strong>${esc(next.libelle)}</strong>.`
+  const nOk = d.evenements.filter((e) => e.verifie).length;
+  const head = !nOk ? "Les dates officielles n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr."
+    : next ? (next.debut <= today ? `En ce moment : <strong>${esc(next.libelle)}</strong>.`
     : `Prochaine étape dans ${fmt(daysBetween(today, next.debut))} jour${daysBetween(today, next.debut) > 1 ? "s" : ""} : <strong>${esc(next.libelle)}</strong>, ${esc(frDate(next.debut))}.`)
-    : "La campagne Parcoursup " + esc(d.campagne) + " est terminée.";
+    : nOk === d.evenements.length ? "La campagne Parcoursup " + esc(d.campagne) + " est terminée."
+    : "Certaines dates n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr.";
   $view.innerHTML = `<div class="card"><h1>Calendrier Parcoursup ${esc(d.campagne)}</h1>
     <p>${head}</p>
-    <div class="toolbar no-print"><a class="btnlink" href="/api/calendrier.ics" download>Ajouter ces dates à mon agenda (.ics)</a><button type="button" id="cal-print">Imprimer</button></div>
+    <div class="toolbar no-print">${nOk ? `<a class="btnlink" href="/api/calendrier.ics">Ajouter ces dates à mon agenda (.ics)</a>` : ""}<button type="button" id="cal-print">Imprimer</button></div>
     <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)} publié sur parcoursup.gouv.fr${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. Une date n'est affichée que si toutes les versions du document la donnent à l'identique. En cas de différence, le calendrier officiel fait foi.</p></div>
   ${steps.map((k) => `<section class="card"><h2>Étape ${k} · ${esc(d.etapes[k])}</h2><ol class="cal-list">${d.evenements.filter((e) => e.etape === k).map(item).join("")}</ol></section>`).join("")}`;
   const pr = document.getElementById("cal-print");
@@ -2844,13 +2851,17 @@ function viewAccompagner() {
 // seconde and première: three specialties of première give three possible doublettes of terminale; for each, the filières where
 // the bac général admits of 2022-2025 had it (the composition of the admits, never a piece of advice or a chance)
 const PREM_ROWS = 12;
+let premiereSeq = 0;
 function premiereDoublettes(spes) {
   const s = [...new Set(spes.filter(Boolean))];
   if (s.length !== 3) return [];
   return [[s[0], s[1]], [s[0], s[2]], [s[1], s[2]]];
 }
 async function viewPremiere() {
+  const first = `premiere-load:${++premiereSeq}`;
+  $view.dataset.rendered = first;                                       // before any await (review: navigation race)
   JV = JV || await api("/api/journey/vocab");
+  if ($view.dataset.rendered !== first) return;
   const codes = new Set(JV.specialties.map((x) => x.code));
   const stored = store.get("premiere", []);
   const spes = Array.isArray(stored) ? stored.filter((c) => typeof c === "string" && codes.has(c)).slice(0, 3) : [];
@@ -2863,14 +2874,25 @@ async function viewPremiere() {
     <p>Choisissez trois spécialités de première. En terminale, vous en garderez deux : cela fait trois doublettes possibles. Pour chacune, voici les filières où l'on trouvait cette doublette parmi les admis bacheliers généraux de 2022 à 2025.</p>
     <form id="prem" class="toolbar">${[0, 1, 2].map(sel).join("")}</form>
     <p class="small">Ce sont des parts d'admis des années passées, pas un conseil de spécialités ni une chance d'admission. Beaucoup de filières admettent des doublettes très variées : les attendus de chaque formation, sur sa fiche Parcoursup, et l'avis de votre professeur principal comptent davantage.</p></div>`;
+  const bindForm = () => {
+    document.getElementById("prem").onchange = () => {
+      const f = new FormData(document.getElementById("prem"));
+      store.set("premiere", [0, 1, 2].map((i) => f.get(`p${i}`) || ""));
+      viewPremiere();
+    };
+  };
   if (!pairs.length) {
     $view.innerHTML = `${intro}<div class="card"><p class="muted">Choisissez trois spécialités différentes.</p></div>`;
+    bindForm();
   } else {
     $view.innerHTML = `${intro}<div class="card"><p class="muted small">Lecture des doublettes…</p></div>`;
-    const res = await Promise.all(pairs.map(([a, b]) => api(`/api/journey/stage1?spe1=${encodeURIComponent(a)}&spe2=${encodeURIComponent(b)}`).catch(() => null)));
+    bindForm();                                                          // a choice made while loading is never lost
+    // 404 = the doublette is absent from the data; any other failure is said as such (review)
+    const res = await Promise.all(pairs.map(([a, b]) => api(`/api/journey/stage1?spe1=${encodeURIComponent(a)}&spe2=${encodeURIComponent(b)}`)
+      .catch((e) => ({ error: /absente/i.test(e.message) ? "absente" : "indisponible" }))));
     if ($view.dataset.rendered !== marker) return;
     const by = new Map();
-    res.forEach((r, i) => (r ? r.filieres : []).forEach((f) => {
+    res.forEach((r, i) => (r && !r.error ? r.filieres : []).forEach((f) => {
       const row = by.get(f.type_key) || { label: f.label, cells: [null, null, null], dest: 0 };
       row.cells[i] = f;
       row.dest = Math.max(row.dest, f.destination_share || 0);
@@ -2881,7 +2903,7 @@ async function viewPremiere() {
     const cell = (f, i) => `<td class="num" data-label="${esc(pairs[i].map(name).join(" + "))}">${!f ? "—"
       : `${pc1(f.share)}<div class="estim">des admis bacheliers généraux${f.rare ? " · rare (moins de 20 candidats)" : ""}</div>`}</td>`;
     $view.innerHTML = `${intro}<div class="card"><h2>Trois doublettes possibles</h2>
-      <ul class="small">${pairs.map((p, i) => `<li><strong>${esc(p.map(name).join(" + "))}</strong> : ${res[i] ? `${fmt(res[i].national.accepted)} admis sur ${fmt(res[i].national.years)} campagnes, ${pc1(res[i].national.national_share)} de tous les admis bacheliers généraux` : "absente des données 2022–2025"}</li>`).join("")}</ul>
+      <ul class="small">${pairs.map((p, i) => `<li><strong>${esc(p.map(name).join(" + "))}</strong> : ${res[i] && !res[i].error ? `${fmt(res[i].national.accepted)} admis sur ${fmt(res[i].national.years)} campagnes, ${pc1(res[i].national.national_share)} de tous les admis bacheliers généraux` : res[i] && res[i].error === "indisponible" ? "lecture impossible pour le moment, réessayez" : "absente des données 2022–2025"}</li>`).join("")}</ul>
       <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th>${pairs.map((p) => `<th class="num">${esc(p.map(name).join(" + "))}</th>`).join("")}</tr>
       ${rows.slice(0, all ? rows.length : PREM_ROWS).map((r) => `<tr><td data-label="Filière">${esc(r.label)}</td>${r.cells.map(cell).join("")}</tr>`).join("")}</table></div>
       ${rows.length > PREM_ROWS ? `<p><button type="button" id="prem-all">${all ? `Afficher les ${PREM_ROWS} premières` : `Afficher les ${fmt(rows.length)} filières`}</button></p>` : ""}
@@ -2889,19 +2911,15 @@ async function viewPremiere() {
       <p class="small"><a href="#/specialites">Toutes les doublettes par type de formation</a> · En terminale : <a href="#/parcours">Mon parcours</a></p></div>`;
     const b = document.getElementById("prem-all");
     if (b) b.onclick = () => { store.set("premiereAll", !all); viewPremiere(); };
+    bindForm();
   }
-  document.getElementById("prem").onchange = () => {
-    const f = new FormData(document.getElementById("prem"));
-    store.set("premiere", [0, 1, 2].map((i) => f.get(`p${i}`) || ""));
-    viewPremiere();
-  };
 }
 
 // a shared list: "#/liste/<codes>[/<profile>]"; codes validated like the stored list; the profile only if the student joined it
-const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", v: "voie", t: "statut" };
+const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut" };
 function shareCodes(raw) {
   const out = [];
-  for (const c of String(raw || "").split(",")) if (/^\d{1,9}$/.test(c) && !out.includes(c) && out.length < voeux.MAX) out.push(c);
+  for (const c0 of String(raw || "").split(",")) { const c = c0.trim(); if (/^\d{1,9}$/.test(c) && !out.includes(c) && out.length < voeux.MAX) out.push(c); }
   return out;
 }
 function shareProfile(raw) {
@@ -2922,14 +2940,13 @@ function shareLink(ids, prof) {
   else {
     q.set("s", prof.serie); q.set("m", prof.mention);
     if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }
-    else if (prof.voie) q.set("v", prof.voie);
   }
   return `${base}/${q.toString()}`;
 }
-function shareCard(ids) {
+function shareCard(ids, withProfile) {
   return `<section class="card no-print" id="vx-share"><h2>Partager ou imprimer ma liste</h2>
-    <p class="small">Envoyez ce lien à un parent ou à votre professeur principal : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Rien n'est enregistré sur le serveur.</p>
-    <label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités, mention ; jamais l'académie ni le lycée)</label>
+    <p class="small">Envoyez ce lien à un parent ou à votre professeur principal : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Le lien lui-même n'est jamais envoyé au serveur, et rien n'est enregistré.</p>
+    ${withProfile ? `<label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités, mention ; jamais l'académie ni le lycée)</label>` : ""}
     <div class="share-row"><input id="share-url" type="text" readonly aria-label="Lien de ma liste" value="${esc(shareLink(ids, null))}">
       <button type="button" id="share-copy">Copier le lien</button><button type="button" id="share-print">Imprimer</button></div>
     <p class="small muted" id="share-msg" aria-live="polite"></p>
@@ -2950,12 +2967,14 @@ function bindShare(ids, prof) {
   document.getElementById("share-print").onclick = () => window.print();
 }
 async function viewListe(rawCodes, rawProfile) {
-  JV = JV || await api("/api/journey/vocab").catch(() => null);
   const ids = shareCodes(rawCodes);
-  const prof = shareProfile(rawProfile);
   const marker = `liste:${ids.join(",")}:${rawProfile || ""}`;
-  $view.dataset.rendered = marker;
-  const who = !prof ? "Aucun profil n'a été joint : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
+  $view.dataset.rendered = marker;                                      // before any await (review: navigation race)
+  JV = JV || await api("/api/journey/vocab").catch(() => null);
+  if ($view.dataset.rendered !== marker) return;
+  const prof = shareProfile(rawProfile);
+  const who = !prof && rawProfile ? "Le profil joint n'a pas pu être lu : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
+    : !prof ? "Aucun profil n'a été joint : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
     : `Lue pour le profil joint : ${profileLine(prof, prof.serie)}.`;
   const head = `<div class="card"><h1>Liste partagée</h1><p class="small">${who}</p>
     <p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
@@ -2974,14 +2993,14 @@ async function viewListe(rawCodes, rawProfile) {
     const b = v.reorientation;
     const third = zoned ? `<td data-label="Zone pour ce profil">${v.status === "ok" && v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>` : "—"}</td>`
       : isReo(prof) ? `<td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>` : "";
-    const rate = v.status !== "ok" ? null : zoned ? v.taux_acces_ens : b && b.taux_acces_ens;
+    const rate = v.status !== "ok" ? null : zoned ? (prof.serie === "bg" ? v.taux_acces_ens : v.taux_acces_all) : b && b.taux_acces_ens;
     return `<tr><td data-label="Formation">${name}</td>${third}<td class="num" data-label="Taux d'accès officiel ${esc(d.session)}">${pct(rate)}</td></tr>`;
   }).join("");
   const mine = voeux.get(), fresh = ids.filter((c) => !mine.includes(c)), room = voeux.MAX - mine.length;
   $view.innerHTML = `${head}<div class="card"><h2>${fmt(d.voeux.length)} formation${d.voeux.length > 1 ? "s" : ""}</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th>${zoned ? "<th>Zone pour ce profil</th>" : isReo(prof) ? `<th class="num">Accès estimé hors terminale</th>` : ""}<th class="num">Taux d'accès officiel ${esc(d.session)}</th></tr>${rows}</table></div>
     <p class="muted small">Des parts d'admis des campagnes passées, pas des chances d'admission. Les vœux Parcoursup ne sont pas classés : l'ordre de la liste ne veut rien dire.</p>
-    <div class="toolbar no-print">${fresh.length ? `<button type="button" id="liste-add" ${room <= 0 ? "disabled" : ""}>Ajouter ${fmt(Math.min(fresh.length, Math.max(room, 0)))} formation${Math.min(fresh.length, Math.max(room, 0)) > 1 ? "s" : ""} à ma liste</button>` : `<span class="small muted">Toutes ces formations sont déjà dans votre liste.</span>`}
+    <div class="toolbar no-print">${fresh.length && room <= 0 ? `<span class="small muted">Votre liste contient déjà ${voeux.MAX} vœux : retirez-en un pour en ajouter.</span>` : fresh.length ? `<button type="button" id="liste-add">Ajouter ${fmt(Math.min(fresh.length, Math.max(room, 0)))} formation${Math.min(fresh.length, Math.max(room, 0)) > 1 ? "s" : ""} à ma liste</button>` : `<span class="small muted">Toutes ces formations sont déjà dans votre liste.</span>`}
       <button type="button" id="liste-print">Imprimer</button></div>
     ${fresh.length && room < fresh.length ? `<p class="small muted no-print">Votre liste en contient déjà ${fmt(mine.length)} : ${voeux.MAX} vœux au maximum, ${fmt(fresh.length - Math.max(room, 0))} formation${fresh.length - Math.max(room, 0) > 1 ? "s" : ""} ne seront pas ajoutée${fresh.length - Math.max(room, 0) > 1 ? "s" : ""}.</p>` : ""}
     <p class="small muted no-print" id="liste-msg" aria-live="polite"></p></div>`;
@@ -3000,7 +3019,7 @@ async function viewListe(rawCodes, rawProfile) {
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
   carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "parcours",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "parcours", liste: "voeux" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "parcours", liste: "liste" };
 const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite", "calendrier", "accompagner"];
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
@@ -3041,11 +3060,13 @@ function showError(e) {
   if (kept) { $view.querySelectorAll(":scope > .warn").forEach((w) => w.remove()); kept.insertAdjacentHTML("beforebegin", warn); }
   else $view.innerHTML = warn;
 }
+// a link cut by a messenger ("%E0%A4%A") must not break the router: the segment is kept as it is (sprint 22 review)
+function safeDecode(x) { try { return decodeURIComponent(x); } catch (_) { return x; } }
 async function route() {
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
   if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
-  const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(decodeURIComponent);
+  const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(safeDecode);
   trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
   // every navigation invalidates the render marker: only the view that sets it again may still be
   // filled by a late async answer (the lycée suggestion of a search, found in review)
