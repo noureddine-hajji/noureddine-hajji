@@ -160,7 +160,7 @@ def build_cases(con, per_kind: int = 6) -> list[tuple[dict, dict]]:
         d1 = copy.deepcopy(base); d1["rapport"] = rp; d1["record"]["cod_aff_form"] += "-rapport"
         for prof in ({"serie": "bg", "spe1": "SES", "spe2": "MATHS"}, {"serie": "bg", "spe1": "HGGSP", "spe2": "LLCER"},
                      {"serie": "bt", "voie": "sti2d"}, {"serie": "bt", "voie": "stmg"}, {"serie": "bt", "voie": "inconnue"},
-                     {"serie": "bp", "voie": "commerce"}, {"serie": "bp", "voie": "autre"}):
+                     {"serie": "bp", "voie": "commerce"}, {"serie": "bp", "voie": "autre"}, {"serie": "bg", "spe1": "ART", "spe2": "ART"}):
             out.append((d1, {**prof, "mention": "b", "statut": "terminale"}))
         sem = {"session": 2025, "fili": "BUT", "filiere": "Informatique", "min_rapports": 3, "min_candidats": 20,
                "doublettes": [{"key": "MATHS+NSI", "label": "Mathématiques, NSI", "taux": 30.0, "tous_taux": 40.0, "n_rapports": 4,
@@ -188,9 +188,14 @@ def reference(d: dict, p: dict) -> dict:
     """The figure the page must show, re-derived from the modules' Python twins, published first."""
     rp, dbl, sem = d["rapport"], d["doublettes"], d["semblables"]
     series = (dbl or {}).get("series") or {}
+    def route():                                     # the card's "votre bac" row: this formation's proposal rate for the route
+        v = series.get(p["serie"])
+        return {"kind": "serie", "source": "voie", "taux": v["taux"]} if v and v.get("taux") is not None else {"kind": "aucun"}
     if p["serie"] == "bg":
-        # two identical specialties (the form refuses them; ART+ART exists nationally, see README): no doublette, the chain goes on
-        dkey = None if p["spe1"].upper() == p["spe2"].upper() else dkey_of(p)
+        # two identical specialties (the form refuses them; ART+ART exists nationally, see README): no doublette at all
+        if p["spe1"].upper() == p["spe2"].upper():
+            return {"kind": "incomplet"}
+        dkey = dkey_of(p)
         if rp and rp["doublettes"].get("bg"):
             x = RP.pick(rp, dkey)
             return {"kind": "publie", "source": "rapport", "taux": x["taux"]} if x else {"kind": "aucun"}
@@ -200,12 +205,9 @@ def reference(d: dict, p: dict) -> dict:
         e = DB.estimate(series.get("bg"), dbl.get("groupe"), dkey) if dbl and dbl.get("status") == "ok" else None
         if e:
             return {"kind": "estimation", "source": "national", "taux": e["taux"]}
-        bg = series.get("bg")
-        if bg and bg.get("taux") is not None:
-            return {"kind": "serie", "source": "voie", "taux": bg["taux"]}
-        return {"kind": "aucun"}
+        return route()
     v = VO.pick_voie(rp, p["serie"], p.get("voie"))
-    return {"kind": "publie", "source": "rapport", "taux": v["taux"]} if v else {"kind": "attente"}
+    return {"kind": "publie", "source": "rapport", "taux": v["taux"]} if v else route()
 
 
 def harness(js: str) -> str:
@@ -258,7 +260,7 @@ def z1(c: Ctx):
         if pr.get("kind") != ref["kind"] or pr.get("source") != ref.get("source") or not close(pr.get("taux"), ref.get("taux")):
             bad.append((d["record"]["cod_aff_form"], p, ref, {k: pr.get(k) for k in ("kind", "source", "taux")}))
     need = {("bg", "publie", "rapport"), ("bg", "estimation", "semblables"), ("bt", "publie", "rapport"), ("bp", "publie", "rapport"),
-            ("bt", "attente", None)}
+            ("bt", "serie", "voie"), ("bp", "serie", "voie")}
     if c.real:                                   # the real warehouse also has the national estimate
         need |= {("bg", "estimation", "national")}
     missing = need - set(kinds)
@@ -266,6 +268,7 @@ def z1(c: Ctx):
     return ok, f"{len(cases)} cases; kinds {dict(sorted(kinds.items(), key=str))}; uncovered {sorted(missing)}; {len(bad)} differences {bad[:2]}"
 
 
+ROUTE_ROW = re.compile(r'votre bac</span></td>\s*<td class="num" data-label="Taux de proposition">([0-9][0-9 ,.]*) %')
 HEAD = re.compile(r"Votre (?:doublette|ligne) dans cette formation : ([0-9][0-9 ,.]*) %")
 
 
@@ -288,7 +291,11 @@ def z2(c: Ctx):
         if pr.get("kind") in ("publie", "estimation"):
             if pr.get("taux") is not None and not any(abs(h - pr["taux"]) < 0.051 for h in heads):
                 bad.append(("card headline differs", d["record"]["cod_aff_form"], p, pr.get("taux"), heads))
-        elif heads and p["serie"] == "bg":
+        elif pr.get("kind") == "serie":
+            row = ROUTE_ROW.search(card.replace("\u202f", " "))
+            if not row or abs(to_num(row.group(1)) - pr["taux"]) > 0.051:
+                bad.append(("the card's 'votre bac' row differs", d["record"]["cod_aff_form"], p, pr.get("taux"), row and row.group(1)))
+        if heads and p["serie"] == "bg" and pr.get("kind") not in ("publie", "estimation"):
             bad.append(("the card has a doublette figure the tile does not show", d["record"]["cod_aff_form"], p, heads))
         if pr.get("kind") == "publie" and ("estimation" in g["tile"] or "estimation à partir" in card or "<span class=\"estim\">estimation</span>" in card):
             bad.append(("estimate beside a published figure", d["record"]["cod_aff_form"], p))
@@ -299,21 +306,14 @@ Z3_PROG = r"""
 const H = "<img src=x onerror=alert(1)>";
 const out = {};
 out.none = profileRateTile(null);
-out.pub = profileRateTile({ kind: "publie", taux: 89.84, what: `votre ligne « ${H} »`, source: "rapport", session: 2025, recoupe: true });
-out.pending = profileRateTile({ kind: "publie", taux: 50, what: "MATHS + SES", source: "rapport", session: 2026, recoupe: false });
-out.sem = profileRateTile({ kind: "estimation", taux: 42, what: "MATHS + SES", source: "semblables", n_rapports: 7 });
-out.nat = profileRateTile({ kind: "estimation", taux: 42, what: "MATHS + SES", source: "national" });
-out.ser = profileRateTile({ kind: "serie", taux: 30, what: "bacheliers généraux", source: "voie", fragile: true });
+out.incomplet = profileRateTile({ kind: "incomplet" });
+out.pub = profileRateTile({ kind: "publie", taux: 89.84, what: `votre ligne « ${H} »`, source: "rapport", session: 2025, recoupe: true, en_position: 7, confirmes: 9 });
+out.pending = profileRateTile({ kind: "publie", taux: 50, what: "x", source: "rapport", session: 2026, recoupe: false, en_position: 1, confirmes: 2 });
+out.sem = profileRateTile({ kind: "estimation", taux: 42, what: H, source: "semblables", n_rapports: 7 });
+out.nat = profileRateTile({ kind: "estimation", taux: 42, what: "Mathématiques, SES", source: "national" });
+out.ser = profileRateTile({ kind: "serie", taux: 30, what: "Bac technologique", source: "voie", fragile: true, candidats: 12 });
+out.serOk = profileRateTile({ kind: "serie", taux: 30, what: "Bac technologique", source: "voie", fragile: false, candidats: 120 });
 out.no = profileRateTile({ kind: "aucun", what: H, why: H });
-out.wait = profileRateTile({ kind: "attente", what: "bac technologique" });
-// the Plan B answer fills the waiting tile: a figure, or "—" (an error too), never left on "…"
-const mk = () => { const v = { innerHTML: "…" }, n = { textContent: "bac technologique · lecture en cours" };
-  return { v, n, el: { querySelector: (s) => (s === ".sum-value" ? v : n) } }; };
-let T = mk(); globalThis.document = { getElementById: (id) => (id === "sum-profil" ? T.el : null) };
-fillProfileTile({ taux_acces_ens: 61.25 }); out.fill = [T.v.innerHTML, T.n.textContent];
-T = mk(); fillProfileTile({ taux_acces_ens: 0 }); out.fillZero = [T.v.innerHTML, T.n.textContent];
-T = mk(); fillProfileTile(null); out.fillNone = [T.v.innerHTML, T.n.textContent];
-T = mk(); fillProfileTile({ taux_acces_ens: null }); out.fillNull = [T.v.innerHTML, T.n.textContent];
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -333,21 +333,19 @@ def tile_ok(js: str):
         bad.append("chance wording or tutoiement")
     if 'href="#/profil"' not in o["none"] or "Pour votre profil" not in o["none"]:
         bad.append("no profile: no way to create one")
-    if not ("89,8" in o["pub"] and "publié" in o["pub"] and "rapport du jury 2025" in o["pub"] and "estimation" not in o["pub"]):
+    if 'href="#/profil"' not in o["incomplet"] or "deux spécialités" not in o["incomplet"]:
+        bad.append("no doublette: no way to give the specialties")
+    if not ("89,8" in o["pub"] and "publié" in o["pub"] and "rapport du jury 2025" in o["pub"] and "7 sur 9 candidats" in o["pub"] and "estimation" not in o["pub"]):
         bad.append(("published", o["pub"]))
     if "pas encore recoupé" not in o["pending"]:
         bad.append("report not cross-checked yet, not said")
     if not ("estimation" in o["sem"] and "7 formations semblables" in o["sem"] and "estimation" in o["nat"] and "national" in o["nat"]):
         bad.append("estimate basis not said")
-    if not ("publié" in o["ser"] and "peu de candidats" in o["ser"] and "bacheliers généraux" in o["ser"]):
-        bad.append(("series rate", o["ser"]))
-    if 'id="sum-profil"' not in o["wait"] or "…" not in o["wait"]:
-        bad.append("waiting tile not marked")
-    if "61,3" not in o["fill"][0] or "estimation" not in o["fill"][1] or o["fillNone"][0] != "—" or o["fillNull"][0] != "—" \
-            or "…" in "".join(o["fillNone"] + o["fillNull"]) or not o["fillNone"][1].startswith("bac technologique"):
-        bad.append(("Plan B fill", o["fill"], o["fillNone"], o["fillNull"]))
-    if "rare pour votre série, pas fermé" not in o["fillZero"][1] or "rare" in o["fill"][1] or re.search(r"(?i)ferm[ée](?! )|fermée", o["fillZero"][1].replace("pas fermé", "")):
-        bad.append(("a low series estimate must read rare, never closed", o["fillZero"]))
+    if not ("taux de proposition de cette formation (effectifs publiés)" in o["ser"] and "peu de candidats (12)" in o["ser"]
+            and "peu de candidats" not in o["serOk"] and "publié ·" not in o["ser"] and "estimation" not in o["ser"]):
+        bad.append(("route rate", o["ser"], o["serOk"]))
+    if "fermé" in text or "rare" in text:
+        bad.append("the tile reads a rate as rare or closed (the card's own flags only)")
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
@@ -404,11 +402,13 @@ def z4(c: Ctx):
     if "const pr = profileRate(d, bacProfile());" not in sb or "${isReo(prof) ? \"\" : profileRateTile(pr)}" not in sb:
         bad.append("the tile does not read the validated profile")
     lp = js[js.index("async function loadPlanB("):js.index("async function loadPlanB(") + 4000]
-    if lp.count("fillProfileTile(") < 2 or "fillZoneTile(null); fillProfileTile(null);" not in lp \
-            or "fillZoneTile(d.target); fillProfileTile(d.target);" not in lp:
-        bad.append("Plan B does not fill the profile tile, or leaves it waiting on an error")
+    if "fillZoneTile(null);" not in lp or "fillZoneTile(d.target);" not in lp:
+        bad.append("Plan B leaves the zone tile waiting")
     pr = top(js, "profileRate")
-    order = [pr.find(x) for x in ("ownHasBg(rp)", "estimateSemblable(", "estimateDoublette(", "series.bg")]
+    # review: the figure is the card's, for the page's own campaign; never the latest campaign's Plan B estimate
+    if "target" in pr or "planb" in pr.lower() or "fillProfileTile" in js:
+        bad.append("the tile reads Plan B (another campaign, a figure the card does not show)")
+    order = [pr.find(x) for x in ("ownHasBg(rp)", "estimateSemblable(", "estimateDoublette(", "return route();")]
     if -1 in order or order != sorted(order) or "pickVoie(rp, serie, prof.voie || null)" not in pr:
         bad.append(("the published-first order", order))
     if ".sum-grid:has(> :nth-child(5)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }" not in c.css \
@@ -489,8 +489,8 @@ def z5(c: Ctx):
     if o["wide-bg"]["n"] != 5 or "publié" not in (o["wide-bg"]["profil"] or "") or "%" not in (o["wide-bg"]["profil"] or ""):
         bad.append(("bac général", o["wide-bg"]))
     bt = o["phone-bt"]["profil"] or ""
-    if "…" in bt or not ("estimation" in bt or "pas d'estimation" in bt):
-        bad.append(("bac techno left waiting or unsourced", bt))
+    if "…" in bt or not ("taux de proposition de cette formation" in bt or "pas de chiffre" in bt):
+        bad.append(("bac techno unsourced", bt))
     if o["phone-none"]["n"] != 4 or "créez votre profil" not in (o["phone-none"]["profil"] or ""):
         bad.append(("no profile", o["phone-none"]))
     if any(v["hscroll"] for v in o.values()) or any(not (v["first"] or "").startswith("Taux d'accès") for v in o.values()):
@@ -504,20 +504,20 @@ MUTANTS = [
     ("national before similar formations", "    const sem = estimateSemblable(series, d.semblables, dkey);",
      "    const sem = null;", ("z1", "z2")),
     ("bac techno line ignored", "  const v = pickVoie(rp, serie, prof.voie || null);", "  const v = null;", ("z1", "z2")),
-    ("series rate shown for a missing report row", '        : { kind: "aucun", what: DKEY_LABEL(dkey), why: `pas de ligne pour votre doublette dans le rapport ${rp.session}` };',
-     "        : null;", ("z1",)),
+    ("route row of another bac", "    const v = series && series[serie];", "    const v = series && series.bg;", ("z1", "z2")),
+    ("series rate shown for a missing report row", '        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };',
+     "        : route();", ("z1",)),
+    ("identical specialties read as a doublette", '    if (!dkey) return { kind: "incomplet" };', "", ("z1",)),
     ("estimate called published", 'if (sem) return { kind: "estimation", taux: sem.taux,', 'if (sem) return { kind: "publie", taux: sem.taux,', ("z1", "z2")),
     ("row label unescaped", "return tile(pct1(pr.taux), `${esc(pr.what)} ·", "return tile(pct1(pr.taux), `${pr.what} ·", ("z3",)),
     ("source not said", "  rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}", "  rapport: (pr) => `${esc(pr.session)}", ("z3",)),
+    ("report counts dropped", " · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,", "`,", ("z3",)),
     ("not-cross-checked report hidden", '${pr.recoupe ? "" : ", pas encore recoupé"}', "", ("z3",)),
-    ("waiting tile left on '…' when Plan B has nothing", "el.querySelector(\".sum-value\").innerHTML = t === null || t === undefined ? \"—\" : pct1(t);",
-     "if (t === null || t === undefined) return; el.querySelector(\".sum-value\").innerHTML = pct1(t);", ("z3",)),
+    ("few candidates not said", '${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}', "", ("z3",)),
     ("profile tile after the zone", "      ${isReo(prof) ? \"\" : profileRateTile(pr)}\n      ${isReo(prof) ? tile(",
      "      ${isReo(prof) ? tile(", ("z3", "z4")),
-    ("low series estimate not said rare", '${t !== null && t !== undefined && t < 5 ? " · rare pour votre série, pas fermé" : ""}', "", ("z3",)),
     ("chance wording", 'national: () => "estimation · écart national de votre doublette",',
      'national: () => "vos chances d\'être admis",', ("z3", "z4")),
-    ("Plan B error leaves the tile waiting", "      if (!opts.inline && p) { fillZoneTile(null); fillProfileTile(null); }    // R2: no tile left on \"…\"\n", "", ("z4",)),
     ("raw profile read", "  const pr = profileRate(d, bacProfile());", "  const pr = profileRate(d, prof);", ("z4",)),
 ]
 

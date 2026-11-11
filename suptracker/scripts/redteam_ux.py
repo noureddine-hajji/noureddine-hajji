@@ -183,7 +183,7 @@ def r2_defs(js: str) -> str:
     """Sprint R2: the page's own helpers the summary's "Pour votre profil" tile calls (no copy)."""
     fns = [re.search(rf"^function {n}\(.*?^\}}", js, re.M | re.S).group(0)
            for n in ("bacProfile", "profileDkey", "pickDoublette", "estimateDoublette", "estimateSemblable", "pickRapport", "pickVoie")]
-    one = [ln for ln in js.splitlines() if ln.startswith(("const ownHasBg = ", "const VOIE_WORD = ", "const pct1 = "))]
+    one = [ln for ln in js.splitlines() if ln.startswith(("const ownHasBg = ", "const VOIE_WORD = ", "const pct1 = ", "const RP_VOIE = "))]
     return "\n".join(one + fns) + "\n"
 
 
@@ -514,7 +514,7 @@ process.stdout.write(JSON.stringify(out));"""
     order = vf.index("${summaryBand(r, d)}") < vf.index("${tabbed(\"fiche\"") < vf.index("Indicateurs officiels SIES") if all(
         s in vf for s in ("${summaryBand(r, d)}", "${tabbed(\"fiche\"", "Indicateurs officiels SIES")) else False
     groups = all(f'["{k}", "' in vf for k in ("admission", "reussite", "emploi", "historique")) and 'bindTabs("fiche");' in vf
-    fill = "if (!opts.inline && p) { fillZoneTile(d.target); fillProfileTile(d.target); }" in js   # R2: the profile tile too
+    fill = "if (!opts.inline && p) fillZoneTile(d.target);" in js
     vm = js[js.index("async function viewMetier("):js.index("// ---- Sprint 15")]
     job = ("const nForm = d.n_formations;" in vm and '<details class="dip"${open ? " open" : ""}>' in vm and "const open = !!mine.length" in vm and 'bindTabs("metier");' in vm
            and "${summary}${tabbed(\"metier\"" in vm and "${esc(x.libelle)}" in vm)

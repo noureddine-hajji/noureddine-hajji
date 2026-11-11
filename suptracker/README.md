@@ -2375,13 +2375,14 @@ A published figure replaces an estimate and never sits beside it.
 | Bac général | the formation's own report, when it has a bac général table: the student's doublette row, else its "Autres doublettes" line | "publié · rapport du jury 2025" |
 | | otherwise, the similar formations' estimate (`estimateSemblable`) | "estimation · rapports de N formations semblables" |
 | | otherwise, the national group's estimate (`estimateDoublette`) | "estimation · écart national de votre doublette" |
-| | otherwise, the formation's bac général proposal rate, from published counts | "taux de proposition publié" |
+| | otherwise, the card's "votre bac" row: the formation's bac général proposal rate, from published counts | "taux de proposition de cette formation (effectifs publiés)" |
 | Bac techno / pro | the student's line of the report (`pickVoie`, sprint 20) | "publié" |
-| | otherwise, the estimated series access of the positioning (official rate × series proposal rate / all proposal rate), read from the Plan B answer like the zone | "estimation"; "—" when there is none, an error included |
+| | otherwise, the card's "votre bac" row: this formation's proposal rate for the student's route, for the page's own campaign | "taux de proposition de cette formation (effectifs publiés)"; "peu de candidats (n)" below 20, as on the card |
 | Not in terminale | the estimated access outside terminale (sprint 21), in its own tile | (no zone tile) |
 
 If the report has a bac général table but no row and no "Autres" line for the student's doublette, the tile says so. No
-estimate stands in for it.
+estimate stands in for it. A report figure is shown with its counts ("7 sur 9 candidats"). A bac général profile without two
+distinct specialties gets a link to "Mon profil", never a figure.
 
 A report SIES has not cross-checked yet carries "pas encore recoupé". The tile opens the "Y entrer" tab, where the card gives
 the calculation.
@@ -2395,15 +2396,29 @@ has a single "Arts" code and refuses two identical specialties, so it cannot rec
 doublette figure: the chain goes on without a doublette, as the page does today. This needs an owner decision (separate arts
 codes in the form).
 
+**Independent review (before Codex).** The first version filled the bac techno / pro fallback from Plan B. That was the latest
+campaign's estimated series access, and it caused four problems:
+- it ignored the "fewer than 20 candidates" rule;
+- it used its own "rare" rule;
+- it was unlabelled on an older-session page;
+- it was a figure the card does not show.
+
+The tile now shows the card's own "votre bac" row for the page's campaign, with the card's "peu de candidats" flag. The same
+review led to these wording fixes:
+- the rate computed from published counts is no longer called "publié";
+- a report figure now carries its counts;
+- labels replace raw specialty codes.
+
 **Red team** `scripts/redteam_tauxprofil.py` (Z1-Z6; `tests/test_tauxprofil.py`):
 - Z1: the page's figure equals the one re-derived in Python from the modules' twins (`rapports.pick`, `semblables.estimate`,
   `doublettes.estimate`, `voies.pick_voie`).
   - Cases: about 420 real formation × profile pairs, plus crafted report and similar-formation payloads, so every branch is
     tested on the synthetic warehouse too.
-- Z2: the card's headline equals the tile, and a published tile never has an estimate beside it.
-- Z3: the tile and the summary, run in Node: escaping, sources in words, the Plan B fill, tile counts and order.
+- Z2: the card's headline or its "votre bac" row equals the tile, and a published tile never has an estimate beside it.
+- Z3: the tile and the summary, run in Node: escaping, sources and counts in words, the "peu de candidats" flag, tile counts and
+  order.
 - Z4: wiring, layouts, feature and docs.
 - Z5: the browser check on real formations (`--real`).
-- Z6: 13 mutants, run only on a passing baseline.
+- Z6: 15 mutants, run only on a passing baseline.
 
 The ux (X12, X16) and reorientation (E6) harnesses now load the R2 helpers.

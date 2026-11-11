@@ -944,65 +944,61 @@ function admisBar(a) {
 }
 const admisCell = (a) => (!a ? "—" : `${fmt(a.admis_neobac)} / ${fmt(a.admis_autres)}${a.coherent ? "" : ` <span class="muted small">(total publié ${fmt(a.admis)})</span>`}${autresBadge(a)}`);
 // R2 (owner, 2026-11-11): ONE sourced figure for the profile beside the official access rate (inside the lot 2 summary section).
-// The figure the "Selon votre bac" card shows, chosen by the same rules (a published figure replaces an estimate, never beside it):
+// It is a figure the "Selon votre bac" card shows for the same profile, chosen by the same rules (a published figure replaces an
+// estimate, never beside it), for the page's own campaign:
 //   bac général: this formation's own report row (the doublette, else its "Autres doublettes" line) when the report has a bac
-//     général table; else the similar formations' estimate; else the national group's estimate; else (no doublette figure at
-//     all) the formation's bac général proposal rate, from published counts;
-//   bac techno / pro: the student's line of the report (pickVoie); else the estimated series access of the positioning,
-//     read from the Plan B answer like the zone (`attente` until it arrives);
+//     général table; else the similar formations' estimate; else the national group's estimate; else (no doublette figure)
+//     the card's "votre bac" row, the formation's bac général proposal rate from published counts;
+//   bac techno / pro: the student's line of the report (pickVoie); else the card's "votre bac" row (the proposal rate of the
+//     student's route in this formation, "peu de candidats" below 20, as on the card) — review: never the latest campaign's
+//     estimate on an older page, never a figure the card does not show;
 //   outside terminale: the estimated access (sprint 21), in its own tile.
-// Never a chance: a past rate of candidates like the student, with its source.
-const DKEY_LABEL = (k) => String(k || "").split("+").join(" + ");
+// Never a chance: a past rate of candidates like the student, with its source and, for a report row, its counts.
 function profileRate(d, prof) {
   if (!prof || isReo(prof)) return null;
   const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
   const rp = d.rapport, dbl = d.doublettes;
   const series = dbl && dbl.series;
+  const route = () => {                                       // the card's "votre bac" row
+    const v = series && series[serie];
+    return v && v.taux !== null && v.taux !== undefined
+      ? { kind: "serie", taux: v.taux, what: RP_VOIE[serie], source: "voie", fragile: !!v.fragile, candidats: v.candidats }
+      : { kind: "aucun", what: RP_VOIE[serie], why: "pas de chiffre publié pour votre bac" };
+  };
   if (serie === "bg") {
     const dkey = profileDkey(prof);
+    if (!dkey) return { kind: "incomplet" };                   // review: no doublette without two distinct specialties
     if (ownHasBg(rp)) {
       const x = pickRapport(rp, dkey);
-      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "votre doublette, ligne « Autres doublettes »" : DKEY_LABEL(dkey),
+      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "votre doublette, ligne « Autres doublettes »" : x.libelle,
         source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: x.en_position, confirmes: x.confirmes }
-        : { kind: "aucun", what: DKEY_LABEL(dkey), why: `pas de ligne pour votre doublette dans le rapport ${rp.session}` };
+        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };
     }
     const sem = estimateSemblable(series, d.semblables, dkey);
-    if (sem) return { kind: "estimation", taux: sem.taux, what: DKEY_LABEL(dkey), source: "semblables", n_rapports: sem.n_rapports };
+    if (sem) return { kind: "estimation", taux: sem.taux, what: sem.label, source: "semblables", n_rapports: sem.n_rapports };
     const nat = dbl && dbl.status === "ok" ? estimateDoublette(series, dbl.groupe, dkey) : null;
-    if (nat) return { kind: "estimation", taux: nat.taux, what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : DKEY_LABEL(dkey), source: "national" };
-    const bg = series && series.bg;
-    if (bg && bg.taux !== null && bg.taux !== undefined) return { kind: "serie", taux: bg.taux, what: "bacheliers généraux", source: "voie", fragile: !!bg.fragile };
-    return { kind: "aucun", what: DKEY_LABEL(dkey), why: "pas de chiffre publié pour les bacheliers généraux" };
+    if (nat) return { kind: "estimation", taux: nat.taux, what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : nat.label, source: "national" };
+    return route();
   }
   const v = pickVoie(rp, serie, prof.voie || null);
   if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${v.libelle} »` : `votre ligne « ${v.libelle} »`,
     source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: v.en_position, confirmes: v.confirmes };
-  return { kind: "attente", what: serie === "bt" ? "bac technologique" : "bac professionnel" };
+  return route();
 }
 const PR_SOURCE = {
-  rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}${pr.recoupe ? "" : ", pas encore recoupé"}`,
+  rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}${pr.recoupe ? "" : ", pas encore recoupé"} · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,
   semblables: (pr) => `estimation · rapports de ${fmt(pr.n_rapports)} formations semblables`,
   national: () => "estimation · écart national de votre doublette",
-  voie: (pr) => `taux de proposition publié${pr.fragile ? " · peu de candidats" : ""}`,
-  serie: () => "estimation · taux d'accès × écart de votre série",
+  voie: (pr) => `taux de proposition de cette formation (effectifs publiés)${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}`,
 };
 function profileRateTile(pr) {
-  const tile = (value, note, extra = "") => `<button type="button" class="sum-tile sum-profil" data-goto="admission"${extra}>
+  const tile = (value, note) => `<button type="button" class="sum-tile sum-profil" data-goto="admission">
       <span class="sum-label">Pour votre profil</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
-  if (!pr) return `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">créez votre profil dans « Mon profil » : votre zone et votre doublette ou votre ligne</span></a>`;
-  if (pr.kind === "attente") return tile('<span class="muted">…</span>', `${esc(pr.what)} · lecture en cours`, ' id="sum-profil"');
+  const link = (note) => `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
+  if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et votre doublette ou votre ligne");
+  if (pr.kind === "incomplet") return link("indiquez vos deux spécialités dans « Mon profil »");
   if (pr.kind === "aucun" || pr.taux === null || pr.taux === undefined) return tile("—", `${esc(pr.what)} · ${esc(pr.why || "pas de chiffre")}`);
   return tile(pct1(pr.taux), `${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}`);
-}
-// bac techno / pro without a line of their own in the report: the estimated series access of the positioning (Plan B's target row)
-function fillProfileTile(target) {
-  const el = document.getElementById("sum-profil");
-  if (!el) return;
-  const t = target && target.taux_acces_ens;
-  el.querySelector(".sum-value").innerHTML = t === null || t === undefined ? "—" : pct1(t);
-  const what = el.querySelector(".sum-note").textContent.split(" · ")[0];
-  // a low share for bac techno / pro means rare, never closed (sprint B4 rule)
-  el.querySelector(".sum-note").textContent = `${what} · ${t === null || t === undefined ? "pas d'estimation pour votre série" : PR_SOURCE.serie()}${t !== null && t !== undefined && t < 5 ? " · rare pour votre série, pas fermé" : ""}`;
 }
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
@@ -1171,12 +1167,12 @@ async function loadPlanB(cod, opts = {}) {
   try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) {
     if (box.isConnected && box.dataset.req === req) {
       box.innerHTML = opts.inline ? `<p class="muted small">Plan B indisponible pour le moment.</p>` : "";
-      if (!opts.inline && p) { fillZoneTile(null); fillProfileTile(null); }    // R2: no tile left on "…"
+      if (!opts.inline && p) fillZoneTile(null);                      // no zone tile left on "…"
     }
     return;
   }
   if (!box.isConnected || box.dataset.req !== req) return;
-  if (!opts.inline && p) { fillZoneTile(d.target); fillProfileTile(d.target); }
+  if (!opts.inline && p) fillZoneTile(d.target);
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(prof.spe1 || "MATHS")} + ${esc(prof.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}`;
   const head = opts.inline
     ? `<h3 class="planb-title">Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h3>`
