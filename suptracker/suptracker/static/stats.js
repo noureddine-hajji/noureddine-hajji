@@ -12,7 +12,8 @@ const SOURCE_LABEL = { direct: "Accès direct / favori", moteur: "Moteur de rech
   education: "Sites education.gouv", ent: "ENT / Pronote / académies", social: "Réseaux sociaux & messageries", autre: "Autres sites" };
 const REASON_LABEL = { utile: "Utile (avis positif)", introuvable: "Ne trouve pas", incomprehensible: "Chiffres difficiles à comprendre",
   manque_info: "Information manquante", erreur_donnees: "Donnée jugée fausse", lent: "Lenteur" };
-const PAGE_LABEL = { fiche: "Fiche formation", parcours: "Mon parcours", search: "Résultats de recherche" };
+const PAGE_LABEL = { fiche: "Fiche formation", parcours: "Mon parcours", search: "Résultats de recherche", voeux: "Mes vœux" };
+const TAB_LABEL = { admission: "Y entrer", jury: "Ce que regarde le jury", reussite: "Réussir et poursuivre", emploi: "Emploi et métiers", historique: "Historique" };
 
 async function statsApi(days) {
   const r = await fetch(`/api/stats?days=${days}`, { headers: { Authorization: `Bearer ${tokenGet()}` }, cache: "no-store" });
@@ -210,7 +211,12 @@ async function viewStats(daysArg) {
     </table></div></details></div>
   <div class="charts">
     <div class="card"><h2>Entonnoir élève</h2><p class="muted small">Visiteurs distincts ayant atteint chaque étape. Le clic vers Parcoursup est notre meilleur signal d'utilité.</p>${funnelView(d.funnel)}
-      <p class="muted small">« Mon parcours » : ${fmt(d.journey.stage1)} profils analysés, ${fmt(d.journey.stage2)} positionnements détaillés.</p></div>
+      <p class="muted small">« Mon parcours » : ${fmt(d.journey.stage1)} profils analysés, ${fmt(d.journey.stage2)} positionnements détaillés.</p>
+      ${d.actions ? `<h3 style="margin-top:12px">Actions des élèves</h3><p class="muted small">Visiteurs-jours distincts (et nombre d'actions). La formation concernée n'est jamais enregistrée.</p>
+      <div class="scroll"><table><tr><th>Action</th><th class="num">Visiteurs</th><th class="num">Actions</th></tr>
+        ${[["voeu", "Vœu ajouté à la liste"], ["planb", "Plan B ouvert"], ["onglet", "Onglet de fiche ouvert"]].map(([k, l]) => `<tr><td>${l}</td><td class="num">${fmt(d.actions[k].visitors)}</td><td class="num">${fmt(d.actions[k].events)}</td></tr>`).join("")}
+      </table></div>
+      <h3 style="margin-top:12px">Onglets de fiche ouverts</h3>${Object.values(d.tabs).some((v) => v) ? hbars(Object.entries(d.tabs).filter(([, v]) => v).sort((a, b) => b[1] - a[1]), { labels: TAB_LABEL }) : `<p class="muted small">Aucun onglet ouvert sur la période.</p>`}` : ""}</div>
     <div class="card"><h2>Satisfaction par page</h2><p class="muted small">Part d'avis 👍, avec intervalle de Wilson à 95 % (trait foncé). Moins de 30 avis : à lire avec prudence.</p>
       <div class="hbars">${satisfaction(d.feedback)}</div>
       <h3 style="margin-top:12px">Motifs d'avis</h3>${hbars(Object.entries(d.reasons).filter(([, v]) => v).sort((a, b) => b[1] - a[1]), { labels: REASON_LABEL }) || ""}
@@ -239,12 +245,12 @@ async function viewStats(daysArg) {
     <tr><td>Erreurs serveur (5xx)</td><td class="num">${fmt(q.server_errors)}</td></tr>
     <tr><td>Recherches / fiches masquées sous le seuil d'anonymat</td><td class="num">${fmt(q.hidden_queries)} / ${fmt(q.hidden_fiches)}</td></tr>
     </table>${d.store.salt_configured ? "" : `<div class="warn" style="margin-top:8px">SUPTRACKER_ANALYTICS_SALT n'est pas défini : les visiteurs uniques peuvent être surestimés.</div>`}</div>
-  <div class="card"><h2>Méthode</h2><p class="small muted">Aucun cookie, aucun identifiant, aucune adresse IP ni user agent n'est enregistré.
+  <div class="card"><h2>Méthode</h2><p class="small muted">Aucun cookie, aucun identifiant, aucune adresse IP ni user agent n'est enregistré. Trois actions sont comptées (vœu ajouté, plan B ouvert, onglet de fiche) sans jamais la formation concernée.
     Un visiteur est un pseudonyme quotidien (HMAC du jour, de l'IP et du navigateur) qui change chaque jour : on compte donc des
     <strong>visiteurs-jours</strong>, et deux jours ne peuvent pas être reliés. Seuls des compteurs agrégés par jour sont conservés
     (400 jours). Les recherches sont normalisées, les e-mails, URL et nombres sont masqués, et une requête n'apparaît qu'à partir de
     ${d.k_anon} visiteurs-jours. Les variations sont testées (test exact approché pour les volumes, test z de deux proportions pour
-    les taux), avec une correction de Holm pour les six indicateurs testés ensemble ; « non significatif » veut dire que l'écart peut être du bruit. Les intervalles sont des intervalles de Wilson à 95 %.</p></div>
+    les taux), avec une correction de Holm pour les ${d.kpis.length} indicateurs testés ensemble ; « non significatif » veut dire que l'écart peut être du bruit. Les intervalles sont des intervalles de Wilson à 95 %.</p></div>
   <div id="ttip" class="ttip" role="status" hidden></div>`;
   bindCrosshair("ch-v", d.daily, (r) => `${fmt(r.visitors)} visiteurs`);
   bindCrosshair("ch-s", d.daily, (r) => `${fmt(r.searches)} recherches`);

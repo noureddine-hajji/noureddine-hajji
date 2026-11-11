@@ -250,7 +250,8 @@ def ui(js: str) -> tuple[bool, str]:
     zone_guard = "v.zone && ZONES[v.zone]" in b
     rate_label = bool(re.search(r'const rate = serie === "bg" \? "Taux d\'accès" : "Accès estimé pour votre série";', b))
     words = all(w in b for w in ("pas des chances d'admission", "les vœux ne sont pas classés", "ne se combinent pas en une probabilité",
-                                 "rien n'est enregistré ni compté sur le serveur", "Accès estimé pour votre série"))
+                                 "rien n'en est enregistré sur le serveur", "sans savoir de quelle formation il s'agit",
+                                 "Accès estimé pour votre série"))
     msg = re.search(r"const VX_MSG = \{(.*?)\n\};", b, re.S)
     codes_ok = bool(msg) and all(f"{k}:" in msg.group(1) for k in ("aucune_securite", "majorite_ambitieuse", "hors_profil", "non_ouvert",
                                                                   "non_situe", "aucune_cible", "equilibree"))

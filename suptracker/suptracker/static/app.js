@@ -52,7 +52,7 @@ const voeux = {
   },
   set(v) { try { localStorage.setItem("voeux", JSON.stringify(v)); } catch (_) { /* storage blocked */ } this.render(); },
   has(cod) { return this.get().includes(cod); },
-  add(cod) { const v = this.get(); if (!v.includes(cod) && v.length < this.MAX) { v.push(cod); this.set(v); } return v.includes(cod); },
+  add(cod) { const v = this.get(); if (!v.includes(cod) && v.length < this.MAX) { v.push(cod); this.set(v); track("action", { a: "voeu" }); } return v.includes(cod); },   // sprint 18: counted, never which formation
   remove(cod) { this.set(this.get().filter((c) => c !== cod)); },
   render() { const n = this.get().length; document.querySelectorAll('[data-count="voeux"]').forEach((el) => { el.textContent = n; el.hidden = n === 0 && !!el.closest(".tabbar"); }); profileBar.render(); },
 };
@@ -866,6 +866,7 @@ function summaryBand(r, d) {
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
     ${admisBar(d.admis)}
+    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
 function fillZoneTile(target) {
@@ -892,6 +893,7 @@ function bindTabs(id) {
       const panel = document.getElementById(b.getAttribute("aria-controls"));
       if (panel) panel.hidden = !on;
     });
+    if (id === "fiche") track("action", { a: "onglet", tab: k });   // sprint 18: which tab of a formation page, never which formation
   };
   bar.querySelectorAll("[role=tab]").forEach((b) => { b.onclick = () => open(b.dataset.tabKey); });
   bar.onkeydown = (e) => {
@@ -910,21 +912,24 @@ async function viewFormation(cod, session) {
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);
   const years = d.history.map((h) => h.session);
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
+  // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
+  const juryHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
+  d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session } : { kind: "semblables" };
   $view.innerHTML = `
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>
     <div>${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
-    <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · n° Parcoursup ${esc(r.cod_aff_form)} · code établissement ${esc(r.cod_uai)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)}</div>
+    <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
     <div class="toolbar" style="margin-top:8px">
-      <label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
-      <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Ajouter au comparateur"}</button>
       ${voeuButton(r.cod_aff_form)}
-      <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
-      <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}
+      <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
     </div>
   </div>
   ${d.warnings.map((w) => `<div class="warn">⚠ ${esc(w.text)}</div>`).join("")}
   ${summaryBand(r, d)}
+  <p class="small fhead-links"><label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
+      · <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
+      · <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}</p>
   ${tabbed("fiche", [
     ["admission", "Y entrer", `
   <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
@@ -934,12 +939,13 @@ async function viewFormation(cod, session) {
       <div><div class="muted small">Admis (cohorte finale)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
   ${doubletteCard(d.doublettes, d.rapport, d.semblables)}
-  ${previsionCard(d.prevision)}
-  ${offerCard(r, d.apprentissage)}
-  ${timingCard(r, d.history)}
   ${appelCard(d.appel)}
-  ${lyceeHere(r)}
   <div id="planb"></div>
+  ${offerCard(r, d.apprentissage)}
+  <details class="more-card"><summary><strong>Plus de chiffres sur l'admission</strong> <span class="muted small">prévision, calendrier des propositions, lycées d'origine, étapes de la sélection, comparaison avec la filière</span></summary>
+  ${previsionCard(d.prevision)}
+  ${timingCard(r, d.history)}
+  ${lyceeHere(r)}
   <div class="card"><h2>Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
   <div class="grid3">
     ${stageCard("1 · Candidatures (vœux)", ["voe_tot", "nb_voe_pp", "nb_voe_pc", "voe_tot_f"], r, r.subwish_flag ? "Sous-vœu : effectifs partagés, non additionnables. " + tip("subwish") : "Unité : vœux, pas candidats uniques.")}
@@ -954,8 +960,9 @@ async function viewFormation(cod, session) {
       <div class="num">${p.peer_percentile != null ? `<strong>P${fmt(p.peer_percentile)}</strong>` : `<span class="muted small">${p.value == null ? "n.d." : "hors réf."}</span>`}
       <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
   </div>
+  </details>
 `],
-    ["jury", "Ce que regarde le jury", juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport)],
+    ["jury", "Ce que regarde le jury", juryHtml],
     ["reussite", "Réussir et poursuivre", `
   ${successCard(d.success)}
   ${masterCard(d.master)}
@@ -967,7 +974,7 @@ async function viewFormation(cod, session) {
   ${cereqCard(d.cereq)}
   ${metiersCard(d.metiers)}`],
     ["historique", "Historique", `
-  <div class="card"><h2>Historique de la lignée ${tip("lineage")}</h2><div class="scroll"><table>
+  <div class="card"><h2>Historique de la lignée ${tip("lineage")}</h2><p class="muted small">Code de l'établissement (UAI) : ${esc(r.cod_uai)}</p><div class="scroll"><table>
     <tr><th>Session</th><th>cod_aff_form</th><th>Libellé</th><th>Lien vers la campagne suivante</th><th class="num">Admis</th><th class="num">Taux d'accès</th></tr>
     ${d.history.map((h) => `<tr><td><a href="#/f/${esc(h.cod_aff_form)}/${h.session}">${h.session}</a></td><td>${esc(h.cod_aff_form)}</td><td>${esc(h.lib_for_voe_ins)}</td>
       <td>${h.link_to_next ? lineageBadge(h.link_to_next) : `<span class="muted small">—</span>`}</td><td class="num">${fmt(h.acc_tot)}</td><td class="num">${pct(h.taux_acces_ens)}</td></tr>`).join("")}
@@ -1909,6 +1916,7 @@ async function viewParcours() {
       tr.after(row);
       el.textContent = "Masquer le plan B";
       el.setAttribute("aria-expanded", "true");
+      track("action", { a: "planb" });
       const box = row.querySelector(".planb-inline");
       loadPlanB(el.dataset.planb, { box, profile: { ...p, serie }, inline: true, onPin: (a) => {
         pin({ cod_aff_form: a.cod_aff_form }, false);
@@ -2077,7 +2085,7 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : ""}<th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : ""}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'est enregistré ni compté sur le serveur.</p>${howto}</div>`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false);
@@ -2094,6 +2102,7 @@ async function viewVoeux() {
       tr.after(row);
       el.textContent = "Masquer le plan B";
       el.setAttribute("aria-expanded", "true");
+      track("action", { a: "planb" });
       loadPlanB(el.dataset.vxplanb, { box: row.querySelector(".planb-inline"), profile: prof, inline: true, onPin: (a) => {
         if (voeux.add(a.cod_aff_form)) viewVoeux();
         else alert(`${voeux.MAX} vœux au maximum : retirez un vœu d'abord.`);

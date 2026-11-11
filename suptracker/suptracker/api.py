@@ -318,7 +318,8 @@ METHODOLOGY = {
         "votre série). Elle ne combine jamais les vœux en une chance d'être admis quelque part : les zones décrivent les admis "
         "des campagnes passées et les vœux ne sont pas indépendants. Une sécurité « incertaine » ne compte pas comme sûre. "
         "Sur Parcoursup, les vœux ne sont pas classés. Votre liste reste dans votre navigateur ; la page envoie les codes et votre "
-        "profil pour la lire, rien n'est enregistré ni compté sur le serveur."),
+        "profil pour la lire, rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation "
+        "il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi)."),
     "metiers": (
         "Les métiers auxquels prépare ce diplôme, d'après les fiches de l'Onisep (Idéo, licence ODbL). La liste est celle "
         "du diplôme au niveau national, pas propre à cet établissement : un BTS ou un BUT est relié à la fiche Onisep du "

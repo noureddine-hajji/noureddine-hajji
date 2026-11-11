@@ -54,7 +54,10 @@ MAX_QUERY = 80
 ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats", "glossaire",
           "voeux", "metiers", "carte", "comprendre", "selectivite")
 DEVICES = ("mobile", "tablet", "desktop")
-FEEDBACK_PAGES = ("fiche", "parcours", "search")
+FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux")
+# sprint 18 (owner, 2026-11-11): three student actions, counted without the formation they concern
+ACTIONS = ("voeu", "planb", "onglet")          # vœu added to the list, Plan B opened, a formation-page tab opened
+FICHE_TABS = ("admission", "jury", "reussite", "emploi", "historique")
 FEEDBACK_REASONS = ("utile", "introuvable", "incomprehensible", "manque_info", "erreur_donnees", "lent")
 # Traffic sources: anything else is "autre", so a spoofed referrer cannot mint counters.
 REFERRERS = {
@@ -372,6 +375,11 @@ def validate_client_event(e: dict) -> tuple[str, dict]:
         if st not in ("stage1", "stage2"):
             raise Rejected("journey")
         return t, {"stage": st}
+    if t == "action":                  # never a formation code: the list a student considers is never counted
+        a, tab = e.get("a"), e.get("tab")
+        if a not in ACTIONS or (a == "onglet") != (tab is not None) or (tab is not None and tab not in FICHE_TABS):
+            raise Rejected("action")
+        return t, {"a": a, "tab": tab}
     if t == "jserr":
         r = e.get("route")
         return t, {"route": r if r in ROUTES else "home"}
@@ -416,6 +424,13 @@ def ops_for(t: str, p: dict, vid: str, day: date) -> list[tuple]:
         h("search_refine")
     elif t == "journey":
         h(f"journey:{p['stage']}"); ops.append(("p", f"{k['u']}:journey", vid))
+    elif t == "action":
+        h(f"act:{p['a']}")
+        ops.append(("o", k["d"], f"actu:{p['a']}", k["seen"], f"act|{p['a']}|{vid}"))      # distinct visitors per action
+        if p["a"] == "voeu":
+            ops.append(("p", f"{k['u']}:voeu", vid))
+        if p["tab"]:
+            ops.append(("o", k["d"], f"tab:{p['tab']}", k["seen"], f"tab|{p['tab']}|{vid}"))
     return ops
 
 
@@ -550,7 +565,7 @@ def summarize(days: int = 30, end: date | None = None, labels=None) -> dict:
     groups = {f"day:{d}": [K[d]["u"]] for d in cur}
     for per, ds in (("cur", cur), ("prev", prev)):
         groups[f"{per}:"] = grp(ds)
-        for st in (*STAGES, "journey"):
+        for st in (*STAGES, "journey", "voeu"):
             groups[f"{per}:{st}"] = grp(ds, st)
     names = list(groups)
     U = dict(zip(names, s.pfcount_many([groups[n] for n in names])))
@@ -585,6 +600,7 @@ def summarize(days: int = 30, end: date | None = None, labels=None) -> dict:
     up_p = sum(n for f, n in P.items() if f.startswith("fb:") and f.endswith(":up"))
     fb_p = sum(n for f, n in P.items() if f.startswith("fb:"))
     out_u, out_u_p = uniq(cur, "out"), uniq(prev, "out")
+    vx_u, vx_u_p = uniq(cur, "voeu"), uniq(prev, "voeu")
     kpis = [
         kpi("Visiteurs uniques (visiteurs-jours)", v_cur, v_prev),
         kpi("Pages vues", C.get("pv", 0), P.get("pv", 0)),
@@ -594,6 +610,8 @@ def summarize(days: int = 30, end: date | None = None, labels=None) -> dict:
         kpi("Avis positifs", up / fb if fb else None, up_p / fb_p if fb_p else None, "rate", up, fb, up_p, fb_p),
         kpi("Visiteurs allant sur Parcoursup", out_u / v_cur if v_cur else None, out_u_p / v_prev if v_prev else None,
             "rate", out_u, v_cur, out_u_p, v_prev),
+        kpi("Visiteurs ajoutant un vœu", vx_u / v_cur if v_cur else None, vx_u_p / v_prev if v_prev else None,
+            "rate", vx_u, v_cur, vx_u_p, v_prev),
     ]
 
     holm(kpis)
@@ -626,6 +644,8 @@ def summarize(days: int = 30, end: date | None = None, labels=None) -> dict:
     devices = {d: C.get(f"dev:{d}", 0) for d in DEVICES}
     sources = {x: C.get(f"src:{x}", 0) for x in SOURCES}
     journey = {st: C.get(f"journey:{st}", 0) for st in ("stage1", "stage2")}
+    actions = {a: {"events": C.get(f"act:{a}", 0), "visitors": C.get(f"actu:{a}", 0)} for a in ACTIONS}
+    tabs = {t: C.get(f"tab:{t}", 0) for t in FICHE_TABS}
     quality = {"bots_filtered": C.get("q:bot", 0), "opt_out": C.get("q:optout", 0),
                "invalid": C.get("q:invalid", 0), "rate_limited": C.get("q:ratelimited", 0),
                "js_errors": C.get("err:js", 0), "server_errors": C.get("err:server", 0),
@@ -636,7 +656,7 @@ def summarize(days: int = 30, end: date | None = None, labels=None) -> dict:
         "store": {"kind": s.kind, "persistent": s.persistent, "salt_configured": _SECRET is not None},
         "k_anon": K_ANON, "kpis": kpis, "daily": daily, "funnel": funnel, "top_queries": tq,
         "zero_queries": zq, "top_fiches": tf, "feedback": feedback, "reasons": reasons, "routes": routes,
-        "devices": devices, "sources": sources, "journey": journey, "quality": quality,
+        "devices": devices, "sources": sources, "journey": journey, "actions": actions, "tabs": tabs, "quality": quality,
         "phases": [{"start": f"{a[0]:02d}-{a[1]:02d}", "end": f"{b[0]:02d}-{b[1]:02d}", "name": n} for a, b, n in PHASES],
     }
     res["insights"] = insights(res)

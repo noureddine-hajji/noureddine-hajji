@@ -381,7 +381,132 @@ def r22(H):
     return ok, f"conversion {k['value']}, CI {k['ci']}, funnel {f}"
 
 
-CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22]
+# ---- sprint 18 (owner, 2026-11-11): three student actions, counted without the formation they concern -------------
+def _src(H, name):
+    cache = H.__dict__.setdefault("_src", {})
+    if name not in cache:
+        cache[name] = (ROOT / "suptracker" / name).read_text()
+    return cache[name]
+
+
+@check("R23 actions: closed list (vœu, plan B, onglet with a known tab), anything else refused, never a formation code stored")
+def r23(H):
+    H.fresh()
+    good = [{"t": "action", "a": "voeu"}, {"t": "action", "a": "planb"}, {"t": "action", "a": "onglet", "tab": "jury"},
+            {"t": "action", "a": "voeu", "cod": "2469"}]
+    bad = [{"t": "action", "a": "profil"}, {"t": "action", "a": "onglet"}, {"t": "action", "a": "voeu", "tab": "jury"},
+           {"t": "action", "a": "onglet", "tab": "<script>"}, {"t": "action"}, {"t": "action", "a": "onglet", "tab": "admission2"}]
+    ok_codes = [H.ev(e).status_code for e in good]
+    bad_codes = [H.ev(e).status_code for e in bad]
+    dump = repr(H.store.hgetall_many([H.A._day_keys(H.A.today())["d"]]))
+    ok = ok_codes == [204] * 4 and bad_codes == [422] * 6 and "2469" not in dump
+    return ok, f"accepted {ok_codes}; refused {bad_codes}; formation code stored {'2469' in dump}"
+
+
+@check("R24 actions are counted as events and distinct visitors; the 'vœu ajouté' share is a rate of visitors in [0, 1]")
+def r24(H):
+    H.fresh()
+    for _ in range(3):
+        H.ev({"t": "action", "a": "voeu"}, ip="10.1.0.1")
+    for _ in range(2):
+        H.ev({"t": "action", "a": "planb"}, ip="10.1.0.1")
+    H.ev({"t": "action", "a": "onglet", "tab": "jury"}, ip="10.1.0.1")
+    H.ev({"t": "action", "a": "onglet", "tab": "jury"}, ip="10.1.0.1")
+    H.ev({"t": "action", "a": "voeu"}, ip="10.1.0.2")
+    H.ev({"t": "view", "route": "home", "device": "mobile"}, ip="10.1.0.3")
+    H.ev({"t": "feedback", "page": "voeux", "vote": "up", "reason": "utile"}, ip="10.1.0.3")
+    c = H.counters()
+    want = {"act:voeu": 4, "actu:voeu": 2, "act:planb": 2, "actu:planb": 1, "act:onglet": 2, "actu:onglet": 1, "tab:jury": 1,
+            "fb:voeux:up": 1}
+    got = {k: c.get(k, 0) for k in want}
+    st = H.stats()
+    k = next((x for x in st["kpis"] if x["name"] == "Visiteurs ajoutant un vœu"), None)
+    acts = st.get("actions", {})
+    ok = (got == want and k is not None and abs(k["value"] - 2 / 3) < 1e-9 and 0 <= k["ci"][0] <= k["ci"][1] <= 1
+          and acts.get("voeu") == {"events": 4, "visitors": 2} and st.get("tabs", {}).get("jury") == 1
+          and any(f["page"] == "voeux" and f["up"] == 1 for f in st["feedback"]))
+    return ok, f"counters {got}; KPI {k and round(k['value'], 3)}; actions {acts}"
+
+
+@check("R25 the page sends the three actions at the right moments, never with a code, and says so")
+def r25(H):
+    js, st, api = _src(H, "static/app.js"), _src(H, "static/stats.js"), _src(H, "api.py")
+    add = re.search(r"  add\(cod\) \{.*?\n", js).group(0)
+    voeu = "v.push(cod); this.set(v); track(\"action\", { a: \"voeu\" }); }" in add
+    calls = re.findall(r'track\("action", \{[^}]*\}\)', js)
+    no_code = calls and all("cod" not in c for c in calls)
+    tab = 'if (id === "fiche") track("action", { a: "onglet", tab: k });' in js
+    planb = js.count('track("action", { a: "planb" });') == 2
+    fb = '${feedbackBox("voeux")}' in js
+    said = ("sans savoir de quelle formation il s'agit" in js and "sans savoir de quelle formation" in api
+            and "rien n'est enregistré ni compté" not in js + api and "La formation concernée n'est jamais enregistrée." in st)
+    ok = voeu and no_code and tab and planb and fb and said
+    return ok, f"vœu counted once added {voeu}; no code {bool(no_code)} ({len(calls)} calls); fiche tabs only {tab}; plan B x2 {planb}; Mes vœux feedback {fb}; texts {said}"
+
+
+AN_MUTANTS = [
+    ("unknown action accepted", "if a not in ACTIONS or (a == \"onglet\")", "if False or (a == \"onglet\")"),
+    ("a tab on any action", "or (a == \"onglet\") != (tab is not None) or", "or"),
+    ("visitors counted per event", "ops.append((\"o\", k[\"d\"], f\"actu:{p['a']}\", k[\"seen\"], f\"act|{p['a']}|{vid}\"))", "h(f\"actu:{p['a']}\")"),
+    ("vœu visitors not collected", "            ops.append((\"p\", f\"{k['u']}:voeu\", vid))\n", "            pass\n"),
+    ("Mes vœux feedback refused", 'FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux")', 'FEEDBACK_PAGES = ("fiche", "parcours", "search")'),
+]
+JS_AN_MUTANTS = [
+    ("static/app.js", "attempts counted, not additions", 'v.push(cod); this.set(v); track("action", { a: "voeu" }); }', 'v.push(cod); this.set(v); } track("action", { a: "voeu" });'),
+    ("static/app.js", "the formation sent", 'track("action", { a: "voeu" })', 'track("action", { a: "voeu", cod })'),
+    ("static/app.js", "every tab bar counted", 'if (id === "fiche") track("action", { a: "onglet", tab: k });', 'track("action", { a: "onglet", tab: k });'),
+    ("static/app.js", "Mes vœux feedback dropped", '${feedbackBox("voeux")}', ""),
+    ("static/app.js", "old privacy promise kept", "rien n'en est enregistré sur le serveur. Le site compte seulement", "rien n'est enregistré ni compté sur le serveur. Le site compte seulement"),
+    ("static/stats.js", "dashboard hides the promise", "La formation concernée n'est jamais enregistrée.", ""),
+]
+
+
+@check("R26 mutation test (in memory): action bugs in the server, the page and the dashboard are each caught")
+def r26(H):
+    import types
+    fns, missed = (r23, r24, r25), []
+    A0, path = H.A, ROOT / "suptracker" / "analytics.py"
+    src = path.read_text()
+
+    def caught():
+        for fn in fns:
+            try:
+                if not fn(H)[0]:
+                    return True
+            except Exception:  # noqa: BLE001
+                return True
+        return False
+    for name, old, new in AN_MUTANTS:
+        if old not in src:
+            missed.append(f"{name} (anchor gone)"); continue
+        m = types.ModuleType("suptracker._mut_analytics")
+        m.__package__, m.__file__ = "suptracker", str(path)
+        sys.modules[m.__name__] = m
+        exec(compile(src.replace(old, new, 1), str(path), "exec"), m.__dict__)
+        H.A = H.api.A = m
+        try:
+            if not caught():
+                missed.append(name)
+        finally:
+            H.A = H.api.A = A0
+            A0.reset_store(None)
+            sys.modules.pop(m.__name__, None)
+    for f, name, old, new in JS_AN_MUTANTS:
+        s0 = _src(H, f)
+        if old not in s0:
+            missed.append(f"{name} (anchor gone)"); continue
+        H._src[f] = s0.replace(old, new, 1)
+        try:
+            if not caught():
+                missed.append(name)
+        finally:
+            H._src[f] = s0
+    H.fresh()
+    n = len(AN_MUTANTS) + len(JS_AN_MUTANTS)
+    return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
+
+
+CHECKS = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26]
 
 
 def run(db: Path) -> list[dict]:

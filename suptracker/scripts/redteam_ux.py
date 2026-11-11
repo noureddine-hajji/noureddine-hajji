@@ -322,7 +322,7 @@ def x7(c: Ctx):
     if r.returncode:
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
-    limit = {"formation": 14, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72)
+    limit = {"formation": 13, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72; sprint 19: 17.6 -> 11.7)
     lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 8)        # 20 results (before: ~11 screens)
             or (k.endswith("#/voeux") and not v["vxsum"]) or (k.endswith("#/parcours") and not v["folded"])
             or v.get("headShown")}
@@ -524,7 +524,7 @@ DESIGN_MUTANTS = [
     ("Google Fonts back", "<head>", '<head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">', ("html", (x10,))),
     ("font file not shipped", "figtree-latin-wght-normal.woff2", "figtree-latin-400.woff2", ("css", (x10,))),
     ("emoji marker back", "internat: ICONS.internat,", 'internat: "🛏️",', ("js", (x11,))),
-    ("summary after the tabs", "  ${summaryBand(r, d)}\n  ${tabbed(\"fiche\", [", "  ${tabbed(\"fiche\", [", ("js", (x12,))),
+    ("summary dropped before the tabs", "  ${summaryBand(r, d)}\n  <p class=\"small fhead-links\">", "  <p class=\"small fhead-links\">", ("js", (x12,))),
     ("caveat dropped from the summary", "Des résultats des campagnes passées, pas des chances d'admission.", "Des résultats des campagnes passées.", ("js", (x12,))),
     ("zone pill unescaped", "${esc(z.label.replace(/^Vœu /, \"\"))}", "${z.label}", ("js", (x12,))),
     ("empty tab kept", 'const kept = groups.filter(([, , html]) => html.replace(/<div id="planb"><\\/div>/, "x").trim());', "const kept = groups;", ("js", (x12,))),
@@ -555,6 +555,77 @@ def x13(c: Ctx):
     n = len(DESIGN_MUTANTS)
     return not missed, f"{n - len(missed)}/{n} mutants caught by a failing check" + (f"; missed {missed}" if missed else "")
 
+
+
+# ------------------------------------------------------------------ sprint 19: a shorter formation page
+Y_SHOWN = ['<div class="card"><h2>Indicateurs officiels SIES', "${doubletteCard(d.doublettes, d.rapport, d.semblables)}", "${appelCard(d.appel)}",
+           '<div id="planb"></div>', "${offerCard(r, d.apprentissage)}"]
+Y_FOLDED = ["${previsionCard(d.prevision)}", "${timingCard(r, d.history)}", "${lyceeHere(r)}", "Entonnoir · trois étapes distinctes",
+            "Position dans la filière"]
+
+
+def short_fiche(js: str) -> tuple[bool, str]:
+    vf = js[js.index("async function viewFormation("):js.index("// ---- Plan B: same programme elsewhere")]
+    y = vf[vf.index('["admission", "Y entrer", `'):vf.index('["jury", "Ce que regarde le jury"')]
+    if '<details class="more-card">' not in y:
+        return False, "no folded block in Y entrer"
+    shown, folded = y.split('<details class="more-card">', 1)
+    folded = folded.split("</details>", 1)[0]
+    n_cards = len(re.findall(r'<div class="card">|<div id="planb"></div>|\$\{(?:doubletteCard|appelCard|offerCard|previsionCard|timingCard|lyceeHere)\(', shown))
+    in_view = all(x in shown for x in Y_SHOWN) and n_cards == 5
+    out = all(x in folded and x not in shown for x in Y_FOLDED)
+    same = ("const juryHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);" in vf
+            and '["jury", "Ce que regarde le jury", juryHtml]' in vf and "d.jury_tab = !juryHtml ? null :" in vf)
+    head = vf[vf.index('<div class="card fhead">'):vf.index("${summaryBand(r, d)}")]
+    compact = "code établissement" not in head and "Code de l'établissement (UAI) : ${esc(r.cod_uai)}" in vf and "fhead-links" not in head
+    prog = helpers(js) + """
+const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const store = { get: (k, d) => d };
+const document = { getElementById: () => null, querySelectorAll: () => [] };
+""" + block(js, "// ---- lot 2 (Claude design guidelines)") + """
+process.stdout.write(JSON.stringify(P.map((jt) => summaryBand({ session: 2025, taux_acces_ens: 40, acc_tot: 30, capa_fin: 30 }, { metiers: null, jury_tab: jt }))));"""
+    r = node_run(prog, [{"kind": "own", "session": "<img src=x>"}, {"kind": "semblables"}, None])
+    if r is None:
+        return in_view and out and same and compact, "node not installed"
+    if r.startswith("__error__"):
+        return False, r
+    own, sem, none = json.loads(r)
+    link = ('data-goto="jury"' in own and "son rapport public &lt;img" in own and "<img" not in own
+            and 'data-goto="jury"' in sem and "formations semblables (pas de rapport pour celle-ci)" in sem and 'data-goto="jury"' not in none)
+    ok = in_view and out and same and compact and link
+    return ok, (f"Y entrer: {n_cards} cards in view {in_view}, five folded {out}; jury tab and link from the same render {same}; "
+                f"header compact {compact}; summary link (own, similar, none, escaped) {link}")
+
+
+@check("X16 sprint 19: Y entrer shows 5 cards and folds the others; the summary links to the jury tab; a compact header")
+def x16(c: Ctx):
+    return short_fiche(c.js)
+
+
+SHORT_MUTANTS = [
+    ("prevision back in view", "  ${appelCard(d.appel)}\n  <div id=\"planb\"></div>", "  ${appelCard(d.appel)}\n  ${previsionCard(d.prevision)}\n  <div id=\"planb\"></div>"),
+    ("Plan B folded", "  <div id=\"planb\"></div>\n  ${offerCard(r, d.apprentissage)}\n  <details class=\"more-card\">", "  ${offerCard(r, d.apprentissage)}\n  <details class=\"more-card\">\n  <div id=\"planb\"></div>"),
+    ("nothing folded", '<details class="more-card">', '<div class="more-card">'),
+    ("link without a jury tab", "d.jury_tab = !juryHtml ? null :", "d.jury_tab = false ? null :"),
+    ("report session unescaped", "son rapport public ${esc(d.jury_tab.session)}", "son rapport public ${d.jury_tab.session}"),
+    ("establishment code back in the header", "· n° Parcoursup ${esc(r.cod_aff_form)}</div>", "· n° Parcoursup ${esc(r.cod_aff_form)} · code établissement ${esc(r.cod_uai)}</div>"),
+]
+
+
+@check("X17 mutation test: sprint 19 bugs (cards back in view, Plan B folded, link without a tab, escaping, header) are each caught")
+def x17(c: Ctx):
+    missed = []
+    for name, old, new in SHORT_MUTANTS:
+        if old not in c.js:
+            missed.append(f"{name} (anchor gone)"); continue
+        try:
+            caught = not short_fiche(c.js.replace(old, new, 1))[0]
+        except Exception:  # noqa: BLE001
+            caught = True
+        if not caught:
+            missed.append(name)
+    n = len(SHORT_MUTANTS)
+    return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
 
 
 # ------------------------------------------------------------------ lot 3: the working pages
