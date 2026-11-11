@@ -9,7 +9,7 @@
      reachable), the current tab marked, the top menu hidden, the page padded above the bar
   X4 touch targets: on a phone every control is at least 44 px high (CSS), the small "i" buttons get a >= 44 px hidden zone
   X5 search: filters folded under "Filtrer" on a phone (open on wide screens), active filters visible and removable, escaped
-  X6 home: three doors (formation, job, where I stand), example searches escaped, no technical note
+  X6 home: four doors (formation, job, where I stand, not in terminale), example searches escaped, no technical note
   X7 browser (--browser, needs node + playwright and a running warehouse): phone screens measured: 0 JS errors, no horizontal
      scroll, every control >= 44 px, the first search result on the first screen, no column name in the visible text
   X8 mutation test
@@ -115,7 +115,7 @@ def x2(c: Ctx):
     names = field_names()
     pat = re.compile(r"\b[a-z]+(?:_[a-z0-9]+)+\b")
     bad = [(k, m) for k, v in {**c.methodology, **{f"g:{k}": v for k, v in c.glossary.items()}}.items() for m in pat.findall(v)]
-    home = block(c.js, "// ---- lot 1 UI: the home page opens on three doors")
+    home = block(c.js, "// ---- lot 1 UI: the home page opens on four doors")
     shown = re.sub(r"\$\{[^}]*\}", "", home)
     home_bad = [n for n in names if re.search(rf"[>\s(]{re.escape(n)}\b", shown)]
     label = re.findall(r"(?<![.\w$])(?:cod_aff_form|cod_uai)\s+\$\{", c.js)
@@ -176,7 +176,7 @@ def node_run(prog: str, payload) -> str | None:
 
 
 def helpers(js: str) -> str:
-    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
 
 
 def filters_ui(js: str) -> tuple[bool, str]:
@@ -214,7 +214,7 @@ def x5(c: Ctx):
 
 
 def home_ui(js: str) -> tuple[bool, str]:
-    blk = block(js, "// ---- lot 1 UI: the home page opens on three doors")
+    blk = block(js, "// ---- lot 1 UI: the home page opens on four doors")
     prog = helpers(js) + """
 const ICONS = new Proxy({}, { get: () => "<svg></svg>" });
 const store = {}; const voeux = { get: () => JSON.parse(require('fs').readFileSync(0, 'utf8')) };
@@ -229,16 +229,17 @@ viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.
         return False, r
     html, rendered = json.loads(r)
     doors = len(re.findall(r'class="door"', html))
-    links = all(h in html for h in ('href="#/metiers"', 'href="#/parcours"', 'id="door-search"'))
+    links = all(h in html for h in ('href="#/metiers"', 'href="#/parcours"', 'id="door-search"', 'href="#/reorientation"'))
     leak = "<b>x</b>" in html
     words = all(w in html for w in ("Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
+                                     "Je me réoriente ou je reprends mes études",
                                      "jamais des pronostics", "Vous avez 2 vœux dans votre liste"))
     technical = "META.methodology" in blk or "voe_tot" in html
-    ok = doors == 3 and links and not leak and words and not technical and rendered == "home" and "if (!q) return viewHome();" in js
+    ok = doors == 4 and links and not leak and words and not technical and rendered == "home" and "if (!q) return viewHome();" in js
     return ok, f"doors {doors}; links {links}; raw tag {leak}; wording {words}; technical note {technical}; routed {'if (!q) return viewHome();' in js}"
 
 
-@check("X6 home: three doors (formation, job, where I stand), examples escaped, no technical note")
+@check("X6 home: four doors (formation, job, where I stand, not in terminale), examples escaped, no technical note")
 def x6(c: Ctx):
     return home_ui(c.js)
 

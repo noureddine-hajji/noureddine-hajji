@@ -181,7 +181,7 @@ input.wide { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1p
 .hero { padding: 8px 2px 4px; }
 .hero h1 { font-size: var(--fs-xl); line-height: 1.2; margin: 0 0 6px; }
 .hero p { margin: 0 0 14px; color: var(--muted); font-size: var(--fs-md); }
-.doors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.doors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .door { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 16px; min-height: 120px; border: 1px solid var(--line);
   border-radius: var(--r-md); background: var(--surface); color: var(--ink); text-decoration: none; font: inherit; cursor: pointer; }
 .door:hover, .door:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--range); }

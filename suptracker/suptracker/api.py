@@ -25,6 +25,7 @@ from . import journey as J
 from . import planb as PB
 from . import voeux as VX
 from . import voies as VO
+from . import reorientation as RO
 from . import cache as CACHE
 from . import metiers as MT
 from . import search as S
@@ -575,6 +576,7 @@ def formation(cod: str, session: int | None = None):
     order = list(PEER_METRICS)
     peers.sort(key=lambda p: order.index(p["metric"]))
     return {"record": rec, "stages": _grouped(rec), "peers": peers, "admis": ADM.repartition(rec),
+            "reorientation": RO.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers),
             "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "but": _but_block(rec),
@@ -894,6 +896,33 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
     return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
 
 
+@app.get("/api/reorientation")
+def reorientation(diplome: str, mention: str | None = None):
+    """Sprint 21: every formation of a type of diploma (and mention), latest campaign, with the figures of a candidate who is
+    not in terminale (estimated access, published share of other admits). No profile, no position: the page sorts by académie."""
+    res = RO.listing(_con().cursor(), diplome, mention or None)
+    if res is None:
+        raise HTTPException(404, "type de diplôme ou mention inconnus")
+    return res
+
+
+@app.get("/api/reorientation/voeux")
+def reorientation_voeux(ids: str = Query("", max_length=200)):
+    """Sprint 21: the student's list read for a candidate outside terminale (no zone, no Plan B). No analytics event."""
+    try:
+        cods = VX.clean_ids(ids.split(","))
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500 (red team E3)
+        raise HTTPException(422, str(exc)) from exc
+    blocks = RO.for_codes(_con().cursor(), cods)
+    meta = {r["cod_aff_form"]: r for r in rows("""SELECT cod_aff_form, g_ea_lib_vx AS etablissement, lib_for_voe_ins AS formation,
+        ville_etab AS ville, acad_mies AS academie FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
+        AND list_contains(?, cod_aff_form)""", [cods])} if cods else {}
+    session = rows("SELECT max(session) AS s FROM core.formation_year")[0]["s"]
+    return {"session": session, "min_candidats": RO.MIN_CANDIDATS,
+            "voeux": [{"cod_aff_form": c, "status": "ok", **meta[c], "reorientation": blocks.get(c)} if c in meta
+                      else {"cod_aff_form": c, "status": "absente"} for c in cods]}
+
+
 @app.get("/api/voeux/completer")
 def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
                     serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
@@ -994,7 +1023,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation"]
 
 
 @lru_cache(maxsize=1)

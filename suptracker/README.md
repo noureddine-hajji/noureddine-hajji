@@ -2163,3 +2163,59 @@ header), X17 (6 seeded bugs, each caught); X7's phone limit lowered from 14 to 1
 - W5: the page in Node (twin of `pick_voie`, one row marked and named, bucket, masked, escaping, profile line, query).
 - W6: wording. W7: wiring.
 - W8: 19 seeded bugs, each caught, on the synthetic and the real warehouse.
+
+## Sprint 21: "Je me réoriente ou je reprends mes études" (owner's choices, 2026-11-11)
+
+**Why.** About 30 % of Parcoursup candidates are not in terminale (reorientation, return to studies, other routes). SIES
+publishes no access rate, no mention and no series for them, so "Mon parcours" had nothing to show them.
+
+**What the data says (SIES exports).**
+- SIES publishes, per formation, the "autres candidats" (not in terminale): `nb_voe_pp_at`, `nb_voe_pc_at`, `prop_tot_at`, next to
+  the totals and each terminale series. They were not ingested before; they are now (`schema.py`), and used as published.
+- Cross-check: the three series plus the others equal the total for the candidates on every row but 2 (2025), for the proposals on
+  every row but 64 (2022, where the published figure differs from the difference: the published one is used).
+- 44 rows of 2023 and 14 of 2024 publish more proposals than candidates for this group: no figure there.
+- 2025: 22.8 % of these vœux got a proposal, against 33.7 % for the néo-bacheliers (CPGE 4.7 vs 31.7; engineering schools 28.2
+  vs 49.1; EFTS 36.2 vs 29.1). 12 462 of 14 252 formations have at least 20 such candidates.
+- The first version rebuilt the group as total minus the three series; the independent review found the published columns.
+
+**What changes.**
+- `suptracker/reorientation.py`: the "accès estimé hors terminale" = official access rate × (the group's proposal rate ÷ all
+  candidates' proposal rate), capped at 100 (flagged when capped). It is the series rule of "Mon parcours" applied to this
+  group. It is always an estimation, shown with its counts. There is no figure below 20 candidates or when the counts do not hold.
+- Home: a fourth door, "Je me réoriente ou je reprends mes études" (`#/reorientation`).
+- The page lists every formation of a type of diploma (and mention) of the latest campaign. Each row shows the estimated access,
+  the official rate and the share of admits who are not néo-bacheliers (sprint 18's published counts). Filters: type, mention,
+  the student's académie, and "admis hors néo-bacheliers majoritaires". Order: the student's académie first, then the name, never
+  a figure. The académie never leaves the browser (`/api/reorientation?diplome=&mention=`, shared cache).
+- Profile: "Situation: En terminale / Je ne suis plus en terminale" (or "C'est ma situation" on the page). With that status:
+  - "Mon parcours" opens this page;
+  - the formation page's summary shows "Accès estimé hors terminale" instead of the zone;
+  - Plan B is not offered (it compares zones), and the page says why;
+  - "Mes vœux" reads `/api/reorientation/voeux` (codes only, `no-store`, no audience event). It shows no zone tiles, no alert,
+    no Plan B and no "Compléter ma liste", and says why;
+  - the profile bar makes no zone request.
+- The old bac series is not asked: SIES does not split this group.
+
+**Red team** `scripts/redteam_reorientation.py` (E1-E8), via `tests/test_reorientation.py`:
+- E1: the block re-derived in SQL from the published columns on every row of every campaign (55 844 real rows), the published
+  counts measured against the series (above), plus 16 crafted edge rows: threshold, cap, exactly 100, negative or excessive
+  counts, a published count that differs from the difference, NULLs, no proposal, admits that miss the total, a tie.
+- E2: the listing equals the latest campaign's SIES formations of the type; apprenticeship offers are never listed; each block
+  equals E1's; rows carry only the keys the page reads; unknown or hostile types get a 404.
+- E3: cache policies, no audience event, hostile or too many codes (a 422, never a 500), formation and Mes vœux blocks.
+- E4: the page in Node: escaping, `data-label` on every cell, the reason when there is no estimate, the order (académie, then
+  name; shuffled figures give the same order), paging, filters, the situation button, nothing personal sent.
+- E5: the profile status (validated, escaped), the profile bar, Mes vœux, Plan B and the "Mon parcours" delegation, in Node.
+- E6: the formation summary tile. E7: wording and wiring.
+- E8: 49 seeded bugs in the rule, the routes, the page, the profile and the wording, each caught.
+
+**Independent review** (a second agent, not shown the red team's conclusions). Its findings, all fixed:
+- the published "autres candidats" columns (above);
+- a visitor with no profile who picked an académie got a half-filled terminale profile, with zones: the académie is now kept apart;
+- a reorientation profile kept its old bac fields, still read by the map zones, the doublette and jury cards, the evolution chart
+  and the BUT rows: every such read goes through `bacProfile()`, which returns nothing outside terminale;
+- a late answer could draw the list over another page (marker set before the first await);
+- the formation page had the estimate without its counts: a folded card in "Plus de chiffres sur l'admission";
+- "0 %" now says "rare cette année-là, pas forcément fermé"; four doors in a 2 x 2 grid; a clear 404 for an unknown mention.
+Each gap it found in the red team is now a check and a mutant.

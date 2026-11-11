@@ -118,6 +118,13 @@ def crafted():
     con.executemany("INSERT INTO core.rapport_texte VALUES (?, ?)", list(texts.items()))
     return con
 
+def reo_defs(js: str) -> str:
+    """Sprint 21: the page's own isReo / bacProfile / REO_LABEL, for harnesses that render profile-reading cards."""
+    one = [ln for ln in js.splitlines() if ln.startswith(("const isReo = ", "const REO_LABEL = "))]
+    fn = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
+    return "\n".join(one) + "\n" + fn + "\n"
+
+
 
 @check("K1 crafted reports: pooled rates over the reports detailing the doublette, concours once, no Autres, no unchecked report, generic labels, thresholds, jury counts")
 def k1(c: Ctx):
@@ -301,7 +308,7 @@ def _render(c: Ctx, sem, rp=None, dkey="MATHS+SES", profile=None):
     part = block(c.js, "function estimateSemblable(", "// Codex (PR #37): the pooled figures")
     rp_consts = block(c.js, "const RP_SPE = ", "const rpText")
     jury = block(c.js, "const SEM_CRIT_N", "// the 4-year curves of the evolution page:")
-    prog = helpers + "\nconst store = { get: () => JSON.parse(process.env.PROFILE || 'null') };\n" + rp_consts + part + jury + """
+    prog = helpers + "\nconst store = { get: () => JSON.parse(process.env.PROFILE || 'null') };\n" + reo_defs(c.js) + rp_consts + part + jury + """
 const [sem, rp, dkey] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify({ jury: semblablesJuryCard(sem, rp), dbl: semblablesDoublettes(sem, dkey, estimateSemblable({ bg: { taux: 40, trend: [] } }, sem, dkey)) }));"""
     n = shutil.which("node")

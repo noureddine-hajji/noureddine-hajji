@@ -111,6 +111,10 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("prop_tot_bg", "BIGINT", stage="ranked_offered", label="Bac général ayant reçu une proposition"),
     F("prop_tot_bt", "BIGINT", stage="ranked_offered", label="Bac technologique ayant reçu une proposition"),
     F("prop_tot_bp", "BIGINT", stage="ranked_offered", label="Bac professionnel ayant reçu une proposition"),
+    # sprint 21: the candidates who are not in terminale (reorientation, return to studies, other routes), published by SIES
+    F("nb_voe_pp_at", "BIGINT", stage="candidates", label="Autres candidats (phase principale)"),
+    F("nb_voe_pc_at", "BIGINT", stage="candidates", label="Autres candidats (phase complémentaire)"),
+    F("prop_tot_at", "BIGINT", stage="ranked_offered", label="Autres candidats ayant reçu une proposition"),
     # offer timing (cumulative): proposal received at the opening of the main phase, before the
     # baccalauréat results, before the end of the main phase
     F("acc_debutpp", "BIGINT", stage="admitted",

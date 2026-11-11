@@ -99,6 +99,8 @@ def _series_candidates(rng: random.Random, r: dict) -> dict:
         left["pp"] -= extra_pp
         left["prop"] -= extra_prop
         left["pc"] -= c_pc
+    # the other candidates (not in terminale): what the series leave, as on the real exports (sprint 21)
+    out.update({"nb_voe_pp_at": max(0, left["pp"]), "nb_voe_pc_at": max(0, left["pc"]), "prop_tot_at": max(0, left["prop"])})
     return out
 
 

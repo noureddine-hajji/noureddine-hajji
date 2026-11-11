@@ -40,6 +40,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Formations semblables:** `semblables.py` (pooled doublettes and jury counts from the verified reports of the same diploma and mention).
   - **Qui sont les admis:** `admis.py` (néo-bacheliers vs other admits: formation page bar, list label).
   - **Bac techno / pro row (sprint 20):** `voies.py` (report rows of bac techno and pro keyed to the student's series or specialty).
+  - **Je me réoriente (sprint 21):** `reorientation.py` (candidates outside terminale from published counts, estimated access, `#/reorientation`).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -287,7 +288,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (Chercher, Mon parcours, Métiers, Mes vœux, Plus), the
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
-  "Filtrer" on a phone; home = three doors. Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
+  "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
 - **Design (lot 2, Claude design guidelines).** Accent = prune (`#8e2a6b`, dark `#e590c4`), owner-confirmed 2026-11-07. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
   colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
@@ -392,6 +393,17 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   own bucket, else nothing (`pick_voie`, page twin `pickVoie`); masked table = nothing, said. Published counts only, with the
   terminale-en-France caveat; zones unchanged. The choice lives in the stored profile and is sent only to `/api/voeux` (`voie=`).
   Red team `redteam_voies.py` (W1-W8).
+- **Je me réoriente ou je reprends mes études (sprint 21, owner 2026-11-11).** The group outside terminale (reorientation,
+  return to studies, other routes) is PUBLISHED by SIES ("autres candidats": `nb_voe_pp_at`, `nb_voe_pc_at`, `prop_tot_at`), used as
+  published, never rebuilt from the series (review); none when proposals exceed candidates (58 rows of 2023-2024). "Accès estimé hors
+  terminale" = `taux_acces_ens` x (group proposal rate / all proposal rate), capped at 100 and flagged, none below 20 candidates:
+  always an ESTIMATION with its counts. NO zone (no mention or series is published for them), NO Plan B, NO "Compléter ma liste",
+  the old bac series is not asked. Every read of the bac, specialties or mention goes through `bacProfile()` (null outside terminale);
+  an académie picked with no profile is kept apart (`reoAcademie`), never a profile without a bac or a status. Profile `statut` ("terminale" / "reorientation", validated in `vxProfile`): Mon parcours opens
+  `#/reorientation`, the summary tile shows the estimate instead of the zone, Mes vœux reads `/api/reorientation/voeux` (codes only,
+  no-store, no analytics), the profile bar makes no zone request. The list (latest campaign, SIES formations of a cartographie type,
+  never apprenticeship offers) is sorted by the student's académie then name, never by a figure; the académie stays in the browser.
+  Red team `redteam_reorientation.py` (E1-E8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
