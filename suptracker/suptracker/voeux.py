@@ -14,6 +14,7 @@ import re
 
 from . import doublettes as DB
 from . import rapports as RP
+from . import voies as VO
 from . import semblables as SB
 from . import journey as J
 from . import planb as PB
@@ -48,7 +49,7 @@ def position(f: dict) -> float | None:
 
 
 def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
-             academie: str | None = None) -> dict:
+             academie: str | None = None, voie: str | None = None) -> dict:
     cods = clean_ids(ids)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     meta = {}
@@ -81,6 +82,11 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
         out["formation"] = {k: v for k, v in est.items() if k != "trend"} if est else None
         return out
     def rapport(cod):
+        if serie in ("bt", "bp"):                      # sprint 20: the student's series / specialty row (or the formation's bucket)
+            b = RP.for_formation(con, cod)
+            x = VO.pick_voie(b, serie, voie)
+            return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
+                    "en_position": x["en_position"], "recoupe": b["recoupe"], "libelle": x["libelle"]} if x else None
         if serie != "bg" or not dkey:
             return None
         b = RP.for_formation(con, cod)

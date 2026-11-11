@@ -267,7 +267,7 @@ def h5(c: Ctx):
     others = set(re.findall(r"--(?:zone-[a-z]+|voie-b[gtp]|accent): (#[0-9a-f]{6})", c.css))
     css_ok = len(tok) == 3 and vals and not (vals & others) and ".badge.autres { border-color: var(--adm-autres)" in c.css
     api_ok = (c.api.count("ADM.mark(") == 4 and '"admis": ADM.repartition(rec)' in c.api and '"admis": f["admis"]' in c.api
-              and '"admis_neobac"]' in c.api and 'only=lambda f: f.get("stats") is not False' in c.api)
+              and '"admis_neobac"' in c.api.split("FEATURES = [", 1)[1].split("]", 1)[0] and 'only=lambda f: f.get("stats") is not False' in c.api)
     rel = '"admis_neobac": ("app.js", "function admisBar(")' in (ROOT / "tests" / "test_release.py").read_text()
     ok = search and carte_ok and cmp_ok and vx_ok and summary and css_ok and api_ok and rel
     return ok, (f"search {search}; map list and card {carte_ok}; comparator {cmp_ok}; Mes vœux {vx_ok}; summary bar {summary}; "

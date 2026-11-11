@@ -24,6 +24,7 @@ from . import config
 from . import journey as J
 from . import planb as PB
 from . import voeux as VX
+from . import voies as VO
 from . import cache as CACHE
 from . import metiers as MT
 from . import search as S
@@ -796,7 +797,8 @@ def journey_vocab():
     return {"specialties": [{"code": k, "label": v, "short": J.SPECIALTY_SHORT[k]} for k, v in J.SPECIALTIES.items()],
             "mentions": [{"code": m, "label": J.MENTION_LABEL[m]} for m in J.MENTIONS[:4]],
             "series": [{"code": k, "label": v} for k, v in J.SERIES_LABEL.items()],
-            "academies": acads, "doublettes": nat, "zone_rules": J.ZONE_RULES, "gate_rules": J.GATE_RULES}
+            "academies": acads, "doublettes": nat, "zone_rules": J.ZONE_RULES, "gate_rules": J.GATE_RULES,
+            "voies": VO.choices(_con().cursor())}      # sprint 20: techno series + specialties, bac pro specialties the reports detail
 
 
 @app.get("/api/journey/stage1")
@@ -877,7 +879,7 @@ def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"
 @app.get("/api/voeux")
 def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
           serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
-          academie: str | None = Query(None, max_length=80)):
+          academie: str | None = Query(None, max_length=80), voie: str | None = Query(None, max_length=120)):
     """Sprint 11, "Mes vœux": the student's list read for the current profile. No analytics event: the list
     of formations a student considers is never counted or stored here."""
     _journey_ready()
@@ -886,7 +888,7 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
         res = VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
-                          academie=academie or None)
+                          academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
@@ -895,7 +897,8 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
 @app.get("/api/voeux/completer")
 def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
                     serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
-                    academie: str | None = Query(None, max_length=80), paid: int = Query(0, ge=0, le=1)):
+                    academie: str | None = Query(None, max_length=80), paid: int = Query(0, ge=0, le=1),
+                    voie: str | None = Query(None, max_length=120)):   # sent by the same page query; not used here
     """"Compléter ma liste": when the list has no sure safety, safety vœux of the same filières (Plan B's rules). Same
     inputs as /api/voeux, no analytics event, never shared-cached."""
     _journey_ready()
@@ -991,7 +994,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport"]
 
 
 @lru_cache(maxsize=1)
