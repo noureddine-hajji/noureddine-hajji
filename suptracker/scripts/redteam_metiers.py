@@ -318,7 +318,9 @@ def m6(c: Ctx):
     from suptracker.api import FEATURES, METHODOLOGY
     ok, d = ui(APP_JS.read_text())
     html = (ROOT / "suptracker" / "static" / "index.html").read_text()
-    extra = 'href="#/metiers"' in html and "metiers" in A.ROUTES and "metier_formations" in FEATURES and "pas une promesse" in METHODOLOGY["metier_formations"]
+    # R1 (owner, 2026-11-11): the jobs are one of the Explorer views (list, map, jobs), no longer a menu entry
+    app = (ROOT / "suptracker" / "static" / "app.js").read_text()
+    extra = 'href="#/" data-tab="home"' in html and 'carte: "#/carte", metiers: "#/metiers"' in app and "metiers" in A.ROUTES and "metier_formations" in FEATURES and "pas une promesse" in METHODOLOGY["metier_formations"]
     return ok and extra, d + f"; nav, analytics route, feature, method {extra}"
 
 
