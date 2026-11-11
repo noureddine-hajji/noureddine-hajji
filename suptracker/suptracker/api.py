@@ -37,6 +37,7 @@ from . import insertion as INS
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
+from . import calendrier as CALR
 from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
@@ -904,6 +905,19 @@ def reorientation(diplome: str, mention: str | None = None):
     if res is None:
         raise HTTPException(404, "type de diplôme ou mention inconnus")
     return res
+
+
+@app.get("/api/calendrier")
+def calendrier():
+    """Sprint 22: the official Parcoursup calendar, read from the fetched PDFs (dates only where every version agrees)."""
+    return CALR.calendar()
+
+
+@app.get("/api/calendrier.ics")
+def calendrier_ics():
+    """Sprint 22: the verified dates as all-day events, to add to a phone's calendar."""
+    return Response(CALR.ics(CALR.calendar()), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="parcoursup-{CALR.CAMPAGNE}.ics"'})
 
 
 @app.get("/api/reorientation/voeux")

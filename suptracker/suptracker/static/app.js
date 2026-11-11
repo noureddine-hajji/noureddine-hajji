@@ -261,6 +261,7 @@ function viewHome() {
     <a class="door" href="#/reorientation"><span class="door-ico" aria-hidden="true">${ICONS.reorientation}</span><strong>Je me réoriente ou je reprends mes études</strong>
       <span>Vous n'êtes plus en terminale : voyez les formations qui accueillent des candidats comme vous.</span></a>
   </div>
+  <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les doublettes possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Vous accompagnez un élève ?</a></p>
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
     ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
@@ -2116,7 +2117,7 @@ async function viewVoeux() {
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p></div>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -2157,12 +2158,13 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids)}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false);
   }
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
+  bindShare(ids, prof);                                                  // sprint 22
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
     el.onclick = () => {
       const tr = el.closest("tr");
@@ -2717,7 +2719,7 @@ async function viewReorientation(dArg, mArg) {
 // Mes vœux outside terminale: the estimated access of each vœu, no zone tiles, no alert, no Plan B, no "Compléter ma liste"
 async function viewVoeuxReo(ids, prof) {
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p></div>`;
+    <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche ou depuis « Je me réoriente » (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux).</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -2753,15 +2755,252 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids)}${feedbackBox("voeux")}`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
+  bindShare(ids, prof);                                                  // sprint 22
+}
+
+// ---- sprint 22: accompaniment (owner's go, 2026-11-11): the official calendar, a page for the adults who help, an entry for
+// seconde and première, and a list a student can share or print. Nothing is stored on the server: a shared list is a link that
+// carries the formation codes (and, only if the student ticks the box, the profile) in the part of the address after "#",
+// which the browser never sends to a server.
+const pad2 = (n) => String(n).padStart(2, "0");
+const localIso = (t = new Date()) => `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+const frDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
+const CAL_LINKS = { voeux: "#/voeux", fin_voeux: "#/voeux", admission: "#/comprendre", carte: "#/carte" };
+function calState(e, today) {
+  if (!e.verifie) return "inconnu";
+  const end = e.fin || e.debut;
+  if (end < today) return "passe";
+  if (e.debut <= today) return "en_cours";
+  return "a_venir";
+}
+async function viewCalendrier() {
+  const marker = "calendrier";
+  $view.dataset.rendered = marker;
+  const d = await api("/api/calendrier");
+  if ($view.dataset.rendered !== marker) return;
+  const today = localIso();
+  const next = d.evenements.find((e) => ["en_cours", "a_venir"].includes(calState(e, today)));
+  const when = (e) => (!e.verifie ? `<span class="muted">date à vérifier sur parcoursup.gouv.fr</span>`
+    : e.fin ? `du ${esc(frDate(e.debut))} au ${esc(frDate(e.fin))}` : esc(frDate(e.debut)));
+  const STATE = { passe: "passé", en_cours: "en cours", a_venir: "à venir", inconnu: "date à vérifier" };
+  const item = (e) => {
+    const st = calState(e, today);
+    return `<li class="cal-item cal-${st}"${next && e.key === next.key ? ' aria-current="step"' : ""}>
+      <div class="cal-when"><strong>${when(e)}</strong> <span class="badge">${STATE[st]}</span></div>
+      <div class="cal-what">${esc(e.libelle)}</div>
+      <p class="small muted">Sur SupCompass : ${esc(e.sur_supcompass)}${CAL_LINKS[e.key] ? ` <a href="${CAL_LINKS[e.key]}">Y aller</a>` : ""}</p></li>`;
+  };
+  const steps = Object.keys(d.etapes).map(Number).sort((a, b) => a - b);
+  const head = next ? (next.debut <= today ? `En ce moment : <strong>${esc(next.libelle)}</strong>.`
+    : `Prochaine étape dans ${fmt(daysBetween(today, next.debut))} jour${daysBetween(today, next.debut) > 1 ? "s" : ""} : <strong>${esc(next.libelle)}</strong>, ${esc(frDate(next.debut))}.`)
+    : "La campagne Parcoursup " + esc(d.campagne) + " est terminée.";
+  $view.innerHTML = `<div class="card"><h1>Calendrier Parcoursup ${esc(d.campagne)}</h1>
+    <p>${head}</p>
+    <div class="toolbar no-print"><a class="btnlink" href="/api/calendrier.ics" download>Ajouter ces dates à mon agenda (.ics)</a><button type="button" id="cal-print">Imprimer</button></div>
+    <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)} publié sur parcoursup.gouv.fr${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. Une date n'est affichée que si toutes les versions du document la donnent à l'identique. En cas de différence, le calendrier officiel fait foi.</p></div>
+  ${steps.map((k) => `<section class="card"><h2>Étape ${k} · ${esc(d.etapes[k])}</h2><ol class="cal-list">${d.evenements.filter((e) => e.etape === k).map(item).join("")}</ol></section>`).join("")}`;
+  const pr = document.getElementById("cal-print");
+  if (pr) pr.onclick = () => window.print();
+}
+
+// the page for the adults who help a student (parents, professeur principal): what the figures mean and what they do not say
+function viewAccompagner() {
+  $view.innerHTML = `<div class="card"><h1>Accompagner un élève</h1>
+    <p>Cette page s'adresse aux parents, aux professeurs principaux et à tout adulte qui aide un élève à préparer ses vœux Parcoursup. Elle explique ce que montre SupCompass, et surtout ce qu'il ne montre pas.</p>
+    <div class="toolbar no-print"><button type="button" id="acc-print">Imprimer cette page</button></div></div>
+  <section class="card"><h2>Ce que montre SupCompass</h2><ul>
+    <li>Les chiffres officiels des campagnes Parcoursup 2022 à 2025, publiés par le ministère (SIES), formation par formation : candidats, propositions, admis, taux d'accès.</li>
+    <li>Pour un profil (bac, spécialités, mention), une <strong>zone</strong> : sécurité, cible ou ambitieux. Elle dit où se situaient les admis des années passées par rapport à ce profil. <strong>Ce n'est jamais une chance d'admission</strong> : le jury lit tout le dossier, et chaque année est différente.</li>
+    <li>Quand il existe, le rapport public du jury de la formation : ce que les jurys ont regardé, et les résultats publiés par type de bac.</li>
+    <li>Des repères après la formation (réussite, poursuite d'études, insertion, métiers), toujours avec leur source.</li></ul></section>
+  <section class="card"><h2>Ce que SupCompass ne fait pas</h2><ul>
+    <li>Il ne calcule aucune probabilité d'admission et ne classe pas les formations selon les chances.</li>
+    <li>Il ne connaît ni les notes, ni le dossier, ni le rang de l'élève : aucune page ne les demande.</li>
+    <li>Il ne remplace ni le professeur principal, ni le psychologue de l'Éducation nationale, ni la fiche de la formation sur Parcoursup, qui fait foi.</li>
+    <li>Il ne crée pas de compte : la liste de vœux reste dans le navigateur de l'élève.</li></ul></section>
+  <section class="card"><h2>Regarder la liste de l'élève avec lui</h2>
+    <ol><li>Dans « Mes vœux », l'élève touche « Copier le lien » et vous l'envoie. Le lien contient les numéros des formations ; son profil seulement s'il coche la case.</li>
+    <li>En ouvrant le lien, vous voyez la même liste, lue pour son profil s'il l'a joint. Vous pouvez aussi l'imprimer.</li>
+    <li>Ensemble, regardez au moins ces points : la liste contient-elle un ou plusieurs vœux de sécurité ? Chaque formation a-t-elle été lue sur sa fiche Parcoursup (attendus, frais, lieu) ? Les dates du <a href="#/calendrier">calendrier</a> sont-elles notées ?</li></ol></section>
+  <section class="card"><h2>Questions utiles pour la conversation</h2><ul>
+    <li>Qu'est-ce qui attire l'élève dans cette formation : le contenu, le métier visé, la ville ?</li>
+    <li>Que disent les attendus de la formation, sur sa fiche Parcoursup, et le rapport du jury quand il existe ?</li>
+    <li>Si la réponse est « non » ou « en attente » partout, quelle formation de la liste reste un bon choix ?</li>
+    <li>Le coût (logement, transport, frais d'un établissement privé) a-t-il été regardé ?</li></ul>
+    <p class="small muted">Aucune de ces questions n'appelle une « bonne » réponse : elles servent à préparer les vœux, pas à les juger.</p></section>
+  <section class="card"><h2>Pages utiles</h2><ul>
+    <li><a href="#/calendrier">Calendrier Parcoursup</a> : les dates officielles, à ajouter à un agenda.</li>
+    <li><a href="#/premiere">En seconde ou en première</a> : les filières où l'on trouve les doublettes de spécialités possibles.</li>
+    <li><a href="#/reorientation">Je me réoriente ou je reprends mes études</a> : pour un élève qui n'est plus en terminale.</li>
+    <li><a href="#/glossaire">Glossaire</a> : le sens de chaque mot et de chaque chiffre.</li></ul></section>`;
+  $view.dataset.rendered = "accompagner";
+  const pr = document.getElementById("acc-print");
+  if (pr) pr.onclick = () => window.print();
+}
+
+// seconde and première: three specialties of première give three possible doublettes of terminale; for each, the filières where
+// the bac général admits of 2022-2025 had it (the composition of the admits, never a piece of advice or a chance)
+const PREM_ROWS = 12;
+function premiereDoublettes(spes) {
+  const s = [...new Set(spes.filter(Boolean))];
+  if (s.length !== 3) return [];
+  return [[s[0], s[1]], [s[0], s[2]], [s[1], s[2]]];
+}
+async function viewPremiere() {
+  JV = JV || await api("/api/journey/vocab");
+  const codes = new Set(JV.specialties.map((x) => x.code));
+  const stored = store.get("premiere", []);
+  const spes = Array.isArray(stored) ? stored.filter((c) => typeof c === "string" && codes.has(c)).slice(0, 3) : [];
+  const name = (c) => (JV.specialties.find((x) => x.code === c) || {}).short || c;
+  const sel = (i) => `<label>Spécialité ${i + 1} <select name="p${i}"><option value="">—</option>${JV.specialties.map((x) => `<option value="${esc(x.code)}" ${spes[i] === x.code ? "selected" : ""}>${esc(x.short)}</option>`).join("")}</select></label>`;
+  const pairs = premiereDoublettes(spes);
+  const marker = `premiere:${pairs.map((p) => p.join("+")).join(",")}`;
+  $view.dataset.rendered = marker;
+  const intro = `<div class="card"><h1>En seconde ou en première</h1>
+    <p>Choisissez trois spécialités de première. En terminale, vous en garderez deux : cela fait trois doublettes possibles. Pour chacune, voici les filières où l'on trouvait cette doublette parmi les admis bacheliers généraux de 2022 à 2025.</p>
+    <form id="prem" class="toolbar">${[0, 1, 2].map(sel).join("")}</form>
+    <p class="small">Ce sont des parts d'admis des années passées, pas un conseil de spécialités ni une chance d'admission. Beaucoup de filières admettent des doublettes très variées : les attendus de chaque formation, sur sa fiche Parcoursup, et l'avis de votre professeur principal comptent davantage.</p></div>`;
+  if (!pairs.length) {
+    $view.innerHTML = `${intro}<div class="card"><p class="muted">Choisissez trois spécialités différentes.</p></div>`;
+  } else {
+    $view.innerHTML = `${intro}<div class="card"><p class="muted small">Lecture des doublettes…</p></div>`;
+    const res = await Promise.all(pairs.map(([a, b]) => api(`/api/journey/stage1?spe1=${encodeURIComponent(a)}&spe2=${encodeURIComponent(b)}`).catch(() => null)));
+    if ($view.dataset.rendered !== marker) return;
+    const by = new Map();
+    res.forEach((r, i) => (r ? r.filieres : []).forEach((f) => {
+      const row = by.get(f.type_key) || { label: f.label, cells: [null, null, null], dest: 0 };
+      row.cells[i] = f;
+      row.dest = Math.max(row.dest, f.destination_share || 0);
+      by.set(f.type_key, row);
+    }));
+    const all = store.get("premiereAll", false);
+    const rows = [...by.values()].sort((a, b) => b.dest - a.dest || a.label.localeCompare(b.label, "fr"));
+    const cell = (f, i) => `<td class="num" data-label="${esc(pairs[i].map(name).join(" + "))}">${!f ? "—"
+      : `${pc1(f.share)}<div class="estim">des admis bacheliers généraux${f.rare ? " · rare (moins de 20 candidats)" : ""}</div>`}</td>`;
+    $view.innerHTML = `${intro}<div class="card"><h2>Trois doublettes possibles</h2>
+      <ul class="small">${pairs.map((p, i) => `<li><strong>${esc(p.map(name).join(" + "))}</strong> : ${res[i] ? `${fmt(res[i].national.accepted)} admis sur ${fmt(res[i].national.years)} campagnes, ${pc1(res[i].national.national_share)} de tous les admis bacheliers généraux` : "absente des données 2022–2025"}</li>`).join("")}</ul>
+      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th>${pairs.map((p) => `<th class="num">${esc(p.map(name).join(" + "))}</th>`).join("")}</tr>
+      ${rows.slice(0, all ? rows.length : PREM_ROWS).map((r) => `<tr><td data-label="Filière">${esc(r.label)}</td>${r.cells.map(cell).join("")}</tr>`).join("")}</table></div>
+      ${rows.length > PREM_ROWS ? `<p><button type="button" id="prem-all">${all ? `Afficher les ${PREM_ROWS} premières` : `Afficher les ${fmt(rows.length)} filières`}</button></p>` : ""}
+      <p class="muted small">Ordre : les filières où vont le plus souvent les bacheliers ayant l'une de ces doublettes. Chaque case dit, parmi les admis bacheliers généraux de la filière, la part qui avait cette doublette (2022–2025, campagnes au comptage rompu exclues).</p>
+      <p class="small"><a href="#/specialites">Toutes les doublettes par type de formation</a> · En terminale : <a href="#/parcours">Mon parcours</a></p></div>`;
+    const b = document.getElementById("prem-all");
+    if (b) b.onclick = () => { store.set("premiereAll", !all); viewPremiere(); };
+  }
+  document.getElementById("prem").onchange = () => {
+    const f = new FormData(document.getElementById("prem"));
+    store.set("premiere", [0, 1, 2].map((i) => f.get(`p${i}`) || ""));
+    viewPremiere();
+  };
+}
+
+// a shared list: "#/liste/<codes>[/<profile>]"; codes validated like the stored list; the profile only if the student joined it
+const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", v: "voie", t: "statut" };
+function shareCodes(raw) {
+  const out = [];
+  for (const c of String(raw || "").split(",")) if (/^\d{1,9}$/.test(c) && !out.includes(c) && out.length < voeux.MAX) out.push(c);
+  return out;
+}
+function shareProfile(raw) {
+  if (!raw) return null;
+  const q = new URLSearchParams(raw), p = {};
+  for (const [k, f] of Object.entries(SHARE_KEYS)) { const v = q.get(k); if (v && v.length <= 60) p[f] = v; }
+  if (p.statut === "r") p.statut = "reorientation";
+  if (!p.serie && p.statut !== "reorientation") return null;
+  const codes = JV && JV.specialties ? new Set(JV.specialties.map((x) => x.code)) : null;
+  if (p.serie === "bg" && (!codes || !codes.has(p.spe1) || !codes.has(p.spe2) || p.spe1 === p.spe2)) return null;
+  return vxProfile(p);
+}
+function shareLink(ids, prof) {
+  const base = `${location.origin}${location.pathname === "/" ? "/" : location.pathname}#/liste/${ids.join(",")}`;
+  if (!prof) return base;
+  const q = new URLSearchParams();
+  if (isReo(prof)) q.set("t", "r");
+  else {
+    q.set("s", prof.serie); q.set("m", prof.mention);
+    if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }
+    else if (prof.voie) q.set("v", prof.voie);
+  }
+  return `${base}/${q.toString()}`;
+}
+function shareCard(ids) {
+  return `<section class="card no-print" id="vx-share"><h2>Partager ou imprimer ma liste</h2>
+    <p class="small">Envoyez ce lien à un parent ou à votre professeur principal : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Rien n'est enregistré sur le serveur.</p>
+    <label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités, mention ; jamais l'académie ni le lycée)</label>
+    <div class="share-row"><input id="share-url" type="text" readonly aria-label="Lien de ma liste" value="${esc(shareLink(ids, null))}">
+      <button type="button" id="share-copy">Copier le lien</button><button type="button" id="share-print">Imprimer</button></div>
+    <p class="small muted" id="share-msg" aria-live="polite"></p>
+    <p class="small"><a href="#/accompagner">Ce que l'adulte qui vous accompagne trouvera sur SupCompass</a></p></section>`;
+}
+function bindShare(ids, prof) {
+  const box = document.getElementById("share-prof"), url = document.getElementById("share-url"), msg = document.getElementById("share-msg");
+  if (!url) return;
+  const refresh = () => { url.value = shareLink(ids, box && box.checked ? prof : null); };
+  if (box) box.onchange = refresh;
+  document.getElementById("share-copy").onclick = () => {
+    refresh();
+    const done = () => { msg.textContent = "Lien copié."; };
+    const manual = () => { url.focus(); url.select(); msg.textContent = "Copiez le lien sélectionné."; };
+    try { navigator.clipboard.writeText(url.value).then(done, manual); } catch (_) { manual(); }
+  };
+  document.getElementById("share-print").onclick = () => window.print();
+}
+async function viewListe(rawCodes, rawProfile) {
+  JV = JV || await api("/api/journey/vocab").catch(() => null);
+  const ids = shareCodes(rawCodes);
+  const prof = shareProfile(rawProfile);
+  const marker = `liste:${ids.join(",")}:${rawProfile || ""}`;
+  $view.dataset.rendered = marker;
+  const who = !prof ? "Aucun profil n'a été joint : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
+    : `Lue pour le profil joint : ${profileLine(prof, prof.serie)}.`;
+  const head = `<div class="card"><h1>Liste partagée</h1><p class="small">${who}</p>
+    <p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+  if (!ids.length) { $view.innerHTML = `${head}<div class="card"><p class="muted">Ce lien ne contient aucune formation valide.</p></div>`; return; }
+  $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de la liste…</p></div>`;
+  const zoned = prof && !isReo(prof);
+  let d;
+  try { d = await api(zoned ? `/api/voeux?${vxQuery(ids, prof)}` : `/api/reorientation/voeux?${new URLSearchParams({ ids: ids.join(",") })}`); } catch (e) {
+    if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
+    return;
+  }
+  if ($view.dataset.rendered !== marker) return;
+  const rows = d.voeux.map((v) => {
+    const name = v.status !== "ok" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${esc(d.session)}</span>`
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>`;
+    const b = v.reorientation;
+    const third = zoned ? `<td data-label="Zone pour ce profil">${v.status === "ok" && v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>` : "—"}</td>`
+      : isReo(prof) ? `<td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>` : "";
+    const rate = v.status !== "ok" ? null : zoned ? v.taux_acces_ens : b && b.taux_acces_ens;
+    return `<tr><td data-label="Formation">${name}</td>${third}<td class="num" data-label="Taux d'accès officiel ${esc(d.session)}">${pct(rate)}</td></tr>`;
+  }).join("");
+  const mine = voeux.get(), fresh = ids.filter((c) => !mine.includes(c)), room = voeux.MAX - mine.length;
+  $view.innerHTML = `${head}<div class="card"><h2>${fmt(d.voeux.length)} formation${d.voeux.length > 1 ? "s" : ""}</h2>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th>${zoned ? "<th>Zone pour ce profil</th>" : isReo(prof) ? `<th class="num">Accès estimé hors terminale</th>` : ""}<th class="num">Taux d'accès officiel ${esc(d.session)}</th></tr>${rows}</table></div>
+    <p class="muted small">Des parts d'admis des campagnes passées, pas des chances d'admission. Les vœux Parcoursup ne sont pas classés : l'ordre de la liste ne veut rien dire.</p>
+    <div class="toolbar no-print">${fresh.length ? `<button type="button" id="liste-add" ${room <= 0 ? "disabled" : ""}>Ajouter ${fmt(Math.min(fresh.length, Math.max(room, 0)))} formation${Math.min(fresh.length, Math.max(room, 0)) > 1 ? "s" : ""} à ma liste</button>` : `<span class="small muted">Toutes ces formations sont déjà dans votre liste.</span>`}
+      <button type="button" id="liste-print">Imprimer</button></div>
+    ${fresh.length && room < fresh.length ? `<p class="small muted no-print">Votre liste en contient déjà ${fmt(mine.length)} : ${voeux.MAX} vœux au maximum, ${fmt(fresh.length - Math.max(room, 0))} formation${fresh.length - Math.max(room, 0) > 1 ? "s" : ""} ne seront pas ajoutée${fresh.length - Math.max(room, 0) > 1 ? "s" : ""}.</p>` : ""}
+    <p class="small muted no-print" id="liste-msg" aria-live="polite"></p></div>`;
+  const add = document.getElementById("liste-add");
+  if (add) add.onclick = () => {                    // adds the missing codes, never replaces the student's own list or profile
+    let n = 0;
+    for (const c of fresh) if (voeux.add(c)) n++;
+    voeux.render();
+    add.disabled = true;
+    document.getElementById("liste-msg").innerHTML = `${fmt(n)} formation${n > 1 ? "s" : ""} ajoutée${n > 1 ? "s" : ""}. <a href="#/voeux">Voir ma liste</a>`;
+  };
+  document.getElementById("liste-print").onclick = () => window.print();
 }
 
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
   carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
-  comprendre: "comprendre", selectivite: "selectivite", reorientation: "parcours" };
-const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite"];
+  comprendre: "comprendre", selectivite: "selectivite", reorientation: "parcours",
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "parcours", liste: "voeux" };
+const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite", "calendrier", "accompagner"];
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
     if (el.dataset.tab === tab) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
@@ -2781,7 +3020,8 @@ function markTab(tab) {
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
-  comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation" };
+  comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -2825,6 +3065,10 @@ async function route() {
     if (a === "comprendre") return await viewComprendre();
     if (a === "selectivite") return await viewSelectivite(b || "", c || "");
     if (a === "reorientation") return await viewReorientation(b || "", c || "");
+    if (a === "calendrier") return await viewCalendrier();
+    if (a === "accompagner") return viewAccompagner();
+    if (a === "premiere") return await viewPremiere();
+    if (a === "liste") return await viewListe(b || "", c || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
