@@ -459,8 +459,8 @@ JS_AN_MUTANTS = [
     ("static/app.js", "the formation sent", 'track("action", { a: "voeu" })', 'track("action", { a: "voeu", cod })'),
     ("static/app.js", "every tab bar counted", 'if (id === "fiche") track("action", { a: "onglet", tab: k });', 'track("action", { a: "onglet", tab: k });'),
     ("static/app.js", "Mes vœux feedback dropped", '${feedbackBox("voeux")}', ""),
-    ("static/app.js", "Mes vœux feedback dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${feedbackBox(\"voeux\")}",
-     "rien n'en est enregistré sur le serveur.</p>${howto}</div>"),
+    ("static/app.js", "Mes vœux feedback dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get(\"profile\", null))}${feedbackBox(\"voeux\")}",
+     "rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get(\"profile\", null))}"),
     ("static/app.js", "old privacy promise kept", "rien n'en est enregistré sur le serveur. Le site compte seulement", "rien n'est enregistré ni compté sur le serveur. Le site compte seulement"),
     ("static/stats.js", "dashboard hides the promise", "La formation concernée n'est jamais enregistrée.", ""),
 ]

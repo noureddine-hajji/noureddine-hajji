@@ -37,6 +37,7 @@ from . import insertion as INS
 from . import glossary as G
 from . import evidence as EV
 from . import calibration as CAL
+from . import calendrier as CALR
 from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
@@ -906,6 +907,23 @@ def reorientation(diplome: str, mention: str | None = None):
     return res
 
 
+@app.get("/api/calendrier")
+def calendrier():
+    """Sprint 22: the official Parcoursup calendar, read from the fetched PDFs (dates only where every version agrees)."""
+    return CALR.calendar()
+
+
+@app.get("/api/calendrier.ics")
+def calendrier_ics():
+    """Sprint 22: the verified dates as all-day events, to add to a phone's calendar (none verified = 404: an empty
+    VCALENDAR is not a valid file, review)."""
+    cal = CALR.calendar()
+    if not any(e["verifie"] for e in cal["evenements"]):
+        raise HTTPException(404, "Les dates officielles n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr")
+    return Response(CALR.ics(cal), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="parcoursup-{CALR.CAMPAGNE}.ics"'})
+
+
 @app.get("/api/reorientation/voeux")
 def reorientation_voeux(ids: str = Query("", max_length=200)):
     """Sprint 21: the student's list read for a candidate outside terminale (no zone, no Plan B). No analytics event."""
@@ -1023,7 +1041,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee"]
 
 
 @lru_cache(maxsize=1)

@@ -8,7 +8,8 @@ const tokenSet = (v) => { try { v ? sessionStorage.setItem(STATS_TOKEN_KEY, v) :
 const pc = (v, d = 1) => (v == null ? "—" : `${fmt(100 * v, d)} %`);
 const ROUTE_LABEL = { home: "Accueil", search: "Recherche", fiche: "Fiche formation", evolution: "Évolution", compare: "Comparateur",
   specialites: "Spécialités", qualite: "Qualité des données", parcours: "Mon parcours", stats: "Audience", voeux: "Mes vœux", metiers: "Métiers",
-  reorientation: "Je me réoriente" };
+  reorientation: "Je me réoriente", calendrier: "Calendrier", accompagner: "Accompagner un élève",
+  premiere: "Seconde et première", liste: "Liste partagée" };
 const SOURCE_LABEL = { direct: "Accès direct / favori", moteur: "Moteur de recherche", parcoursup: "parcoursup.fr", onisep: "Onisep",
   education: "Sites education.gouv", ent: "ENT / Pronote / académies", social: "Réseaux sociaux & messageries", autre: "Autres sites" };
 const REASON_LABEL = { utile: "Utile (avis positif)", introuvable: "Ne trouve pas", incomprehensible: "Chiffres difficiles à comprendre",

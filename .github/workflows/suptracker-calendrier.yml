@@ -1,0 +1,41 @@
+# Sprint 22: the OFFICIAL Parcoursup campaign calendar, fetched from parcoursup.gouv.fr (blocked in the development sandbox)
+# into suptracker/data/calendrier/ with its extracted text. The page's dates are read from this file, never from a press article.
+# Triggered by workflow_dispatch, or by a push of data/calendrier/request.json on a claude/ branch (a new workflow can only be
+# dispatched once it is on the default branch).
+name: suptracker-calendrier
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 1"        # weekly: a corrected version of the official PDF is read without waiting (default branch only)
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/calendrier/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-calendrier
+  cancel-in-progress: false
+jobs:
+  calendrier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx pdfplumber
+      - name: Fetch the official calendar
+        run: python scripts/calendrier_fetch.py data/calendrier
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/calendrier
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Parcoursup official calendar fetched ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push

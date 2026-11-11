@@ -2219,3 +2219,78 @@ publishes no access rate, no mention and no series for them, so "Mon parcours" h
 - the formation page had the estimate without its counts: a folded card in "Plus de chiffres sur l'admission";
 - "0 %" now says "rare cette année-là, pas forcément fermé"; four doors in a 2 x 2 grid; a clear 404 for an unknown mention.
 Each gap it found in the red team is now a check and a mutant.
+
+## Sprint 22: accompaniment (owner's go, 2026-11-11)
+
+**Why.** Students choose their vœux with an adult (parents, professeur principal). They also need the campaign's dates, and the
+seconde/première students choose specialties before Parcoursup. The product audit found no way to share a list and no calendar.
+
+**What the data says.**
+- The 2027 calendar is a PDF on parcoursup.gouv.fr (published October 2026). That host is blocked in the sandbox, so a new
+  workflow, `suptracker-calendrier`, fetches it with `scripts/calendrier_fetch.py`, which only accepts parcoursup.gouv.fr
+  addresses. It is triggered by a push of `data/calendrier/request.json`.
+- The workflow stores three versions of the PDF and their text. The dates agree, but the first version's heading reads
+  "samedi 10 juin 2027" where the others read "samedi 10 juillet". 10 June 2027 is a Thursday.
+- The seconde/première entry uses the stage-1 figures of "Mon parcours" (share of each doublette among a filière's bac général
+  admits, 2022-2025, counting-break campaigns excluded).
+
+**What changes.**
+- `suptracker/calendrier.py` reads each official step with one fixed rule anchored on its wording. A date is served only if
+  every version prints it identically with its true weekday; otherwise the step says "date à vérifier sur parcoursup.gouv.fr".
+  All 9 steps are verified, from the opening of the 2027 formation map (17 December 2026) to the end of the complementary phase
+  (9 September 2027).
+- Calendar routes and page:
+  - `/api/calendrier` and `/api/calendrier.ics` (shared cache; all-day events, the same file for everyone).
+  - `#/calendrier`: the next step and its countdown, the three official steps, what to do on SupCompass at each one, and
+    "le calendrier officiel fait foi".
+- `#/accompagner`, for parents and professeurs principaux: what the figures show, what SupCompass never does (no admission
+  prediction, no ranking, no account), how to look at the student's list together, and questions for the conversation.
+  The page is printable.
+- `#/premiere`: three specialties of première give the three possible terminale doublettes. For each filière, the page shows
+  the share of each doublette among the admits. Rows are ordered by where these bacheliers go, never by a chance. The page says
+  it is a composition of admits, not advice.
+- Mes vœux gets "Partager ou imprimer ma liste":
+  - The link is `#/liste/<codes>[/<profile>]`. Everything after "#" stays in the browser, and nothing is stored.
+  - The profile (bac, specialties, mention) is in the link only if the student ticks the box. The académie and the lycée are
+    never in it.
+  - `#/liste` reads zones only with a joined terminale profile, the estimated access outside terminale, and official rates
+    otherwise.
+  - "Ajouter à ma liste" merges up to 10 vœux. It never replaces the recipient's list or profile.
+- Printing hides the menus and buttons and adds the date and "pas des chances d'admission".
+- Menus: "Calendrier" and "Accompagner un élève". The home page gets links to seconde/première, the calendar and the adult page.
+
+**Red team** `scripts/redteam_accompagnement.py` (T1-T8), via `tests/test_accompagnement.py`:
+- T1: the calendar re-derived independently from every version (each date printed with its true weekday next to its wording;
+  the known misprint never read), plus crafted versions: disagreement, wrong weekday, missing step, a range ending before it
+  starts, hostile text, no file.
+- T2: the .ics parsed independently (CRLF, lines of at most 75 octets, exclusive end, unique ids, escaping, a stable file).
+- T3: routes, cache, no audience event, the fetch script refusing foreign hosts, the source register, and the Vercel bundle
+  (PDFs out, text in).
+- T4: the calendar page at fixed dates (countdown, states, unverified date said, escaping, race).
+- T5: seconde/première (pairs, each cell its own share, order, missing and rare doublettes, stored choices validated).
+- T6: the shared list (validation, link round trip, profile only on request, reading per profile, merge, race).
+- T7: wording and wiring.
+- T8: seeded bugs, each caught.
+
+**Independent review** (a second agent, not shown the red team's conclusions). All its findings are fixed:
+- The shared list showed the bac techno / pro series ESTIMATE under "Taux d'accès officiel": it now shows the official rate.
+- A student with no stored profile could share the page's default profile (MATHS + SES): the box is offered only with a stored
+  profile.
+- Unread dates: the page said "campagne terminée" and the .ics was an empty file. The page now says the dates must be checked,
+  and the .ics answers 404.
+- Fetch script:
+  - a run that reads no PDF keeps the previous log and fails;
+  - a redirect off parcoursup.gouv.fr is refused;
+  - the PDFs are no longer committed (their illustrations are not under the Licence Ouverte), only their text and digest;
+  - the workflow runs weekly.
+- Printing in dark mode gave light text on white paper: the print rules redefine the colour tokens.
+- Robustness:
+  - a cut link ("%E0%A4%A") no longer breaks the router;
+  - races before the page marker are closed;
+  - a choice made while the doublettes load is kept;
+  - a server failure is no longer said as "absent".
+- The shared list hides the recipient's own profile bar and tab.
+- "Today" is Paris's date.
+- The link no longer carries the bac pro route (data minimisation), and codes are trimmed.
+- Wording: official step names, and the complementary phase as the PDF words it.
+Each review gap is now a red-team check with a mutant.
