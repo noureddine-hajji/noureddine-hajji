@@ -2163,3 +2163,45 @@ header), X17 (6 seeded bugs, each caught); X7's phone limit lowered from 14 to 1
 - W5: the page in Node (twin of `pick_voie`, one row marked and named, bucket, masked, escaping, profile line, query).
 - W6: wording. W7: wiring.
 - W8: 19 seeded bugs, each caught, on the synthetic and the real warehouse.
+
+## Sprint 21: "Je me réoriente ou je reprends mes études" (owner's choices, 2026-11-11)
+
+**Why.** About 30 % of Parcoursup candidates are not in terminale (reorientation, return to studies, other routes). SIES
+publishes no access rate, no mention and no series for them, so "Mon parcours" had nothing to show them.
+
+**What the data says (SIES exports).**
+- SIES publishes, per formation, all candidates and proposals and those of each terminale series. The difference is the group
+  outside terminale: candidates = `nb_voe_pp + nb_voe_pc` minus the three series; proposals = `prop_tot` minus the three series.
+- Both are >= 0 on every row of 2023-2025. On 15 rows of 2022 the series proposals exceed the total: no figure there.
+- 2025: 22.8 % of these vœux got a proposal, against 33.7 % for the néo-bacheliers (CPGE 4.7 vs 31.7; engineering schools 28.2
+  vs 49.1; EFTS 36.2 vs 29.1). 12 462 of 14 252 formations have at least 20 candidates outside terminale.
+
+**What changes.**
+- `suptracker/reorientation.py`: the "accès estimé hors terminale" = official access rate × (the group's proposal rate ÷ all
+  candidates' proposal rate), capped at 100 (flagged when capped). It is the series rule of "Mon parcours" applied to this
+  group. It is always an estimation, shown with its counts. There is no figure below 20 candidates or when the counts do not hold.
+- Home: a fourth door, "Je me réoriente ou je reprends mes études" (`#/reorientation`).
+- The page lists every formation of a type of diploma (and mention) of the latest campaign. Each row shows the estimated access,
+  the official rate and the share of admits who are not néo-bacheliers (sprint 18's published counts). Filters: type, mention,
+  the student's académie, and "admis hors néo-bacheliers majoritaires". Order: the student's académie first, then the name, never
+  a figure. The académie never leaves the browser (`/api/reorientation?diplome=&mention=`, shared cache).
+- Profile: "Situation: En terminale / Je ne suis plus en terminale" (or "C'est ma situation" on the page). With that status:
+  - "Mon parcours" opens this page;
+  - the formation page's summary shows "Accès estimé hors terminale" instead of the zone;
+  - Plan B is not offered (it compares zones), and the page says why;
+  - "Mes vœux" reads `/api/reorientation/voeux` (codes only, `no-store`, no audience event). It shows no zone tiles, no alert,
+    no Plan B and no "Compléter ma liste", and says why;
+  - the profile bar makes no zone request.
+- The old bac series is not asked: SIES does not split this group.
+
+**Red team** `scripts/redteam_reorientation.py` (E1-E8), via `tests/test_reorientation.py`:
+- E1: the block re-derived in SQL on every row of every campaign (55 844 real rows), plus 14 crafted edge rows: threshold, cap,
+  exactly 100, negative or excessive counts, NULLs, no proposal, admits that miss the total, a tie.
+- E2: the listing equals the latest campaign's SIES formations of the type; apprenticeship offers are never listed; each block
+  equals E1's; rows carry only the keys the page reads; unknown or hostile types get a 404.
+- E3: cache policies, no audience event, hostile or too many codes (a 422, never a 500), formation and Mes vœux blocks.
+- E4: the page in Node: escaping, `data-label` on every cell, the reason when there is no estimate, the order (académie, then
+  name; shuffled figures give the same order), paging, filters, the situation button, nothing personal sent.
+- E5: the profile status (validated, escaped), the profile bar, Mes vœux, Plan B and the "Mon parcours" delegation, in Node.
+- E6: the formation summary tile. E7: wording and wiring.
+- E8: seeded bugs in the rule, the routes, the page, the profile and the wording, each caught.

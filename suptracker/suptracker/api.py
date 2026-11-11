@@ -909,7 +909,10 @@ def reorientation(diplome: str, mention: str | None = None):
 @app.get("/api/reorientation/voeux")
 def reorientation_voeux(ids: str = Query("", max_length=200)):
     """Sprint 21: the student's list read for a candidate outside terminale (no zone, no Plan B). No analytics event."""
-    cods = VX.clean_ids(ids.split(","))
+    try:
+        cods = VX.clean_ids(ids.split(","))
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500 (red team E3)
+        raise HTTPException(422, str(exc)) from exc
     blocks = RO.for_codes(_con().cursor(), cods)
     meta = {r["cod_aff_form"]: r for r in rows("""SELECT cod_aff_form, g_ea_lib_vx AS etablissement, lib_for_voe_ins AS formation,
         ville_etab AS ville, acad_mies AS academie FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
