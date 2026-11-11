@@ -347,6 +347,7 @@ out.bucket = rapportDoublettes(blk, { serie: "bt", voie: "stmg_rhc", mention: "a
 out.none = rapportDoublettes(blk, { serie: "bt", mention: "ab" }).html;
 out.masked = rapportDoublettes({ ...blk, doublettes: { bg: blk.doublettes.bg }, masques: ["bt"] }, { serie: "bt", voie: "stmg_merc", mention: "ab" }).html;
 out.bg = rapportDoublettes(blk, { serie: "bg", spe1: "MATHS", spe2: "SES", voie: "stmg_merc", mention: "ab" }).html;
+out.bgMasked = rapportDoublettes({ ...blk, doublettes: { bt: blk.doublettes.bt }, masques: ["bg"] }, { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab" }).html;
 out.line = profileLine({ serie: "bt", voie_label: "<img src=x>", mention: "ab" }, "bt");
 out.qbt = vxQuery(["1"], { serie: "bt", mention: "ab", voie: "stmg_merc" }).toString();
 out.qbg = vxQuery(["1"], { serie: "bg", mention: "ab", spe1: "MATHS", spe2: "SES", voie: "stmg_merc" }).toString();
@@ -389,7 +390,7 @@ process.stdout.write(JSON.stringify(out));"""
     form = o["formSame"] == {"voie": "sti2d", "voie_label": "STI2D, Ingénierie"} and o["formNew"] == {"voie": None, "voie_label": None}
     stored = o["stale"]["voie"] is None and o["stale"]["voie_label"] is None and o["autre"]["voie"] == "autre"
     older = "n'apparaît pas dans les rapports de la session 2025" in o["oldSession"] and not mine(o["oldSession"])
-    once = o["masked"].count("non publiés par la formation") == 0
+    once = o["masked"].count("non publiés par la formation") == 0 and o["bgMasked"].count("non publiés par la formation") == 1   # bac général: kept (Codex)
     ok = twin and own and bucket and none and masked and bg and esc_ok and query and cell and form and stored and older and once
     return ok, (f"twin {twin}; own row {own}; bucket {bucket}; no choice {none}; masked {masked}; bac général unchanged {bg}; "
                 f"escaped {esc_ok}; query {query}; Mes vœux cell {cell}; form keeps a choice only for the same bac {form}; stale key dropped {stored}; "
@@ -454,6 +455,7 @@ JS_MUTANTS = [
     ("a choice kept across a change of bac", 'const keep = fd.get("serie") === serie && !!fd.get("voie");', 'const keep = !!fd.get("voie");'),
     ("stale stored key kept", "(!codes || p.voie === \"autre\" || codes.includes(p.voie))", "true"),
     ("older-session page claims the bucket", 'if (key !== "autre" && Array.isArray(known) && !known.includes(key)) return null;', ""),
+    ("masked bac général table not said (Codex)", '(v === "bg" || v !== myVoie)', "v !== myVoie"),
     ("apprenticeship pointer dropped", ' Beaucoup de BTS se préparent aussi en apprentissage', " Voir la carte"),
 ]
 

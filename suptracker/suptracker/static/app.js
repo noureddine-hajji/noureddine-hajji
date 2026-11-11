@@ -492,7 +492,7 @@ function rapportDoublettes(rp, prof) {
   const vkey = myVoie === "bt" || myVoie === "bp" ? prof.voie || null : null, mineV = pickVoie(rp, myVoie, vkey);
   const blocks = ["bg", "bt", "bp"].map((v) => {
     const rows = rp.doublettes[v] || [];
-    if (!rows.length) return (rp.masques || []).includes(v) && v !== myVoie ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
+    if (!rows.length) return (rp.masques || []).includes(v) && (v === "bg" || v !== myVoie) ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
     return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Doublette"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
       ${rows.map((x) => { const me = v === "bg" && mine && (mine.source === "doublette" ? x.key === dkey : x.autres) && myVoie === "bg";
         const meV = v === myVoie && mineV && (mineV.source === "voie" ? x.voie === vkey : x.autres);
