@@ -1858,7 +1858,13 @@ published figures only.
   - x: its official access rate;
   - y: the share of its néo-bachelier admits with a "Bien" mention or better (`pct_b + pct_tb + pct_tbf`; the mention shares
     are disjoint and add up to 100 %).
-- Formations with fewer than 10 néo-bachelier admits, or without an access rate, are counted apart.
+- Formations that cannot be placed are **named** under the graph ("Non placées sur le graphique"), each with its reason and
+  its published counts, e.g. "6 admis néo-bacheliers sur 28 admis" (owner, 2026-11-10: the BUT Science des données of
+  Carcassonne could not be found, the page only gave a count).
+  - This is a quarter of the latest campaign: 3 441 of 14 252 formations in 2025.
+  - One reason per formation, the first that applies: no admit (179), fewer than 10 néo-bachelier admits (3 262), access
+    rate not published, mention shares not published.
+  - The list shows the official access rate and candidates per place; 40 rows first, like the quadrants.
 - The quadrant lines are the medians of the selection. The four names (Plus accessible, Très demandée, Admis souvent
   mentionnés, Très sélective) describe a position, never a cause or a chance.
 - Each quadrant lists its formations with candidates per place: vœux divided by places, an order of magnitude.
@@ -1869,7 +1875,8 @@ call curve, an "algorithmic score", and rank bonuses for maths expertes, boursie
 **Red team** `scripts/redteam_appel.py` (A1-A7), via `tests/test_appel.py`:
 - A1: the depth re-derived by SQL.
 - A2: the per-type medians.
-- A3: the matrix: placement, exclusions, medians and quadrants.
+- A3: the matrix: placement, exclusions, medians and quadrants; the reason and counts of every formation left out, and
+  one crafted formation per reason.
 - A4: both pages in Node on hostile data: escaping, labelled cells, "toute la liste", the caveat, no rank input.
 - A5: wording.
 - A6: wiring.

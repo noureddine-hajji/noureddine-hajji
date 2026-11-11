@@ -365,7 +365,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   exceed). Per type: medians (depth; the three published timing shares, zero-admit rows out). Matrix: x = official
   `taux_acces_ens`, y = `pct_b + pct_tb + pct_tbf` (disjoint shares of the néo-bachelier admits); < 10 néo-bachelier admits or
   no rate = not placed; quadrant lines = medians of the selection; names describe a position, never a cause ("élite",
-  "auto-censure" banned) or a chance. Red team `redteam_appel.py` (A1-A7).
+  "auto-censure" banned) or a chance. A formation the matrix cannot place (a quarter of a campaign) is NAMED under the graph
+  with its reason (`selectivite.raison`) and its published counts, never only counted. Red team `redteam_appel.py` (A1-A7).
 - **Formations semblables (owner, 2026-11-10).**
   - Used ONLY where the formation's own report lacks the part: no own bac général table (doublettes), no readable own texts
     (jury). Similar = same `fili` + `fil_lib_voe_acc`, same session. Verified reports only (`recoupe`); a concours report counts
