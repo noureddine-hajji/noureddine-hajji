@@ -408,6 +408,8 @@ def e4(c: Ctx):
     // 5. "C'est ma situation" from no profile; "Je suis en terminale" back
     store.d = {}; await viewReorientation("BUT", ""); els["reo-me"].onclick(); out.me = store.get("profile", null); out.mine = $view.innerHTML;
     els["reo-back"].onclick(); out.back = store.get("profile", null); out.hash = location.hash;
+    store.d = { profile: { statut: "reorientation", serie: "bt", mention: "b", academie: "Lyon" } }; await viewReorientation("BUT", "");
+    els["reo-back"].onclick(); out.backBac = store.get("profile", null);
     // 5b. an académie picked with no profile: kept apart, never a profile; it still sorts; "Je suis en terminale" with no bac
     store.d = {}; await viewReorientation("BUT", ""); els.racad.onchange({ target: { value: IN.acad } });
     out.noProfile = store.get("profile", null); out.reoAcad = store.get("reoAcademie", null); out.apart = $view.innerHTML;
@@ -466,8 +468,10 @@ def e4(c: Ctx):
         bad.append("the académie filter")
     if not r["me"] or r["me"].get("statut") != "reorientation" or "Je suis en terminale" not in r["mine"]:
         bad.append(("C'est ma situation", r["me"]))
-    if not r["back"] or r["back"].get("statut") != "terminale" or r["hash"] != "#/parcours":
-        bad.append(("back to terminale", r["back"], r["hash"]))
+    if r["back"] is not None or r["hash"] != "#/parcours":
+        bad.append(("back to terminale with no bac: a profile invented", r["back"], r["hash"]))
+    if not r["backBac"] or r["backBac"].get("statut") != "terminale" or r["backBac"].get("serie") != "bt" or r["backBac"].get("mention") != "b":
+        bad.append(("back to terminale: the bac entered is lost", r["backBac"]))
     if any(HOSTILE in u or "<" in u for u in r["hostileCalls"]) or not any(u.startswith("/api/reorientation?diplome=") for u in r["hostileCalls"]):
         bad.append(("hostile type sent", r["hostileCalls"]))
     eta = re.search(r'href="#/f/900007">.*?</tr>', r["plain"], re.S)
