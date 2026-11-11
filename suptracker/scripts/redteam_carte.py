@@ -309,7 +309,7 @@ def c5(c: Ctx):
 @check("C6 page pieces on hostile data: escaped, zone named on every marker, shapes differ, wording; no position sent")
 def c6(c: Ctx):
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
@@ -448,7 +448,7 @@ def c9(c: Ctx):
             bad.append((cod, "link"))
     # the page card on hostile data
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
@@ -503,7 +503,7 @@ def c10(c: Ctx):
         bad.append((sample, "formation page"))
     # the page: both labels and the CFA list, escaped
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;

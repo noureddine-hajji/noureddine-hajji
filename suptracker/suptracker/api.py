@@ -18,6 +18,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from . import admis as ADM
 from . import analytics as A
 from . import config
 from . import journey as J
@@ -502,7 +503,7 @@ def search(request: Request, bg: BackgroundTasks,
             FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
             WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?))
           WHERE rn = 1""", [cod or q])
-        return {"mode": "cod_aff_form", "resolved_cod_aff_form": cod or q, "query": q, "results": res,
+        return {"mode": "cod_aff_form", "resolved_cod_aff_form": cod or q, "query": q, "results": ADM.mark(_con().cursor(), res),
                 "total": len(res), "offset": 0, "limit": limit, "interpretation": [], "notes": [],
                 "partial": False, "facets": {}}
     opts = tuple(o for o in (options or "").split(",") if o)
@@ -511,6 +512,7 @@ def search(request: Request, bg: BackgroundTasks,
                        options=opts, offset=offset, limit=limit)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
+    res = {**res, "results": ADM.mark(_con().cursor(), res["results"])}   # new dicts: the index documents stay untouched
     if offset == 0:   # pagination is not a new search
         refined = any(v is not None and v != "" for v in (fili, academie, selective, options))  # near = profile
         bg.add_task(A.record, "refine" if refined else "search",
@@ -570,7 +572,7 @@ def formation(cod: str, session: int | None = None):
                  [rec["session"], rec["cod_aff_form"]])
     order = list(PEER_METRICS)
     peers.sort(key=lambda p: order.index(p["metric"]))
-    return {"record": rec, "stages": _grouped(rec), "peers": peers,
+    return {"record": rec, "stages": _grouped(rec), "peers": peers, "admis": ADM.repartition(rec),
             "history": lineage(rec["lineage_id"])["years"], "warnings": _warnings(rec, peers),
             "success": SU.for_formation(_con().cursor(), rec["cod_aff_form"], rec.get("fili"), rec.get("contrat_etab")),
             "but": _but_block(rec),
@@ -648,7 +650,7 @@ def compare(ids: str, session: int | None = None):
                                ("session", "cod_aff_form", "g_ea_lib_vx", "ville_etab", "fil_lib_voe_acc",
                                 "lib_comp_voe_ins", "lineage_id", "lineage_confidence", "fiche_url",
                                 *DECOMP, *OFFER)},
-                    "peers": f["peers"], "history": f["history"], "warnings": f["warnings"]})
+                    "admis": f["admis"], "peers": f["peers"], "history": f["history"], "warnings": f["warnings"]})
     return {"formations": out}
 
 
@@ -750,7 +752,8 @@ def carte_formations(diplome: str, mention: str | None = None):
     res = CA.public(CA.formations(_con().cursor(), diplome, mention or None))
     if res is None:
         raise HTTPException(404, "type de diplôme inconnu")
-    return res
+    return {**res, "formations": ADM.mark(_con().cursor(), res["formations"], session=res["session"],
+                                          only=lambda f: f.get("stats") is not False)}   # apprenticeship offers: no SIES figure
 
 
 @app.get("/api/carte/zones")
@@ -881,10 +884,11 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
-        return VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
-                           academie=academie or None)
+        res = VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
+                          academie=academie or None)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
+    return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
 
 
 @app.get("/api/voeux/completer")
@@ -986,7 +990,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac"]
 
 
 @lru_cache(maxsize=1)
