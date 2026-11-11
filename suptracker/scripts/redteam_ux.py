@@ -128,7 +128,7 @@ def block(js: str, marker: str) -> str:
     return js[i: js.index("\n// ---- ", i + 1)]
 
 
-@check("X3 navigation: bottom bar (4 pages + Plus), every top-menu page reachable on a phone, current tab marked")
+@check("X3 navigation: bottom bar (Explorer, Mon profil, Mes vœux, Calendrier + Plus), every top-menu page reachable on a phone, current tab marked")
 def x3(c: Ctx):
     def hrefs(sel_open: str):
         i = c.html.find(sel_open)
@@ -137,8 +137,8 @@ def x3(c: Ctx):
         j = c.html.find("</nav>", i) if "<nav" in sel_open else c.html.find("</div>", i)
         return re.findall(r'href="(#/[^"]*)"', c.html[i:j])
     top, bar, more = hrefs('<nav class="topnav"'), hrefs('<nav class="tabbar"'), hrefs('<div id="more-menu"')
-    main = ["#/", "#/parcours", "#/metiers", "#/voeux"]
-    plus = 'id="more-btn"' in c.html and 'aria-controls="more-menu"' in c.html
+    main = ["#/", "#/profil", "#/voeux", "#/calendrier"]                      # R1 (owner, 2026-11-11): the journey tabs
+    plus = 'id="more-btn"' in c.html and 'aria-controls="more-menu"' in c.html and 'id="comp-btn"' in c.html and 'aria-controls="comp-menu"' in c.html
     reach = set(top) <= set(bar) | set(more)
     marked = "markTab(TAB_OF[a] || \"home\");" in c.js and 'setAttribute("aria-current", "page")' in c.js
     mobile = mobile_css(c.css)
@@ -217,7 +217,7 @@ def home_ui(js: str) -> tuple[bool, str]:
     blk = block(js, "// ---- lot 1 UI: the home page opens on four doors")
     prog = helpers(js) + """
 const ICONS = new Proxy({}, { get: () => "<svg></svg>" });
-const store = {}; const voeux = { get: () => JSON.parse(require('fs').readFileSync(0, 'utf8')) };
+const store = { get: () => null }; const voeux = { get: () => JSON.parse(require('fs').readFileSync(0, 'utf8')) };
 const $view = { innerHTML: "", dataset: {} };
 const document = { getElementById: () => null };
 """ + blk.replace('const HOME_EXAMPLES = [', 'const HOME_EXAMPLES = ["<b>x</b>", ') + """
@@ -230,6 +230,9 @@ viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.
     html, rendered = json.loads(r)
     doors = len(re.findall(r'class="door"', html))
     links = all(h in html for h in ('href="#/metiers"', 'href="#/parcours"', 'id="door-search"', 'href="#/reorientation"'))
+    # R1: the Explorer views (list current) and, with no stored profile, one call to create it
+    links = links and '<nav class="views"' in html and re.search(r'<a href="#/" aria-current="true">', html) is not None \
+        and 'href="#/profil">Créer mon profil</a>' in html
     leak = "<b>x</b>" in html
     words = all(w in html for w in ("Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
                                      "Je me réoriente ou je reprends mes études",
@@ -337,8 +340,9 @@ UI_MUTANTS = [
     ("tutoiement in the home text", "jamais des pronostics.</p>", "jamais des pronostics. Tape ce que tu cherches.</p>", ("js", (x1, x6))),
     ("column label back in the formation header", "n° Parcoursup ${esc(r.cod_aff_form)}", "cod_aff_form ${esc(r.cod_aff_form)}", ("js", (x2,))),
     ("Mes vœux tab dropped", '<a href="#/voeux" data-tab="voeux"><svg', '<a href="#/stats" data-tab="voeux"><svg', ("html", (x3,))),
-    ("glossary missing from Plus", '  <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n  <a href="#/calendrier" data-tab="calendrier">Calendrier Parcoursup</a>',
-     '  <a href="#/calendrier" data-tab="calendrier">Calendrier Parcoursup</a>', ("html", (x3,))),
+    ("glossary missing from Plus", '  <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>',
+     '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>', ("html", (x3,))),
+    ("Mon profil tab dropped from the bottom bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', ("html", (x3,))),
     ("current tab never marked", 'markTab(TAB_OF[a] || "home");', "", ("js", (x3,))),
     ("top menu kept on a phone", "  .topnav { display: none; }\n", "", ("css", (x3,))),
     ("touch targets back to 32 px", "a.badge, .toolbar a, input[type=\"search\"], input[type=\"text\"] { min-height: 44px; }",
@@ -490,7 +494,7 @@ process.stdout.write(JSON.stringify(out));"""
     tiles = len(re.findall(r'class="sum-tile"', o["profile"]))   # 4 with a profile (the zone tile waits for Plan B)
     words = all(w in o["profile"] for w in ("Taux d'accès 2025", "Votre zone", "Admis 2025", "Métiers visés", "pas des chances d'admission"))
     figures = all(w in o["profile"] for w in ("43", "319", "pour 320 places", ">3<"))
-    zone_slot = 'id="sum-zone"' in o["profile"] and 'href="#/parcours"' in o["noProfile"] and 'id="sum-zone"' not in o["noProfile"]
+    zone_slot = 'id="sum-zone"' in o["profile"] and 'href="#/profil"' in o["noProfile"] and 'id="sum-zone"' not in o["noProfile"]
     pill = 'class="zone-pill" style="background:var(--zone-cible)"' in o["pill"] and ">cible<" in o["pill"]
     neutral = "color:var(--ink)" in o["pill2"] and "incertaine" in o["note2"]
     tabs = o["tabs"]
@@ -667,7 +671,7 @@ process.stdout.write(JSON.stringify(out));"""
         cells = re.findall(r"<td(?![^>]*data-label)(?![^>]*class=\"acts\")[^>]*>", rows.group(0))
         return len(cells) == 1                                 # only the formation cell has no label
     vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}" in vx
-    pc_ok = (labelled(pc) and "${hasProfile ? `<details class=\"profile\"><summary><span>${profileLine(p, serie)}</span>" in pc
+    pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(p, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
              and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
     vs_ok = "limit: PAGE" in vs and "offset: off + PAGE" in vs and "off - PAGE" in vs and "40" not in re.sub(r"<[^>]*>", "", vs.split("const qs")[1].split("const d =")[0])
     cmp_ok = '<table class="cmp">' in cmp
@@ -676,20 +680,20 @@ process.stdout.write(JSON.stringify(out));"""
               and re.search(r"table\.cmp th:first-child, table\.cmp td:first-child \{ position: sticky; left: 0;", css) is not None)
     ok = tiles and line and pages and vx_ok and pc_ok and vs_ok and cmp_ok and css_ok
     return ok, (f"zone tiles {tiles}; profile line escaped {line}; 20/40 per page {pages}; Mes vœux summary + labelled rows {vx_ok}; "
-                f"Mon parcours folded profile + labelled rows + 20 first {pc_ok}; search paging {vs_ok}; comparator {cmp_ok}; phone CSS {css_ok}")
+                f"Où je me situe reads the profile back + labelled rows + 20 first {pc_ok}; search paging {vs_ok}; comparator {cmp_ok}; phone CSS {css_ok}")
 
 
-@check("X14 working pages: vœux summary, folded profile, labelled stacked rows, 20 rows first, phone paging, sticky comparator column")
+@check("X14 working pages: vœux summary, profile read back with its edit link, labelled stacked rows, 20 rows first, phone paging, sticky comparator column")
 def x14(c: Ctx):
     return lot3_ui(c.js, c.css)
 
 
 LOT3_MUTANTS = [
     ("zone tile in the accent colour", 'class="zone-pill" style="background:${ZONES[k].color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
-    ("profile line unescaped", '`${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}`', '`${p.spe1 || ""} + ${p.spe2 || ""}`', ("js", (x14,))),
+    ("profile line unescaped", '[ser, serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}`', '[ser, serie === "bg" ? `${p.spe1 || ""} + ${p.spe2 || ""}`', ("js", (x14,))),
     ("académie unescaped", 'p.academie ? `académie de ${esc(p.academie)}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
     ("a figure loses its label", '<td class="num" data-label="Places">', '<td class="num">', ("js", (x14,))),
-    ("profile never folded", "${hasProfile ? `<details", "${false ? `<details", ("js", (x14,))),
+    ("stored profile never read back on Où je me situe", "${hasProfile ? `<p class=\"home-profile\">", "${false ? `<p class=\"home-profile\">", ("js", (x14,))),
     ("every positioning row at once", ".slice(0, allPos ? 80 : 20)", ".slice(0, 80)", ("js", (x14,))),
     ("40 results on a phone", "const searchPage = () => (narrow() ? 20 : 40);", "const searchPage = () => 40;", ("js", (x14,))),
     ("header row shown on a phone", "  table.stack tr.stack-head { display: none; }\n", "", ("css", (x14,))),

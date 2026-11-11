@@ -93,14 +93,15 @@ const profileBar = {
     if (tab) this.tab = tab;
     const el = document.getElementById("profile-bar");
     if (!el) return;
+    const raw = store.get("profile", null);
+    profileChip(this.tab, raw);
     if (this.tab === "stats" || this.tab === "liste") { el.hidden = true; return; }   // sprint 22: a shared list is someone else's
     el.hidden = false;
-    const raw = store.get("profile", null);
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       this.key = ""; this.data = null;
       const has = voeux.get().length > 0;
-      el.innerHTML = `<span class="pb-who">${has ? "Pas encore de profil : les zones de vos vœux ne peuvent pas être lues." : "Indiquez votre bac et votre mention pour voir où vous vous situez dans chaque formation."}</span>
-        <a class="pb-link" href="#/parcours">Indiquer mon bac et ma mention</a><a class="pb-link" href="#/reorientation">${REO_LABEL}</a>`;
+      el.innerHTML = has ? `<span class="pb-who">Pas encore de profil : les zones de vos vœux ne peuvent pas être lues.</span><a class="pb-link" href="#/profil">Créer mon profil</a>`
+        : `<a class="pb-link" href="#/profil">Pas encore de profil : créer le mien (1 minute, il reste dans ce navigateur)</a>`;
       return;
     }
     const prof = vxProfile(raw);
@@ -129,9 +130,28 @@ const profileBar = {
         list = `<a class="pb-list" href="#/voeux" aria-label="Mes vœux, zones pour votre profil">Mes vœux : ${parts.join(" · ")}</a>${alert}`;
       }
     }
-    el.innerHTML = `<a class="pb-who" href="#/parcours" aria-label="Votre profil, le modifier dans Mon parcours">${profileLine(prof, prof.serie)}</a>${list}`;
+    el.innerHTML = `<a class="pb-who" href="#/profil" aria-label="Votre profil, le modifier dans Mon profil">${profileLine(prof, prof.serie)}</a>${list}`;
   },
 };
+// R1 (owner, 2026-11-11): the profile chip of the wide-screen header, read from the same stored profile as the bar (escaped,
+// validated by vxProfile); hidden where the profile bar is (stats, a shared list)
+const MENTION_SHORT = { sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" };
+function chipLine(p) {
+  if (isReo(p)) return REO_LABEL;
+  const ser = { bg: "bac général", bt: "bac techno", bp: "bac pro" }[p.serie];
+  const what = p.serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}` : p.voie_label ? esc(p.voie_label) : "";
+  return [ser, what, MENTION_SHORT[p.mention]].filter(Boolean).join(" · ");
+}
+function profileChip(tab, raw) {
+  const el = document.getElementById("profile-chip");
+  if (!el) return;
+  if (tab === "stats" || tab === "liste") { el.hidden = true; return; }
+  el.hidden = false;
+  const has = !!raw && typeof raw === "object" && !Array.isArray(raw);
+  el.classList.toggle("empty", !has);
+  el.setAttribute("aria-label", has ? "Votre profil, le modifier" : "Créer mon profil");
+  el.innerHTML = has ? `<span>${chipLine(vxProfile(raw))}</span>${ICONS.edit}` : `${ICONS.profile}<span>Créer mon profil</span>`;
+}
 
 // ---- SVG primitives --------------------------------------------------------
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
@@ -217,6 +237,10 @@ const ICONS = {
   job: ICO('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/>'),
   compass: ICO('<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'),
   reorientation: ICO('<path d="M4 17h9a4 4 0 0 0 0-8H7"/><path d="M10 6L7 9l3 3"/>'),
+  profile: ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'),
+  edit: ICO('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+  list: ICO('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
+  map: ICO('<path d="M9 4.5l-5 2v13l5-2 6 2 5-2v-13l-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'),
   internat: ICO('<path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/>'),
   apprentissage: ICO('<path d="M14.5 6.5a4 4 0 0 0 5 5l-8.5 8.5a2.1 2.1 0 0 1-3-3z"/>'),
   distance: ICO('<rect x="3.5" y="5" width="17" height="11" rx="1.5"/><path d="M8 20h8M12 16v4"/>'),
@@ -247,10 +271,29 @@ function searchHash(q, params) {
 
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
 const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
+// R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
+const EXPLORER_VIEWS = [["liste", "Liste", "list"], ["carte", "Carte", "map"], ["metiers", "Métiers", "job"]];
+function explorerViews(cur, q = "") {
+  const href = { liste: q ? `#/s/${encodeURIComponent(q)}` : "#/", carte: "#/carte", metiers: "#/metiers" };
+  return `<nav class="views" aria-label="Explorer : choisir la vue">${EXPLORER_VIEWS.map(([k, label, ico]) =>
+    `<a href="${esc(href[k])}"${k === cur ? ' aria-current="true"' : ""}>${ICONS[ico]}${label}</a>`).join("")}</nav>`;
+}
+// the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: one call to create it
+function homeProfile() {
+  const raw = store.get("profile", null);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, votre ligne dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
+      <a class="btnlink" href="#/profil">Créer mon profil</a></div>`;
+  }
+  const p = vxProfile(raw);
+  return `<div class="card home-profile"><p class="small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong></p><a class="btnlink" href="#/profil">Modifier mon profil</a></div>`;
+}
 function viewHome() {
   const n = voeux.get().length;
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
     <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p></section>
+  ${explorerViews("liste")}
+  ${homeProfile()}
   <div class="doors">
     <button type="button" class="door" id="door-search"><span class="door-ico" aria-hidden="true">${ICONS.search}</span><strong>Je cherche une formation</strong>
       <span>Un nom, une ville, un sigle : même avec des fautes de frappe.</span></button>
@@ -261,7 +304,7 @@ function viewHome() {
     <a class="door" href="#/reorientation"><span class="door-ico" aria-hidden="true">${ICONS.reorientation}</span><strong>Je me réoriente ou je reprends mes études</strong>
       <span>Vous n'êtes plus en terminale : voyez les formations qui accueillent des candidats comme vous.</span></a>
   </div>
-  <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les doublettes possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Vous accompagnez un élève ?</a></p>
+  <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les doublettes possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Parents et professeurs</a></p>
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
     ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
@@ -320,7 +363,7 @@ async function viewSearch(q, rawParams) {
   const chip = (label, href, active) => `<a class="badge${active ? " exact" : ""}" href="${esc(href)}">${esc(label)}</a>`;
   const facets = d.facets || {};
   const off = +(P.offset || 0);
-  $view.innerHTML = `<div class="card">
+  $view.innerHTML = `${explorerViews("liste", q)}<div class="card">
     <h2>${fmt(d.total)} formation(s)${d.partial ? ` <span class="badge warnb">résultats partiels</span>` : ""}</h2>
     ${d.interpretation.length ? `<div class="legend" aria-label="Interprétation de la recherche">${d.interpretation.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : ""}
     ${d.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("")}
@@ -459,7 +502,7 @@ function doubletteCard(d, rp, sem) {
       ${top.map((x) => row(esc(x.label), x, "var(--voie-bg)")).join("")}
       ${g.autres.candidats ? row(`Autres doublettes <span class="estim">(${fmt(g.autres.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats)</span>`, g.autres, "var(--voie-bg)") : ""}
       </table></div>
-      ${!dkey ? `<p class="small"><a href="#/parcours">Indiquez vos spécialités dans « Mon parcours »</a> pour voir votre doublette en premier.</p>` : ""}
+      ${!dkey ? `<p class="small"><a href="#/profil">Indiquez vos spécialités dans « Mon profil »</a> pour voir votre doublette en premier.</p>` : ""}
       <p class="muted small">${DBL_CAVEAT}</p>`;
   }
   return `<div class="card"><h2>Selon votre bac</h2>
@@ -529,7 +572,7 @@ function rapportDoublettes(rp, prof) {
     : mineV ? `<div class="dbl-est"><p class="small"><strong>Votre ligne dans cette formation : ${pct1(mineV.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}, ligne « ${esc(mineV.libelle)} »${mineV.source === "autres" ? " de la formation" : ""}</span>${rateBar(mineV.taux, VOIES[myVoie].color)}</p>
     <p class="muted small">${fmt(mineV.en_position)} candidats sur ${fmt(mineV.confirmes)} ${mineV.source === "autres" ? `dont la ${VOIE_WORD[myVoie]} n'est pas détaillée` : `de votre ${VOIE_WORD[myVoie]}`} ont été en position de recevoir une proposition.${mineV.source === "autres" ? ` La formation ne détaille que ses ${VOIE_WORD[myVoie]}s les plus fréquentes : la vôtre est comptée avec les autres.` : ""}</p></div>`
     : (rp.masques || []).includes(myVoie) ? `<p class="small">Pour le ${myVoie === "bt" ? "bac technologique" : "bac professionnel"}, la formation n'a pas publié son tableau (effectifs trop faibles) : pas de ligne pour vous dans ce rapport.</p>`
-    : voieRows.length && !vkey ? `<p class="small"><a href="#/parcours">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir votre ligne.</p>`
+    : voieRows.length && !vkey ? `<p class="small"><a href="#/profil">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir votre ligne.</p>`
     : voieRows.length ? `<p class="small">Votre ${VOIE_WORD[myVoie]} n'apparaît pas dans les rapports de la session ${esc(rp.session)} : pas de ligne comparable dans ce rapport.</p>` : "";
   const { bg: bgRows = [] } = rp.doublettes;
   return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette, série ou spécialité (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${headV}${blocks}
@@ -736,7 +779,7 @@ function carteDetail(f, hasProfile) {
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
     <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}${autresBadge(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
-    <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/parcours">Indiquez votre profil</a> pour voir votre zone.`}
+    <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/profil">Indiquez votre profil</a> pour voir votre zone.`}
     · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
     ${appOffers(f.offres_app)}
     <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
@@ -784,8 +827,8 @@ async function viewCarte(dArg, mArg) {
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const goTo = (d, m) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(d)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
-  $view.innerHTML = `<div class="card"><h1>Carte des formations</h1>
-    <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
+  $view.innerHTML = `${explorerViews("carte")}<div class="card"><h1>Carte des formations</h1>
+    <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
     <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
     <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
   <div class="carte-layout">
@@ -910,7 +953,7 @@ function summaryBand(r, d) {
       ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "indicateur officiel, phase principale")}
       ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
         : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"')
-        : `<a class="sum-tile" href="#/parcours"><span class="sum-label">Votre zone</span><span class="sum-value">—</span><span class="sum-note">renseignez votre profil dans « Mon parcours »</span></a>`}
+        : `<a class="sum-tile" href="#/profil"><span class="sum-label">Votre zone</span><span class="sum-value">—</span><span class="sum-note">renseignez votre profil dans « Mon profil »</span></a>`}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
@@ -1073,7 +1116,7 @@ async function loadPlanB(cod, opts = {}) {
   const head = opts.inline
     ? `<h3 class="planb-title">Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h3>`
     : `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
-    <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/parcours">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon parcours »</a>.</p>`;
+    <p class="small muted">Pour ${p ? "votre profil" : "un profil par défaut"} (${who}). <a href="#/profil">${p ? "Modifier" : "Renseigner le vôtre"} dans « Mon profil »</a>.</p>`;
   const paidToggle = d.hidden_paid || d.include_paid ? `<label class="small"><input type="checkbox" data-pbpaid ${d.include_paid ? "checked" : ""}> Inclure le privé hors contrat / enseignement supérieur privé (frais de scolarité possibles)${d.hidden_paid ? ` · ${fmt(d.hidden_paid)} masqué(s)` : ""}</label>` : "";
   const W = opts.onPin ? voeux.get() : [];
   let body;
@@ -1651,25 +1694,54 @@ function voieFromForm(fd, serie, label) {
   const keep = fd.get("serie") === serie && !!fd.get("voie");
   return { voie: keep ? fd.get("voie") : null, voie_label: keep ? label : null };
 }
-function profileForm(p) {
+// R1 (owner, 2026-11-11): "Mon profil" is the one place the profile is edited. The situation comes first; every field says what
+// it is used for, in the student's words (no column name). Only the fields of the chosen situation are drawn.
+function profileForm(p, saved) {
   const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
-  return `<form id="pf" class="toolbar">
-    <label>Situation <select name="statut"><option value="terminale">En terminale</option><option value="reorientation" ${isReo(p) ? "selected" : ""}>${REO_LABEL}</option></select></label>
-    <label>Bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>
-    ${serie !== "bg" && JV.voies && (JV.voies[serie] || []).length ? `<label>${serie === "bt" ? "Série et spécialités" : "Spécialité de bac pro"} <select name="voie"><option value="">Pas indiqué</option>${opt(JV.voies[serie], p.voie)}<option value="autre" ${p.voie === "autre" ? "selected" : ""}>${serie === "bt" ? "Autre série ou autres spécialités" : "Autre spécialité"}</option></select></label>` : ""}
-    ${serie === "bg" ? `<label>Spécialité 1 <select name="spe1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select></label>
-    <label>Spécialité 2 <select name="spe2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></label>` : ""}
-    <label>Mention visée <select name="mention">${opt(JV.mentions, p.mention)}</select></label>
-    <label>Académie <select name="academie"><option value="">—</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>
-    <label><input type="checkbox" name="boursier" ${p.boursier ? "checked" : ""}> Boursier</label>
-    ${serie === "bg" && (p.spe1 === "MATHS" || p.spe2 === "MATHS") ? `<label><input type="checkbox" name="maths_expertes" ${p.maths_expertes ? "checked" : ""}> Mathématiques expertes</label>` : ""}
-    <div class="lyc-pick"><label for="lyc-q">Mon lycée <span class="muted small">(facultatif, reste dans votre navigateur)</span></label>
+  const reo = isReo(p);
+  const field = (ctl, why) => `<div class="pf-field">${ctl}<p class="pf-why">${why}</p></div>`;
+  const sit = `<section class="card"><h2>1 · Votre situation</h2>
+    <div class="pf-sit" role="radiogroup" aria-label="Votre situation">
+      <label class="pf-opt"><strong><input type="radio" name="statut" value="terminale" ${reo ? "" : "checked"}> En terminale</strong>
+        <span>Vous passez le bac cette année : chaque formation se lit avec votre bac, vos spécialités et votre mention (vœu de sécurité, cible ou ambitieux).</span></label>
+      <label class="pf-opt"><strong><input type="radio" name="statut" value="reorientation" ${reo ? "checked" : ""}> ${REO_LABEL}</strong>
+        <span>Réorientation, reprise d'études : le SIES ne publie ni mention ni série pour vous. SupCompass affiche un accès estimé, sans zone.</span></label>
+      <a class="pf-opt" href="#/premiere"><strong>En seconde ou en première</strong>
+        <span>Pas encore de doublette ni de mention : comparez les doublettes possibles de vos spécialités.</span></a>
+    </div></section>`;
+  const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
+    "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
+  if (reo) {
+    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}</section></form>`;
+  }
+  const bac = `<section class="card"><h2>2 · Votre bac</h2>
+    ${field(`<label>Votre bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>`,
+      "Chaque formation publie la part de ses admis venant du bac général, technologique ou professionnel.")}
+    ${serie !== "bg" && JV.voies && (JV.voies[serie] || []).length ? field(`<label>${serie === "bt" ? "Série et spécialités" : "Spécialité de bac pro"} <select name="voie"><option value="">Pas indiqué</option>${opt(JV.voies[serie], p.voie)}<option value="autre" ${p.voie === "autre" ? "selected" : ""}>${serie === "bt" ? "Autre série ou autres spécialités" : "Autre spécialité"}</option></select></label>`,
+      `Les rapports des jurys publient une ligne par ${serie === "bt" ? "série technologique et ses spécialités" : "spécialité de bac pro"} : la fiche de chaque formation vous montre la vôtre quand elle existe.`) : ""}
+    ${serie === "bg" ? field(`<div class="pf-ctl"><span>Vos deux spécialités de terminale</span><div class="pf-pair"><select name="spe1" aria-label="Spécialité 1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select>
+      <select name="spe2" aria-label="Spécialité 2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></div></div>`,
+      "Votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.") : ""}
+    ${serie === "bg" && (p.spe1 === "MATHS" || p.spe2 === "MATHS") ? field(`<label class="pf-check"><span><input type="checkbox" name="maths_expertes" ${p.maths_expertes ? "checked" : ""}> Mathématiques expertes</span></label>`,
+      "Notée pour vous : les données publiques ne détaillent pas les options de terminale, elle ne change donc aucun chiffre. Regardez les attendus sur la fiche Parcoursup.") : ""}
+  </section>`;
+  const mention = `<section class="card"><h2>3 · Votre mention visée</h2>
+    ${field(`<label>Mention au bac <select name="mention">${opt(JV.mentions, p.mention)}</select></label>`,
+      "Les admis de chaque formation sont publiés par mention. C'est elle qui situe chaque formation pour vous : <strong>vœu de sécurité</strong>, <strong>cible</strong> ou <strong>ambitieux</strong>. Choisissez celle que vos moyennes actuelles laissent attendre, ni plus ni moins.")}
+  </section>`;
+  const where = `<section class="card"><h2>4 · Où vous êtes</h2>
+    ${acad}
+    ${field(`<div class="pf-ctl lyc-pick"><label for="lyc-q">Votre lycée (facultatif)</label>
       <div class="lyc-row"><input id="lyc-q" type="search" autocomplete="off" placeholder="Nom, ville ou code UAI du lycée" value="${p.lycee ? esc(p.lycee.nom) : ""}" aria-describedby="lyc-help">
       ${p.lycee ? '<button type="button" id="lyc-clear" class="small">Retirer</button>' : ""}</div>
-      <div id="lyc-res" class="lyc-res" role="listbox"></div><div id="lyc-help" class="muted small"></div></div>
-    <button class="primary">Explorer</button></form>`;
+      <div id="lyc-res" class="lyc-res" role="listbox"></div><div id="lyc-help" class="muted small"></div></div>`,
+      "Pour le contexte seulement : aucune donnée publique ne relie les admissions au lycée d'origine, il ne change donc pas vos zones. La liste des lycées est cherchée dans ce navigateur : votre lycée n'est jamais envoyé.")}
+    ${field(`<label class="pf-check"><span><input type="checkbox" name="boursier" ${p.boursier ? "checked" : ""}> Je suis boursier ou boursière</span></label>`,
+      "La part de boursiers parmi les admis s'affiche à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation.")}
+  </section>`;
+  return `<form id="pf">${sit}${bac}${mention}${where}${saved ? "" : `<div class="card pf-saved"><button class="primary">Enregistrer mon profil</button><span class="small muted">Vérifiez chaque champ : rien n'est lu pour vous avant l'enregistrement.</span></div>`}</form>`;
 }
 
 // ---- Sprint 4: the student's lycée, as context only ------------------------------------------
@@ -1733,7 +1805,7 @@ async function suggestLycee(q, marker) {
   if (!hits.length) return;
   const box = document.createElement("div");
   box.className = "card lyc-suggest";
-  box.innerHTML = `<h2>C'est votre lycée ?</h2><p class="small muted">Choisissez-le pour votre profil : il s'affichera en contexte dans « Mon parcours » (il reste dans votre navigateur). Les formations post-bac de ce lycée sont listées plus bas.</p>
+  box.innerHTML = `<h2>C'est votre lycée ?</h2><p class="small muted">Choisissez-le pour votre profil : il s'affichera en contexte dans « Mon profil » (il reste dans votre navigateur). Les formations post-bac de ce lycée sont listées plus bas.</p>
     <div class="lyc-res">${hits.map((l) => `<button type="button" data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie ? ` (${esc(l.academie)})` : ""}</span> → Le choisir comme mon lycée</button>`).join("")}</div>`;
   $view.prepend(box);
   box.querySelectorAll("[data-suggest]").forEach((b) => {
@@ -1743,7 +1815,7 @@ async function suggestLycee(q, marker) {
       prof.lycee = { uai: l.uai, nom: l.nom, commune: l.commune };
       if (l.academie) prof.academie = l.academie;
       store.set("profile", prof);
-      location.hash = "#/parcours";
+      location.hash = "#/profil";
     };
   });
 }
@@ -1893,8 +1965,9 @@ async function viewParcours() {
   const closed = s2 ? s2.formations.filter((f) => f.zone === "non_ouvert").length : 0;
   const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
   if (p.lycee) { try { await loadLycees(); } catch (_) { /* the card says the lycée is unavailable */ } }
-  $view.innerHTML = `
-  <div class="card"><h2>1 · Mon profil</h2>${hasProfile ? `<details class="profile"><summary><span>${profileLine(p, serie)}</span><span class="muted small">Modifier</span></summary>${profileForm(p)}</details>` : profileForm(p)}${mathsExpertesNote(p, serie)}
+  $view.innerHTML = `<div class="card"><h1>Où je me situe</h1><p class="small">Les filières qui recrutent votre profil, puis chaque formation située parmi ses admis des années passées. Des repères, pas des chances d'admission.</p></div>
+  <div class="card"><h2>1 · Mon profil</h2>${hasProfile ? `<p class="home-profile"><span>Lu pour : <strong>${profileLine(p, serie)}</strong></span><a class="btnlink" href="#/profil">Modifier mon profil</a></p>`
+      : `<p class="home-profile"><span>Exemple avec un bac général Mathématiques + SES, mention assez bien : <strong>créez votre profil</strong> pour lire ces chiffres pour vous.</span><a class="btnlink" href="#/profil">Créer mon profil</a></p>`}${mathsExpertesNote(p, serie)}
     ${!s1 ? `<div class="warn">Choisissez deux spécialités distinctes.</div>` : serie === "bg"
       ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
       : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>
@@ -1927,46 +2000,6 @@ async function viewParcours() {
     if (rerender) viewParcours();
   }
 
-  const ser = document.querySelector('#pf [name="serie"]');
-  if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
-  const stt = document.querySelector('#pf [name="statut"]');
-  if (stt) stt.onchange = () => document.getElementById("pf").requestSubmit();
-  // the lycée picked or removed goes through the same submit as "Explorer": edits made in the form
-  // before picking it (specialties, mention...) are kept, never replaced by the stored profile
-  let lyc = p.lycee || null;
-  document.getElementById("pf").onsubmit = (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const vsel = e.target.querySelector('[name="voie"]');
-    const np = { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null),
-      serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
-      mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier"),
-      maths_expertes: !!fd.get("maths_expertes"), lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };
-    if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
-    if (!np.academie) store.set("onlyHome", false);
-    store.set("profile", np); viewParcours();
-  };
-  const lq = document.getElementById("lyc-q"), lres = document.getElementById("lyc-res"), lhelp = document.getElementById("lyc-help");
-  if (lq) {
-    lq.onfocus = () => { loadLycees().catch(() => { lhelp.textContent = "Liste des lycées indisponible pour le moment."; }); };
-    lq.oninput = async () => {
-      try { await loadLycees(); } catch (_) { return; }
-      if (lq !== document.getElementById("lyc-q")) return;      // the page was redrawn meanwhile
-      const hits = lycSearch(lq.value);
-      lres.innerHTML = hits.map((l) => `<button type="button" role="option" data-lyc="${esc(l.uai)}">${esc(l.nom)}<span class="muted small"> · ${esc(l.commune)}</span></button>`).join("");
-      lres.querySelectorAll("[data-lyc]").forEach((b) => {
-        b.onclick = () => {
-          const l = LYC.byUai[b.dataset.lyc];
-          lyc = { uai: l.uai, nom: l.nom, commune: l.commune };
-          const sel = document.querySelector('#pf [name="academie"]');
-          if (sel && l.academie && JV.academies.includes(l.academie)) sel.value = l.academie;   // académie follows the lycée
-          document.getElementById("pf").requestSubmit();
-        };
-      });
-    };
-  }
-  const lc = document.getElementById("lyc-clear");
-  if (lc) lc.onclick = () => { lyc = null; document.getElementById("pf").requestSubmit(); };
   $view.querySelectorAll("[data-gate]").forEach((el) => { el.onchange = () => { el.checked ? show.add(el.dataset.gate) : show.delete(el.dataset.gate); store.set("gates", [...show]); viewParcours(); }; });
   $view.querySelectorAll("[data-type]").forEach((el) => { el.onclick = async () => { store.set("drill", { type: el.dataset.type, label: el.dataset.label }); await viewParcours(); document.getElementById("stage3")?.scrollIntoView({ behavior: "smooth" }); }; });
   const af = document.getElementById("allf"); if (af) af.onclick = () => { store.set("allFilieres", !allF); viewParcours(); };
@@ -1996,6 +2029,121 @@ async function viewParcours() {
   });
   $view.querySelectorAll("[data-pin]").forEach((el) => { el.onclick = () => pin(F.find((f) => f.cod_aff_form === el.dataset.pin)); });
   const oh = document.getElementById("oh"); if (oh) oh.onchange = () => { store.set("onlyHome", oh.checked); viewParcours(); };
+}
+
+// ---- R1 (owner, 2026-11-11): "Mon profil", the one place the profile is edited, every field explained -------------------
+// The first save is explicit (nothing is read for the student before it); once a profile exists, each change is saved at once.
+// The profile stays in this browser: zones are read by sending the bac, specialties, mention and académie (no-store answers, no
+// audience figure carries them); the lycée is searched here and never sent. Same validation as everywhere (vxProfile).
+const PF_DEFAULT = { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false, statut: "terminale" };
+async function viewProfil() {
+  $view.dataset.rendered = "profil:loading";                           // marker before the first await (navigation races)
+  JV = JV || await api("/api/journey/vocab");
+  if ($view.dataset.rendered !== "profil:loading") return;
+  let draft = null, justSaved = false, confirmErase = false;
+  const draw = (focusName) => {
+    const raw = store.get("profile", null);
+    const has = !!raw && typeof raw === "object" && !Array.isArray(raw);
+    const p = has ? vxProfile(raw) : { ...PF_DEFAULT, ...(draft || {}) };
+    const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
+    const uses = isReo(p) ? `<li><strong>Je me réoriente</strong>l'accès estimé hors terminale de chaque formation, sans zone</li>
+        <li><strong>Fiche d'une formation</strong>l'accès estimé pour les candidats qui ne sont pas en terminale</li>
+        <li><strong>Mes vœux</strong>votre liste relue avec cet accès estimé</li>
+        <li><strong>Explorer</strong>les formations de votre académie d'abord</li>`
+      : `<li><strong>Fiche d'une formation</strong>votre zone et votre ${serie === "bg" ? "doublette" : "ligne"} dans le rapport du jury, à côté du taux officiel</li>
+        <li><strong>Carte des formations</strong>chaque formation colorée selon votre zone</li>
+        <li><strong>Mes vœux</strong>votre liste comptée en vœux de sécurité, cibles et ambitieux</li>
+        <li><strong>Où je me situe</strong>les filières qui recrutent votre profil, formation par formation</li>`;
+    $view.innerHTML = `<div class="pf-page">
+    <div class="card"><h1>Mon profil</h1>
+      <p>SupCompass lit les chiffres officiels de Parcoursup pour vous : vos réponses servent à placer chaque formation par rapport aux admis des années passées. Ce sont des repères, jamais des chances d'admission.</p>
+      ${has ? `<p class="info">Profil ${justSaved ? "enregistré" : "en place"} : <strong>${profileLine(p, serie)}</strong>. Chaque modification est enregistrée aussitôt.</p>`
+        : `<p class="info">Pas encore de profil : les pages affichent des chiffres généraux. Remplissez les champs ci-dessous puis enregistrez.</p>`}</div>
+    ${profileForm(p, has)}
+    ${has ? `<div class="card"><h2>Ce que votre profil change</h2><ul class="pf-uses">${uses}</ul>
+      <p class="toolbar">${isReo(p) ? '<a class="btnlink" href="#/reorientation">Voir les formations</a>' : '<a class="btnlink" href="#/parcours">Où je me situe</a><a class="btnlink" href="#/">Explorer les formations</a>'}<a class="btnlink" href="#/voeux">Mes vœux</a></p></div>` : ""}
+    <div class="card"><h2>Ce que devient votre profil</h2>
+      <ul class="small">
+        <li>Il reste dans ce navigateur : pas de compte, pas d'adresse e-mail.</li>
+        <li>Pour lire vos zones, la page envoie votre bac, vos spécialités, votre mention et votre académie. Le serveur ne les enregistre pas et aucune mesure d'audience ne les contient.</li>
+        <li>Votre lycée n'est jamais envoyé : la liste des lycées est cherchée dans ce navigateur.</li>
+        <li>Une liste partagée avec un adulte n'inclut votre profil que si vous cochez la case prévue (jamais votre académie ni votre lycée).</li>
+      </ul>
+      ${has ? (confirmErase ? `<p class="toolbar"><span class="small">Effacer votre profil de ce navigateur ? Votre liste de vœux est gardée.</span><button type="button" id="pf-erase-yes">Oui, effacer</button><button type="button" id="pf-erase-no">Annuler</button></p>`
+        : `<p><button type="button" id="pf-erase">Effacer mon profil</button></p>`) : ""}</div>
+    </div>`;
+    $view.dataset.rendered = "profil";
+    bind(p, serie, has, raw);
+    if (focusName) { const el = document.querySelector(`#pf [name="${focusName}"]`); if (el) el.focus(); }
+  };
+  const bind = (p, serie, has, raw) => {
+    const form = document.getElementById("pf");
+    // the lycée picked or removed goes through the same submit: edits made in the form before picking it are kept
+    let lyc = p.lycee || null;
+    form.onchange = (e) => {
+      const name = e.target.name || "";
+      if (!name || name === "lyc-q") return;
+      if (name === "statut") return setSituation(e.target.value, has, raw, new FormData(form).get("academie") || "");
+      if (has) { form.requestSubmit(); return; }
+      draft = readForm(new FormData(form), p, serie, lyc, form, null); draw(name);   // no profile yet: nothing stored before "Enregistrer"
+    };
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const np = readForm(new FormData(e.target), p, serie, lyc, e.target, has ? raw : null);
+      if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
+      if (!np.academie) store.set("onlyHome", false);
+      justSaved = !has; draft = null;
+      store.set("profile", np); draw(e.submitter ? null : document.activeElement && document.activeElement.name);
+    };
+    const lq = document.getElementById("lyc-q"), lres = document.getElementById("lyc-res"), lhelp = document.getElementById("lyc-help");
+    if (lq) {
+      lq.onfocus = () => { loadLycees().catch(() => { lhelp.textContent = "Liste des lycées indisponible pour le moment."; }); };
+      lq.oninput = async () => {
+        try { await loadLycees(); } catch (_) { return; }
+        if (lq !== document.getElementById("lyc-q")) return;      // the page was redrawn meanwhile
+        const hits = lycSearch(lq.value);
+        lres.innerHTML = hits.map((l) => `<button type="button" role="option" data-lyc="${esc(l.uai)}">${esc(l.nom)}<span class="muted small"> · ${esc(l.commune)}</span></button>`).join("");
+        lres.querySelectorAll("[data-lyc]").forEach((b) => {
+          b.onclick = () => {
+            const l = LYC.byUai[b.dataset.lyc];
+            lyc = { uai: l.uai, nom: l.nom, commune: l.commune };
+            const sel = document.querySelector('#pf [name="academie"]');
+            if (sel && l.academie && JV.academies.includes(l.academie)) sel.value = l.academie;   // académie follows the lycée
+            if (has) document.getElementById("pf").requestSubmit();
+            else { draft = readForm(new FormData(form), p, serie, lyc, form, null); draw(); }
+          };
+        });
+      };
+    }
+    const lc = document.getElementById("lyc-clear");
+    if (lc) lc.onclick = () => { lyc = null; document.getElementById("pf").requestSubmit(); };
+    const er = document.getElementById("pf-erase");
+    if (er) er.onclick = () => { confirmErase = true; draw(); document.getElementById("pf-erase-no")?.focus(); };
+    const ey = document.getElementById("pf-erase-yes");
+    if (ey) ey.onclick = () => { confirmErase = false; justSaved = false; store.set("profile", null); store.set("drill", null); draw(); };
+    const en = document.getElementById("pf-erase-no");
+    if (en) en.onclick = () => { confirmErase = false; draw(); };
+  };
+  // terminale <-> not in terminale: the bac fields the student entered are kept; going back to terminale with none asks for them
+  // (the defaults are shown, never stored before "Enregistrer"): the same rule as "Je me réoriente" (sprint 21)
+  const setSituation = (st, has, raw, academie) => {
+    if (st === "reorientation") store.set("profile", { ...(has ? raw : academie ? { academie } : {}), statut: "reorientation" });
+    else if (has && raw.serie) store.set("profile", { ...raw, statut: "terminale" });
+    else { store.set("profile", null); draft = { ...(has && raw.academie ? { academie: raw.academie } : {}) }; }
+    justSaved = false; draw("statut");
+  };
+  draw();
+}
+// one reading of the form for both the first save and later changes; a field the situation does not draw keeps its stored value.
+// Outside terminale only the académie is read and the STORED fields are kept as they are (raw): no bac field is ever invented.
+function readForm(fd, p, serie, lyc, form, raw) {
+  const vsel = form.querySelector('[name="voie"]');
+  const reo = fd.get("statut") === "reorientation";
+  if (reo) return { ...(raw || {}), academie: fd.get("academie") || "", statut: "reorientation" };
+  return { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null),
+    serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1 || "MATHS", spe2: fd.get("spe2") || p.spe2 || "SES",
+    mention: fd.get("mention") || p.mention, academie: fd.get("academie") || "", boursier: !!fd.get("boursier"),
+    maths_expertes: !!fd.get("maths_expertes"), lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };
 }
 
 // ---- A5 glossary (V1) and the source register ---------------------------------------------
@@ -2087,7 +2235,7 @@ document.addEventListener("click", (e) => {
 // sprint 20: the student's row of each vœu's report (bac techno and pro), with its source; never a chance
 function vxVoieCell(v, prof) {
   const r = v.rapport;
-  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/parcours">indiquez votre série</a>'}</td>`;
+  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/profil">indiquez votre série</a>'}</td>`;
 }
 function voeuButton(cod) {
   const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
@@ -2117,8 +2265,8 @@ async function viewVoeux() {
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
-  const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+  const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
     $view.dataset.rendered = "voeux:0";
@@ -2158,7 +2306,7 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false);
@@ -2263,7 +2411,7 @@ async function viewMetiers(id, from = "") {
   }
   let q0 = "";
   try { q0 = sessionStorage.getItem("metierQ") || ""; } catch (_) { /* storage blocked: start empty (Codex) */ }
-  $view.innerHTML = `<div class="card"><h1>Du métier aux formations ${tip("du_metier_aux_formations")}</h1>
+  $view.innerHTML = `${explorerViews("metiers")}<div class="card"><h1>Du métier aux formations ${tip("du_metier_aux_formations")}</h1>
     <p class="small">Cherchez un métier : la page montre les diplômes qui y mènent d'après l'Onisep, puis les formations Parcoursup qui les préparent.</p>
     <input id="mq" class="wide" type="search" placeholder="Ex. infirmière, comptable, développeur web…" value="${esc(q0)}" autocomplete="off" aria-label="Métier recherché">
     <p class="muted small">La recherche se fait dans votre navigateur : ce que vous tapez n'est pas envoyé au site. ${fmt(METIERS.rows.length)} métiers des fiches Onisep.</p>
@@ -2668,7 +2816,7 @@ async function viewReorientation(dArg, mArg) {
       <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le SIES compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page l'estime pour chaque formation à partir des candidats et des propositions publiés.</p>
       <p class="small">${REO_NO_ZONE} Les chiffres ci-dessous sont des parts de candidats des campagnes passées, pas des chances d'admission.</p>
       <div class="toolbar">${mine ? `<span class="badge exact">Votre situation : ${REO_LABEL}</span><button type="button" id="reo-back" class="small">Je suis en terminale</button>`
-        : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Mon parcours », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
+        : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Où je me situe », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
     <div class="card"><div class="carte-pick"><label class="small">Type de diplôme <select id="rdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
       <label class="small">Mention <select id="rmen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
       <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label></div>
@@ -2908,7 +3056,7 @@ async function viewPremiere() {
       ${rows.slice(0, all ? rows.length : PREM_ROWS).map((r) => `<tr><td data-label="Filière">${esc(r.label)}</td>${r.cells.map(cell).join("")}</tr>`).join("")}</table></div>
       ${rows.length > PREM_ROWS ? `<p><button type="button" id="prem-all">${all ? `Afficher les ${PREM_ROWS} premières` : `Afficher les ${fmt(rows.length)} filières`}</button></p>` : ""}
       <p class="muted small">Ordre : les filières où vont le plus souvent les bacheliers ayant l'une de ces doublettes. Chaque case dit, parmi les admis bacheliers généraux de la filière, la part qui avait cette doublette (2022–2025, campagnes au comptage rompu exclues).</p>
-      <p class="small"><a href="#/specialites">Toutes les doublettes par type de formation</a> · En terminale : <a href="#/parcours">Mon parcours</a></p></div>`;
+      <p class="small"><a href="#/specialites">Toutes les doublettes par type de formation</a> · En terminale : <a href="#/profil">Mon profil</a></p></div>`;
     const b = document.getElementById("prem-all");
     if (b) b.onclick = () => { store.set("premiereAll", !all); viewPremiere(); };
     bindForm();
@@ -3016,32 +3164,38 @@ async function viewListe(rawCodes, rawProfile) {
 }
 
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
-const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
-  carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
-  comprendre: "comprendre", selectivite: "selectivite", reorientation: "parcours",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "parcours", liste: "liste" };
-const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite", "calendrier", "accompagner"];
+// R1 (owner, 2026-11-11): the tabs follow the student's journey. Explorer ("home") holds the list, the map, the jobs and every
+// formation page; "Mon profil" holds the profile, "Où je me situe", "Je me réoriente" and the seconde/première page.
+const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
+  carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
+  comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste" };
+const COMP_TABS = ["compare", "comprendre", "selectivite", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
+const MORE_TABS = [...COMP_TABS, "accompagner"];                                                      // "Plus" on a phone
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
     if (el.dataset.tab === tab) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
   });
-  const more = document.getElementById("more-btn"), menu = document.getElementById("more-menu");
-  if (more) { more.classList.toggle("current", MORE_TABS.includes(tab)); more.setAttribute("aria-expanded", "false"); }
-  if (menu) menu.hidden = true;
-}
-{
-  const more = document.getElementById("more-btn"), menu = document.getElementById("more-menu");
-  if (more && menu) {
-    more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute("aria-expanded", String(!menu.hidden)); };
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { menu.hidden = true; more.setAttribute("aria-expanded", "false"); more.focus(); } });
+  for (const [b, m, tabs] of [["more-btn", "more-menu", MORE_TABS], ["comp-btn", "comp-menu", COMP_TABS]]) {
+    const btn = document.getElementById(b), menu = document.getElementById(m);
+    if (btn) { btn.classList.toggle("current", tabs.includes(tab)); btn.setAttribute("aria-expanded", "false"); }
+    if (menu) menu.hidden = true;
   }
+}
+// both menus open on a click, close on Escape (focus back on their button) and on a click elsewhere
+for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
+  const btn = document.getElementById(b), menu = document.getElementById(m);
+  if (!btn || !menu) continue;
+  btn.onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute("aria-expanded", String(!menu.hidden)); };
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); btn.focus(); } });
+  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); } });
 }
 
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -3082,6 +3236,7 @@ async function route() {
     if (a === "specialites") return await viewSpecialites(b, c);
     if (a === "qualite") return await viewQualite();
     if (a === "parcours") return await viewParcours();
+    if (a === "profil") return await viewProfil();
     if (a === "voeux") return await viewVoeux();
     if (a === "carte") return await viewCarte(b || "", c || "");
     if (a === "comprendre") return await viewComprendre();

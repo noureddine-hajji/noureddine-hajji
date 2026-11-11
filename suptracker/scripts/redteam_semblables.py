@@ -359,7 +359,9 @@ def _bar(c: Ctx, profile, ids, answer):
     prog = helpers + """
 const [profile, ids, answer] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const el = { hidden: true, innerHTML: "" };
-const document = { getElementById: () => el };
+const chip = { hidden: true, innerHTML: "", classList: { toggle() {} }, setAttribute() {} };   // R1: the header chip, its own element
+const ICONS = { edit: "", profile: "" };
+const document = { getElementById: (id) => (id === "profile-chip" ? chip : el) };
 const store = { get: (k, d) => (k === "profile" ? profile : d) };
 const voeux = { get: () => ids };
 const calls = [];
@@ -391,7 +393,7 @@ def k7(c: Ctx):
     alert = "Aucun vœu de sécurité sûr" in h and "Aucun vœu de sécurité" not in b["html"] and "Aucun vœu de sécurité sûr" in u["html"]
     same_query = a["calls"] == [f"/api/voeux?{a['query']}"] and "const qs = vxQuery(ids, prof);" in c.js
     empty = e["calls"] == [] and "aucun pour l'instant" in e["html"]
-    noprof = n["calls"] == [] and 'href="#/parcours"' in n["html"]
+    noprof = n["calls"] == [] and 'href="#/profil"' in n["html"]
     shown = not a["hidden"]
     ok = escaped and counts and alert and same_query and empty and noprof and shown
     return ok, f"escaped {escaped}; counts {counts}; alert only from the server {alert}; same query as Mes vœux {same_query}; empty list {empty}; no profile {noprof}"
@@ -433,7 +435,7 @@ PY_MUTANTS = [
 JS_MUTANTS = [
     ("label unescaped", "${x === mine ? \"Votre doublette : \" : \"\"}${esc(x.label)}", "${x === mine ? \"Votre doublette : \" : \"\"}${x.label}"),
     ("establishment unescaped", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>', '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a>'),
-    ("profile unescaped", "const ser = { bg: \"bac général\"", "const esc = (s) => s; const ser = { bg: \"bac général\""),
+    ("profile unescaped", "const ser = { bg: \"bac général\", bt: \"bac technologique\"", "const esc = (s) => s; const ser = { bg: \"bac général\", bt: \"bac technologique\""),
     ("figure without its label", '<td class="num" data-label="Rapports">', '<td class="num">'),
     ("not-own caveat dropped", '<span class="estim">pas le rapport de cette formation</span>', ""),
     ("estimate beside a published table", "const semEst = own.hasBg ? null : estimateSemblable(d.series, sem, dkey0);", "const semEst = estimateSemblable(d.series, sem, dkey0);"),

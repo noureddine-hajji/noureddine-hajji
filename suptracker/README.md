@@ -2294,3 +2294,54 @@ seconde/première students choose specialties before Parcoursup. The product aud
 - The link no longer carries the bac pro route (data minimisation), and codes are trimmed.
 - Wording: official step names, and the complementary phase as the PDF words it.
 Each review gap is now a red-team check with a mutant.
+
+## Sprint R1: menus that follow the student's journey, and an explained "Mon profil" (owner's choices, 2026-11-11)
+
+The site was rebuilt around the journey of a student, a parent or a *professeur principal*. The owner chose the four options
+recommended in the redesign proposal: one "Explorer", one sourced figure for the profile (R2), the profile sent but never kept
+for the zone filter (R3), and navigation + profile first (this sprint).
+
+**Menus.**
+- On a phone, the bottom bar is **Explorer · Mon profil · Mes vœux · Calendrier · Plus**. "Plus" holds the comparator,
+  Comprendre l'appel, Vraie sélectivité, Spécialités, Qualité des données, Glossaire, and "Parents et professeurs".
+- On a wide screen, the top menu has the same four entries, a **Comprendre ▾** menu (the same six reading aids) and
+  "Parents et professeurs". On the right, a **profile chip** shows "bac général · MATHS + SES · bien" (or "Créer mon profil")
+  and opens the profile page. Both menus open on a click and close on Escape (focus back on their button) or on a click elsewhere.
+- **Explorer** is one place with three views of the same offer: **Liste** (search), **Carte** and **Métiers**. The switch sits
+  at the top of the home, the search results, the map and the job catalogue. Every formation page counts as Explorer.
+- **Mon profil** covers the profile page, "Où je me situe" (the former "Mon parcours", same address `#/parcours`),
+  "Je me réoriente" and the seconde/première page. Old addresses keep working.
+
+**"Mon profil" (`#/profil`)** is the one place the profile is edited.
+1. *Votre situation*: en terminale, je ne suis plus en terminale (reorientation, sprint 21), or a link for seconde/première.
+2. *Votre bac*: series, then the two specialties (bac général) or the series and specialties / bac pro specialty (sprint 20),
+   Mathématiques expertes when Maths is chosen.
+3. *Votre mention visée*.
+4. *Où vous êtes*: académie, lycée (optional), boursier.
+
+Every field says what it is used for, in plain words (no column name). Only the fields of the chosen situation are shown:
+outside terminale, the académie alone. The **first save is explicit** ("Enregistrer mon profil": nothing is read for the student
+before it); once a profile exists, each change is saved at once. Switching to "Je ne suis plus en terminale" keeps the bac fields
+already entered, and switching back restores them. With none stored, the form shows the defaults and asks to save again: a bac
+field is never invented. "Effacer mon profil" asks for a confirmation in the page and keeps the vœux list.
+
+The page then lists what the profile changes (formation page, map, Mes vœux, Où je me situe) and what happens to it. It stays
+in the browser. To read the zones, the pages send the bac, specialties, mention and académie: answers are not stored and no
+audience figure carries them. The lycée is searched in the browser and never sent. A shared list includes the profile only when
+the box is ticked. The page itself sends nothing but the vocabulary request.
+
+Every prompt that used to point at "Mon parcours" to fill in a profile now opens "Mon profil". The home page says which profile
+the figures are read for, or invites the student to create one.
+
+**Red team** `scripts/redteam_navigation.py` (U1-U8; `tests/test_navigation.py`):
+- U1: the menus, and every page reachable from both.
+- U2: the route → tab tables and the closed analytics routes.
+- U3: the chip, run in Node (escaped, validated, hidden on the stats and on a shared list).
+- U4: the form, run in Node (fields per situation, an explanation per field, escaping, explicit first save).
+- U5: reading the form (no invented bac field, validated status, a bac techno/pro route kept only with the same bac).
+- U6: the browser flow (`--browser`): first save, saving on change, situations, erase, menus, phone screens.
+- U7: wording and privacy.
+- U8: 27 mutants built in memory.
+
+Red teams that read the old menu or the old form location were updated: ux X3/X6/X12/X14, reorientation E5/E7, lycée Y8,
+voies W7/W8, semblables K7/K9, accompagnement T7/T8.

@@ -142,7 +142,7 @@ METHODOLOGY = {
         "affichée à la place."),
     "planb": (
         "Plan B : les formations de la même filière détaillée (même intitulé de programme), placées pour votre "
-        "profil avec la méthode de « Mon parcours ». Une formation est proposée si elle est dans une zone plus "
+        "profil avec la méthode de « Où je me situe ». Une formation est proposée si elle est dans une zone plus "
         "favorable que la formation visée (et pas incertaine), ou dans une zone au moins égale avec un accès "
         "supérieur d'au moins 15 points sans position de mention moins bonne. Sont écartées : les formations "
         "fermées à votre série, les lectures fragiles (moins de 20 candidats de votre série, moins de 10 admis), "
@@ -315,7 +315,7 @@ METHODOLOGY = {
         "Onisep affiche « métiers non documentés ». Ce ne sont jamais des chances d'admission ou d'emploi."),
     "voeux": (
         "« Mes vœux » relit votre liste (10 vœux au maximum, comme sur Parcoursup) pour votre profil actuel, avec le même "
-        "calcul que « Mon parcours » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
+        "calcul que « Où je me situe » et le plan B : chaque vœu reçoit sa zone (sécurité, cible, ambitieux, hors-profil), "
         "recalculée si vous changez de mention, de spécialités ou de série. La lecture de la liste ne fait que COMPTER ces "
         "zones avec des règles fixes (par exemple : aucun vœu de sécurité sûr, plus de la moitié ambitieux, un vœu fermé à "
         "votre série). Elle ne combine jamais les vœux en une chance d'être admis quelque part : les zones décrivent les admis "
@@ -345,7 +345,7 @@ METHODOLOGY = {
         "erreurs passées de formations de même taille : elle est plus large pour les petites formations. La méthode a été "
         "réglée sur 2024, puis testée sur 2025 sans l'avoir vue : pour chaque indicateur, la part des vraies valeurs 2025 "
         "tombées dans leur fourchette est affichée telle quelle (l'objectif est 80 %). Le taux d'accès reprend la fourchette "
-        "du repère de Mon parcours. Chaque fourchette est calculée séparément : les trois parts de terminales n'ont pas à "
+        "du repère de « Où je me situe ». Chaque fourchette est calculée séparément : les trois parts de terminales n'ont pas à "
         "faire 100 % ensemble. C'est une estimation, pas un chiffre officiel, et jamais une chance d'admission."),
     "repere": (
         "Repère pour la prochaine campagne : deux fourchettes et une stabilité, calculées sur les campagnes 2022 à 2025. "
@@ -1041,7 +1041,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours"]
 
 
 @lru_cache(maxsize=1)

@@ -256,7 +256,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     pick = 'data-lyc="${esc(l.uai)}">${esc(l.nom)}' in js and '${esc(l.commune)}</span></button>' in js
     # picking or removing the lycée submits the form as it stands (pending edits kept, found in review)
     i_p = js.index("lq.oninput")
-    wiring = js[i_p: js.index("$view.querySelectorAll(\"[data-gate]\")", i_p)]
+    wiring = js[i_p: js.index('const er = document.getElementById("pf-erase");', i_p)]   # R1: the form lives in "Mon profil"
     keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and re.search(r"lycee: lyc(?:\s*\}|, statut: )", js) is not None)
     # a search naming a lycée offers to set it as the profile's lycée: escaped, local, race-guarded
     sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in _fn(js, "async function suggestLycee(")

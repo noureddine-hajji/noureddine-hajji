@@ -413,7 +413,7 @@ def w6(c: Ctx):
 @check("W7 wiring: profile form, Mes vœux column, Mon parcours note and apprenticeship pointer, vocabulary, features, release guard")
 def w7(c: Ctx):
     js = c.js
-    form = 'select name="voie"' in top(js, "profileForm") and "const np = { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null)," in js
+    form = 'select name="voie"' in top(js, "profileForm") and "return { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null)," in top(js, "readForm")
     column = 'data-label="Votre ligne, rapport du jury"' in js and "Votre ligne dans le rapport du jury (cette formation)" in js
     appr = 'serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage' in js
     vocab = '"voies": VO.choices(_con().cursor())' in c.api
@@ -447,7 +447,7 @@ JS_MUTANTS = [
     ("row label unescaped", "ligne « ${esc(mineV.libelle)} »${mineV.source", "ligne « ${mineV.libelle} »${mineV.source"),
     ("masked table not said", "la formation n'a pas publié son tableau (effectifs trop faibles)", "aucun chiffre"),
     ("route sent for bac général", 'if (prof.serie !== "bg" && typeof prof.voie === "string" && prof.voie)', 'if (typeof prof.voie === "string" && prof.voie)'),
-    ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : ""', ': p.voie_label ? p.voie_label : ""'),
+    ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : "", men', ': p.voie_label ? p.voie_label : "", men'),
     ("closed instead of rare", "Une part faible veut dire « rare », pas « fermé ».", "Une part faible veut dire que la formation est fermée."),
     ("chance wording", "pour voir votre ligne.</p>", "pour voir vos chances d'être admis.</p>"),
     ("Mes vœux cell without its recheck flag", '${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie',
