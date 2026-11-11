@@ -41,6 +41,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Qui sont les admis:** `admis.py` (néo-bacheliers vs other admits: formation page bar, list label).
   - **Bac techno / pro row (sprint 20):** `voies.py` (report rows of bac techno and pro keyed to the student's series or specialty).
   - **Je me réoriente (sprint 21):** `reorientation.py` (candidates outside terminale from published counts, estimated access, `#/reorientation`).
+  - **Accompaniment (sprint 22):** `calendrier.py` (official Parcoursup calendar read from the PDFs fetched by `suptracker-calendrier`, .ics);
+    `#/accompagner`, `#/premiere`, `#/liste` (shared list) in `app.js`.
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -404,6 +406,20 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   no-store, no analytics), the profile bar makes no zone request. The list (latest campaign, SIES formations of a cartographie type,
   never apprenticeship offers) is sorted by the student's académie then name, never by a figure; the académie stays in the browser.
   Red team `redteam_reorientation.py` (E1-E8).
+- **Accompaniment (sprint 22, owner 2026-11-11).**
+  - Calendar: the OFFICIAL PDF only (parcoursup.gouv.fr, fetched by the `suptracker-calendrier` workflow into data/calendrier/, every
+    version kept; `calendrier_fetch.py` refuses any other host). One fixed rule per step anchored on its wording; a date is served only
+    if every version prints it identically with its TRUE weekday (the first 2027 version's heading says "samedi 10 juin 2027", a
+    misprint), else "date à vérifier sur parcoursup.gouv.fr". The step names are official; "Sur SupCompass" is our own text, kept apart;
+    "le calendrier officiel fait foi". `/api/calendrier` and `.ics` are shared-cached (no parameter); PDFs are kept out of the Vercel bundle.
+  - Seconde / première: three specialties of première -> the three terminale doublettes; each cell is stage 1's `share` of THAT
+    doublette in THAT filière (composition of admits), rows ordered by destination share, never a chance or advice.
+  - Shared list: `#/liste/<codes>[/<profile>]`, everything after "#" (never sent to a server, nothing stored). Codes as the stored list
+    (digits, 1-9, deduplicated, max 10); the profile ONLY if the student ticks the box, whitelisted keys (series, specialties, mention,
+    route, statut), never the académie or the lycée; an invalid series or mention = no profile (never a default). Zones only with a joined
+    terminale profile, the estimate outside terminale, official rates otherwise. "Ajouter à ma liste" merges up to 10 and never replaces
+    the recipient's list or profile. Printing hides menus and buttons and adds the date and the "pas des chances" line.
+  - The adult page (`#/accompagner`) addresses parents and teachers, still in vouvoiement. Red team `redteam_accompagnement.py` (T1-T8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

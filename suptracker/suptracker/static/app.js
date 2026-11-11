@@ -2817,7 +2817,7 @@ function viewAccompagner() {
     <li>Quand il existe, le rapport public du jury de la formation : ce que les jurys ont regardé, et les résultats publiés par type de bac.</li>
     <li>Des repères après la formation (réussite, poursuite d'études, insertion, métiers), toujours avec leur source.</li></ul></section>
   <section class="card"><h2>Ce que SupCompass ne fait pas</h2><ul>
-    <li>Il ne calcule aucune probabilité d'admission et ne classe pas les formations selon les chances.</li>
+    <li>Il ne dit jamais si un élève sera admis, et ne classe pas les formations.</li>
     <li>Il ne connaît ni les notes, ni le dossier, ni le rang de l'élève : aucune page ne les demande.</li>
     <li>Il ne remplace ni le professeur principal, ni le psychologue de l'Éducation nationale, ni la fiche de la formation sur Parcoursup, qui fait foi.</li>
     <li>Il ne crée pas de compte : la liste de vœux reste dans le navigateur de l'élève.</li></ul></section>
@@ -2908,8 +2908,8 @@ function shareProfile(raw) {
   if (!raw) return null;
   const q = new URLSearchParams(raw), p = {};
   for (const [k, f] of Object.entries(SHARE_KEYS)) { const v = q.get(k); if (v && v.length <= 60) p[f] = v; }
-  if (p.statut === "r") p.statut = "reorientation";
-  if (!p.serie && p.statut !== "reorientation") return null;
+  if (p.statut === "r") return vxProfile({ statut: "reorientation" });   // outside terminale: no bac is read (sprint 21)
+  if (!["bg", "bt", "bp"].includes(p.serie) || !["sansmention", "ab", "b", "tb"].includes(p.mention)) return null;   // never a default
   const codes = JV && JV.specialties ? new Set(JV.specialties.map((x) => x.code)) : null;
   if (p.serie === "bg" && (!codes || !codes.has(p.spe1) || !codes.has(p.spe2) || p.spe1 === p.spe2)) return null;
   return vxProfile(p);
@@ -2939,6 +2939,7 @@ function bindShare(ids, prof) {
   const box = document.getElementById("share-prof"), url = document.getElementById("share-url"), msg = document.getElementById("share-msg");
   if (!url) return;
   const refresh = () => { url.value = shareLink(ids, box && box.checked ? prof : null); };
+  refresh();
   if (box) box.onchange = refresh;
   document.getElementById("share-copy").onclick = () => {
     refresh();

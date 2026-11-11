@@ -49,6 +49,10 @@ FEATURE_ENTRY_POINTS = {
     "admis_neobac": ("app.js", "function admisBar("),
     "voie_rapport": ("app.js", "function pickVoie("),
     "reorientation": ("app.js", "async function viewReorientation("),
+    "calendrier": ("app.js", "async function viewCalendrier("),
+    "accompagner": ("app.js", "function viewAccompagner("),
+    "premiere": ("app.js", "async function viewPremiere("),
+    "liste_partagee": ("app.js", "async function viewListe("),
 }
 
 
