@@ -250,6 +250,8 @@ h1 { font-size: var(--fs-xl); line-height: 1.15; }
 .small { font-size: var(--fs-xs); }
 .summary { border: 2px solid var(--accent); }
 .sum-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.sum-grid:has(> :nth-child(5)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }   /* R2: official rate + the profile's */
+.sum-tile.sum-profil { box-shadow: inset 0 0 0 2px var(--accent-soft); }
 .sum-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: var(--r-sm); background: var(--bg); min-width: 0;
   text-decoration: none; color: var(--ink); border: 0; font: inherit; text-align: left; cursor: pointer; }
 .sum-tile:hover, .sum-tile:focus-visible { background: var(--accent-soft); }
@@ -284,6 +286,8 @@ details.dip > summary .muted { flex: 0 1 auto; text-align: right; }
 .door-ico .ico { width: 28px; height: 28px; color: var(--accent); }
 @media (max-width: 720px) {
   .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum-grid:has(> :nth-child(5)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum-grid > :nth-child(5):last-child { grid-column: span 2; }
   .sum-value { font-size: var(--fs-lg); }
 }
 @media (prefers-reduced-motion: reduce) {

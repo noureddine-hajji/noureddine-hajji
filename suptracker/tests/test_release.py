@@ -55,6 +55,7 @@ FEATURE_ENTRY_POINTS = {
     "liste_partagee": ("app.js", "async function viewListe("),
     "mon_profil": ("app.js", "async function viewProfil("),
     "navigation_parcours": ("app.js", "function explorerViews("),
+    "taux_profil": ("app.js", "function profileRate("),
 }
 
 

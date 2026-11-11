@@ -38,6 +38,7 @@
  "tests/test_series.py": 164,
  "tests/test_shards.py": 30,
  "tests/test_success.py": 340,
+ "tests/test_tauxprofil.py": 70.0,
  "tests/test_ux.py": 2,
  "tests/test_voeux.py": 540,
  "tests/test_voies.py": 100.0

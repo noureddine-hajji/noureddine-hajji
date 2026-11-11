@@ -2360,3 +2360,50 @@ Smaller fixes from the same review:
 - identical specialties are flagged on "Mon profil", and "Où je me situe" links there;
 - "Mathématiques expertes" is kept when its box is not drawn;
 - a menu closes on a click on one of its links.
+
+## Sprint R2: "Pour votre profil", one sourced figure beside the official access rate (owner's choice, 2026-11-11)
+
+The formation page's summary ("L'essentiel") now shows two rates side by side. First comes the **official access rate**
+(all candidates, main phase). Next to it comes **one figure for the student's profile**, with its source in words. The owner
+chose this option, "Un seul chiffre sourcé": one figure, never several competing ones.
+
+The figure is the one the "Selon votre bac" card already shows, chosen by the same rules in the same order (`profileRate`).
+A published figure replaces an estimate and never sits beside it.
+
+| Profile | Figure, in this order | Shown as |
+| --- | --- | --- |
+| Bac général | the formation's own report, when it has a bac général table: the student's doublette row, else its "Autres doublettes" line | "publié · rapport du jury 2025" |
+| | otherwise, the similar formations' estimate (`estimateSemblable`) | "estimation · rapports de N formations semblables" |
+| | otherwise, the national group's estimate (`estimateDoublette`) | "estimation · écart national de votre doublette" |
+| | otherwise, the formation's bac général proposal rate, from published counts | "taux de proposition publié" |
+| Bac techno / pro | the student's line of the report (`pickVoie`, sprint 20) | "publié" |
+| | otherwise, the estimated series access of the positioning (official rate × series proposal rate / all proposal rate), read from the Plan B answer like the zone | "estimation"; "—" when there is none, an error included |
+| Not in terminale | the estimated access outside terminale (sprint 21), in its own tile | (no zone tile) |
+
+If the report has a bac général table but no row and no "Autres" line for the student's doublette, the tile says so. No
+estimate stands in for it.
+
+A report SIES has not cross-checked yet carries "pas encore recoupé". The tile opens the "Y entrer" tab, where the card gives
+the calculation.
+
+The summary has 5 tiles with a terminale profile: official rate, for your profile, zone, admits, jobs. It has 4 without a
+profile (one tile invites the student to create one) and 4 outside terminale. On a phone the tiles sit two by two and the fifth
+spans the row. The page only rearranges figures it already had: no new request and no new data.
+
+**Known gap, found by the red team.** Some students take two arts specialties (`ART+ART` exists nationally). The profile form
+has a single "Arts" code and refuses two identical specialties, so it cannot record that doublette. These students get no
+doublette figure: the chain goes on without a doublette, as the page does today. This needs an owner decision (separate arts
+codes in the form).
+
+**Red team** `scripts/redteam_tauxprofil.py` (Z1-Z6; `tests/test_tauxprofil.py`):
+- Z1: the page's figure equals the one re-derived in Python from the modules' twins (`rapports.pick`, `semblables.estimate`,
+  `doublettes.estimate`, `voies.pick_voie`).
+  - Cases: about 420 real formation × profile pairs, plus crafted report and similar-formation payloads, so every branch is
+    tested on the synthetic warehouse too.
+- Z2: the card's headline equals the tile, and a published tile never has an estimate beside it.
+- Z3: the tile and the summary, run in Node: escaping, sources in words, the Plan B fill, tile counts and order.
+- Z4: wiring, layouts, feature and docs.
+- Z5: the browser check on real formations (`--real`).
+- Z6: 13 mutants, run only on a passing baseline.
+
+The ux (X12, X16) and reorientation (E6) harnesses now load the R2 helpers.
