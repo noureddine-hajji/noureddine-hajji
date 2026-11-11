@@ -1696,6 +1696,7 @@ function voieFromForm(fd, serie, label) {
 }
 // R1 (owner, 2026-11-11): "Mon profil" is the one place the profile is edited. The situation comes first; every field says what
 // it is used for, in the student's words (no column name). Only the fields of the chosen situation are drawn.
+const PF_SAVE = `<div class="card pf-saved"><button class="primary">Enregistrer mon profil</button><span class="small muted">Vérifiez chaque champ : rien n'est lu pour vous avant l'enregistrement.</span></div>`;
 function profileForm(p, saved) {
   const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
@@ -1714,7 +1715,7 @@ function profileForm(p, saved) {
   const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
     "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
   if (reo) {
-    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}</section></form>`;
+    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}</section>${saved ? "" : PF_SAVE}</form>`;
   }
   const bac = `<section class="card"><h2>2 · Votre bac</h2>
     ${field(`<label>Votre bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>`,
@@ -1723,7 +1724,7 @@ function profileForm(p, saved) {
       `Les rapports des jurys publient une ligne par ${serie === "bt" ? "série technologique et ses spécialités" : "spécialité de bac pro"} : la fiche de chaque formation vous montre la vôtre quand elle existe.`) : ""}
     ${serie === "bg" ? field(`<div class="pf-ctl"><span>Vos deux spécialités de terminale</span><div class="pf-pair"><select name="spe1" aria-label="Spécialité 1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select>
       <select name="spe2" aria-label="Spécialité 2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></div></div>`,
-      "Votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.") : ""}
+      `${p.spe1 === p.spe2 ? '<span class="warn">Choisissez deux spécialités distinctes.</span> ' : ""}Votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.`) : ""}
     ${serie === "bg" && (p.spe1 === "MATHS" || p.spe2 === "MATHS") ? field(`<label class="pf-check"><span><input type="checkbox" name="maths_expertes" ${p.maths_expertes ? "checked" : ""}> Mathématiques expertes</span></label>`,
       "Notée pour vous : les données publiques ne détaillent pas les options de terminale, elle ne change donc aucun chiffre. Regardez les attendus sur la fiche Parcoursup.") : ""}
   </section>`;
@@ -1741,7 +1742,7 @@ function profileForm(p, saved) {
     ${field(`<label class="pf-check"><span><input type="checkbox" name="boursier" ${p.boursier ? "checked" : ""}> Je suis boursier ou boursière</span></label>`,
       "La part de boursiers parmi les admis s'affiche à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation.")}
   </section>`;
-  return `<form id="pf">${sit}${bac}${mention}${where}${saved ? "" : `<div class="card pf-saved"><button class="primary">Enregistrer mon profil</button><span class="small muted">Vérifiez chaque champ : rien n'est lu pour vous avant l'enregistrement.</span></div>`}</form>`;
+  return `<form id="pf">${sit}${bac}${mention}${where}${saved ? "" : PF_SAVE}</form>`;
 }
 
 // ---- Sprint 4: the student's lycée, as context only ------------------------------------------
@@ -1811,10 +1812,11 @@ async function suggestLycee(q, marker) {
   box.querySelectorAll("[data-suggest]").forEach((b) => {
     b.onclick = () => {
       const l = LYC.byUai[b.dataset.suggest];
-      const prof = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
-      prof.lycee = { uai: l.uai, nom: l.nom, commune: l.commune };
-      if (l.academie) prof.academie = l.academie;
-      store.set("profile", prof);
+      const raw = store.get("profile", null);
+      const lyc = { uai: l.uai, nom: l.nom, commune: l.commune };
+      // R1 review: with a profile, the lycée joins it; without one, it only pre-fills "Mon profil" (no bac field invented)
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) store.set("profile", { ...raw, lycee: lyc, ...(l.academie ? { academie: l.academie } : {}) });
+      else store.set("profilDraft", { lycee: lyc, academie: l.academie || "" });
       location.hash = "#/profil";
     };
   });
@@ -1945,7 +1947,10 @@ function spark(trend, key, scale = 1) {
 
 async function viewParcours() {
   if (isReo(store.get("profile", null))) return viewReorientation("", "");   // sprint 21: no positioning by bac outside terminale
+  const mk = "parcours:loading";                                     // R1 review: a late answer never draws over another page
+  $view.dataset.rendered = mk;
   JV = JV || await api("/api/journey/vocab");
+  if ($view.dataset.rendered !== mk) return;
   const hasProfile = !!store.get("profile", null);                   // lot 3: a stored profile folds the form under one line
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
   const show = new Set(store.get("gates", ["predilection", "accessible"]));
@@ -1954,8 +1959,10 @@ async function viewParcours() {
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
   const sq = serie === "bg" ? `spe1=${encodeURIComponent(p.spe1)}&spe2=${encodeURIComponent(p.spe2)}` : `serie=${encodeURIComponent(serie)}`;
   const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
+  if ($view.dataset.rendered !== mk) return;
   const drill = store.get("drill", null);
   const s2 = s1 && drill ? await api(`/api/journey/stage2?${sq}&mention=${p.mention}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
+  if ($view.dataset.rendered !== mk) return;
   // sprint 10: the positioning answers are served by the CDN, so the page sends the audience count itself
   if (s1) track("journey", { stage: "stage1" });
   if (s2) track("journey", { stage: "stage2" });
@@ -1965,13 +1972,15 @@ async function viewParcours() {
   const closed = s2 ? s2.formations.filter((f) => f.zone === "non_ouvert").length : 0;
   const mLabel = JV.mentions.find((m) => m.code === p.mention)?.label;
   if (p.lycee) { try { await loadLycees(); } catch (_) { /* the card says the lycée is unavailable */ } }
+  if ($view.dataset.rendered !== mk) return;
+  $view.dataset.rendered = "parcours";
   $view.innerHTML = `<div class="card"><h1>Où je me situe</h1><p class="small">Les filières qui recrutent votre profil, puis chaque formation située parmi ses admis des années passées. Des repères, pas des chances d'admission.</p></div>
   <div class="card"><h2>1 · Mon profil</h2>${hasProfile ? `<p class="home-profile"><span>Lu pour : <strong>${profileLine(p, serie)}</strong></span><a class="btnlink" href="#/profil">Modifier mon profil</a></p>`
       : `<p class="home-profile"><span>Exemple avec un bac général Mathématiques + SES, mention assez bien : <strong>créez votre profil</strong> pour lire ces chiffres pour vous.</span><a class="btnlink" href="#/profil">Créer mon profil</a></p>`}${mathsExpertesNote(p, serie)}
-    ${!s1 ? `<div class="warn">Choisissez deux spécialités distinctes.</div>` : serie === "bg"
+    ${!s1 ? `<div class="warn">Vos deux spécialités sont identiques : <a href="#/profil">choisissez deux spécialités distinctes dans « Mon profil »</a>.</div>` : serie === "bg"
       ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
       : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>
-        <p class="small">Une part faible veut dire « rare », pas « fermé ». Votre ligne publiée dans le rapport du jury de chaque formation s'affiche sur sa fiche et dans « Mes vœux »${p.voie ? "" : ` : indiquez votre ${serie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"} ci-dessus`}.${serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage : <a href="#/carte/${encodeURIComponent("BTS - BTSA - BTSM")}">voir les offres sur la carte</a> (filtre « Apprentissage »).` : ""}</p>`}</div>
+        <p class="small">Une part faible veut dire « rare », pas « fermé ». Votre ligne publiée dans le rapport du jury de chaque formation s'affiche sur sa fiche et dans « Mes vœux »${p.voie ? "" : ` : indiquez votre ${serie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"} dans <a href="#/profil">« Mon profil »</a>`}.${serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage : <a href="#/carte/${encodeURIComponent("BTS - BTSA - BTSM")}">voir les offres sur la carte</a> (filtre « Apprentissage »).` : ""}</p>`}</div>
   ${lyceeCard(p)}
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
@@ -2041,6 +2050,13 @@ async function viewProfil() {
   JV = JV || await api("/api/journey/vocab");
   if ($view.dataset.rendered !== "profil:loading") return;
   let draft = null, justSaved = false, confirmErase = false;
+  const sugg = store.get("profilDraft", null);                        // the lycée picked from a search, before any profile (review)
+  if (sugg) {
+    store.set("profilDraft", null);
+    const l = sugg.lycee;
+    if (l && typeof l === "object" && ["uai", "nom", "commune"].every((k) => typeof l[k] === "string"))
+      draft = { lycee: { uai: l.uai, nom: l.nom, commune: l.commune }, academie: JV.academies.includes(sugg.academie) ? sugg.academie : "" };
+  }
   const draw = (focusName) => {
     const raw = store.get("profile", null);
     const has = !!raw && typeof raw === "object" && !Array.isArray(raw);
@@ -2074,7 +2090,7 @@ async function viewProfil() {
     </div>`;
     $view.dataset.rendered = "profil";
     bind(p, serie, has, raw);
-    if (focusName) { const el = document.querySelector(`#pf [name="${focusName}"]`); if (el) el.focus(); }
+    if (focusName) { const el = document.querySelector(`#pf [name="${focusName}"]${focusName === "statut" ? ":checked" : ""}`); if (el) el.focus(); }
   };
   const bind = (p, serie, has, raw) => {
     const form = document.getElementById("pf");
@@ -2083,9 +2099,9 @@ async function viewProfil() {
     form.onchange = (e) => {
       const name = e.target.name || "";
       if (!name || name === "lyc-q") return;
-      if (name === "statut") return setSituation(e.target.value, has, raw, new FormData(form).get("academie") || "");
+      if (name === "statut") return setSituation(e.target.value, has, raw, new FormData(form), p, serie, lyc, form);
       if (has) { form.requestSubmit(); return; }
-      draft = readForm(new FormData(form), p, serie, lyc, form, null); draw(name);   // no profile yet: nothing stored before "Enregistrer"
+      draft = { ...(draft || {}), ...readForm(new FormData(form), p, serie, lyc, form, null) }; draw(name);   // no profile yet: nothing stored before "Enregistrer"
     };
     form.onsubmit = (e) => {
       e.preventDefault();
@@ -2110,13 +2126,18 @@ async function viewProfil() {
             const sel = document.querySelector('#pf [name="academie"]');
             if (sel && l.academie && JV.academies.includes(l.academie)) sel.value = l.academie;   // académie follows the lycée
             if (has) document.getElementById("pf").requestSubmit();
-            else { draft = readForm(new FormData(form), p, serie, lyc, form, null); draw(); }
+            else { draft = { ...(draft || {}), ...readForm(new FormData(form), p, serie, lyc, form, null) }; draw(); }
           };
         });
       };
     }
+    if (lq) lq.onkeydown = (e) => { if (e.key === "Enter") e.preventDefault(); };   // Enter picks nothing and saves nothing (review)
     const lc = document.getElementById("lyc-clear");
-    if (lc) lc.onclick = () => { lyc = null; document.getElementById("pf").requestSubmit(); };
+    if (lc) lc.onclick = () => {
+      lyc = null;
+      if (has) document.getElementById("pf").requestSubmit();
+      else { draft = { ...(draft || {}), ...readForm(new FormData(form), p, serie, null, form, null), lycee: null }; draw(); }   // no profile yet: still a draft (review)
+    };
     const er = document.getElementById("pf-erase");
     if (er) er.onclick = () => { confirmErase = true; draw(); document.getElementById("pf-erase-no")?.focus(); };
     const ey = document.getElementById("pf-erase-yes");
@@ -2126,10 +2147,17 @@ async function viewProfil() {
   };
   // terminale <-> not in terminale: the bac fields the student entered are kept; going back to terminale with none asks for them
   // (the defaults are shown, never stored before "Enregistrer"): the same rule as "Je me réoriente" (sprint 21)
-  const setSituation = (st, has, raw, academie) => {
-    if (st === "reorientation") store.set("profile", { ...(has ? raw : academie ? { academie } : {}), statut: "reorientation" });
-    else if (has && raw.serie) store.set("profile", { ...raw, statut: "terminale" });
-    else { store.set("profile", null); draft = { ...(has && raw.academie ? { academie: raw.academie } : {}) }; }
+  const setSituation = (st, has, raw, fd, p, serie, lyc, form) => {
+    if (!has) {                                                       // no profile yet: the switch is part of the draft (review)
+      const asTerminale = { get: (k) => (k === "statut" ? "terminale" : fd.get(k)) };
+      draft = st === "reorientation" ? { ...readForm(asTerminale, p, serie, lyc, form, null), statut: "reorientation" }
+        : { ...(draft || {}), academie: fd.get("academie") || "", statut: "terminale" };
+    } else if (st === "reorientation") store.set("profile", { ...raw, statut: "reorientation" });
+    else if (raw.serie || raw.spe1 || raw.voie) store.set("profile", { ...raw, statut: "terminale" });
+    else {                                                            // no bac field was ever entered: ask for them, keep the rest
+      const keep = Object.fromEntries(["academie", "lycee", "boursier"].filter((k) => raw[k] != null).map((k) => [k, raw[k]]));
+      store.set("profile", null); draft = { ...keep, statut: "terminale" };
+    }
     justSaved = false; draw("statut");
   };
   draw();
@@ -2143,7 +2171,7 @@ function readForm(fd, p, serie, lyc, form, raw) {
   return { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null),
     serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1 || "MATHS", spe2: fd.get("spe2") || p.spe2 || "SES",
     mention: fd.get("mention") || p.mention, academie: fd.get("academie") || "", boursier: !!fd.get("boursier"),
-    maths_expertes: !!fd.get("maths_expertes"), lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };
+    maths_expertes: form.querySelector('[name="maths_expertes"]') ? !!fd.get("maths_expertes") : !!(raw ? raw.maths_expertes : p.maths_expertes), lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };
 }
 
 // ---- A5 glossary (V1) and the source register ---------------------------------------------
@@ -3188,7 +3216,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
   if (!btn || !menu) continue;
   btn.onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute("aria-expanded", String(!menu.hidden)); };
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); btn.focus(); } });
-  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); } });
+  document.addEventListener("click", (e) => { if (!menu.hidden && (!menu.contains(e.target) || e.target.closest("a"))) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); } });
 }
 
 // ---- router ----------------------------------------------------------------

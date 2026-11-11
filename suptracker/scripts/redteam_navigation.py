@@ -154,6 +154,8 @@ def u1(c: Ctx):
     mob = "\n".join(m.group(1) for m in re.finditer(r"@media \(max-width: 720px\) \{(.*?)\n\}", re.sub(r"/\*.*?\*/", "", c.css), re.S))
     if not re.search(r"\.profile-chip \{ display: none; \}", mob) or ".topnav { display: none; }" not in mob:
         bad.append("wide-screen menu or chip shown on a phone")
+    if ".profile-chip[hidden], .profile-bar[hidden] { display: none; }" not in c.css:
+        bad.append("hidden chip or bar still displayed (their display overrides the attribute)")
     return not bad, f"{len(bad)} problems {bad[:4]}"
 
 
@@ -204,6 +206,14 @@ def u2(c: Ctx):
         bad.append(("route name outside the closed analytics routes", [v for v in R.values() if f'"{v}"' not in routes]))
     if R.get("profil") != "profil" or 'if (a === "profil") return await viewProfil();' not in c.js:
         bad.append("profile page not routed")
+    if '(!menu.contains(e.target) || e.target.closest("a"))' not in c.js:
+        bad.append("a menu stays open after a click on a link to the current page")
+    vp = top(c.js, "viewParcours")
+    awaits = vp.count("await ")
+    guards = vp.count('if ($view.dataset.rendered !== mk) return;')
+    if 'const mk = "parcours:loading";' not in vp or vp.index("$view.dataset.rendered = mk;") > vp.index("await ") or guards < awaits - 1 \
+            or vp.index('if ($view.dataset.rendered !== mk) return;\n  $view.dataset.rendered = "parcours";') > vp.index("$view.innerHTML ="):
+        bad.append(("Où je me situe can draw over another page", awaits, guards))
     mt = top(c.js, "markTab")
     if '["comp-btn", "comp-menu", COMP_TABS]' not in mt or '["more-btn", "more-menu", MORE_TABS]' not in mt or "menu.hidden = true;" not in mt:
         bad.append("menus not marked or not closed on navigation")
@@ -280,13 +290,14 @@ process.stdout.write(JSON.stringify(cases.map(([p, saved]) => profileForm(p, sav
 
 def form_run(js: str):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
-    prog = helpers + "\n" + top(js, "profileForm") + FORM_PROG
+    prog = helpers + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "profileForm") + FORM_PROG
     hostile = {"nom": "<img src=x onerror=alert(1)>", "uai": "1", "commune": "x"}
     cases = [[{"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b", "academie": "Lyon", "lycee": hostile}, True],
              [{"serie": "bt", "voie": "sti2d", "mention": "ab"}, True],
              [{"serie": "bp", "mention": "ab"}, False],
              [{"statut": "reorientation", "serie": "bg", "spe1": "MATHS", "spe2": "SES", "academie": "Lyon"}, True],
-             [{"serie": "bg", "spe1": "SES", "spe2": "X", "mention": "ab"}, False]]
+             [{"serie": "bg", "spe1": "SES", "spe2": "X", "mention": "ab"}, False],
+             [{"statut": "reorientation", "academie": "Lyon"}, False]]
     return node(prog, cases)
 
 
@@ -299,7 +310,7 @@ def form_ok(r) -> tuple[bool, str]:
         return True, "node not installed"
     if r.startswith("__error__"):
         return False, r
-    bg, bt, bp, reo, nomaths = json.loads(r)
+    bg, bt, bp, reo, nomaths, reo_new = json.loads(r)
     bad = []
     want = {"bg": ["statut", "statut", "serie", "spe1", "spe2", "maths_expertes", "mention", "academie", "boursier"],
             "bt": ["statut", "statut", "serie", "voie", "mention", "academie", "boursier"],
@@ -321,6 +332,8 @@ def form_ok(r) -> tuple[bool, str]:
         bad.append("situation not read back")
     if "Enregistrer mon profil" in bg or "Enregistrer mon profil" not in bp or "Enregistrer mon profil" not in nomaths:
         bad.append("first save not explicit, or a button after it")
+    if "Enregistrer mon profil" not in reo_new or "Enregistrer mon profil" in reo:
+        bad.append("no save button outside terminale before the first save")
     if '<option value="sti2d" selected' not in bt:
         bad.append("route not read back")
     return not bad, f"{len(bad)} problems {bad[:3]}"
@@ -335,7 +348,7 @@ READ_PROG = r"""
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = cases.map(([data, p, serie, raw, voieLabel]) => {
   const fd = { get: (k) => (k in data ? data[k] : null) };
-  const form = { querySelector: () => (voieLabel ? { selectedOptions: [{ textContent: voieLabel }] } : null) };
+  const form = { querySelector: (q) => (q.includes("voie") && voieLabel ? { selectedOptions: [{ textContent: voieLabel }] } : null) };
   return readForm(fd, p, serie, { uai: "1" }, form, raw);
 });
 process.stdout.write(JSON.stringify(out));
@@ -350,6 +363,7 @@ def read_run(js: str):
         [{"statut": "terminale", "serie": "bt", "voie": "sti2d", "mention": "b", "academie": "Lyon"}, {"serie": "bt"}, "bt", None, "STI2D"],
         [{"statut": "terminale", "serie": "bp", "voie": "sti2d", "mention": "b"}, {"serie": "bt"}, "bt", None, "STI2D"],
         [{"statut": "hacked", "serie": "bg", "mention": "b"}, {}, "bg", None, None],
+        [{"statut": "terminale", "serie": "bt", "mention": "b"}, {"serie": "bg", "maths_expertes": True}, "bg", {"serie": "bg", "maths_expertes": True}, None],
     ]
     return node(prog, cases)
 
@@ -359,7 +373,7 @@ def read_ok(r) -> tuple[bool, str]:
         return True, "node not installed"
     if r.startswith("__error__"):
         return False, r
-    reo_new, reo_keep, bt, changed, hacked = json.loads(r)
+    reo_new, reo_keep, bt, changed, hacked, me = json.loads(r)
     bad = []
     if reo_new != {"academie": "Lyon", "statut": "reorientation"}:
         bad.append(("a bac field invented outside terminale", reo_new))
@@ -371,6 +385,8 @@ def read_ok(r) -> tuple[bool, str]:
         bad.append(("route kept across a new bac", changed))
     if hacked.get("statut") != "terminale" or hacked.get("spe1") != "MATHS" or hacked.get("spe2") != "SES":
         bad.append(("status not validated or no default specialties", hacked))
+    if me.get("maths_expertes") is not True:
+        bad.append(("a field the form does not draw is dropped", me))
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
@@ -416,7 +432,25 @@ const base = process.argv[2];
   o.viewsOn = await p.$eval('.views a[aria-current="true"]', (a) => a.textContent.trim());
   await p.goto(base + "/#/glossaire"); await p.waitForTimeout(500);
   o.compMarked = await p.$eval("#comp-btn", (x) => x.classList.contains("current"));
+  await p.goto(base + "/#/stats"); await p.waitForTimeout(800);
+  o.chipStats = await p.$eval("#profile-chip", (x) => getComputedStyle(x).display);
   await ctx.close();
+  // review scenarios, no profile stored: Enter in the lycée box, a situation switch and back keep everything a draft
+  const c2 = await b.newContext({ viewport: { width: 1280, height: 900 } }); const r = await c2.newPage();
+  r.on("pageerror", (e) => errs.push(e.message));
+  await r.goto(base + "/#/profil"); await r.waitForFunction(() => document.getElementById("view").dataset.rendered === "profil");
+  await r.fill("#lyc-q", "lycee"); await r.press("#lyc-q", "Enter"); await r.waitForTimeout(300);
+  o.enter = await r.evaluate(() => localStorage.getItem("profile"));
+  await r.selectOption('#pf [name="serie"]', "bt"); await r.waitForTimeout(300);
+  await r.selectOption('#pf [name="mention"]', "tb"); await r.waitForTimeout(300);
+  await r.check('#pf [name="statut"][value="reorientation"]'); await r.waitForTimeout(300);
+  o.switchStored = await r.evaluate(() => localStorage.getItem("profile"));
+  o.focusChecked = await r.evaluate(() => document.activeElement.checked === true && document.activeElement.value === "reorientation");
+  o.reoSave = await r.isVisible("#pf button.primary");
+  await r.check('#pf [name="statut"][value="terminale"]'); await r.waitForTimeout(300);
+  o.draftBack = [await r.inputValue('#pf [name="serie"]'), await r.inputValue('#pf [name="mention"]')];
+  o.stillNone = await r.evaluate(() => localStorage.getItem("profile"));
+  await c2.close();
   const ph = await b.newContext({ ...devices["iPhone 13"] }); const q = await ph.newPage(); q.on("pageerror", (e) => errs.push(e.message));
   o.phone = {};
   for (const h of ["#/", "#/profil", "#/carte", "#/metiers", "#/parcours"]) {
@@ -474,6 +508,12 @@ def u6(c: Ctx):
         bad.append(("Comprendre menu", o["open"], o["esc"], o["outside"]))
     if o["mapTab"] != "page" or o["viewsOn"] != "Carte" or not o["compMarked"]:
         bad.append(("tabs", o["mapTab"], o["viewsOn"], o["compMarked"]))
+    if o["chipStats"] != "none":
+        bad.append(("chip shown on the stats", o["chipStats"]))
+    if o["enter"] is not None or o["switchStored"] is not None or o["stillNone"] is not None:
+        bad.append(("stored before Enregistrer", o["enter"], o["switchStored"], o["stillNone"]))
+    if o["draftBack"] != ["bt", "tb"] or not o["focusChecked"] or not o["reoSave"]:
+        bad.append(("draft lost on a situation switch, focus or save button", o["draftBack"], o["focusChecked"], o["reoSave"]))
     ph = {k: v for k, v in o["phone"].items() if v["hscroll"] or v["chip"] != "none" or v["bar"] != "flex"}
     want = {"#/": "Explorer", "#/profil": "Mon profil", "#/carte": "Explorer", "#/metiers": "Explorer", "#/parcours": "Mon profil"}
     cur = {k: v["cur"] for k, v in o["phone"].items() if v["cur"] != want[k]}
@@ -511,6 +551,22 @@ def u7(c: Ctx):
         bad.append("no navigation marker before the first await")
     if 'if ($view.dataset.rendered !== "profil:loading") return;' not in top(c.js, "viewProfil"):
         bad.append("no navigation guard after the vocabulary request")
+    sugg = c.js[c.js.index("async function suggestLycee("):c.js.index("// ---- Sprint 5")]
+    if 'else store.set("profilDraft", { lycee: lyc, academie: l.academie || "" });' not in sugg or "spe1:" in sugg:
+        bad.append("the lycée suggestion stores a profile the student never chose")
+    vpf = top(c.js, "viewProfil")
+    if 'if (lq) lq.onkeydown = (e) => { if (e.key === "Enter") e.preventDefault(); };' not in vpf:
+        bad.append("Enter in the lycée box saves the profile")
+    clear = vpf[vpf.index('if (lc) lc.onclick'):vpf.index("const er =")]
+    if "if (has) document.getElementById(\"pf\").requestSubmit();" not in clear or "draft = " not in clear:
+        bad.append("Retirer saves before Enregistrer")
+    sit = vpf[vpf.index("const setSituation"):vpf.index("draw();\n}")]
+    if not sit.lstrip().split("\n")[1].strip().startswith("if (!has) {") or "store.set(" in sit[:sit.index("} else if")]:
+        bad.append("a situation switch stores before Enregistrer")
+    if '"lycee", "boursier"' not in sit:
+        bad.append("back to terminale drops the lycée")
+    if '${focusName === "statut" ? ":checked" : ""}' not in vpf:
+        bad.append("focus on the wrong situation")
     if '"mon_profil"' not in c.api.split("FEATURES = [", 1)[1].split("]", 1)[0] or '"mon_profil": ("app.js", "async function viewProfil(")' not in c.release:
         bad.append("feature or release guard")
     if c.readme and "Mon profil" not in c.readme:
@@ -542,7 +598,8 @@ MUTANTS = [
     ("js", "bac fields drawn outside terminale", "  if (reo) {\n    return `<form id=\"pf\">", "  if (false) {\n    return `<form id=\"pf\">", "u4"),
     ("js", "lycée name unescaped in the form", 'value="${p.lycee ? esc(p.lycee.nom) : ""}"', 'value="${p.lycee ? p.lycee.nom : ""}"', "u4"),
     ("js", "a field without its explanation", '"Chaque formation publie la part de ses admis venant du bac général, technologique ou professionnel."', '""', "u4"),
-    ("js", "first save no longer explicit", '${saved ? "" : `<div class="card pf-saved">', '${true ? "" : `<div class="card pf-saved">', "u4"),
+    ("js", "first save no longer explicit", '${mention}${where}${saved ? "" : PF_SAVE}', '${mention}${where}${true ? "" : PF_SAVE}', "u4"),
+    ("js", "no save button outside terminale", '${acad}</section>${saved ? "" : PF_SAVE}', '${acad}</section>', "u4"),
     ("js", "bac fields invented outside terminale", '  if (reo) return { ...(raw || {}), academie', '  if (reo) return { ...p, academie', "u5"),
     ("js", "status not validated", 'lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };',
      'lycee: lyc, statut: fd.get("statut") };', "u5"),
@@ -553,6 +610,17 @@ MUTANTS = [
     ("js", "the profile page sends the profile", '  JV = JV || await api("/api/journey/vocab");\n  if ($view.dataset.rendered !== "profil:loading") return;',
      '  JV = JV || await api("/api/journey/vocab");\n  api(`/api/voeux?${vxQuery([], PF_DEFAULT)}`);\n  if ($view.dataset.rendered !== "profil:loading") return;', "u7"),
     ("js", "no navigation guard", '  if ($view.dataset.rendered !== "profil:loading") return;\n  let draft', "  let draft", "u7"),
+    ("css", "hidden chip still displayed", ".profile-chip[hidden], .profile-bar[hidden] { display: none; }", "", "u1"),
+    ("js", "menu left open on a same-page link", '(!menu.contains(e.target) || e.target.closest("a"))', "!menu.contains(e.target)", "u2"),
+    ("js", "Où je me situe draws over another page", '  if ($view.dataset.rendered !== mk) return;\n  $view.dataset.rendered = "parcours";', '  $view.dataset.rendered = "parcours";', "u2"),
+    ("js", "maths expertes dropped when the box is hidden", "!!(raw ? raw.maths_expertes : p.maths_expertes)", "false", "u5"),
+    ("js", "suggestion stores invented bac fields", 'else store.set("profilDraft", { lycee: lyc, academie: l.academie || "" });',
+     'else store.set("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", lycee: lyc });', "u7"),
+    ("js", "Enter saves the profile", '    if (lq) lq.onkeydown = (e) => { if (e.key === "Enter") e.preventDefault(); };   // Enter picks nothing and saves nothing (review)\n', "", "u7"),
+    ("js", "Retirer saves before Enregistrer", "      if (has) document.getElementById(\"pf\").requestSubmit();\n      else {", "      document.getElementById(\"pf\").requestSubmit();\n      if (false) {", "u7"),
+    ("js", "situation switch stores at once", "    if (!has) {                                                       // no profile yet",
+     "    if (false) {                                                       // no profile yet", "u7"),
+    ("js", "focus on the first situation", '${focusName === "statut" ? ":checked" : ""}', "", "u7"),
     ("js", "privacy promise dropped", "<li>Votre lycée n'est jamais envoyé : la liste des lycées est cherchée dans ce navigateur.</li>", "", "u7"),
 ]
 

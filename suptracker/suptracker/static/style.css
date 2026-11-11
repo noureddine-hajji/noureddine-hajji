@@ -471,6 +471,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
   .views a { flex: 1; justify-content: center; min-height: 44px; padding: 0 8px; }
 }
 @media (min-width: 721px) { .profile-bar .pb-who { display: none; } }
+.profile-chip[hidden], .profile-bar[hidden] { display: none; }   /* the hidden attribute wins over their display (review) */
 @media (min-width: 721px) and (max-width: 1439px) { .brand span { display: none; } }   /* brand, menu and chip on one line */
 
 @media print {                                       /* paper is white whatever the screen's theme */

@@ -2345,3 +2345,18 @@ the figures are read for, or invites the student to create one.
 
 Red teams that read the old menu or the old form location were updated: ux X3/X6/X12/X14, reorientation E5/E7, lycée Y8,
 voies W7/W8, semblables K7/K9, accompagnement T7/T8.
+
+**Independent review (before Codex): seven defects fixed, each now caught by the red team.**
+1. "Retirer" (lycée) saved the profile before "Enregistrer".
+2. Enter in the lycée box saved it too.
+3. A situation switch with no saved profile stored at once and lost the draft. It is now part of the draft, and the bac fields,
+   lycée and boursier come back when switching back.
+4. "C'est votre lycée ?" from a search stored invented bac fields. Without a profile it now only pre-fills "Mon profil".
+5. "Où je me situe" could draw over "Mon profil" after a late answer. It now has a render marker, checked after every await.
+6. The chip and the profile bar stayed visible on the stats page: their `display` beat the `hidden` attribute.
+7. The focus went back to the first situation radio after a switch.
+
+Smaller fixes from the same review:
+- identical specialties are flagged on "Mon profil", and "Où je me situe" links there;
+- "Mathématiques expertes" is kept when its box is not drawn;
+- a menu closes on a click on one of its links.
