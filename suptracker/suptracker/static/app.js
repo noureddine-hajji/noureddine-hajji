@@ -63,7 +63,8 @@ const voeux = {
 function vxProfile(p) {
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
   const mention = ["sansmention", "ab", "b", "tb"].includes(p.mention) ? p.mention : "ab";
-  const codes = JV && JV.voies && JV.voies[serie] ? JV.voies[serie].map((x) => x.code) : null;
+  const jv = typeof JV !== "undefined" ? JV : null;                       // the vocabulary, when "Mon parcours" loaded it
+  const codes = jv && jv.voies && jv.voies[serie] ? jv.voies[serie].map((x) => x.code) : null;
   const keep = serie !== "bg" && typeof p.voie === "string" && (!codes || p.voie === "autre" || codes.includes(p.voie));
   return { ...p, serie, mention, voie: keep ? p.voie : null, voie_label: keep ? p.voie_label : null };
 }
