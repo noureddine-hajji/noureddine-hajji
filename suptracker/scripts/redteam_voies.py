@@ -416,7 +416,7 @@ def w7(c: Ctx):
     appr = 'serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage' in js
     vocab = '"voies": VO.choices(_con().cursor())' in c.api
     voeux = "x = VO.pick_voie(b, serie, voie)" in c.vx and "voie=VO.valid(_con().cursor(), serie, voie)" in c.api
-    feat = '"voie_rapport"]' in c.api
+    feat = '"voie_rapport"' in c.api.split("FEATURES = [", 1)[1].split("]", 1)[0]
     rel = '"voie_rapport": ("app.js", "function pickVoie(")' in (ROOT / "tests" / "test_release.py").read_text()
     ok = form and column and appr and vocab and voeux and feat and rel
     return ok, f"form {form}; Mes vœux column {column}; apprenticeship pointer {appr}; vocabulary {vocab}; Mes vœux route {voeux}; feature {feat}; release {rel}"
