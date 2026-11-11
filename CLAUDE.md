@@ -394,11 +394,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   terminale-en-France caveat; zones unchanged. The choice lives in the stored profile and is sent only to `/api/voeux` (`voie=`).
   Red team `redteam_voies.py` (W1-W8).
 - **Je me réoriente ou je reprends mes études (sprint 21, owner 2026-11-11).** The group outside terminale (reorientation,
-  return to studies, other routes) = published totals minus the three terminale series: candidates `nb_voe_pp + nb_voe_pc`,
-  proposals `prop_tot`; none when a difference is negative or proposals exceed candidates (15 rows of 2022). "Accès estimé hors
+  return to studies, other routes) is PUBLISHED by SIES ("autres candidats": `nb_voe_pp_at`, `nb_voe_pc_at`, `prop_tot_at`), used as
+  published, never rebuilt from the series (review); none when proposals exceed candidates (58 rows of 2023-2024). "Accès estimé hors
   terminale" = `taux_acces_ens` x (group proposal rate / all proposal rate), capped at 100 and flagged, none below 20 candidates:
   always an ESTIMATION with its counts. NO zone (no mention or series is published for them), NO Plan B, NO "Compléter ma liste",
-  the old bac series is not asked. Profile `statut` ("terminale" / "reorientation", validated in `vxProfile`): Mon parcours opens
+  the old bac series is not asked. Every read of the bac, specialties or mention goes through `bacProfile()` (null outside terminale);
+  an académie picked with no profile is kept apart (`reoAcademie`), never a profile without a bac or a status. Profile `statut` ("terminale" / "reorientation", validated in `vxProfile`): Mon parcours opens
   `#/reorientation`, the summary tile shows the estimate instead of the zone, Mes vœux reads `/api/reorientation/voeux` (codes only,
   no-store, no analytics), the profile bar makes no zone request. The list (latest campaign, SIES formations of a cartographie type,
   never apprenticeship offers) is sorted by the student's académie then name, never by a figure; the académie stays in the browser.
