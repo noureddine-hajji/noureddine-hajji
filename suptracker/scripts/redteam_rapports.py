@@ -154,6 +154,16 @@ def built(c: Ctx):
 
 
 # ------------------------------------------------------------------ checks
+
+
+def reo_defs(js: str) -> str:
+    """Sprint 21: the page's own isReo / bacProfile / REO_LABEL, for harnesses that render profile-reading cards."""
+    one = [ln for ln in js.splitlines() if ln.startswith(("const isReo = ", "const REO_LABEL = "))]
+    fn = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
+    return "\n".join(one) + "\n" + fn + "\n"
+
+
+
 @check("R1 parser on the committed probe PDFs: formations, SIES identity on real data, a known table, no signature kept")
 def r1(c: Ctx):
     if not c.parsed:
@@ -262,7 +272,7 @@ def node_render(js: str, block: dict, block_nobg: dict):
     prog = helpers + """
 let PROFILE = null; const store = { get: (k, dft) => (k === "profile" ? PROFILE : dft) };
 const tip = () => ""; const legend = () => ""; const lineChart = () => "";
-""" + blk + """
+""" + reo_defs(js) + blk + """
 const [d, b, b2] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 PROFILE = { serie: "bg", spe1: "MATHS", spe2: "PC", maths_expertes: true };
 const out = { card: doubletteCard(d, b), card_nobg: doubletteCard(d, b2), card_none: doubletteCard(d, null), jury: juryCard(b) };

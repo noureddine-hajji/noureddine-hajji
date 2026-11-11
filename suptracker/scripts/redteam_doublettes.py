@@ -119,6 +119,16 @@ def official_check(con) -> tuple[bool, str]:
 
 
 # ------------------------------------------------------------------ checks
+
+
+def reo_defs(js: str) -> str:
+    """Sprint 21: the page's own isReo / bacProfile / REO_LABEL, for harnesses that render profile-reading cards."""
+    one = [ln for ln in js.splitlines() if ln.startswith(("const isReo = ", "const REO_LABEL = "))]
+    fn = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
+    return "\n".join(one) + "\n" + fn + "\n"
+
+
+
 @check("D1 units: the SIES 'voeux' column counts candidates (acceptations = formations' bac général admits, below their vœux)")
 def d1(c: Ctx):
     last = c.con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
@@ -411,7 +421,7 @@ def node_card(js: str):
     prog = helpers + """
 let PROFILE = null; const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const tip = () => ""; const legend = () => ""; const lineChart = () => "";
-""" + blk + """
+""" + reo_defs(js) + blk + """
 const [d, prof] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = {}; PROFILE = prof; out.rare = doubletteCard(d); PROFILE = null; out.none = doubletteCard(d);
 out.nogroup = doubletteCard({ ...d, status: "sans_groupe", groupe: null });
