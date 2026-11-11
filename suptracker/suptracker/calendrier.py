@@ -75,7 +75,10 @@ def _fold_keep_dash(s: str) -> str:
 
 
 def _date(wd: str, day: str, month: str, year: str) -> tuple[date | None, bool]:
-    d = date(int(year), MONTHS.index(month) + 1, 1 if day == "1er" else int(day))
+    try:
+        d = date(int(year), MONTHS.index(month) + 1, 1 if day == "1er" else int(day))
+    except ValueError:                                  # "31 février": an impossible date leaves the step unverified (Codex)
+        return None, False
     return d, WEEKDAYS[d.weekday()] == wd
 
 
@@ -94,7 +97,7 @@ def parse(text: str) -> dict:
         else:                                           # a range: the year is printed once, at its end
             d1, ok1 = _date(g[0], g[1], g[2], g[6])
             d2, ok2 = _date(g[3], g[4], g[5], g[6])
-            out[key] = {"debut": d1, "fin": d2, "jour_ok": ok1 and ok2 and d1 <= d2}
+            out[key] = {"debut": d1, "fin": d2, "jour_ok": ok1 and ok2 and d1 is not None and d2 is not None and d1 <= d2}
     return out
 
 

@@ -199,6 +199,9 @@ def t1(c: Ctx):
         "range": ([good.replace("AU JEUDI 11 MARS", "AU JEUDI 11 JANVIER")], {"voeux": None}),        # a Monday, and before the start
         "range_ok": ([good.replace("AU JEUDI 11 MARS", "AU JEUDI 11 FÉVRIER")], {"voeux": "2027-01-18"}),  # a Thursday: a valid range
         "hostile": ([good.replace("Ouverture de la carte", HOSTILE)], {"carte": None}),
+        # an impossible date (Codex, PR #52): that step unverified, the others kept, no crash
+        "impossible": ([good.replace("JEUDI 11 MARS 2027 — Dernier", "JEUDI 31 FÉVRIER 2027 — Dernier")], {"fin_voeux": None, "carte": "2026-12-17"}),
+        "impossible_range": ([good.replace("AU JEUDI 11 MARS", "AU JEUDI 30 FÉVRIER")], {"voeux": None, "admission": "2027-06-01"}),
         "none": ([], {"carte": None, "voeux": None}),
     }
     for name, (vs, want) in cases.items():
@@ -713,6 +716,8 @@ def t7(c: Ctx):
 # ---------------------------------------------------------------- T8 mutation test
 PY_MUTANTS = [
     ("weekday not checked", "return d, WEEKDAYS[d.weekday()] == wd", "return d, True"),
+    ("impossible date crashes", '''    except ValueError:                                  # "31 février": an impossible date leaves the step unverified (Codex)\n        return None, False''',
+     "    except ZeroDivisionError:\n        return None, False"),
     ("versions not compared", 'and len({(f["debut"], f["fin"]) for f in found}) == 1', ""),
     ("first version only", "found = [p.get(key) for p in parsed]", "found = [p.get(key) for p in parsed[:1]]"),
     ("drop cap not read", 'r"e ?ntre le\\s+"', 'r"entre le\\s+"'),
