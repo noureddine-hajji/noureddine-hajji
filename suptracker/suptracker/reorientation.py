@@ -1,16 +1,16 @@
 """Sprint 21, "Je me réoriente ou je reprends mes études" (owner's choices, 2026-11-11).
 
-SIES publishes no access rate for candidates who are not in terminale (reorientation, return to studies, other routes: one
-group). It publishes, per formation and campaign, the candidates and the proposals of all candidates and of each bac series of
-terminale. The difference is the group outside terminale:
-    candidats hors terminale    = (nb_voe_pp + nb_voe_pc) - sum over bg, bt, bp of (nb_voe_pp_s + nb_voe_pc_s)
-    propositions hors terminale = prop_tot - (prop_tot_bg + prop_tot_bt + prop_tot_bp)
-On the real exports both are >= 0 on every row of 2023-2025 (15 rows of 2022 have more series proposals than all proposals).
+SIES publishes no access rate, no mention and no series for the candidates who are not in terminale (reorientation, return to
+studies, other routes: one group, "autres candidats"). It does publish, per formation and campaign, their candidates and the
+proposals they received (`nb_voe_pp_at`, `nb_voe_pc_at`, `prop_tot_at`), next to the totals and each terminale series. These
+PUBLISHED counts are used as they are (independent review: they were first rebuilt as total minus the three series; the red
+team now measures how often that difference agrees with them).
 In 2025: 22.8 % of these vœux got a proposal, against 33.7 % for the néo-bacheliers.
 
 The "accès estimé hors terminale" is the series rule of "Mon parcours" applied to this group: the official taux d'accès scaled
-by how the group's proposal rate compares with all candidates', capped at 100. Always an ESTIMATION, shown with the official rate;
-none below MIN_CANDIDATS candidates or when the counts do not hold. No zone (SIES publishes no mention for this group), no Plan B.
+by how the group's proposal rate compares with all candidates', capped at 100 (flagged). Always an ESTIMATION, shown with the
+official rate and its counts; none below MIN_CANDIDATS candidates, when a count is not published or when the proposals exceed
+the candidates. No zone (SIES publishes no mention or series for this group), no Plan B.
 The share of admits who are not néo-bacheliers comes from sprint 18's published counts (admis.py).
 """
 from __future__ import annotations
@@ -23,16 +23,17 @@ MIN_CANDIDATS = 20
 LIST_KEYS = ("candidats", "propositions", "acces_estime", "plafonne", "taux_acces_ens", "admis", "admis_autres",
              "part_admis_autres", "autres_majoritaires", "min_candidats")
 FIELDS = ("nb_voe_pp", "nb_voe_pc", "prop_tot", "taux_acces_ens", "acc_tot", "acc_neobac", "acc_at",
-          *(f"{k}_{s}" for s in ("bg", "bt", "bp") for k in ("nb_voe_pp", "nb_voe_pc", "prop_tot")))
+          "nb_voe_pp_at", "nb_voe_pc_at", "prop_tot_at")
 
 
 def block(r: dict, session: int | None = None) -> dict:
     """The formation's figures for a candidate outside terminale, from its published counts."""
     z = lambda k: r.get(k) or 0  # noqa: E731
     cand_all = z("nb_voe_pp") + z("nb_voe_pc")
-    cand = cand_all - sum(z(f"nb_voe_pp_{s}") + z(f"nb_voe_pc_{s}") for s in ("bg", "bt", "bp"))
-    prop = z("prop_tot") - sum(z(f"prop_tot_{s}") for s in ("bg", "bt", "bp"))
-    holds = cand >= 0 and 0 <= prop <= cand and r.get("nb_voe_pp") is not None and r.get("prop_tot") is not None
+    cand = z("nb_voe_pp_at") + z("nb_voe_pc_at")                       # published: the other candidates, both phases
+    prop = z("prop_tot_at")
+    holds = (r.get("nb_voe_pp_at") is not None and r.get("prop_tot_at") is not None and r.get("prop_tot") is not None
+             and 0 <= prop <= cand <= cand_all and prop <= z("prop_tot"))
     rate = round(100 * prop / cand, 1) if holds and cand else None
     rate_all = round(100 * z("prop_tot") / cand_all, 1) if cand_all else None
     est, capped = None, False
