@@ -16,10 +16,11 @@ REAL_DB = ROOT / "data" / "suptracker.duckdb"
 
 
 def test_rule():
-    b = RO.block({"nb_voe_pp": 100, "prop_tot": 50, "taux_acces_ens": 60, "nb_voe_pp_bg": 60, "prop_tot_bg": 40})
+    b = RO.block({"nb_voe_pp": 100, "prop_tot": 50, "taux_acces_ens": 60, "nb_voe_pp_at": 40, "prop_tot_at": 10})
     assert (b["candidats"], b["propositions"], b["acces_estime"]) == (40, 10, 30.0)
-    assert RO.block({"nb_voe_pp": 100, "prop_tot": 30, "taux_acces_ens": 60, "nb_voe_pp_bg": 50, "prop_tot_bg": 31})["candidats"] is None
-    assert RO.block({"nb_voe_pp": 60, "prop_tot": 50, "taux_acces_ens": 60, "nb_voe_pp_bg": 41, "prop_tot_bg": 40})["acces_estime"] is None
+    assert RO.block({"nb_voe_pp": 100, "prop_tot": 50, "taux_acces_ens": 60, "nb_voe_pp_at": 40, "prop_tot_at": 41})["candidats"] is None
+    assert RO.block({"nb_voe_pp": 60, "prop_tot": 50, "taux_acces_ens": 60, "nb_voe_pp_at": 19, "prop_tot_at": 5})["acces_estime"] is None
+    assert RO.block({"nb_voe_pp": 60, "prop_tot": 50, "taux_acces_ens": 60})["candidats"] is None      # not published
 
 
 @pytest.fixture(scope="module")

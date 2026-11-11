@@ -29,6 +29,7 @@
  "tests/test_rapports.py": 256,
  "tests/test_referentiel.py": 191,
  "tests/test_release.py": 0,
+ "tests/test_reorientation.py": 135.0,
  "tests/test_scale.py": 129,
  "tests/test_semblables.py": 264,
  "tests/test_seo.py": 177,

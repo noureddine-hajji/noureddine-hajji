@@ -478,6 +478,7 @@ def e4(c: Ctx):
     cells = re.findall(r'data-label="([^"]+)">(.*?)</td>', eta.group(0), re.S) if eta else []
     got = {k: re.sub(r"<[^>]+>", " ", v) for k, v in cells}
     if not eta or not got.get("Accès estimé hors terminale", "").strip().startswith("12,3 %") \
+            or "estimation" not in got.get("Accès estimé hors terminale", "") \
             or "5 propositions pour 41 candidats" not in got.get("Accès estimé hors terminale", "") \
             or got.get("Taux d'accès officiel, tous candidats", "").strip() != "77 %" \
             or not got.get("Admis hors néo-bacheliers", "").strip().startswith("61,5 %") or "8 sur 13 admis" not in got.get("Admis hors néo-bacheliers", ""):
@@ -633,7 +634,7 @@ def e6(c: Ctx):
     b = d["reorientation"]
     if "${reoCard(d.reorientation)}" not in more:
         bad.append("the calculation card is not folded in « Plus de chiffres sur l'admission »")
-    if HOSTILE in r["card"] or r["cardNone"] or (b["candidats"] is not None and f"pour {r['candFmt']} candidats" not in r["card"]) \
+    if HOSTILE in r["card"] or r["cardNone"] or (b["candidats"] is not None and r["card"].count(f"pour {r['candFmt']} candidats hors terminale") < 2) \
             or "plafonné à 100 %" not in r["card"]:
         bad.append("the calculation card: counts, method or escaping")
     return not bad, f"formation {cod} (estimate {est}); {len(bad)} problems {bad[:3]}"
