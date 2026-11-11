@@ -437,7 +437,10 @@ def r25(H):
     no_code = calls and all("cod" not in c for c in calls)
     tab = 'if (id === "fiche") track("action", { a: "onglet", tab: k });' in js
     planb = js.count('track("action", { a: "planb" });') == 2
-    fb = '${feedbackBox("voeux")}' in js
+    def page(start):                               # sprint 21: two Mes vœux pages (in terminale, outside it), each with its box
+        i = js.find(start)
+        return js[i:js.find("\n}\n", i)] if i >= 0 else ""
+    fb = all('${feedbackBox("voeux")}' in page(p) for p in ("async function viewVoeux(", "async function viewVoeuxReo("))
     said = ("sans savoir de quelle formation il s'agit" in js and "sans savoir de quelle formation" in api
             and "rien n'est enregistré ni compté" not in js + api and "La formation concernée n'est jamais enregistrée." in st)
     ok = voeu and no_code and tab and planb and fb and said
@@ -456,6 +459,8 @@ JS_AN_MUTANTS = [
     ("static/app.js", "the formation sent", 'track("action", { a: "voeu" })', 'track("action", { a: "voeu", cod })'),
     ("static/app.js", "every tab bar counted", 'if (id === "fiche") track("action", { a: "onglet", tab: k });', 'track("action", { a: "onglet", tab: k });'),
     ("static/app.js", "Mes vœux feedback dropped", '${feedbackBox("voeux")}', ""),
+    ("static/app.js", "Mes vœux feedback dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${feedbackBox(\"voeux\")}",
+     "rien n'en est enregistré sur le serveur.</p>${howto}</div>"),
     ("static/app.js", "old privacy promise kept", "rien n'en est enregistré sur le serveur. Le site compte seulement", "rien n'est enregistré ni compté sur le serveur. Le site compte seulement"),
     ("static/stats.js", "dashboard hides the promise", "La formation concernée n'est jamais enregistrée.", ""),
 ]
