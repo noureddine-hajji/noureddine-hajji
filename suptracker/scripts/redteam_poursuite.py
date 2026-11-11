@@ -473,7 +473,7 @@ def ui(js: str) -> tuple[bool, str]:
     words = all(w in fn_body(js, f) for f, ws in cards.items() for w in ws)
     # rates are never multiplied with each other or chained into one figure
     product = re.findall(r"(taux|master567|licence34|passage2|passage3)[\w.\]\"' ]*\*\s*[\w.(]*(taux|master567|licence34|passage)", blk)
-    local = "store.get(\"profile\"" in blk and not re.search(r"\b(api|fetch)\(", blk)
+    local = ("store.get(\"profile\"" in blk or "bacProfile()" in blk) and not re.search(r"\b(api|fetch)\(", blk)
     trusted = '["bg", "bt", "bp"].includes(p.serie)' in blk and "/^[A-Z]{2,7}$/" in blk
     wired = "${masterCard(d.master)}" in js and "${butCard(d.but)}" in js
     ok = not raw and words and not product and local and trusted and wired
@@ -493,7 +493,7 @@ UI_MUTANTS = [
      "Résultats de cohortes passées ; l'écart au taux attendu ne classe pas les universités.</p></div>`;\n}\nconst M2_DEVENIR"),
     ("master population caveat dropped", "d'où qu'ils viennent : ce ne sont pas les diplômés de cette licence.", "."),
     ("chain multiplied", '<strong>${suVal(r, "master567")}</strong>', '<strong>${pc1d(r.licence34 * r.passage_master / 100)}</strong>'),
-    ("profile sent to the server", "const p = store.get(\"profile\", null) || {};", "const p = store.get(\"profile\", null) || {}; api(\"/api/x?\" + JSON.stringify(p));"),
+    ("profile sent to the server", "const p = bacProfile() || {};", "const p = bacProfile() || {}; api(\"/api/x?\" + JSON.stringify(p));"),
     ("stored series trusted", '["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg"', 'p.serie || "bg"'),
     ("BUT card not wired", "${butCard(d.but)}", ""),
 ]
