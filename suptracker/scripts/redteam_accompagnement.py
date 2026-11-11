@@ -557,7 +557,7 @@ def t6(c: Ctx):
     CALLS = []; await viewListe(IN.cods.join(","), "t=r"); out.reo = $view.innerHTML;
     API["/api/voeux"] = IN.vxp; await viewListe(IN.cods.join(","), "s=bp&m=b"); out.bp = $view.innerHTML; API["/api/voeux"] = IN.vx;
     await viewListe(IN.cods.join(","), "s=xx&m=b"); out.unread = $view.innerHTML;
-    out.linkBp = shareLink(IN.cods, vxProfile({ serie: "bp", mention: "b", voie: "accompagnement soins et services a la personne", voie_label: "ASSP" }));
+    out.linkBp = shareLink(IN.cods, vxProfile({ serie: "bp", mention: "b", voie: "autre", voie_label: "ASSP" }));   // "autre" is kept on any warehouse
     JV = null; API["/api/journey/vocab"] = IN.jv; const slow0 = viewListe(IN.cods.join(","), ""); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; await slow0; out.race0 = $view.innerHTML; JV = IN.jv;
     $view.innerHTML = shareCard(IN.cods, false); bindShare(IN.cods, null); out.cardNone = $view.innerHTML; out.urlNone = els["share-url"].value;
     // merge: 9 vœux already, three shared -> one added, the student's own list and profile kept
@@ -588,7 +588,7 @@ def t6(c: Ctx):
                 bad.append(("bac pro: an estimate under the official label", v["cod_aff_form"], cell and cell.group(1), want)); break
     if "Le profil joint n'a pas pu être lu" not in r["unread"]:
         bad.append("an unreadable joined profile is said as none")
-    if "v=" in r["linkBp"] or "accompagnement" in r["linkBp"] or "ASSP" in r["linkBp"]:
+    if "v=" in r["linkBp"] or "autre" in r["linkBp"] or "ASSP" in r["linkBp"]:
         bad.append(("the bac pro route in the link", r["linkBp"]))
     if r["race0"] != "OTHER PAGE":
         bad.append("a late answer drew over another page before the vocabulary")
