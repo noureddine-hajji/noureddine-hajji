@@ -31,6 +31,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import journey as J
+from . import voies as VO
 
 HARVEST = Path(__file__).resolve().parents[1] / "data" / "rapports" / "harvest"
 BAC = {"Baccalauréat Général": "bg", "Baccalauréat Technologique": "bt", "Baccalauréat Professionnel": "bp"}
@@ -216,8 +217,8 @@ def for_formation(con, cod: str, session: int | None = None) -> dict | None:
     for bac, rang, lib, dkey, autres, c, cl, p, a in con.execute("""SELECT bac, rang, libelle, doublette_key, autres, confirmes,
             classes, en_position, acceptes FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? ORDER BY bac, rang""",
                                                                   [cod, s]).fetchall():
-        voies.setdefault(bac, []).append({"libelle": lib, "key": dkey, "autres": autres, "confirmes": c, "classes": cl,
-                                          "en_position": p, "acceptes": a, "taux": rate(p, c)})
+        voies.setdefault(bac, []).append({"libelle": lib, "key": dkey, "voie": VO.voie_key(bac, lib, autres), "autres": autres,
+                                          "confirmes": c, "classes": cl, "en_position": p, "acceptes": a, "taux": rate(p, c)})
     masked = [b for (b,) in con.execute("SELECT bac FROM core.rapport_masque WHERE cod_aff_form = ? AND session = ? ORDER BY bac",
                                         [cod, s]).fetchall()]
     t = texte(con, dig)

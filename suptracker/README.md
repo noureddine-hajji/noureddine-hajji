@@ -2128,3 +2128,38 @@ first screen when the profile bar showed an alert.
 
 **Red team** `scripts/redteam_ux.py`: X16 (five cards in view, five folded, link and tab from one render, escaped session, compact
 header), X17 (6 seeded bugs, each caught); X7's phone limit lowered from 14 to 13 screens.
+
+## Sprint 20: bac techno and bac pro, "votre ligne" in the jury report (owner's go, 2026-11-11)
+
+**Why.** In 2026, 12.5 % of bac pro and 5.6 % of bac techno candidates got no offer, against 1.4 % in bac général. On the site,
+"Mon parcours" leaves 25.6 % of formations "indéterminé" for bac techno and 41.4 % for bac pro (bac général: 0.7 %).
+
+**What the data says (verified reports, 2025).**
+- The reports print one table per bac route. For bac techno a row is a series with its two terminale specialties
+  ("Msgn/ Mercatique & Droit et Economie" is STMG Mercatique); for bac pro it is the specialty. Each table ends with the
+  formation's own bucket ("Autres doublettes" / "Autres spécialités").
+- 6 195 formations print a bac techno table and 3 144 a bac pro table; the table is not published (small numbers) in 5 791 and
+  8 453.
+- 13 techno labels (STMG x 4, STI2D, ST2S, STL x 2, STD2A, STAV, STHR spelt two ways, S2TMD music and dance) and 62 bac pro
+  specialties. For an STMG Mercatique student: own row in 2 590 formations, the bucket in 3 538.
+- The rows count only candidates schooled in terminale in France (about 40 % of the techno vœux SIES counts): said on the card.
+
+**What changes.**
+- `suptracker/voies.py`: one explicit rule per techno label (`BT_RULES`); bac pro labels normalised (`bp_key`: accents, case, a
+  leading "Bac pro", "opt." = "option", punctuation). A reformed diploma keeps its own key. Every report row gets a `voie` key.
+- Profile ("Mon parcours"): bac techno students pick "Série et spécialités", bac pro students their specialty, or "Autre". The
+  choices come from the reports (`/api/journey/vocab` → `voies`), with the number of formations printing each row.
+- Formation page: "Votre ligne dans cette formation : 36,1 %", the row's name, its counts, the row marked in the table; else the
+  formation's bucket ("votre série en fait partie"); "le tableau n'est pas publié" when masked; a prompt when no choice is made.
+- Mes vœux: a column "Votre ligne dans le rapport du jury (cette formation)" for bac techno and pro (`/api/voeux?voie=`).
+- Mon parcours: "Une part faible veut dire « rare », pas « fermé »", and for bac pro a link to the map's apprenticeship offers.
+- The zones are unchanged: this does not reduce the "indéterminé" readings of small formations, and the page never says it does.
+
+**Red team** `scripts/redteam_voies.py` (W1-W8), via `tests/test_voies.py`:
+- W1: every printed techno label read twice (rules and an independent keyword reading), no unused rule.
+- W2: bac pro format variants merge, different words never do (crafted and warehouse).
+- W3: 1 120 picks on the warehouse re-derived by SQL, plus crafted cases (own row, bucket, masked, no choice, bac général).
+- W4: the vocabulary (counts re-derived, a crafted warehouse), Mes vœux against SQL, bac général unchanged, hostile values.
+- W5: the page in Node (twin of `pick_voie`, one row marked and named, bucket, masked, escaping, profile line, query).
+- W6: wording. W7: wiring.
+- W8: 19 seeded bugs, each caught, on the synthetic and the real warehouse.

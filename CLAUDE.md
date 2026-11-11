@@ -39,6 +39,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Comprendre l'appel / Vraie sélectivité:** `appel.py` (how far each list was called, offer timing per type), `selectivite.py` (access rate x mention matrix).
   - **Formations semblables:** `semblables.py` (pooled doublettes and jury counts from the verified reports of the same diploma and mention).
   - **Qui sont les admis:** `admis.py` (néo-bacheliers vs other admits: formation page bar, list label).
+  - **Bac techno / pro row (sprint 20):** `voies.py` (report rows of bac techno and pro keyed to the student's series or specialty).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -385,6 +386,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     option cited; never a mean or a score. The card says "pas le rapport de cette formation", the fiche Parcoursup fait foi, and
     it links the formations' own pages. Precomputed at build (`mart.semblable_dbl`, `mart.semblable_jury`).
     Red team `redteam_semblables.py` (K1-K9).
+- **Bac techno and bac pro, "votre ligne" (sprint 20, owner 2026-11-11).** Report rows of bac techno are a series + its two
+  specialties, of bac pro the specialty; `voies.BT_RULES` (one explicit rule per printed label) and `voies.bp_key` (format-only
+  normalisation; a reformed diploma keeps its own key) give each row a `voie` key. The student's row = own key, else the formation's
+  own bucket, else nothing (`pick_voie`, page twin `pickVoie`); masked table = nothing, said. Published counts only, with the
+  terminale-en-France caveat; zones unchanged. The choice lives in the stored profile and is sent only to `/api/voeux` (`voie=`).
+  Red team `redteam_voies.py` (W1-W8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
