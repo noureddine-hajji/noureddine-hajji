@@ -221,11 +221,8 @@ def types_to_check(c: Ctx) -> list[tuple[str, str | None]]:
         bts = CA.formations(c.con, "BTS - BTSA - BTSM")["formations"]
         top_m = max({f.get("mention") for f in bts if f.get("mention")}, key=lambda m: sum(f.get("mention") == m for f in bts))
         return [("BUT", None), ("BUT", "Science des données"), ("BTS - BTSA - BTSM", top_m)]
-    out = []
-    for lab in CA.type_diplomes(c.con) if hasattr(CA, "type_diplomes") else []:
-        lab = lab["label"] if isinstance(lab, dict) else lab
-        out.append((lab, None))
-    return out or [("BUT", None), ("Licence", None), ("BTS - BTSA - BTSM", None)]
+    fac = CA.facets(c.con)["diplomes"]                 # every type the page offers, and one mention of each
+    return [(x["label"], None) for x in fac] + [(x["label"], x["mentions"][0]["label"]) for x in fac if x["mentions"]]
 
 
 @check("E2 the listing: the latest campaign's SIES formations of the type, the mention filter, each block = E1's, slim rows")
