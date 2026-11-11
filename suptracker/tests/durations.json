@@ -1,4 +1,5 @@
 {
+ "tests/test_accompagnement.py": 55.0,
  "tests/test_admis.py": 15.0,
  "tests/test_appel.py": 184,
  "tests/test_bmo.py": 307,
