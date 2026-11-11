@@ -672,13 +672,13 @@ def e7(c: Ctx):
         bad.append("no route")
     if not re.search(r'const ROUTE_NAME = \{[^}]*reorientation: "reorientation"', js) or not re.search(r'const TAB_OF = \{[^}]*reorientation: "parcours"', js):
         bad.append("route name or tab")
-    if not re.search(r'ROUTES = \([^)]*"reorientation"\)', c.analytics) or not re.search(r'FEEDBACK_PAGES = \([^)]*"reorientation"', c.analytics):
+    if not re.search(r'ROUTES = \([^)]*"reorientation"[,)]', c.analytics) or not re.search(r'FEEDBACK_PAGES = \([^)]*"reorientation"', c.analytics):
         bad.append("analytics route or feedback page")
     if 'reorientation: "Je me réoriente"' not in c.stats:
         bad.append("dashboard label")
     if not re.search(r'\(r"/api/reorientation", PUBLIC,', c.cache) or not re.search(r'\(r"/api/reorientation/voeux", NO_STORE,', c.cache):
         bad.append("cache policies")
-    if '"reorientation"]' not in c.api or '"reorientation": RO.for_formation(' not in c.api:
+    if '"reorientation"' not in c.api.split("FEATURES = [", 1)[1].split("]", 1)[0] or '"reorientation": RO.for_formation(' not in c.api:
         bad.append("feature list or formation block")
     rel = (ROOT / "tests" / "test_release.py").read_text()
     if '"reorientation": ("app.js", "async function viewReorientation(")' not in rel:
