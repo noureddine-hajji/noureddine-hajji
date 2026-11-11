@@ -228,7 +228,7 @@ def for_formation(con, cod: str, session: int | None = None) -> dict | None:
     return {"session": s, "sessions": sessions, "capture": cap, "source": "live" if live else "archive", "recoupe": bool(recoupe),
             "archive": url if live else f"https://web.archive.org/web/{cap}/{url}",
             "confirmes": conf, "en_position": pos, "taux_global": rate(pos, conf), "methode": how, "concours": nf > 1,
-            "doublettes": voies, "masques": masked, "textes": textes}
+            "doublettes": voies, "masques": masked, "textes": textes, "voie_keys": VO.session_keys(con, s)}
 
 
 TEXTES_FILE = "rapport_textes.duckdb"   # the jury texts, beside the warehouse: they alone would push it over GitHub's 100 MB limit

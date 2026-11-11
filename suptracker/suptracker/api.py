@@ -888,7 +888,7 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
         res = VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
-                          academie=academie or None, voie=(voie or None) if serie in ("bt", "bp") else None)
+                          academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}

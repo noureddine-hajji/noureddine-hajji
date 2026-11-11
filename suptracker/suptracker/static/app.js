@@ -63,7 +63,9 @@ const voeux = {
 function vxProfile(p) {
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
   const mention = ["sansmention", "ab", "b", "tb"].includes(p.mention) ? p.mention : "ab";
-  return { ...p, serie, mention };
+  const codes = JV && JV.voies && JV.voies[serie] ? JV.voies[serie].map((x) => x.code) : null;
+  const keep = serie !== "bg" && typeof p.voie === "string" && (!codes || p.voie === "autre" || codes.includes(p.voie));
+  return { ...p, serie, mention, voie: keep ? p.voie : null, voie_label: keep ? p.voie_label : null };
 }
 function vxQuery(ids, prof) {
   const qs = new URLSearchParams({ ids: ids.join(","), serie: prof.serie, mention: prof.mention });
@@ -464,8 +466,11 @@ function pickRapport(rp, dkey) {
 function pickVoie(rp, bac, key) {
   if (!rp || !["bt", "bp"].includes(bac) || !key) return null;
   const rows = (rp.doublettes || {})[bac] || [];
+  if (rows.some((x) => x.voie == null && !x.autres)) return null;          // a label no rule knows: never claim the bucket
   const mine = rows.find((x) => x.voie === key);
   if (mine) return { ...mine, source: "voie" };
+  const known = (rp.voie_keys || {})[bac];
+  if (key !== "autre" && Array.isArray(known) && !known.includes(key)) return null;   // not printed that session (renamed, older)
   const other = rows.find((x) => x.autres);
   return other ? { ...other, source: "autres" } : null;
 }
@@ -486,7 +491,7 @@ function rapportDoublettes(rp, prof) {
   const vkey = myVoie === "bt" || myVoie === "bp" ? prof.voie || null : null, mineV = pickVoie(rp, myVoie, vkey);
   const blocks = ["bg", "bt", "bp"].map((v) => {
     const rows = rp.doublettes[v] || [];
-    if (!rows.length) return (rp.masques || []).includes(v) ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
+    if (!rows.length) return (rp.masques || []).includes(v) && v !== myVoie ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
     return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Doublette"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
       ${rows.map((x) => { const me = v === "bg" && mine && (mine.source === "doublette" ? x.key === dkey : x.autres) && myVoie === "bg";
         const meV = v === myVoie && mineV && (mineV.source === "voie" ? x.voie === vkey : x.autres);
@@ -504,9 +509,10 @@ function rapportDoublettes(rp, prof) {
     : mineV ? `<div class="dbl-est"><p class="small"><strong>Votre ligne dans cette formation : ${pct1(mineV.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}, ligne « ${esc(mineV.libelle)} »${mineV.source === "autres" ? " de la formation" : ""}</span>${rateBar(mineV.taux, VOIES[myVoie].color)}</p>
     <p class="muted small">${fmt(mineV.en_position)} candidats sur ${fmt(mineV.confirmes)} ${mineV.source === "autres" ? `dont la ${VOIE_WORD[myVoie]} n'est pas détaillée` : `de votre ${VOIE_WORD[myVoie]}`} ont été en position de recevoir une proposition.${mineV.source === "autres" ? ` La formation ne détaille que ses ${VOIE_WORD[myVoie]}s les plus fréquentes : la vôtre est comptée avec les autres.` : ""}</p></div>`
     : (rp.masques || []).includes(myVoie) ? `<p class="small">Pour le ${myVoie === "bt" ? "bac technologique" : "bac professionnel"}, la formation n'a pas publié son tableau (effectifs trop faibles) : pas de ligne pour vous dans ce rapport.</p>`
-    : voieRows.length && !vkey ? `<p class="small"><a href="#/parcours">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir votre ligne.</p>` : "";
+    : voieRows.length && !vkey ? `<p class="small"><a href="#/parcours">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir votre ligne.</p>`
+    : voieRows.length ? `<p class="small">Votre ${VOIE_WORD[myVoie]} n'apparaît pas dans les rapports de la session ${esc(rp.session)} : pas de ligne comparable dans ce rapport.</p>` : "";
   const { bg: bgRows = [] } = rp.doublettes;
-  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${headV}${blocks}
+  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette, série ou spécialité (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${headV}${blocks}
     <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
 }
 // what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it
@@ -1614,6 +1620,11 @@ const GATES = {
 };
 let JV = null;
 
+// sprint 20: the route choice is kept only while the bac stays the same (a new bac clears it)
+function voieFromForm(fd, serie, label) {
+  const keep = fd.get("serie") === serie && !!fd.get("voie");
+  return { voie: keep ? fd.get("voie") : null, voie_label: keep ? label : null };
+}
 function profileForm(p) {
   const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
@@ -1897,9 +1908,8 @@ async function viewParcours() {
     e.preventDefault();
     const fd = new FormData(e.target);
     const vsel = e.target.querySelector('[name="voie"]');
-    const np = { serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
-      voie: fd.get("serie") === serie && fd.get("voie") ? fd.get("voie") : null,
-      voie_label: fd.get("serie") === serie && fd.get("voie") && vsel ? vsel.selectedOptions[0].textContent : null,
+    const np = { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null),
+      serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
       mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier"),
       maths_expertes: !!fd.get("maths_expertes"), lycee: lyc };
     if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
@@ -2044,6 +2054,11 @@ document.addEventListener("click", (e) => {
 });
 
 // ---- Sprint 11: "Mes vœux" (the list read for the CURRENT profile) ----------
+// sprint 20: the student's row of each vœu's report (bac techno and pro), with its source; never a chance
+function vxVoieCell(v, prof) {
+  const r = v.rapport;
+  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/parcours">indiquez votre série</a>'}</td>`;
+}
 function voeuButton(cod) {
   const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
   return `<button type="button" data-voeu="${esc(cod)}" ${full ? `disabled title="${voeux.MAX} vœux au maximum sur Parcoursup"` : ""}>${inV ? "Retirer de mes vœux" : full ? "Mes vœux : liste pleine" : "Ajouter à mes vœux"}</button>`;
@@ -2069,7 +2084,7 @@ async function viewVoeux() {
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
   const prof = vxProfile(p);                                             // stored profile: never trusted
   const { serie, mention } = prof;
-  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
+  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
     <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/parcours">Modifier dans « Mon parcours »</a></p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Mon parcours » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
@@ -2100,7 +2115,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? `, ligne « ${esc(v.rapport.libelle)} »` : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/parcours">indiquez votre série</a>'}</td>`}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : vxVoieCell(v, prof)}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
@@ -2111,7 +2126,7 @@ async function viewVoeux() {
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">Votre mention ou moins parmi les admis</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th></th></tr>
     ${rows}</table></div>
-    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : ""}</p>
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Mon parcours » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');

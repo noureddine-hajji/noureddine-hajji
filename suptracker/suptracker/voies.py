@@ -46,7 +46,8 @@ BT_NAME = {key: (serie, spe) for key, serie, spe, _ in BT_RULES}
 
 
 def norm(s: str) -> str:
-    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode().lower()
+    s = re.sub(r"[^\w]+", " ", str(s or ""))           # ’ « » : - / … are separators before the accents go (review, sprint 20)
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
     return " ".join(re.sub(r"[^a-z0-9]+", " ", s).split())
 
 
@@ -74,11 +75,34 @@ def pick_voie(block: dict | None, bac: str, key: str | None) -> dict | None:
     if not block or bac not in ("bt", "bp") or not key:
         return None
     rows = block["doublettes"].get(bac) or []
+    if any(x.get("voie") is None and not x["autres"] for x in rows):
+        return None                                   # a label no rule knows: the student may be in it, never claim the bucket
     mine = next((x for x in rows if x.get("voie") == key), None)
     if mine:
         return {**mine, "source": "voie"}
+    known = (block.get("voie_keys") or {}).get(bac)
+    if key != "autre" and known is not None and key not in known:
+        return None                                   # not printed by any report of that session (renamed, older session)
     other = next((x for x in rows if x["autres"]), None)
     return {**other, "source": "autres"} if other else None
+
+
+def session_keys(con, session: int) -> dict:
+    """The keys the reports of one session print, per route: a student's key outside them has no comparable row that year."""
+    out: dict[str, set] = {"bt": set(), "bp": set()}
+    for bac, lab in con.execute("""SELECT DISTINCT bac, libelle FROM core.rapport_doublette WHERE session = ? AND bac IN ('bt', 'bp')
+            AND NOT autres""", [session]).fetchall():
+        k = voie_key(bac, lab)
+        if k:
+            out[bac].add(k)
+    return {b: sorted(v) for b, v in out.items()}
+
+
+def valid(con, serie: str, key: str | None) -> str | None:
+    """A route key the student may hold: one of the choices, or 'autre'; anything else (stale, hostile, another route) = None."""
+    if serie not in ("bt", "bp") or not key:
+        return None
+    return key if key == "autre" or key in {x["code"] for x in choices(con)[serie]} else None
 
 
 def choices(con) -> dict:

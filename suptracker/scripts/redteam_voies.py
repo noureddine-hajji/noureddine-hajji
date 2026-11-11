@@ -77,7 +77,7 @@ def independent_bt(label: str) -> str | None:
 def words_of(label: str) -> tuple:
     """The words of a bac pro label, read independently: letters and digits only, a leading 'bac pro' and 'opt' set aside."""
     import unicodedata
-    s = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode().lower()
+    s = unicodedata.normalize("NFKD", re.sub(r"[’'«»]", " ", label)).encode("ascii", "ignore").decode().lower()   # ’ separates words
     w = re.findall(r"[a-z0-9]+", s)
     if w[:2] == ["bac", "pro"]:
         w = w[2:]
@@ -149,7 +149,8 @@ def w2(c: Ctx):
     A = M["VO"]
     same = [("Bac pro Métiers de la sécurité", "Métiers de la sécurité", "métiers de la SÉCURITÉ"),
             ("Maintenance des matériels option a: agricoles", "Maintenance des matériels option a : agricoles", "Maintenance des matériels opt. a agricoles"),
-            ("Accompagnement, soins et services à la personne option b : « en structure »", "Accompagnement soins et services à la personne option b en structure")]
+            ("Accompagnement, soins et services à la personne option b : « en structure »", "Accompagnement soins et services à la personne option b en structure"),
+            ("Etude et Réalisation d’Agencement", "Etude et réalisation d'agencement")]
     differ = [("Accompagnement soins et services à la personne", "Accompagnement, soins et services à la personne option b : « en structure »"),
               ("Systèmes numériques, option a: sûreté", "Systèmes numériques, option b: sûreté"),
               ("Services aux personnes et animation dans les territoires", "Services aux personnes et aux territoires"),
@@ -187,6 +188,14 @@ def w3(c: Ctx):
              (("bt", None), None), (("bp", "cuisine"), ("voie", 10.0)), (("bp", "logistique"), None), (("bg", "stmg_merc"), None)]
     got = {k: (lambda x: (x["source"], x["taux"]) if x else None)(A.pick_voie(b, *k)) for k, _ in cases}
     bad = [(k, got[k], want) for k, want in cases if got[k] != want]
+    # review (sprint 20): an older session that never printed the student's key gives no bucket ("autre" still does);
+    # a label no rule knows stops the bucket claim
+    old = {**b, "voie_keys": {"bt": ["sti2d", "stmg_merc"], "bp": ["cuisine"]}}
+    unk = {**b, "doublettes": {**b["doublettes"], "bt": b["doublettes"]["bt"] + [{"libelle": "Nouvelle série", "voie": None, "autres": False,
+                                                                                  "confirmes": 9, "en_position": 1, "taux": 11.1}]}}
+    session = [(A.pick_voie(old, "bt", "stmg_rhc"), None), ((A.pick_voie(old, "bt", "autre") or {}).get("source"), "autres"),
+               ((A.pick_voie(old, "bt", "sti2d") or {}).get("source"), "voie"), (A.pick_voie(unk, "bt", "stmg_rhc"), None)]
+    bad += [("session/unknown", i, g) for i, (g, w) in enumerate(session) if g != w]
     n = 0
     if c.real and c.has:
         from suptracker import rapports as RP
@@ -197,6 +206,11 @@ def w3(c: Ctx):
         for cod in cods:
             blk = RP.for_formation(c.con, cod)
             s = blk["session"]
+            vk = {b: sorted({(independent_bt(lab) if b == "bt" else " ".join(words_of(lab))) for (lab,) in c.con.execute(
+                """SELECT DISTINCT libelle FROM core.rapport_doublette WHERE session = ? AND bac = ? AND NOT autres""", [s, b]).fetchall()})
+                  for b in ("bt", "bp")}
+            if blk.get("voie_keys") != vk:
+                bad.append((cod, "session keys"))
             sql = {(bac, lab): (bool(a), p, cf) for bac, lab, a, p, cf in c.con.execute("""SELECT bac, libelle, autres, en_position, confirmes
                 FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? AND bac IN ('bt', 'bp')""", [cod, s]).fetchall()}
             for bac in ("bt", "bp"):
@@ -209,12 +223,16 @@ def w3(c: Ctx):
                     own = [(lab, v) for (bb, lab), v in sql.items() if bb == bac and not v[0]
                            and (independent_bt(lab) if bac == "bt" else " ".join(words_of(lab))) == key]
                     bucket = [(lab, v) for (bb, lab), v in sql.items() if bb == bac and v[0]]
-                    exp = own[0] if own else bucket[0] if bucket else None
+                    comparable = key == "autre" or key in vk[bac]
+                    exp = own[0] if own else bucket[0] if bucket and comparable else None
                     if (pick is None) != (exp is None) or (pick and (pick["libelle"] != exp[0] or pick["en_position"] != exp[1][1]
                                                                     or pick["confirmes"] != exp[1][2])):
                         bad.append((cod, bac, key, "pick"))
                     n += 1
-    return not bad, f"{len(cases)} crafted cases; {n} warehouse picks re-derived by SQL; problems {bad[:3]}"
+        b24 = RP.for_formation(c.con, "23379", 2024)
+        if b24 and b24["session"] == 2024 and A.pick_voie(b24, "bp", "services aux personnes et animation dans les territoires") is not None:
+            bad.append(("23379", 2024, "renamed diploma sent to the bucket"))
+    return not bad, f"{len(cases) + len(session)} crafted cases; {n} warehouse picks re-derived by SQL; problems {bad[:3]}"
 
 
 @contextmanager
@@ -275,8 +293,14 @@ def w4(c: Ctx):
                         continue
                     want = M["VO"].pick_voie(RP.for_formation(c.con, x["cod_aff_form"]), serie, key)
                     got = x.get("rapport")
-                    if (want is None) != (got is None) or (want and (got["taux"], got["source"], got["libelle"]) != (want["taux"], want["source"], want["libelle"])):
+                    blk = RP.for_formation(c.con, x["cod_aff_form"])
+                    full = None if not want else {"session": blk["session"], "source": want["source"], "taux": want["taux"], "confirmes": want["confirmes"],
+                                                  "en_position": want["en_position"], "recoupe": blk["recoupe"], "libelle": want["libelle"]}
+                    if got != full:
                         bad.append((serie, key, x["cod_aff_form"]))
+            cross = cl.get("/api/voeux", params={"ids": ",".join(cods), "serie": "bp", "mention": "ab", "voie": "stmg_merc"}).json()
+            if any(x.get("rapport") for x in cross["voeux"]):
+                bad.append("a techno key read for a bac pro student")
             g1 = cl.get("/api/voeux", params={"ids": ",".join(cods), "serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "ab"}).json()
             g2 = cl.get("/api/voeux", params={"ids": ",".join(cods), "serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "ab", "voie": "stmg_merc"}).json()
             if [x.get("rapport") for x in g1["voeux"]] != [x.get("rapport") for x in g2["voeux"]]:
@@ -294,6 +318,10 @@ def w4(c: Ctx):
         ('1', 2025, 'bp', 'Bac pro cuisine', false), ('2', 2025, 'bp', 'Cuisine', false), ('1', 2025, 'bp', 'Autres spécialités', true),
         ('4', 2025, 'bp', 'Bac pro cuisine', false), ('3', 2024, 'bp', 'Logistique', false)""")
     ch = M["VO"].choices(mem)
+    validity = [M["VO"].valid(mem, "bp", "stmg_merc"), M["VO"].valid(mem, "bt", "stmg_merc"), M["VO"].valid(mem, "bt", "autre"),
+                M["VO"].valid(mem, "bg", "stmg_merc"), M["VO"].valid(mem, "bt", "stale_key")]
+    if validity != [None, "stmg_merc", "autre", None, None]:
+        bad.append(("validity", validity))
     mem.close()
     crafted = ch == {"bt": [{"code": "stmg_merc", "serie": "STMG", "label": "STMG, Mercatique", "n": 2}],
                      "bp": [{"code": "cuisine", "label": "Cuisine", "n": 3}]}
@@ -308,7 +336,7 @@ def w5(c: Ctx):
     try:
         lib = "\n".join(top(js, n) for n in ("esc", "fmt", "pct", "VOIES", "pct1", "rateBar", "voiePill", "profileDkey", "pickRapport",
                                              "pickVoie", "VOIE_WORD", "RP_CAVEAT", "rpPending", "rapportSource", "rapportDoublettes",
-                                             "profileLine", "vxQuery"))
+                                             "profileLine", "vxQuery", "vxVoieCell", "voieFromForm", "vxProfile"))
     except KeyError as e:
         return False, f"missing definition {e}"
     prog = lib + """
@@ -322,6 +350,16 @@ out.bg = rapportDoublettes(blk, { serie: "bg", spe1: "MATHS", spe2: "SES", voie:
 out.line = profileLine({ serie: "bt", voie_label: "<img src=x>", mention: "ab" }, "bt");
 out.qbt = vxQuery(["1"], { serie: "bt", mention: "ab", voie: "stmg_merc" }).toString();
 out.qbg = vxQuery(["1"], { serie: "bg", mention: "ab", spe1: "MATHS", spe2: "SES", voie: "stmg_merc" }).toString();
+const r1 = { session: 2026, source: "autres", taux: 40.0, confirmes: 50, en_position: 20, recoupe: false, libelle: "<b>Autres</b>" };
+out.cell = vxVoieCell({ status: "ok", rapport: r1 }, { voie: "stmg_merc" });
+out.cellNone = vxVoieCell({ status: "ok", rapport: null }, { voie: null });
+const fd = (o) => ({ get: (k) => (k in o ? o[k] : null) });
+out.formSame = voieFromForm(fd({ serie: "bt", voie: "sti2d" }), "bt", "STI2D, Ingénierie");
+out.formNew = voieFromForm(fd({ serie: "bp", voie: "sti2d" }), "bt", "STI2D, Ingénierie");
+var JV = { voies: { bt: [{ code: "sti2d" }], bp: [{ code: "cuisine" }] } };
+out.stale = vxProfile({ serie: "bp", mention: "ab", voie: "sti2d", voie_label: "x" });
+out.autre = vxProfile({ serie: "bp", mention: "ab", voie: "autre", voie_label: "Autre spécialité" });
+out.oldSession = rapportDoublettes({ ...blk, voie_keys: { bt: ["sti2d"], bp: [] } }, { serie: "bt", voie: "stmg_rhc", mention: "ab" }).html;
 process.stdout.write(JSON.stringify(out));"""
     b = crafted_block()
     b["doublettes"]["bt"][1]["libelle"] = HOSTILE
@@ -346,9 +384,16 @@ process.stdout.write(JSON.stringify(out));"""
     bg = mine(o["bg"]) == ['Mathématiques &amp; SES <span class="estim">votre doublette</span>'] and "Votre ligne dans" not in o["bg"]
     esc_ok = all("<img" not in o[k] for k in ("own", "bucket", "none", "masked", "bg", "line"))
     query = "voie=stmg_merc" in o["qbt"] and "voie=" not in o["qbg"]
-    ok = twin and own and bucket and none and masked and bg and esc_ok and query
+    cell = ("40 %" in o["cell"] or "40,0 %" in o["cell"]) and "20 sur 50" in o["cell"] and "pas encore recoupé avec les chiffres de 2026" in o["cell"] \
+        and "&lt;b&gt;Autres" in o["cell"] and "indiquez votre série" in o["cellNone"]
+    form = o["formSame"] == {"voie": "sti2d", "voie_label": "STI2D, Ingénierie"} and o["formNew"] == {"voie": None, "voie_label": None}
+    stored = o["stale"]["voie"] is None and o["stale"]["voie_label"] is None and o["autre"]["voie"] == "autre"
+    older = "n'apparaît pas dans les rapports de la session 2025" in o["oldSession"] and not mine(o["oldSession"])
+    once = o["masked"].count("non publiés par la formation") == 0
+    ok = twin and own and bucket and none and masked and bg and esc_ok and query and cell and form and stored and older and once
     return ok, (f"twin {twin}; own row {own}; bucket {bucket}; no choice {none}; masked {masked}; bac général unchanged {bg}; "
-                f"escaped {esc_ok}; query {query}")
+                f"escaped {esc_ok}; query {query}; Mes vœux cell {cell}; form keeps a choice only for the same bac {form}; stale key dropped {stored}; "
+                f"older session {older}; masked note once {once}")
 
 
 @check("W6 wording: never a chance, vouvoiement, 'rare' not 'fermé', the report caveat kept")
@@ -366,11 +411,11 @@ def w6(c: Ctx):
 @check("W7 wiring: profile form, Mes vœux column, Mon parcours note and apprenticeship pointer, vocabulary, features, release guard")
 def w7(c: Ctx):
     js = c.js
-    form = 'select name="voie"' in top(js, "profileForm") and 'voie: fd.get("serie") === serie && fd.get("voie")' in js
+    form = 'select name="voie"' in top(js, "profileForm") and "const np = { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null)," in js
     column = 'data-label="Votre ligne, rapport du jury"' in js and "Votre ligne dans le rapport du jury (cette formation)" in js
     appr = 'serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage' in js
     vocab = '"voies": VO.choices(_con().cursor())' in c.api
-    voeux = "x = VO.pick_voie(b, serie, voie)" in c.vx and 'voie=(voie or None) if serie in ("bt", "bp") else None' in c.api
+    voeux = "x = VO.pick_voie(b, serie, voie)" in c.vx and "voie=VO.valid(_con().cursor(), serie, voie)" in c.api
     feat = '"voie_rapport"]' in c.api
     rel = '"voie_rapport": ("app.js", "function pickVoie(")' in (ROOT / "tests" / "test_release.py").read_text()
     ok = form and column and appr and vocab and voeux and feat and rel
@@ -387,6 +432,10 @@ PY_MUTANTS = [
     ("a row matched by its label", 'mine = next((x for x in rows if x.get("voie") == key), None)', 'mine = next((x for x in rows if x.get("libelle") == key), None)'),
     ("bac général read as a route", 'if not block or bac not in ("bt", "bp") or not key:', "if not block or not key:"),
     ("the bucket listed as a choice", "WHERE d.bac IN ('bt', 'bp') AND NOT d.autres", "WHERE d.bac IN ('bt', 'bp')"),
+    ("curly apostrophe glues words", '    s = re.sub(r"[^\\w]+", " ", str(s or ""))', '    s = str(s or "")'),
+    ("older session sent to the bucket", '    if key != "autre" and known is not None and key not in known:\n        return None', "    if False:\n        return None"),
+    ("unknown label ignored", '    if any(x.get("voie") is None and not x["autres"] for x in rows):\n        return None', "    if False:\n        return None"),
+    ("any key accepted", 'return key if key == "autre" or key in {x["code"] for x in choices(con)[serie]} else None', "return key"),
     ("'Bac pro' left in the labels", '        s = re.sub(r"^\\s*bac pro\\s+", "", s, flags=re.I).strip()\n', "        s = s.strip()\n"),
 ]
 JS_MUTANTS = [
@@ -399,6 +448,12 @@ JS_MUTANTS = [
     ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : ""', ': p.voie_label ? p.voie_label : ""'),
     ("closed instead of rare", "Une part faible veut dire « rare », pas « fermé ».", "Une part faible veut dire que la formation est fermée."),
     ("chance wording", "pour voir votre ligne.</p>", "pour voir vos chances d'être admis.</p>"),
+    ("Mes vœux cell without its recheck flag", '${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie',
+     '</div>` : prof.voie'),
+    ("Mes vœux cell shows the candidates", "r ? `${pct1(r.taux)}<div", "r ? `${pct1(r.confirmes)}<div"),
+    ("a choice kept across a change of bac", 'const keep = fd.get("serie") === serie && !!fd.get("voie");', 'const keep = !!fd.get("voie");'),
+    ("stale stored key kept", "(!codes || p.voie === \"autre\" || codes.includes(p.voie))", "true"),
+    ("older-session page claims the bucket", 'if (key !== "autre" && Array.isArray(known) && !known.includes(key)) return null;', ""),
     ("apprenticeship pointer dropped", ' Beaucoup de BTS se préparent aussi en apprentissage', " Voir la carte"),
 ]
 
