@@ -10,40 +10,44 @@
 <body>
 <header class="top">
   <a class="brand" href="/">SupCompass <span>Parcoursup 2022–2025, les vrais chiffres</span></a>
+  <!-- R1 (owner, 2026-11-11): the menus follow the student's journey. Explorer (list, map, jobs), Mon profil, Mes vœux,
+       Calendrier; the reading aids under "Comprendre"; one entry for parents and teachers; the profile chip on wide screens -->
   <nav class="topnav" aria-label="Menu">
-    <a href="#/" data-tab="home">Recherche</a>
-    <a href="#/parcours" data-tab="parcours">Mon parcours</a>
-    <a href="#/metiers" data-tab="metiers">Métiers</a>
+    <a href="#/" data-tab="home">Explorer</a>
+    <a href="#/profil" data-tab="profil">Mon profil</a>
     <a href="#/voeux" data-tab="voeux">Mes vœux <span id="voeux-count" class="pill" data-count="voeux">0</span></a>
-    <a href="#/carte" data-tab="carte">Carte</a>
-    <a href="#/comprendre" data-tab="comprendre">Comprendre l'appel</a>
-    <a href="#/selectivite" data-tab="selectivite">Vraie sélectivité</a>
-    <a href="#/compare" data-tab="compare">Comparateur <span id="basket-count" class="pill" data-count="basket">0</span></a>
-    <a href="#/specialites" data-tab="specialites">Spécialités</a>
-    <a href="#/qualite" data-tab="qualite">Qualité des données</a>
-    <a href="#/glossaire" data-tab="glossaire">Glossaire</a>
     <a href="#/calendrier" data-tab="calendrier">Calendrier</a>
-    <a href="#/accompagner" data-tab="accompagner">Accompagner un élève</a>
+    <div class="drop">
+      <button type="button" id="comp-btn" aria-expanded="false" aria-controls="comp-menu">Comprendre <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div id="comp-menu" class="drop-menu" hidden>
+        <a href="#/compare" data-tab="compare">Comparateur <span id="basket-count" class="pill" data-count="basket">0</span></a>
+        <a href="#/comprendre" data-tab="comprendre">Comprendre l'appel</a>
+        <a href="#/selectivite" data-tab="selectivite">Vraie sélectivité</a>
+        <a href="#/specialites" data-tab="specialites">Spécialités</a>
+        <a href="#/qualite" data-tab="qualite">Qualité des données</a>
+        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>
+      </div>
+    </div>
+    <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>
   </nav>
+  <a id="profile-chip" class="profile-chip" href="#/profil" hidden></a>
 </header>
 <!-- lot 1 UI: on a phone the menu is a bottom tab bar (4 tabs + "Plus"); the top menu shows on wide screens only -->
 <nav class="tabbar" aria-label="Menu principal">
-  <a href="#/" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Chercher</a>
-  <a href="#/parcours" data-tab="parcours"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>Mon parcours</a>
-  <a href="#/metiers" data-tab="metiers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/></svg>Métiers</a>
-  <a href="#/voeux" data-tab="voeux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Mes vœux<span class="pill" data-count="voeux">0</span></a>
+  <a href="#/" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Explorer</a>
+  <a href="#/profil" data-tab="profil"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>Mon profil</a>
+  <a href="#/voeux" data-tab="voeux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Mes vœux<span class="pill" data-count="voeux" hidden>0</span></a>
+  <a href="#/calendrier" data-tab="calendrier"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>Calendrier</a>
   <button type="button" id="more-btn" aria-expanded="false" aria-controls="more-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Plus</button>
 </nav>
 <div id="more-menu" class="more-menu" hidden>
-  <a href="#/carte" data-tab="carte">Carte des formations</a>
+  <a href="#/compare" data-tab="compare">Comparateur <span class="pill" data-count="basket">0</span></a>
   <a href="#/comprendre" data-tab="comprendre">Comprendre l'appel</a>
   <a href="#/selectivite" data-tab="selectivite">Vraie sélectivité</a>
-  <a href="#/compare" data-tab="compare">Comparateur <span class="pill" data-count="basket">0</span></a>
   <a href="#/specialites" data-tab="specialites">Spécialités</a>
   <a href="#/qualite" data-tab="qualite">Qualité des données</a>
   <a href="#/glossaire" data-tab="glossaire">Glossaire</a>
-  <a href="#/calendrier" data-tab="calendrier">Calendrier Parcoursup</a>
-  <a href="#/accompagner" data-tab="accompagner">Accompagner un élève</a>
+  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>
 </div>
 <form id="search" class="search" autocomplete="off">
   <input id="q" type="search" placeholder="Formation, ville, sigle…" aria-label="Recherche">

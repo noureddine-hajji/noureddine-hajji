@@ -348,13 +348,15 @@ process.stdout.write(JSON.stringify(out));"""
 def c7(c: Ctx):
     from suptracker import analytics, cache
     route = 'if (a === "carte") return await viewCarte(b || "", c || "");' in c.js and 'carte: "carte"' in c.js
-    menus = c.html.count('href="#/carte"') == 2
+    # R1 (owner, 2026-11-11): the map is one of the Explorer views (list, map, jobs), shown on the home, search and map pages
+    menus = 'carte: "#/carte", metiers' in c.js and all("explorerViews(" in c.js[c.js.index(f"function {fn}("):][:3000]
+                                                        for fn in ("viewHome", "viewCarte"))
     an = "carte" in analytics.ROUTES
     pol = cache.policy("/api/carte") and cache.policy("/api/carte/formations") and cache.policy("/api/carte/zones")
     rel = '"carte": ("app.js", "function viewCarte(")' in (ROOT / "tests" / "test_release.py").read_text()
     parcours = 'href="#/carte/t/${encodeURIComponent(drill.type)}"' in c.js and "const d = FAC.types[mArg]" in c.js
     ok = route and menus and an and bool(pol) and rel and parcours
-    return ok, f"route {route}; two menu entries {menus}; analytics {an}; cache {bool(pol)}; release guard {rel}; link from Mon parcours {parcours}"
+    return ok, f"route {route}; reached through the Explorer views {menus}; analytics {an}; cache {bool(pol)}; release guard {rel}; link from Mon parcours {parcours}"
 
 
 def app_codes(con) -> set:

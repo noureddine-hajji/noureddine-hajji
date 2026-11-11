@@ -53,6 +53,8 @@ FEATURE_ENTRY_POINTS = {
     "accompagner": ("app.js", "function viewAccompagner("),
     "premiere": ("app.js", "async function viewPremiere("),
     "liste_partagee": ("app.js", "async function viewListe("),
+    "mon_profil": ("app.js", "async function viewProfil("),
+    "navigation_parcours": ("app.js", "function explorerViews("),
 }
 
 
@@ -67,7 +69,8 @@ def test_every_feature_is_wired():
     assert "loadPlanB(r.cod_aff_form)" in js and "${timingCard(r, d.history)}" in js and "${offerCard(r, d.apprentissage)}" in js and "${appelCard(d.appel)}" in js
     assert 'if (a === "stats") return await viewStats(b)' in js
     assert 'if (a === "voeux") return await viewVoeux()' in js and "${voeuButton(r.cod_aff_form)}" in js
-    assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'href="#/metiers"' in (STATIC / "index.html").read_text()
+    # R1: the jobs are one of the Explorer views (list, map, jobs), no longer a menu entry of their own
+    assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'carte: "#/carte", metiers: "#/metiers"' in js
     assert 'if (a === "metiers") return await viewMetiers(' in js
     assert "${codesCard(d.codes)}" in js and "${emploi2030Card(d.emploi2030)}" in js and "${bmoCard(d.bmo)}" in js and "${iaCard(d.ia)}" in js and "${licenceMasterCard(d.licence_master)}" in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()

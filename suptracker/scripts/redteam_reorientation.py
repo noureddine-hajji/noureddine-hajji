@@ -515,7 +515,7 @@ def e5(c: Ctx):
     pf = top(js, "profileForm")
     if 'name="statut"' not in pf or "REO_LABEL" not in pf:
         bad.append("no situation in the profile form")
-    if 'statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale"' not in vp:
+    if 'statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale"' not in top(js, "readForm"):   # R1: "Mon profil"
         bad.append("the form does not store a validated status")
     for fn in ("doubletteCard", "juryCard", "semblablesJuryCard", "doubletteCharts", "viewCarte", "profileRows"):
         try:
@@ -527,7 +527,7 @@ def e5(c: Ctx):
             bad.append(("reads the bac without bacProfile", fn))
     # profile bar, Mes vœux and Plan B run in Node
     harness = top(js, "PB_ZONES") + top(js, "vxQuery") + "\nconst ZONES = {securite:{label:'s',color:'x'},cible:{label:'c',color:'x'},ambitieux:{label:'a',color:'x'}};\n" \
-        + top(js, "profileBar") + "\nlet planbSeq = 0;\n" + top(js, "loadPlanB")
+        + "\nconst profileChip = () => {};\n" + top(js, "profileBar") + "\nlet planbSeq = 0;\n" + top(js, "loadPlanB")
     script = r"""
     const out = {};
     const el = { hidden: false, innerHTML: "" };
@@ -670,7 +670,7 @@ def e7(c: Ctx):
         bad.append(("doors", len(doors)))
     if 'if (a === "reorientation") return await viewReorientation(b || "", c || "");' not in js:
         bad.append("no route")
-    if not re.search(r'const ROUTE_NAME = \{[^}]*reorientation: "reorientation"', js) or not re.search(r'const TAB_OF = \{[^}]*reorientation: "parcours"', js):
+    if not re.search(r'const ROUTE_NAME = \{[^}]*reorientation: "reorientation"', js) or not re.search(r'const TAB_OF = \{[^}]*reorientation: "profil"', js):
         bad.append("route name or tab")
     if not re.search(r'ROUTES = \([^)]*"reorientation"[,)]', c.analytics) or not re.search(r'FEEDBACK_PAGES = \([^)]*"reorientation"', c.analytics):
         bad.append("analytics route or feedback page")

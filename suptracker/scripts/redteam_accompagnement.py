@@ -672,7 +672,9 @@ def t7(c: Ctx):
             bad.append(("route name", name))
         if f'"{name}"' not in c.analytics.split("ROUTES = (", 1)[1].split(")", 1)[0]:
             bad.append(("analytics route", name))
-    if not re.search(r'const TAB_OF = \{[^}]*liste: "liste"', js) or not re.search(r'const MORE_TABS = \[[^\]]*"calendrier", "accompagner"\]', js):
+    # R1 (owner, 2026-11-11): the calendar is a main tab, the adult page closes "Plus" on a phone
+    if not re.search(r'const TAB_OF = \{[^}]*liste: "liste"', js) or not re.search(r'const TAB_OF = \{[^}]*calendrier: "calendrier"', js) \
+            or not re.search(r'const MORE_TABS = \[\.\.\.COMP_TABS, "accompagner"\]', js):
         bad.append("tabs")
     for href in ("#/calendrier", "#/accompagner"):
         if c.html.count(f'href="{href}"') != 2:
@@ -775,7 +777,7 @@ JS_MUTANTS += [
 TEXT_MUTANTS = [("cache", "calendar shared nowhere", '(r"/api/calendrier", PUBLIC,', '(r"/api/calendrier", NO_STORE,'),
                 ("css", "print keeps the menus", "  header, nav, .tabbar,", "  header,"),
                 ("css", "print in dark colours", "  :root:root:root { --bg: #ffffff;", "  :root:root:root { --bgx: #ffffff;"),
-                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Accompagner un élève</a>\n</div>', "</div>")]
+                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</div>', "</div>")]
 
 
 def mutated(old: str, new: str):

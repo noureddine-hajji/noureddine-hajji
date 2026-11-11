@@ -287,7 +287,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   closed lists; fail-open.
   Sprint 18 (owner, 2026-11-11): three closed actions (`action`: voeu, planb, onglet + a closed tab list), counted as events and
   distinct visitors, NEVER with the formation concerned; Mes vœux has a feedback box and says what is counted. Red team R23-R26.
-- **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (Chercher, Mon parcours, Métiers, Mes vœux, Plus), the
+- **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (since R1: Explorer, Mon profil, Mes vœux, Calendrier, Plus), the
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
   "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
@@ -420,6 +420,14 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     terminale profile, the estimate outside terminale, official rates otherwise. "Ajouter à ma liste" merges up to 10 and never replaces
     the recipient's list or profile. Printing hides menus and buttons and adds the date and the "pas des chances" line.
   - The adult page (`#/accompagner`) addresses parents and teachers, still in vouvoiement. Red team `redteam_accompagnement.py` (T1-T8).
+- **Journey menus and "Mon profil" (sprint R1, owner 2026-11-11).** Phone bar: Explorer, Mon profil, Mes vœux, Calendrier + Plus
+  (the six reading aids + Parents et professeurs); wide screen: the same four, "Comprendre ▾" (comparator, appel, sélectivité,
+  spécialités, qualité, glossaire), Parents et professeurs and the profile chip (escaped, `vxProfile`, hidden on stats and a shared
+  list). Explorer = Liste | Carte | Métiers (`explorerViews`) + every formation page; Mon profil = `#/profil`, `#/parcours` (shown as
+  "Où je me situe"), `#/reorientation`, `#/premiere`. `#/profil` is the ONE place the profile is edited (`profileForm`, `readForm`):
+  situation first, only its fields, each with what it is used for; first save explicit, later changes saved at once; outside
+  terminale the stored fields are kept and no bac field is invented; erase asks first. Profile prompts link `#/profil`. A new page
+  needs a TAB_OF entry and a closed analytics route. Red team `redteam_navigation.py` (U1-U8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
