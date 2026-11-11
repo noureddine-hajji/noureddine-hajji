@@ -397,3 +397,11 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .adm-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
 .adm p { margin: 0; }
 .badge.autres { border-color: var(--adm-autres); color: var(--ink); }
+
+/* sprint 19: "Y entrer" keeps five cards in view; the other figures are folded, and the summary links to the jury tab */
+.more-card { margin: 12px 0; }
+.more-card > summary { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); cursor: pointer; }
+.more-card[open] > summary { margin-bottom: 12px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
+.sum-jury { margin: 8px 0 0; }
+.fhead-links { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }

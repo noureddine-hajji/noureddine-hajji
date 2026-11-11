@@ -281,6 +281,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - `clean_complement` handles establishment names containing " - ".
 - **Analytics.** No IP, user agent or identifier; daily HMAC pseudonym; k = 3; DNT/GPC honoured;
   closed lists; fail-open.
+  Sprint 18 (owner, 2026-11-11): three closed actions (`action`: voeu, planb, onglet + a closed tab list), counted as events and
+  distinct visitors, NEVER with the formation concerned; Mes vœux has a feedback box and says what is counted. Red team R23-R26.
 - **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (Chercher, Mon parcours, Métiers, Mes vœux, Plus), the
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
@@ -290,6 +292,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
   `<details class="dip">`. A new card goes in a tab, never above the summary. Red team X9-X13 (+ X7 page lengths).
+  Sprint 19: "Y entrer" shows 5 cards and folds the others under "Plus de chiffres sur l'admission"; the summary links to the jury
+  tab from the same render; two-row header. Keep a new admission card folded unless it replaces one of the five. Red team X16-X17.
 - **Working pages (lot 3).** Mes vœux opens on `zoneTiles` (zone tokens, counts, never a chance); Mon parcours folds a stored
   profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
   (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide);

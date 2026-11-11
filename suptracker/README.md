@@ -2087,3 +2087,44 @@ strictly outnumber the néo-bacheliers (5 220 formation-campaigns, 1 434 in 2025
 - H3: the page in Node: the bar, its widths and text alternative, the label only from the flag, the comparator cell.
 - H4: wording. H5: wiring and design tokens.
 - H6: 24 seeded bugs, each caught (on the synthetic and the real warehouse). 11 s on real data.
+
+## Sprint 18: measuring what students do (owner's go, 2026-11-11)
+
+Until now the audience dashboard counted page views, searches, formation pages, clicks to Parcoursup and feedback votes. It
+could not tell whether students used the tools that matter. Three actions are now counted, with the same rules as everything else
+(no cookie, no identifier, daily pseudonym, Do-Not-Track and GPC honoured, closed lists):
+- **vœu added** to the list (counted once it is really added, never an attempt on a full list);
+- **Plan B opened** ("Voir un plan B" in Mon parcours and in Mes vœux);
+- **a formation-page tab opened** (closed list: Y entrer, jury, réussir, emploi, historique).
+
+**Never the formation concerned**: the list a student considers is not recorded, only that an action happened. The beacon refuses
+any other action or tab (422), and a formation code sent with an action is dropped.
+
+Dashboard (`#/stats`): a KPI "Visiteurs ajoutant un vœu" (a rate of visitors, Wilson interval, Holm-corrected with the others), an
+"Actions des élèves" table (distinct visitor-days and number of actions) and the tabs opened. Mes vœux gets its "Cette page vous a
+aidé ?" box. The Mes vœux privacy sentence now says what is counted: "rien n'en est enregistré sur le serveur. Le site compte
+seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté".
+
+**Red team** `scripts/redteam_analytics.py`: R23 closed list (4 accepted, 6 refused, no code stored), R24 counting (events and
+distinct visitors, the KPI a rate in [0, 1], the Mes vœux vote), R25 page wiring (counted after the addition, never a code, fiche
+tabs only, both Plan B buttons, the texts), R26 mutation test (11 seeded bugs in the server, the page and the dashboard, each caught).
+
+## Sprint 19: a shorter formation page (2026-11-11)
+
+**Measured before**: on an iPhone 13 the formation page was 17.6 screens long, and its summary ("L'essentiel") started below the
+first screen when the profile bar showed an alert.
+
+**Changes**
+- "Y entrer" keeps five cards in view: official indicators, your doublette, how far the list was called, Plan B, options and good
+  to know. Five are folded under "Plus de chiffres sur l'admission": next-campaign ranges, offer timing, lycées of origin, the
+  three-stage funnel and the comparison with the filière (its "P93" percentiles).
+- "L'essentiel" links to the jury tab: "Ce que regarde le jury : son rapport public 2025 →", or "Ce que regardent les jurys de
+  formations semblables (pas de rapport pour celle-ci) →". The link and the tab come from the same render, so a link never points
+  to a missing tab. It is a link, not a checklist (the "projet motivé" feature stays rejected).
+- The header has two rows: the establishment code moved to the history tab; the session, evolution, Parcoursup and map links sit
+  under the summary.
+
+**Measured after**: 10.3 to 11.7 phone screens instead of 17.6; the summary is in the first screen with the alert shown.
+
+**Red team** `scripts/redteam_ux.py`: X16 (five cards in view, five folded, link and tab from one render, escaped session, compact
+header), X17 (6 seeded bugs, each caught); X7's phone limit lowered from 14 to 13 screens.
