@@ -2403,8 +2403,13 @@ campaign's estimated series access, and it caused four problems:
 - it was unlabelled on an older-session page;
 - it was a figure the card does not show.
 
-The tile now shows the card's own "votre bac" row for the page's campaign, with the card's "peu de candidats" flag. The same
-review led to these wording fixes:
+The tile now shows the card's own "votre bac" row for the page's campaign, with the card's "peu de candidats" flag.
+
+**Codex (PR #54).** The route rate and the estimates carry every campaign of the formation's lineage, and their top-level figure
+is the latest one. A 2022 page could therefore show a 2025 rate beside "Taux d'accès 2022". The tile now reads the trend entry
+of the page's own campaign; with no entry, it shows no figure. Red team Z1 now also covers about 140 real older pages.
+
+The same independent review led to these wording fixes:
 - the rate computed from published counts is no longer called "publié";
 - a report figure now carries its counts;
 - labels replace raw specialty codes.

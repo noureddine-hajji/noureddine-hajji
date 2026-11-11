@@ -433,7 +433,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   bac général = own report row (doublette, else its "Autres" line) when the report has a bac général table (no row = said, never an
   estimate), else similar formations, else national group, else the card's "votre bac" row; bac techno/pro = own report line
   (`pickVoie`), else the card's "votre bac" row (this formation's route proposal rate, the page's campaign, "peu de candidats"
-  below 20; never Plan B's latest-campaign estimate: review). Report figures carry their counts; no two distinct specialties = a
+  below 20; never Plan B's latest-campaign estimate: review). Route rates and estimates are read at the PAGE's campaign (their
+trend entry; the top-level figure is the lineage's latest: Codex). Report figures carry their counts; no two distinct specialties = a
   link to Mon profil. Outside terminale the estimate keeps its own tile. Published replaces estimate, never beside it. 5 tiles with
   a terminale profile, 4 otherwise. ART+ART cannot be entered (one Arts code): owner decision pending. Red team
   `redteam_tauxprofil.py` (Z1-Z6).

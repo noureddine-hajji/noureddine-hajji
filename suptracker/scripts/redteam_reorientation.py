@@ -601,7 +601,7 @@ def e6(c: Ctx):
     js = c.js
     # sprint R2: the summary's "Pour votre profil" tile and the page's own helpers it calls
     r2 = "".join(top(js, n) for n in ("pickDoublette", "estimateDoublette", "estimateSemblable", "ownHasBg", "pickRapport", "pickVoie",
-                                       "VOIE_WORD", "RP_VOIE", "profileRate", "PR_SOURCE", "profileRateTile"))
+                                       "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile"))
     harness = r2 + top(js, "admisBar") + top(js, "summaryBand")
     vf = top(js, "viewFormation")
     more = vf[vf.find("Plus de chiffres sur l'admission"):]

@@ -959,12 +959,17 @@ function profileRate(d, prof) {
   const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
   const rp = d.rapport, dbl = d.doublettes;
   const series = dbl && dbl.series;
-  const route = () => {                                       // the card's "votre bac" row
-    const v = series && series[serie];
+  // Codex (PR #54): the series and estimates carry every campaign of the lineage, their top-level figure is the LATEST one;
+  // the tile reads the entry of the page's own campaign, beside the official rate of that campaign
+  const session = d.record && d.record.session;
+  const at = (trend) => (trend || []).find((t) => t.session === session) || null;
+  const route = () => {                                       // the card's "votre bac" row, for the page's campaign
+    const v = series && series[serie] && at(series[serie].trend);
     return v && v.taux !== null && v.taux !== undefined
-      ? { kind: "serie", taux: v.taux, what: RP_VOIE[serie], source: "voie", fragile: !!v.fragile, candidats: v.candidats }
-      : { kind: "aucun", what: RP_VOIE[serie], why: "pas de chiffre publié pour votre bac" };
+      ? { kind: "serie", taux: v.taux, what: RP_VOIE[serie], source: "voie", fragile: (v.candidats || 0) < DBL_SEUIL, candidats: v.candidats }
+      : { kind: "aucun", what: RP_VOIE[serie], why: `pas de chiffre publié pour votre bac en ${session}` };
   };
+  const estAt = (e) => { const t = e && at(e.trend); return t && t.taux !== null && t.taux !== undefined ? t.taux : null; };
   if (serie === "bg") {
     const dkey = profileDkey(prof);
     if (!dkey) return { kind: "incomplet" };                   // review: no doublette without two distinct specialties
@@ -975,9 +980,9 @@ function profileRate(d, prof) {
         : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };
     }
     const sem = estimateSemblable(series, d.semblables, dkey);
-    if (sem) return { kind: "estimation", taux: sem.taux, what: sem.label, source: "semblables", n_rapports: sem.n_rapports };
+    if (sem && estAt(sem) !== null) return { kind: "estimation", taux: estAt(sem), what: sem.label, source: "semblables", n_rapports: sem.n_rapports };
     const nat = dbl && dbl.status === "ok" ? estimateDoublette(series, dbl.groupe, dkey) : null;
-    if (nat) return { kind: "estimation", taux: nat.taux, what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : nat.label, source: "national" };
+    if (nat && estAt(nat) !== null) return { kind: "estimation", taux: estAt(nat), what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : nat.label, source: "national" };
     return route();
   }
   const v = pickVoie(rp, serie, prof.voie || null);

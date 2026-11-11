@@ -183,7 +183,7 @@ def r2_defs(js: str) -> str:
     """Sprint R2: the page's own helpers the summary's "Pour votre profil" tile calls (no copy)."""
     fns = [re.search(rf"^function {n}\(.*?^\}}", js, re.M | re.S).group(0)
            for n in ("bacProfile", "profileDkey", "pickDoublette", "estimateDoublette", "estimateSemblable", "pickRapport", "pickVoie")]
-    one = [ln for ln in js.splitlines() if ln.startswith(("const ownHasBg = ", "const VOIE_WORD = ", "const pct1 = ", "const RP_VOIE = "))]
+    one = [ln for ln in js.splitlines() if ln.startswith(("const ownHasBg = ", "const VOIE_WORD = ", "const pct1 = ", "const RP_VOIE = ", "const DBL_SEUIL = "))]
     return "\n".join(one + fns) + "\n"
 
 

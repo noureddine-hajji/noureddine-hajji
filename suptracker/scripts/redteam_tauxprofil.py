@@ -101,6 +101,7 @@ def node(prog: str, payload=None):
 
 # ------------------------------------------------------------------ cases: real formations x profiles of every kind
 def payload(con, cod: str, session: int) -> dict:
+    """The parts of /api/formation the tile reads, for the page of (cod, session)."""
     cur = con.cursor()
     return {"doublettes": DB.for_formation(cur, cod, session), "rapport": RP.for_formation(cur, cod, session),
             "semblables": SB.for_formation(cur, cod, session), "record": {"cod_aff_form": cod, "session": session}}
@@ -125,9 +126,15 @@ def build_cases(con, per_kind: int = 6) -> list[tuple[dict, dict]]:
     picks += [c for (c,) in con.execute(f"""SELECT cod_aff_form FROM core.formation_year fy WHERE session = ?
         {"AND NOT EXISTS (SELECT 1 FROM core.rapport_doublette r WHERE r.cod_aff_form = fy.cod_aff_form AND r.bac = 'bg')" if has("core.rapport_doublette") else ""}
         ORDER BY hash(cod_aff_form) LIMIT ?""", [latest, per_kind * 4]).fetchall()]
+    # Codex (PR #54): older pages of lineages that continue to the latest campaign (the series' top-level figure is not theirs)
+    old = []
+    if has("core.lineage"):
+        old = [(c, s) for c, s in con.execute("""SELECT l.cod_aff_form, l.session FROM core.lineage l
+            WHERE l.session < ? AND EXISTS (SELECT 1 FROM core.lineage m WHERE m.lineage_id = l.lineage_id AND m.session = ?)
+            ORDER BY hash(l.cod_aff_form) LIMIT ?""", [latest, latest, per_kind * 2]).fetchall()]
     out = []
-    for cod in dict.fromkeys(picks):
-        d = payload(con, cod, latest)
+    for cod, sess in [(c, latest) for c in dict.fromkeys(picks)] + old:
+        d = payload(con, cod, sess)
         rp, dbl, sem = d["rapport"], d["doublettes"], d["semblables"]
         keys = []                                   # ordered: every source of figures gets its keys tried
         if sem:
@@ -188,9 +195,18 @@ def reference(d: dict, p: dict) -> dict:
     """The figure the page must show, re-derived from the modules' Python twins, published first."""
     rp, dbl, sem = d["rapport"], d["doublettes"], d["semblables"]
     series = (dbl or {}).get("series") or {}
+    session = d["record"]["session"]                 # Codex (PR #54): the page's own campaign, never the lineage's latest
+
+    def at(trend):
+        return next((t for t in trend or [] if t["session"] == session), None)
+
     def route():                                     # the card's "votre bac" row: this formation's proposal rate for the route
-        v = series.get(p["serie"])
+        v = at((series.get(p["serie"]) or {}).get("trend"))
         return {"kind": "serie", "source": "voie", "taux": v["taux"]} if v and v.get("taux") is not None else {"kind": "aucun"}
+
+    def est_at(e):
+        t = at(e["trend"]) if e else None
+        return t["taux"] if t and t["taux"] is not None else None
     if p["serie"] == "bg":
         # two identical specialties (the form refuses them; ART+ART exists nationally, see README): no doublette at all
         if p["spe1"].upper() == p["spe2"].upper():
@@ -200,11 +216,11 @@ def reference(d: dict, p: dict) -> dict:
             x = RP.pick(rp, dkey)
             return {"kind": "publie", "source": "rapport", "taux": x["taux"]} if x else {"kind": "aucun"}
         e = SB.estimate(series.get("bg"), sem, dkey)
-        if e:
-            return {"kind": "estimation", "source": "semblables", "taux": e["taux"]}
+        if est_at(e) is not None:
+            return {"kind": "estimation", "source": "semblables", "taux": est_at(e)}
         e = DB.estimate(series.get("bg"), dbl.get("groupe"), dkey) if dbl and dbl.get("status") == "ok" else None
-        if e:
-            return {"kind": "estimation", "source": "national", "taux": e["taux"]}
+        if est_at(e) is not None:
+            return {"kind": "estimation", "source": "national", "taux": est_at(e)}
         return route()
     v = VO.pick_voie(rp, p["serie"], p.get("voie"))
     return {"kind": "publie", "source": "rapport", "taux": v["taux"]} if v else route()
@@ -259,13 +275,15 @@ def z1(c: Ctx):
         kinds[(p["serie"], ref["kind"], ref.get("source"))] = kinds.get((p["serie"], ref["kind"], ref.get("source")), 0) + 1
         if pr.get("kind") != ref["kind"] or pr.get("source") != ref.get("source") or not close(pr.get("taux"), ref.get("taux")):
             bad.append((d["record"]["cod_aff_form"], p, ref, {k: pr.get(k) for k in ("kind", "source", "taux")}))
+    olds = sum(1 for d, _ in cases if any(t["session"] > d["record"]["session"]
+                                             for t in (((d["doublettes"] or {}).get("series") or {}).get("bg") or {}).get("trend") or []))
     need = {("bg", "publie", "rapport"), ("bg", "estimation", "semblables"), ("bt", "publie", "rapport"), ("bp", "publie", "rapport"),
             ("bt", "serie", "voie"), ("bp", "serie", "voie")}
     if c.real:                                   # the real warehouse also has the national estimate
         need |= {("bg", "estimation", "national")}
     missing = need - set(kinds)
-    ok = not bad and not missing and len(cases) >= 20
-    return ok, f"{len(cases)} cases; kinds {dict(sorted(kinds.items(), key=str))}; uncovered {sorted(missing)}; {len(bad)} differences {bad[:2]}"
+    ok = not bad and not missing and len(cases) >= 20 and olds >= 5
+    return ok, f"{len(cases)} cases ({olds} on older pages); kinds {dict(sorted(kinds.items(), key=str))}; uncovered {sorted(missing)}; {len(bad)} differences {bad[:2]}"
 
 
 ROUTE_ROW = re.compile(r'votre bac</span></td>\s*<td class="num" data-label="Taux de proposition">([0-9][0-9 ,.]*) %')
@@ -287,6 +305,9 @@ def z2(c: Ctx):
     bad = []
     for (d, p), g in zip(cases, got):
         pr, card = g["pr"] or {}, g["card"] or ""
+        tr = (((d["doublettes"] or {}).get("series") or {}).get("bg") or {}).get("trend") or []
+        if tr and tr[-1]["session"] != d["record"]["session"]:
+            continue                                # an older page: the card shows the lineage's latest campaign (Z1 checks the tile)
         heads = [to_num(x) for x in HEAD.findall(card.replace(" ", " "))]
         if pr.get("kind") in ("publie", "estimation"):
             if pr.get("taux") is not None and not any(abs(h - pr["taux"]) < 0.051 for h in heads):
@@ -504,11 +525,13 @@ MUTANTS = [
     ("national before similar formations", "    const sem = estimateSemblable(series, d.semblables, dkey);",
      "    const sem = null;", ("z1", "z2")),
     ("bac techno line ignored", "  const v = pickVoie(rp, serie, prof.voie || null);", "  const v = null;", ("z1", "z2")),
-    ("route row of another bac", "    const v = series && series[serie];", "    const v = series && series.bg;", ("z1", "z2")),
+    ("route row of another bac", "    const v = series && series[serie] && at(series[serie].trend);", "    const v = series && series.bg && at(series.bg.trend);", ("z1", "z2")),
+    ("the lineage's latest campaign on an older page", "  const at = (trend) => (trend || []).find((t) => t.session === session) || null;",
+     "  const at = (trend) => (trend || []).slice(-1)[0] || null;", ("z1",)),
     ("series rate shown for a missing report row", '        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };',
      "        : route();", ("z1",)),
     ("identical specialties read as a doublette", '    if (!dkey) return { kind: "incomplet" };', "", ("z1",)),
-    ("estimate called published", 'if (sem) return { kind: "estimation", taux: sem.taux,', 'if (sem) return { kind: "publie", taux: sem.taux,', ("z1", "z2")),
+    ("estimate called published", 'if (sem && estAt(sem) !== null) return { kind: "estimation",', 'if (sem && estAt(sem) !== null) return { kind: "publie",', ("z1", "z2")),
     ("row label unescaped", "return tile(pct1(pr.taux), `${esc(pr.what)} ·", "return tile(pct1(pr.taux), `${pr.what} ·", ("z3",)),
     ("source not said", "  rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}", "  rapport: (pr) => `${esc(pr.session)}", ("z3",)),
     ("report counts dropped", " · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,", "`,", ("z3",)),
