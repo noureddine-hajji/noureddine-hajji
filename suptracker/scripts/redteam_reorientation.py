@@ -333,7 +333,8 @@ def page_prog(c: Ctx) -> str:
 
 
 NODE_HARNESS = r"""
-let JV = null, PAGE = 3, CALLS = [], PROFILE = null, VOEUX = [];
+let JV = null, PAGE = 3, CALLS = [], PROFILE = null, VOEUX = [], PARCOURS = 0;
+const viewParcours = () => { PARCOURS++; };
 const store = { d: {}, get(k, x) { return (k in this.d ? JSON.parse(JSON.stringify(this.d[k])) : undefined) ?? x; }, set(k, v) { this.d[k] = v; } };
 const voeux = { MAX: 10, get: () => VOEUX.slice(), has: (c) => VOEUX.includes(c), add: (c) => { VOEUX.push(c); return true; }, remove: (c) => { VOEUX = VOEUX.filter((x) => x !== c); } };
 const els = {};
@@ -410,6 +411,9 @@ def e4(c: Ctx):
     els["reo-back"].onclick(); out.back = store.get("profile", null); out.hash = location.hash;
     store.d = { profile: { statut: "reorientation", serie: "bt", mention: "b", academie: "Lyon" } }; await viewReorientation("BUT", "");
     els["reo-back"].onclick(); out.backBac = store.get("profile", null);
+    // opened from "Mon parcours": the address is already #/parcours, the page must be drawn again (Codex, PR #51)
+    store.d = { profile: { statut: "reorientation", serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b" } }; location.hash = "#/parcours";
+    PARCOURS = 0; await viewReorientation("", ""); els["reo-back"].onclick(); out.redrawn = PARCOURS; out.hashSame = location.hash;
     // 5b. an académie picked with no profile: kept apart, never a profile; it still sorts; "Je suis en terminale" with no bac
     store.d = {}; await viewReorientation("BUT", ""); els.racad.onchange({ target: { value: IN.acad } });
     out.noProfile = store.get("profile", null); out.reoAcad = store.get("reoAcademie", null); out.apart = $view.innerHTML;
@@ -470,6 +474,8 @@ def e4(c: Ctx):
         bad.append(("C'est ma situation", r["me"]))
     if r["back"] is not None or r["hash"] != "#/parcours":
         bad.append(("back to terminale with no bac: a profile invented", r["back"], r["hash"]))
+    if r["redrawn"] != 1 or r["hashSame"] != "#/parcours":
+        bad.append(("back to terminale from Mon parcours: the page is not drawn again", r["redrawn"]))
     if not r["backBac"] or r["backBac"].get("statut") != "terminale" or r["backBac"].get("serie") != "bt" or r["backBac"].get("mention") != "b":
         bad.append(("back to terminale: the bac entered is lost", r["backBac"]))
     if any(HOSTILE in u or "<" in u for u in r["hostileCalls"]) or not any(u.startswith("/api/reorientation?diplome=") for u in r["hostileCalls"]):
@@ -719,6 +725,7 @@ JS_MUTANTS = [
     ("paging broken", "rows.slice(0, shown).map(row)", "rows.map(row)"),
     ("other-admits filter ignored", "(!onlyAutres || (f.reorientation && f.reorientation.autres_majoritaires))", "true"),
     ("académie sent", 'const qs = new URLSearchParams({ diplome: D.label });', 'const qs = new URLSearchParams({ diplome: D.label, academie: "x" });'),
+    ("back to terminale not redrawn on #/parcours", 'if (location.hash === "#/parcours") viewParcours(); else location.hash = "#/parcours";', 'location.hash = "#/parcours";'),
     ("situation not stored", 'if (me) me.onclick = () => { setStatut("reorientation"); draw(); };', 'if (me) me.onclick = () => { draw(); };'),
     ("Plan B for a reorientation profile", "  if (isReo(p)) {                                                     // sprint 21", "  if (false) {"),
     ("profile bar zone request", "    if (isReo(prof)) {                                                   // sprint 21", "    if (false) {"),

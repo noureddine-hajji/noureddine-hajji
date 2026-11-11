@@ -2705,7 +2705,11 @@ async function viewReorientation(dArg, mArg) {
     const me = document.getElementById("reo-me");
     if (me) me.onclick = () => { setStatut("reorientation"); draw(); };
     const back = document.getElementById("reo-back");
-    if (back) back.onclick = () => { setStatut("terminale"); location.hash = "#/parcours"; };
+    if (back) back.onclick = () => {
+      setStatut("terminale");
+      // opened from "Mon parcours" the address is already #/parcours: no hashchange, so draw it here (Codex, PR #51)
+      if (location.hash === "#/parcours") viewParcours(); else location.hash = "#/parcours";
+    };
     bindVoeuButton(draw);
   };
   draw();
