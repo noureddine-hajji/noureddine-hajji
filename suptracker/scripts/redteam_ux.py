@@ -176,7 +176,7 @@ def node_run(prog: str, payload) -> str | None:
 
 
 def helpers(js: str) -> str:
-    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
 
 
 def filters_ui(js: str) -> tuple[bool, str]:
