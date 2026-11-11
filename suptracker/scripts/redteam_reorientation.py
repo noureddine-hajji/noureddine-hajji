@@ -67,20 +67,16 @@ class Ctx:
         self._truth = None
 
     def truth(self) -> dict:
-        """(cod, session) -> the block, by SQL alone (independent of reorientation.py)."""
+        """(cod, session) -> the block, by SQL alone (independent of reorientation.py), from the PUBLISHED counts."""
         if self._truth is None:
-            z = lambda k: f"coalesce({k}, 0)"  # noqa: E731
-            cand_s = " + ".join(f"{z('nb_voe_pp_' + s)} + {z('nb_voe_pc_' + s)}" for s in S)
-            prop_s = " + ".join(z("prop_tot_" + s) for s in S)
-            rows = self.con.execute(f"""WITH x AS (SELECT session, cod_aff_form, taux_acces_ens AS t,
-                    nb_voe_pp IS NOT NULL AND prop_tot IS NOT NULL AS present,
-                    {z('nb_voe_pp')} + {z('nb_voe_pc')} AS ca, {z('nb_voe_pp')} + {z('nb_voe_pc')} - ({cand_s}) AS co,
-                    {z('prop_tot')} AS pa, {z('prop_tot')} - ({prop_s}) AS po, acc_tot, acc_neobac, acc_at FROM core.formation_year)
-                SELECT session, cod_aff_form, present AND co >= 0 AND po >= 0 AND po <= co AS ok, co, po, ca, pa, t,
-                    acc_tot, acc_neobac, acc_at FROM x""").fetchall()
+            rows = self.con.execute("""SELECT session, cod_aff_form,
+                    nb_voe_pp_at IS NOT NULL AND prop_tot_at IS NOT NULL AND prop_tot IS NOT NULL AS present,
+                    coalesce(nb_voe_pp, 0) + coalesce(nb_voe_pc, 0) AS ca, coalesce(nb_voe_pp_at, 0) + coalesce(nb_voe_pc_at, 0) AS co,
+                    coalesce(prop_tot, 0) AS pa, coalesce(prop_tot_at, 0) AS po, taux_acces_ens, acc_tot, acc_neobac, acc_at
+                FROM core.formation_year""").fetchall()
             out = {}
-            for s, cod, ok, co, po, ca, pa, t, tot, neo, at in rows:
-                ok = bool(ok)
+            for s, cod, present, ca, co, pa, po, t, tot, neo, at in rows:
+                ok = bool(present) and 0 <= po <= co <= ca and po <= pa
                 raw = t * (po / co) / (pa / ca) if ok and co >= 20 and t is not None and pa > 0 else None
                 coh = tot is not None and neo is not None and at is not None and tot == neo + at
                 out[(cod, s)] = {"candidats": co if ok else None, "propositions": po if ok else None, "raw": raw,
@@ -156,7 +152,7 @@ def client(db: Path):
 
 
 EDGE_COLS = ["nb_voe_pp", "nb_voe_pc", "prop_tot", "taux_acces_ens", "acc_tot", "acc_neobac", "acc_at",
-             *(f"{k}_{s}" for s in S for k in ("nb_voe_pp", "nb_voe_pc", "prop_tot"))]
+             "nb_voe_pp_at", "nb_voe_pc_at", "prop_tot_at", *(f"{k}_{s}" for s in S for k in ("nb_voe_pp", "nb_voe_pc", "prop_tot"))]
 
 
 def edge(**kw):
@@ -166,24 +162,29 @@ def edge(**kw):
 
 
 EDGES = [   # (row, expected) expected: candidats, propositions, acces_estime, plafonne, part_admis_autres, autres_majoritaires
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=60, prop_tot_bg=40, acc_tot=20, acc_neobac=8, acc_at=12),
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=10, acc_tot=20, acc_neobac=8, acc_at=12),
      (40, 10, 60 * (10 / 40) / (50 / 100), False, 60.0, True)),
-    (edge(nb_voe_pp=100, nb_voe_pc=20, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=80, nb_voe_pc_bg=21, prop_tot_bg=40),
+    (edge(nb_voe_pp=100, nb_voe_pc=20, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=10, nb_voe_pc_at=9, prop_tot_at=10),
      (19, 10, None, False, None, False)),                                      # 19 outside terminale: no estimate
-    (edge(nb_voe_pp=100, nb_voe_pc=20, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=80, prop_tot_bg=40), (40, 10, 60 * (10 / 40) / (50 / 120), False, None, False)),
-    (edge(nb_voe_pp=100, prop_tot=30, taux_acces_ens=60, nb_voe_pp_bg=50, prop_tot_bg=31), (None, None, None, False, None, False)),   # 2022: more series proposals
-    (edge(nb_voe_pp=100, prop_tot=90, taux_acces_ens=60, nb_voe_pp_bg=90, prop_tot_bg=10), (None, None, None, False, None, False)),   # proposals > candidates
-    (edge(nb_voe_pp=50, prop_tot=10, taux_acces_ens=60, nb_voe_pp_bt=60), (None, None, None, False, None, False)),                    # negative candidates
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=None, nb_voe_pp_bg=60, prop_tot_bg=40), (40, 10, None, False, None, False)),     # no official rate
-    (edge(nb_voe_pp=None, prop_tot=None, taux_acces_ens=60), (None, None, None, False, None, False)),                                 # nothing published
-    (edge(nb_voe_pp=100, prop_tot=0, taux_acces_ens=0, nb_voe_pp_bg=60), (40, 0, None, False, None, False)),                         # no proposal
-    (edge(nb_voe_pp=100, prop_tot=20, taux_acces_ens=90, nb_voe_pp_bg=60, prop_tot_bg=0), (40, 20, 100.0, True, None, False)),        # capped
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=100, nb_voe_pp_bg=50, prop_tot_bg=25), (50, 25, 100.0, False, None, False)),     # exactly 100: not capped
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=60, prop_tot_bg=40, acc_tot=12, acc_neobac=3, acc_at=8),
+    (edge(nb_voe_pp=100, nb_voe_pc=20, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=30, nb_voe_pc_at=10, prop_tot_at=10),
+     (40, 10, 60 * (10 / 40) / (50 / 120), False, None, False)),               # both phases counted, in both rates
+    # the published count wins over the difference of the series (here the series would say 60 - 10 = 50 and 40 - 30 = 10)
+    (edge(nb_voe_pp=100, prop_tot=40, taux_acces_ens=60, nb_voe_pp_bg=50, prop_tot_bg=30, nb_voe_pp_at=40, prop_tot_at=8),
+     (40, 8, 60 * (8 / 40) / (40 / 100), False, None, False)),
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=41), (None, None, None, False, None, False)),  # proposals > candidates
+    (edge(nb_voe_pp=100, prop_tot=5, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=6), (None, None, None, False, None, False)),    # more than all proposals
+    (edge(nb_voe_pp=30, prop_tot=10, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=5), (None, None, None, False, None, False)),    # more than all candidates
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=-1), (None, None, None, False, None, False)),  # negative
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=None, nb_voe_pp_at=40, prop_tot_at=10), (40, 10, None, False, None, False)),    # no official rate
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=None, prop_tot_at=None), (None, None, None, False, None, False)),  # not published
+    (edge(nb_voe_pp=100, prop_tot=0, taux_acces_ens=0, nb_voe_pp_at=40, prop_tot_at=0), (40, 0, None, False, None, False)),          # no proposal
+    (edge(nb_voe_pp=100, prop_tot=20, taux_acces_ens=90, nb_voe_pp_at=40, prop_tot_at=20), (40, 20, 100.0, True, None, False)),      # capped
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=100, nb_voe_pp_at=50, prop_tot_at=25), (50, 25, 100.0, False, None, False)),    # exactly 100
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=10, acc_tot=12, acc_neobac=3, acc_at=8),
      (40, 10, 30.0, False, None, False)),                                      # admits that miss the total: no share
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=60, prop_tot_bg=40, acc_tot=9, acc_neobac=2, acc_at=7),
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=10, acc_tot=9, acc_neobac=2, acc_at=7),
      (40, 10, 30.0, False, 700 / 9, False)),                                   # 9 admits: a share, not a majority
-    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_bg=60, prop_tot_bg=40, acc_tot=10, acc_neobac=5, acc_at=5),
+    (edge(nb_voe_pp=100, prop_tot=50, taux_acces_ens=60, nb_voe_pp_at=40, prop_tot_at=10, acc_tot=10, acc_neobac=5, acc_at=5),
      (40, 10, 30.0, False, 50.0, False)),                                      # a tie is not a majority
 ]
 
@@ -211,7 +212,13 @@ def e1(c: Ctx):
         exp = (cand, prop, None if acc is None else round(acc, 1), pl, None if part is None else round(part, 1), maj)
         if got != exp:
             wrong.append((exp, got))
-    return not bad and not wrong, (f"{n} rows: {held} with counts that hold, {est} estimates, {cap} capped at 100; "
+    cross = c.con.execute("""SELECT session, count(*), count(nb_voe_pp_at),
+            count(*) FILTER (WHERE nb_voe_pp = coalesce(nb_voe_pp_bg, 0) + coalesce(nb_voe_pp_bt, 0) + coalesce(nb_voe_pp_bp, 0) + nb_voe_pp_at),
+            count(*) FILTER (WHERE prop_tot = coalesce(prop_tot_bg, 0) + coalesce(prop_tot_bt, 0) + coalesce(prop_tot_bp, 0) + prop_tot_at)
+        FROM core.formation_year GROUP BY 1 ORDER BY 1""").fetchall()
+    published = sum(x[2] for x in cross)
+    sums = "; ".join(f"{s0}: {pub}/{tot} published, series + others = total for {a} candidates / {b} proposals" for s0, tot, pub, a, b in cross)
+    return not bad and not wrong and published > 0, (f"{sums}. {n} rows: {held} with counts that hold, {est} estimates, {cap} capped at 100; "
                                    f"{len(bad)} differ {bad[:3]}; {len(EDGES) - len(wrong)}/{len(EDGES)} edge rows right {wrong[:2]}")
 
 
@@ -220,7 +227,7 @@ def types_to_check(c: Ctx) -> list[tuple[str, str | None]]:
     if c.real:
         bts = CA.formations(c.con, "BTS - BTSA - BTSM")["formations"]
         top_m = max({f.get("mention") for f in bts if f.get("mention")}, key=lambda m: sum(f.get("mention") == m for f in bts))
-        return [("BUT", None), ("BUT", "Science des données"), ("BTS - BTSA - BTSM", top_m)]
+        return [("BUT", None), ("BUT", "Science des données"), ("BTS - BTSA - BTSM", top_m), ("Licence", None)]
     fac = CA.facets(c.con)["diplomes"]                 # every type the page offers, and one mention of each
     return [(x["label"], None) for x in fac] + [(x["label"], x["mentions"][0]["label"]) for x in fac if x["mentions"]]
 
@@ -286,7 +293,11 @@ def e3(c: Ctx):
         got = [v["cod_aff_form"] for v in d["voeux"]]
         if got != cods[:3] + ["99999999"] or d["session"] != c.latest:
             bad.append(("ids", got))
+        names = {r0[0]: tuple(r0[1:]) for r0 in c.con.execute("""SELECT cod_aff_form, g_ea_lib_vx, lib_for_voe_ins, ville_etab, acad_mies
+            FROM core.formation_year WHERE session = ?""", [c.latest]).fetchall()}
         for v in d["voeux"]:
+            if v["status"] == "ok" and (v["etablissement"], v["formation"], v["ville"], v["academie"]) != names.get(v["cod_aff_form"]):
+                bad.append(("voeux names", v["cod_aff_form"]))
             if v["status"] == "ok" and not same(v["reorientation"], T[(v["cod_aff_form"], c.latest)]):
                 bad.append(("voeux block", v["cod_aff_form"]))
             if v["cod_aff_form"] == "99999999" and v["status"] != "absente":
@@ -315,7 +326,7 @@ def e3(c: Ctx):
 def page_prog(c: Ctx) -> str:
     js = c.js
     parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc")]
-    parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
+    parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
               top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine")]
     sec = block(js, BLOCK_START, BLOCK_END)
     return "\n".join(parts) + "\n" + sec
@@ -323,7 +334,7 @@ def page_prog(c: Ctx) -> str:
 
 NODE_HARNESS = r"""
 let JV = null, PAGE = 3, CALLS = [], PROFILE = null, VOEUX = [];
-const store = { d: {}, get(k, x) { return k in this.d ? JSON.parse(JSON.stringify(this.d[k])) : x; }, set(k, v) { this.d[k] = v; } };
+const store = { d: {}, get(k, x) { return (k in this.d ? JSON.parse(JSON.stringify(this.d[k])) : undefined) ?? x; }, set(k, v) { this.d[k] = v; } };
 const voeux = { MAX: 10, get: () => VOEUX.slice(), has: (c) => VOEUX.includes(c), add: (c) => { VOEUX.push(c); return true; }, remove: (c) => { VOEUX = VOEUX.filter((x) => x !== c); } };
 const els = {};
 const node = (id) => ({ id, value: "", checked: false, onchange: null, onclick: null });
@@ -367,7 +378,10 @@ def e4(c: Ctx):
                mk(0, cod_aff_form="900004", etablissement="Gamma", academie="Autre", reorientation={**base, "acces_estime": None, "candidats": None}),
                mk(1, cod_aff_form="900005", etablissement="Delta", academie=acad, reorientation={**base, "acces_estime": 100.0, "plafonne": True,
                   "autres_majoritaires": True}),
-               mk(2, cod_aff_form="900006", etablissement="Epsilon", academie="Autre", reorientation=None)]
+               mk(2, cod_aff_form="900006", etablissement="Epsilon", academie="Autre", reorientation=None),
+               mk(0, cod_aff_form="900007", etablissement="Eta", academie="Autre", reorientation={**base, "acces_estime": 12.3,
+                  "plafonne": False, "taux_acces_ens": 77, "part_admis_autres": 61.5, "admis_autres": 8, "admis": 13, "propositions": 5,
+                  "candidats": 41})]
     data = {"rows": rows + crafted, "fac": fac, "jv": jv, "acad": acad, "session": d["session"], "hostile": HOSTILE}
     script = r"""
     JV = IN.jv; API = { "/api/carte": IN.fac, "/api/journey/vocab": IN.jv };
@@ -394,6 +408,15 @@ def e4(c: Ctx):
     // 5. "C'est ma situation" from no profile; "Je suis en terminale" back
     store.d = {}; await viewReorientation("BUT", ""); els["reo-me"].onclick(); out.me = store.get("profile", null); out.mine = $view.innerHTML;
     els["reo-back"].onclick(); out.back = store.get("profile", null); out.hash = location.hash;
+    // 5b. an académie picked with no profile: kept apart, never a profile; it still sorts; "Je suis en terminale" with no bac
+    store.d = {}; await viewReorientation("BUT", ""); els.racad.onchange({ target: { value: IN.acad } });
+    out.noProfile = store.get("profile", null); out.reoAcad = store.get("reoAcademie", null); out.apart = $view.innerHTML;
+    els["reo-me"].onclick(); out.meAcad = store.get("profile", null); els["reo-back"].onclick(); out.backNoBac = store.get("profile", null);
+    // 5c. a race: the page is left while the type list loads; the late answer never draws
+    store.d = {}; let release; const gate = new Promise((r) => { release = r; });
+    const api0 = API["/api/carte"]; const slow = viewReorientation("BUT", "");
+    $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; release();
+    await slow; out.race = $view.innerHTML;
     // 6. a hostile type in the address falls back to a known one
     store.d = {}; CALLS = []; await viewReorientation(IN.hostile, IN.hostile); out.hostileCalls = CALLS.slice();
     console.log(JSON.stringify(out));
@@ -447,6 +470,20 @@ def e4(c: Ctx):
         bad.append(("back to terminale", r["back"], r["hash"]))
     if any(HOSTILE in u or "<" in u for u in r["hostileCalls"]) or not any(u.startswith("/api/reorientation?diplome=") for u in r["hostileCalls"]):
         bad.append(("hostile type sent", r["hostileCalls"]))
+    eta = re.search(r'href="#/f/900007">.*?</tr>', r["plain"], re.S)
+    cells = re.findall(r'data-label="([^"]+)">(.*?)</td>', eta.group(0), re.S) if eta else []
+    got = {k: re.sub(r"<[^>]+>", " ", v) for k, v in cells}
+    if not eta or not got.get("Accès estimé hors terminale", "").strip().startswith("12,3 %") \
+            or "5 propositions pour 41 candidats" not in got.get("Accès estimé hors terminale", "") \
+            or got.get("Taux d'accès officiel, tous candidats", "").strip() != "77 %" \
+            or not got.get("Admis hors néo-bacheliers", "").strip().startswith("61,5 %") or "8 sur 13 admis" not in got.get("Admis hors néo-bacheliers", ""):
+        bad.append(("a figure in the wrong cell", got))
+    if r["noProfile"] is not None or r["reoAcad"] != acad or "Ordre : l'académie de" not in r["apart"]:
+        bad.append(("an académie picked with no profile", r["noProfile"], r["reoAcad"]))
+    if not r["meAcad"] or r["meAcad"].get("academie") != acad or r["meAcad"].get("statut") != "reorientation" or r["backNoBac"] is not None:
+        bad.append(("status switches with no bac", r["meAcad"], r["backNoBac"]))
+    if r["race"] != "OTHER PAGE":
+        bad.append("a late answer drew over another page")
     if any("academie" in u or "statut" in u for u in r["calls"]):
         bad.append(("the académie or the status sent to the server", r["calls"]))
     return not bad, f"{len(order_plain)} rows rendered; {len(bad)} problems {bad[:4]}"
@@ -469,6 +506,14 @@ def e5(c: Ctx):
         bad.append("no situation in the profile form")
     if 'statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale"' not in vp:
         bad.append("the form does not store a validated status")
+    for fn in ("doubletteCard", "juryCard", "semblablesJuryCard", "doubletteCharts", "viewCarte", "profileRows"):
+        try:
+            body = top(js, fn)
+        except KeyError:
+            bad.append(("page gone", fn)); continue
+        raw = [m.start() for m in re.finditer(r'store\.get\("profile"', body) if not body[max(0, m.start() - 6):m.start()].endswith("isReo(")]
+        if raw or "bacProfile()" not in body:
+            bad.append(("reads the bac without bacProfile", fn))
     # profile bar, Mes vœux and Plan B run in Node
     harness = top(js, "PB_ZONES") + top(js, "vxQuery") + "\nconst ZONES = {securite:{label:'s',color:'x'},cible:{label:'c',color:'x'},ambitieux:{label:'a',color:'x'}};\n" \
         + top(js, "profileBar") + "\nlet planbSeq = 0;\n" + top(js, "loadPlanB")
@@ -490,6 +535,12 @@ def e5(c: Ctx):
     API = { "/api/reorientation/voeux": IN.vx }; CALLS = [];
     await viewVoeuxReo(IN.ids, vxProfile({ statut: "reorientation", academie: IN.hostile })); out.vx = $view.innerHTML; out.vxCalls = CALLS.slice();
     CALLS = []; await viewVoeuxReo([], vxProfile({ statut: "reorientation" })); out.vxEmpty = $view.innerHTML; out.vxEmptyCalls = CALLS.slice();
+    const slow = viewVoeuxReo(IN.ids, vxProfile({ statut: "reorientation" })); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other";
+    await slow; out.vxRace = $view.innerHTML;
+    // the bac of a reorientation profile is never read: no doublette, no bac profile
+    store.set("profile", { statut: "reorientation", serie: "bg", spe1: "MATHS", spe2: "PC", mention: "b" });
+    out.dkey = profileDkey(store.get("profile", null)); out.bac = bacProfile();
+    store.set("profile", { statut: "terminale", serie: "bg", spe1: "MATHS", spe2: "PC", mention: "b" }); out.dkeyT = profileDkey(bacProfile());
     console.log(JSON.stringify(out));
     """
     with client(c.db) as tc:
@@ -525,6 +576,10 @@ def e5(c: Ctx):
         bad.append("Mes vœux shows a zone, a Plan B or Compléter")
     if "absente de la campagne" not in v or "estimation" not in v or "ne sont pas proposés" not in v or "data-vxdel" not in v:
         bad.append("Mes vœux misses the absent row, the estimation, the reason or the remove button")
+    if r["vxRace"] != "OTHER PAGE":
+        bad.append("Mes vœux: a late answer drew over another page")
+    if r["dkey"] is not None or r["bac"] is not None or r["dkeyT"] != "MATHS+PC":
+        bad.append(("the bac of a reorientation profile is read", r["dkey"], r["bac"], r["dkeyT"]))
     if r["vxEmptyCalls"] or "Votre liste est vide" not in r["vxEmpty"]:
         bad.append("empty list requested")
     return not bad, f"{len(bad)} problems {bad[:4]}"
@@ -534,6 +589,9 @@ def e5(c: Ctx):
 def e6(c: Ctx):
     js = c.js
     harness = top(js, "admisBar") + top(js, "summaryBand")
+    vf = top(js, "viewFormation")
+    more = vf[vf.find("Plus de chiffres sur l'admission"):]
+    more = more[:more.find("</details>")]
     with client(c.db) as tc:
         cod = c.con.execute("""SELECT cod_aff_form FROM core.formation_year WHERE session = ? AND taux_acces_ens IS NOT NULL
             ORDER BY nb_voe_pp DESC LIMIT 1""", [c.latest]).fetchone()[0]
@@ -544,11 +602,13 @@ def e6(c: Ctx):
     out.none = summaryBand(IN.d.record, { ...IN.d, reorientation: { ...IN.d.reorientation, acces_estime: null, candidats: 3 } });
     store.set("profile", { statut: "terminale", serie: "bg" }); out.term = summaryBand(IN.d.record, IN.d);
     store.d = {}; out.nop = summaryBand(IN.d.record, IN.d);
+    out.card = reoCard({ ...IN.d.reorientation, session: IN.hostile }); out.cardNone = reoCard(null);
+    out.candFmt = fmt(IN.d.reorientation.candidats);
     console.log(JSON.stringify(out));
     """
     prog = NODE_HARNESS + page_prog(c) + harness + "\n(async () => { const IN = JSON.parse(require('fs').readFileSync(0, 'utf8')); " \
         + script + " })().catch((e) => { console.log(JSON.stringify({ error: String(e && e.stack || e) })); });"
-    r = node(prog, {"d": d})
+    r = node(prog, {"d": d, "hostile": HOSTILE})
     if r is None:
         return True, "node absent: skipped"
     if "error" in r:
@@ -566,6 +626,12 @@ def e6(c: Ctx):
         bad.append("in terminale: the zone tile is gone or the estimate shows")
     if "Accès estimé hors terminale" in r["nop"]:
         bad.append("no profile: the estimate shows")
+    b = d["reorientation"]
+    if "${reoCard(d.reorientation)}" not in more:
+        bad.append("the calculation card is not folded in « Plus de chiffres sur l'admission »")
+    if HOSTILE in r["card"] or r["cardNone"] or (b["candidats"] is not None and f"pour {r['candFmt']} candidats" not in r["card"]) \
+            or "plafonné à 100 %" not in r["card"]:
+        bad.append("the calculation card: counts, method or escaping")
     return not bad, f"formation {cod} (estimate {est}); {len(bad)} problems {bad[:3]}"
 
 
@@ -622,9 +688,11 @@ PY_MUTANTS = [
     ("threshold lowered", "MIN_CANDIDATS = 20", "MIN_CANDIDATS = 2"),
     ("no cap", "est, capped = round(min(100.0, raw), 1), raw > 100", "est, capped = round(raw, 1), raw > 100"),
     ("cap flag at 100", "raw > 100", "raw >= 100"),
-    ("negative proposals kept", "holds = cand >= 0 and 0 <= prop <= cand", "holds = cand >= 0 and prop <= cand"),
-    ("proposals above candidates kept", "holds = cand >= 0 and 0 <= prop <= cand", "holds = cand >= 0 and 0 <= prop"),
-    ("complementary phase of the series forgotten", 'z(f"nb_voe_pp_{s}") + z(f"nb_voe_pc_{s}")', 'z(f"nb_voe_pp_{s}")'),
+    ("negative proposals kept", "and 0 <= prop <= cand <= cand_all", "and prop <= cand <= cand_all"),
+    ("proposals above candidates kept", "and 0 <= prop <= cand <= cand_all", "and 0 <= prop and cand <= cand_all"),
+    ("more than all proposals kept", ' and prop <= z("prop_tot"))', ")"),
+    ("complementary phase of the others forgotten", 'cand = z("nb_voe_pp_at") + z("nb_voe_pc_at")', 'cand = z("nb_voe_pp_at")'),
+    ("series difference instead of the published count", 'prop = z("prop_tot_at")', 'prop = z("prop_tot") - z("prop_tot_bg") - z("prop_tot_bt") - z("prop_tot_bp")'),
     ("no scaling", 'raw = taux * (prop / cand) / (z("prop_tot") / cand_all)', 'raw = taux * (prop / cand) / 1'),
     ("share when the counts miss the total", "if tot and ADM.coherent(tot, neo, at) else None", "if tot else None"),
     ("majority without the threshold", '"autres_majoritaires": ADM.autres_majoritaires(tot, neo, at)', '"autres_majoritaires": part is not None and part > 50'),
@@ -660,6 +728,18 @@ JS_MUTANTS = [
     ("door removed", '<a class="door" href="#/reorientation">', '<a class="doorx" href="#/reorientation">'),
     ("chance wording", "Les chiffres ci-dessous sont des parts", "Vous serez admis : les chiffres ci-dessous sont des parts"),
     ("tutoiement", "<p>Vous n'êtes plus en terminale", "<p>Tu n'es plus en terminale"),
+    # independent review's gaps
+    ("official rate shown as the estimate", '${pct1(b.acces_estime)}<div class="estim">estimation', '${pct1(b.taux_acces_ens)}<div class="estim">estimation'),
+    ("share of other admits reversed", "`${pct1(b.part_admis_autres)}<div", "`${pct1(100 - b.part_admis_autres)}<div"),
+    ("race guard dropped (list)", "  if ($view.dataset.rendered !== first) return;\n  JV = V;", "  JV = V;"),
+    ("race guard dropped (Mes vœux)", "  if ($view.dataset.rendered !== marker) return;\n  const ok = d.voeux", "  const ok = d.voeux"),
+    ("académie stored as a profile", 'else store.set("reoAcademie", e.target.value);', 'else store.set("profile", { academie: e.target.value });'),
+    ("terminale profile invented", 'else store.set("profile", null);', 'else store.set("profile", { ...(p0 || {}), statut: st });'),
+    ("bacProfile ignores the status", "!Array.isArray(p) && !isReo(p) ? p : null;", "!Array.isArray(p) ? p : null;"),
+    ("map reads the raw profile", "  const P = bacProfile();", '  const P = store.get("profile", null);'),
+    ("calculation card dropped", "  ${reoCard(d.reorientation)}\n", ""),
+    ("calculation card without counts", "${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)})",
+     "des propositions (${pct1(b.taux_proposition)})"),
 ]
 TEXT_MUTANTS = [("cache", "voeux route shared-cached", '(r"/api/reorientation/voeux", NO_STORE,', '(r"/api/reorientation/voeux", PUBLIC,'),
                 ("analytics", "feedback page refused", '"voeux", "reorientation")', '"voeux")')]

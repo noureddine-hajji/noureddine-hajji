@@ -902,7 +902,7 @@ def reorientation(diplome: str, mention: str | None = None):
     not in terminale (estimated access, published share of other admits). No profile, no position: the page sorts by académie."""
     res = RO.listing(_con().cursor(), diplome, mention or None)
     if res is None:
-        raise HTTPException(404, "type de diplôme inconnu")
+        raise HTTPException(404, "type de diplôme ou mention inconnus")
     return res
 
 

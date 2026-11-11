@@ -73,6 +73,12 @@ function vxProfile(p) {
 // no mention and no series for it, so the pages show the estimated access outside terminale instead, never a zone or a Plan B.
 const REO_LABEL = "Je ne suis plus en terminale";
 const isReo = (p) => !!p && typeof p === "object" && p.statut === "reorientation";
+// the stored profile of a student in terminale, or null: every page that reads the bac, the specialties or the mention goes
+// through it, so a student who is not in terminale never gets a zone, a doublette or a series read from stale fields (review)
+function bacProfile() {
+  const p = store.get("profile", null);
+  return p && typeof p === "object" && !Array.isArray(p) && !isReo(p) ? p : null;
+}
 function vxQuery(ids, prof) {
   const qs = new URLSearchParams({ ids: ids.join(","), serie: prof.serie, mention: prof.mention });
   if (prof.serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
@@ -363,7 +369,7 @@ const pct1 = (v) => (v === null || v === undefined ? "—" : `${fmt(v, 1)} %`);
 const voiePill = (s) => `<span class="voie-pill" style="color:${VOIES[s].color}">${VOIES[s].label}</span>`;
 const rateBar = (taux, color) => `<span class="dbl-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, Number(taux) || 0))}%;background:${color}"></i></span>`;
 function profileDkey(p) {
-  if (!p || (p.serie && p.serie !== "bg") || typeof p.spe1 !== "string" || typeof p.spe2 !== "string" || p.spe1 === p.spe2) return null;
+  if (!p || isReo(p) || (p.serie && p.serie !== "bg") || typeof p.spe1 !== "string" || typeof p.spe2 !== "string" || p.spe1 === p.spe2) return null;
   return [p.spe1.toUpperCase(), p.spe2.toUpperCase()].sort().join("+");
 }
 function pickDoublette(g, dkey) {
@@ -422,7 +428,7 @@ function dblCampagnes(g) {
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
 function doubletteCard(d, rp, sem) {
   if (!d) return "";
-  const prof = store.get("profile", null) || {};
+  const prof = bacProfile() || {};
   const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const last = Object.values(d.series)[0].trend.slice(-1)[0];
@@ -539,7 +545,7 @@ const RP_OPTIONS = { maths_expertes: "Mathématiques expertes", maths_complement
 const rpText = (t) => esc(t || "").replace(/\n/g, "<br>");
 function juryCard(rp) {
   if (!rp || !rp.textes) return "";
-  const t = rp.textes, prof = store.get("profile", null) || {};
+  const t = rp.textes, prof = bacProfile() || {};
   const crit = (t.criteres || []).filter((c) => c.critere || c.elements);
   const champs = [...new Set(crit.map((c) => c.champ))];
   const impCls = (i) => { const k = RP_IMP.indexOf(i); return k < 0 ? "" : ` imp${k}`; };
@@ -570,7 +576,7 @@ function juryCard(rp) {
 const SEM_CRIT_N = 8;
 function semblablesJuryCard(sem, rp) {
   if (!sem || !sem.jury) return "";
-  const J = sem.jury, n = J.n, prof = store.get("profile", null) || {};
+  const J = sem.jury, n = J.n, prof = bacProfile() || {};
   const champs = Object.keys(sem.champs || {});
   const cell = (k, i) => `<td class="num" data-label="${esc(i)}">${fmt(J.champs[k][i] || 0)}</td>`;
   const critHtml = `<h3>L'importance donnée à chaque critère</h3><div class="scroll"><table class="stack"><tr class="stack-head"><th>Critère</th>${RP_IMP.map((i) => `<th class="num">${esc(i)}</th>`).join("")}<th class="num">Non noté</th></tr>
@@ -604,9 +610,9 @@ function doubletteCharts(d, years, sem, rp) {
     hollow: at(d.series[s].trend, "candidats").map((c) => (c || 0) < DBL_SEUIL) }));
   let second = "";
   if (d.status === "ok") {
-    const g = d.groupe, mine = pickDoublette(g, profileDkey(store.get("profile", null)));
+    const g = d.groupe, mine = pickDoublette(g, profileDkey(bacProfile()));
     const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--muted)", values: at(g.tous.trend, "taux") }];
-    const dk = profileDkey(store.get("profile", null));
+    const dk = profileDkey(bacProfile());
     // the formation page's estimate: none beside a published figure, the similar formations first, then the national group
     const sEst = ownHasBg(rp) ? null : estimateSemblable(d.series, sem, dk);
     const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);
@@ -760,7 +766,7 @@ async function viewCarte(dArg, mArg) {
   const D = known(dArg) || known(store.get("carteDiplome", null)) || known("BUT") || FAC.diplomes[0];   // stored value never trusted
   const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
   store.set("carteDiplome", D.label);
-  const P = store.get("profile", null);
+  const P = bacProfile();                                                // sprint 21: no zone outside terminale
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   const ok = P && (serie !== "bg" || (P.spe1 && P.spe2 && P.spe1 !== P.spe2)) && ["sm", "ab", "b", "tb"].includes(P.mention);
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
@@ -778,7 +784,7 @@ async function viewCarte(dArg, mArg) {
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const goTo = (d, m) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(d)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
   $view.innerHTML = `<div class="card"><h1>Carte des formations</h1>
-    <p class="small">${ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
+    <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone : ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Mon parcours » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/parcours">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
     <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
     <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
   <div class="carte-layout">
@@ -901,7 +907,7 @@ function summaryBand(r, d) {
   return `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2>
     <div class="sum-grid">
       ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "indicateur officiel, phase principale")}
-      ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation : vous n'êtes plus en terminale, pas une zone"))
+      ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
         : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"')
         : `<a class="sum-tile" href="#/parcours"><span class="sum-label">Votre zone</span><span class="sum-value">—</span><span class="sum-note">renseignez votre profil dans « Mon parcours »</span></a>`}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
@@ -984,8 +990,9 @@ async function viewFormation(cod, session) {
   ${appelCard(d.appel)}
   <div id="planb"></div>
   ${offerCard(r, d.apprentissage)}
-  <details class="more-card"><summary><strong>Plus de chiffres sur l'admission</strong> <span class="muted small">prévision, calendrier des propositions, lycées d'origine, étapes de la sélection, comparaison avec la filière</span></summary>
+  <details class="more-card"><summary><strong>Plus de chiffres sur l'admission</strong> <span class="muted small">prévision, calendrier des propositions, lycées d'origine, étapes de la sélection, comparaison avec la filière, candidats hors terminale</span></summary>
   ${previsionCard(d.prevision)}
+  ${reoCard(d.reorientation)}
   ${timingCard(r, d.history)}
   ${lyceeHere(r)}
   <div class="card"><h2>Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
@@ -1146,7 +1153,7 @@ const MENTION_TXT = { passable1: "passable (1er groupe)", ab: "assez bien", b: "
 const SERIE_TXT = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" };
 function profileRows(rows, kind) {
   // kind "but": rows of BUT Tableau 1 (dim serie|mention); kind "chaine": the 2017 L1 cohort (dim bac|mention)
-  const p = store.get("profile", null) || {};
+  const p = bacProfile() || {};
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";   // stored profile: never trusted
   const men = MENTION_ROW[p.mention] || "ab";
   const sdim = kind === "but" ? "serie" : "bac";
@@ -2605,7 +2612,16 @@ function reoWhy(b, ok) {
 }
 function reoCell(b) {
   if (!b || b.acces_estime == null) return `—<div class="estim">${esc(reoWhy(b, ""))}</div>`;
-  return `${pct1(b.acces_estime)}<div class="estim">estimation${b.plafonne ? ", plafonnée à 100 %" : ""} · ${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale</div>`;
+  return `${pct1(b.acces_estime)}<div class="estim">estimation${b.plafonne ? ", plafonnée à 100 %" : ""} · ${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale${b.propositions === 0 ? " : rare cette année-là, pas forcément fermé" : ""}</div>`;
+}
+// the formation page's folded card: the published counts, the estimate and its method (review: never a figure without them)
+function reoCard(b) {
+  if (!b) return "";
+  return `<div class="card"><h2>Candidats qui ne sont plus en terminale · ${esc(b.session)}</h2>
+    <p class="small">Réorientation, reprise d'études ou autre parcours : le SIES les compte ensemble, comme « autres candidats ».</p>
+    <div class="small">${b.candidats != null ? `${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)}), contre ${pct1(b.taux_proposition_tous)} pour l'ensemble des candidats.` : "Effectifs publiés incohérents : pas de lecture pour cette campagne."}</div>
+    <div class="small">Accès estimé hors terminale : ${reoCell(b)}</div>
+    <p class="muted small">${REO_METHOD} ${REO_NO_ZONE}</p></div>`;
 }
 const reoAutres = (b) => (b && b.part_admis_autres != null ? `${pct1(b.part_admis_autres)}<div class="estim">${fmt(b.admis_autres)} sur ${fmt(b.admis)} admis</div>` : "—");
 const REO_METHOD = "Accès estimé hors terminale = taux d'accès officiel × (part des candidats hors terminale qui ont reçu une proposition ÷ part de tous les candidats qui en ont reçu une), plafonné à 100 %. C'est une estimation à partir des effectifs publiés (phase principale et phase complémentaire), pas un taux officiel ni une chance d'admission.";
@@ -2615,7 +2631,10 @@ function reoSort(rows, home) {
     || by(a).localeCompare(by(b), "fr", { sensitivity: "base" }) || String(a.cod_aff_form).localeCompare(String(b.cod_aff_form)));
 }
 async function viewReorientation(dArg, mArg) {
+  const first = `reorientation-load:${location.hash}`;                 // set before any await (review: a late answer for a
+  $view.dataset.rendered = first;                                        // page left meanwhile must never draw)
   const [FAC, V] = await Promise.all([api("/api/carte"), JV ? Promise.resolve(JV) : api("/api/journey/vocab")]);
+  if ($view.dataset.rendered !== first) return;
   JV = V;
   const known = (lab) => FAC.diplomes.find((x) => x.label === lab);
   const D = known(dArg) || known("Licence") || FAC.diplomes[0];
@@ -2633,7 +2652,8 @@ async function viewReorientation(dArg, mArg) {
     const raw = store.get("profile", null);
     const prof = raw && typeof raw === "object" && !Array.isArray(raw) ? vxProfile(raw) : null;
     const mine = isReo(prof);
-    const home = prof && JV.academies.includes(prof.academie) ? prof.academie : "";
+    const acad = prof && prof.academie ? prof.academie : store.get("reoAcademie", "");   // no profile: kept apart (review)
+    const home = typeof acad === "string" && JV.academies.includes(acad) ? acad : "";
     const rows = reoSort(d.formations.filter((f) => (!onlyHome || !home || f.academie === home) && (!onlyAutres || (f.reorientation && f.reorientation.autres_majoritaires))), home);
     const nEst = d.formations.filter((f) => f.reorientation && f.reorientation.acces_estime != null).length;
     const nAut = d.formations.filter((f) => f.reorientation && f.reorientation.autres_majoritaires).length;
@@ -2665,8 +2685,9 @@ async function viewReorientation(dArg, mArg) {
     document.getElementById("rmen").onchange = (e) => goTo(D.label, e.target.value);
     document.getElementById("racad").onchange = (e) => {
       const p0 = store.get("profile", null);
-      store.set("profile", { ...(p0 && typeof p0 === "object" && !Array.isArray(p0) ? p0 : {}), academie: e.target.value });
-      profileBar.render(); draw();
+      if (p0 && typeof p0 === "object" && !Array.isArray(p0)) store.set("profile", { ...p0, academie: e.target.value });
+      else store.set("reoAcademie", e.target.value);                 // never a profile without a bac or a status
+      draw();
     };
     const h = document.getElementById("rhome");
     if (h) h.onchange = () => { onlyHome = h.checked; shown = searchPage(); draw(); };
@@ -2674,9 +2695,12 @@ async function viewReorientation(dArg, mArg) {
     const more = document.getElementById("rmore");
     if (more) more.onclick = () => { shown += searchPage(); draw(); };
     const setStatut = (st) => {
-      const p0 = store.get("profile", null);
-      store.set("profile", { ...(p0 && typeof p0 === "object" && !Array.isArray(p0) ? p0 : {}), statut: st });
-      profileBar.render();
+      const raw0 = store.get("profile", null);
+      const p0 = raw0 && typeof raw0 === "object" && !Array.isArray(raw0) ? raw0 : null;
+      const a0 = store.get("reoAcademie", "");
+      if (st === "reorientation") store.set("profile", { ...(p0 || (typeof a0 === "string" && a0 ? { academie: a0 } : {})), statut: st });
+      else if (p0 && p0.serie) store.set("profile", { ...p0, statut: st });   // the bac fields the student had entered
+      else store.set("profile", null);                                  // none: "Mon parcours" asks for them, never invents them
     };
     const me = document.getElementById("reo-me");
     if (me) me.onclick = () => { setStatut("reorientation"); draw(); };
