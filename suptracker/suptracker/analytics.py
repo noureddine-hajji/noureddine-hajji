@@ -54,7 +54,7 @@ MAX_QUERY = 80
 ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats", "glossaire",
           "voeux", "metiers", "carte", "comprendre", "selectivite", "reorientation")
 DEVICES = ("mobile", "tablet", "desktop")
-FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux")
+FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux", "reorientation")
 # sprint 18 (owner, 2026-11-11): three student actions, counted without the formation they concern
 ACTIONS = ("voeu", "planb", "onglet")          # vœu added to the list, Plan B opened, a formation-page tab opened
 FICHE_TABS = ("admission", "jury", "reussite", "emploi", "historique")

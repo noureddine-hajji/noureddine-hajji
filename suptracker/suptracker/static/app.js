@@ -66,8 +66,13 @@ function vxProfile(p) {
   const jv = typeof JV !== "undefined" ? JV : null;                       // the vocabulary, when "Mon parcours" loaded it
   const codes = jv && jv.voies && jv.voies[serie] ? jv.voies[serie].map((x) => x.code) : null;
   const keep = serie !== "bg" && typeof p.voie === "string" && (!codes || p.voie === "autre" || codes.includes(p.voie));
-  return { ...p, serie, mention, voie: keep ? p.voie : null, voie_label: keep ? p.voie_label : null };
+  return { ...p, serie, mention, voie: keep ? p.voie : null, voie_label: keep ? p.voie_label : null,
+    statut: p.statut === "reorientation" ? "reorientation" : "terminale" };
 }
+// sprint 21: "Je ne suis plus en terminale" (reorientation, return to studies). No zone exists for this group: SIES publishes
+// no mention and no series for it, so the pages show the estimated access outside terminale instead, never a zone or a Plan B.
+const REO_LABEL = "Je ne suis plus en terminale";
+const isReo = (p) => !!p && typeof p === "object" && p.statut === "reorientation";
 function vxQuery(ids, prof) {
   const qs = new URLSearchParams({ ids: ids.join(","), serie: prof.serie, mention: prof.mention });
   if (prof.serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
@@ -89,13 +94,16 @@ const profileBar = {
       this.key = ""; this.data = null;
       const has = voeux.get().length > 0;
       el.innerHTML = `<span class="pb-who">${has ? "Pas encore de profil : les zones de vos vœux ne peuvent pas être lues." : "Indiquez votre bac et votre mention pour voir où vous vous situez dans chaque formation."}</span>
-        <a class="pb-link" href="#/parcours">Indiquer mon bac et ma mention</a>`;
+        <a class="pb-link" href="#/parcours">Indiquer mon bac et ma mention</a><a class="pb-link" href="#/reorientation">${REO_LABEL}</a>`;
       return;
     }
     const prof = vxProfile(raw);
     const ids = voeux.get();
     let list;
-    if (!ids.length) { this.key = ""; this.data = null; list = `<a class="pb-link" href="#/voeux">Mes vœux : aucun pour l'instant</a>`; }
+    if (isReo(prof)) {                                                   // sprint 21: no zone for this group, no zone request
+      this.key = ""; this.data = null;
+      list = `<a class="pb-link" href="#/voeux">Mes vœux : ${ids.length ? `${fmt(ids.length)}, accès estimé hors terminale` : "aucun pour l'instant"}</a>`;
+    } else if (!ids.length) { this.key = ""; this.data = null; list = `<a class="pb-link" href="#/voeux">Mes vœux : aucun pour l'instant</a>`; }
     else {
       const k = vxQuery(ids, prof).toString();
       if (this.key !== k) {
@@ -202,6 +210,7 @@ const ICONS = {
   search: ICO('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
   job: ICO('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/>'),
   compass: ICO('<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'),
+  reorientation: ICO('<path d="M4 17h9a4 4 0 0 0 0-8H7"/><path d="M10 6L7 9l3 3"/>'),
   internat: ICO('<path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/>'),
   apprentissage: ICO('<path d="M14.5 6.5a4 4 0 0 0 5 5l-8.5 8.5a2.1 2.1 0 0 1-3-3z"/>'),
   distance: ICO('<rect x="3.5" y="5" width="17" height="11" rx="1.5"/><path d="M8 20h8M12 16v4"/>'),
@@ -230,7 +239,7 @@ function searchHash(q, params) {
   return `#/s/${encodeURIComponent(q)}${qs ? `/${encodeURIComponent(qs)}` : ""}`;
 }
 
-// ---- lot 1 UI: the home page opens on three doors (a formation, a job, where I stand) ----
+// ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
 const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
 function viewHome() {
   const n = voeux.get().length;
@@ -243,6 +252,8 @@ function viewHome() {
       <span>Développeur, infirmière, juriste… voyez les formations qui y mènent.</span></a>
     <a class="door" href="#/parcours"><span class="door-ico" aria-hidden="true">${ICONS.compass}</span><strong>Je veux savoir où je me situe</strong>
       <span>Votre bac, vos spécialités, votre mention : voyez où se situaient les admis des années passées.</span></a>
+    <a class="door" href="#/reorientation"><span class="door-ico" aria-hidden="true">${ICONS.reorientation}</span><strong>Je me réoriente ou je reprends mes études</strong>
+      <span>Vous n'êtes plus en terminale : voyez les formations qui accueillent des candidats comme vous.</span></a>
   </div>
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
@@ -278,6 +289,7 @@ function zoneTiles(counts, other) {
 }
 // profileLine: the stored profile read back in one line (the form folds under it once a profile exists)
 function profileLine(p, serie) {
+  if (isReo(p)) return [REO_LABEL, p.academie ? `académie de ${esc(p.academie)}` : ""].filter(Boolean).join(" · ");
   const ser = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie];
   const men = { sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[p.mention] || "";
   return [ser, serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}` : p.voie_label ? esc(p.voie_label) : "", men && `mention ${men}`, p.academie ? `académie de ${esc(p.academie)}` : ""]
@@ -889,7 +901,8 @@ function summaryBand(r, d) {
   return `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2>
     <div class="sum-grid">
       ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "indicateur officiel, phase principale")}
-      ${prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"')
+      ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation : vous n'êtes plus en terminale, pas une zone"))
+        : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"')
         : `<a class="sum-tile" href="#/parcours"><span class="sum-label">Votre zone</span><span class="sum-value">—</span><span class="sum-note">renseignez votre profil dans « Mon parcours »</span></a>`}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
@@ -1026,6 +1039,10 @@ async function loadPlanB(cod, opts = {}) {
   if (!box) return;
   const includePaid = !!opts.includePaid;
   const p = opts.profile || store.get("profile", null);
+  if (isReo(p)) {                                                     // sprint 21: Plan B compares zones, none exists outside terminale
+    box.innerHTML = `${opts.inline ? "" : '<div class="card"><h2>Plan B</h2>'}<p class="muted small">${REO_NO_ZONE} Le plan B compare des zones : il n'est pas proposé. Comparez plutôt l'accès estimé hors terminale des formations dans « <a href="#/reorientation">Je me réoriente</a> ».</p>${opts.inline ? "" : "</div>"}`;
+    return;
+  }
   const prof = p || { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "" };
   const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
   const qs = new URLSearchParams({ serie, mention: prof.mention || "ab" });
@@ -1631,6 +1648,7 @@ function profileForm(p) {
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
   const serie = ["bg", "bt", "bp"].includes(p.serie) ? p.serie : "bg";
   return `<form id="pf" class="toolbar">
+    <label>Situation <select name="statut"><option value="terminale">En terminale</option><option value="reorientation" ${isReo(p) ? "selected" : ""}>${REO_LABEL}</option></select></label>
     <label>Bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>
     ${serie !== "bg" && JV.voies && (JV.voies[serie] || []).length ? `<label>${serie === "bt" ? "Série et spécialités" : "Spécialité de bac pro"} <select name="voie"><option value="">Pas indiqué</option>${opt(JV.voies[serie], p.voie)}<option value="autre" ${p.voie === "autre" ? "selected" : ""}>${serie === "bt" ? "Autre série ou autres spécialités" : "Autre spécialité"}</option></select></label>` : ""}
     ${serie === "bg" ? `<label>Spécialité 1 <select name="spe1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select></label>
@@ -1846,6 +1864,7 @@ function spark(trend, key, scale = 1) {
 }
 
 async function viewParcours() {
+  if (isReo(store.get("profile", null))) return viewReorientation("", "");   // sprint 21: no positioning by bac outside terminale
   JV = JV || await api("/api/journey/vocab");
   const hasProfile = !!store.get("profile", null);                   // lot 3: a stored profile folds the form under one line
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
@@ -1902,6 +1921,8 @@ async function viewParcours() {
 
   const ser = document.querySelector('#pf [name="serie"]');
   if (ser) ser.onchange = () => document.getElementById("pf").requestSubmit();
+  const stt = document.querySelector('#pf [name="statut"]');
+  if (stt) stt.onchange = () => document.getElementById("pf").requestSubmit();
   // the lycée picked or removed goes through the same submit as "Explorer": edits made in the form
   // before picking it (specialties, mention...) are kept, never replaced by the stored profile
   let lyc = p.lycee || null;
@@ -1912,7 +1933,7 @@ async function viewParcours() {
     const np = { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null),
       serie: fd.get("serie") || "bg", spe1: fd.get("spe1") || p.spe1, spe2: fd.get("spe2") || p.spe2,
       mention: fd.get("mention"), academie: fd.get("academie"), boursier: !!fd.get("boursier"),
-      maths_expertes: !!fd.get("maths_expertes"), lycee: lyc };
+      maths_expertes: !!fd.get("maths_expertes"), lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };
     if (np.serie !== serie || np.spe1 !== p.spe1 || np.spe2 !== p.spe2) store.set("drill", null);
     if (!np.academie) store.set("onlyHome", false);
     store.set("profile", np); viewParcours();
@@ -2084,6 +2105,7 @@ async function viewVoeux() {
   const ids = voeux.get();
   const p = store.get("profile", { spe1: "MATHS", spe2: "SES", mention: "ab", academie: "", boursier: false });
   const prof = vxProfile(p);                                             // stored profile: never trusted
+  if (isReo(prof)) return viewVoeuxReo(ids, prof);                      // sprint 21: no zone, no Plan B, no "Compléter"
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[mention]}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
@@ -2568,10 +2590,149 @@ async function viewSelectivite(dArg, mArg) {
   document.querySelectorAll(".sel-dot").forEach((c) => { c.onclick = () => { location.hash = `#/f/${encodeURIComponent(c.dataset.pick)}`; }; });
 }
 
+// ---- sprint 21: "Je me réoriente ou je reprends mes études" (owner's choices, 2026-11-11) ----
+// The group outside terminale (reorientation, return to studies, other routes) has no published access rate: the server derives
+// its candidates and proposals from the published counts and scales the official rate (reorientation.py). Always an estimation,
+// never a zone, never a Plan B; the list is sorted by the student's académie, then by name, never by figures.
+const REO_NO_ZONE = "Le SIES ne publie ni mention ni série pour les candidats qui ne sont pas en terminale : aucune zone (sécurité, cible, ambitieux) ne peut être lue pour eux.";
+function reoWhy(b, ok) {
+  if (!b) return "pas de chiffres pour cette formation";
+  if (b.acces_estime != null) return b.plafonne ? `${ok} (plafonnée à 100 %)` : ok;
+  if (b.candidats == null) return "effectifs publiés incohérents : pas d'estimation";
+  if (b.candidats < b.min_candidats) return `moins de ${b.min_candidats} candidats hors terminale (${b.candidats}) : pas d'estimation`;
+  if (b.taux_acces_ens == null) return "taux d'accès non publié : pas d'estimation";
+  return "aucune proposition publiée : pas d'estimation";
+}
+function reoCell(b) {
+  if (!b || b.acces_estime == null) return `—<div class="estim">${esc(reoWhy(b, ""))}</div>`;
+  return `${pct1(b.acces_estime)}<div class="estim">estimation${b.plafonne ? ", plafonnée à 100 %" : ""} · ${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale</div>`;
+}
+const reoAutres = (b) => (b && b.part_admis_autres != null ? `${pct1(b.part_admis_autres)}<div class="estim">${fmt(b.admis_autres)} sur ${fmt(b.admis)} admis</div>` : "—");
+const REO_METHOD = "Accès estimé hors terminale = taux d'accès officiel × (part des candidats hors terminale qui ont reçu une proposition ÷ part de tous les candidats qui en ont reçu une), plafonné à 100 %. C'est une estimation à partir des effectifs publiés (phase principale et phase complémentaire), pas un taux officiel ni une chance d'admission.";
+function reoSort(rows, home) {
+  const by = (x) => `${x.etablissement || ""} ${x.formation || ""}`;
+  return rows.slice().sort((a, b) => (home ? (b.academie === home) - (a.academie === home) : 0)
+    || by(a).localeCompare(by(b), "fr", { sensitivity: "base" }) || String(a.cod_aff_form).localeCompare(String(b.cod_aff_form)));
+}
+async function viewReorientation(dArg, mArg) {
+  const [FAC, V] = await Promise.all([api("/api/carte"), JV ? Promise.resolve(JV) : api("/api/journey/vocab")]);
+  JV = V;
+  const known = (lab) => FAC.diplomes.find((x) => x.label === lab);
+  const D = known(dArg) || known("Licence") || FAC.diplomes[0];
+  const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
+  const qs = new URLSearchParams({ diplome: D.label });
+  if (mention) qs.set("mention", mention);
+  const marker = `reorientation:${qs}`;
+  $view.dataset.rendered = marker;
+  const d = await api(`/api/reorientation?${qs}`);
+  if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
+  const goTo = (lab, m) => { location.hash = `#/reorientation/${encodeURIComponent(lab)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
+  const acads = [...new Set(d.formations.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  let shown = searchPage(), onlyHome = false, onlyAutres = false;
+  const draw = () => {
+    const raw = store.get("profile", null);
+    const prof = raw && typeof raw === "object" && !Array.isArray(raw) ? vxProfile(raw) : null;
+    const mine = isReo(prof);
+    const home = prof && JV.academies.includes(prof.academie) ? prof.academie : "";
+    const rows = reoSort(d.formations.filter((f) => (!onlyHome || !home || f.academie === home) && (!onlyAutres || (f.reorientation && f.reorientation.autres_majoritaires))), home);
+    const nEst = d.formations.filter((f) => f.reorientation && f.reorientation.acces_estime != null).length;
+    const nAut = d.formations.filter((f) => f.reorientation && f.reorientation.autres_majoritaires).length;
+    const row = (f) => { const b = f.reorientation; return `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}${f.payant ? ' · <span class="badge warnb">privé, frais de scolarité</span>' : ""}</div>${b ? autresBadge(b) : ""}</td>
+      <td class="num" data-label="Accès estimé hors terminale">${reoCell(b)}</td>
+      <td class="num" data-label="Taux d'accès officiel, tous candidats">${pct(b && b.taux_acces_ens)}</td>
+      <td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>
+      <td class="acts" data-label="Mes vœux">${voeuButton(f.cod_aff_form)}</td></tr>`; };
+    $view.innerHTML = `<div class="card"><h1>Je me réoriente ou je reprends mes études</h1>
+      <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le SIES compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page l'estime pour chaque formation à partir des candidats et des propositions publiés.</p>
+      <p class="small">${REO_NO_ZONE} Les chiffres ci-dessous sont des parts de candidats des campagnes passées, pas des chances d'admission.</p>
+      <div class="toolbar">${mine ? `<span class="badge exact">Votre situation : ${REO_LABEL}</span><button type="button" id="reo-back" class="small">Je suis en terminale</button>`
+        : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Mon parcours », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
+    <div class="card"><div class="carte-pick"><label class="small">Type de diplôme <select id="rdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
+      <label class="small">Mention <select id="rmen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
+      <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label></div>
+      <div class="toolbar">${home ? `<label class="small"><input type="checkbox" id="rhome" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(home)}</label>` : ""}
+        <label class="small"><input type="checkbox" id="raut" ${onlyAutres ? "checked" : ""}> Seulement les formations où les admis hors néo-bacheliers sont majoritaires</label></div>
+      <p class="small">${fmt(d.formations.length)} formation${d.formations.length > 1 ? "s" : ""} en ${esc(d.session)} · ${fmt(nEst)} avec un accès estimé hors terminale · ${fmt(nAut)} où les admis hors néo-bacheliers sont majoritaires. Ordre : ${home ? `l'académie de ${esc(home)} d'abord, puis ` : ""}le nom de l'établissement, jamais les chiffres.</p></div>
+    <div class="card"><h2>Formations ${esc(D.label)}${mention ? ` · ${esc(mention)}` : ""}</h2>
+      ${rows.length ? `<div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${d.session}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th></th></tr>
+      ${rows.slice(0, shown).map(row).join("")}</table></div>` : `<p class="muted">Aucune formation pour ces filtres.</p>`}
+      ${rows.length > shown ? `<p><button type="button" id="rmore">Afficher ${fmt(Math.min(searchPage(), rows.length - shown))} de plus (${fmt(shown)} sur ${fmt(rows.length)})</button></p>` : ""}
+      <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
+      <p class="muted small">Admis hors néo-bacheliers : admis qui avaient déjà le bac ou venaient d'un autre parcours, effectifs publiés ; le SIES ne les détaille pas.</p></div>
+    ${feedbackBox("reorientation")}`;
+    $view.dataset.rendered = marker;
+    document.getElementById("rdip").onchange = (e) => goTo(e.target.value, "");
+    document.getElementById("rmen").onchange = (e) => goTo(D.label, e.target.value);
+    document.getElementById("racad").onchange = (e) => {
+      const p0 = store.get("profile", null);
+      store.set("profile", { ...(p0 && typeof p0 === "object" && !Array.isArray(p0) ? p0 : {}), academie: e.target.value });
+      profileBar.render(); draw();
+    };
+    const h = document.getElementById("rhome");
+    if (h) h.onchange = () => { onlyHome = h.checked; shown = searchPage(); draw(); };
+    document.getElementById("raut").onchange = (e) => { onlyAutres = e.target.checked; shown = searchPage(); draw(); };
+    const more = document.getElementById("rmore");
+    if (more) more.onclick = () => { shown += searchPage(); draw(); };
+    const setStatut = (st) => {
+      const p0 = store.get("profile", null);
+      store.set("profile", { ...(p0 && typeof p0 === "object" && !Array.isArray(p0) ? p0 : {}), statut: st });
+      profileBar.render();
+    };
+    const me = document.getElementById("reo-me");
+    if (me) me.onclick = () => { setStatut("reorientation"); draw(); };
+    const back = document.getElementById("reo-back");
+    if (back) back.onclick = () => { setStatut("terminale"); location.hash = "#/parcours"; };
+    bindVoeuButton(draw);
+  };
+  draw();
+}
+// Mes vœux outside terminale: the estimated access of each vœu, no zone tiles, no alert, no Plan B, no "Compléter ma liste"
+async function viewVoeuxReo(ids, prof) {
+  const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
+    <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p></div>`;
+  const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche ou depuis « Je me réoriente » (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux).</p>`;
+  if (!ids.length) {
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
+    $view.dataset.rendered = "voeux:0";
+    return;
+  }
+  const qs = new URLSearchParams({ ids: ids.join(",") });
+  const marker = `voeux:reo:${qs}`;
+  $view.dataset.rendered = marker;
+  $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
+  let d;
+  try { d = await api(`/api/reorientation/voeux?${qs}`); } catch (e) {
+    if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
+    return;
+  }
+  if ($view.dataset.rendered !== marker) return;
+  const ok = d.voeux.filter((v) => v.status === "ok"), nEst = ok.filter((v) => v.reorientation && v.reorientation.acces_estime != null).length;
+  const rows = d.voeux.map((v) => {
+    const name = v.status !== "ok" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${esc(d.session)}</span>`
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation ? autresBadge(v.reorientation) : ""}`;
+    const b = v.status === "ok" ? v.reorientation : null;
+    return `<tr><td data-label="Formation">${name}</td>
+      <td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>
+      <td class="num" data-label="Taux d'accès officiel, tous candidats">${pct(b && b.taux_acces_ens)}</td>
+      <td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>
+      <td class="acts" data-label="Mes vœux"><button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">Retirer</button></td></tr>`;
+  }).join("");
+  $view.innerHTML = `${head}
+  <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
+    <p>${fmt(d.voeux.length)} vœu${d.voeux.length > 1 ? "x" : ""} · ${fmt(nEst)} avec un accès estimé hors terminale.</p>
+    <p class="small">${REO_NO_ZONE} Les repères de zones, le plan B et « Compléter ma liste » reposent sur ces zones : ils ne sont pas proposés. Vos vœux ne se combinent pas en une chance d'admission.</p></section>
+  <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th></th></tr>
+    ${rows}</table></div>
+    <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${feedbackBox("voeux")}`;
+  $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
+}
+
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "parcours", metiers: "metiers", voeux: "voeux",
   carte: "carte", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
-  comprendre: "comprendre", selectivite: "selectivite" };
+  comprendre: "comprendre", selectivite: "selectivite", reorientation: "parcours" };
 const MORE_TABS = ["carte", "compare", "specialites", "qualite", "glossaire", "comprendre", "selectivite"];
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
@@ -2592,7 +2753,7 @@ function markTab(tab) {
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
-  comprendre: "comprendre", selectivite: "selectivite" };
+  comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -2635,6 +2796,7 @@ async function route() {
     if (a === "carte") return await viewCarte(b || "", c || "");
     if (a === "comprendre") return await viewComprendre();
     if (a === "selectivite") return await viewSelectivite(b || "", c || "");
+    if (a === "reorientation") return await viewReorientation(b || "", c || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");

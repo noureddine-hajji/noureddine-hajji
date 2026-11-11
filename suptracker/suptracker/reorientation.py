@@ -19,6 +19,9 @@ from . import admis as ADM
 from . import carte as CA
 
 MIN_CANDIDATS = 20
+# the block keys a list row carries (the formation page and Mes vœux get the whole block)
+LIST_KEYS = ("candidats", "propositions", "acces_estime", "plafonne", "taux_acces_ens", "admis", "admis_autres",
+             "part_admis_autres", "autres_majoritaires", "min_candidats")
 FIELDS = ("nb_voe_pp", "nb_voe_pc", "prop_tot", "taux_acces_ens", "acc_tot", "acc_neobac", "acc_at",
           *(f"{k}_{s}" for s in ("bg", "bt", "bp") for k in ("nb_voe_pp", "nb_voe_pc", "prop_tot")))
 
@@ -32,16 +35,17 @@ def block(r: dict, session: int | None = None) -> dict:
     holds = cand >= 0 and 0 <= prop <= cand and r.get("nb_voe_pp") is not None and r.get("prop_tot") is not None
     rate = round(100 * prop / cand, 1) if holds and cand else None
     rate_all = round(100 * z("prop_tot") / cand_all, 1) if cand_all else None
-    est = None
+    est, capped = None, False
     taux = r.get("taux_acces_ens")
     if holds and cand >= MIN_CANDIDATS and taux is not None and cand_all and z("prop_tot"):
-        est = round(min(100.0, taux * (prop / cand) / (z("prop_tot") / cand_all)), 1)
+        raw = taux * (prop / cand) / (z("prop_tot") / cand_all)
+        est, capped = round(min(100.0, raw), 1), raw > 100
     tot, neo, at = r.get("acc_tot"), r.get("acc_neobac"), r.get("acc_at")
     part = round(100 * at / tot, 1) if tot and ADM.coherent(tot, neo, at) else None
     return {"session": session if session is not None else r.get("session"), "candidats": cand if holds else None,
             "propositions": prop if holds else None, "taux_proposition": rate, "taux_proposition_tous": rate_all,
-            "acces_estime": est, "taux_acces_ens": taux, "admis": tot, "admis_autres": at if part is not None else None,
-            "part_admis_autres": part, "min_candidats": MIN_CANDIDATS}
+            "acces_estime": est, "plafonne": capped, "taux_acces_ens": taux, "admis": tot, "admis_autres": at if part is not None else None,
+            "part_admis_autres": part, "autres_majoritaires": ADM.autres_majoritaires(tot, neo, at), "min_candidats": MIN_CANDIDATS}
 
 
 def _rows(con, where: str, params: list) -> dict:
@@ -71,6 +75,7 @@ def listing(con, diplome: str, mention: str | None = None) -> dict | None:
         return None
     forms = [f for f in lay["formations"] if f.get("stats") is not False]
     blocks = for_codes(con, [f["cod_aff_form"] for f in forms])
-    keep = ("cod_aff_form", "etablissement", "formation", "ville", "academie", "mention", "statut", "payant")
-    rows = [{**{k: f.get(k) for k in keep}, "reorientation": blocks.get(f["cod_aff_form"])} for f in forms]
+    keep = ("cod_aff_form", "etablissement", "formation", "ville", "academie", "payant")
+    slim = lambda b: b and {k: b[k] for k in LIST_KEYS}  # noqa: E731 - only what the page reads (5 000 BTS rows)
+    rows = [{**{k: f.get(k) for k in keep}, "reorientation": slim(blocks.get(f["cod_aff_form"]))} for f in forms]
     return {"diplome": diplome, "mention": mention, "session": lay["session"], "min_candidats": MIN_CANDIDATS, "formations": rows}

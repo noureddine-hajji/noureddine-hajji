@@ -449,7 +449,7 @@ AN_MUTANTS = [
     ("a tab on any action", "or (a == \"onglet\") != (tab is not None) or", "or"),
     ("visitors counted per event", "ops.append((\"o\", k[\"d\"], f\"actu:{p['a']}\", k[\"seen\"], f\"act|{p['a']}|{vid}\"))", "h(f\"actu:{p['a']}\")"),
     ("vœu visitors not collected", "            ops.append((\"p\", f\"{k['u']}:voeu\", vid))\n", "            pass\n"),
-    ("Mes vœux feedback refused", 'FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux")', 'FEEDBACK_PAGES = ("fiche", "parcours", "search")'),
+    ("Mes vœux feedback refused", 'FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux", "reorientation")', 'FEEDBACK_PAGES = ("fiche", "parcours", "search", "reorientation")'),
 ]
 JS_AN_MUTANTS = [
     ("static/app.js", "attempts counted, not additions", 'v.push(cod); this.set(v); track("action", { a: "voeu" }); }', 'v.push(cod); this.set(v); } track("action", { a: "voeu" });'),
