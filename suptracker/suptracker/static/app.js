@@ -837,7 +837,7 @@ async function viewCarte(dArg, mArg) {
 // summaryBand: four figures read at a glance (official access rate, the student's zone, admits, jobs); every tile opens its tab.
 // The zone tile is filled by the Plan B answer (same profile, same zone as « Mon parcours »); without a stored profile it asks for one.
 const fmt2 = (x) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// who the admits are (owner, 2026-11-10): the PUBLISHED counts of néo-bacheliers and other admits (suptracker/admis.py);
+// who the admits are (owner, 2026-11-10): the PUBLISHED counts of néo-bacheliers and other admits (admis.py on the server);
 // the bar is drawn only when they add up to the published total; the label in lists comes from the server's fixed rule
 const AUTRES_LABEL = "Majorité d'admis hors néo-bacheliers";
 const autresBadge = (x) => (x && x.autres_majoritaires ? ` <span class="badge autres" title="Plus d'admis déjà bacheliers ou venus d'un autre parcours (réorientation, reprise d'études…) que de néo-bacheliers, sur au moins 10 admis">${AUTRES_LABEL}</span>` : "");
