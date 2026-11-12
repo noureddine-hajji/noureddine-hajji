@@ -215,7 +215,11 @@ def metier_ld(d: dict, url: str) -> dict:
 def page(shell: str, head: str, body: str) -> str:
     """The app shell with the page's head tags (replacing the default title) and its content inside <main id="view">."""
     shell = re.sub(r"<title>.*?</title>", lambda _m: head, shell, count=1, flags=re.S)
-    return shell.replace('<main id="view" aria-live="polite"></main>', f'<main id="view" aria-live="polite">{body}</main>', 1)
+    # R8: the shell's own <main> tag (whatever its attributes); a shell without it is an error, never a page without content
+    out, n = re.subn(r'(<main id="view"[^>]*>)(</main>)', lambda m: m.group(1) + body + m.group(2), shell, count=1)
+    if n != 1:
+        raise RuntimeError("the app shell has no empty <main id=\"view\">")
+    return out
 
 
 def home_head(canonical: str) -> str:

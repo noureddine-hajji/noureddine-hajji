@@ -238,7 +238,7 @@ def formation_ok(html: str, url: str, pub: dict, api_rec: dict, session: int) ->
     ld_ok = bool(ld) and ld[0].get("@type") == "EducationalOccupationalProgram" and ld[0].get("url") == url \
         and ld[0]["provider"]["name"] == pub["etab"]
     words = "pas des chances d'admission" in desc and "pas des chances d'admission" in h.text and not CHANCE.search(h.text + desc)
-    shell = '<script src="/static/app.js?v=' in html and '<main id="view" aria-live="polite"><article class="seo" data-seo="formation">' in html
+    shell = '<script src="/static/app.js?v=' in html and '<main id="view" tabindex="-1"><article class="seo" data-seo="formation">' in html
     ok = figures and same and names and head and ld_ok and words and shell
     return ok, (f"published figures shown {figures}; equal to /api/formation {same}; title {names}; head {head}; JSON-LD {ld_ok}; "
                 f"caveat {words}; app shell {shell}")
@@ -486,7 +486,7 @@ API_MUTANTS = [
 JS_MUTANTS = [
     ("router ignores the path", "(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")", "(location.hash.slice(1) || \"/\")"),
     ("job path not mapped", "if (m) return `/metiers/${m[1]}`;", "if (m) return null;"),
-    ("a failed data load erases the server summary", "  } catch (e) {\n    showError(e);\n  }", "  } catch (e) {\n    $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
+    ("a failed data load erases the server summary", "  } catch (e) {\n    if (seq === routeSeq) showError(e);\n  }", "  } catch (e) {\n    if (seq === routeSeq) $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
     ("letters accepted as a code", "const f = /^\\/formation\\/(\\d{1,9})\\/?$/.exec(pathname);", "const f = /^\\/formation\\/([^/]+)\\/?$/.exec(pathname);"),
 ]
 HTML_MUTANTS = [

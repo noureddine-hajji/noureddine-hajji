@@ -14,6 +14,7 @@
 }
 :root {
   --bg: #f7f6f8; --surface: #ffffff; --ink: #1e1b22; --muted: #625d69; --line: #e2dfe6;
+  --line-input: #857f8d;                                                      /* R8: form fields' edge, >= 3:1 (1.4.11) */
   --accent: #8e2a6b;
   --zone-securite: #1e7a46; --zone-cible: #2b5fd9; --zone-ambitieux: #b9460f; --voie-bg: #00838f; --voie-bt: #8a6d00; --voie-bp: #6b4bb8; --accent-soft: #f6e8f1; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
   --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb;   /* R4: neutral data ramp, dark to light */
@@ -24,7 +25,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d;
+    --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d; --line-input: #7a7482;
     --accent: #e590c4;
     --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
@@ -35,7 +36,7 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d;
+  --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d; --line-input: #7a7482;
   --accent: #e590c4;
   --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
   --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
@@ -95,7 +96,7 @@ svg.chart { width: 100%; max-width: 620px; height: auto; display: block; }
 svg.chart text { fill: var(--muted); font-size: var(--fs-xs); }
 svg.chart .grid { stroke: var(--line); }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 720px) { .charts { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .charts { grid-template-columns: minmax(0, 1fr); } }
 .heat td.cell { text-align: right; min-width: 70px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 /* audience dashboard */
@@ -157,7 +158,7 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 /* A5 glossary */
 .gl-q { width: 100%; max-width: 480px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; margin: 6px 0 10px; }
 .gl-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
-.gl-item h3 { font-size: var(--fs-md); margin: 0 0 4px; }
+.gl-item h2, .gl-item h3 { font-size: var(--fs-md); margin: 0 0 4px; }
 .gl-item p { margin: 0 0 4px; }
 .fiab-row { margin-top: 4px; }
 /* sprint 4: lycée picker */
@@ -534,3 +535,15 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .guide-progress span { display: block; height: 100%; background: var(--accent); }
 .btnlink.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .guide-step .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* R8 (owner, 2026-11-12): accessibility (WCAG 2.1 AA) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 8px; top: -60px; z-index: 100; padding: 10px 14px; border-radius: var(--r-sm); background: var(--accent); color: var(--surface); text-decoration: none; }
+.skip:focus { top: 8px; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-color: var(--line-input); }
+select { max-width: 100%; }
+label:has(> select) { display: inline-block; max-width: 100%; }
+#view:focus, #view h1:focus { outline: none; }
+.scroll:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tip.tip-off::after { display: none; }
+#view .leaflet-control-attribution a, .leaflet-container .leaflet-control-attribution a { text-decoration: underline; }

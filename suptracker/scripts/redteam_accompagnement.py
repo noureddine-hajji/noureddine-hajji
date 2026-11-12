@@ -782,7 +782,7 @@ JS_MUTANTS += [
 TEXT_MUTANTS = [("cache", "calendar shared nowhere", '(r"/api/calendrier", PUBLIC,', '(r"/api/calendrier", NO_STORE,'),
                 ("css", "print keeps the menus", "  header, nav, .tabbar,", "  header,"),
                 ("css", "print in dark colours", "  :root:root:root { --bg: #ffffff;", "  :root:root:root { --bgx: #ffffff;"),
-                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</div>', "</div>")]
+                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</nav>', "</nav>")]
 
 
 def mutated(old: str, new: str):
