@@ -781,7 +781,7 @@ function doubletteCharts(d, years, sem, rp) {
 // page only. The "around a town" filter runs here: no position is ever sent to the site.
 const CARTE_ZONES = ["securite", "cible", "ambitieux"];
 const CARTE_SHAPE = { securite: "rond", cible: "carré", ambitieux: "triangle" };   // the shape doubles the colour
-const CARTE_OTHER = { label: "Autre ou non situé", color: "var(--muted)" };
+const CARTE_OTHER = { label: "Autre ou non situé", color: "var(--zone-autre)" };
 const CARTE_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";             // one place to change the tile provider
 const CARTE_ATTRIB = "© les contributeurs d'OpenStreetMap";
 const carteUI = { sel: null, page: 0, map: null, layer: null, type: null };
@@ -840,7 +840,8 @@ function carteFilter(rows, F, skip) {
 // one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
 function carteMarker(f) {
   const z = carteZone(f), col = carteColor(z);
-  const shape = zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8, `fill="${col}" stroke="var(--surface)" stroke-width="1.5"`);
+  const shape = z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="var(--surface)" stroke="${col}" stroke-width="2.5"`)     // a ring, never a disc (review)
+    : zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8, `fill="${col}" stroke="var(--surface)" stroke-width="1.5"`);
   return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage ? ", en apprentissage" : ""}">${shape}</svg>`;
 }
 // points closer than a cell on screen are drawn as one group: a ring split by zone, with its count
@@ -2110,9 +2111,10 @@ function scatter(F, onPick) {
   g += `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">Part des ${SERIE_SHORT[se]} admis avec votre mention ou moins</text>`;
   F.forEach((f, i) => {
     if (f.taux_acces_ens == null || pos(f) == null) return;
-    const c = ZONES[f.zone].color, hollow = f.uncertain || f.small_cohort;
+    // R4 (review): the three zones are filled shapes (paler when uncertain or under 10 admits), every other reading an empty ring
+    const c = ZONES[f.zone].color, filled = ZONE_FILLED.includes(f.zone), weak = f.uncertain || f.small_cohort;
     if (f.spos && f.spos.width >= 0.01) g += `<line x1="${x(f.taux_acces_ens)}" x2="${x(f.taux_acces_ens)}" y1="${y(f.spos.bounds[0])}" y2="${y(f.spos.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
-    g += zoneShape(f.zone, x(f.taux_acces_ens), y(pos(f)), f.home_academie ? 6 : 4.5, `data-i="${i}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"`).replace(/\/>$/, () => `><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></${f.zone === "cible" ? "rect" : f.zone === "ambitieux" ? "path" : "circle"}>`);
+    g += zoneShape(f.zone, x(f.taux_acces_ens), y(pos(f)), f.home_academie ? 6 : 4.5, `data-i="${i}" fill="${filled ? c : "var(--surface)"}"${filled && weak ? ' fill-opacity=".35"' : ""} stroke="${c}" stroke-width="${filled ? (f.home_academie ? 3 : 1.5) : 2}" style="cursor:pointer"`).replace(/\/>$/, () => `><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></${f.zone === "cible" ? "rect" : f.zone === "ambitieux" ? "path" : "circle"}>`);
   });
   setTimeout(() => document.querySelectorAll("svg.positioning [data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
   return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img" aria-label="Où je me situe : chaque formation selon son taux d'accès et la part des admis avec votre mention ou moins, sa forme et sa couleur donnent sa zone">${g}</svg>`;
@@ -2173,7 +2175,7 @@ async function viewParcours() {
   ${lyceeCard(p)}
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
-    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
+    <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les formes pâles sont incertaines (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis ; un anneau vide est hors des trois zones${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
     <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span style="color:${z.color}">${zoneMark(k)}<span class="lg-text">${z.label} (${F.filter((f) => f.zone === k).length})</span></span>`).join("")}</div>
     ${repereNote(s2.calibration)}

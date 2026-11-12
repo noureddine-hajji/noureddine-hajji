@@ -179,6 +179,11 @@ def tokens_ok(css: str, js: str) -> tuple[bool, str]:
         bad.append(("a glyph used as a CSS marker", glyph[:3]))
     if re.search(r'color: "var\(--voie-[a-z]+\)"', block_doublette(js)):
         bad.append("a route colour used for a doublette line")
+    pr = re.search(r"@media print\s*\{(?:\s*/\*.*?\*/)?\s*:root:root:root\s*\{([^}]*)\}", css, re.S)
+    ptok = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\b", pr.group(1))) if pr else {}
+    lost = [k for k in RAMP + ZONE_TOKENS if ptok.get(k) != themes(css)["light"].get(k)]
+    if lost:
+        bad.append(("printing from the dark theme keeps dark tokens", lost[:4]))
     for k in ("zone-autre", "shadow-tip", "shadow-pop"):
         if not re.search(rf"--{k}:", css):
             bad.append(("token missing", k))
@@ -236,7 +241,14 @@ def contrast_ok(css: str) -> tuple[bool, str]:
                 bad.append((th, "pill text", z, round(pill, 2)))
             if mark < 3:
                 bad.append((th, "mark", z, round(mark, 2)))
-    return not bad, f"3 themes; lowest text contrast {round(min(low), 2) if low else None}; problems {bad[:4]}"
+    body = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    body = re.sub(r"@media print\s*\{.*$", "", body, flags=re.S)
+    text_ramp = sorted(set(re.findall(r"(?<![-\w])color:\s*var\(--(c[1-6])\)", body)))
+    for th, tok in t.items():
+        for k in text_ramp:
+            if k in tok and "surface" in tok and contrast(tok[k], tok["surface"]) < 4.5:
+                bad.append((th, "ramp colour as text", k, round(contrast(tok[k], tok["surface"]), 2)))
+    return not bad, f"3 themes; lowest text contrast {round(min(low), 2) if low else None}; ramp steps used as text {text_ramp}; problems {bad[:4]}"
 
 
 @check("VI3 contrast: text on page and card >= 4.5, the pill's text on every zone fill >= 4.5, zone marks >= 3, every theme")
@@ -309,8 +321,16 @@ def marks_ok(js: str) -> tuple[bool, str]:
     hand = re.findall(r'style="border-color:\$\{ZONES\[|class="zone-pill"', js)
     if len(hand) != 1:                                                  # the one zone-pill is inside zonePillHtml
         bad.append(("a zone drawn by hand", len(hand)))
-    if "g += zoneShape(f.zone, x(f.taux_acces_ens)" not in js or "const shape = zoneShape(z, 9, 9," not in js:
+    if "g += zoneShape(f.zone, x(f.taux_acces_ens)" not in js or "zoneShape(z, 9, 9," not in js:
         bad.append("scatter or map marker not drawn with the zone shape")
+    # review: a reading outside the three zones is an empty ring everywhere (chart, map marker, map legend), never a disc
+    if 'fill="${filled ? c : "var(--surface)"}"' not in js or "const c = ZONES[f.zone].color, filled = ZONE_FILLED.includes(f.zone)" not in js:
+        bad.append("the chart fills the other readings")
+    if 'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="var(--surface)" stroke="${col}"' not in js \
+            or 'const CARTE_OTHER = { label: "Autre ou non situé", color: "var(--zone-autre)" };' not in js:
+        bad.append("the map draws 'autre' as a disc, or in another token")
+    if js.count('class="badge zbadge"') != 2:
+        bad.append(("a zone badge drawn outside its helpers", js.count('class="badge zbadge"')))
     return not bad, f"{len(zl)} zone readings; problems {bad[:4]}"
 
 
@@ -415,8 +435,8 @@ def api_ok(c: Ctx, fi) -> tuple[bool, str]:
     latest = cur.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     types = dict(cur.execute("""SELECT t.cod_aff_form, r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
                                 WHERE t.session = ?""", [latest]).fetchall())
-    queries = ["bts", "licence", "but"]
-    bad, n_est, n_frag, n_zoned, full = [], 0, 0, 0, {}
+    queries = ["bts", "licence", "but", "sti2d", "cpge ect"]          # the last two also return older campaigns (review)
+    bad, n_est, n_frag, n_zoned, n_old, full = [], 0, 0, 0, 0, {}
     with client(c, fi) as tc:
         for serie, mention in (("bt", "ab"), ("bp", "sansmention"), ("bg", "b")):
             for q in queries:
@@ -430,6 +450,7 @@ def api_ok(c: Ctx, fi) -> tuple[bool, str]:
                 for x in r.json()["results"]:
                     has = "estime_serie" in x
                     if serie == "bg" or x["session"] != latest:
+                        n_old += x["session"] != latest
                         if has:
                             bad.append((x["cod_aff_form"], x["session"], serie, "an estimate where none exists"))
                         continue
@@ -455,7 +476,7 @@ def api_ok(c: Ctx, fi) -> tuple[bool, str]:
                     n_est += 1
                     n_frag += bool(row.get("rate_fragile"))
     ok = not bad and n_est > 0
-    return ok, f"{n_zoned} zoned techno/pro results, {n_est} estimates ({n_frag} fragile); problems {bad[:4]}"
+    return ok, f"{n_zoned} zoned techno/pro results, {n_est} estimates ({n_frag} fragile), {n_old} results of an older campaign; problems {bad[:4]}"
 
 
 @check("VI6 the API: bac techno / pro results carry the full type's estimate and fragile flag; bac général and older campaigns carry none")
@@ -619,6 +640,12 @@ MUTANTS = [
     ("css", "a gear glyph as the filter marker", "details.filters > summary .ico { width: 18px; height: 18px; margin-right: 8px; }",
      'details.filters > summary::before { content: "\u2699"; margin-right: 8px; }', (vi1,)),
     ("js", "a route colour for the national doublette line", 'groupe national`, color: "var(--c2)", dash: "6 4", values', 'groupe national`, color: "var(--voie-bt)", values', (vi1,)),
+    ("css", "a pale ramp step as badge text", ".fiab-B { border-color: var(--c3); color: var(--ink); }", ".fiab-B { border-color: var(--c3); color: var(--c5); }", (vi3,)),
+    ("css", "printing keeps the dark ramp", "--c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats",
+     "}   /* beats", (vi1,)),
+    ("js", "the chart fills the other readings", 'fill="${filled ? c : "var(--surface)"}"', 'fill="${c}"', (vi4,)),
+    ("js", "the map's 'autre' a disc", 'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="var(--surface)" stroke="${col}" stroke-width="2.5"`)',
+     'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="${col}" stroke="var(--surface)" stroke-width="2.5"`)', (vi4,)),
     ("css", "a colour literal in a rule", ".rc-est strong { font-size: var(--fs-md); color: var(--ink); }",
      ".rc-est strong { font-size: var(--fs-md); color: #333333; }", (vi1,)),
     ("js", "every zone a circle", 'return z === "cible" ? `<rect', 'return z === "nope" ? `<rect', (vi4,)),

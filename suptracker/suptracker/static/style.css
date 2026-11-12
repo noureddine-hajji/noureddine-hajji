@@ -150,9 +150,10 @@ svg.chart:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; 
 .su-line > span:first-child { width: 72px; flex: none; }
 /* reliability of one evidence link (A solid, B to qualify, C fragile) */
 .badge.fiab { white-space: nowrap; }
-.fiab-A { border-color: var(--c3); color: var(--c3); }
-.fiab-B { border-color: var(--c5); color: var(--c5); }
-.fiab-C { border-color: var(--c2); color: var(--c2); }
+/* R4 (review): the grade is in the text; the ramp marks the border only (a light ramp step is not readable as text) */
+.fiab-A { border-color: var(--c1); color: var(--ink); }
+.fiab-B { border-color: var(--c3); color: var(--ink); }
+.fiab-C { border-color: var(--c5); color: var(--ink); }
 /* A5 glossary */
 .gl-q { width: 100%; max-width: 480px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; margin: 6px 0 10px; }
 .gl-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -383,6 +384,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .carte-osm .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
 .carte-filters fieldset i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
 .legend i.lg-securite, .legend i.lg-autre, .carte-filters i.lg-securite, .carte-filters i.lg-autre { border-radius: 50%; }
+.legend i.lg-autre, .carte-filters i.lg-autre { background: transparent !important; box-shadow: inset 0 0 0 2px var(--zone-autre); }   /* a ring */
 .legend i.lg-cible, .carte-filters i.lg-cible { border-radius: 2px; }
 .legend i.lg-ambitieux, .carte-filters i.lg-ambitieux { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
 .carte-sel h3 { margin-top: 0; }
@@ -505,7 +507,8 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 @media print {                                       /* paper is white whatever the screen's theme */
   :root:root:root { --bg: #ffffff; --surface: #ffffff; --ink: #000000; --muted: #444444; --line: #999999; --accent-soft: #ffffff;
     --warn-bg: #ffffff; --warn-ink: #000000; --info-bg: #ffffff; --zone-securite: #1e7a46; --zone-cible: #2b5fd9;
-    --zone-ambitieux: #b9460f; color-scheme: light; }                /* beats the dark theme's tokens (review) */
+    --zone-ambitieux: #b9460f; --zone-autre: #6f6977; color-scheme: light;
+    --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats the dark theme's tokens (review) */
   header, nav, .tabbar, .more-menu, #search, #profile-bar, footer, .feedback, .no-print, button { display: none !important; }
   .print-only { display: block; }
   body, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; }
