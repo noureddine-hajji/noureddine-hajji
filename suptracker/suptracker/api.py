@@ -866,9 +866,10 @@ def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac",
 
 @app.get("/api/carte/chiffres")
 def carte_chiffres(codes: str = Query(..., max_length=600), serie: str = Query("bg", pattern="^(bg|bt|bp)$"),
-                   spe1: str | None = None, spe2: str | None = None, voie: str | None = Query(None, max_length=120)):
+                   spe1: str | None = None, spe2: str | None = None):
     """R9: for one page of the map's list (at most 40 codes), the figure for the student's doublette or line, exactly as
-    Mes vœux shows it. A coarse profile only (no average, no académie), like /api/carte/zones."""
+    Mes vœux shows it; bac techno / pro: the report's lines, the page picks its own. A coarse profile only (no average, no
+    académie, no series line), like /api/carte/zones."""
     _journey_ready()
     dkey = None
     if serie == "bg":
@@ -876,7 +877,7 @@ def carte_chiffres(codes: str = Query(..., max_length=600), serie: str = Query("
             raise HTTPException(422, "deux spécialités différentes sont requises")
         dkey = _dkey(spe1, spe2)
     try:
-        return CA.chiffres(_con().cursor(), codes.split(","), serie, dkey, VO.valid(_con().cursor(), serie, voie))
+        return CA.chiffres(_con().cursor(), codes.split(","), serie, dkey)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
 

@@ -388,10 +388,12 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
 CHIFFRES_MAX = 40          # one page of the map's list (searchPage: 20 on a phone, 40 on a wide screen)
 
 
-def chiffres(con, codes: list[str], serie: str, dkey: str | None, voie: str | None = None) -> dict:
+def chiffres(con, codes: list[str], serie: str, dkey: str | None) -> dict:
     """R9 (owner, 2026-11-12): for the formations of one page of the map's list, the figure for the student's doublette
-    (bac général) or line (bac techno / pro): voeux.figures, the function Mes vœux reads, so the map, Mes vœux and the
-    formation page show one figure. No zone, no average here: the page reads those from /api/carte/zones."""
+    (bac général): voeux.figures, the function Mes vœux reads, so the map, Mes vœux and the formation page show one figure.
+    Bac techno / pro: the report's lines of that bac (`voies`), the page picks the student's line itself (pickVoie): the
+    series / specialty is sent only to /api/voeux. No zone, no average here: the page reads those from /api/carte/zones."""
+    from . import rapports as RP
     from . import voeux as V
     cods = list(dict.fromkeys(c.strip() for c in codes if c.strip()))
     if len(cods) > CHIFFRES_MAX or any(not re.fullmatch(r"\d{1,9}", c) for c in cods):
@@ -401,5 +403,11 @@ def chiffres(con, codes: list[str], serie: str, dkey: str | None, voie: str | No
         LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form) LEFT JOIN core.taxonomy_rule r USING (rule_id)
         WHERE fy.session = ? AND list_contains(?, fy.cod_aff_form)""", [latest, cods]).fetchall())
     known = [c for c in cods if c in types]
-    return {"session": latest, "serie": serie, "doublette": dkey,
-            "chiffres": V.figures(con, known, types, serie=serie, dkey=dkey, voie=voie)}
+    figs = V.figures(con, known, types, serie=serie, dkey=dkey)
+    if serie in ("bt", "bp"):
+        for c in known:
+            b = RP.for_formation(con, c, textes=False)
+            figs[c]["voies"] = None if not b else {"session": b["session"], "recoupe": b["recoupe"],
+                                                    "doublettes": {serie: b["doublettes"].get(serie) or []},
+                                                    "voie_keys": {serie: (b.get("voie_keys") or {}).get(serie)}}
+    return {"session": latest, "serie": serie, "doublette": dkey, "chiffres": figs}
