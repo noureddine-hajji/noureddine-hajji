@@ -530,25 +530,6 @@ function searchHash(q, params) {
   return `#/s/${encodeURIComponent(q)}${qs ? `/${encodeURIComponent(qs)}` : ""}`;
 }
 
-// ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
-const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
-// R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
-const EXPLORER_VIEWS = [["liste", "Liste", "list"], ["carte", "Carte", "map"], ["metiers", "Métiers", "job"]];
-function explorerViews(cur, q = "") {
-  const href = { liste: q ? `#/s/${encodeURIComponent(q)}` : "#/", carte: "#/carte", metiers: "#/metiers" };
-  return `<nav class="views" aria-label="Explorer : choisir la vue">${EXPLORER_VIEWS.map(([k, label, ico]) =>
-    `<a href="${esc(href[k])}"${k === cur ? ' aria-current="true"' : ""}>${ICONS[ico]}${label}</a>`).join("")}</nav>`;
-}
-// the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: one call to create it
-function homeProfile() {
-  const raw = store.get("profile", null);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, votre ligne dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
-      <a class="btnlink" href="#/profil">Créer mon profil</a></div>`;
-  }
-  const p = vxProfile(raw);
-  return `<div class="card home-profile"><p class="small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong></p><a class="btnlink" href="#/profil">Modifier mon profil</a></div>`;
-}
 // ---- Sprint R7 (owner, 2026-11-12): "Construire ma liste", the five steps of the site in one place ----
 // Everything it reads stays in this browser: the profile, the list and two flags (a formation page opened, the list shared).
 // The list is read with the profile bar's own query, with the average the browser keeps (R6). Counts and facts, never a chance;
@@ -640,6 +621,25 @@ function guideCard() {
     <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."}</p><a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></div>`;
 }
 
+// ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
+const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
+// R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
+const EXPLORER_VIEWS = [["liste", "Liste", "list"], ["carte", "Carte", "map"], ["metiers", "Métiers", "job"]];
+function explorerViews(cur, q = "") {
+  const href = { liste: q ? `#/s/${encodeURIComponent(q)}` : "#/", carte: "#/carte", metiers: "#/metiers" };
+  return `<nav class="views" aria-label="Explorer : choisir la vue">${EXPLORER_VIEWS.map(([k, label, ico]) =>
+    `<a href="${esc(href[k])}"${k === cur ? ' aria-current="true"' : ""}>${ICONS[ico]}${label}</a>`).join("")}</nav>`;
+}
+// the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: one call to create it
+function homeProfile() {
+  const raw = store.get("profile", null);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, votre ligne dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
+      <a class="btnlink" href="#/profil">Créer mon profil</a></div>`;
+  }
+  const p = vxProfile(raw);
+  return `<div class="card home-profile"><p class="small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong></p><a class="btnlink" href="#/profil">Modifier mon profil</a></div>`;
+}
 function viewHome() {
   const n = voeux.get().length;
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
