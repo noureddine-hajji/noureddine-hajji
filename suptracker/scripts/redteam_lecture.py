@@ -305,16 +305,8 @@ def scripted_bounds(js: str) -> list:
                 p = (p[0], rng.randint(p[0], b1))
             s.append([b0, b1, None if p is None else p[0], None if p is None else p[1], g])
         cases.append((s, rng.choice([0.0, 0.3, 0.7, 0.999, 1.0]), rng.choice([None, rng.random()])))
-    saved = J.series_cdf_bounds
-    want = []
-    try:
-        for s, w, cdf in cases:
-            J.series_cdf_bounds = lambda serie, m, camp: ((camp["b0"], camp["b1"]) if m == "ab"
-                                                          else None if camp["p0"] is None else (camp["p0"], camp["p1"]))
-            margins = [{"b0": b0, "b1": b1, "p0": p0, "p1": p1, "acc_bg": g} for b0, b1, p0, p1, g in s]
-            want.append(jsonable(J.series_position("bg", "ab", margins, cdf, w)))
-    finally:
-        J.series_cdf_bounds = saved
+    # series_position itself, fed the scripted campaigns (the same per-campaign list stage 2 computes once per row)
+    want = [jsonable(J.series_position("bg", "ab", [], cdf, w, s)) for s, w, cdf in cases]
     got = run_node(js, [{"fn": "seriesPos", "args": [s, w, cdf]} for s, w, cdf in cases])
     return [(cases[i], got[i], want[i]) for i in range(len(cases)) if not close(got[i], want[i])]
 

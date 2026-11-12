@@ -453,7 +453,16 @@ def series_cdf_bounds(serie: str, mention: str, c: dict) -> tuple[int, int] | No
     The bounds are sharp: both ends are reached by some table (checked by brute force in
     scripts/redteam_mentions.py). Returns None when the counts needed are missing.
     """
-    if any(c.get(k) is None for k in BG_KEYS) or mention not in MENTIONS:
+    if mention not in MENTIONS:
+        return None
+    m = _bounds_margins(serie, c)
+    return None if m is None else _bounds_upto(m, mention, c)
+
+
+def _bounds_margins(serie: str, c: dict) -> tuple | None:
+    """The part of series_cdf_bounds that does not depend on the mention: the campaign's margins, checked once (R6: the
+    band and the band below are bounded from one check)."""
+    if any(c.get(k) is None for k in BG_KEYS):
         return None
     others = [x for x in SERIES if x != serie]
     g, gm = c[f"acc_{serie}"], c[f"acc_{serie}_mention"]
@@ -467,8 +476,14 @@ def series_cdf_bounds(serie: str, mention: str, c: dict) -> tuple[int, int] | No
     if (gm + om != sum(c[f"acc_{m}"] for m in ladder) or no_mention_other < 0
             or p + no_mention_other != c["acc_sansmention"] + u):
         return None                              # the margins contradict each other upstream
+    return p, om, u, gm
+
+
+def _bounds_upto(m: tuple, mention: str, c: dict) -> tuple[int, int] | None:
+    p, om, u, gm = m
+    ladder = MENTIONS[1:]
     upto = ladder[: ladder.index(mention) + 1] if mention != "sansmention" else ()
-    a = sum(c[f"acc_{m}"] for m in upto)
+    a = sum(c[f"acc_{x}"] for x in upto)
     # gm - above would be a second lower bound, but it equals a - om once gm + om = a + above
     # (checked above): one constraint, stated once
     x_lo, x_hi = max(0, a - om), min(a, gm)
@@ -484,7 +499,8 @@ def bg_position(mention: str, margins: list[dict], cdf_all: float | None) -> dic
     return series_position("bg", mention, margins, cdf_all)
 
 
-def series_position(serie: str, mention: str, margins: list[dict], cdf_all: float | None, w: float = 1.0) -> dict | None:
+def series_position(serie: str, mention: str, margins: list[dict], cdf_all: float | None, w: float = 1.0,
+                    camps: list[list] | None = None) -> dict | None:
     """Where a bac-général student's mention sits among bac-général admits (A3).
 
     `margins`: one dict of BG_KEYS counts per campaign of the lineage.
@@ -498,19 +514,18 @@ def series_position(serie: str, mention: str, margins: list[dict], cdf_all: floa
     # margins contradict each other is left out (with its admits).
     # R5: inside the band, the bounds of "mention or lower" and of "the mention below or lower" are mixed with the same
     # within-band fraction w as the all-series share (w = 1: the pre-R5 bounds, unchanged)
-    prev = MENTIONS[MENTIONS.index(mention) - 1] if mention != MENTIONS[0] else None
+    # R6: the per-campaign bounds (`lecture_bounds`, also served to the page) are computed once per row and reused here
+    if camps is None:
+        camps = lecture_bounds(serie, mention, margins)
     k_lo = k_hi = g = 0
     used = 0
-    for camp in margins:
-        b = series_cdf_bounds(serie, mention, camp)
-        if b is None:
-            continue
+    for b0, b1, p0, p1, g_c in camps:
+        b = (b0, b1)
         if w < 1.0:
-            p = series_cdf_bounds(serie, prev, camp) if prev else (0, 0)
-            if p is None:
+            if p0 is None:
                 continue
-            b = ((1.0 - w) * p[0] + w * b[0], (1.0 - w) * p[1] + w * b[1])
-        k_lo, k_hi, g, used = k_lo + b[0], k_hi + b[1], g + camp[f"acc_{serie}"], used + 1
+            b = ((1.0 - w) * p0 + w * b[0], (1.0 - w) * p1 + w * b[1])
+        k_lo, k_hi, g, used = k_lo + b[0], k_hi + b[1], g + g_c, used + 1
     if g < MIN_BG_FOR_BOUNDS:
         return None
     lo, hi = k_lo / g, k_hi / g
@@ -528,15 +543,17 @@ def lecture_bounds(serie: str, mention: str, margins: list[dict]) -> list[list]:
     prev = MENTIONS[MENTIONS.index(mention) - 1] if mention != MENTIONS[0] else None
     out = []
     for camp in margins:
-        b = series_cdf_bounds(serie, mention, camp)
+        mg = _bounds_margins(serie, camp)          # the margins checked once for both bands (= series_cdf_bounds twice)
+        b = None if mg is None else _bounds_upto(mg, mention, camp)
         if b is None:
             continue
-        p = series_cdf_bounds(serie, prev, camp) if prev else (0, 0)
+        p = _bounds_upto(mg, prev, camp) if prev else (0, 0)
         out.append([b[0], b[1], None if p is None else p[0], None if p is None else p[1], camp[f"acc_{serie}"]])
     return out
 
 
-def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict], w: float = 1.0) -> dict:
+def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict], w: float = 1.0,
+                 camps: list[list] | None = None) -> dict:
     """The mention share a zone is read from, shared by stage2 and the sprint-5 back-test so the
     stability printed next to a zone is measured with the very method that set it.
     k / n: pooled all-series admits with the mention or lower / with a known mention;
@@ -544,7 +561,7 @@ def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dic
     the student's series replaces the all-series view."""
     cdf = k / n if n else None
     lo, hi = wilson(k, n)
-    spos = series_position(serie, mention, margins, cdf, w)
+    spos = series_position(serie, mention, margins, cdf, w, camps)
     if spos:
         return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": spos, "cdf_zone": spos["cdf_used"], "ci_zone": tuple(spos["ci"])}
     return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": None, "cdf_zone": cdf, "ci_zone": (lo, hi)}
@@ -782,7 +799,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
         k_band = x["k_exact"] or 0
         k = k_top - (1.0 - w) * k_band                      # R5: the average inside its band (w = 1: the band's top)
         margins = x.pop("bg_margins") or []
-        rd = zone_reading(serie, mention, k, n, margins, w)
+        camps = lecture_bounds(serie, mention, margins)      # once per row: the reading, the uniform check and `lec`
+        rd = zone_reading(serie, mention, k, n, margins, w, camps)
         cdf, (lo, hi), spos = rd["cdf"], rd["cdf_ci"], rd["spos"]
         cdf_zone, lo_zone, hi_zone = rd["cdf_zone"], *rd["ci_zone"]
         eligible = open_to_series(x, spe, serie)
@@ -820,12 +838,12 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             # R6 (owner, 2026-11-12): what the page needs to read the zone with an average it never sends: the published
             # counts (all-series admits up to the band, in the band, with a known mention), each campaign's bounds of the
             # series reading for the band and for the band below, and the two rules that do not depend on the average
-            "lec": {"n": n, "kt": k_top, "kb": k_band, "s": lecture_bounds(serie, mention, margins),
+            "lec": {"n": n, "kt": k_top, "kb": k_band, "s": camps,
                     "ferme": eligible is False, "fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES},
         })
         x.pop("s_sum")
         if moyenne is not None and w_u != w and x["zone"] not in ("non_ouvert", "indetermine") and not x["uncertain"]:
-            rd_u = zone_reading(serie, mention, k_top - (1.0 - w_u) * k_band, n, margins, w_u)
+            rd_u = zone_reading(serie, mention, k_top - (1.0 - w_u) * k_band, n, margins, w_u, camps)
             alt = classify_zone(x["taux_acces_ens"], rd_u["cdf_zone"], *rd_u["ci_zone"])["zone"]
             x["uncertain"] = alt != x["zone"]                # R5: the within-band hypothesis decides the zone
         if x["rate_fragile"] and x["zone"] != "non_ouvert":
