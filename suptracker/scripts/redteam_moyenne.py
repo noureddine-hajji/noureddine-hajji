@@ -438,6 +438,7 @@ out.q = [mentionParams(new URLSearchParams(), vxProfile({ mention: "ab", moyenne
 out.words = [mentionWords({ mention: "tbf" }), mentionWords({ mention: "rattrapage" }), mentionWords({ mention: "tb", moyenne: 12.4 }),
   mentionWords({ mention: "<b>" })];
 out.rows = ["rattrapage", "sansmention", "ab", "tbf"].map((m) => MENTION_ROW[vxProfile({ mention: m }).mention]);
+out.rowLabels = Object.values(MENTION_ROW).map((r) => MENTION_TXT[r]);
 out.line = [chipLine(vxProfile({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", moyenne: 12.6 })), profileLine({ spe1: "MATHS", spe2: "SES", mention: "rattrapage" }, "bg")];
 const rec = (o) => ({ session: 2025, acc_sansmention: 30, acc_ab: 40, acc_b: 20, acc_tb: 8, acc_tbf: 2, ...o });
 PROFILE = { serie: "bg", mention: "ab", moyenne: 12.6, statut: "terminale" };
@@ -456,7 +457,7 @@ process.stdout.write(JSON.stringify(out));
 def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const pc1 = ",
                                                                        "const REO_LABEL = ", "const isReo = ")))
-    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "vxProfile",
+    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "MENTION_TXT", "vxProfile",
              "MENTION_SHORT", "chipLine", "profileLine", "PF_SAVE", "spe2Of", "profileForm", "voieFromForm", "readForm", "erf",
              "withinBand", "LADDER", "positionMoyenne", "COLORS", "DASHES", "seriesDash", "lineLegend", "moyenneChart", "moyenneCard",
              "bacProfile")
@@ -488,6 +489,8 @@ def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
         bad.append(("the band in words (Plan B, Mes vœux)", o["words"]))
     if o["rows"] != ["passable2", "passable1", "ab", "tb"]:
         bad.append(("the success rows of a band", o["rows"]))
+    if any(not isinstance(t, str) or not t or "undefined" in t for t in o["rowLabels"]) or "rattrapage" not in " ".join(o["rowLabels"]):
+        bad.append(("a success row the BUT / master cards read has no label (Codex: 'mention undefined')", o["rowLabels"]))
     if "12,6/20" not in o["line"][0] or "rattrapage" not in o["line"][1]:
         bad.append(("profile lines", o["line"]))
     card = o["card"]
@@ -643,6 +646,7 @@ def mo8(c: Ctx):
         ("js", "the query drops the average", '  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));\n', "", "mo5"),
         ("js", "the card's range not said as an estimation", "avaient, selon cette estimation, une note", "avaient une note", "mo5"),
         ("js", "a small cohort not flagged", '${n < 20 ? ` <span class="badge warnb">peu d', '${false ? ` <span class="badge warnb">peu d', "mo5"),
+        ("js", "the rattrapage success row unlabelled", ' passable2: "passable (2nd groupe, rattrapage)",', "", "mo5"),
         ("js", "the old map codes back", "MENTION_CODES.includes(VP && VP.mention)", '["sm", "ab", "b", "tb"].includes(P.mention)', "mo6"),
         ("js", "Plan B names the raw stored mention", '}, ${mentionWords({ mention: "ab", ...prof })}${prof.academie',
          '}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie', "mo6"),

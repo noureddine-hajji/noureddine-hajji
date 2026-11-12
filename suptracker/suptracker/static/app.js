@@ -1407,7 +1407,7 @@ function successCard(s) {
 // ---- Sprint 6: success beyond licence (BUT per university; master per university x discipline) ----
 // The student's profile stays in the browser: the page picks the national rows that match it.
 const MENTION_ROW = { rattrapage: "passable2", sansmention: "passable1", ab: "ab", b: "b", tb: "tb", tbf: "tb" };   // R5: TBF is counted in "très bien" there
-const MENTION_TXT = { passable1: "passable (1er groupe)", ab: "assez bien", b: "bien", tb: "très bien" };
+const MENTION_TXT = { passable1: "passable (1er groupe)", passable2: "passable (2nd groupe, rattrapage)", ab: "assez bien", b: "bien", tb: "très bien" };
 const SERIE_TXT = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" };
 function profileRows(rows, kind) {
   // kind "but": rows of BUT Tableau 1 (dim serie|mention); kind "chaine": the 2017 L1 cohort (dim bac|mention)
