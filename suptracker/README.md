@@ -2678,3 +2678,36 @@ as the lycée and the map position already were.
 - LE8: browser, no request carrying the average.
 - LE9: mutation test.
 
+## Sprint R7: "Construire ma liste", the site in five steps (owner, 2026-11-12)
+
+Everything a student needs already existed. What was missing was the thread for a 17-year-old who lands on the site without
+knowing where to start. `#/guide` puts the five steps in one place, in any order the student likes:
+
+| Step | Done when | Its links |
+| --- | --- | --- |
+| 1. Mon profil | the profile can be read: outside terminale, or a bac, a mention or an average and, for bac général, two different specialties | Mon profil |
+| 2. Explorer les formations | a formation page was opened in this browser, or the list has a vœu | search, map, jobs |
+| 3. Ajouter des vœux | the list has a vœu (n of 10 said; Parcoursup vœux are not ranked) | Mes vœux |
+| 4. Garder au moins un vœu de sécurité sûr | the list's reading counts a sure safety; "sans objet" outside terminale (no zone is published), with a link to "Je me réoriente" | Mes vœux (Compléter ma liste) |
+| 5. Partager ma liste | the link was copied or the list printed in this browser | Mes vœux (share card) |
+
+- **Local only.** The guide reads the stored profile, the list and two flags set in this browser (`guideVu` by a formation page,
+  `guidePartage` by the share card). It records no event of its own and sends nothing to follow the progress; the page view is
+  counted like any other page (closed route list).
+- **One reading.** Step 4 reads the list with the profile bar's own query (`vxQuery`) and the R6 twin (`voeuxLocal`), so the
+  average stays in the browser. It reuses the bar's reading when it has one. There is no request without a profile, outside
+  terminale, or with an empty list. A failed reading is said, and a late answer never draws over another page.
+- **Wording.** A sure safety is described with its fixed rule (access rate at least 70 %, at least half of the admits with the
+  student's mention or lower, no uncertainty); "des repères, pas des chances d'admission"; vouvoiement.
+- **Entry points.** A card on the home page (before the four doors, with the steps done), a link in Mes vœux, the route `#/guide`
+  in the "Mes vœux" tab.
+
+**Red team `scripts/redteam_guide.py` (GU1-GU8), `tests/test_guide.py`.**
+- GU1: `guideState` against the rules written again in Python, on 3,000 random states (every status seen).
+- GU2: the page drawn for 302 states (links, progress ARIA value, the next step highlighted and linked, escaping, wording, the
+  drawn check mark).
+- GU3: the reading with a fake API (no request in three cases, the bar's query, reuse, failure, race, escaping, and a row the
+  server reads "cible" that the browser reads as a sure safety with the average).
+- GU4: the flags stay in the browser; GU5: entry points and docs; GU6: a student walks the five steps on a phone (browser);
+  GU7: outside terminale; GU8: mutation test, 28/28.
+

@@ -636,7 +636,8 @@ def le6(c: Ctx):
 
 
 # ------------------------------------------------------------------ LE7 wiring and wording
-ANCHORS = ("this.data = voeuxLocal(d, prof)",
+ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;",
+           "api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })",
            "try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); }",
            "d = zoned ? voeuxLocal(await api(`/api/voeux?${vxQuery(ids, prof)}`), prof)",
            "stage2Local(await api(`/api/journey/stage2?",
@@ -771,6 +772,8 @@ def js_mutants():
         ("the raw rattrapage sent", 'function bandParam(p) { return p.mention === "rattrapage" ? "sansmention" : p.mention; }',
          "function bandParam(p) { return p.mention; }", "wire"),
         ("the map asks the server with the average", '${localAverage(VP) !== null ? "&lecture=true" : ""}', '${VP.moyenne !== null ? `&moyenne=${VP.moyenne}` : ""}', "wire"),
+        ("the profile bar shows a reading of an older average (review)", "const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;",
+         "const d = this.data;", "wire"),
         ("Mes vœux shown as the server read the band", "try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); }", "try { d = await api(`/api/voeux?${qs}`); }", "wire"),
     ]
 

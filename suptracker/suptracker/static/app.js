@@ -360,10 +360,12 @@ const profileBar = {
       const k = vxQuery(ids, prof).toString();
       if (this.key !== k) {
         this.key = k; this.data = null;
-        api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = voeuxLocal(d, prof); this.render(); } })
+        // R6 (review): the band-only answer is kept RAW and read for the CURRENT profile at every render: an average edited
+        // inside its band, or rattrapage <-> sans mention, sends the same query but must change the zones counted here
+        api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })
           .catch(() => { if (this.key === k) { this.data = { error: true }; this.render(); } });
       }
-      const d = this.data;
+      const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;
       if (!d) list = `<span class="pb-list muted">Mes vœux : lecture…</span>`;
       else if (d.error || !d.lecture) list = `<a class="pb-link" href="#/voeux">Mes vœux : ${fmt(ids.length)}</a>`;
       else {
@@ -491,6 +493,7 @@ const ICONS = {
   search: ICO('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
   job: ICO('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/>'),
   compass: ICO('<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'),
+  check: ICO('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   reorientation: ICO('<path d="M4 17h9a4 4 0 0 0 0-8H7"/><path d="M10 6L7 9l3 3"/>'),
   profile: ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'),
   warn: ICO('<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5v.5"/>'),
@@ -546,12 +549,104 @@ function homeProfile() {
   const p = vxProfile(raw);
   return `<div class="card home-profile"><p class="small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong></p><a class="btnlink" href="#/profil">Modifier mon profil</a></div>`;
 }
+// ---- Sprint R7 (owner, 2026-11-12): "Construire ma liste", the five steps of the site in one place ----
+// Everything it reads stays in this browser: the profile, the list and two flags (a formation page opened, the list shared).
+// The list is read with the profile bar's own query, with the average the browser keeps (R6). Counts and facts, never a chance;
+// the progress is never sent (the page view is counted like any other page, nothing more).
+const GUIDE_STEPS = [
+  { key: "profil", titre: "Mon profil", href: "#/profil" },
+  { key: "explorer", titre: "Explorer les formations", href: "#/" },
+  { key: "voeux", titre: "Ajouter des vœux", href: "#/voeux" },
+  { key: "securite", titre: "Garder au moins un vœu de sécurité sûr", href: "#/voeux" },
+  { key: "partager", titre: "Partager ma liste", href: "#/voeux" },
+];
+const GUIDE_STATUT = { fait: "Fait", a_faire: "À faire", en_attente: "Plus tard", lecture: "Lecture…", indisponible: "Lecture impossible", sans_objet: "Sans objet" };
+// a profile the site can read: a situation outside terminale, or a bac, a mention (or an average) and, for bac général, two
+// different specialties (the same rules as "Mon profil")
+function profileReady(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  if (isReo(raw)) return true;
+  if (!["bg", "bt", "bp"].includes(raw.serie)) return false;
+  if (!MENTION_CODES.includes(raw.mention) && validMoyenne(raw.moyenne) === null) return false;
+  return raw.serie !== "bg" || (typeof raw.spe1 === "string" && typeof raw.spe2 === "string" && !!raw.spe1 && !!raw.spe2 && raw.spe1 !== raw.spe2);
+}
+// the state of each step. lecture: the list's reading (voeux.read_list), null while it is read, undefined when it could not be
+function guideState(raw, ids, lecture, flags) {
+  const ready = profileReady(raw), reo = ready && isReo(raw), n = ids.length;
+  const st = {
+    profil: ready ? "fait" : "a_faire",
+    explorer: flags.vu || n > 0 ? "fait" : "a_faire",
+    voeux: n > 0 ? "fait" : "a_faire",
+    securite: reo ? "sans_objet" : !ready || !n ? "en_attente" : lecture === null ? "lecture" : lecture === undefined ? "indisponible"
+      : lecture.securite_sure > 0 ? "fait" : "a_faire",
+    partager: !n ? "en_attente" : flags.partage ? "fait" : "a_faire",
+  };
+  const steps = GUIDE_STEPS.map((x) => ({ ...x, href: x.key === "securite" && reo ? "#/reorientation" : x.href, statut: st[x.key] }));
+  const next = steps.find((x) => x.statut === "a_faire") || null;
+  return { steps, next: next ? next.key : null, faites: steps.filter((x) => x.statut === "fait" || x.statut === "sans_objet").length };
+}
+function guideFlags() { return { vu: store.get("guideVu", false) === true, partage: store.get("guidePartage", false) === true }; }
+function guideHtml(G, c) {
+  const st = Object.fromEntries(G.steps.map((x) => [x.key, x.statut]));
+  const safety = { fait: `${fmt(c.sure)} vœu${c.sure > 1 ? "x" : ""} de sécurité sûr${c.sure > 1 ? "s" : ""} dans votre liste.`,
+    a_faire: "Aucun vœu de sécurité sûr dans votre liste pour l'instant.", lecture: "Lecture de votre liste…",
+    indisponible: "Votre liste n'a pas pu être lue pour le moment.", en_attente: "Après votre profil et vos premiers vœux." }[st.securite] || "";
+  const body = {
+    profil: `<p>Votre bac, vos spécialités et votre mention visée, ou votre situation si vous n'êtes plus en terminale. SupCompass lit ensuite chaque formation pour vous. Votre profil reste dans ce navigateur.</p>${c.profLine ? `<p class="small">Votre profil : <strong>${c.profLine}</strong></p>` : ""}
+      <a class="btnlink" href="#/profil">${st.profil === "fait" ? "Modifier mon profil" : "Créer mon profil"}</a>`,
+    explorer: `<p>Cherchez une formation par son nom, sa ville ou un métier, ou parcourez la carte. Ouvrez la page d'une formation pour voir ses chiffres officiels et ce que regarde le jury.</p>
+      <div class="toolbar"><a class="btnlink" href="#/">Rechercher</a><a class="btnlink" href="#/carte">La carte</a><a class="btnlink" href="#/metiers">Par métier</a></div>`,
+    voeux: `<p>Sur la page d'une formation, choisissez « Ajouter à mes vœux ». Parcoursup accepte jusqu'à ${voeux.MAX} vœux (hors sous-vœux), et ils ne sont pas classés : l'ordre de votre liste ne compte pas.</p>
+      <p class="small">${c.n ? `${fmt(c.n)} vœu${c.n > 1 ? "x" : ""} sur ${voeux.MAX} dans votre liste.` : "Votre liste est vide pour l'instant."}</p><a class="btnlink" href="#/voeux">Voir mes vœux</a>`,
+    securite: c.reo
+      ? `<p>Hors terminale, aucune zone n'est publiée : les chiffres officiels ne donnent ni mention ni série pour ces candidats. Comparez plutôt l'accès estimé hors terminale des formations.</p><a class="btnlink" href="#/reorientation">Je me réoriente</a>`
+      : `<p>Un vœu de sécurité sûr est une formation où, les années passées, le taux d'accès atteignait au moins 70 % et au moins la moitié des admis avaient votre mention ou moins, sans incertitude. Si votre liste n'en a pas, « Compléter ma liste » (dans Mes vœux) en propose dans les mêmes filières.</p>
+      <p class="small">${safety}</p><a class="btnlink" href="#/voeux">Lire ma liste</a>`,
+    partager: `<p>Envoyez le lien de votre liste à un parent ou à votre professeur principal, ou imprimez-la. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case.</p><a class="btnlink" href="#/voeux">Partager depuis Mes vœux</a>`,
+  };
+  const next = G.steps.find((x) => x.key === G.next);
+  return `<div class="card"><h1>Construire ma liste</h1>
+    <p>Cinq étapes, dans l'ordre qui vous convient. Votre avancée reste dans ce navigateur : rien n'est envoyé pour la suivre.</p>
+    <div class="guide-progress" role="progressbar" aria-label="Étapes faites" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${G.faites}"><span style="width:${G.faites * 20}%"></span></div>
+    <p class="small">${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5.</p>
+    ${next ? `<a class="btnlink primary" href="${esc(next.href)}">Continuer : ${esc(next.titre)}</a>` : `<p class="small">Toutes les étapes sont faites. Relisez chaque fiche sur Parcoursup avant de formuler vos vœux.</p>`}</div>
+  <ol class="guide">${G.steps.map((x, i) => `<li class="card guide-step${x.key === G.next ? " next" : ""}">
+    <div class="guide-head"><span class="guide-num" aria-hidden="true">${x.statut === "fait" ? ICONS.check : i + 1}</span><h2>${esc(x.titre)}</h2><span class="badge">${GUIDE_STATUT[x.statut]}</span></div>
+    ${body[x.key]}</li>`).join("")}</ol>
+  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi.</p>`;
+}
+async function viewGuide() {
+  const raw = store.get("profile", null), ids = voeux.get(), flags = guideFlags();
+  const ready = profileReady(raw), reo = ready && isReo(raw), prof = ready ? vxProfile(raw) : null;
+  const marker = `guide:${ids.join(",")}`;
+  $view.dataset.rendered = marker;                                      // before any await (navigation race)
+  const draw = (lecture) => {
+    $view.innerHTML = guideHtml(guideState(raw, ids, lecture, flags),
+      { n: ids.length, reo, profLine: prof ? profileLine(prof, prof.serie) : "", sure: lecture ? lecture.securite_sure : 0 });
+  };
+  draw(null);
+  if (!ready || reo || !ids.length) return;                            // nothing to read: no request
+  const k = vxQuery(ids, prof).toString();                               // the profile bar's own query
+  // the bar's raw answer (same query), read here for this profile: never its reading of another average
+  let d = profileBar.key === k && profileBar.data && profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;
+  if (!d) { try { d = voeuxLocal(await api(`/api/voeux?${k}`), prof); } catch (_) { d = null; } }
+  if ($view.dataset.rendered !== marker) return;
+  draw(d && d.lecture ? d.lecture : undefined);
+}
+// the home card: where the student stands (no request: the reading of the list is only on the guide's own page)
+function guideCard() {
+  const G = guideState(store.get("profile", null), voeux.get(), null, guideFlags());
+  return `<div class="card guide-card"><p><strong>Construire ma liste en 5 étapes.</strong> Profil, exploration, vœux, un vœu de sécurité sûr, partage : le site pas à pas.</p>
+    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."}</p><a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></div>`;
+}
+
 function viewHome() {
   const n = voeux.get().length;
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
     <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p></section>
   ${explorerViews("liste")}
   ${homeProfile()}
+  ${guideCard()}
   <div class="doors">
     <button type="button" class="door" id="door-search"><span class="door-ico" aria-hidden="true">${ICONS.search}</span><strong>Je cherche une formation</strong>
       <span>Un nom, une ville, un sigle : même avec des fautes de frappe.</span></button>
@@ -1426,6 +1521,7 @@ function bindTabs(id) {
 
 async function viewFormation(cod, session) {
   const d = await api(`/api/formation/${encodeURIComponent(cod)}${session ? `?session=${session}` : ""}`);
+  store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);
   const years = d.history.map((h) => h.session);
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
@@ -2843,7 +2939,7 @@ async function viewVoeux() {
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, ${mentionWords(p)}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -3687,11 +3783,12 @@ function bindShare(ids, prof) {
   if (box) box.onchange = refresh;
   document.getElementById("share-copy").onclick = () => {
     refresh();
+    store.set("guidePartage", true);                                  // R7: step 5 of "Construire ma liste" (this browser only)
     const done = () => { msg.textContent = "Lien copié."; };
     const manual = () => { url.focus(); url.select(); msg.textContent = "Copiez le lien sélectionné."; };
     try { navigator.clipboard.writeText(url.value).then(done, manual); } catch (_) { manual(); }
   };
-  document.getElementById("share-print").onclick = () => window.print();
+  document.getElementById("share-print").onclick = () => { store.set("guidePartage", true); window.print(); };
 }
 async function viewListe(rawCodes, rawProfile) {
   const ids = shareCodes(rawCodes);
@@ -3748,7 +3845,7 @@ async function viewListe(rawCodes, rawProfile) {
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner"];                                                      // "Plus" on a phone
 function markTab(tab) {
@@ -3774,7 +3871,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -3825,6 +3922,7 @@ async function route() {
     if (a === "accompagner") return viewAccompagner();
     if (a === "premiere") return await viewPremiere();
     if (a === "liste") return await viewListe(b || "", c || "");
+    if (a === "guide") return await viewGuide();
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");

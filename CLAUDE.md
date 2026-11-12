@@ -474,6 +474,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the server; `mentionParamsSearch`, said in the method text). The server's `moyenne` reading stays the ORACLE: any change to
   stage 2, Plan B, Mes vœux or Compléter must keep its twin equal. JS `erf` is a ~1e-15 series (never Abramowitz-Stegun again).
   Red team `redteam_lecture.py` (LE1-LE9).
+- **"Construire ma liste" (sprint R7, owner 2026-11-12).** `#/guide` (tab "Mes vœux"): five steps (profil, explorer, vœux, a SURE
+  safety, partager), statuses from what is in this browser only (profile, list, flags `guideVu` set by `viewFormation`, `guidePartage`
+  by the share card); step 4 reads the list with the profile bar's `vxQuery` + `voeuxLocal` (reused when the bar has it; no request
+  without a readable profile, outside terminale or with an empty list); outside terminale step 4 is "sans objet" and links
+  `#/reorientation`. No event of its own (the page view only, closed route list). Home card before the four doors, link in Mes vœux.
+  Red team `redteam_guide.py` (GU1-GU8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

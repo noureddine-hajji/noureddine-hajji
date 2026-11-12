@@ -53,7 +53,7 @@ MAX_QUERY = 80
 
 ROUTES = ("home", "search", "fiche", "evolution", "compare", "specialites", "qualite", "parcours", "stats", "glossaire",
           "voeux", "metiers", "carte", "comprendre", "selectivite", "reorientation",
-          "calendrier", "accompagner", "premiere", "liste", "profil")
+          "calendrier", "accompagner", "premiere", "liste", "profil", "guide")
 DEVICES = ("mobile", "tablet", "desktop")
 FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux", "reorientation")
 # sprint 18 (owner, 2026-11-11): three student actions, counted without the formation they concern
