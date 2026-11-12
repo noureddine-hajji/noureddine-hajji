@@ -662,7 +662,8 @@ def lot3_ui(js: str, css: str) -> tuple[bool, str]:
 const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
 let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
-""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + blk + """
+""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS",
+                                         "validMoyenne", "bandOf", "moyenneText", "MENTION_SHORT")) + "\n" + blk + """
 const out = {};
 out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);
 out.line = profileLine({ spe1: "<img src=x>", spe2: "SES", mention: "ab", academie: "<b>A</b>" }, "bg");

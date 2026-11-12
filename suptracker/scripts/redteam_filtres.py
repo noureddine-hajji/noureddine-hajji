@@ -309,7 +309,7 @@ def broad(c: Ctx) -> list:
     if c.FI.zones(cur, res, "bg", "MATHS+SES", "b") != c.FI.zones(cur, res, "bg", "MATHS+SES", "b"):
         bad.append("the cache answers other zones")
     src = SRC if c.FI is FI0 else getattr(c.FI, "__src__", "")
-    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
+    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
         bad.append("the cache key misses the warehouse or the profile, or a row limit cuts a type")
     return bad
 
@@ -403,7 +403,7 @@ def page_ok(c: Ctx):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const isReo = ", "const REO_LABEL = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "vxProfile", "fiProfileQuery", "searchAdvanced")]
+    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "vxProfile", "fiProfileQuery", "searchAdvanced")]
     prog = helpers + "\nconst JV = null;\n" + zones + "\n" + bac + "\n" + "\n".join(parts) + PAGE_PROG
     exe = shutil.which("node")
     if not exe:
