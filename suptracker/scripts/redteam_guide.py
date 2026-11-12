@@ -496,7 +496,7 @@ MUTANTS = [
     ("the bar's reading not reused", "let d = profileBar.key === k && profileBar.data && profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;", "let d = null;", "gu3"),
     ("the bar's reading of another average reused", "profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;", "profileBar.data.lecture ? profileBar.data : null;", "gu3"),
     ("the list not read with the average", "d = voeuxLocal(await api(`/api/voeux?${k}`), prof);", "d = await api(`/api/voeux?${k}`);", "gu3"),
-    ("no race guard", "  if ($view.dataset.rendered !== marker) return;\n  draw(", "  draw(", "gu3"),
+    ("no race guard", "  if ($view.dataset.rendered !== gmk) return;\n  draw(", "  draw(", "gu3"),
     ("a failed reading said as pending", "draw(d && d.lecture ? d.lecture : undefined);", "draw(d && d.lecture ? d.lecture : null);", "gu3"),
     ("the average sent with the reading", 'const k = vxQuery(ids, prof).toString();                               // the profile bar',
      'const k = vxQuery(ids, prof).toString() + "&moyenne=" + prof.moyenne;                               // the profile bar', "gu3"),

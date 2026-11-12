@@ -599,8 +599,8 @@ function guideHtml(G, c) {
 async function viewGuide() {
   const raw = store.get("profile", null), ids = voeux.get(), flags = guideFlags();
   const ready = profileReady(raw), reo = ready && isReo(raw), prof = ready ? vxProfile(raw) : null;
-  const marker = `guide:${ids.join(",")}`;
-  $view.dataset.rendered = marker;                                      // before any await (navigation race)
+  const gmk = `guide:${ids.join(",")}`;
+  $view.dataset.rendered = gmk;                                      // before any await (navigation race)
   const draw = (lecture) => {
     $view.innerHTML = guideHtml(guideState(raw, ids, lecture, flags),
       { n: ids.length, reo, profLine: prof ? profileLine(prof, prof.serie) : "", sure: lecture ? lecture.securite_sure : 0 });
@@ -611,7 +611,7 @@ async function viewGuide() {
   // the bar's raw answer (same query), read here for this profile: never its reading of another average
   let d = profileBar.key === k && profileBar.data && profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;
   if (!d) { try { d = voeuxLocal(await api(`/api/voeux?${k}`), prof); } catch (_) { d = null; } }
-  if ($view.dataset.rendered !== marker) return;
+  if ($view.dataset.rendered !== gmk) return;
   draw(d && d.lecture ? d.lecture : undefined);
 }
 // the home card: where the student stands (no request: the reading of the list is only on the guide's own page)
