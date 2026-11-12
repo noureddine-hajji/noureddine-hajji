@@ -314,11 +314,15 @@ def form_ok(r) -> tuple[bool, str]:
     bg, bt, bp, reo, nomaths, reo_new, same = json.loads(r)
     bad = []
     # owner, 2026-11-12: two DIFFERENT specialties in terminale, one artistic at most (a single Arts code): the second list never
-    # offers the first choice, a stored identical pair shows another one, and the rule is said
+    # offers the first choice, and the rule is said. What is shown is what is stored (Codex): a stored identical pair is shown
+    # INVALID ("Choisissez" selected, a warning), never silently as another specialty that the stored profile does not carry
     second = lambda h: re.search(r'<select name="spe2"[^>]*>(.*?)</select>', h, re.S).group(1)  # noqa: E731
     if 'value="SES"' in second(nomaths) or 'value="MATHS"' in second(same) or 'value="MATHS"' in second(bg) \
-            or not re.search(r'<option value="SES" selected', second(bg)) or not re.search(r"selected", second(same)):
+            or not re.search(r'<option value="SES" selected', second(bg)):
         bad.append("the second specialty can repeat the first")
+    if not second(same).startswith('<option value="" selected>Choisissez</option>') or len(re.findall(r"selected", second(same))) != 1 \
+            or "deux fois la même spécialité" not in same or "deux fois la même spécialité" in bg or 'value="" selected' in second(bg):
+        bad.append("a stored identical pair is shown as a valid one")
     if "une seule peut être artistique" not in bg:
         bad.append("the one-arts-specialty rule is not said")
     want = {"bg": ["statut", "statut", "serie", "spe1", "spe2", "maths_expertes", "mention", "academie", "boursier"],
@@ -365,7 +369,7 @@ process.stdout.write(JSON.stringify(out));
 
 
 def read_run(js: str):
-    prog = top(js, "voieFromForm") + "\n" + top(js, "readForm") + READ_PROG
+    prog = top(js, "voieFromForm") + "\n" + top(js, "spe2Of") + "\n" + top(js, "readForm") + READ_PROG
     cases = [
         [{"statut": "reorientation", "academie": "Lyon"}, {"serie": "bg", "mention": "ab"}, "bg", None, None],
         [{"statut": "reorientation", "academie": ""}, {"serie": "bg"}, "bg", {"serie": "bt", "voie": "sti2d", "mention": "tb", "academie": "Lyon"}, None],
@@ -373,6 +377,12 @@ def read_run(js: str):
         [{"statut": "terminale", "serie": "bp", "voie": "sti2d", "mention": "b"}, {"serie": "bt"}, "bt", None, "STI2D"],
         [{"statut": "hacked", "serie": "bg", "mention": "b"}, {}, "bg", None, None],
         [{"statut": "terminale", "serie": "bt", "mention": "b"}, {"serie": "bg", "maths_expertes": True}, "bg", {"serie": "bg", "maths_expertes": True}, None],
+        # Codex: the first specialty set to the second one (the second list still holds it): distinct before it is saved (a swap)
+        [{"statut": "terminale", "serie": "bg", "spe1": "SES", "spe2": "SES", "mention": "b"}, {"serie": "bg", "spe1": "MATHS", "spe2": "SES"}, "bg", None, None],
+        # a stored identical pair with "Choisissez" still selected: kept as it is (shown invalid), never silently replaced
+        [{"statut": "terminale", "serie": "bg", "spe1": "MATHS", "spe2": "", "mention": "tb"}, {"serie": "bg", "spe1": "MATHS", "spe2": "MATHS"}, "bg", None, None],
+        # ... and fixed by the student's pick
+        [{"statut": "terminale", "serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "tb"}, {"serie": "bg", "spe1": "MATHS", "spe2": "MATHS"}, "bg", None, None],
     ]
     return node(prog, cases)
 
@@ -382,7 +392,7 @@ def read_ok(r) -> tuple[bool, str]:
         return True, "node not installed"
     if r.startswith("__error__"):
         return False, r
-    reo_new, reo_keep, bt, changed, hacked, me = json.loads(r)
+    reo_new, reo_keep, bt, changed, hacked, me, swap, dup, picked = json.loads(r)
     bad = []
     if reo_new != {"academie": "Lyon", "statut": "reorientation"}:
         bad.append(("a bac field invented outside terminale", reo_new))
@@ -396,6 +406,12 @@ def read_ok(r) -> tuple[bool, str]:
         bad.append(("status not validated or no default specialties", hacked))
     if me.get("maths_expertes") is not True:
         bad.append(("a field the form does not draw is dropped", me))
+    if (swap.get("spe1"), swap.get("spe2")) != ("SES", "MATHS"):
+        bad.append(("an identical pair saved, or not the former first specialty", swap))
+    if (dup.get("spe1"), dup.get("spe2"), dup.get("mention")) != ("MATHS", "MATHS", "tb"):
+        bad.append(("a stored identical pair silently replaced", dup))
+    if (picked.get("spe1"), picked.get("spe2")) != ("MATHS", "SES"):
+        bad.append(("the student's pick not saved", picked))
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
@@ -423,6 +439,10 @@ const base = process.argv[2];
   await p.selectOption('#pf [name="mention"]', "b"); await p.waitForTimeout(300);
   o.changed = await prof();
   o.chip1 = await p.textContent("#profile-chip");
+  // Codex: the first specialty set to the second one saves a distinct pair, and the form shows exactly the stored pair
+  const pair = await p.inputValue('#pf [name="spe2"]');
+  await p.selectOption('#pf [name="spe1"]', pair); await p.waitForTimeout(300);
+  o.swap = await prof(); o.swapShown = [await p.inputValue('#pf [name="spe1"]'), await p.inputValue('#pf [name="spe2"]')];
   await p.check('#pf [name="statut"][value="reorientation"]'); await p.waitForTimeout(300);
   o.reo = await prof();
   o.reoFields = await p.$$eval("#pf [name]", (els) => els.map((e) => e.name));
@@ -507,6 +527,8 @@ def u6(c: Ctx):
         bad.append(("first save", o["saved"]))
     if not o["changed"] or o["changed"].get("mention") != "b" or "bien" not in o["chip1"]:
         bad.append(("later change not saved at once", o["changed"], o["chip1"]))
+    if not o["swap"] or o["swap"].get("spe1") == o["swap"].get("spe2") or o["swapShown"] != [o["swap"].get("spe1"), o["swap"].get("spe2")]:
+        bad.append(("the form shows another pair than the stored one", o["swap"], o["swapShown"]))
     if not o["reo"] or o["reo"].get("statut") != "reorientation" or o["reo"].get("serie") != "bg" or o["reoFields"] != ["statut", "statut", "academie"]:
         bad.append(("not in terminale", o["reo"], o["reoFields"]))
     if not o["back"] or o["back"].get("statut") != "terminale" or o["back"].get("mention") != "b":
@@ -606,8 +628,13 @@ MUTANTS = [
      "  const ser = { bg: \"bac général\", bt: \"bac techno\"", "u3"),
     ("js", "bac fields drawn outside terminale", "  if (reo) {\n    return `<form id=\"pf\">", "  if (false) {\n    return `<form id=\"pf\">", "u4"),
     ("js", "lycée name unescaped in the form", 'value="${p.lycee ? esc(p.lycee.nom) : ""}"', 'value="${p.lycee ? p.lycee.nom : ""}"', "u4"),
-    ("js", "second specialty list offers the first", "JV.specialties.filter((x) => x.code !== p.spe1), spe2Of(p)", "JV.specialties, p.spe2", "u4"),
-    ("js", "identical stored pair shown as is", "return p.spe2 && p.spe2 !== p.spe1 ? p.spe2 :", "return p.spe2 ? p.spe2 :", "u4"),
+    ("js", "second specialty list offers the first", "JV.specialties.filter((x) => x.code !== p.spe1), p.spe2, (x) => x.short)", "JV.specialties, p.spe2, (x) => x.short)", "u4"),
+    ("js", "identical stored pair shown as valid", """${p.spe2 === p.spe1 ? '<option value="" selected>Choisissez</option>' : ""}""", "", "u4"),
+    ("js", "no warning on an identical stored pair", "${p.spe2 === p.spe1 ? '<span class=\"warn\">", "${false ? '<span class=\"warn\">", "u4"),
+    ("js", "identical pair saved (Codex)", 'spe2: fd.get("spe2") ? spe2Of(fd.get("spe1") || p.spe1 || "MATHS", fd.get("spe2"), p.spe1) : (p.spe2 || "SES")',
+     'spe2: fd.get("spe2") || p.spe2 || "SES"', "u5"),
+    ("js", "no swap: another specialty picked", "  if (prev && prev !== spe1) return prev;", "", "u5"),
+    ("js", "stored identical pair silently replaced", ': (p.spe2 || "SES"),   // distinct', ': spe2Of(fd.get("spe1") || p.spe1 || "MATHS", p.spe2, null),   // distinct', "u5"),
     ("js", "a field without its explanation", '"Chaque formation publie la part de ses admis venant du bac général, technologique ou professionnel."', '""', "u4"),
     ("js", "first save no longer explicit", '${mention}${where}${saved ? "" : PF_SAVE}', '${mention}${where}${true ? "" : PF_SAVE}', "u4"),
     ("js", "no save button outside terminale", '${acad}</section>${saved ? "" : PF_SAVE}', '${acad}</section>', "u4"),

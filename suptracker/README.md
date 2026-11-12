@@ -2393,9 +2393,11 @@ spans the row. The page only rearranges figures it already had: no new request a
 
 **Two arts specialties (owner's rule, 2026-11-12).** In terminale a student keeps two different specialties of the three of
 première, and only one of them can be artistic. The form has a single "Arts" code, and its second list never offers the
-specialty picked first. A stored profile with two identical specialties (an older one) shows another specialty and saves it with
-the next change. The national `ART+ART` rows are not a doublette a student can hold, so they are never asked for. Red team
-navigation U4 checks the rule and its wording (2 mutants).
+specialty picked first. What the form shows is what is stored (Codex): when the first specialty is set to the second one, the
+pair is made distinct before it is saved (the former first specialty takes the second place, `spe2Of`). A stored profile with two
+identical specialties (an older one) is shown as invalid: "Choisissez" is selected in the second list, with a warning that zones are
+not read before, and nothing is replaced until the student picks. The national `ART+ART` rows are not a doublette a student can
+hold, so they are never asked for. Red team navigation U4-U6 checks the rule, its wording, the save and the browser (7 mutants).
 
 **Independent review (before Codex).** The first version filled the bac techno / pro fallback from Plan B. That was the latest
 campaign's estimated series access, and it caused four problems:

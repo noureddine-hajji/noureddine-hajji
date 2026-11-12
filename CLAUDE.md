@@ -437,7 +437,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 trend entry; the top-level figure is the lineage's latest: Codex). Report figures carry their counts; no two distinct specialties = a
   link to Mon profil. Outside terminale the estimate keeps its own tile. Published replaces estimate, never beside it. 5 tiles with
   a terminale profile, 4 otherwise. Two DIFFERENT specialties in terminale, one artistic at most (owner, 2026-11-12): the
-  form's second list never offers the first (`spe2Of`). Red team
+  form's second list never offers the first; the pair is made distinct BEFORE it is saved (`spe2Of`, a swap), a stored identical
+  pair shows "Choisissez" and a warning, never another specialty it does not carry (Codex). Red team
   `redteam_tauxprofil.py` (Z1-Z6).
 - **Advanced filters (sprint R3, owner 2026-11-12).** One definition (`filtres.py`, served as META.filtres): capacité (< 20, 20-49,
   50-99, ≥ 100 places, `capa_fin` of the row's campaign), phase complémentaire (`acc_pc` > 0 of the row's campaign: past ADMITS, never
