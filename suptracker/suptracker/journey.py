@@ -728,6 +728,21 @@ def stage1(con, dkey: str) -> dict:
 
 
 # --------------------------------------------------------------------------- stage 2
+# R9 (owner, 2026-11-12): formations the SIES specialty dataset types do not cover (CPES, CMI, licences pro, DU, FCIL...)
+# still publish their own admits by mention and series, the only things a zone reads. They are read under this key, ONLY for
+# listed codes (`only`): never a national list of unrelated formations. A row is the same whatever key it is read under.
+SANS_TYPE = "sans_type"
+
+
+def untyped_codes(con, filieres: list[str] | None = None) -> list[str]:
+    """Latest-campaign formations with no SIES type, optionally of the given filières (fil_lib_voe_acc)."""
+    return [r[0] for r in con.execute("""
+        SELECT fy.cod_aff_form FROM core.formation_year fy
+        LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form)
+        WHERE fy.session = (SELECT max(session) FROM core.formation_year) AND t.rule_id IS NULL
+          AND (? IS NULL OR list_contains(?, fy.fil_lib_voe_acc)) ORDER BY 1""", [filieres, filieres]).fetchall()]
+
+
 def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | None = None,
            sex: str | None = None, limit: int = 4000, serie: str = "bg", only: list[str] | None = None,
            moyenne: float | None = None) -> dict:
@@ -737,6 +752,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
     own lineage, so a restricted row is exactly the row of the full type (red team V2)."""
     if mention not in MENTIONS:
         raise ValueError(f"mention must be one of {MENTIONS}")
+    if type_key_ == SANS_TYPE and only is None:
+        raise ValueError("sans_type is read only for listed formations (`only`)")
     if moyenne is not None and band_of(moyenne) != mention and not (mention == "sansmention" and moyenne < RATTRAPAGE_TOP):
         raise ValueError("la mention et la moyenne ne correspondent pas")
     # R5: the within-band fraction of the average, normal (the reading) and uniform (the other end of the range)
@@ -754,10 +771,12 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
     rows = con.execute(f"""
     WITH target AS (
       SELECT l.lineage_id, fy.*
-      FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
-      JOIN core.formation_year fy USING (session, cod_aff_form)
+      FROM core.formation_year fy
       JOIN core.lineage l USING (session, cod_aff_form)
-      WHERE t.session = $latest AND r.spe_type_key = $type
+      LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form)
+      LEFT JOIN core.taxonomy_rule r USING (rule_id)
+      WHERE fy.session = $latest
+        AND (r.spe_type_key = $type OR ($type = '{SANS_TYPE}' AND r.spe_type_key IS NULL))
         AND ($only IS NULL OR list_contains($only, fy.cod_aff_form))),
     hist AS (
       SELECT l.lineage_id,

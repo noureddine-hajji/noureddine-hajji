@@ -56,6 +56,7 @@ POLICY = [
     (r"/api/planb/[^/]+", PUBLIC, "plan B for one formation and a coarse profile"),
     (r"/api/carte", PUBLIC, "map: the types of diploma and their mentions (no parameter)"),
     (r"/api/carte/formations", PUBLIC, "map: the neutral layer of a type of diploma (no profile, no position)"),
+    (r"/api/carte/chiffres", PUBLIC, "map (R9): doublette / line figures of one page of the list for a coarse profile (no average)"),
     (r"/api/carte/zones", PUBLIC, "map: zones of Mon parcours for a coarse profile (the audience count is sent by the page)"),
     (r"/api/comprendre", PUBLIC, "how far the lists were called and when the offers came, per type of diploma (no parameter)"),
     (r"/api/selectivite", PUBLIC, "selectivity matrix of a type of diploma (no profile)"),
