@@ -48,6 +48,7 @@ NAMES = ("esc", "fmt", "MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "
          "GUIDE_STEPS", "GUIDE_STATUT", "profileReady", "guideState", "guideFlags", "guideHtml", "viewGuide", "guideCard")
 HARNESS = r"""
 let STORE = {}, CALLS = [], API = {}, $view = { innerHTML: "", dataset: {} }, IDS = [], JV = null;
+let guideSeq = 0;                                                       // app.js: the guide's per-visit counter
 const store = { get: (k, d) => (k in STORE ? STORE[k] : d), set: (k, v) => { STORE[k] = v; } };
 const voeux = { MAX: 10, get: () => IDS.slice() };
 const profileBar = { key: "", data: null };
@@ -223,7 +224,9 @@ def page_ok(js: str) -> tuple[bool, str]:
     cases = random_states(11, 300) + [
         {"raw": {"serie": "bg", "spe1": EVIL, "spe2": "SES", "mention": "ab", "academie": EVIL}, "n": 2, "lecture": {"securite_sure": 1},
          "flags": {"vu": True, "partage": False}},
-        {"raw": {"statut": "reorientation", "academie": EVIL}, "n": 3, "lecture": "pending", "flags": {"vu": True, "partage": True}}]
+        {"raw": {"statut": "reorientation", "academie": EVIL}, "n": 3, "lecture": "pending", "flags": {"vu": True, "partage": True}},
+        *[{"raw": {"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "ab"}, "n": 2, "lecture": lec, "flags": {"vu": True, "partage": True}}
+          for lec in ("pending", "failed", {"securite_sure": 1})]]
     got = run_node(js, PAGE_PROG, cases)
     if got is None:
         return True, "skipped (node not installed)"
@@ -244,6 +247,9 @@ def page_ok(js: str) -> tuple[bool, str]:
                 bad.append((k, "status badge or check mark", st["statut"]))
         if f'aria-valuenow="{G["faites"]}"' not in h or 'aria-valuemax="5"' not in h or 'role="progressbar"' not in h:
             bad.append(("progress", G["faites"]))
+        done_msg = "Toutes les étapes sont faites" in h
+        if done_msg != (G["faites"] == 5):
+            bad.append(("the completion message with steps left (Codex)", G["faites"], [s["statut"] for s in G["steps"]]))
         nxt = next((s for s in G["steps"] if s["key"] == G["next"]), None)
         cont = re.findall(r'<a class="btnlink primary" href="([^"]*)">Continuer : ([^<]*)</a>', h)
         if (nxt is None) != (not cont) or (nxt and cont[0] != (nxt["href"], nxt["titre"])):
@@ -295,6 +301,13 @@ let raw = ""; process.stdin.on("data", (x) => (raw += x)); process.stdin.on("end
   let release; API.fn = () => new Promise((r) => { release = () => r(JSON.parse(JSON.stringify(ans))); });
   const p = viewGuide(); await new Promise((r) => setTimeout(r, 5)); $view.innerHTML = "OTHER PAGE"; $view.dataset.rendered = "other"; release(); await p;
   out.race = $view.innerHTML;
+  // Codex: visit 1 (old profile) pending, visit 2 (new profile, same list) drawn; visit 1's late answer must not redraw
+  STORE = { profile: P }; IDS = ["1"]; CALLS = []; $view = { innerHTML: "", dataset: {} };
+  let rel1; API.fn = () => new Promise((r) => { rel1 = () => r(JSON.parse(JSON.stringify(ans))); });
+  const v1 = viewGuide(); await new Promise((r) => setTimeout(r, 5));
+  STORE = { profile: { statut: "reorientation" } }; API.fn = async () => { throw new Error("no request outside terminale"); };
+  await viewGuide(); const second = $view.innerHTML; rel1(); await v1;
+  out.race2 = $view.innerHTML === second;
   out.query = vxQuery(["1"], vxProfile(P)).toString();
   process.stdout.write(JSON.stringify(out));
 });
@@ -325,6 +338,8 @@ def reading_ok(js: str) -> tuple[bool, str]:
         bad.append("a failed reading is not said")
     if o["race"] != "OTHER PAGE":
         bad.append("a late answer drew over another page")
+    if not o["race2"]:
+        bad.append("an earlier visit's answer redrew the guide (same list, another profile: Codex)")
     return not bad, f"no request in 3 cases, 1 with the bar's query, reuse, failure, race; problems {bad[:3]}"
 
 
@@ -497,6 +512,8 @@ MUTANTS = [
     ("the bar's reading of another average reused", "profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;", "profileBar.data.lecture ? profileBar.data : null;", "gu3"),
     ("the list not read with the average", "d = voeuxLocal(await api(`/api/voeux?${k}`), prof);", "d = await api(`/api/voeux?${k}`);", "gu3"),
     ("no race guard", "  if ($view.dataset.rendered !== gmk) return;\n  draw(", "  draw(", "gu3"),
+    ("one token per list, not per visit (Codex)", "const gmk = `guide:${++guideSeq}`;", "const gmk = `guide:${ids.join(\",\")}`;", "gu3"),
+    ("completion announced with steps left (Codex)", ": G.faites === GUIDE_STEPS.length ? `<p class=\"small\">Toutes", ": true ? `<p class=\"small\">Toutes", "gu2"),
     ("a failed reading said as pending", "draw(d && d.lecture ? d.lecture : undefined);", "draw(d && d.lecture ? d.lecture : null);", "gu3"),
     ("the average sent with the reading", 'const k = vxQuery(ids, prof).toString();                               // the profile bar',
      'const k = vxQuery(ids, prof).toString() + "&moyenne=" + prof.moyenne;                               // the profile bar', "gu3"),

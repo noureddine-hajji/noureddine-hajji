@@ -590,16 +590,19 @@ function guideHtml(G, c) {
     <p>Cinq étapes, dans l'ordre qui vous convient. Votre avancée reste dans ce navigateur : rien n'est envoyé pour la suivre.</p>
     <div class="guide-progress" role="progressbar" aria-label="Étapes faites" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${G.faites}"><span style="width:${G.faites * 20}%"></span></div>
     <p class="small">${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5.</p>
-    ${next ? `<a class="btnlink primary" href="${esc(next.href)}">Continuer : ${esc(next.titre)}</a>` : `<p class="small">Toutes les étapes sont faites. Relisez chaque fiche sur Parcoursup avant de formuler vos vœux.</p>`}</div>
+    ${next ? `<a class="btnlink primary" href="${esc(next.href)}">Continuer : ${esc(next.titre)}</a>`
+      : G.faites === GUIDE_STEPS.length ? `<p class="small">Toutes les étapes sont faites. Relisez chaque fiche sur Parcoursup avant de formuler vos vœux.</p>`
+      : `<p class="small">${st.securite === "indisponible" ? "Votre liste n'a pas pu être lue pour le moment : rouvrez cette page un peu plus tard." : "Lecture de votre liste…"}</p>`}</div>
   <ol class="guide">${G.steps.map((x, i) => `<li class="card guide-step${x.key === G.next ? " next" : ""}">
     <div class="guide-head"><span class="guide-num" aria-hidden="true">${x.statut === "fait" ? ICONS.check : i + 1}</span><h2>${esc(x.titre)}</h2><span class="badge">${GUIDE_STATUT[x.statut]}</span></div>
     ${body[x.key]}</li>`).join("")}</ol>
   <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi.</p>`;
 }
+let guideSeq = 0;
 async function viewGuide() {
   const raw = store.get("profile", null), ids = voeux.get(), flags = guideFlags();
   const ready = profileReady(raw), reo = ready && isReo(raw), prof = ready ? vxProfile(raw) : null;
-  const gmk = `guide:${ids.join(",")}`;
+  const gmk = `guide:${++guideSeq}`;                                   // Codex: one token per visit, never the list alone
   $view.dataset.rendered = gmk;                                      // before any await (navigation race)
   const draw = (lecture) => {
     $view.innerHTML = guideHtml(guideState(raw, ids, lecture, flags),
