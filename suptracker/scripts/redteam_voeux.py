@@ -538,7 +538,7 @@ COMPLETER_MUTANTS = [
     ("same concours pool proposed", "if any(PB.same_pool(t, f) for t in targets):", "if False:"),
     ("no cap per establishment", "if per_etab.get(key, 0) >= PB.MAX_PER_ETABLISSEMENT:", "if False:"),
     ("académie ignored", '(0 if academie and x[0]["academie"] == academie else 1,', "(0,"),
-    ("farthest vœu instead of nearest", "min(kms) if kms", "max(kms) if kms"),
+    ("farthest vœu instead of nearest", "pool_.append((f, min(kms) if kms else None))", "pool_.append((f, max(kms) if kms else None))"),
     ("suggests even with a sure safety", "    if not needed:\n        return base", "    if False:\n        return base"),
 ]
 COMPLETER_UI_MUTANTS = [
@@ -551,7 +551,7 @@ COMPLETER_UI_MUTANTS = [
     ("caveat dropped", "pas des chances d'admission ; vérifiez", "vérifiez"),
     ("paid flag dropped", "${f.paid ? ' · <span class=\"badge warnb\">privé payant</span>' : \"\"}", ""),
     ("distance cell unlabelled", '<td class="num" data-label="Distance au plus proche de vos vœux">', '<td class="num">'),
-    ("never loaded", "loadCompleter(qs, marker, rate, false);", ""),
+    ("never loaded", "loadCompleter(qs, marker, rate, false, prof);", ""),
 ]
 
 
