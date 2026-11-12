@@ -439,6 +439,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   a terminale profile, 4 otherwise. Two DIFFERENT specialties in terminale, one artistic at most (owner, 2026-11-12): the
   form's second list never offers the first (`spe2Of`). Red team
   `redteam_tauxprofil.py` (Z1-Z6).
+- **Advanced filters (sprint R3, owner 2026-11-12).** One definition (`filtres.py`, served as META.filtres): capacité (< 20, 20-49,
+  50-99, ≥ 100 places, `capa_fin` of the row's campaign), phase complémentaire (`acc_pc` > 0 of the row's campaign: past ADMITS, never
+  places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (search only: the
+  profile sent with `/api/search?avance=true`, zones of the LATEST campaign keyed by (code, campaign), `journey.stage2` per own type
+  `only=`; none above 6 000 results). Lower limit in, upper out, twin `filtreBand`. The search's own filters are applied in the same
+  pass; every group counted with the others applied; the relevance order is kept (never a sort by a figure). Profile only from a
+  terminale profile, never in the audience event, search no-store. The map adds the same three bands. Red team
+  `redteam_filtres.py` (FI1-FI9).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

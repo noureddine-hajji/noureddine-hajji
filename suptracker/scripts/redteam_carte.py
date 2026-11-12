@@ -232,7 +232,10 @@ def c3(c: Ctx):
     fns = "\n".join(m.group(0) for m in (re.search(r"function haversineKm\(a, b, c, d\) \{.*?\n\}", js, re.S),
                                          re.search(r"const carteZone = .*?;", js),
                                          re.search(r"function carteHas\(f, g, o\) \{.*?\n\}", js, re.S),
-                                         re.search(r"function carteFilter\(rows, F, skip\) \{.*?\n\}", js, re.S)) if m)
+                                         re.search(r"function carteFilter\(rows, F, skip\) \{.*?\n\}", js, re.S),
+                                         # sprint R3: the shared bands (META absent here: no band, the R3 groups stay empty)
+                                         re.search(r"const CARTE_R3 = .*?;", js), re.search(r"const fiOptions = .*?;", js),
+                                         re.search(r"function filtreBand\(v, bands\) \{.*?\n\}", js, re.S)) if m)
     d = c.sample[0]
     real = [{**f, "zone": z} for f, z in zip(M["CA"].public(M["CA"].formations(c.con, d))["formations"], ["securite", "cible", "ambitieux", None] * 99999)]
     acad = next((f["academie"] for f in real if f["academie"]), "")

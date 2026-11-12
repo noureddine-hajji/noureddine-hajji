@@ -241,7 +241,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         WITH s AS (SELECT max(session) AS s FROM core.formation_year)
         SELECT f.cod_aff_form, f.g_ea_lib_vx, f.lib_for_voe_ins, f.ville_etab, f.acad_mies, f.lat, f.lon, f.contrat_etab,
                f.select_form, c.internat, c.distance, c.amenag_sport, c.amenag_art, f.taux_acces_ens, r.spe_type_key,
-               f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.apprentissage
+               f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.apprentissage, f.capa_fin, f.acc_pc
         FROM core.formation_year f JOIN s ON f.session = s.s
         LEFT JOIN core.cartographie c ON c.cod_aff_form = f.cod_aff_form
         LEFT JOIN core.taxonomy_link t ON t.cod_aff_form = f.cod_aff_form AND t.session = f.session
@@ -257,6 +257,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         if x["lat"] is not None:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
         x["mention"], x["statut"] = m, statut_of(x["contrat_etab"])
+        x["capa_fin"], x["acc_pc"] = r[19], r[20]       # sprint R3: capacity and complementary-phase admits (the map's filters)
         sies_app = bool(r[18])                # SIES's own "en apprentissage" formations (3 in 2025)
         x["stats"], x["fiche"] = True, None
         if sies_app and x["statut"] == "prive":

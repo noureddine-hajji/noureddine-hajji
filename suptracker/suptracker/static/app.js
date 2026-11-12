@@ -321,6 +321,10 @@ function searchFilters(P, go, facets, activeOpts, inner) {
   if (P.academie) on.push([`Académie : ${P.academie}`, go({ academie: "" })]);
   if (P.selective) on.push([P.selective === "true" ? "Sélectives" : "Non sélectives", go({ selective: "" })]);
   for (const o of activeOpts) on.push([OPT_LABEL[o], go({ options: activeOpts.filter((x) => x !== o).join(",") })]);
+  for (const g of FI_GROUPS) {                                        // R3: every ticked advanced option is a removable chip
+    const a = (P[g] || "").split(",").filter(Boolean);
+    for (const k of a) { const o = fiOptions(g).find((x) => x.key === k); if (o) on.push([`${FI_TITLE[g]} : ${o.label}`, go({ [g]: a.filter((x) => x !== k).join(",") })]); }
+  }
   const wide = typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches;
   const chips = on.length ? `<div class="toolbar active-filters" aria-label="Filtres actifs">${on.map(([l, h]) =>
     `<a class="badge exact" href="${esc(h)}" aria-label="Retirer le filtre ${esc(l)}">${esc(l)} ✕</a>`).join("")}</div>` : "";
@@ -346,17 +350,71 @@ function profileLine(p, serie) {
     .filter(Boolean).join(" · ");
 }
 
+// ---- R3 (owner, 2026-11-12): the advanced filters shared by the search and the map -----------------------------------------
+// The bands come from /api/meta (filtres.vocab): the search is filtered on the server, the map in the browser, with the SAME limits.
+// The zone filter sends the profile with the search (bac, specialties, mention), never stored, never in the audience figures. The
+// complementary phase is a fact of a past campaign (admits), never places left this year. Nothing is ever sorted by these values.
+const FI_GROUPS = ["zone", "statut", "capacite", "complementaire", "taux"];
+const FI_TITLE = { zone: "Zone pour votre profil", statut: "Type d'établissement", capacite: "Capacité", complementaire: "Phase complémentaire", taux: "Taux d'accès officiel" };
+const FI_HELP = {
+  zone: "Lue pour votre profil (bac, spécialités, mention), comme dans « Mes vœux » : rien n'est enregistré. Des repères, pas des chances.",
+  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",
+  taux: "Le taux d'accès officiel de la formation, tous candidats confondus : un repère, pas vos chances.",
+};
+const fiOptions = (g) => ((typeof META !== "undefined" && META && META.filtres && META.filtres[g]) || []);
+// the band of a value: lower limit included, upper limit excluded (twin of filtres.band)
+function filtreBand(v, bands) {
+  if (v === null || v === undefined) return null;
+  const b = (bands || []).find((x) => (x.min === null || x.min === undefined || v >= x.min) && (x.max === null || x.max === undefined || v < x.max));
+  return b ? b.key : null;
+}
+// a zone pill: the zone's colour token and its name (shape and colour are the map's)
+function zonePillHtml(z, uncertain) {
+  const zz = ZONES[z];
+  if (!zz) return "";
+  return `<span class="zone-pill" style="background:${zz.color}${["indetermine", "non_ouvert", "hors_profil"].includes(z) ? ";color:var(--ink)" : ""}">${esc(zz.label.replace(/^Vœu /, ""))}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
+}
+// the search query of the profile (terminale only: no zone exists outside terminale, sprint 21)
+function fiProfileQuery(qs) {
+  const p = bacProfile();
+  if (!p) return false;
+  const v = vxProfile(p);
+  if (v.serie === "bg" && (!v.spe1 || !v.spe2 || v.spe1 === v.spe2)) return false;
+  qs.set("serie", v.serie); qs.set("mention", v.mention);
+  if (v.serie === "bg") { qs.set("spe1", v.spe1); qs.set("spe2", v.spe2); }
+  return true;
+}
+function searchAdvanced(P, go, d, chip) {
+  const f = d.facets || {};
+  const sel = (g) => (P[g] || "").split(",").filter(Boolean);
+  const toggle = (g, k) => { const a = sel(g); return go({ [g]: (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]).join(",") }); };
+  return FI_GROUPS.map((g) => {
+    if (g === "zone" && !d.zones_lues) {
+      return d.zones_trop ? `<p class="small muted">${FI_TITLE.zone} : plus de ${fmt(META.filtres.max_zoned)} résultats, précisez votre recherche pour filtrer par zone.</p>`
+        : !bacProfile() ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">créez votre profil pour filtrer par vœux de sécurité, cibles ou ambitieux</a></p>` : "";
+    }
+    const counts = f[g] || {};
+    const opts = fiOptions(g).filter((o) => counts[o.key] || sel(g).includes(o.key));
+    if (!opts.length) return "";
+    return `<div class="toolbar fi-group" aria-label="${esc(FI_TITLE[g])}"><span class="small muted">${esc(FI_TITLE[g])} :</span>${opts.map((o) =>
+      chip(`${o.label} (${fmt(counts[o.key] || 0)})`, toggle(g, o.key), sel(g).includes(o.key))).join("")}</div>${FI_HELP[g] ? `<p class="muted small">${esc(FI_HELP[g])}</p>` : ""}`;
+  }).join("");
+}
+
 async function viewSearch(q, rawParams) {
   if (!q) return viewHome();
   const P = Object.fromEntries(new URLSearchParams(rawParams || ""));
   const near = store.get("profile", {}).academie || "";
   const PAGE = searchPage();                                          // lot 3: 20 results per page on a phone, 40 on a wide screen
-  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: PAGE });
-  for (const k of ["fili", "academie", "selective", "options"]) if (P[k]) qs.set(k, P[k]);
+  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: PAGE, avance: "true" });
+  for (const k of ["fili", "academie", "selective", "options", ...FI_GROUPS]) if (P[k]) qs.set(k, P[k]);
   if (near) qs.set("near", near);
+  const withProfile = fiProfileQuery(qs);                             // R3: the zones of every result, read for this answer only
+  if (!withProfile) qs.delete("zone");
   const d = await api(`/api/search?${qs}`);
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
-  const go = (patch) => searchHash(q, { fili: P.fili, academie: P.academie, selective: P.selective, options: P.options, ...patch, offset: patch.offset || 0 });
+  const keep = Object.fromEntries(["fili", "academie", "selective", "options", ...FI_GROUPS].map((k) => [k, P[k]]));
+  const go = (patch) => searchHash(q, { ...keep, ...patch, offset: patch.offset || 0 });
   const activeOpts = (P.options || "").split(",").filter((o) => OPT_LABEL[o]);
   const fromQuery = d.interpretation.filter((i) => i.type === "option").map((i) => i.value);
   const toggleOpt = (o) => { const a = activeOpts.includes(o) ? activeOpts.filter((x) => x !== o) : [...activeOpts, o]; return go({ options: a.join(",") }); };
@@ -369,6 +427,7 @@ async function viewSearch(q, rawParams) {
     ${d.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("")}
     ${d.total === 0 ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou une ville.</p>` : ""}
     ${searchFilters(P, go, facets, activeOpts, `
+    ${searchAdvanced(P, go, d, chip)}
     ${(facets.fili || []).length > 1 || P.fili ? `<div class="toolbar"><span class="small muted">Type :</span>${chip("Tous", go({ fili: "" }), !P.fili)}${(facets.fili || []).map((f) => chip(`${FILI_LABEL[f.value] || f.value} (${f.count})`, go({ fili: f.value }), P.fili === f.value)).join("")}</div>` : ""}
     ${(facets.options || []).some((o) => o.count || o.active) ? `<div class="toolbar" aria-label="Options de la formation"><span class="small muted">Options :</span>${facets.options.filter((o) => o.count || o.active).map((o) => fromQuery.includes(o.value) && !activeOpts.includes(o.value)
       ? `<span class="badge exact" title="Déduit de votre recherche : retirez le mot pour l'enlever">${esc(OPT_LABEL[o.value])} (${o.count})</span>`
@@ -381,7 +440,8 @@ async function viewSearch(q, rawParams) {
     ${d.results.map((r) => `<div class="result"><div>
         <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
         ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
-        <span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}
+        ${r.zone ? `${zonePillHtml(r.zone, r.uncertain)} ` : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}
+        ${r.capa_fin != null ? `<span class="muted small">${fmt(r.capa_fin)} places</span>` : ""}${r.acc_pc > 0 ? ` <span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}
         <span class="muted small">${r.session} · ${r.lineage_years} campagne(s)</span>
         ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
       </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
@@ -703,6 +763,9 @@ const CARTE_GROUPS = [
   ["select", "Autres", [["oui", "Formations sélectives"], ["non", "Formations non sélectives"]]],
 ];
 const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };
+// R3 (owner, 2026-11-12): the search's capacity, complementary phase and official-rate bands, the same limits (META.filtres)
+const CARTE_R3 = ["capacite", "complementaire", "taux"];
+const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
@@ -711,12 +774,15 @@ function carteHas(f, g, o) {
   if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
   if (g === "select") return f.select_form === (o === "oui" ? "formation sélective" : "formation non sélective");   // unknown: neither
   if (g === "zones") return carteZone(f) === o;
+  if (g === "capacite") return filtreBand(f.capa_fin, fiOptions("capacite")) === o;
+  if (g === "taux") return filtreBand(f.taux_acces_ens, fiOptions("taux")) === o;
+  if (g === "complementaire") return f.acc_pc !== null && f.acc_pc !== undefined && (o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0);   // unknown: neither
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
 function carteFilter(rows, F, skip) {
   const q = (F.q || "").trim().toLowerCase();
-  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter((g) => g !== skip);
+  const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter((g) => g !== skip);
   return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
     && (!F.academie || f.academie === F.academie)
     && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
@@ -821,7 +887,7 @@ async function viewCarte(dArg, mArg) {
   if (Z) track("journey", { stage: "stage2" });
   const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
-  for (const [g, , opts] of CARTE_GROUPS) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
+  for (const [g, , opts] of carteGroups()) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
@@ -866,7 +932,7 @@ async function viewCarte(dArg, mArg) {
       <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
       <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
-      ${CARTE_GROUPS.map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
+      ${carteGroups().map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
         ${g === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
       <p class="muted small">Formations en apprentissage : offre ${esc(L0.offre_apprentissage || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
     document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };

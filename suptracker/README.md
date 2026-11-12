@@ -2428,3 +2428,59 @@ The same independent review led to these wording fixes:
 - Z6: 15 mutants, run only on a passing baseline.
 
 The ux (X12, X16) and reorientation (E6) harnesses now load the R2 helpers.
+
+## Sprint R3: advanced filters shared by the search and the map (owner's choices, 2026-11-12)
+
+The search and the map now offer the same filters, cut with the same limits (`suptracker/filtres.py`, served in `/api/meta` as
+`filtres` and read by the page):
+
+| Group | Values | What it reads |
+| --- | --- | --- |
+| Zone pour votre profil | sécurité, cible, ambitieux, autres | the zone of "Où je me situe" for the profile sent with the search (search only; the map already had its zones) |
+| Type d'établissement | public, privé sous contrat, privé payant | `contrat_etab` (Plan B's rule for the paid ones) |
+| Capacité | < 20, 20-49, 50-99, ≥ 100 places | the published capacity of the formation's own campaign |
+| Phase complémentaire | admitted candidates / none | admits in the complementary phase of its own campaign: admits of a past campaign, never places this year (the page says so) |
+| Taux d'accès officiel | < 30 %, 30-59 %, 60-89 %, ≥ 90 % | the official rate; a formation without a published rate is in no band |
+
+Each band includes its lower limit and excludes its upper one.
+
+**The data (2025, checked first).** The capacity is published on every row: P25 18 places, median 30, P75 50, P90 110. 6,186 of
+14,252 formations admitted candidates in the complementary phase, and 8,009 received complementary vœux. There are 11,108
+public formations, 1,938 private under contract and 1,206 fee-charging private ones. 15 rows carry no official rate.
+
+**How the search filters.** `/api/search?avance=true` takes the whole result set of the search, with its own option filters,
+and adds the formations' own campaign rows: capacity, complementary admits and status. When a profile is sent (bac, specialties,
+mention), it also reads the zones of the latest campaign's results: `journey.stage2` on each formation's own type, with `only` its
+codes. These are the zones of "Où je me situe", Mes vœux and the map. A result of an older campaign never takes the zone of
+the latest one, even with the same code (red-team finding).
+
+The search's own filters (type, académie, selectivity) are applied on the server too. Every group, the search's own included,
+is counted with the other groups applied, so a count is exactly what a click returns. Options stay conjunctive.
+
+The order is the search's relevance order: nothing is sorted by a figure. Reading the zones takes about 1 s for 800 results
+("informatique", 23 types) and is skipped above 6,000 results; the page then asks for a narrower search.
+
+**Privacy (owner's choice "Profil envoyé, rien gardé").**
+- The profile is sent only from a terminale profile with two distinct specialties.
+- It is used for this answer only. `/api/search` stays no-store.
+- The audience event keeps the query, the total and the refined flag, never the profile or the zone.
+- A zone filter without a profile, an unknown key, two identical specialties or an unknown series are refused (422).
+
+**The page.** The groups sit under "Filtrer", with their counts. Every ticked option is a removable chip. Each result shows its
+zone pill, its capacity and an "admis en phase complémentaire 2025" badge. Without a profile, the zone group links to "Mon
+profil".
+
+**The map.** The map gets the capacity, complementary-phase and official-rate groups, with the same bands, from the payload's
+`capa_fin` and `acc_pc`. Apprenticeship offers have no figure and fall in no band.
+
+**Red team** `scripts/redteam_filtres.py` (FI1-FI9; `tests/test_filtres.py`):
+- FI1: the bands, Python and page alike.
+- FI2: the filtered search re-derived independently on 60 searches (6 queries × 10 filter combinations, 3 profiles): the
+  kept list, the total and every facet. The zones come from the FULL type, not the `only=` call.
+- FI3: privacy and validation.
+- FI4: the order.
+- FI5: the page, run in Node.
+- FI6: the map payload and the map's filter against a Python filter.
+- FI7: the browser check.
+- FI8: 15 mutants, on a passing baseline.
+- FI9: wording and docs.
