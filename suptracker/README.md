@@ -2457,8 +2457,16 @@ the latest one, even with the same code (red-team finding).
 The search's own filters (type, académie, selectivity) are applied on the server too. Every group, the search's own included,
 is counted with the other groups applied, so a count is exactly what a click returns. Options stay conjunctive.
 
-The order is the search's relevance order: nothing is sorted by a figure. Reading the zones takes about 1 s for 800 results
-("informatique", 23 types) and is skipped above 6,000 results; the page then asks for a narrower search.
+The order is the search's relevance order: nothing is sorted by a figure.
+
+Every result set gets its zones: the cost grows with the number of types, from about 1 s for "informatique" (800 results,
+23 types) to 1.5–2.5 s for the broadest queries ("lycee", 7,206 results; "universite"). The answers sit in a small in-process
+cache, keyed by warehouse, campaign, profile, type and codes, so paging and ticking reuse them.
+
+The independent review found that a first 6,000-result limit made a zone filter silently empty on broad searches, and that the
+limit was counted before the student's own filters. The limit is gone. The review's other fixes:
+- outside terminale, the zone group says nothing (no invitation to create a profile);
+- a zone chip left in a shared link without a profile is dropped.
 
 **Privacy (owner's choice "Profil envoyé, rien gardé").**
 - The profile is sent only from a terminale profile with two distinct specialties.

@@ -443,7 +443,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   50-99, ≥ 100 places, `capa_fin` of the row's campaign), phase complémentaire (`acc_pc` > 0 of the row's campaign: past ADMITS, never
   places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (search only: the
   profile sent with `/api/search?avance=true`, zones of the LATEST campaign keyed by (code, campaign), `journey.stage2` per own type
-  `only=`; none above 6 000 results). Lower limit in, upper out, twin `filtreBand`. The search's own filters are applied in the same
+  `only=`, every result set, in-process cache keyed by warehouse + campaign + profile + type + codes; never a partial set). Lower limit in, upper out, twin `filtreBand`. The search's own filters are applied in the same
   pass; every group counted with the others applied; the relevance order is kept (never a sort by a figure). Profile only from a
   terminale profile, never in the audience event, search no-store. The map adds the same three bands. Red team
   `redteam_filtres.py` (FI1-FI9).

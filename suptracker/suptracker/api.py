@@ -550,15 +550,14 @@ def search(request: Request, bg: BackgroundTasks,
 
 def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active, prof):
     """Sprint R3: every result of the search (its own option filters applied), tagged with the advanced groups, filtered here with
-    the search's own filters, then paged. Facets: every group counted with the others applied. The zones are read only with a
-    profile and up to filtres.MAX_ZONED results; the order is the search's relevance order, never a figure."""
+    the search's own filters, then paged. Facets: every group counted with the others applied. The zones are read with a profile
+    for every result (never a partial set: a zone filter must never empty a list silently); the order is the search's relevance
+    order, never a figure."""
     con = _con().cursor()
     full = S.search(con, q, fili=None, academie=None, selective=None, near=near, options=opts, offset=0, limit=10 ** 6)
     results = full["results"]
     attrs = FI.attributes(con, results)
-    zoned = None
-    if prof is not None and len(results) <= FI.MAX_ZONED:
-        zoned = FI.zones(con, results, prof[0], prof[1], prof[2])
+    zoned = FI.zones(con, results, prof[0], prof[1], prof[2]) if prof is not None else None
     rows = [{"r": r, "t": FI.tags(r, attrs, zoned)} for r in results]
     base = {"fili": fili or None, "academie": academie or None,
             "selectivite": None if selective is None else ("formation sélective" if selective else "formation non sélective")}
@@ -573,8 +572,7 @@ def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, ac
             "total": len(kept), "offset": offset, "limit": limit, "results": page,
             "facets": {"fili": order(facets["fili"]), "academie": order(facets["academie"]), "selectivite": order(facets["selectivite"]),
                        "options": opt_facet, **{g: facets[g] for g in FI.GROUPS}},
-            "filtres": {g: list(v) for g, v in active.items()}, "zones_lues": zoned is not None,
-            "zones_trop": prof is not None and zoned is None}
+            "filtres": {g: list(v) for g, v in active.items()}, "zones_lues": zoned is not None}
 
 
 def _record(cod: str, session: int | None) -> dict:

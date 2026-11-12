@@ -10,11 +10,15 @@ the browser) cut at the same values:
 * taux d'accès: the OFFICIAL rate of the campaign (`taux_acces_ens`), four bands; a formation without a published rate is in none;
 * zone: the zone of "Mon parcours" for the profile sent with the search (`journey.stage2` on each formation's own type, `only`
   its codes, latest campaign), as Mes vœux reads it. The profile is used for this answer only: nothing is stored, the search's
-  audience event never carries it, the answer is no-store.
+  audience event never carries it, the answer is no-store. Every result set gets its zones (review: a limit made a zone filter
+  silently empty on broad searches; the cost grows with the number of types, about 1.5-2.5 s for the broadest queries, and the
+  answers are kept in a small in-process cache so paging and ticking reuse them).
 
 The list is never sorted by these values (never by chances): the search keeps its relevance order, the map its own.
 """
 from __future__ import annotations
+
+from collections import OrderedDict
 
 from . import carte as CA
 from . import journey as J
@@ -29,7 +33,8 @@ ZONE = (("securite", "Vœux de sécurité"), ("cible", "Vœux cibles"), ("ambiti
         ("autre", "Autres (hors-profil, indéterminés, non situés)"))
 ZONE_KEYS = ("securite", "cible", "ambitieux")
 GROUPS = ("statut", "capacite", "complementaire", "taux", "zone")
-MAX_ZONED = 6000                 # the zones of a larger result set are not read (a few seconds of work): the page says so
+_CACHE: OrderedDict = OrderedDict()   # (warehouse, campaign, profile, type, codes) -> stage-2 zones; a few hundred entries at most
+CACHE_SIZE = 256
 
 
 def vocab() -> dict:
@@ -37,7 +42,7 @@ def vocab() -> dict:
     band = lambda b: [{"key": k, "label": lab, "min": lo, "max": hi} for k, lab, lo, hi in b]  # noqa: E731
     pair = lambda b: [{"key": k, "label": lab} for k, lab in b]  # noqa: E731
     return {"capacite": band(CAPACITE), "taux": band(TAUX), "complementaire": pair(COMPLEMENTAIRE),
-            "statut": pair(STATUT), "zone": pair(ZONE), "max_zoned": MAX_ZONED}
+            "statut": pair(STATUT), "zone": pair(ZONE)}
 
 
 def band(value, bands) -> str | None:
@@ -85,10 +90,19 @@ def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str) 
                                 WHERE t.session = ? AND t.cod_aff_form IN (SELECT unnest(?))""", [latest, codes]).fetchall():
         if tk:
             by_type.setdefault(tk, []).append(c)
+    db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()[0]
     out = {}
     for tk, cods in by_type.items():
-        for f in J.stage2(con, dkey, mention, tk, None, serie=serie, only=cods)["formations"]:
-            out[(f["cod_aff_form"], latest)] = (f["zone"], bool(f.get("uncertain")))
+        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))
+        if key in _CACHE:
+            _CACHE.move_to_end(key)
+        else:                              # no row limit: a type is read whole for its listed codes
+            _CACHE[key] = {f["cod_aff_form"]: (f["zone"], bool(f.get("uncertain")))
+                           for f in J.stage2(con, dkey, mention, tk, None, limit=10 ** 6, serie=serie, only=cods)["formations"]}
+            while len(_CACHE) > CACHE_SIZE:
+                _CACHE.popitem(last=False)
+        for c, z in _CACHE[key].items():
+            out[(c, latest)] = z
     return out
 
 

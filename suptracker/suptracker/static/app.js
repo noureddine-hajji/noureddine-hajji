@@ -389,8 +389,8 @@ function searchAdvanced(P, go, d, chip) {
   const sel = (g) => (P[g] || "").split(",").filter(Boolean);
   const toggle = (g, k) => { const a = sel(g); return go({ [g]: (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]).join(",") }); };
   return FI_GROUPS.map((g) => {
-    if (g === "zone" && !d.zones_lues) {
-      return d.zones_trop ? `<p class="small muted">${FI_TITLE.zone} : plus de ${fmt(META.filtres.max_zoned)} résultats, précisez votre recherche pour filtrer par zone.</p>`
+    if (g === "zone" && !d.zones_lues) {                               // review: no invitation outside terminale (no zone exists there)
+      return isReo(store.get("profile", null)) ? ""
         : !bacProfile() ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">créez votre profil pour filtrer par vœux de sécurité, cibles ou ambitieux</a></p>` : "";
     }
     const counts = f[g] || {};
@@ -410,7 +410,7 @@ async function viewSearch(q, rawParams) {
   for (const k of ["fili", "academie", "selective", "options", ...FI_GROUPS]) if (P[k]) qs.set(k, P[k]);
   if (near) qs.set("near", near);
   const withProfile = fiProfileQuery(qs);                             // R3: the zones of every result, read for this answer only
-  if (!withProfile) qs.delete("zone");
+  if (!withProfile) { qs.delete("zone"); delete P.zone; }            // review: no zone chip left for a filter not applied
   const d = await api(`/api/search?${qs}`);
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
   const keep = Object.fromEntries(["fili", "academie", "selective", "options", ...FI_GROUPS].map((k) => [k, P[k]]));

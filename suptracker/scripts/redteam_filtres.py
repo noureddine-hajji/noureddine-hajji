@@ -294,9 +294,30 @@ def fi2_run(c: Ctx, quick: bool = False):
     return bad, n
 
 
+def broad(c: Ctx) -> list:
+    """Review: a broad search (thousands of results) with a zone filter keeps its formations; the cache answers the same zones."""
+    bad = []
+    q = "lycee" if c.real else "informatique"
+    prof = PROFILES[0]
+    with client(c) as tc:
+        d = tc.get("/api/search", params={"q": q, "avance": "true", "zone": "securite", **prof}).json()
+    kept, fac = reference(c, q, {"zone": "securite"}, prof, {"academie": None, "fili": None, "selectivite": None})
+    if d.get("total") != len(kept) or (fac["zone"].get("securite") and not d.get("total")):
+        bad.append(("broad search with a zone filter", q, d.get("total"), len(kept)))
+    cur = c.con.cursor()
+    res = S.search(cur, q, limit=10 ** 6)["results"]
+    if c.FI.zones(cur, res, "bg", "MATHS+SES", "b") != c.FI.zones(cur, res, "bg", "MATHS+SES", "b"):
+        bad.append("the cache answers other zones")
+    src = SRC if c.FI is FI0 else getattr(c.FI, "__src__", "")
+    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
+        bad.append("the cache key misses the warehouse or the profile, or a row limit cuts a type")
+    return bad
+
+
 @check("FI2 the filtered search re-derived: kept list, total and every facet (other groups applied), zones from the full type")
 def fi2(c: Ctx):
     bad, n = fi2_run(c)
+    bad += broad(c)
     return not bad and n >= 30, f"{n} searches; {len(bad)} problems {bad[:2]}"
 
 
@@ -326,7 +347,7 @@ def fi3(c: Ctx):
     if "const p = bacProfile();" not in fp or "if (!p) return false;" not in fp:
         bad.append("the page may send a profile outside terminale")
     vs = c.js[c.js.index("async function viewSearch("):c.js.index("function stageCard(")]
-    if 'if (!withProfile) qs.delete("zone");' not in vs or "track(" in vs:
+    if 'if (!withProfile) { qs.delete("zone"); delete P.zone; }' not in vs or "track(" in vs:
         bad.append("search page wiring")
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
@@ -364,8 +385,8 @@ PROFILE = { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b" };
 out.prof = searchAdvanced({ capacite: "moins20" }, go, { facets, zones_lues: true }, chip);
 PROFILE = null;
 out.none = searchAdvanced({}, go, { facets, zones_lues: false }, chip);
-PROFILE = { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b" };
-out.trop = searchAdvanced({}, go, { facets, zones_lues: false, zones_trop: true }, chip);
+PROFILE = { statut: "reorientation", academie: "Lyon" };
+out.reoGroup = searchAdvanced({}, go, { facets: {}, zones_lues: false }, chip);
 out.pill = zonePillHtml("cible", true) + zonePillHtml("hors_profil", false) + zonePillHtml(H, false);
 PROFILE = { statut: "reorientation", academie: "Lyon" };
 const q1 = new URLSearchParams(); out.reo = fiProfileQuery(q1) || q1.toString();
@@ -402,8 +423,8 @@ def page_ok(c: Ctx):
         bad.append("help texts")
     if 'href="#/profil"' not in o["none"] or "Vœux de sécurité" in o["none"]:
         bad.append("zone group without a profile")
-    if "précisez votre recherche" not in o["trop"] or "Vœux de sécurité (" in o["trop"]:
-        bad.append("zone group above the limit")
+    if o["reoGroup"].strip():
+        bad.append("outside terminale the zone group invites to create a profile (no zone exists there)")
     if "<img" in o["pill"] or "incertain" not in o["pill"] or "cible" not in o["pill"]:
         bad.append(("zone pill", o["pill"]))
     if o["reo"] != "" or o["same"] != "" or "serie=bt" not in o["bt"] or "spe1" in o["bt"]:
@@ -550,6 +571,8 @@ PY_MUTANTS = [
      '    zone = None if zoned is None else (z[0] if z and z[0] in ZONE_KEYS else None)', ("fi2",)),
     ("a search filter ignored", '            if g != skip and v is not None and x["r"].get(src[g]) != v:',
      '            if False:', ("fi2",)),
+    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))",
+     "        key = (db, latest, tk, tuple(sorted(cods)))", ("fi2",)),
     ("sorted by capacity", "    kept = [x for x in rows if ok(x)]", "    kept = sorted([x for x in rows if ok(x)], key=lambda x: -(x['t']['_capa'] or 0))", ("fi2", "fi4")),
 ]
 JS_MUTANTS = [
@@ -558,7 +581,9 @@ JS_MUTANTS = [
     ("map ignores the new groups", '  const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
      '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
     ("profile sent outside terminale", "  const p = bacProfile();\n  if (!p) return false;", "  const p = store.get(\"profile\", null);\n  if (!p) return false;", ("fi3", "fi5")),
-    ("zone kept without a profile", '  if (!withProfile) qs.delete("zone");', "", ("fi3",)),
+    ("zone kept without a profile", '  if (!withProfile) { qs.delete("zone"); delete P.zone; }', "", ("fi3",)),
+    ("zone chip left for a filter not applied", '  if (!withProfile) { qs.delete("zone"); delete P.zone; }', '  if (!withProfile) { qs.delete("zone"); }', ("fi3",)),
+    ("profile invitation outside terminale", '      return isReo(store.get("profile", null)) ? ""', '      return false ? ""', ("fi5",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),
     ("zone group shown without a profile", '        : !bacProfile() ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">',
