@@ -290,14 +290,15 @@ process.stdout.write(JSON.stringify(cases.map(([p, saved]) => profileForm(p, sav
 
 def form_run(js: str):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
-    prog = helpers + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "profileForm") + FORM_PROG
+    prog = helpers + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "spe2Of") + "\n" + top(js, "profileForm") + FORM_PROG
     hostile = {"nom": "<img src=x onerror=alert(1)>", "uai": "1", "commune": "x"}
     cases = [[{"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b", "academie": "Lyon", "lycee": hostile}, True],
              [{"serie": "bt", "voie": "sti2d", "mention": "ab"}, True],
              [{"serie": "bp", "mention": "ab"}, False],
              [{"statut": "reorientation", "serie": "bg", "spe1": "MATHS", "spe2": "SES", "academie": "Lyon"}, True],
              [{"serie": "bg", "spe1": "SES", "spe2": "X", "mention": "ab"}, False],
-             [{"statut": "reorientation", "academie": "Lyon"}, False]]
+             [{"statut": "reorientation", "academie": "Lyon"}, False],
+             [{"serie": "bg", "spe1": "MATHS", "spe2": "MATHS", "mention": "ab"}, True]]
     return node(prog, cases)
 
 
@@ -310,8 +311,16 @@ def form_ok(r) -> tuple[bool, str]:
         return True, "node not installed"
     if r.startswith("__error__"):
         return False, r
-    bg, bt, bp, reo, nomaths, reo_new = json.loads(r)
+    bg, bt, bp, reo, nomaths, reo_new, same = json.loads(r)
     bad = []
+    # owner, 2026-11-12: two DIFFERENT specialties in terminale, one artistic at most (a single Arts code): the second list never
+    # offers the first choice, a stored identical pair shows another one, and the rule is said
+    second = lambda h: re.search(r'<select name="spe2"[^>]*>(.*?)</select>', h, re.S).group(1)  # noqa: E731
+    if 'value="SES"' in second(nomaths) or 'value="MATHS"' in second(same) or 'value="MATHS"' in second(bg) \
+            or not re.search(r'<option value="SES" selected', second(bg)) or not re.search(r"selected", second(same)):
+        bad.append("the second specialty can repeat the first")
+    if "une seule peut être artistique" not in bg:
+        bad.append("the one-arts-specialty rule is not said")
     want = {"bg": ["statut", "statut", "serie", "spe1", "spe2", "maths_expertes", "mention", "academie", "boursier"],
             "bt": ["statut", "statut", "serie", "voie", "mention", "academie", "boursier"],
             "bp": ["statut", "statut", "serie", "voie", "mention", "academie", "boursier"],
@@ -597,6 +606,8 @@ MUTANTS = [
      "  const ser = { bg: \"bac général\", bt: \"bac techno\"", "u3"),
     ("js", "bac fields drawn outside terminale", "  if (reo) {\n    return `<form id=\"pf\">", "  if (false) {\n    return `<form id=\"pf\">", "u4"),
     ("js", "lycée name unescaped in the form", 'value="${p.lycee ? esc(p.lycee.nom) : ""}"', 'value="${p.lycee ? p.lycee.nom : ""}"', "u4"),
+    ("js", "second specialty list offers the first", "JV.specialties.filter((x) => x.code !== p.spe1), spe2Of(p)", "JV.specialties, p.spe2", "u4"),
+    ("js", "identical stored pair shown as is", "return p.spe2 && p.spe2 !== p.spe1 ? p.spe2 :", "return p.spe2 ? p.spe2 :", "u4"),
     ("js", "a field without its explanation", '"Chaque formation publie la part de ses admis venant du bac général, technologique ou professionnel."', '""', "u4"),
     ("js", "first save no longer explicit", '${mention}${where}${saved ? "" : PF_SAVE}', '${mention}${where}${true ? "" : PF_SAVE}', "u4"),
     ("js", "no save button outside terminale", '${acad}</section>${saved ? "" : PF_SAVE}', '${acad}</section>', "u4"),

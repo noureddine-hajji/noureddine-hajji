@@ -2391,10 +2391,11 @@ The summary has 5 tiles with a terminale profile: official rate, for your profil
 profile (one tile invites the student to create one) and 4 outside terminale. On a phone the tiles sit two by two and the fifth
 spans the row. The page only rearranges figures it already had: no new request and no new data.
 
-**Known gap, found by the red team.** Some students take two arts specialties (`ART+ART` exists nationally). The profile form
-has a single "Arts" code and refuses two identical specialties, so it cannot record that doublette. These students get no
-doublette figure: the chain goes on without a doublette, as the page does today. This needs an owner decision (separate arts
-codes in the form).
+**Two arts specialties (owner's rule, 2026-11-12).** In terminale a student keeps two different specialties of the three of
+première, and only one of them can be artistic. The form has a single "Arts" code, and its second list never offers the
+specialty picked first. A stored profile with two identical specialties (an older one) shows another specialty and saves it with
+the next change. The national `ART+ART` rows are not a doublette a student can hold, so they are never asked for. Red team
+navigation U4 checks the rule and its wording (2 mutants).
 
 **Independent review (before Codex).** The first version filled the bac techno / pro fallback from Plan B. That was the latest
 campaign's estimated series access, and it caused four problems:

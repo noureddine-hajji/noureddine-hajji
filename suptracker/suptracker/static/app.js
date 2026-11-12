@@ -1763,6 +1763,13 @@ function voieFromForm(fd, serie, label) {
 // R1 (owner, 2026-11-11): "Mon profil" is the one place the profile is edited. The situation comes first; every field says what
 // it is used for, in the student's words (no column name). Only the fields of the chosen situation are drawn.
 const PF_SAVE = `<div class="card pf-saved"><button class="primary">Enregistrer mon profil</button><span class="small muted">Vérifiez chaque champ : rien n'est lu pour vous avant l'enregistrement.</span></div>`;
+// owner, 2026-11-12: in terminale a student keeps two DIFFERENT specialties of the three of première, and only one can be
+// artistic (the vocabulary has a single Arts code): the second list never offers the first choice; a stored pair that breaks
+// the rule (an older profile) shows the first other specialty, saved with the next change
+function spe2Of(p) {
+  const list = (JV && JV.specialties) || [];
+  return p.spe2 && p.spe2 !== p.spe1 ? p.spe2 : ((list.find((x) => x.code !== p.spe1) || {}).code || "");
+}
 function profileForm(p, saved) {
   const opt = (list, val, lab = (x) => x.label, code = (x) => x.code) =>
     list.map((x) => `<option value="${esc(code(x))}" ${code(x) === val ? "selected" : ""}>${esc(lab(x))}</option>`).join("");
@@ -1789,8 +1796,8 @@ function profileForm(p, saved) {
     ${serie !== "bg" && JV.voies && (JV.voies[serie] || []).length ? field(`<label>${serie === "bt" ? "Série et spécialités" : "Spécialité de bac pro"} <select name="voie"><option value="">Pas indiqué</option>${opt(JV.voies[serie], p.voie)}<option value="autre" ${p.voie === "autre" ? "selected" : ""}>${serie === "bt" ? "Autre série ou autres spécialités" : "Autre spécialité"}</option></select></label>`,
       `Les rapports des jurys publient une ligne par ${serie === "bt" ? "série technologique et ses spécialités" : "spécialité de bac pro"} : la fiche de chaque formation vous montre la vôtre quand elle existe.`) : ""}
     ${serie === "bg" ? field(`<div class="pf-ctl"><span>Vos deux spécialités de terminale</span><div class="pf-pair"><select name="spe1" aria-label="Spécialité 1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select>
-      <select name="spe2" aria-label="Spécialité 2">${opt(JV.specialties, p.spe2, (x) => x.short)}</select></div></div>`,
-      `${p.spe1 === p.spe2 ? '<span class="warn">Choisissez deux spécialités distinctes.</span> ' : ""}Votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.`) : ""}
+      <select name="spe2" aria-label="Spécialité 2">${opt(JV.specialties.filter((x) => x.code !== p.spe1), spe2Of(p), (x) => x.short)}</select></div></div>`,
+      "En terminale, vous gardez deux des trois spécialités de première, deux spécialités différentes : une seule peut être artistique. C'est votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.") : ""}
     ${serie === "bg" && (p.spe1 === "MATHS" || p.spe2 === "MATHS") ? field(`<label class="pf-check"><span><input type="checkbox" name="maths_expertes" ${p.maths_expertes ? "checked" : ""}> Mathématiques expertes</span></label>`,
       "Notée pour vous : les données publiques ne détaillent pas les options de terminale, elle ne change donc aucun chiffre. Regardez les attendus sur la fiche Parcoursup.") : ""}
   </section>`;

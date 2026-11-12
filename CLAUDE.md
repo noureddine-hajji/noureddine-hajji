@@ -436,7 +436,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   below 20; never Plan B's latest-campaign estimate: review). Route rates and estimates are read at the PAGE's campaign (their
 trend entry; the top-level figure is the lineage's latest: Codex). Report figures carry their counts; no two distinct specialties = a
   link to Mon profil. Outside terminale the estimate keeps its own tile. Published replaces estimate, never beside it. 5 tiles with
-  a terminale profile, 4 otherwise. ART+ART cannot be entered (one Arts code): owner decision pending. Red team
+  a terminale profile, 4 otherwise. Two DIFFERENT specialties in terminale, one artistic at most (owner, 2026-11-12): the
+  form's second list never offers the first (`spe2Of`). Red team
   `redteam_tauxprofil.py` (Z1-Z6).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
