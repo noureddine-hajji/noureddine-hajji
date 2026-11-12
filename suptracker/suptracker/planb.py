@@ -72,7 +72,8 @@ def paid(f: dict) -> bool:
 
 
 def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
-           academie: str | None = None, include_paid: bool = False, limit: int = DEFAULT_LIMIT) -> dict:
+           academie: str | None = None, include_paid: bool = False, limit: int = DEFAULT_LIMIT,
+           moyenne: float | None = None) -> dict:
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     row = con.execute("""
         SELECT r.spe_type_key, fy.fil_lib_voe_acc, fy.g_ea_lib_vx, fy.lat, fy.lon
@@ -83,11 +84,11 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
     if row is None:
         raise LookupError(f"formation {cod} absente de la campagne {latest}")
     type_key, filiere, etab, lat, lon = row
-    base = {"cod_aff_form": cod, "filiere": filiere, "session": latest, "serie": serie, "mention": mention}
+    base = {"cod_aff_form": cod, "filiere": filiere, "session": latest, "serie": serie, "mention": mention, "moyenne": moyenne}
     if type_key is None:
         return {**base, "status": "non_disponible", "reason": "formation non rattachée à un type de filière",
                 "target": None, "alternatives": []}
-    res = J.stage2(con, dkey, mention, type_key, academie, serie=serie)
+    res = J.stage2(con, dkey, mention, type_key, academie, serie=serie, moyenne=moyenne)   # R5: the average
     by_cod = {f["cod_aff_form"]: f for f in res["formations"]}
     target = by_cod.get(cod)
     if target is None:

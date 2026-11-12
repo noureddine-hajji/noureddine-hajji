@@ -58,6 +58,7 @@ FEATURE_ENTRY_POINTS = {
     "taux_profil": ("app.js", "function profileRate("),
     "filtres_avances": ("app.js", "function searchAdvanced("),
     "cartes_resultats": ("app.js", "function resultCard("),
+    "moyenne_continue": ("app.js", "function moyenneCard("),
 }
 
 

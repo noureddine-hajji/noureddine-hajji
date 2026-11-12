@@ -2551,3 +2551,80 @@ colour-blind readers. The brief's scores and simulated ranks stay out: SupCompas
 - **VI9, docs.**
 - **VI10, mutation test:** 26 mutants, all caught.
 - The red teams that drew zones by hand (carte, ux, voeux, admis, filtres) now load the shared helpers.
+
+## Sprint R5: a continuous average inside the mention (owner's choices, 2026-11-12)
+
+The owner asked for a finer profile: six bands and a continuous reading of the student's average, with a normal curve centred on
+the middle of each band. The owner chose the honest version: a continuous POSITION among the admits, shown as a range and never as
+a chance. SIES publishes how many admits hold each mention, never their marks and never the candidates by mention. An admission
+probability per mark therefore has no denominator and cannot be computed.
+
+**Bands.**
+
+| Band | Marks | Centre |
+| --- | --- | --- |
+| Rattrapage | 8 to 10 | (counted in sans mention) |
+| Sans mention | 8 to 12 | 11 |
+| Assez bien | 12 to 14 | 13 |
+| Bien | 14 to 16 | 15 |
+| Très bien | 16 to 18 | 17 |
+| TB félicitations | 18 to 20 | 19 |
+
+SIES counts the bac obtained at the rattrapage with "sans mention" and does not publish it apart. The sans mention band is
+therefore 8-12, centred on 11 as the owner asked: a rattrapage sits at its bottom, and the position stays continuous at 10 and
+never decreases with the average.
+
+**The reading** (`journey.within`, `journey.resolve_mention`, page twins `withinBand`, `positionMoyenne`).
+- share of admits below the average = (admits of the lower bands + w × admits of the student's band) / admits with a known mention;
+- w is the within-band fraction under a normal curve centred on the band (σ = 1 point, truncated to the band), the reading the
+  zone uses;
+- the uniform spread gives the other end of the range;
+- the published bounds (the band's bottom and top) frame both;
+- a zone is "incertain" when the uniform hypothesis gives another zone;
+- for bac général, the bounds of the mention × series table are mixed with the same w (`series_position`).
+
+Without an average, the reading stays that of the band's top (w = 1). A regression check compared the new and old stage-2 code
+without an average: 5,080 identical rows.
+
+**Data check.** "Assez bien" alone holds a third of the néo-bachelier admits (33 %), and 35 % of the admits of a median formation.
+Inside one band, the average moves the position by up to 30 points. Example, a BTS biologie médicale:
+- 12.4 → 45 %, 13.0 → 59 %, 13.9 → 79 %;
+- the mention alone → 80 %.
+
+**Everywhere a zone is read.**
+- "Où je me situe", Mes vœux, Compléter, Plan B, the map and the search zones all take `moyenne` (8-20) and give the same zone.
+- A mention that contradicts the average, a rattrapage at 10 or more, and an average out of 8-20 are refused (422).
+- An answer read for an average is never shared-cached (`cache.header(..., fine=True)`): the public routes were cacheable for a
+  coarse band, while an average to the tenth is a fine profile.
+- The repère keeps only the access-rate range with an average: its share ranges and zone stability were measured per band.
+- A shared list never carries the average.
+
+**Bug fixed on the way.** The map asked for zones only for the codes `sm/ab/b/tb`, while the profile stores `sansmention`, so a
+sans-mention student never saw zones on the map. The page now sends the profile's own codes, and the API still reads the old `sm`
+as "sans mention".
+
+**Pages.**
+- "Mon profil" lists the six bands with their marks and takes an optional average ("13,4" or "13.4", rounded to the tenth). The
+  average sets the band (the list follows it). An invalid average is said, never saved or silently dropped.
+- The tables say "admis sous votre moyenne (estimation)" and show the range of the two hypotheses.
+- The formation page has a new folded card, "Votre moyenne parmi les admis". Its curve runs from 8 to 20: the published points sit
+  at the band edges, with the two hypotheses between them and the student's average marked. It states:
+  - the range, said as an estimation;
+  - the published bounds;
+  - the rattrapage note;
+  - a small cohort flagged;
+  - all bacs (mentions are not published by series);
+  - "des repères, pas des chances".
+- New method text "moyenne" and glossary entry. The "mention" entry now lists the six bands.
+
+**Red team `scripts/redteam_moyenne.py` (MO1-MO9), `tests/test_moyenne.py`.**
+- MO1, the model: the within-band fraction re-derived by integrating the truncated normal density, every edge, resolve_mention.
+- MO2, the Node twins on real mention counts (erf within 1e-6).
+- MO3, stage 2 re-derived from independent counts on 12,128 rows: continuity at 6,064 band edges, never decreasing, the band's top
+  without an average, uncertain when the hypotheses disagree (with the page's own bac-général reading).
+- MO4, the API: same zone on every route, 422 cases, no-store, the old `sm`.
+- MO5, the page in Node.
+- MO6, wiring.
+- MO7, browser.
+- MO8, mutation test: 17 mutants, all caught.
+- MO9, the method text and glossary.

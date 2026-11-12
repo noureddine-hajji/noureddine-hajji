@@ -487,6 +487,9 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .pf-field:first-of-type { border-top: 0; }
 .pf-field > label, .pf-field > .pf-ctl { display: flex; flex-direction: column; gap: 6px; font-weight: 600; min-width: 0; }
 .pf-field select, .pf-field input[type="search"] { width: 100%; max-width: 100%; }
+/* R5: the average field looks like the lists beside it (44 px on a phone) */
+.pf-field input[name="moyenne"] { display: block; width: 100%; max-width: 12em; min-height: 44px; box-sizing: border-box; margin-top: 4px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; }
 .pf-field .pf-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pf-why { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .pf-why strong { color: var(--ink); font-weight: 600; }

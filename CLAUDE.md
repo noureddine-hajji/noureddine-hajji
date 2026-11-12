@@ -456,6 +456,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   series use the neutral ramp `--c1..--c6` (ordered, far from every semantic colour) plus a dash (`seriesDash`, `lineLegend`); every
   chart has an accessible name; no emoji marker (drawn `ICONS`). Pill text >= 4.5:1 on every zone fill. Red team
   `redteam_visuel.py` (VI1-VI10).
+- **Continuous average (sprint R5, owner 2026-11-12).** Six bands: rattrapage (8-10, counted in "sans mention" by SIES), sans mention
+  (8-12, centre 11), AB 12-14 (13), B 14-16 (15), TB 16-18 (17), TBF 18-20 (19). An optional average (8-20, to the tenth) sets the band
+  and places the student INSIDE it: share = (lower bands + w x the band) / known mentions, w = truncated normal (sigma 1) centred on
+  the band (the zone's reading), the uniform spread the other end of the range, the band's bottom and top the published bounds; a zone
+  is "incertain" when the uniform reading gives another zone; bac général bounds mixed with the same w. No average = the band's top
+  (w = 1, the pre-R5 reading, unchanged). Never a chance: SIES publishes no marks and no candidates by mention. Every zone route takes
+  `moyenne` (same zone everywhere); a mismatch / rattrapage >= 10 / out of range is a 422; an answer read for an average is never
+  shared-cached; the repère keeps only the access-rate range then; a shared list never carries the average. The page sends the
+  profile's own codes (`mentionParams`; the map's old `sm` code is read as sans mention). Twins `withinBand`, `positionMoyenne`.
+  Red team `redteam_moyenne.py` (MO1-MO9).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

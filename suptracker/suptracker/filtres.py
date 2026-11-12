@@ -77,7 +77,7 @@ def attributes(con, results: list[dict]) -> dict:
     return {(c, s): (cap, pc, ct) for c, s, cap, pc, ct in rows}
 
 
-def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str) -> dict:
+def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str, moyenne: float | None = None) -> dict:
     """{(code, latest campaign): (zone, uncertain, estimate, fragile)} for the results of the latest campaign (keyed WITH the campaign: a result of an
     older campaign may share the code and must never take this zone): the stage-2 row of each formation's own type, `only` its
     codes (the zone of Mon parcours, Mes vœux and the map). Results of an older campaign, or without a type, get none.
@@ -96,13 +96,13 @@ def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str) 
     db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()[0]
     out = {}
     for tk, cods in by_type.items():
-        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))
+        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))
         if key in _CACHE:
             _CACHE.move_to_end(key)
         else:                              # no row limit: a type is read whole for its listed codes
             _CACHE[key] = {f["cod_aff_form"]: (f["zone"], bool(f.get("uncertain")),
                                                f.get("taux_acces_ens") if serie != "bg" else None, bool(f.get("rate_fragile")))
-                           for f in J.stage2(con, dkey, mention, tk, None, limit=10 ** 6, serie=serie, only=cods)["formations"]}
+                           for f in J.stage2(con, dkey, mention, tk, None, limit=10 ** 6, serie=serie, only=cods, moyenne=moyenne)["formations"]}
             while len(_CACHE) > CACHE_SIZE:
                 _CACHE.popitem(last=False)
         for c, z in _CACHE[key].items():

@@ -295,7 +295,8 @@ def type_diplomes(con) -> dict:
     return {tk: max(c.items(), key=lambda kv: (kv[1], kv[0]))[0] for tk, c in count.items()}
 
 
-def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac: str, serie: str) -> dict:
+def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac: str, serie: str,
+          moyenne: float | None = None) -> dict:
     """{code: zone} for the formations of a diploma (and mention): journey.stage2 on each formation's own type, `only` its
     codes, so every zone is the one "Mon parcours" shows. Formations without a type get none."""
     lay = formations(con, diplome, mention)
@@ -307,6 +308,6 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
             by_type.setdefault(f["type_key"], []).append(f["cod_aff_form"])
     out = {}
     for tk, cods in by_type.items():
-        for f in J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods)["formations"]:
+        for f in J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods, moyenne=moyenne)["formations"]:
             out[f["cod_aff_form"]] = f["zone"]
     return {"zones": out}
