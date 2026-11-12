@@ -693,7 +693,7 @@ process.stdout.write(JSON.stringify(out));"""
         cells = re.findall(r"<td(?![^>]*data-label)(?![^>]*class=\"acts\")[^>]*>", rows.group(0))
         return len(cells) == 1                                 # only the formation cell has no label
     vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}" in vx
-    pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(p, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
+    pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(vp, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
              and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
     vs_ok = "limit: PAGE" in vs and "offset: off + PAGE" in vs and "off - PAGE" in vs and "40" not in re.sub(r"<[^>]*>", "", vs.split("const qs")[1].split("const d =")[0])
     cmp_ok = '<table class="cmp">' in cmp
