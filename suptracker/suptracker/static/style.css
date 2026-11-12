@@ -377,13 +377,18 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 /* sprint "Carte": filters left, map and list right on wide screens; map first on a phone */
 /* R9 (owner, 2026-11-12): filters and map on the left, the list in the middle, the chosen formation on the right */
 .carte-layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 320px); gap: 16px; align-items: start; }
-.carte-side { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.carte-scroll { max-height: 34vh; overflow-y: auto; display: grid; gap: 10px; padding: 2px 4px 2px 0; }
+/* the map first in the left column, the filters under it: the column scrolls with the page (a sticky column taller than the
+   screen never showed its map, owner 2026-11-12) */
+.carte-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.carte-side .carte-mapwrap { order: -1; }
+.carte-scroll { display: grid; gap: 10px; padding: 2px 4px 2px 0; }
 .carte-mapwrap { min-width: 0; }
 .carte-results { min-width: 0; margin: 0; }
-.carte-detail { position: sticky; top: 8px; min-width: 0; }
+.carte-detail { position: sticky; top: 8px; min-width: 0; max-height: calc(100vh - 16px); overflow-y: auto; }
 .carte-detail .card { margin: 0; }
-.carte-head { margin-bottom: 12px; }
+.carte-head { margin-bottom: 12px; padding-top: 10px; padding-bottom: 10px; }
+.carte-head h1 { margin: 0 0 4px; }
+.carte-head p { margin: 0; }
 .carte-mens input[type=search] { width: 100%; min-height: 44px; box-sizing: border-box; }
 .result.rc.carte-rc { grid-template-columns: minmax(0, 1fr); cursor: pointer; }
 .carte-rc[aria-current] { background: var(--accent-soft); }
@@ -396,7 +401,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 @media (max-width: 1180px) {
   .carte-layout { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
   .carte-side { grid-row: 1 / span 2; }
-  .carte-detail { grid-column: 2; grid-row: 1; position: static; }
+  .carte-detail { grid-column: 2; grid-row: 1; position: static; max-height: none; }
   .carte-results { grid-column: 2; grid-row: 2; }
   .carte-sel .cfigs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -416,7 +421,8 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .carte-sel h3 { margin-top: 0; }
 @media (max-width: 860px) {
   .carte-layout { grid-template-columns: minmax(0, 1fr); }
-  .carte-side, .carte-detail { position: static; }
+  .carte-side, .carte-detail { position: static; max-height: none; }
+  .carte-side .carte-mapwrap { order: 0; }        /* phone: "Filtrer" (folded, one line) above the map */
   .carte-side, .carte-detail, .carte-results { grid-column: auto; grid-row: auto; }
   .carte-detail { order: 2; } .carte-results { order: 3; }
   .carte-sel-empty { display: none; }

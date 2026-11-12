@@ -19,7 +19,8 @@ admits as a range, never an access rate or a chance).
   CR6 position: the page's cartePosition (Node) = the server's stage 2 `position` read with the average (oracle); without an
       average, the published bounds of the band
   CR7 wording: no chance or access rate for the average, the estimation and "pas de taux d'accès par moyenne" said, vouvoiement
-  CR8 browser (--browser / --real): three columns in order on a wide screen, one column without horizontal scroll on a phone
+  CR8 browser (--browser / --real): three columns in order on a wide screen, the map on the first screen (owner), one column
+      without horizontal scroll on a phone
       (390 and 320 px), multi-select and mention filter in the page, CPES placed in a zone, 0 JS errors
   CR9 mutation test: Python and page mutants, each must be caught
   CR10 docs: README section and CLAUDE.md rule
@@ -385,7 +386,8 @@ const base = process.argv[2];
   await p.route(/tile\.openstreetmap\.org/, (r) => r.abort());
   await p.goto(base + "/#/carte"); await p.waitForTimeout(5000);
   o.layout = await p.evaluate(() => { const x = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().left : null; };
-    return { side: x(".carte-side"), map: x("#carte-osm"), list: x(".carte-results"), detail: x(".carte-detail"),
+    const m = document.getElementById("carte-osm").getBoundingClientRect();
+    return { mapSeen: Math.round(innerHeight - m.top), side: x(".carte-side"), map: x("#carte-osm"), list: x(".carte-results"), detail: x(".carte-detail"),
       cpes: [...document.querySelectorAll('.carte-rc[data-rdip="CPES"]')].map((e) => e.classList.contains("rc-z")),
       dips: [...document.querySelectorAll("[data-dip]:checked")].map((e) => e.dataset.dip), figs: document.querySelectorAll(".carte-rc .cfigs .cf").length / Math.max(1, document.querySelectorAll(".carte-rc").length) }; });
   // tick one mention group of Double licence: only that group stays among the double licences
@@ -436,8 +438,9 @@ def cr8(c: Ctx):
     cp = L.get("cpes") or []                     # CPES placed in a zone (the edge of its zone; "indéterminé" has none)
     cpes = not c.real or (len(cp) > 0 and sum(cp) >= 0.8 * len(cp))
     figs = L.get("figs", 0) >= 3
-    ok = order and phone and multi and cpes and figs and not o["errs"]
-    return ok, f"columns in order {order} {L and {k: L.get(k) for k in ('side', 'map', 'list', 'detail')}}; phone {o['phone']}; multi {multi} {m.get('hash')}; CPES zoned {cpes} ({sum(cp)}/{len(cp)}); 3 figures per card {figs}; errors {o['errs'][:2]}"
+    seen = (L.get("mapSeen") or 0) >= 250          # owner (2026-11-12): "je ne vois pas la carte": it shows on the first screen
+    ok = order and phone and multi and cpes and figs and seen and not o["errs"]
+    return ok, f"map on the first screen {seen} ({L.get('mapSeen')} px); columns in order {order} {L and {k: L.get(k) for k in ('side', 'map', 'list', 'detail')}}; phone {o['phone']}; multi {multi} {m.get('hash')}; CPES zoned {cpes} ({sum(cp)}/{len(cp)}); 3 figures per card {figs}; errors {o['errs'][:2]}"
 
 
 # ------------------------------------------------------------------ CR9
