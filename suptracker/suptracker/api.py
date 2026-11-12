@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from . import admis as ADM
 from . import analytics as A
 from . import config
+from . import filtres as FI
 from . import journey as J
 from . import planb as PB
 from . import voeux as VX
@@ -484,6 +485,7 @@ def meta():
                          for k, v in PEER_METRICS.items()},
         "schema_audit": audit,
         "low_n_threshold": config.LOW_N_THRESHOLD,
+        "filtres": FI.vocab(),             # sprint R3: one definition of every band, for the search and the map
     }
 
 
@@ -492,7 +494,15 @@ def search(request: Request, bg: BackgroundTasks,
            q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
            academie: str | None = None, selective: bool | None = None, near: str | None = None,
            options: str | None = Query(None, max_length=200, description="comma-separated: " + ",".join(S.OPTIONS)),
-           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):
+           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200),
+           # sprint R3 (owner, 2026-11-12): advanced filters (comma-separated keys of filtres.vocab) and, for the zones only, the
+           # profile; the profile is never recorded (the audience event keeps the query, the total and the refined flag)
+           capacite: str | None = Query(None, max_length=100), complementaire: str | None = Query(None, max_length=20),
+           statut: str | None = Query(None, max_length=60), taux: str | None = Query(None, max_length=60),
+           zone: str | None = Query(None, max_length=60),
+           serie: str | None = Query(None, pattern="^(bg|bt|bp)$"), spe1: str | None = Query(None, max_length=12),
+           spe2: str | None = Query(None, max_length=12), mention: str | None = Query(None, pattern="^(sansmention|ab|b|tb)$"),
+           avance: bool = False):
     """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
     A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation."""
     q = q.strip()
@@ -512,17 +522,57 @@ def search(request: Request, bg: BackgroundTasks,
                 "partial": False, "facets": {}}
     opts = tuple(o for o in (options or "").split(",") if o)
     try:
-        res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
-                       options=opts, offset=offset, limit=limit)
+        active = {g: FI.parse(v, g) for g, v in (("capacite", capacite), ("complementaire", complementaire), ("statut", statut),
+                                                  ("taux", taux), ("zone", zone))}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    profile = serie is not None and mention is not None
+    if active["zone"] and not profile:
+        raise HTTPException(422, "Le filtre par zone demande un profil (bac et mention)")
+    dkey = _dkey(spe1 or "", spe2 or "") if profile and serie == "bg" else None
+    try:
+        if avance or any(active.values()) or profile:
+            res = _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active,
+                                   (serie, dkey, mention) if profile else None)
+        else:
+            res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
+                           options=opts, offset=offset, limit=limit)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     res = {**res, "results": ADM.mark(_con().cursor(), res["results"])}   # new dicts: the index documents stay untouched
     if offset == 0:   # pagination is not a new search
-        refined = any(v is not None and v != "" for v in (fili, academie, selective, options))  # near = profile
+        refined = any(v is not None and v != "" for v in (fili, academie, selective, options)) or any(active.values())  # near = profile
         bg.add_task(A.record, "refine" if refined else "search",
                     {"q": A.clean_query(q), "total": res["total"], "partial": bool(res.get("partial"))},
                     _hdrs(request))
     return res
+
+
+def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active, prof):
+    """Sprint R3: every result of the search (its own option filters applied), tagged with the advanced groups, filtered here with
+    the search's own filters, then paged. Facets: every group counted with the others applied. The zones are read with a profile
+    for every result (never a partial set: a zone filter must never empty a list silently); the order is the search's relevance
+    order, never a figure."""
+    con = _con().cursor()
+    full = S.search(con, q, fili=None, academie=None, selective=None, near=near, options=opts, offset=0, limit=10 ** 6)
+    results = full["results"]
+    attrs = FI.attributes(con, results)
+    zoned = FI.zones(con, results, prof[0], prof[1], prof[2]) if prof is not None else None
+    rows = [{"r": r, "t": FI.tags(r, attrs, zoned)} for r in results]
+    base = {"fili": fili or None, "academie": academie or None,
+            "selectivite": None if selective is None else ("formation sélective" if selective else "formation non sélective")}
+    kept, facets = FI.apply(rows, active, base)
+    # options are conjunctive: the count of an option is what adding it to the current filters returns
+    opt_facet = [{"value": f["value"], "count": sum(1 for x in kept if S.OPTIONS[f["value"]](x["r"])), "active": f["active"]}
+                 for f in full["facets"]["options"]]
+    page = [{**x["r"], "capa_fin": x["t"]["_capa"], "acc_pc": x["t"]["_acc_pc"], "statut": x["t"]["statut"],
+             "zone": x["t"]["_zone"], "uncertain": x["t"]["_uncertain"]} for x in kept[offset: offset + limit]]
+    order = lambda cnt: [{"value": v, "count": c} for v, c in sorted(cnt.items(), key=lambda kv: -kv[1])]  # noqa: E731
+    return {**{k: v for k, v in full.items() if k not in ("results", "total", "offset", "limit", "facets")},
+            "total": len(kept), "offset": offset, "limit": limit, "results": page,
+            "facets": {"fili": order(facets["fili"]), "academie": order(facets["academie"]), "selectivite": order(facets["selectivite"]),
+                       "options": opt_facet, **{g: facets[g] for g in FI.GROUPS}},
+            "filtres": {g: list(v) for g, v in active.items()}, "zones_lues": zoned is not None}
 
 
 def _record(cod: str, session: int | None) -> dict:
@@ -1041,7 +1091,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances"]
 
 
 @lru_cache(maxsize=1)

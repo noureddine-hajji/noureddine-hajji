@@ -189,7 +189,9 @@ def r2_defs(js: str) -> str:
 
 def filters_ui(js: str) -> tuple[bool, str]:
     blk = block(js, "// ---- lot 1 UI: search filters are folded")
-    prog = helpers(js) + """
+    # sprint R3: the advanced groups the active-filter chips read (the page's own definitions)
+    r3 = "\n".join(re.search(rf"^const {n} = .*?;$", js, re.M | re.S).group(0) for n in ("FI_GROUPS", "FI_TITLE", "fiOptions"))
+    prog = helpers(js) + r3 + """
 const FILI_LABEL = {bts: "BTS"}, OPT_LABEL = {distance: "À distance"};
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const go = (patch) => "#/s/q?" + new URLSearchParams(patch).toString();

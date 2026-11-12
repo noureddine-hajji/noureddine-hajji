@@ -12,6 +12,7 @@
  "tests/test_cereq.py": 142,
  "tests/test_doublettes.py": 742,
  "tests/test_emploi2030.py": 190,
+ "tests/test_filtres.py": 260.0,
  "tests/test_ia_exposition.py": 258,
  "tests/test_insertion.py": 497,
  "tests/test_journey.py": 136,

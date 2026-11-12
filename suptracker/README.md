@@ -2391,10 +2391,13 @@ The summary has 5 tiles with a terminale profile: official rate, for your profil
 profile (one tile invites the student to create one) and 4 outside terminale. On a phone the tiles sit two by two and the fifth
 spans the row. The page only rearranges figures it already had: no new request and no new data.
 
-**Known gap, found by the red team.** Some students take two arts specialties (`ART+ART` exists nationally). The profile form
-has a single "Arts" code and refuses two identical specialties, so it cannot record that doublette. These students get no
-doublette figure: the chain goes on without a doublette, as the page does today. This needs an owner decision (separate arts
-codes in the form).
+**Two arts specialties (owner's rule, 2026-11-12).** In terminale a student keeps two different specialties of the three of
+première, and only one of them can be artistic. The form has a single "Arts" code, and its second list never offers the
+specialty picked first. What the form shows is what is stored (Codex): when the first specialty is set to the second one, the
+pair is made distinct before it is saved (the former first specialty takes the second place, `spe2Of`). A stored profile with two
+identical specialties (an older one) is shown as invalid: "Choisissez" is selected in the second list, with a warning that zones are
+not read before, and nothing is replaced until the student picks. The national `ART+ART` rows are not a doublette a student can
+hold, so they are never asked for. Red team navigation U4-U6 checks the rule, its wording, the save and the browser (7 mutants).
 
 **Independent review (before Codex).** The first version filled the bac techno / pro fallback from Plan B. That was the latest
 campaign's estimated series access, and it caused four problems:
@@ -2427,3 +2430,67 @@ The same independent review led to these wording fixes:
 - Z6: 15 mutants, run only on a passing baseline.
 
 The ux (X12, X16) and reorientation (E6) harnesses now load the R2 helpers.
+
+## Sprint R3: advanced filters shared by the search and the map (owner's choices, 2026-11-12)
+
+The search and the map now offer the same filters, cut with the same limits (`suptracker/filtres.py`, served in `/api/meta` as
+`filtres` and read by the page):
+
+| Group | Values | What it reads |
+| --- | --- | --- |
+| Zone pour votre profil | sécurité, cible, ambitieux, autres | the zone of "Où je me situe" for the profile sent with the search (search only; the map already had its zones) |
+| Type d'établissement | public, privé sous contrat, privé payant | `contrat_etab` (Plan B's rule for the paid ones) |
+| Capacité | < 20, 20-49, 50-99, ≥ 100 places | the published capacity of the formation's own campaign |
+| Phase complémentaire | admitted candidates / none | admits in the complementary phase of its own campaign: admits of a past campaign, never places this year (the page says so) |
+| Taux d'accès officiel | < 30 %, 30-59 %, 60-89 %, ≥ 90 % | the official rate; a formation without a published rate is in no band |
+
+Each band includes its lower limit and excludes its upper one.
+
+**The data (2025, checked first).** The capacity is published on every row: P25 18 places, median 30, P75 50, P90 110. 6,186 of
+14,252 formations admitted candidates in the complementary phase, and 8,009 received complementary vœux. There are 11,108
+public formations, 1,938 private under contract and 1,206 fee-charging private ones. 15 rows carry no official rate.
+
+**How the search filters.** `/api/search?avance=true` takes the whole result set of the search, with its own option filters,
+and adds the formations' own campaign rows: capacity, complementary admits and status. When a profile is sent (bac, specialties,
+mention), it also reads the zones of the latest campaign's results: `journey.stage2` on each formation's own type, with `only` its
+codes. These are the zones of "Où je me situe", Mes vœux and the map. A result of an older campaign never takes the zone of
+the latest one, even with the same code (red-team finding).
+
+The search's own filters (type, académie, selectivity) are applied on the server too. Every group, the search's own included,
+is counted with the other groups applied, so a count is exactly what a click returns. Options stay conjunctive.
+
+The order is the search's relevance order: nothing is sorted by a figure.
+
+Every result set gets its zones: the cost grows with the number of types, from about 1 s for "informatique" (800 results,
+23 types) to 1.5–2.5 s for the broadest queries ("lycee", 7,206 results; "universite"). The answers sit in a small in-process
+cache, keyed by warehouse, campaign, profile, type and codes, so paging and ticking reuse them.
+
+The independent review found that a first 6,000-result limit made a zone filter silently empty on broad searches, and that the
+limit was counted before the student's own filters. The limit is gone. The review's other fixes:
+- outside terminale, the zone group says nothing (no invitation to create a profile);
+- a zone chip left in a shared link without a profile is dropped.
+
+**Privacy (owner's choice "Profil envoyé, rien gardé").**
+- The profile is sent only from a terminale profile with two distinct specialties.
+- It is used for this answer only. `/api/search` stays no-store.
+- The audience event keeps the query, the total and the refined flag, never the profile or the zone.
+- A zone filter without a profile, an unknown key, two identical specialties or an unknown series are refused (422).
+
+**The page.** The groups sit under "Filtrer", with their counts. Every ticked option is a removable chip. Each result shows its
+zone pill, its capacity and an "admis en phase complémentaire 2025" badge. Without a profile, the zone group links to "Mon
+profil".
+
+**The map.** The map gets the capacity, complementary-phase and official-rate groups, with the same bands, from the payload's
+`capa_fin` and `acc_pc`. Apprenticeship offers have no figure and fall in no band.
+
+**Red team** `scripts/redteam_filtres.py` (FI1-FI9; `tests/test_filtres.py`):
+- FI1: the bands, Python and page alike.
+- FI2: the filtered search re-derived independently on 60 searches (6 queries × 10 filter combinations, 3 profiles): the
+  kept list, the total and every facet. The zones come from the FULL type, not the `only=` call.
+- FI3: privacy and validation.
+- FI4: the order.
+- FI5: the page, run in Node.
+- FI6: the map payload and the map's filter against a Python filter.
+- FI7: the browser check.
+- FI8: 15 mutants, on a passing baseline.
+- FI9: wording and docs.
