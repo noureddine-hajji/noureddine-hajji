@@ -281,12 +281,13 @@ h1 { font-size: var(--fs-xl); line-height: 1.15; }
 .rc-badges .badge { margin: 0; }
 .rc-fig { text-align: right; min-width: 7.5em; font-variant-numeric: tabular-nums; }
 .rc-fig .big { font-family: var(--font-display); }
-.rc-est { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-xs); color: var(--muted); }
+.rc-est { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-xs); color: var(--muted);
+  white-space: normal; text-align: right; }   /* Codex: the sentence wraps (the figure column is nowrap) */
 .rc-est strong { font-size: var(--fs-md); color: var(--ink); }
 @media (max-width: 560px) {
   .result.rc { grid-template-columns: 1fr; }
   .rc-fig { text-align: left; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
-  .rc-est { align-items: flex-start; margin-top: 0; }
+  .rc-est { align-items: flex-start; margin-top: 0; text-align: left; }
 }
 .tabs { display: flex; gap: 4px; overflow-x: auto; margin: 4px 0 0; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
 .tabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; color: var(--muted);

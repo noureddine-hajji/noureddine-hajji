@@ -174,6 +174,8 @@ def tokens_ok(css: str, js: str) -> tuple[bool, str]:
     js_lit = [m for m in re.findall(r"(?<![&\w/])#[0-9a-fA-F]{6}\b|rgba?\(\s*\d", js)]
     if js_lit:
         bad.append(("colour literal in app.js", js_lit[:3]))
+    if not re.search(r"\.rc-est \{[^}]*white-space: normal", css):
+        bad.append("the estimate's sentence cannot wrap in the nowrap figure column (Codex)")
     glyph = re.findall(r'content:\s*"([^"]*[\u2600-\u27bf\U0001f000-\U0001faff][^"]*)"', css)   # a drawn icon, never an emoji as a CSS marker
     if glyph:
         bad.append(("a glyph used as a CSS marker", glyph[:3]))
@@ -547,7 +549,8 @@ const PROFILES = { bg: { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b", 
 (async () => {
   const b = await chromium.launch(); const o = {}; const errs = [];
   for (const [name, opts] of [["light", { viewport: { width: 1280, height: 900 }, colorScheme: "light" }],
-    ["dark", { viewport: { width: 1280, height: 900 }, colorScheme: "dark" }], ["phone", { ...devices["iPhone 13"] }]]) {
+    ["dark", { viewport: { width: 1280, height: 900 }, colorScheme: "dark" }], ["phone", { ...devices["iPhone 13"] }],
+    ["small", { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true }]]) {   // Codex: the smallest phones
     for (const prof of ["bg", "bt"]) {
       const ctx = await b.newContext(opts);
       await ctx.addInitScript((p) => localStorage.setItem("profile", JSON.stringify(p)), PROFILES[prof]);
@@ -561,7 +564,10 @@ const PROFILES = { bg: { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b", 
           const pill = c.querySelector(".zone-pill");
           return pill && getComputedStyle(c).borderLeftColor === getComputedStyle(pill).backgroundColor;
         });
-        return { cards: cards.length, zoned: zoned.length, marks: document.querySelectorAll("article.result .zone-pill svg.zmark").length,
+        // Codex: no card content wider than its card (the estimate's sentence must wrap)
+        const spill = cards.filter((c) => [...c.querySelectorAll(".rc-est, .rc-fig, .rc-main")].some((e) => e.scrollWidth > c.clientWidth + 1
+          || e.getBoundingClientRect().right > c.getBoundingClientRect().right + 1)).length;
+        return { spill, cards: cards.length, zoned: zoned.length, marks: document.querySelectorAll("article.result .zone-pill svg.zmark").length,
           est: document.querySelectorAll("article.result .rc-est").length, edgeOk,
           hs: document.documentElement.scrollWidth > document.documentElement.clientWidth };
       });
@@ -610,7 +616,7 @@ def vi8(c: Ctx):
     for k, v in o.items():
         if k == "named":
             continue
-        if not v["cards"] or v["hs"] or not v["edgeOk"] or v["marks"] < v["zoned"]:
+        if not v["cards"] or v["hs"] or v["spill"] or not v["edgeOk"] or v["marks"] < v["zoned"]:
             bad.append((k, v))
         if k.endswith("/bg") and v["est"]:
             bad.append((k, "a bac général card shows a series estimate"))
@@ -637,6 +643,7 @@ MUTANTS = [
     ("css", "the old ambitieux (pill text below 4.5)", "--zone-ambitieux: #b9460f; --voie-bg", "--zone-ambitieux: #c4581f; --voie-bg", (vi3,)),
     ("css", "a pale 'autre' zone", "--zone-autre: #6f6977;", "--zone-autre: #b8b2bf;", (vi3,)),
     ("css", "zone-autre missing from a dark block", "--zone-autre: #a39dab; --shadow-tip", "--shadow-tip", (vi1,)),
+    ("css", "the estimate cannot wrap (Codex)", "  white-space: normal; text-align: right; }", "  text-align: right; }", (vi1,)),
     ("css", "a gear glyph as the filter marker", "details.filters > summary .ico { width: 18px; height: 18px; margin-right: 8px; }",
      'details.filters > summary::before { content: "\u2699"; margin-right: 8px; }', (vi1,)),
     ("js", "a route colour for the national doublette line", 'groupe national`, color: "var(--c2)", dash: "6 4", values', 'groupe national`, color: "var(--voie-bt)", values', (vi1,)),
