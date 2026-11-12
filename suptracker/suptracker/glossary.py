@@ -19,8 +19,12 @@ GLOSSARY = {
                    "Ce n'est pas votre chance personnelle d'être admis.", "taux_acces_ens"),
     "neo_bachelier": ("Néo-bachelier", "Un élève qui passe le bac l'année de sa candidature (par opposition à un étudiant "
                       "déjà dans le supérieur qui se réoriente).", "mentions"),
-    "mention": ("Mention au bac", "Assez bien (12 à 14), bien (14 à 16), très bien (16 et plus). Les chiffres « avec votre "
-                "mention ou moins » décrivent les admis des années passées, pas une chance.", "journey_bg"),
+    "mention": ("Mention au bac", "Sans mention (10 à 12, le bac au rattrapage y est compté), assez bien (12 à 14), bien (14 à 16), "
+                "très bien (16 à 18), très bien avec félicitations (18 et plus). Les chiffres « avec votre mention ou moins » décrivent "
+                "les admis des années passées, pas une chance.", "journey_bg"),
+    "moyenne": ("Moyenne visée", "Facultative, de 8 à 20 : elle vous place à l'intérieur de votre mention (12,1 et 13,9 sont deux "
+                "« assez bien » très différents). Les notes des admis ne sont pas publiées : votre position dans la mention est une "
+                "estimation, donnée en fourchette, jamais une chance.", "moyenne"),
     "doublette": ("Doublette de spécialités", "Les deux enseignements de spécialité gardés en Terminale (par exemple "
                   "Mathématiques + SES). Les options comme Mathématiques expertes ne font pas partie de la doublette et "
                   "ne sont pas publiées dans les données.", "journey_stage1"),

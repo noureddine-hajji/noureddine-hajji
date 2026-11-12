@@ -284,9 +284,11 @@ def summary(con) -> dict | None:
     return {"level": LEVEL, "target": target, "holdout": HOLDOUT, "coverage": cov}
 
 
-def attach(con, res: dict, mention: str) -> dict:
+def attach(con, res: dict, mention: str, continuous: bool = False) -> dict:
     """Adds to each stage-2 formation its 'repere' (next-campaign ranges for the student's mention)
-    and the confirmation rate of its zone; adds the hold-out summary to the response."""
+    and the confirmation rate of its zone; adds the hold-out summary to the response.
+    R5: with an average (`continuous`), the zone is read inside the band, while the ranges of the share and the zone
+    stability were measured with the band's reading: only the access-rate range is kept (it does not depend on the mention)."""
     head = summary(con)
     res["calibration"] = head
     if head is None:
@@ -306,4 +308,7 @@ def attach(con, res: dict, mention: str) -> dict:
             continue
         n, rate = zp.get((f["zone"], bool(f.get("uncertain"))), (None, None))
         f["repere"] = {**r, "zone_confirmed": rate, "zone_n": n}
+        if continuous:
+            f["repere"].update({"cdf_hat": None, "cdf_lo": None, "cdf_hi": None, "zone_confirmed": None, "zone_n": None,
+                                "continu": True})
     return res

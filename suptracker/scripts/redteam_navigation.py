@@ -239,7 +239,8 @@ process.stdout.write(JSON.stringify(out));
 
 def chip_run(js: str):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
-    prog = helpers + "\n" + top(js, "vxProfile") + "\n" + top(js, "MENTION_SHORT") + "\n" + top(js, "chipLine") + "\n" + top(js, "profileChip") + CHIP_PROG
+    r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "moyenneText"))   # R5: the average
+    prog = helpers + "\n" + r5 + "\n" + top(js, "vxProfile") + "\n" + top(js, "MENTION_SHORT") + "\n" + top(js, "chipLine") + "\n" + top(js, "profileChip") + CHIP_PROG
     hostile = "<img src=x onerror=alert(1)>"
     cases = [["home", None], ["home", {"serie": "bg", "spe1": hostile, "spe2": "SES", "mention": "b"}],
              ["voeux", {"serie": "bt", "voie": "autre", "voie_label": hostile, "mention": "tb"}],
@@ -290,7 +291,9 @@ process.stdout.write(JSON.stringify(cases.map(([p, saved]) => profileForm(p, sav
 
 def form_run(js: str):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
-    prog = helpers + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "spe2Of") + "\n" + top(js, "profileForm") + FORM_PROG
+    r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf")) + "\n" + next(
+        ln for ln in js.splitlines() if ln.startswith("const fmt = "))           # R5: the average field of the form
+    prog = helpers + "\n" + r5 + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "spe2Of") + "\n" + top(js, "profileForm") + FORM_PROG
     hostile = {"nom": "<img src=x onerror=alert(1)>", "uai": "1", "commune": "x"}
     cases = [[{"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b", "academie": "Lyon", "lycee": hostile}, True],
              [{"serie": "bt", "voie": "sti2d", "mention": "ab"}, True],
@@ -325,10 +328,11 @@ def form_ok(r) -> tuple[bool, str]:
         bad.append("a stored identical pair is shown as a valid one")
     if "une seule peut être artistique" not in bg:
         bad.append("the one-arts-specialty rule is not said")
-    want = {"bg": ["statut", "statut", "serie", "spe1", "spe2", "maths_expertes", "mention", "academie", "boursier"],
-            "bt": ["statut", "statut", "serie", "voie", "mention", "academie", "boursier"],
-            "bp": ["statut", "statut", "serie", "voie", "mention", "academie", "boursier"],
-            "reo": ["statut", "statut", "academie"], "nomaths": ["statut", "statut", "serie", "spe1", "spe2", "mention", "academie", "boursier"]}
+    # R5: the optional average follows the mention list
+    want = {"bg": ["statut", "statut", "serie", "spe1", "spe2", "maths_expertes", "mention", "moyenne", "academie", "boursier"],
+            "bt": ["statut", "statut", "serie", "voie", "mention", "moyenne", "academie", "boursier"],
+            "bp": ["statut", "statut", "serie", "voie", "mention", "moyenne", "academie", "boursier"],
+            "reo": ["statut", "statut", "academie"], "nomaths": ["statut", "statut", "serie", "spe1", "spe2", "mention", "moyenne", "academie", "boursier"]}
     for k, h in (("bg", bg), ("bt", bt), ("bp", bp), ("reo", reo), ("nomaths", nomaths)):
         if names(h) != want[k]:
             bad.append(("fields", k, names(h)))
@@ -369,7 +373,8 @@ process.stdout.write(JSON.stringify(out));
 
 
 def read_run(js: str):
-    prog = top(js, "voieFromForm") + "\n" + top(js, "spe2Of") + "\n" + top(js, "readForm") + READ_PROG
+    r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf"))   # R5: the average read from the form
+    prog = r5 + "\n" + top(js, "voieFromForm") + "\n" + top(js, "spe2Of") + "\n" + top(js, "readForm") + READ_PROG
     cases = [
         [{"statut": "reorientation", "academie": "Lyon"}, {"serie": "bg", "mention": "ab"}, "bg", None, None],
         [{"statut": "reorientation", "academie": ""}, {"serie": "bg"}, "bg", {"serie": "bt", "voie": "sti2d", "mention": "tb", "academie": "Lyon"}, None],

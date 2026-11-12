@@ -281,12 +281,13 @@ h1 { font-size: var(--fs-xl); line-height: 1.15; }
 .rc-badges .badge { margin: 0; }
 .rc-fig { text-align: right; min-width: 7.5em; font-variant-numeric: tabular-nums; }
 .rc-fig .big { font-family: var(--font-display); }
-.rc-est { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-xs); color: var(--muted); }
+.rc-est { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-xs); color: var(--muted);
+  white-space: normal; text-align: right; }   /* Codex: the sentence wraps (the figure column is nowrap) */
 .rc-est strong { font-size: var(--fs-md); color: var(--ink); }
 @media (max-width: 560px) {
   .result.rc { grid-template-columns: 1fr; }
   .rc-fig { text-align: left; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
-  .rc-est { align-items: flex-start; margin-top: 0; }
+  .rc-est { align-items: flex-start; margin-top: 0; text-align: left; }
 }
 .tabs { display: flex; gap: 4px; overflow-x: auto; margin: 4px 0 0; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
 .tabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; color: var(--muted);
@@ -486,6 +487,9 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .pf-field:first-of-type { border-top: 0; }
 .pf-field > label, .pf-field > .pf-ctl { display: flex; flex-direction: column; gap: 6px; font-weight: 600; min-width: 0; }
 .pf-field select, .pf-field input[type="search"] { width: 100%; max-width: 100%; }
+/* R5: the average field looks like the lists beside it (44 px on a phone) */
+.pf-field input[name="moyenne"] { display: block; width: 100%; max-width: 12em; min-height: 44px; box-sizing: border-box; margin-top: 4px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; }
 .pf-field .pf-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pf-why { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .pf-why strong { color: var(--ink); font-weight: 600; }

@@ -49,7 +49,7 @@ def position(f: dict) -> float | None:
 
 
 def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
-             academie: str | None = None, voie: str | None = None) -> dict:
+             academie: str | None = None, voie: str | None = None, moyenne: float | None = None) -> dict:
     cods = clean_ids(ids)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     meta = {}
@@ -67,7 +67,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
             by_type.setdefault(meta[c]["type_key"], []).append(c)
     rows = {}
     for tk, cs in by_type.items():
-        for f in J.stage2(con, dkey, mention, tk, academie, serie=serie, only=cs)["formations"]:
+        for f in J.stage2(con, dkey, mention, tk, academie, serie=serie, only=cs, moyenne=moyenne)["formations"]:
             rows[f["cod_aff_form"]] = f
     groups = {tk: DB.for_group(con, tk) for tk in by_type} if serie == "bg" and dkey else {}
 
@@ -115,10 +115,11 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "complement": PB._view(f, None)["complement"],      # cleaned exactly as Plan B shows it
                         "position": position(f),
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
+                        "position_moyenne": f.get("position"),     # R5: the average's range among the admits (estimation)
                         "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c),
                         # sprint "Rapports publics": the formation's OWN published figure for the doublette, when its report exists
                         "rapport": rapport(c), "semblable": semblable(c)})
-    return {"session": latest, "serie": serie, "mention": mention, "doublette": dkey, "academie": academie,
+    return {"session": latest, "serie": serie, "mention": mention, "moyenne": moyenne, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
 
 
@@ -158,8 +159,9 @@ SUGG_PER_FILIERE = 3
 
 
 def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
-              academie: str | None = None, include_paid: bool = False, per_filiere: int = SUGG_PER_FILIERE) -> dict:
-    ev = evaluate(con, ids, serie=serie, dkey=dkey, mention=mention, academie=academie)
+              academie: str | None = None, include_paid: bool = False, per_filiere: int = SUGG_PER_FILIERE,
+              moyenne: float | None = None) -> dict:
+    ev = evaluate(con, ids, serie=serie, dkey=dkey, mention=mention, academie=academie, moyenne=moyenne)
     needed = any(m["code"] == "aucune_securite" for m in ev["lecture"]["messages"])
     base = {"session": ev["session"], "needed": needed, "include_paid": include_paid, "per_filiere": per_filiere,
             "filieres": [], "hidden_paid": 0}
@@ -172,7 +174,7 @@ def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None
             groups.setdefault((v["type_key"], v["filiere"]), []).append(v["cod_aff_form"])
     hidden = 0
     for (tk, fil), mine in groups.items():
-        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie)["formations"]
+        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie, moyenne=moyenne)["formations"]
         by_cod = {f["cod_aff_form"]: f for f in rows}
         targets = [by_cod[c] for c in mine if c in by_cod]
         pool = []

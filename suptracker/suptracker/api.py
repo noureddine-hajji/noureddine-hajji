@@ -357,6 +357,17 @@ METHODOLOGY = {
         "(sécurité, cible, ambitieux, hors profil) a été confirmée l'année suivante ; elle est mesurée avec la même lecture "
         "que la zone affichée pour le bac général (part des admis bac général encadrée par les chiffres publiés). Ce ne sont pas des chances d'admission : "
         "les données publiques ne donnent pas les mentions des candidats, seulement celles des admis."),
+    "moyenne": (
+        "Sprint R5. Votre moyenne visée (de 8 à 20) vous place à l'intérieur de votre mention. Les notes des admis ne sont pas "
+        "publiées, seulement leurs mentions : sans mention (le bac au rattrapage y est compté), assez bien (12 à 14), bien (14 à 16), "
+        "très bien (16 à 18), très bien avec félicitations (18 et plus). La part des admis sous votre moyenne est donc une "
+        "estimation : la part publiée des mentions plus basses, plus une fraction de votre propre mention. Cette fraction suit deux "
+        "hypothèses qui donnent une fourchette : une courbe en cloche centrée au milieu de la mention (11 pour sans mention, de 8 à "
+        "12 avec le rattrapage, 13 pour assez bien, 15, 17 et 19), d'écart-type 1 point, et une répartition égale dans la mention. "
+        "La zone se lit avec la courbe en cloche ; elle est dite incertaine quand la répartition égale donne une autre zone. Sans "
+        "moyenne, la lecture reste celle du haut de la mention. Les mentions ne sont pas publiées par série : la part est lue pour "
+        "tous les bacs, puis ramenée dans l'encadrement exact du bac général quand il existe. Votre moyenne sert à cette réponse "
+        "seulement : elle n'est ni enregistrée ni comptée. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -417,7 +428,7 @@ async def _cache_policy(request: Request, call_next):
     """Sprint 10: one explicit Cache-Control per route (suptracker/cache.py)."""
     resp = await call_next(request)
     h = CACHE.header(request.method, request.url.path, request.query_params.get("v"), resp.status_code,
-                     _asset_version())
+                     _asset_version(), fine="moyenne" in request.query_params)
     if h is not None:
         resp.headers["Cache-Control"] = h
     return resp
@@ -489,6 +500,25 @@ def meta():
     }
 
 
+# Sprint R5 (owner, 2026-11-12): the mention bands a student can pick (rattrapage and TB félicitations included) and the
+# optional average (8-20) that places them inside their band (journey.resolve_mention). The average is used for this answer only:
+# never stored, never in an audience event (every route that takes it is no-store, cache.py).
+MENTION_PATTERN = "^(rattrapage|sansmention|ab|b|tb|tbf)$"
+MOYENNE = Query(None, ge=8, le=20)
+
+
+def _mention(mention: str | None, moyenne: float | None, default: str | None = "ab") -> tuple[str, float | None]:
+    """(band, average); with neither, the route's old default mention (an average alone sets its band)."""
+    if mention is None and moyenne is None:
+        if default is None:
+            raise HTTPException(422, "une mention ou une moyenne est requise")
+        mention = default
+    try:
+        return J.resolve_mention(mention, moyenne)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
 @app.get("/api/search")
 def search(request: Request, bg: BackgroundTasks,
            q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
@@ -501,8 +531,8 @@ def search(request: Request, bg: BackgroundTasks,
            statut: str | None = Query(None, max_length=60), taux: str | None = Query(None, max_length=60),
            zone: str | None = Query(None, max_length=60),
            serie: str | None = Query(None, pattern="^(bg|bt|bp)$"), spe1: str | None = Query(None, max_length=12),
-           spe2: str | None = Query(None, max_length=12), mention: str | None = Query(None, pattern="^(sansmention|ab|b|tb)$"),
-           avance: bool = False):
+           spe2: str | None = Query(None, max_length=12), mention: str | None = Query(None, pattern=MENTION_PATTERN),
+           moyenne: float | None = MOYENNE, avance: bool = False):
     """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
     A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation."""
     q = q.strip()
@@ -526,14 +556,16 @@ def search(request: Request, bg: BackgroundTasks,
                                                   ("taux", taux), ("zone", zone))}
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
-    profile = serie is not None and mention is not None
+    profile = serie is not None and (mention is not None or moyenne is not None)
+    if profile:
+        mention, moyenne = _mention(mention, moyenne)
     if active["zone"] and not profile:
         raise HTTPException(422, "Le filtre par zone demande un profil (bac et mention)")
     dkey = _dkey(spe1 or "", spe2 or "") if profile and serie == "bg" else None
     try:
         if avance or any(active.values()) or profile:
             res = _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active,
-                                   (serie, dkey, mention) if profile else None)
+                                   (serie, dkey, mention, moyenne) if profile else None)
         else:
             res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
                            options=opts, offset=offset, limit=limit)
@@ -557,7 +589,7 @@ def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, ac
     full = S.search(con, q, fili=None, academie=None, selective=None, near=near, options=opts, offset=0, limit=10 ** 6)
     results = full["results"]
     attrs = FI.attributes(con, results)
-    zoned = FI.zones(con, results, prof[0], prof[1], prof[2]) if prof is not None else None
+    zoned = FI.zones(con, results, prof[0], prof[1], prof[2], prof[3]) if prof is not None else None
     rows = [{"r": r, "t": FI.tags(r, attrs, zoned)} for r in results]
     base = {"fili": fili or None, "academie": academie or None,
             "selectivite": None if selective is None else ("formation sélective" if selective else "formation non sélective")}
@@ -814,9 +846,9 @@ def carte_formations(diplome: str, mention: str | None = None):
 
 
 @app.get("/api/carte/zones")
-def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|ab|b|tb)$"),
+def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|rattrapage|sansmention|ab|b|tb|tbf)$"),
                 mention: str | None = None, spe1: str | None = None, spe2: str | None = None,
-                serie: str = Query("bg", pattern="^(bg|bt|bp)$")):
+                serie: str = Query("bg", pattern="^(bg|bt|bp)$"), moyenne: float | None = MOYENNE):
     """Sprint "Carte": the zones of "Mon parcours" for these formations (journey.stage2 on their own types)."""
     _journey_ready()
     dkey = None
@@ -824,7 +856,9 @@ def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac",
         if not spe1 or not spe2 or spe1 == spe2:
             raise HTTPException(422, "deux spécialités différentes sont requises")
         dkey = J.doublette_key(spe1, spe2)
-    return CA.zones(_con().cursor(), diplome, mention or None, dkey, mention_bac, serie)
+    # R5: "sm" was the map's old code for "sans mention", never accepted by stage 2 (the map showed no zone for it)
+    band, moy = _mention("sansmention" if mention_bac == "sm" else mention_bac, moyenne)
+    return CA.zones(_con().cursor(), diplome, mention or None, dkey, band, serie, moy)
 
 
 @app.get("/api/comprendre")
@@ -850,7 +884,12 @@ def journey_vocab():
     acads = [r["acad_mies"] for r in rows("""SELECT DISTINCT acad_mies FROM core.formation_year
                WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL ORDER BY 1""")]
     return {"specialties": [{"code": k, "label": v, "short": J.SPECIALTY_SHORT[k]} for k, v in J.SPECIALTIES.items()],
-            "mentions": [{"code": m, "label": J.MENTION_LABEL[m]} for m in J.MENTIONS[:4]],
+            # R5: the six bands the student picks (rattrapage = the bottom of "sans mention"), with their marks
+            "mentions": [{"code": "rattrapage", "label": "Bac au rattrapage (8 à 10)", "min": 8, "max": 10}]
+                        + [{"code": m, "label": J.MENTION_LABEL[m], "min": J.BANDS[m][0] if m != "sansmention" else 10,
+                            "max": J.BANDS[m][1]} for m in J.MENTIONS],
+            "bandes": {m: {"min": lo, "max": hi, "centre": mid} for m, (lo, hi, mid) in J.BANDS.items()},
+            "sigma": J.BAND_SIGMA,
             "series": [{"code": k, "label": v} for k, v in J.SERIES_LABEL.items()],
             "academies": acads, "doublettes": nat, "zone_rules": J.ZONE_RULES, "gate_rules": J.GATE_RULES,
             "voies": VO.choices(_con().cursor())}      # sprint 20: techno series + specialties, bac pro specialties the reports detail
@@ -872,19 +911,23 @@ def journey_stage1(spe1: str | None = None, spe2: str | None = None,
 
 
 @app.get("/api/journey/stage2")
-def journey_stage2(mention: str, type: str,
+def journey_stage2(type: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
                    spe1: str | None = None, spe2: str | None = None,
                    serie: str = Query("bg", pattern="^(bg|bt|bp)$"),
-                   academie: str | None = None, sex: str | None = Query(None, pattern="^[FM]$")):
+                   academie: str | None = None, sex: str | None = Query(None, pattern="^[FM]$"),
+                   moyenne: float | None = MOYENNE):
     _journey_ready()
     if serie == "bg" and (not spe1 or not spe2):
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
+    given = moyenne
+    mention, moyenne = _mention(mention, moyenne, default=None)
     try:
-        res = J.stage2(_con().cursor(), dkey, mention, type, academie, sex, serie=serie)
+        res = J.stage2(_con().cursor(), dkey, mention, type, academie, sex, serie=serie, moyenne=moyenne)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    CAL.attach(_con().cursor(), res, mention)
+    CAL.attach(_con().cursor(), res, mention, continuous=moyenne is not None)
+    res["moyenne"] = given                       # R5 (review): the student's own average, never the rattrapage's implicit 10
     return J.public_stage2(res)
 
 
@@ -914,9 +957,9 @@ def lycees():
 
 
 @app.get("/api/planb/{cod}")
-def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+def planb(cod: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
           serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
-          academie: str | None = Query(None, max_length=80), include_paid: bool = False):
+          academie: str | None = Query(None, max_length=80), include_paid: bool = False, moyenne: float | None = MOYENNE):
     """Plan B: the same programme elsewhere, more accessible for the student's profile."""
     _journey_ready()
     if not cod.isdigit() or len(cod) > 9:
@@ -925,16 +968,18 @@ def planb(cod: str, mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
-        return PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=mention, academie=academie or None,
-                         include_paid=include_paid)
+        band, moy = _mention(mention, moyenne)
+        return {**PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=band, academie=academie or None,
+                            include_paid=include_paid, moyenne=moy), "moyenne": moyenne}   # R5 (review): the average given
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
 
 
 @app.get("/api/voeux")
-def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+def voeux(ids: str = Query("", max_length=200), mention: str | None = Query(None, pattern=MENTION_PATTERN),
           serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
-          academie: str | None = Query(None, max_length=80), voie: str | None = Query(None, max_length=120)):
+          academie: str | None = Query(None, max_length=80), voie: str | None = Query(None, max_length=120),
+          moyenne: float | None = MOYENNE):
     """Sprint 11, "Mes vœux": the student's list read for the current profile. No analytics event: the list
     of formations a student considers is never counted or stored here."""
     _journey_ready()
@@ -942,11 +987,13 @@ def voeux(ids: str = Query("", max_length=200), mention: str = Query("ab", patte
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
-        res = VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
-                          academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie))
+        band, moy = _mention(mention, moyenne)
+        res = VX.evaluate(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=band,
+                          academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie), moyenne=moy)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
-    return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
+    return {**res, "moyenne": moyenne,                  # R5 (review): the average given, never the rattrapage's implicit 10
+            "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
 
 
 @app.get("/api/reorientation")
@@ -994,10 +1041,11 @@ def reorientation_voeux(ids: str = Query("", max_length=200)):
 
 
 @app.get("/api/voeux/completer")
-def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("ab", pattern="^(sansmention|ab|b|tb)$"),
+def voeux_completer(ids: str = Query("", max_length=200), mention: str | None = Query(None, pattern=MENTION_PATTERN),
                     serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
                     academie: str | None = Query(None, max_length=80), paid: int = Query(0, ge=0, le=1),
-                    voie: str | None = Query(None, max_length=120)):   # sent by the same page query; not used here
+                    voie: str | None = Query(None, max_length=120),   # sent by the same page query; not used here
+                    moyenne: float | None = MOYENNE):
     """"Compléter ma liste": when the list has no sure safety, safety vœux of the same filières (Plan B's rules). Same
     inputs as /api/voeux, no analytics event, never shared-cached."""
     _journey_ready()
@@ -1005,8 +1053,9 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str = Query("
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
-        return VX.completer(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=mention,
-                            academie=academie or None, include_paid=bool(paid))
+        band, moy = _mention(mention, moyenne)
+        return VX.completer(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=band,
+                            academie=academie or None, include_paid=bool(paid), moyenne=moy)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
 
@@ -1093,7 +1142,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue"]
 
 
 @lru_cache(maxsize=1)

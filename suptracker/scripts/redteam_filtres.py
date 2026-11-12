@@ -253,8 +253,18 @@ def crafted(FI) -> list:
     return bad
 
 
+def cache_by_average(c: Ctx) -> list:
+    """R5: the zones read for an average are never the cached zones of the band's top (the cache key carries the average)."""
+    cur = c.con.cursor()
+    res = S.search(cur, "bts", limit=10 ** 6)["results"]
+    top = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab")               # the band's top, cached first
+    low = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab", 12.1)         # then the bottom of the same band
+    return [] if low != top else ["the cache answers the band's zones for an average"]
+
+
 def fi2_run(c: Ctx, quick: bool = False):
     bad, n = crafted(c.FI), 0
+    bad += cache_by_average(c)
     with client(c) as tc:
         for qi, q in enumerate(QUERIES[: 3 if quick else None]):
             for ci, combo in enumerate(COMBOS):
@@ -309,7 +319,7 @@ def broad(c: Ctx) -> list:
     if c.FI.zones(cur, res, "bg", "MATHS+SES", "b") != c.FI.zones(cur, res, "bg", "MATHS+SES", "b"):
         bad.append("the cache answers other zones")
     src = SRC if c.FI is FI0 else getattr(c.FI, "__src__", "")
-    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
+    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
         bad.append("the cache key misses the warehouse or the profile, or a row limit cuts a type")
     return bad
 
@@ -403,7 +413,7 @@ def page_ok(c: Ctx):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const isReo = ", "const REO_LABEL = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "vxProfile", "fiProfileQuery", "searchAdvanced")]
+    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "vxProfile", "fiProfileQuery", "searchAdvanced")]
     prog = helpers + "\nconst JV = null;\n" + zones + "\n" + bac + "\n" + "\n".join(parts) + PAGE_PROG
     exe = shutil.which("node")
     if not exe:
@@ -571,8 +581,10 @@ PY_MUTANTS = [
      '    zone = None if zoned is None else (z[0] if z and z[0] in ZONE_KEYS else None)', ("fi2",)),
     ("a search filter ignored", '            if g != skip and v is not None and x["r"].get(src[g]) != v:',
      '            if False:', ("fi2",)),
-    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))",
+    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
      "        key = (db, latest, tk, tuple(sorted(cods)))", ("fi2",)),
+    ("cache shared across averages (R5)", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
+     "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))", ("fi2",)),
     ("sorted by capacity", "    kept = [x for x in rows if ok(x)]", "    kept = sorted([x for x in rows if ok(x)], key=lambda x: -(x['t']['_capa'] or 0))", ("fi2", "fi4")),
 ]
 JS_MUTANTS = [

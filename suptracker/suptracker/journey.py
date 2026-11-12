@@ -358,6 +358,58 @@ def student_group(row: dict, spe: tuple[str, str] | None, sex: str | None = None
 
 # --------------------------------------------------------------------------- statistics
 MENTIONS = ("sansmention", "ab", "b", "tb", "tbf")      # ordered ladder; "non renseignée" excluded
+
+# Sprint R5 (owner, 2026-11-12): the student's average ("moyenne visée", 8 to 20) places them INSIDE their mention band.
+# SIES publishes how many admits hold each mention, never their marks: inside a band, the position is an ESTIMATION from a
+# fixed model, shown as a RANGE between two hypotheses: a normal curve centred on the middle of the band (the owner's
+# barycentre: 11, 13, 15, 17, 19; sigma = 1 point, truncated to the band) and a uniform spread. "Sans mention" covers the
+# bac obtained without a mention, the rattrapage included (SIES does not publish it apart): its band is 8-12, centred on 11,
+# so a rattrapage (8-10) sits at the bottom of the "sans mention" admits and the position stays continuous at 10.
+# A profile without an average keeps the reading of its band's TOP (w = 1): the pre-R5 reading, unchanged.
+BANDS = {"sansmention": (8.0, 12.0, 11.0), "ab": (12.0, 14.0, 13.0), "b": (14.0, 16.0, 15.0), "tb": (16.0, 18.0, 17.0),
+         "tbf": (18.0, 20.0, 19.0)}
+BAND_SIGMA = 1.0
+RATTRAPAGE_TOP = 10.0          # a rattrapage profile without an average reads at the top of 8-10
+
+
+def band_of(moyenne: float) -> str:
+    """The mention band of an average (8 <= moyenne <= 20); 20 is in the TBF band."""
+    if not 8.0 <= moyenne <= 20.0:
+        raise ValueError("la moyenne doit être comprise entre 8 et 20")
+    for m, (lo, hi, _) in BANDS.items():
+        if lo <= moyenne < hi:
+            return m
+    return "tbf"
+
+
+def within(moyenne: float | None, mention: str, model: str = "normale") -> float:
+    """The share of the band's admits assumed below `moyenne` (0 at the band's floor, 1 at its top). None = 1 (pre-R5)."""
+    if moyenne is None:
+        return 1.0
+    lo, hi, mid = BANDS[mention]
+    g = min(max(moyenne, lo), hi)
+    if model == "uniforme":
+        return (g - lo) / (hi - lo)
+    phi = lambda z: 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))  # noqa: E731
+    a, b = phi((lo - mid) / BAND_SIGMA), phi((hi - mid) / BAND_SIGMA)
+    return (phi((g - mid) / BAND_SIGMA) - a) / (b - a)
+
+
+def resolve_mention(mention: str | None, moyenne: float | None) -> tuple[str, float | None]:
+    """(band, average) from what the page sends: an average sets its band (a different mention is an error); the
+    "rattrapage" choice is the "sans mention" band read at the top of 8-10 unless an average below 10 is given."""
+    if mention == "rattrapage":
+        if moyenne is not None and moyenne >= RATTRAPAGE_TOP:
+            raise ValueError("une moyenne de rattrapage est inférieure à 10")
+        return "sansmention", (moyenne if moyenne is not None else RATTRAPAGE_TOP)
+    if moyenne is not None:
+        band = band_of(moyenne)
+        if mention is not None and mention != band:
+            raise ValueError("la mention et la moyenne ne correspondent pas")
+        return band, moyenne
+    if mention not in MENTIONS:
+        raise ValueError(f"mention must be one of {MENTIONS}")
+    return mention, None
 MENTION_LABEL = {"sansmention": "Sans mention", "ab": "Assez bien", "b": "Bien", "tb": "Très bien",
                  "tbf": "Très bien avec félicitations"}
 
@@ -432,7 +484,7 @@ def bg_position(mention: str, margins: list[dict], cdf_all: float | None) -> dic
     return series_position("bg", mention, margins, cdf_all)
 
 
-def series_position(serie: str, mention: str, margins: list[dict], cdf_all: float | None) -> dict | None:
+def series_position(serie: str, mention: str, margins: list[dict], cdf_all: float | None, w: float = 1.0) -> dict | None:
     """Where a bac-général student's mention sits among bac-général admits (A3).
 
     `margins`: one dict of BG_KEYS counts per campaign of the lineage.
@@ -444,12 +496,20 @@ def series_position(serie: str, mention: str, margins: list[dict], cdf_all: floa
     # Bounds are computed campaign by campaign and their ends added: pooling the margins first
     # would drop each campaign's own constraints and widen the interval. A campaign whose
     # margins contradict each other is left out (with its admits).
+    # R5: inside the band, the bounds of "mention or lower" and of "the mention below or lower" are mixed with the same
+    # within-band fraction w as the all-series share (w = 1: the pre-R5 bounds, unchanged)
+    prev = MENTIONS[MENTIONS.index(mention) - 1] if mention != MENTIONS[0] else None
     k_lo = k_hi = g = 0
     used = 0
     for camp in margins:
         b = series_cdf_bounds(serie, mention, camp)
         if b is None:
             continue
+        if w < 1.0:
+            p = series_cdf_bounds(serie, prev, camp) if prev else (0, 0)
+            if p is None:
+                continue
+            b = ((1.0 - w) * p[0] + w * b[0], (1.0 - w) * p[1] + w * b[1])
         k_lo, k_hi, g, used = k_lo + b[0], k_hi + b[1], g + camp[f"acc_{serie}"], used + 1
     if g < MIN_BG_FOR_BOUNDS:
         return None
@@ -461,7 +521,7 @@ def series_position(serie: str, mention: str, margins: list[dict], cdf_all: floa
             "projected": cdf_all is not None and not (lo <= cdf_all <= hi)}
 
 
-def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict]) -> dict:
+def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict], w: float = 1.0) -> dict:
     """The mention share a zone is read from, shared by stage2 and the sprint-5 back-test so the
     stability printed next to a zone is measured with the very method that set it.
     k / n: pooled all-series admits with the mention or lower / with a known mention;
@@ -469,7 +529,7 @@ def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dic
     the student's series replaces the all-series view."""
     cdf = k / n if n else None
     lo, hi = wilson(k, n)
-    spos = series_position(serie, mention, margins, cdf)
+    spos = series_position(serie, mention, margins, cdf, w)
     if spos:
         return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": spos, "cdf_zone": spos["cdf_used"], "ci_zone": tuple(spos["ci"])}
     return {"cdf": cdf, "cdf_ci": (lo, hi), "spos": None, "cdf_zone": cdf, "ci_zone": (lo, hi)}
@@ -637,13 +697,18 @@ def stage1(con, dkey: str) -> dict:
 
 # --------------------------------------------------------------------------- stage 2
 def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | None = None,
-           sex: str | None = None, limit: int = 4000, serie: str = "bg", only: list[str] | None = None) -> dict:
+           sex: str | None = None, limit: int = 4000, serie: str = "bg", only: list[str] | None = None,
+           moyenne: float | None = None) -> dict:
     """Formations of one type for a student. serie='bg' (doublette `dkey` used for calling groups)
     or 'bt' / 'bp' (B4: the series' official access rate, groups and mention position).
     `only` (sprint 11, "Mes vœux"): restrict to these formation codes. Every row is computed from its
     own lineage, so a restricted row is exactly the row of the full type (red team V2)."""
-    if mention not in MENTIONS[:4]:
-        raise ValueError(f"mention must be one of {MENTIONS[:4]}")
+    if mention not in MENTIONS:
+        raise ValueError(f"mention must be one of {MENTIONS}")
+    if moyenne is not None and band_of(moyenne) != mention and not (mention == "sansmention" and moyenne < RATTRAPAGE_TOP):
+        raise ValueError("la mention et la moyenne ne correspondent pas")
+    # R5: the within-band fraction of the average, normal (the reading) and uniform (the other end of the range)
+    w, w_u = within(moyenne, mention), within(moyenne, mention, "uniforme")
     if serie not in SERIES:
         raise ValueError(f"serie must be one of {SERIES}")
     taux = (lambda a: f"{a}.taux_acces_ens") if serie == "bg" else (lambda a: series_access_sql(serie, a))
@@ -671,7 +736,8 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
              list({bg_struct} ORDER BY fy.session) AS bg_margins,
              count(*) AS years,
              list({{'session': fy.session, 'taux_acces_ens': {taux("fy")},
-                   'cdf': ({cum}) / nullif({known}, 0), 'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
+                   'cdf': ({cum} - {1.0 - w!r} * coalesce(fy.acc_{mention}, 0)) / nullif({known}, 0),
+                   'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
       FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)
       WHERE l.lineage_id IN (SELECT lineage_id FROM target) GROUP BY 1)
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
@@ -695,8 +761,11 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
     out = []
     for r in rows:
         x = dict(zip(cols, r))
-        n, k = x["n_known"] or 0, x["k_cum"] or 0
-        rd = zone_reading(serie, mention, k, n, x.pop("bg_margins") or [])
+        n, k_top = x["n_known"] or 0, x["k_cum"] or 0
+        k_band = x["k_exact"] or 0
+        k = k_top - (1.0 - w) * k_band                      # R5: the average inside its band (w = 1: the band's top)
+        margins = x.pop("bg_margins") or []
+        rd = zone_reading(serie, mention, k, n, margins, w)
         cdf, (lo, hi), spos = rd["cdf"], rd["cdf_ci"], rd["spos"]
         cdf_zone, lo_zone, hi_zone = rd["cdf_zone"], *rd["ci_zone"]
         eligible = open_to_series(x, spe, serie)
@@ -712,6 +781,11 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
         x.update({
             "open_to_general": eligible, "open_to_serie": eligible, "serie": serie,
             "cdf": cdf, "cdf_ci": [lo, hi], "exact_share": (x["k_exact"] / n) if n else None,
+            # R5: the position of the average among the admits, as a RANGE (normal / uniform hypotheses) inside the hard
+            # bounds the published counts allow (bottom and top of the band); an estimation, never a chance
+            "position": None if moyenne is None or not n else {
+                "normale": k / n, "uniforme": (k_top - (1.0 - w_u) * k_band) / n,
+                "bornes": [(k_top - k_band) / n, k_top / n]},
             "bg": spos if serie == "bg" else None, "spos": spos,
             "pct_bg": pct_bg, "pct_serie": pct_serie,
             "pct_boursiers": (x["brs"] / x["neobac"]) if x["neobac"] else None,
@@ -728,14 +802,18 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "group": student_group(x, spe, sex, serie),
         })
         x.pop("s_sum")
+        if moyenne is not None and w_u != w and x["zone"] not in ("non_ouvert", "indetermine") and not x["uncertain"]:
+            rd_u = zone_reading(serie, mention, k_top - (1.0 - w_u) * k_band, n, margins, w_u)
+            alt = classify_zone(x["taux_acces_ens"], rd_u["cdf_zone"], *rd_u["ci_zone"])["zone"]
+            x["uncertain"] = alt != x["zone"]                # R5: the within-band hypothesis decides the zone
         if x["rate_fragile"] and x["zone"] != "non_ouvert":
             # 2 techno candidates, 2 proposals = "100 %": a handful of candidates cannot set a zone
             x["zone"], x["uncertain"] = "indetermine", True
         for g in (1, 2, 3):
             x.pop(f"lib_grp{g}"), x.pop(f"ran_grp{g}")
         out.append(x)
-    return {"doublette": dkey if serie == "bg" else None, "serie": serie, "mention": mention,
-            "type_key": type_key_, "session": latest, "zone_rules": ZONE_RULES,
+    return {"doublette": dkey if serie == "bg" else None, "serie": serie, "mention": mention, "moyenne": moyenne,
+            "within": {"normale": w, "uniforme": w_u}, "type_key": type_key_, "session": latest, "zone_rules": ZONE_RULES,
             "rate": "taux_acces_ens" if serie == "bg" else "estimated_series_access", "formations": out}
 
 

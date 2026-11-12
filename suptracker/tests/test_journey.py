@@ -133,8 +133,9 @@ def test_stage2_zones(wh):
     g_pc = {f["cod_aff_form"]: f for f in J.stage2(con, "MATHS+PC", "ab", J.type_key("CPGE ECG"))["formations"]}
     assert g_pc[plan["ecg_open"]]["group"]["last_called_rank"] == 300
     assert F[plan["ecg_elite"]]["home_academie"] is True       # ETABS[0] is in académie de Paris
+    J.stage2(con, "MATHS+SES", "tbf", J.type_key("CPGE ECG"))      # R5: félicitations du jury is a band of its own
     with pytest.raises(ValueError):
-        J.stage2(con, "MATHS+SES", "tbf", J.type_key("CPGE ECG"))
+        J.stage2(con, "MATHS+SES", "passable", J.type_key("CPGE ECG"))
 
 
 def test_persona_verification_passes_on_fixture(wh):

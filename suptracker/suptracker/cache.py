@@ -9,7 +9,9 @@ Rules (red team S1-S3):
     (a CDN hit would skip the count, or keep the list): `no-store`;
   - only successful answers (200) are cached; errors are `no-store`;
   - versioned assets (`?v=` equal to the current fingerprint) are immutable for a year; anything else short;
-  - every route is in the table: a new route without a policy fails the red team.
+  - every route is in the table: a new route without a policy fails the red team;
+  - R5 (owner, 2026-11-12): an answer read for the student's AVERAGE (`moyenne` in the query) is never shared-cached: the
+    public routes were read for a coarse profile (a mention band), an average to the tenth is a fine one.
 """
 from __future__ import annotations
 
@@ -76,8 +78,8 @@ def policy(path: str) -> tuple[str | None, str] | None:
     return None
 
 
-def header(method: str, path: str, query_v: str | None, status: int, current_version: str) -> str | None:
-    """The Cache-Control to set, or None to leave the response as it is."""
+def header(method: str, path: str, query_v: str | None, status: int, current_version: str, fine: bool = False) -> str | None:
+    """The Cache-Control to set, or None to leave the response as it is. `fine`: the query carries the student's average."""
     if method not in ("GET", "HEAD"):
         return NO_STORE
     p = policy(path)
@@ -86,7 +88,7 @@ def header(method: str, path: str, query_v: str | None, status: int, current_ver
     pol = p[0]
     if pol is None:
         return None
-    if status != 200:
+    if status != 200 or (fine and pol != "asset"):
         return NO_STORE
     if pol == "asset":
         return IMMUTABLE if query_v and query_v == current_version else SHORT

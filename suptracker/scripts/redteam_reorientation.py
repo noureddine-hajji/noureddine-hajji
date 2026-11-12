@@ -325,7 +325,7 @@ def e3(c: Ctx):
 # ---------------------------------------------------------------- the page in Node
 def page_prog(c: Ctx) -> str:
     js = c.js
-    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc")]
+    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "MENTION_SHORT")]   # R5: the average
     parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
               top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine")]
     sec = block(js, BLOCK_START, BLOCK_END)
