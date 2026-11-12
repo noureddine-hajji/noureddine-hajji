@@ -482,7 +482,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   Red team `redteam_guide.py` (GU1-GU8).
 - **Accessibility, WCAG 2.1 AA (sprint R8, owner 2026-11-12).** `<main id="view" tabindex="-1">` is NEVER a live region; one
   `#sr-status` (role status) says "Page : <h1>"; after every navigation (`route` -> `routeView` -> `a11yAfterRoute`, errors included)
-  the tab title is "<h1> — SupCompass" and the focus moves to the h1 (not on the first load). Every page has exactly one h1, headings
+  the tab title is "<h1> — SupCompass" and the focus moves to the h1 (not on the first load); a route the student left before it ended (`routeSeq`) never moves the focus,
+  announces or shows its error (Codex). Every page has exactly one h1, headings
   in order. A skip link is the first Tab stop. `.scroll` tables become focusable named regions (`a11yScrollRegions`, unique names).
   Tooltips: the text is the button's `aria-label`, Escape hides it. Form fields use `--line-input` (>= 3:1); text and links >= 4.5:1;
   no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. `seo.page` fills the shell's

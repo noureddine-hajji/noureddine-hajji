@@ -2721,7 +2721,7 @@ and dark (84 page-modes), followed by checks no scanner does: keyboard paths, fo
 | --- | --- | --- |
 | `<main>` was a live region: a screen reader read whole pages aloud at every change | 4.1.3 | `<main>` is focusable and silent; one polite status line says "Page : <titre>" |
 | every page had the same tab title | 2.4.2 | the title is the page's h1, "<h1> — SupCompass" |
-| after a click the focus stayed on a link that no longer existed | 2.4.3 | the focus moves to the new page's heading (never on the first load) |
+| after a click the focus stayed on a link that no longer existed | 2.4.3 | the focus moves to the new page's heading (never on the first load); a page left before its answer came never takes the focus back (Codex) |
 | no way to skip the menus | 2.4.1 | a skip link, the first Tab stop |
 | five pages had no h1 (search, comparator, specialties, quality, glossary); a heading skipped a level | 1.3.1 | one h1 per page, headings in order |
 | scrolling tables could not be reached with the keyboard | 2.1.1 | each is a focusable region with its own name |

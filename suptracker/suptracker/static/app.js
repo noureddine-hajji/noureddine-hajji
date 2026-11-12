@@ -3933,7 +3933,11 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("focusout", (e) => { if (e.target.classList && e.target.classList.contains("tip")) e.target.classList.remove("tip-off"); });
 document.addEventListener("mouseout", (e) => { if (e.target.classList && e.target.classList.contains("tip")) e.target.classList.remove("tip-off"); });
 
+// each navigation gets its own number: a route that finishes after the student has left it (a slow
+// answer) must not move the focus, announce a page or show an error over the current one (Codex)
+let routeSeq = 0;
 async function route() {
+  const seq = ++routeSeq;
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
   if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
@@ -3947,9 +3951,9 @@ async function route() {
   try {
     await routeView(a, b, c);
   } catch (e) {
-    showError(e);
+    if (seq === routeSeq) showError(e);
   }
-  a11yAfterRoute();
+  if (seq === routeSeq) a11yAfterRoute();
 }
 async function routeView(a, b, c) {
   {

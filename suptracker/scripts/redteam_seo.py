@@ -486,7 +486,7 @@ API_MUTANTS = [
 JS_MUTANTS = [
     ("router ignores the path", "(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")", "(location.hash.slice(1) || \"/\")"),
     ("job path not mapped", "if (m) return `/metiers/${m[1]}`;", "if (m) return null;"),
-    ("a failed data load erases the server summary", "  } catch (e) {\n    showError(e);\n  }", "  } catch (e) {\n    $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
+    ("a failed data load erases the server summary", "  } catch (e) {\n    if (seq === routeSeq) showError(e);\n  }", "  } catch (e) {\n    if (seq === routeSeq) $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
     ("letters accepted as a code", "const f = /^\\/formation\\/(\\d{1,9})\\/?$/.exec(pathname);", "const f = /^\\/formation\\/([^/]+)\\/?$/.exec(pathname);"),
 ]
 HTML_MUTANTS = [

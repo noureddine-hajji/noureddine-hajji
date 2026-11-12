@@ -100,8 +100,10 @@ def code_ok(js: str) -> tuple[bool, str]:
     if 'if (e.key === "Escape") document.querySelectorAll(".tip:hover, .tip:focus").forEach((t) => t.classList.add("tip-off"));' not in js:
         bad.append("Escape does not hide a tooltip")
     route = top(js, "route")
-    if not re.search(r"try \{\n\s+await routeView\(a, b, c\);\n\s+\} catch \(e\) \{\n\s+showError\(e\);\n\s+\}\n\s+a11yAfterRoute\(\);", route):
-        bad.append("the page is not announced after every navigation (errors included)")
+    if not re.search(r"try \{\n\s+await routeView\(a, b, c\);\n\s+\} catch \(e\) \{\n\s+if \(seq === routeSeq\) showError\(e\);\n\s+\}\n\s+if \(seq === routeSeq\) a11yAfterRoute\(\);", route):
+        bad.append("the page is not announced after every navigation (errors included), or a page left early still takes the focus")
+    if "const seq = ++routeSeq;" not in route or not re.search(r"(?m)^let routeSeq = 0;$", js):
+        bad.append("a navigation gets no number of its own")
     after = top(js, "a11yAfterRoute")
     for need, why in (('$view.querySelector("h1")', "the heading"),
                       ("document.title = name ? `${name} — SupCompass`", "the tab title from the heading"),
@@ -275,6 +277,16 @@ const PAGES = ["#/", "#/s/bts%20informatique", "#/f/" + cod, "#/parcours", "#/pr
   }
   // scrolling tables: focusable, each with its own name
   o.regions = await p.evaluate(() => { const r = [...document.querySelectorAll("#view .scroll")]; return { n: r.length, ok: r.every((e) => e.tabIndex === 0 && e.getAttribute("role") === "region" && e.getAttribute("aria-label")), unique: new Set(r.map((e) => e.getAttribute("aria-label"))).size === r.length }; });
+  // a page left before its answer came (Codex): its late end must not take the focus or announce anything
+  const q = await ctx.newPage(); p.on("pageerror", (e) => o.errs.push(e.message)); q.on("pageerror", (e) => o.errs.push(e.message));
+  let release; const held = new Promise((r) => (release = r));
+  await q.route("**/api/journey/vocab", async (rt) => { await held; await rt.continue(); });
+  await q.goto(base + "/#/profil"); await q.waitForTimeout(1000);
+  await q.evaluate(() => { location.hash = "#/metiers"; }); await q.waitForTimeout(2000);
+  await q.focus("#mq"); await q.keyboard.type("inf");
+  const st0 = await q.evaluate(() => document.getElementById("sr-status").textContent);
+  release(); await q.waitForTimeout(2000);
+  o.stale = await q.evaluate((s0) => ({ id: document.activeElement.id, same: document.getElementById("sr-status").textContent === s0, h1: document.querySelector("#view h1")?.textContent.slice(0, 20) }), st0);
   process.stdout.write(JSON.stringify(o)); await b.close();
 })();
 """
@@ -325,6 +337,9 @@ def a4(c: Ctx):
         bad.append(("menu with the keyboard", o.get("menuOpen"), o.get("menuClosed")))
     if "tipName" in o and (not o["tipName"].startswith("Méthodologie : ") or len(o["tipName"]) < 40 or o["tipShown"] == "none" or o["tipHidden"] != "none"):
         bad.append(("tooltip", o.get("tipName", "")[:40], o.get("tipShown"), o.get("tipHidden")))
+    stale = o.get("stale") or {}
+    if stale.get("id") != "mq" or not stale.get("same"):
+        bad.append(("a page left before its answer took the focus back", stale))
     reg = o.get("regions") or {}
     if not reg.get("n") or not reg.get("ok") or not reg.get("unique"):
         bad.append(("scrolling tables", reg))
@@ -341,7 +356,10 @@ MUTANTS = [
     ("html", "no page language", '<html lang="fr">', "<html>"),
     ("js", "the tooltip's text hidden from screen readers", 'aria-label="Méthodologie : ${esc(t)}"', 'aria-label="Méthodologie"'),
     ("js", "Escape keeps the tooltip", 'forEach((t) => t.classList.add("tip-off"));', "forEach((t) => t);"),
-    ("js", "no announcement after a failed page", "  } catch (e) {\n    showError(e);\n  }\n  a11yAfterRoute();", "    a11yAfterRoute();\n  } catch (e) {\n    showError(e);\n  }"),
+    ("js", "no announcement after a failed page", "  } catch (e) {\n    if (seq === routeSeq) showError(e);\n  }\n  if (seq === routeSeq) a11yAfterRoute();", "    if (seq === routeSeq) a11yAfterRoute();\n  } catch (e) {\n    if (seq === routeSeq) showError(e);\n  }"),
+    ("js", "a page left early takes the focus (Codex)", "  if (seq === routeSeq) a11yAfterRoute();", "  a11yAfterRoute();"),
+    ("js", "a page left early shows its error (Codex)", "    if (seq === routeSeq) showError(e);", "    showError(e);"),
+    ("js", "every navigation shares one number", "  const seq = ++routeSeq;", "  const seq = routeSeq;"),
     ("js", "the same title on every page", "document.title = name ? `${name} — SupCompass` : ", "document.title = "),
     ("js", "the focus moved on the first load", "if (a11yFirst) { a11yFirst = false; return; }", "a11yFirst = false;"),
     ("js", "the focus left where it was", "  target.focus({ preventScroll: true });\n", ""),
