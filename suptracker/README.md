@@ -2628,3 +2628,14 @@ as "sans mention".
 - MO7, browser.
 - MO8, mutation test: 17 mutants, all caught.
 - MO9, the method text and glossary.
+
+**Independent review.** It found four defects, all fixed, each with a red-team check.
+- Mes vœux printed "mention undefined" for TBF and rattrapage profiles.
+- Plan B named the raw stored mention.
+- The success-beyond-licence card read the "assez bien" row for TBF (TBF now reads the "très bien" row) and for the rattrapage
+  (now the published "passable, 2nd groupe" row).
+- A rattrapage profile without an average was told "sous votre moyenne". The routes now echo the student's OWN average, and the
+  scatter labels follow the stored profile.
+
+A known limit, said rather than hidden: at exactly 8/20, both hypotheses put the student at the very bottom of "sans mention", so
+almost every formation reads "hors profil". The position is a model, and the card shows the published bounds beside it.

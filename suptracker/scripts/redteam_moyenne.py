@@ -393,6 +393,14 @@ def api_ok(c: Ctx) -> tuple[bool, str]:
             zb = [x.get("zone") for x in rb.json()["results"]]
             if zs == zb:
                 bad.append("the search ignores the average")
+        # review: the answers echo the student's OWN average (a rattrapage without one is not "sous votre moyenne")
+        cod0, tk0, _ = picks[0]
+        echo = [tc.get(f"/api/journey/stage2?mention=rattrapage&type={tk0}&{prof}").json().get("moyenne"),
+                tc.get(f"/api/voeux?ids={cod0}&mention=rattrapage&{prof}").json().get("moyenne"),
+                tc.get(f"/api/planb/{cod0}?mention=rattrapage&{prof}").json().get("moyenne"),
+                tc.get(f"/api/journey/stage2?mention=rattrapage&moyenne=9&type={tk0}&{prof}").json().get("moyenne")]
+        if echo != [None, None, None, 9.0]:
+            bad.append(("the echoed average", echo))
         rc = tc.get(f"/api/voeux/completer?ids={picks[0][0]}&moyenne=9.1&{prof}")
         if rc.status_code != 200 or "no-store" not in rc.headers.get("cache-control", ""):
             bad.append(("completer", rc.status_code))
@@ -423,6 +431,9 @@ out.read = [readForm(fd({ statut: "terminale", serie: "bg", moyenne: "15,74", me
   readForm(fd({ statut: "terminale", serie: "bg", moyenne: "9" }), { mention: "ab" }, "bg", null, form, null)];
 out.vx = [vxProfile({ mention: "ab", moyenne: 17.2 }), vxProfile({ mention: "zz" }), vxProfile({ mention: "rattrapage" }), vxProfile({ mention: "ab", moyenne: "<b>" })];
 out.q = [mentionParams(new URLSearchParams(), vxProfile({ mention: "ab", moyenne: 12.6 })).toString(), mentionParams(new URLSearchParams(), vxProfile({ mention: "tbf" })).toString()];
+out.words = [mentionWords({ mention: "tbf" }), mentionWords({ mention: "rattrapage" }), mentionWords({ mention: "tb", moyenne: 12.4 }),
+  mentionWords({ mention: "<b>" })];
+out.rows = ["rattrapage", "sansmention", "ab", "tbf"].map((m) => MENTION_ROW[vxProfile({ mention: m }).mention]);
 out.line = [chipLine(vxProfile({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", moyenne: 12.6 })), profileLine({ spe1: "MATHS", spe2: "SES", mention: "rattrapage" }, "bg")];
 const rec = (o) => ({ session: 2025, acc_sansmention: 30, acc_ab: 40, acc_b: 20, acc_tb: 8, acc_tbf: 2, ...o });
 PROFILE = { serie: "bg", mention: "ab", moyenne: 12.6, statut: "terminale" };
@@ -441,7 +452,7 @@ process.stdout.write(JSON.stringify(out));
 def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const pc1 = ",
                                                                        "const REO_LABEL = ", "const isReo = ")))
-    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "vxProfile",
+    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "vxProfile",
              "MENTION_SHORT", "chipLine", "profileLine", "PF_SAVE", "spe2Of", "profileForm", "voieFromForm", "readForm", "erf",
              "withinBand", "LADDER", "positionMoyenne", "COLORS", "DASHES", "seriesDash", "lineLegend", "moyenneChart", "moyenneCard",
              "bacProfile")
@@ -469,6 +480,10 @@ def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
         bad.append(("vxProfile", o["vx"]))
     if o["q"] != ["mention=ab&moyenne=12.6", "mention=tbf"]:
         bad.append(("queries", o["q"]))
+    if o["words"] != ["mention très bien félicitations", "bac au rattrapage", "mention assez bien, moyenne visée 12,4/20", "mention assez bien"]:
+        bad.append(("the band in words (Plan B, Mes vœux)", o["words"]))
+    if o["rows"] != ["passable2", "passable1", "ab", "tb"]:
+        bad.append(("the success rows of a band", o["rows"]))
     if "12,6/20" not in o["line"][0] or "rattrapage" not in o["line"][1]:
         bad.append(("profile lines", o["line"]))
     card = o["card"]
@@ -513,7 +528,11 @@ def wiring_ok(js: str, api_src: str, cache_src: str, cal_src: str, readme: str, 
                  "mention_bac=${encodeURIComponent(VP.mention)}"):
         if site not in js:
             bad.append(("a query does not carry the average", site[:50]))
-    if '["sm", "ab", "b", "tb"].includes(P.mention)' in js or "MENTION_CODES.includes(P.mention || (VP && VP.mention))" not in js:
+    if re.search(r'\{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" \}\[', js):
+        bad.append("a four-band mention map left (TBF and rattrapage read 'undefined')")
+    if 'const avg = vxProfile(store.get("profile", {}) || {}).moyenne !== null;' not in js or "F[0] && F[0].position ?" in js:
+        bad.append("the scatter labels keyed on the rattrapage's implicit average")
+    if '["sm", "ab", "b", "tb"].includes(P.mention)' in js or "MENTION_CODES.includes(VP && VP.mention)" not in js:
         bad.append("the map asks zones only for some bands (the 'sm' bug)")
     if "!MENTION_CODES.includes(p.mention)) return null;   // never a default; the average is never shared" not in js \
             or re.search(r'q\.set\("[a-z]+", prof\.moyenne\)', js):
@@ -620,7 +639,12 @@ def mo8(c: Ctx):
         ("js", "the query drops the average", '  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));\n', "", "mo5"),
         ("js", "the card's range not said as an estimation", "avaient, selon cette estimation, une note", "avaient une note", "mo5"),
         ("js", "a small cohort not flagged", '${n < 20 ? ` <span class="badge warnb">peu d', '${false ? ` <span class="badge warnb">peu d', "mo5"),
-        ("js", "the old map codes back", "MENTION_CODES.includes(P.mention || (VP && VP.mention))", '["sm", "ab", "b", "tb"].includes(P.mention)', "mo6"),
+        ("js", "the old map codes back", "MENTION_CODES.includes(VP && VP.mention)", '["sm", "ab", "b", "tb"].includes(P.mention)', "mo6"),
+        ("js", "Plan B names the raw stored mention", '}, ${mentionWords({ mention: "ab", ...prof })}${prof.academie',
+         '}, mention ${{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" }[prof.mention] || "assez bien"}${prof.academie', "mo6"),
+        ("js", "TBF reads the assez bien row", 'b: "b", tb: "tb", tbf: "tb" };', 'b: "b", tb: "tb" };', "mo5"),
+        ("js", "the band in words ignores the average", "return v.moyenne !== null ? `${m}, moyenne visée ${moyenneText(v.moyenne)}` : m;", "return m;", "mo5"),
+        ("api", "the rattrapage's implicit 10 echoed", '    res["moyenne"] = given ', '    res["moyenne"] = moyenne ', "mo4"),
         ("js", "Mes vœux sends the raw mention", "const qs = mentionParams(new URLSearchParams({ ids: ids.join(\",\"), serie: prof.serie }), prof);",
          "const qs = new URLSearchParams({ ids: ids.join(\",\"), serie: prof.serie, mention: prof.mention });", "mo6"),
         ("api", "an average answer kept by the CDN", 'fine="moyenne" in request.query_params', "fine=False", "mo6"),
@@ -639,6 +663,8 @@ def mo8(c: Ctx):
             elif kind == "js":
                 ok = {"mo2": lambda: twins_ok(mut, c.con), "mo5": lambda: page_ok(mut, MENTIONS_FIXED),
                       "mo6": lambda: wiring_ok(mut, c.api_src, c.cache_src, c.cal_src, c.readme, c.claude)}[which]()[0]
+            elif which == "mo4":
+                ok = api_echo_ok(c, mut)
             else:
                 ok = wiring_ok(c.js, mut, c.cache_src, c.cal_src, c.readme, c.claude)[0]
         except Exception:  # noqa: BLE001
@@ -647,6 +673,29 @@ def mo8(c: Ctx):
             missed.append(name)
     n = len(mutants)
     return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
+
+
+def api_echo_ok(c, api_src):
+    """The stage-2 route of a (possibly mutated) api.py echoes the student's own average: None for a rattrapage without one."""
+    from fastapi.testclient import TestClient
+
+    from suptracker import analytics as A
+    mod = load("api", api_src)
+    old, saved = os.environ.get("SUPTRACKER_DB"), A.record
+    os.environ["SUPTRACKER_DB"] = str(c.db)
+    mod._con.cache_clear()
+    A.record = lambda *a, **k: "ok"
+    try:
+        tk = sample_types(c.con.cursor(), 1)[0]
+        r = TestClient(mod.app).get(f"/api/journey/stage2?mention=rattrapage&type={tk}&spe1=MATHS&spe2=SES&serie=bg")
+        return r.status_code == 200 and r.json().get("moyenne") is None
+    finally:
+        A.record = saved
+        mod._con.cache_clear()
+        if old is None:
+            os.environ.pop("SUPTRACKER_DB", None)
+        else:
+            os.environ["SUPTRACKER_DB"] = old
 
 
 MENTIONS_FIXED = [{"code": "rattrapage", "label": "Bac au rattrapage (8 à 10)", "min": 8, "max": 10},

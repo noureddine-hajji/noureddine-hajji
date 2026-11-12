@@ -920,12 +920,14 @@ def journey_stage2(type: str, mention: str | None = Query(None, pattern=MENTION_
     if serie == "bg" and (not spe1 or not spe2):
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
+    given = moyenne
     mention, moyenne = _mention(mention, moyenne, default=None)
     try:
         res = J.stage2(_con().cursor(), dkey, mention, type, academie, sex, serie=serie, moyenne=moyenne)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     CAL.attach(_con().cursor(), res, mention, continuous=moyenne is not None)
+    res["moyenne"] = given                       # R5 (review): the student's own average, never the rattrapage's implicit 10
     return J.public_stage2(res)
 
 
@@ -967,8 +969,8 @@ def planb(cod: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
     dkey = _dkey(spe1, spe2) if serie == "bg" else None
     try:
         band, moy = _mention(mention, moyenne)
-        return PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=band, academie=academie or None,
-                         include_paid=include_paid, moyenne=moy)
+        return {**PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=band, academie=academie or None,
+                            include_paid=include_paid, moyenne=moy), "moyenne": moyenne}   # R5 (review): the average given
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
 
@@ -990,7 +992,8 @@ def voeux(ids: str = Query("", max_length=200), mention: str | None = Query(None
                           academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie), moyenne=moy)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
-    return {**res, "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
+    return {**res, "moyenne": moyenne,                  # R5 (review): the average given, never the rattrapage's implicit 10
+            "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
 
 
 @app.get("/api/reorientation")
