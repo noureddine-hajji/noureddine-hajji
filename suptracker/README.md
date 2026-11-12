@@ -616,7 +616,7 @@ Facts checked on the real files before coding:
 - **National rows.** National rows are references and carry no grade.
 - **No multiplication.** No figure is multiplied by another.
 
-**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 12/12 checks pass and 24/24 mutants are caught.
+**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 12/12 checks pass and 25/25 mutants are caught.
 - **P1.** Independent re-read of every cell: 6,637 cells, 0 differ. Masked cells are NULL, never 0. The committed warehouse equals a fresh build.
 - **P2.** Every block maps to one B1 university, with no collision inside a table.
 - **P3.** Identities:
@@ -635,7 +635,7 @@ Facts checked on the real files before coding:
 - **P11.** The page escapes every stored string, keeps the wording card by card, never multiplies rates, and keeps the profile in the browser with its values validated.
 - **P12, mutation test.**
   - Data mutants: "Etudiants" as the reference, masked as 0, an alias collision, discipline rows not grouped by block, a loose IUT rule, the Nîmes override dropped, a wrong specialty alias, the master block off B1's discipline.
-  - National mutants: "Très bien" and "Bien" swapped, PHY_CHI read as SVT, bac général and technologique swapped, droit and eco swapped, an L1 discipline mapped to another, the 2nd- and 3rd-year columns swapped, a graduation year shifted.
+  - National mutants: "Très bien" and "Bien" swapped, PHY_CHI read as SVT, bac général and technologique swapped, droit and eco swapped, an L1 discipline mapped to another, the 2nd- and 3rd-year columns swapped, a graduation year shifted, a national row emitted twice (Codex: duplicates are counted on the row list, before the lookup keeps one).
   - The alias collision used to slip through without `--real`: CY Cergy's figures under Sorbonne's name collide with nothing, because Sorbonne has no BUT row. P9 now catches it.
   - UI mutants: escaping (3), wording (2), a multiplied chain, the profile sent to the server, the stored series trusted, the card not wired.
 

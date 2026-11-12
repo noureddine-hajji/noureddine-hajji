@@ -588,7 +588,12 @@ def reread_national(sources: dict) -> dict:
 @check("P10 national margins = published: series, doublettes, mentions, specialties, disciplines re-read by fixed positions and own label rules, every value and code")
 def p10(c: Ctx):
     pub = reread_national(c.sources)
-    got = {(r["source_kind"], r["tab"], _flat(r["label"]), int(r["cohort"])): r for r in c.rows("poursuite_national")}
+    rows = c.rows("poursuite_national")
+    keyof = lambda r: (r["source_kind"], r["tab"], _flat(r["label"]), int(r["cohort"]))
+    # duplicates counted on the row LIST, before the lookup dict keeps one of them (Codex)
+    dup = [k for k, x in Counter(keyof(r) for r in rows).items() if x > 1]
+    dup += [k for k, x in Counter((r["source_kind"], r["tab"], r["dim"], r["code"], r["cohort"]) for r in rows).items() if x > 1]
+    got = {keyof(r): r for r in rows}
     bad, n = [], 0
     for key, (dim, code, vals) in pub.items():
         r = got.get(key)
@@ -606,8 +611,9 @@ def p10(c: Ctx):
             if not _same(v, r[f], m.get(f)):
                 bad.append((key[2], key[3], f, v, r[f]))
     bad += [("extra", k) for k in got if k not in pub]
-    dup = [k for k, x in Counter((r["source_kind"], r["tab"], r["dim"], r["code"], r["cohort"]) for r in got.values()).items() if x > 1]
-    return n > 0 and not bad and not dup, f"{len(pub)} national rows, {n} values compared; {len(bad)} differ {bad[:3]}; duplicate codes {dup[:3]}"
+    if len(rows) != len(pub):
+        bad.append(("row count", len(rows), len(pub)))
+    return n > 0 and not bad and not dup, f"{len(pub)} national rows, {n} values compared; {len(bad)} differ {bad[:3]}; duplicate rows or codes {dup[:3]}"
 
 
 def fn_body(js: str, name: str) -> str:
@@ -717,6 +723,10 @@ def p12(c: Ctx):
             r["cohort"] = r["cohort"] + 1
         return rows
 
+    def row_twice(path):                                  # a national row emitted twice, the first one wrong (Codex)
+        rows = saved["pmn"](path)
+        return [{**rows[0], "taux": (rows[0]["taux"] or 0) + 5}] + rows
+
     def swap(table, a, b):
         t = getattr(P, table)
         t[a], t[b] = t[b], t[a]
@@ -736,6 +746,7 @@ def p12(c: Ctx):
         ("an L1 discipline mapped to another", lambda: P.CHAIN_DISC.update({"droit, sciences politiques": "staps"}), (p8, p10)),
         ("passage columns swapped", lambda: setattr(P, "parse_but_nat", passages_swapped), (p3, p8, p10)),
         ("graduation year shifted", lambda: setattr(P, "parse_master_nat", year_shifted), (p8, p10)),
+        ("a national row emitted twice", lambda: setattr(P, "parse_master_nat", row_twice), (p10,)),
         ("discipline rows not grouped by block", lambda: setattr(P, "parse_master_etab", no_blocks), (p1, p2, p3)),
         ("site guessed by a loose name rule", lambda: (setattr(c, "rules", {r"exemple": next(iter(c.paysage.values()))}) if c.rules
                                                       else P.BUT_NAME_RULES.update({r"i\.?u\.?t": "UNIVERSITE MONTPELLIER"})), (p5,)),
