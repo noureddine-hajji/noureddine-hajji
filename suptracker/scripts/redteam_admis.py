@@ -255,7 +255,9 @@ def h4(c: Ctx):
 @check("H5 wiring and design: every list renders the label, the summary renders the bar, own tokens in both themes")
 def h5(c: Ctx):
     js = c.js
-    search = "${offerBadges(r, true)}${autresBadge(r)}" in block(js, "async function viewSearch", "function suggestLycee") if "function suggestLycee" in js else False
+    # R4: the search result is drawn by resultCard, used by the search page
+    search = "${offerBadges(r, true)}${autresBadge(r)}" in block(js, "function resultCard(", "async function viewSearch") \
+        and "${d.results.map(resultCard).join(\"\")}" in block(js, "async function viewSearch", "function suggestLycee") if "function resultCard(" in js else False
     carte = block(js, "function carteDetail(", "// Leaflet")
     carte_ok = carte.count("${autresBadge(f)}") == 2
     cmp_ok = '["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)]' in block(js, "async function viewCompare(", "async function viewSpecialites(")
@@ -299,7 +301,7 @@ JS_MUTANTS = [
     ("comparator row dropped", '    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],\n', ""),
     ("chance wording", "Néo-bacheliers : ils passaient le bac", "Vous serez admis : ils passaient le bac"),
 ]
-CSS_MUTANTS = [("zone colour reused", "--adm-autres: #a8683c;", "--adm-autres: #c4581f;"),
+CSS_MUTANTS = [("zone colour reused", "--adm-autres: #a8683c;", "--adm-autres: #b9460f;"),
                ("dark theme token missing", "    --adm-neo: #a9bccb; --adm-autres: #e0a77c;\n  }", "  }")]
 API_MUTANTS = [("search not labelled", 'res = {**res, "results": ADM.mark(_con().cursor(), res["results"])}', "res = res"),
                ("apprenticeship offers labelled", 'only=lambda f: f.get("stats") is not False', "only=lambda f: True")]

@@ -448,6 +448,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   pass; every group counted with the others applied; the relevance order is kept (never a sort by a figure). Profile only from a
   terminale profile, never in the audience event, search no-store. The map adds the same three bands. Red team
   `redteam_filtres.py` (FI1-FI9).
+- **Visual improvements (sprint R4, owner 2026-11-12).** A zone = its token + its shape + its name, through ONE helper (`zoneShape`,
+  `zoneMark`, `zonePillHtml`, `zoneBadge`: rond sécurité, carré cible, triangle ambitieux, an empty ring otherwise, `--zone-autre`);
+  never a zone drawn by hand, never the colour alone. Search results are `resultCard`: zone token as the left edge (never the accent),
+  the OFFICIAL rate labelled, for bac techno/pro the same stage-2 row's estimated access (`filtres.zones`, said as an estimation,
+  "peu de candidats" below 20), none for bac général. Colour means something only for zones, bac routes and the accent: other chart
+  series use the neutral ramp `--c1..--c6` (ordered, far from every semantic colour) plus a dash (`seriesDash`, `lineLegend`); every
+  chart has an accessible name; no emoji marker (drawn `ICONS`). Pill text >= 4.5:1 on every zone fill. Red team
+  `redteam_visuel.py` (VI1-VI10).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

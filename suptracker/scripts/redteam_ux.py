@@ -175,6 +175,16 @@ def node_run(prog: str, payload) -> str | None:
     return ("__error__" + r.stderr[-400:]) if r.returncode else r.stdout
 
 
+def top_def(js: str, name: str) -> str:
+    """One top-level function or one-line const of app.js (R4: the zone helpers the lot-3 block calls)."""
+    m = re.search(rf"^(?:async )?function {re.escape(name)}\(|^const {re.escape(name)} = ", js, re.M)
+    if not m:
+        return ""
+    if js[m.start():].startswith("const "):
+        return js[m.start(): js.index("\n", m.start())]
+    return js[m.start(): js.find("\n}", m.start()) + 2]
+
+
 def helpers(js: str) -> str:
     return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
 
@@ -193,6 +203,7 @@ def filters_ui(js: str) -> tuple[bool, str]:
     r3 = "\n".join(re.search(rf"^const {n} = .*?;$", js, re.M | re.S).group(0) for n in ("FI_GROUPS", "FI_TITLE", "fiOptions"))
     prog = helpers(js) + r3 + """
 const FILI_LABEL = {bts: "BTS"}, OPT_LABEL = {distance: "À distance"};
+const ICONS = new Proxy({}, { get: () => "<svg></svg>" });   // R4: the drawn filter icon
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const go = (patch) => "#/s/q?" + new URLSearchParams(patch).toString();
 const out = {};
@@ -479,9 +490,9 @@ def summary_ui(js: str) -> tuple[bool, str]:
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 let PROFILE = null;
 const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
-const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--line)" } };
+const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--zone-autre)" } };
 const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
-""" + r2_defs(js) + blk + """
+""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
 const out = {};
 out.noProfile = summaryBand(P.r, P.d);
 PROFILE = { serie: "bg" };
@@ -506,7 +517,7 @@ process.stdout.write(JSON.stringify(out));"""
     figures = all(w in o["profile"] for w in ("43", "319", "pour 320 places", ">3<"))
     zone_slot = 'id="sum-zone"' in o["profile"] and 'href="#/profil"' in o["noProfile"] and 'id="sum-zone"' not in o["noProfile"]
     pill = 'class="zone-pill" style="background:var(--zone-cible)"' in o["pill"] and ">cible<" in o["pill"]
-    neutral = "color:var(--ink)" in o["pill2"] and "incertaine" in o["note2"]
+    neutral = "var(--zone-autre)" in o["pill2"] and 'class="zmark"' in o["pill2"] and "incertaine" in o["note2"]   # R4: its own readable token and its ring
     tabs = o["tabs"]
     roles = tabs.count('role="tab"') == 2 and tabs.count('role="tabpanel"') == 2 and "Vide" not in tabs
     first_open = re.search(r'id="panel-fiche-a"[^>]*>', tabs) and " hidden" not in re.search(r'id="panel-fiche-a"[^>]*>', tabs).group(0) \
@@ -542,7 +553,7 @@ DESIGN_MUTANTS = [
     ("emoji marker back", "internat: ICONS.internat,", 'internat: "🛏️",', ("js", (x11,))),
     ("summary dropped before the tabs", "  ${summaryBand(r, d)}\n  <p class=\"small fhead-links\">", "  <p class=\"small fhead-links\">", ("js", (x12,))),
     ("caveat dropped from the summary", "Des résultats des campagnes passées, pas des chances d'admission.", "Des résultats des campagnes passées.", ("js", (x12,))),
-    ("zone pill unescaped", "${esc(z.label.replace(/^Vœu /, \"\"))}", "${z.label}", ("js", (x12,))),
+    ("zone pill unescaped", "${zoneMark(z)}${esc(zz.label.replace(/^Vœu /, \"\"))}", "${zoneMark(z)}${zz.label}", ("js", (x12,))),
     ("empty tab kept", 'const kept = groups.filter(([, , html]) => html.replace(/<div id="planb"><\\/div>/, "x").trim());', "const kept = groups;", ("js", (x12,))),
     ("every panel shown", '${n ? " hidden" : ""}>${html}</div>', ">${html}</div>", ("js", (x12,))),
     ("job summary counts a formation once per diploma", "const nForm = d.n_formations;",
@@ -651,7 +662,7 @@ def lot3_ui(js: str, css: str) -> tuple[bool, str]:
 const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
 let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
-""" + blk + """
+""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + blk + """
 const out = {};
 out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);
 out.line = profileLine({ spe1: "<img src=x>", spe2: "SES", mention: "ab", academie: "<b>A</b>" }, "bg");
@@ -699,7 +710,7 @@ def x14(c: Ctx):
 
 
 LOT3_MUTANTS = [
-    ("zone tile in the accent colour", 'class="zone-pill" style="background:${ZONES[k].color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
+    ("zone tile in the accent colour", 'class="zone-pill" style="background:${zz.color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
     ("profile line unescaped", '[ser, serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}`', '[ser, serie === "bg" ? `${p.spe1 || ""} + ${p.spe2 || ""}`', ("js", (x14,))),
     ("académie unescaped", 'p.academie ? `académie de ${esc(p.academie)}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
     ("a figure loses its label", '<td class="num" data-label="Places">', '<td class="num">', ("js", (x14,))),

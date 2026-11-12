@@ -377,7 +377,8 @@ const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-secu
 def page_prog(c: Ctx) -> str:
     js = c.js
     parts = [top(js, n) for n in ("fmt", "pct", "pct1", "pc1", "esc", "vxProfile", "vxQuery", "REO_LABEL", "isReo", "profileLine",
-                                  "REO_NO_ZONE", "reoWhy", "reoCell")]
+                                  "REO_NO_ZONE", "reoWhy", "reoCell",
+                                  "zoneShape", "ZONE_FILLED", "zoneMark", "zoneBadge")]   # R4: zones drawn through the shared helpers
     return HARNESS + "\n".join(parts) + block(js, BLOCK_START, BLOCK_END)
 
 

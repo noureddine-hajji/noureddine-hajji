@@ -247,7 +247,8 @@ def ui(js: str) -> tuple[bool, str]:
            if re.search(r"\bv\.(?:etablissement|filiere|complement|ville|academie|cod_aff_form)\b", m) and not m.lstrip().startswith("esc(")]
     trusted = all(x in store_ for x in ("/^\\d{1,9}$/", ".slice(0, this.MAX)", "new Set("))
     race = "if ($view.dataset.rendered !== marker) return;" in b
-    zone_guard = "v.zone && ZONES[v.zone]" in b
+    # R4: the zone is drawn by zoneBadge, which guards an unknown zone ("non situé")
+    zone_guard = "${zoneBadge(v.zone, v.uncertain)}" in b and "if (!zz) return '<span class=\"badge\">non situé</span>';" in js
     rate_label = bool(re.search(r'const rate = serie === "bg" \? "Taux d\'accès" : "Accès estimé pour votre série";', b))
     words = all(w in b for w in ("pas des chances d'admission", "les vœux ne sont pas classés", "ne se combinent pas en une probabilité",
                                  "rien n'en est enregistré sur le serveur", "sans savoir de quelle formation il s'agit",

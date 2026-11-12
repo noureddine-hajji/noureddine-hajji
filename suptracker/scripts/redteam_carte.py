@@ -83,6 +83,15 @@ def node(prog: str, data) -> object:
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-400:]}
 
 
+def zone_shape(js: str) -> str:
+    """R4: the markers are drawn by the shared zone shape helper (rond, carré, triangle), defined outside the map section."""
+    out = []
+    for pat in (r"^function zoneShape\(.*?^\}", r"^const ZONE_FILLED = .*?$", r"^function zoneMark\(.*?^\}", r"^function zoneBadge\(.*?^\}"):
+        m = re.search(pat, js, re.M | re.S)
+        out.append(m.group(0) if m else "")
+    return "\n".join(out)
+
+
 def carte_js(js: str) -> str:
     return block(js, "// ---- Sprint \"Carte\"", "// ---- lot 2 (Claude design guidelines)")
 
@@ -314,7 +323,7 @@ def c6(c: Ctx):
     js = carte_js(c.js)
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
-    prog = helpers + "\n" + (z.group(0) if z else "") + """
+    prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 };
 """ + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
@@ -455,7 +464,7 @@ def c9(c: Ctx):
     js = carte_js(c.js)
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
-    prog = helpers + "\n" + (zz.group(0) if zz else "") + """
+    prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 };
 """ + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
@@ -471,7 +480,7 @@ process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteDetail(f, true), l:
         return False, o["error"]
     flat = json.dumps(o)
     page = {"raw tag": "<img" in flat or "<b>" in flat, "vœu button": "data-voeu" in flat or "mes vœux" in flat.lower(),
-            "zone pill": "zone-pill" in flat, "internal page link": "#/f/" in flat,
+            "zone pill": "zone-pill" in flat or "zbadge" in flat, "internal page link": "#/f/" in flat,
             "note": "Aucune statistique d'admission n'est publiée pour les formations en apprentissage" not in o[0]["d"],
             "Parcoursup link": 'href="https://dossierappel.parcoursup.fr/' not in o[0]["d"] or 'rel="noopener noreferrer"' not in o[0]["d"],
             "javascript link": "javascript:" in o[1]["d"] + o[1]["l"], "marker": ", en apprentissage" not in o[0]["m"]}
@@ -510,7 +519,7 @@ def c10(c: Ctx):
     js = carte_js(c.js)
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
-    prog = helpers + "\n" + (zz.group(0) if zz else "") + """
+    prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 };
 """ + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
@@ -561,7 +570,7 @@ JS_MUTANTS = [
     ("Leaflet from a CDN", 'src: "/static/vendor/leaflet/leaflet.js"', 'src: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"'),
     ("name unescaped", "<strong>${esc(f.etablissement)}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>", "<strong>${f.etablissement}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>"),
     ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage', 'aria-label="${esc(f.etablissement)}${f.apprentissage'),
-    ("one shape for all", 'const shape = z === "cible" ?', 'const shape = false ?'),
+    ("one shape for all", ': zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8,', ': zoneShape("securite", 9, 9, z === "ambitieux" ? 7.2 : 6.8,'),
     ("caveat dropped", "à partir des admis des campagnes passées : ce ne sont pas des chances d'admission", "à partir des admis des campagnes passées : voici vos résultats"),
     ("apprenticeship filter inverted", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.initiale : !!f.apprentissage;'),
     ("a formation offering both loses one label", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;'),
