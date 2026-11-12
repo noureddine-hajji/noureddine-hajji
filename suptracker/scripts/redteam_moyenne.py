@@ -434,7 +434,8 @@ out.read = [readForm(fd({ statut: "terminale", serie: "bg", moyenne: "15,74", me
   readForm(fd({ statut: "terminale", serie: "bg", moyenne: "", mention: "tb" }), {}, "bg", null, form, null),
   readForm(fd({ statut: "terminale", serie: "bg", moyenne: "9" }), { mention: "ab" }, "bg", null, form, null)];
 out.vx = [vxProfile({ mention: "ab", moyenne: 17.2 }), vxProfile({ mention: "zz" }), vxProfile({ mention: "rattrapage" }), vxProfile({ mention: "ab", moyenne: "<b>" })];
-out.q = [mentionParams(new URLSearchParams(), vxProfile({ mention: "ab", moyenne: 12.6 })).toString(), mentionParams(new URLSearchParams(), vxProfile({ mention: "tbf" })).toString()];
+out.q = [mentionParams(new URLSearchParams(), vxProfile({ mention: "ab", moyenne: 12.6 })).toString(), mentionParams(new URLSearchParams(), vxProfile({ mention: "tbf" })).toString(),
+  mentionParams(new URLSearchParams(), vxProfile({ mention: "rattrapage" })).toString(), mentionParamsSearch(new URLSearchParams(), vxProfile({ mention: "ab", moyenne: 12.6 })).toString()];
 out.words = [mentionWords({ mention: "tbf" }), mentionWords({ mention: "rattrapage" }), mentionWords({ mention: "tb", moyenne: 12.4 }),
   mentionWords({ mention: "<b>" })];
 out.rows = ["rattrapage", "sansmention", "ab", "tbf"].map((m) => MENTION_ROW[vxProfile({ mention: m }).mention]);
@@ -457,7 +458,7 @@ process.stdout.write(JSON.stringify(out));
 def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const pc1 = ",
                                                                        "const REO_LABEL = ", "const isReo = ")))
-    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "MENTION_TXT", "vxProfile",
+    names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "MENTION_TXT", "vxProfile", "bandParam", "mentionParamsSearch",
              "MENTION_SHORT", "chipLine", "profileLine", "PF_SAVE", "spe2Of", "profileForm", "voieFromForm", "readForm", "erf",
              "withinBand", "LADDER", "positionMoyenne", "COLORS", "DASHES", "seriesDash", "lineLegend", "moyenneChart", "moyenneCard",
              "bacProfile")
@@ -483,7 +484,8 @@ def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
     v0, v1, v2, v3 = o["vx"]
     if (v0["mention"], v0["moyenne"]) != ("tb", 17.2) or v1["mention"] != "ab" or v2["mention"] != "rattrapage" or v3["moyenne"] is not None:
         bad.append(("vxProfile", o["vx"]))
-    if o["q"] != ["mention=ab&moyenne=12.6", "mention=tbf"]:
+    # R6: the zone queries carry the band only (the page reads the average itself); the search alone sends the average
+    if o["q"] != ["mention=ab", "mention=tbf", "mention=sansmention", "mention=ab&moyenne=12.6"]:
         bad.append(("queries", o["q"]))
     if o["words"] != ["mention très bien félicitations", "bac au rattrapage", "mention assez bien, moyenne visée 12,4/20", "mention assez bien"]:
         bad.append(("the band in words (Plan B, Mes vœux)", o["words"]))
@@ -529,10 +531,10 @@ def wiring_ok(js: str, api_src: str, cache_src: str, cal_src: str, readme: str, 
     if raw:
         bad.append(("a query sends the raw stored mention", raw[:3]))
     for site in ("const qs = mentionParams(new URLSearchParams({ ids: ids.join(\",\"), serie: prof.serie }), prof);",
-                 "qs.set(\"serie\", v.serie); mentionParams(qs, v);",
+                 "qs.set(\"serie\", v.serie); mentionParamsSearch(qs, v);",
                  "mentionParams(new URLSearchParams({ serie }), vxProfile({ mention: \"ab\", ...prof }))",
                  "${mentionParams(new URLSearchParams(), vxProfile(p))}&type=",
-                 "mention_bac=${encodeURIComponent(VP.mention)}"):
+                 "mention_bac=${encodeURIComponent(bandParam(VP))}"):
         if site not in js:
             bad.append(("a query does not carry the average", site[:50]))
     if re.search(r'\{ sansmention: "sans mention", ab: "assez bien", b: "bien", tb: "très bien" \}\[', js):

@@ -370,19 +370,46 @@ PB_KEYS = ("status", "reason", "n_candidates", "hidden_paid", "include_paid")
 VIEW_KEYS = ("cod_aff_form", "zone", "uncertain", "position", "bounds", "why", "km", "paid", "taux_acces_ens")
 
 
+def amplified(fn):
+    """Stage 2 with every formation cloned twice: one clone in the same establishment (the cap of 2 per establishment), in
+    another académie and a little further; one fee-charging (the paid filter). The clones keep the original's counts, so the
+    oracle (read with the average) and the pool see the same, larger, field: the order, the caps and the paid filter are
+    exercised even on the small synthetic warehouse."""
+    def stage2(con, *a, **k):
+        res = fn(con, *a, **k)
+        out = []
+        for f in res["formations"]:
+            out.append(f)
+            out.append({**f, "cod_aff_form": f["cod_aff_form"] + "1", "academie": "Académie témoin",
+                        "lat": (f["lat"] or 46.0) + 0.05, "lon": (f["lon"] or 2.0) + 0.05})
+            out.append({**f, "cod_aff_form": f["cod_aff_form"] + "2", "contrat_etab": "Privé hors contrat",
+                        "lat": (f["lat"] or 46.0) - 0.02, "lon": f["lon"]})                 # third in its establishment
+        return {**res, "formations": out}
+    return stage2
+
+
 def planb_ok(c: Ctx, js: str, plan_b=PB.plan_b) -> tuple[bool, str]:
     cur = c.con.cursor()
     cases, oracles = [], []
-    for i, (cod, tk, acad) in enumerate(planb_targets(c)):
-        for prof, band, g, given in profiles(GRID_SHORT if c.quick else (9.2, 11.0, 12.6, 13.9, 15.3, 17.2)):
-            academie = acad if i % 2 else None
-            paid = bool(i % 3 == 0)
-            want = c.memo(("pb", cod, band, g, academie, paid),
-                          lambda: jsonable(PB.plan_b(cur, cod, dkey="MATHS+SES", mention=band, academie=academie, include_paid=paid, moyenne=g)))
-            pool = jsonable(plan_b(cur, cod, dkey="MATHS+SES", mention=band, academie=academie, include_paid=paid, pool=True))
-            p = {"serie": "bg", "spe1": "MATHS", "spe2": "SES", **prof}
-            cases.append({"fn": "planBLocal", "args": [pool, p, academie]})
-            oracles.append((cod, prof, academie, paid, want))
+    targets = planb_targets(c)
+    passes = [(False, t) for t in targets] + [(True, t) for t in (targets if c.quick else targets[:6])]
+    for i, (amp, (cod, tk, acad)) in enumerate(passes):
+        grid = (GRID_SHORT if c.quick else (9.2, 11.0, 12.6, 13.9, 15.3, 17.2))[: 3 if amp else None]
+        saved = J.stage2
+        if amp:
+            J.stage2 = amplified(saved)
+        try:
+            for prof, band, g, given in profiles(grid):
+                academie = ("Académie témoin" if amp else acad) if i % 2 else None
+                paid = bool(i % 3 == 0)
+                want = c.memo(("pb", amp, cod, band, g, academie, paid),
+                              lambda: jsonable(PB.plan_b(cur, cod, dkey="MATHS+SES", mention=band, academie=academie, include_paid=paid, moyenne=g)))
+                pool = jsonable(plan_b(cur, cod, dkey="MATHS+SES", mention=band, academie=academie, include_paid=paid, pool=True))
+                p = {"serie": "bg", "spe1": "MATHS", "spe2": "SES", **prof}
+                cases.append({"fn": "planBLocal", "args": [pool, p, academie]})
+                oracles.append((cod, prof, academie, paid, want))
+        finally:
+            J.stage2 = saved
     out = run_node(js, cases)
     if out is None:
         return True, "skipped (node not installed)"
