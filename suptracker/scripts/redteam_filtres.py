@@ -253,8 +253,18 @@ def crafted(FI) -> list:
     return bad
 
 
+def cache_by_average(c: Ctx) -> list:
+    """R5: the zones read for an average are never the cached zones of the band's top (the cache key carries the average)."""
+    cur = c.con.cursor()
+    res = S.search(cur, "bts", limit=10 ** 6)["results"]
+    top = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab")               # the band's top, cached first
+    low = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab", 12.1)         # then the bottom of the same band
+    return [] if low != top else ["the cache answers the band's zones for an average"]
+
+
 def fi2_run(c: Ctx, quick: bool = False):
     bad, n = crafted(c.FI), 0
+    bad += cache_by_average(c)
     with client(c) as tc:
         for qi, q in enumerate(QUERIES[: 3 if quick else None]):
             for ci, combo in enumerate(COMBOS):
