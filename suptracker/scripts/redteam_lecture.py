@@ -635,7 +635,7 @@ ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof
            "stage2Local(await api(`/api/journey/stage2?",
            "if (local) d = planBLocal(d, pbProf, prof.academie || null);",
            "if (local) d = completerLocal(d, prof, prof.academie || null);",
-           "&lecture=true\" : \"\"}`).then((z) => carteZonesLocal(z, VP))",
+           "const Z = Zraw ? carteZonesLocal(Zraw, VP) : null;",
            'if (local) q.set("pool", "true");', 'if (local) qs.set("pool", "true");')
 
 
@@ -763,7 +763,7 @@ def js_mutants():
          '  qs.set("mention", bandParam(p));\n  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));\n  return qs;', "wire"),
         ("the raw rattrapage sent", 'function bandParam(p) { return p.mention === "rattrapage" ? "sansmention" : p.mention; }',
          "function bandParam(p) { return p.mention; }", "wire"),
-        ("the map asks the server with the average", '${localAverage(VP) !== null ? "&lecture=true" : ""}', '${VP.moyenne !== null ? `&moyenne=${VP.moyenne}` : ""}', "wire"),
+        ("the map asks the server with the average", '&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true`', '&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true&moyenne=${VP.moyenne}`', "wire"),
         ("the profile bar shows a reading of an older average (review)", "const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;",
          "const d = this.data;", "wire"),
         ("Mes vœux shown as the server read the band", "try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); }", "try { d = await api(`/api/voeux?${qs}`); }", "wire"),

@@ -195,10 +195,12 @@ def reference(c: Ctx, q: str, combo: dict, prof: dict | None, base: dict):
         dkey = J.doublette_key(prof["spe1"], prof["spe2"]) if prof["serie"] == "bg" else None
         codes = {r["cod_aff_form"] for r in full if r["session"] == c.latest}
         zone = {}
-        for tk in {types.get(x) for x in codes} - {None}:
+        for tk in {types.get(x) or J.SANS_TYPE for x in codes}:
             key = (tk, dkey, prof["mention"], prof["serie"])
             if key not in c._stage2:          # the FULL type (no `only`, no row limit): an independent reading of every zone
-                c._stage2[key] = J.stage2(cur, dkey, prof["mention"], tk, None, limit=10 ** 6, serie=prof["serie"])["formations"]
+                # R9: formations with no SIES type are read under SANS_TYPE, with EVERY untyped formation of the campaign
+                only = J.untyped_codes(cur) if tk == J.SANS_TYPE else None
+                c._stage2[key] = J.stage2(cur, dkey, prof["mention"], tk, None, limit=10 ** 6, serie=prof["serie"], only=only)["formations"]
             for f in c._stage2[key]:
                 if f["cod_aff_form"] in codes:
                     zone[f["cod_aff_form"]] = f["zone"]
@@ -514,7 +516,7 @@ const PROF = { serie: 'bg', spe1: 'MATHS', spe2: 'NSI', mention: 'b', statut: 't
     await p.goto(base + '/#/s/informatique'); await p.waitForTimeout(3500);
     const chipTxt = await p.$eval('.fi-group a.badge', (a) => a.textContent);
     await p.$eval('.fi-group a.badge', (a) => a.click()); await p.waitForTimeout(3000);
-    o[name] = await p.evaluate(() => ({ hash: location.hash, total: document.querySelector('.card h2').textContent,
+    o[name] = await p.evaluate(() => ({ hash: location.hash, total: (document.querySelector('#view h1') || document.querySelector('.card h2')).textContent,
       pills: document.querySelectorAll('.result .zone-pill').length, hs: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
     o[name].chip = chipTxt;
     await p.goto(base + '/#/carte'); await p.waitForTimeout(3500);

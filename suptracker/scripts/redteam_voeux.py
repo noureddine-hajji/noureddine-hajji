@@ -86,7 +86,8 @@ class Ctx:
     def full(self, serie, dkey, mention, tk):
         k = (serie, dkey, mention, tk)
         if k not in self._full:
-            self._full[k] = {f["cod_aff_form"]: f for f in J.stage2(self.con, dkey, mention, tk, None, serie=serie)["formations"]}
+            only = J.untyped_codes(self.con) if tk == J.SANS_TYPE else None
+            self._full[k] = {f["cod_aff_form"]: f for f in J.stage2(self.con, dkey, mention, tk, None, serie=serie, only=only)["formations"]}
         return self._full[k]
 
 
@@ -125,7 +126,8 @@ def v1(c: Ctx):
                 bad.append(("order", serie))
             for v in d["voeux"]:
                 n += 1
-                tk = c.type_of.get(v["cod_aff_form"])
+                # R9: a formation with no SIES type is read under SANS_TYPE with EVERY untyped formation of the campaign
+                tk = c.type_of.get(v["cod_aff_form"]) or (J.SANS_TYPE if v["status"] != "absente" else None)
                 full = c.full(serie, dkey, mention, tk).get(v["cod_aff_form"]) if tk else None
                 if full is None:
                     if v["status"] == "ok":
