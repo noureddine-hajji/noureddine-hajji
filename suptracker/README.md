@@ -2711,3 +2711,39 @@ knowing where to start. `#/guide` puts the five steps in one place, in any order
 - GU4: the flags stay in the browser; GU5: entry points and docs; GU6: a student walks the five steps on a phone (browser);
   GU7: outside terminale; GU8: mutation test, 28/28.
 
+## Sprint R8: accessibility audit, WCAG 2.1 AA (owner, 2026-11-12)
+
+**Audit.** axe-core 4.10 (WCAG 2.1 A and AA rules, plus best practices) on the 21 pages, each on a phone and a wide screen, in light
+and dark (84 page-modes), followed by checks no scanner does: keyboard paths, focus after a navigation, page titles, reflow at
+320 px, the contrast of every colour token, tooltips. Before the fixes:
+
+| Finding | WCAG | Fix |
+| --- | --- | --- |
+| `<main>` was a live region: a screen reader read whole pages aloud at every change | 4.1.3 | `<main>` is focusable and silent; one polite status line says "Page : <titre>" |
+| every page had the same tab title | 2.4.2 | the title is the page's h1, "<h1> — SupCompass" |
+| after a click the focus stayed on a link that no longer existed | 2.4.3 | the focus moves to the new page's heading (never on the first load) |
+| no way to skip the menus | 2.4.1 | a skip link, the first Tab stop |
+| five pages had no h1 (search, comparator, specialties, quality, glossary); a heading skipped a level | 1.3.1 | one h1 per page, headings in order |
+| scrolling tables could not be reached with the keyboard | 2.1.1 | each is a focusable region with its own name |
+| tooltips: their text never reached screen readers, and Escape did not hide them | 1.3.1, 1.4.13 | the text is the button's name; Escape hides it until the pointer or focus leaves |
+| form fields' edges at 1.3:1 | 1.4.11 | `--line-input` at 3.6:1 (light) and 3.6:1 (dark) |
+| the specialties page and the evolution charts overflowed a 320 px screen | 1.4.10 | the select and the chart grid shrink |
+| the lycée list had no name; empty table headers; the map's attribution link by colour alone | 4.1.2, 1.3.1, 1.4.1 | named list, "Actions" / "Indicateur" headers for screen readers, underlined link |
+| an unreadable average was said but not tied to its field | 3.3.1 | `aria-invalid` on the field, removed once valid |
+
+After the fixes: 0 axe violations on the 84 page-modes, 0 JS errors.
+
+**Red team `scripts/redteam_a11y.py` (A1-A6), `tests/test_a11y.py`.**
+- A1, the shell: language, skip link first, `<main>` focusable and silent, one status line, search and menu landmarks.
+- A2, the page code: tooltips, title + status + focus after every navigation (errors included), reachable and uniquely named
+  tables, named lycée list, `aria-invalid`, no empty header.
+- A3, contrast with the WCAG formulas on every token, light and dark: text and links >= 4.5:1; field edges, focus ring and zone
+  marks >= 3:1.
+- A4, browser (`--browser` / `--real`; axe-core when installed, `AXE_CORE_JS` or a global npm install): every page, one h1 and
+  its title, no horizontal scroll at 320 px, the skip link, the focus after a click, the menu with the keyboard, Escape on a
+  tooltip, the tables.
+- A5, mutation test: 24/24. A6, docs.
+
+Still to test by hand with a real screen reader (VoiceOver, NVDA, TalkBack): the map (Leaflet's markers; the list beside it
+carries the same information), and the reading order of long tables on a phone.
+

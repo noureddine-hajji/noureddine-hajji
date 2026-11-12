@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<a class="skip" href="#view">Aller au contenu</a>
 <header class="top">
   <a class="brand" href="/">SupCompass <span>Parcoursup 2022–2025, les vrais chiffres</span></a>
   <!-- R1 (owner, 2026-11-11): the menus follow the student's journey. Explorer (list, map, jobs), Mon profil, Mes vœux,
@@ -40,7 +41,7 @@
   <a href="#/calendrier" data-tab="calendrier"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>Calendrier</a>
   <button type="button" id="more-btn" aria-expanded="false" aria-controls="more-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Plus</button>
 </nav>
-<div id="more-menu" class="more-menu" hidden>
+<nav id="more-menu" class="more-menu" aria-label="Plus de pages" hidden>
   <a href="#/compare" data-tab="compare">Comparateur <span class="pill" data-count="basket">0</span></a>
   <a href="#/comprendre" data-tab="comprendre">Comprendre l'appel</a>
   <a href="#/selectivite" data-tab="selectivite">Vraie sélectivité</a>
@@ -48,13 +49,14 @@
   <a href="#/qualite" data-tab="qualite">Qualité des données</a>
   <a href="#/glossaire" data-tab="glossaire">Glossaire</a>
   <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>
-</div>
-<form id="search" class="search" autocomplete="off">
+</nav>
+<form id="search" class="search" role="search" autocomplete="off">
   <input id="q" type="search" placeholder="Formation, ville, sigle…" aria-label="Recherche">
   <button type="submit">Rechercher</button>
 </form>
 <aside id="profile-bar" class="profile-bar" aria-label="Votre profil et vos vœux" hidden></aside>
-<main id="view" aria-live="polite"></main>
+<main id="view" tabindex="-1"></main>
+<div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
 <footer>SupCompass est un site indépendant, non affilié à Parcoursup ni au ministère de l'Enseignement supérieur. Données : SIES / MESR, open data Parcoursup (licence ouverte Etalab). Les indicateurs officiels sont repris tels quels. Mesure d'audience anonyme, sans cookie (Do Not Track respecté). <a href="#/stats">Audience</a> · <!--version--></footer>
 <script src="/static/app.js"></script>
 <script src="/static/stats.js"></script>
