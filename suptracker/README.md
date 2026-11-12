@@ -616,7 +616,7 @@ Facts checked on the real files before coding:
 - **National rows.** National rows are references and carry no grade.
 - **No multiplication.** No figure is multiplied by another.
 
-**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 10/10 checks pass and 17/17 mutants are caught.
+**Red team (`scripts/redteam_poursuite.py`, run in CI by `tests/test_poursuite.py`).** On the real data, 12/12 checks pass and 24/24 mutants are caught.
 - **P1.** Independent re-read of every cell: 6,637 cells, 0 differ. Masked cells are NULL, never 0. The committed warehouse equals a fresh build.
 - **P2.** Every block maps to one B1 university, with no collision inside a table.
 - **P3.** Identities:
@@ -630,9 +630,13 @@ Facts checked on the real files before coding:
 - **P6.** The licence → master link is B1's for all 3,202 linked licences.
 - **P7.** The API blocks match the warehouse, with grades by the fixed rules and the out-of-scope cases handled.
 - **P8.** National margins: doublettes use the journey's specialty codes, and the chain is ordered.
-- **P9.** The page escapes every stored string, keeps the wording card by card, never multiplies rates, and keeps the profile in the browser with its values validated.
-- **P10, mutation test.**
+- **P9.** Spellings: each of the 153 SIES spellings (rows and blocks) shares a distinctive word and its numbers with the university it is mapped to (Cergy is not Sorbonne, Paris 1 is not Paris 2). Two explicit exceptions, each with its reason: Chambéry → Savoie Mont Blanc (its seat), "Inst national universitaire" → INU Champollion.
+- **P10.** National margins = published: the three national workbooks (BUT by series, doublette, mention and specialty; master continuation by discipline and year; the 2017 chain) are re-read by fixed positions with the red team's own label rules. All 96 rows and 320 values match, with the right code for each label. A SIES specialty code is matched to the journey's code by a word of its label, not by copying the build's table.
+- **P11.** The page escapes every stored string, keeps the wording card by card, never multiplies rates, and keeps the profile in the browser with its values validated.
+- **P12, mutation test.**
   - Data mutants: "Etudiants" as the reference, masked as 0, an alias collision, discipline rows not grouped by block, a loose IUT rule, the Nîmes override dropped, a wrong specialty alias, the master block off B1's discipline.
+  - National mutants: "Très bien" and "Bien" swapped, PHY_CHI read as SVT, bac général and technologique swapped, droit and eco swapped, an L1 discipline mapped to another, the 2nd- and 3rd-year columns swapped, a graduation year shifted.
+  - The alias collision used to slip through without `--real`: CY Cergy's figures under Sorbonne's name collide with nothing, because Sorbonne has no BUT row. P9 now catches it.
   - UI mutants: escaping (3), wording (2), a multiplied chain, the profile sent to the server, the stored series trusted, the card not wired.
 
 **UI check (Playwright):** light, dark and mobile, including an unlinked IUT. 0 JS errors, no horizontal scroll.
