@@ -136,7 +136,7 @@ def x3(c: Ctx):
             return []
         j = c.html.find("</nav>", i) if "<nav" in sel_open else c.html.find("</div>", i)
         return re.findall(r'href="(#/[^"]*)"', c.html[i:j])
-    top, bar, more = hrefs('<nav class="topnav"'), hrefs('<nav class="tabbar"'), hrefs('<div id="more-menu"')
+    top, bar, more = hrefs('<nav class="topnav"'), hrefs('<nav class="tabbar"'), hrefs('<nav id="more-menu"')
     main = ["#/", "#/profil", "#/voeux", "#/calendrier"]                      # R1 (owner, 2026-11-11): the journey tabs
     plus = 'id="more-btn"' in c.html and 'aria-controls="more-menu"' in c.html and 'id="comp-btn"' in c.html and 'aria-controls="comp-menu"' in c.html
     reach = set(top) <= set(bar) | set(more)

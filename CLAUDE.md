@@ -485,7 +485,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the tab title is "<h1> — SupCompass" and the focus moves to the h1 (not on the first load). Every page has exactly one h1, headings
   in order. A skip link is the first Tab stop. `.scroll` tables become focusable named regions (`a11yScrollRegions`, unique names).
   Tooltips: the text is the button's `aria-label`, Escape hides it. Form fields use `--line-input` (>= 3:1); text and links >= 4.5:1;
-  no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. Red team `redteam_a11y.py` (A1-A6;
+  no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. `seo.page` fills the shell's
+  `<main id="view" ...>` whatever its attributes (it raises rather than serve a page without content). Red team `redteam_a11y.py` (A1-A6;
   A4 runs axe-core when installed).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn

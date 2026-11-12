@@ -101,7 +101,7 @@ def tabs(html: str, opener: str) -> list[str]:
     i = html.find(opener)
     if i < 0:
         return []
-    j = html.find("</div>", i)
+    j = html.find("</nav>", i) if "<nav" in opener else html.find("</div>", i)
     return re.findall(r'data-tab="([a-z]+)"', html[i:j])
 
 
@@ -112,7 +112,7 @@ COMP = ["#/compare", "#/comprendre", "#/selectivite", "#/specialites", "#/qualit
 @check("U1 menus: phone bar and wide-screen menu follow the journey, every page reachable from both, map and jobs via Explorer")
 def u1(c: Ctx):
     bad = []
-    bar, more = hrefs(c.html, '<nav class="tabbar"'), hrefs(c.html, '<div id="more-menu"')
+    bar, more = hrefs(c.html, '<nav class="tabbar"'), hrefs(c.html, '<nav id="more-menu"')
     topnav, comp = hrefs(c.html, '<nav class="topnav"'), hrefs(c.html, '<div id="comp-menu"')
     if bar != MAIN:
         bad.append(("phone bar", bar))
@@ -199,7 +199,7 @@ def u2(c: Ctx):
         bad.append(("route without a tab", sorted(set(R) - set(T))))
     if t["COMP_TABS"] != tabs(c.html, '<div id="comp-menu"'):
         bad.append(("Comprendre marks other pages", t["COMP_TABS"]))
-    if t["MORE_TABS"] != tabs(c.html, '<div id="more-menu"'):
+    if t["MORE_TABS"] != tabs(c.html, '<nav id="more-menu"'):
         bad.append(("Plus marks other pages", t["MORE_TABS"]))
     routes = c.analytics.split("ROUTES = (", 1)[1].split(")", 1)[0]
     if [v for v in R.values() if f'"{v}"' not in routes]:
@@ -615,7 +615,7 @@ def u7(c: Ctx):
 MUTANTS = [
     ("html", "Mon profil dropped from the phone bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', "u1"),
     ("html", "glossary missing from Comprendre", '        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n      </div>', "      </div>", "u1"),
-    ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</div>', "</div>", "u1"),
+    ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</nav>', "</nav>", "u1"),
     ("js", "map unreachable from Explorer", 'carte: "#/carte", metiers', 'carte: "#/", metiers', "u1"),
     ("js", "search results lose the views", '${explorerViews("liste", q)}', "", "u1"),
     ("css", "chip kept on a phone", "  .profile-chip { display: none; }\n", "", "u1"),

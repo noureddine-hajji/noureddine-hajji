@@ -238,7 +238,7 @@ def formation_ok(html: str, url: str, pub: dict, api_rec: dict, session: int) ->
     ld_ok = bool(ld) and ld[0].get("@type") == "EducationalOccupationalProgram" and ld[0].get("url") == url \
         and ld[0]["provider"]["name"] == pub["etab"]
     words = "pas des chances d'admission" in desc and "pas des chances d'admission" in h.text and not CHANCE.search(h.text + desc)
-    shell = '<script src="/static/app.js?v=' in html and '<main id="view" aria-live="polite"><article class="seo" data-seo="formation">' in html
+    shell = '<script src="/static/app.js?v=' in html and '<main id="view" tabindex="-1"><article class="seo" data-seo="formation">' in html
     ok = figures and same and names and head and ld_ok and words and shell
     return ok, (f"published figures shown {figures}; equal to /api/formation {same}; title {names}; head {head}; JSON-LD {ld_ok}; "
                 f"caveat {words}; app shell {shell}")
