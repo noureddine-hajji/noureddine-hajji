@@ -450,6 +450,172 @@ def p8(c: Ctx):
     return ok, f"bad codes {bad[:4]}; missing {sorted(need - have)}; specialties {nspe}"
 
 
+# ---------------------------------------------------------------- P9 spellings -> university
+# Words that name no university: a SIES spelling and the B1 name it maps to must share a DISTINCTIVE
+# word (Cergy is not Sorbonne) and carry the same numbers (Paris 1 is not Paris 2). "EXEMPLE" is the
+# synthetic fixture's filler word.
+NAME_GENERIC = {"UNIVERSITE", "UNIV", "UNIVERS", "UNIVERSITY", "DE", "DES", "DU", "LA", "LE", "L", "D", "ET", "EN", "EPE",
+                "U", "COMUE", "CY", "EXEMPLE"}
+# Spellings that name the university by its seat or a former name: one explicit entry each, with its reason.
+NAME_EXCEPTIONS = {
+    ("UNIVERSITE CHAMBERY", "UNIVERSITE SAVOIE MONT BLANC"),    # Chambéry is the seat of Savoie Mont Blanc
+    ("INST NATIONAL UNIVERSITAIRE", "INU CHAMPOLLION"),          # INU = Institut national universitaire Champollion (Albi)
+}
+
+
+def name_tokens(s: str) -> tuple[set[str], set[str]]:
+    t = re.sub(r"[^A-Z0-9]+", " ", fold(s).upper()).split()
+    return {w for w in t if w not in NAME_GENERIC and not w.isdigit()}, {w for w in t if w.isdigit()}
+
+
+def same_university(raw: str, etab: str) -> bool:
+    if " ".join(raw.split()) == " ".join(etab.split()) or (" ".join(raw.split()), etab) in NAME_EXCEPTIONS:
+        return True
+    (a, na), (b, nb) = name_tokens(raw), name_tokens(etab)
+    words = any(x == y or (min(len(x), len(y)) >= 4 and (x.startswith(y) or y.startswith(x))) for x in a for y in b)
+    return words and na == nb
+
+
+@check("P9 spellings: every SIES spelling (row and block) shares a distinctive word and its numbers with the university it is mapped to")
+def p9(c: Ctx):
+    pairs = set()
+    for table in ("but_success", "master_success"):
+        for r in c.rows(table):
+            if r["etab"] == NAT:
+                continue
+            for raw in {r["etab_row"], r.get("block_row")} - {None}:
+                if raw not in P.UNLINKED:
+                    pairs.add((table, raw, r["etab"]))
+    bad = sorted((t, raw, e) for t, raw, e in pairs if not same_university(raw, e))
+    return pairs and not bad, f"{len(pairs)} spellings read; mapped to another university {bad[:4]}"
+
+
+# ---------------------------------------------------------------- P10 national margins re-read
+NAT_FIELDS = {"but_nat": ("part", "passage2", "passage3", "taux"),
+              "master_chain": ("part", "licence34", "passage_master", "master56", "master567")}
+MENTION_TRUTH = {"tres bien": "tb", "bien": "b", "assez bien": "ab", "passable 1er groupe": "passable1",
+                 "passable premier groupe": "passable1", "passable 2nd groupe": "passable2",
+                 "passable deuxieme groupe": "passable2", "inconnue": "inconnue"}
+BAC_TRUTH = {"general": "bg", "technologique": "bt", "professionnel": "bp"}
+# SIES specialty code -> a word of the journey's specialty label (the journey code is found from it)
+SIES_SPE_WORD = {"MATHS": "mathematiques", "PHY_CHI": "physique-chimie", "HIST_GE": "histoire-geographie",
+                 "SES": "economiques", "NUMERIQ": "numerique", "SVT": "vie et de la terre", "LLCER": "langues, litteratures",
+                 "SC_INGE": "ingenieur", "HLP": "humanites"}
+LG_TRUTH = {"droit, sciences politiques": "droit", "sc. eco, gestion, administration eco. et sociale": "eco",
+            "arts, lettres, langues, sciences humaines et sociales": "alsh", "dont psychologie": "alsh:psychologie",
+            "sciences-sante": "sciences", "sciences et techniques des activites physiques et sportives (staps)": "staps",
+            "master enseignement": "meef", "ensemble": "toutes"}
+L1_TRUTH = {"droit, sciences politiques": "droit", "sc. eco, gestion, aes": "eco", "staps": "staps"}
+
+
+def _flat(s) -> str:
+    return " ".join(fold(str(s)).split())
+
+
+def journey_spe(sies: str) -> str | None:
+    word = SIES_SPE_WORD.get(sies)
+    hits = [k for k, lab in J.SPECIALTIES.items() if word and word in _flat(lab)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def reread_national(sources: dict) -> dict:
+    """{(source_kind, tab, folded label, cohort): (dim, code, {field: value})}: fixed positions, own label rules."""
+    out = {}
+    if "but_nat" in sources:
+        for sheet, tab in (("Tableau 1", "profil"), ("Tableau 2", "specialite")):
+            rows = _sheet(sources["but_nat"], sheet)
+            year = int(re.search(r"bacheliers (\d{4})", str(rows[0][0])).group(1))
+            start = next(i for i, r in enumerate(rows) if r and r[1] is not None and _flat(r[1]) == "part des inscrits")
+            mention = False
+            for r in rows[start + 1:]:
+                if not r or r[0] is None:
+                    continue
+                f = _flat(r[0])
+                if r[1] is None:
+                    mention = mention or f.startswith("mention")
+                    continue
+                if f == "ensemble":
+                    dim, code = "ensemble", "ensemble"
+                elif tab == "specialite":
+                    dim = "secteur" if f.startswith("secteur") else "specialite"
+                    code = " ".join(re.sub(r"[^a-z0-9]+", " ", fold(str(r[0]))).split())
+                elif mention:
+                    dim, code = "mention", MENTION_TRUTH.get(f)
+                elif m := re.fullmatch(r"dont ([A-Z_]+) / ([A-Z_]+)", " ".join(str(r[0]).split())):
+                    a, b = journey_spe(m.group(1)), journey_spe(m.group(2))
+                    dim, code = "serie", (f"bg:{J.doublette_key(a, b)}" if a and b else None)
+                else:
+                    dim = "serie"
+                    code = next((v for k, v in (("ensemble bac general", "bg"), ("ensemble bac technologique", "bt"), ("dont stmg", "bt:stmg"),
+                                                ("dont autres bac techno", "bt:autres"), ("ensemble bac professionnel", "bp")) if f.startswith(k)), None)
+                out[("but_nat", tab, f, year)] = (dim, code, {k: _val(r[i + 1]) for i, k in enumerate(NAT_FIELDS["but_nat"])})
+    if "master_nat" in sources:
+        rows = _sheet(sources["master_nat"], "Tableau 3")
+        start = next(i for i, r in enumerate(rows) if r and r[0] is not None and _flat(r[0]) == "discipline de lg")
+        years = {i: int(m.group(1)) for i, h in enumerate(rows[start + 1]) if h and (m := re.search(r"(\d{4})", str(h)))}
+        for r in rows[start + 2:]:
+            if not r or r[0] is None or r[1] is None:
+                continue
+            f = _flat(r[0])
+            for i, y in years.items():
+                out[("master_nat", "poursuite_lg", f, y)] = ("discipline", LG_TRUTH.get(f), {"taux": _val(r[i])})
+    if "master_chain" in sources:
+        rows = _sheet(sources["master_chain"], "Tableau 2")
+        year = int(re.search(r"bacheliers (\d{4})", str(rows[0][0])).group(1))
+        start = next(i for i, r in enumerate(rows) if r and r[0] is not None and _flat(r[0]).startswith("caracteristiques"))
+        section = "sexe"
+        for r in rows[start + 1:]:
+            if not r or r[0] is None:
+                continue
+            f = _flat(r[0])
+            if r[1] is None:
+                section = next((v for k, v in (("type de bac", "bac"), ("mention", "mention"), ("discipline", "discipline")) if f.startswith(k)), section)
+                continue
+            if f == "ensemble":
+                dim, code = "ensemble", "ensemble"
+            elif section == "bac":
+                dim, code = "bac", BAC_TRUTH.get(f)
+            elif section == "mention":
+                dim, code = "mention", MENTION_TRUTH.get(f)
+            elif section == "discipline":
+                dim, code = "discipline", L1_TRUTH.get(f, "l1:" + " ".join(re.sub(r"[^a-z0-9]+", " ", fold(str(r[0]))).split()))
+            else:
+                dim, code = "sexe", f
+            out[("master_chain", "chaine_l1", f, year)] = (dim, code, {k: _val(r[i + 1]) for i, k in enumerate(NAT_FIELDS["master_chain"])})
+    return out
+
+
+@check("P10 national margins = published: series, doublettes, mentions, specialties, disciplines re-read by fixed positions and own label rules, every value and code")
+def p10(c: Ctx):
+    pub = reread_national(c.sources)
+    rows = c.rows("poursuite_national")
+    keyof = lambda r: (r["source_kind"], r["tab"], _flat(r["label"]), int(r["cohort"]))
+    # duplicates counted on the row LIST, before the lookup dict keeps one of them (Codex)
+    dup = [k for k, x in Counter(keyof(r) for r in rows).items() if x > 1]
+    dup += [k for k, x in Counter((r["source_kind"], r["tab"], r["dim"], r["code"], r["cohort"]) for r in rows).items() if x > 1]
+    got = {keyof(r): r for r in rows}
+    bad, n = [], 0
+    for key, (dim, code, vals) in pub.items():
+        r = got.get(key)
+        if code is None:
+            bad.append(("label with no rule", key))
+            continue
+        if r is None:
+            bad.append(("missing", key))
+            continue
+        if (r["dim"], r["code"]) != (dim, code):
+            bad.append(("code", key[2], (r["dim"], r["code"]), (dim, code)))
+        m = json.loads(r["masked"])
+        for f, v in vals.items():
+            n += 1
+            if not _same(v, r[f], m.get(f)):
+                bad.append((key[2], key[3], f, v, r[f]))
+    bad += [("extra", k) for k in got if k not in pub]
+    if len(rows) != len(pub):
+        bad.append(("row count", len(rows), len(pub)))
+    return n > 0 and not bad and not dup, f"{len(pub)} national rows, {n} values compared; {len(bad)} differ {bad[:3]}; duplicate rows or codes {dup[:3]}"
+
+
 def fn_body(js: str, name: str) -> str:
     i = js.index(name)
     j = min(k for k in (js.find("\nfunction ", i + 1), js.find("\nconst ", i + 1)) if k > 0)
@@ -480,8 +646,8 @@ def ui(js: str) -> tuple[bool, str]:
     return ok, f"unescaped {raw[:3]}; wording {words}; multiplied rates {product[:2]}; profile stays local {local}; profile validated {trusted}; wired {wired}"
 
 
-@check("P9 page: stored strings escaped, wording (not chances, margins not crossed, every M1 entrant), no multiplied rates, profile local and validated")
-def p9(c: Ctx):
+@check("P11 page: stored strings escaped, wording (not chances, margins not crossed, every M1 entrant), no multiplied rates, profile local and validated")
+def p11(c: Ctx):
     return ui(APP_JS.read_text())
 
 
@@ -499,8 +665,8 @@ UI_MUTANTS = [
 ]
 
 
-@check("P10 mutation test: wrong national row, masked as 0, alias collision, no block grouping, guessed IUT, wrong specialty, master off B1's discipline, UI bugs are caught")
-def p10(c: Ctx):
+@check("P12 mutation test: wrong national row, masked as 0, alias collision, swapped national codes and columns, no block grouping, guessed IUT, wrong specialty, master off B1's discipline, UI bugs are caught")
+def p12(c: Ctx):
     missed = []
     js = APP_JS.read_text()
     a = js.index("// ---- Sprint 6: success beyond licence")   # mutate the card's own copy (the shell validates the profile too)
@@ -511,7 +677,8 @@ def p10(c: Ctx):
     saved = {"num": P._num, "aliases": dict(P.NAME_ALIASES), "rules": dict(P.BUT_NAME_RULES), "spe": dict(P.SPECIALTY_ALIASES),
              "site": dict(P.BUT_SITE_OVERRIDES), "c_overrides": c.overrides,
              "pm": P.parse_master_etab, "pb": P.parse_but_etab, "mf": P.master_for_formation, "c_aliases": c.aliases,
-             "c_rules": c.rules, "c_paysage": c.paysage}
+             "c_rules": c.rules, "c_paysage": c.paysage, "pbn": P.parse_but_nat, "pmn": P.parse_master_nat,
+             "tables": {k: dict(getattr(P, k)) for k in ("MENTION_CODE", "SPE_CODE", "BAC_CODE", "MASTER_DISC", "CHAIN_DISC")}}
 
     def num_zero(v):
         x, why = saved["num"](v)
@@ -544,6 +711,26 @@ def p10(c: Ctx):
                 b["kinds"]["passage_m2"] = {**dict(zip(cols, u)), "masked": {}}
         return b
 
+    def passages_swapped(path):                           # columns "2nd year" and "3rd year" read the wrong way round
+        rows = saved["pbn"](path)
+        for r in rows:
+            r["passage2"], r["passage3"] = r.get("passage3"), r.get("passage2")
+        return rows
+
+    def year_shifted(path):                               # "diplômés 2023" read as 2024
+        rows = saved["pmn"](path)
+        for r in rows:
+            r["cohort"] = r["cohort"] + 1
+        return rows
+
+    def row_twice(path):                                  # a national row emitted twice, the first one wrong (Codex)
+        rows = saved["pmn"](path)
+        return [{**rows[0], "taux": (rows[0]["taux"] or 0) + 5}] + rows
+
+    def swap(table, a, b):
+        t = getattr(P, table)
+        t[a], t[b] = t[b], t[a]
+
     first_alias = next(k for k, v in (c.aliases or P.NAME_ALIASES).items())
     other_target = sorted({v for v in (c.aliases or P.NAME_ALIASES).values() if v != (c.aliases or P.NAME_ALIASES)[first_alias]})[0]
     collide = {**(c.aliases or P.NAME_ALIASES), first_alias: other_target}
@@ -551,7 +738,15 @@ def p10(c: Ctx):
     mutants = [
         ("'Etudiants' as the national reference", lambda: setattr(P, "parse_but_etab", students_reference), (p3, p7)),
         ("masked cell stored as 0", lambda: setattr(P, "_num", num_zero), (p1, p4)),
-        ("alias collision", lambda: setattr(c, "aliases", collide) if c.aliases else P.NAME_ALIASES.update({first_alias: other_target}), (p1, p2, p3)),
+        ("alias collision", lambda: setattr(c, "aliases", collide) if c.aliases else P.NAME_ALIASES.update({first_alias: other_target}), (p1, p2, p3, p9)),
+        ("mentions 'Très bien' and 'Bien' swapped", lambda: swap("MENTION_CODE", "tres bien", "bien"), (p8, p10)),
+        ("a SIES specialty read as another (PHY_CHI -> SVT)", lambda: P.SPE_CODE.update({"PHY_CHI": "SVT"}), (p8, p10)),
+        ("bac général and technologique swapped in the 2017 chain", lambda: swap("BAC_CODE", "general", "technologique"), (p8, p10)),
+        ("master disciplines droit and eco swapped", lambda: swap("MASTER_DISC", "droit, sciences politiques", "sc. eco, gestion, administration eco. et sociale"), (p6, p8, p10)),
+        ("an L1 discipline mapped to another", lambda: P.CHAIN_DISC.update({"droit, sciences politiques": "staps"}), (p8, p10)),
+        ("passage columns swapped", lambda: setattr(P, "parse_but_nat", passages_swapped), (p3, p8, p10)),
+        ("graduation year shifted", lambda: setattr(P, "parse_master_nat", year_shifted), (p8, p10)),
+        ("a national row emitted twice", lambda: setattr(P, "parse_master_nat", row_twice), (p10,)),
         ("discipline rows not grouped by block", lambda: setattr(P, "parse_master_etab", no_blocks), (p1, p2, p3)),
         ("site guessed by a loose name rule", lambda: (setattr(c, "rules", {r"exemple": next(iter(c.paysage.values()))}) if c.rules
                                                       else P.BUT_NAME_RULES.update({r"i\.?u\.?t": "UNIVERSITE MONTPELLIER"})), (p5,)),
@@ -569,6 +764,9 @@ def p10(c: Ctx):
             caught = True
         finally:
             P._num, P.parse_master_etab, P.parse_but_etab, P.master_for_formation = saved["num"], saved["pm"], saved["pb"], saved["mf"]
+            P.parse_but_nat, P.parse_master_nat = saved["pbn"], saved["pmn"]
+            for k, v in saved["tables"].items():
+                getattr(P, k).clear(), getattr(P, k).update(v)
             P.NAME_ALIASES.clear(), P.NAME_ALIASES.update(saved["aliases"])
             P.BUT_NAME_RULES.clear(), P.BUT_NAME_RULES.update(saved["rules"])
             P.SPECIALTY_ALIASES.clear(), P.SPECIALTY_ALIASES.update(saved["spe"])

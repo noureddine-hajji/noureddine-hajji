@@ -30,7 +30,7 @@
  "tests/test_onisep.py": 65,
  "tests/test_passerelles.py": 291,
  "tests/test_pipeline.py": 564,
- "tests/test_poursuite.py": 377,
+ "tests/test_poursuite.py": 560,
  "tests/test_prevision.py": 278,
  "tests/test_probe.py": 0,
  "tests/test_rapports.py": 256,

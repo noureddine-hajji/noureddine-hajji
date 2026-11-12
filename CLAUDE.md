@@ -154,6 +154,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - IUT links: `BUT_SITE_OVERRIDES` (IUT de Nîmes → Montpellier, owner-confirmed; only over an id with no BUT row), then
     the Paysage id, then `BUT_NAME_RULES` (IUT de Toulouse → Toulouse 3); the Polynesia antenna stays unlinked.
   - The student's profile picks national rows in the browser: it is never sent.
+  - Red team P9: every SIES spelling shares a distinctive word and its numbers with its university (explicit exceptions with a reason);
+    P10 re-reads the national workbooks with its own label rules (a SIES specialty code -> journey code by a word of its label).
 - **Gateways (sprint 7).**
   - Reorientation rates are shares of L1 ENTRANTS; the published destinations are not exhaustive: never compute a
     remainder. Masked below 100 entrants. Link through B1's (university, discipline).
