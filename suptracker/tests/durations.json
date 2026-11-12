@@ -16,6 +16,7 @@
  "tests/test_ia_exposition.py": 258,
  "tests/test_insertion.py": 497,
  "tests/test_journey.py": 136,
+ "tests/test_lecture.py": 600,
  "tests/test_licence_master.py": 503,
  "tests/test_lycee.py": 162,
  "tests/test_mentions.py": 170,

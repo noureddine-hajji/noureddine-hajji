@@ -2639,3 +2639,42 @@ as "sans mention".
 
 A known limit, said rather than hidden: at exactly 8/20, both hypotheses put the student at the very bottom of "sans mention", so
 almost every formation reads "hors profil". The position is a model, and the card shows the published bounds beside it.
+
+## Sprint R6: the average stays in the browser (owner, 2026-11-12)
+
+Since R5, the student's average ("13,4") travelled with every request that reads a zone. Every such answer was then computed on
+demand instead of being served by Vercel's cache, and a fine personal figure left the phone. R6 keeps the average in the browser,
+as the lycée and the map position already were.
+
+**How.**
+- The page sends the mention BAND only (`mentionParams`; a rattrapage is sent as "sans mention", the band SIES publishes it in).
+  The answers are the same for every student of a band, so they stay shared-cached.
+- Every stage-2 row carries what the reading needs (`lec`): admits with a known mention, admits up to the band, admits in the band,
+  and per campaign the series bounds of the band and of the band below; plus the two rules that do not depend on the average
+  (closed to the series, fragile series rate). Each trend point carries its own three counts.
+- The page reads the zone itself (`relire`, `lire`): the twin of `journey.stage2` with an average (`zone_reading`,
+  `series_position`, `wilson`, `classify_zone`, the uniform reading that makes a zone uncertain). `erf` is now a series accurate to
+  ~1e-15 (it was Abramowitz-Stegun, 1.5e-7), so the twin agrees with Python's `math.erf`.
+- Plan B and Compléter ask with `pool=true`: the server returns every candidate the average-independent rules keep (same filière,
+  not the target or a listed vœu, not the same concours pool, not closed, not fragile, not a small cohort, a published rate), with
+  its ingredients, exact distance and tie-break. The page applies the zone rules, the paid filter, the order and the caps
+  (`planBLocal`, `completerLocal`). Mes vœux re-reads its rows and its list reading (`voeuxLocal`, twin `readList`); the map asks
+  `lecture=true` (`carteZonesLocal`).
+- Without an average, the pages use the answers as before (no pool, no re-reading).
+- The one exception, said in the method text: the search's zone filter is applied by the server on every result, so the search
+  still sends the average. The search is never cached and never records the profile.
+- The server still reads `moyenne` (unchanged, still never cached). It is the ORACLE the red team compares every twin with.
+
+**Red team `scripts/redteam_lecture.py` (LE1-LE9), `tests/test_lecture.py`.**
+- LE1: every row's ingredients re-derived from an independent SQL read of the lineage; invariants.
+- LE2: stage 2, the page's reading of the band answer = the server's reading with the average, for 5 types, 3 series and every
+  band (edges, rattrapage with and without an average): 15,552 rows, zones and "incertain" exactly, shares, intervals, series
+  bounds, positions and trends within 1e-9.
+- LE3: Plan B, 126 answers (ok, aucune, déjà accessible), every alternative in order.
+- LE4: Mes vœux, 104 lists × averages, every row and the list reading; `readList` = `read_list` on 200 random lists.
+- LE5: Compléter asks only when the page's own reading finds no sure safety, then shows the server's suggestions in order.
+- LE6: the map (86,128 zones), the cache policy of each answer, the pool answers.
+- LE7: wiring and wording (no query carries the average except the search; every zone goes through the twin).
+- LE8: browser, no request carrying the average.
+- LE9: mutation test.
+

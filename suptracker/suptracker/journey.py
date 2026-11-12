@@ -521,6 +521,21 @@ def series_position(serie: str, mention: str, margins: list[dict], cdf_all: floa
             "projected": cdf_all is not None and not (lo <= cdf_all <= hi)}
 
 
+def lecture_bounds(serie: str, mention: str, margins: list[dict]) -> list[list]:
+    """R6: per campaign (in the order series_position reads them), [band lo, band hi, band-below lo, band-below hi, series
+    admits] for every campaign whose band bounds exist; the band-below pair is None when it does not (series_position skips
+    that campaign when it mixes, w < 1). The page's twin `relire` sums them exactly as series_position does."""
+    prev = MENTIONS[MENTIONS.index(mention) - 1] if mention != MENTIONS[0] else None
+    out = []
+    for camp in margins:
+        b = series_cdf_bounds(serie, mention, camp)
+        if b is None:
+            continue
+        p = series_cdf_bounds(serie, prev, camp) if prev else (0, 0)
+        out.append([b[0], b[1], None if p is None else p[0], None if p is None else p[1], camp[f"acc_{serie}"]])
+    return out
+
+
 def zone_reading(serie: str, mention: str, k: float, n: float, margins: list[dict], w: float = 1.0) -> dict:
     """The mention share a zone is read from, shared by stage2 and the sprint-5 back-test so the
     stability printed next to a zone is measured with the very method that set it.
@@ -737,7 +752,9 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
              count(*) AS years,
              list({{'session': fy.session, 'taux_acces_ens': {taux("fy")},
                    'cdf': ({cum} - {1.0 - w!r} * coalesce(fy.acc_{mention}, 0)) / nullif({known}, 0),
-                   'acc_tot': fy.acc_tot}} ORDER BY fy.session) AS trend
+                   'acc_tot': fy.acc_tot,
+                   -- R6: the counts the page re-reads the campaign's share from, with the average it keeps
+                   'kt': {cum}, 'kb': coalesce(fy.acc_{mention}, 0), 'n': {known}}} ORDER BY fy.session) AS trend
       FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)
       WHERE l.lineage_id IN (SELECT lineage_id FROM target) GROUP BY 1)
     SELECT t.cod_aff_form, t.g_ea_lib_vx, t.ville_etab, t.acad_mies, t.fil_lib_voe_acc, t.lib_comp_voe_ins,
@@ -800,6 +817,11 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "rate_fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES,
             "rare_for_serie": serie != "bg" and pct_serie is not None and pct_serie < MIN_GENERAL_SHARE,
             "group": student_group(x, spe, sex, serie),
+            # R6 (owner, 2026-11-12): what the page needs to read the zone with an average it never sends: the published
+            # counts (all-series admits up to the band, in the band, with a known mention), each campaign's bounds of the
+            # series reading for the band and for the band below, and the two rules that do not depend on the average
+            "lec": {"n": n, "kt": k_top, "kb": k_band, "s": lecture_bounds(serie, mention, margins),
+                    "ferme": eligible is False, "fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES},
         })
         x.pop("s_sum")
         if moyenne is not None and w_u != w and x["zone"] not in ("non_ouvert", "indetermine") and not x["uncertain"]:
