@@ -241,9 +241,13 @@ def mo2(c: Ctx):
 
 # ------------------------------------------------------------------ MO3 stage 2 re-derived
 def sample_types(con, n: int = 5) -> list[str]:
-    return [r[0] for r in con.execute("""SELECT r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
+    """Mid-sized types on the real warehouse; on the small synthetic fixture (no type reaches 20 formations) the largest
+    ones, so the re-derivation never passes on an empty sample (CI: MO3 once checked 0 rows there)."""
+    rows = con.execute("""SELECT r.spe_type_key, count(*) FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
         WHERE t.session = (SELECT max(session) FROM core.formation_year) AND r.spe_type_key IS NOT NULL
-        GROUP BY 1 HAVING count(*) BETWEEN 20 AND 400 ORDER BY hash(r.spe_type_key) LIMIT ?""", [n]).fetchall()]
+        GROUP BY 1 ORDER BY hash(r.spe_type_key)""").fetchall()
+    mid = [k for k, c in rows if 20 <= c <= 400]
+    return (mid or [k for k, _ in sorted(rows, key=lambda r: -r[1])])[:n]
 
 
 def stage2_ok(con, Jm) -> tuple[bool, str]:
@@ -306,7 +310,7 @@ def stage2_ok(con, Jm) -> tuple[bool, str]:
                 if z_n["zone"] != f["zone"]:
                     bad.append((tk, f["cod_aff_form"], "zone not from the reading", z_n, f["zone"]))
                     break
-    return not bad, f"{rows_n} rows re-derived, {edges_n} band edges; problems {bad[:3]}"
+    return not bad and rows_n > 0 and edges_n > 0, f"{rows_n} rows re-derived, {edges_n} band edges; problems {bad[:3]}"
 
 
 @check("MO3 stage 2 re-derived: every share from independent counts, continuous at the edges, never decreasing, the band's top without an average; uncertain when the two hypotheses disagree")
