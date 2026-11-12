@@ -571,8 +571,10 @@ PY_MUTANTS = [
      '    zone = None if zoned is None else (z[0] if z and z[0] in ZONE_KEYS else None)', ("fi2",)),
     ("a search filter ignored", '            if g != skip and v is not None and x["r"].get(src[g]) != v:',
      '            if False:', ("fi2",)),
-    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))",
+    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
      "        key = (db, latest, tk, tuple(sorted(cods)))", ("fi2",)),
+    ("cache shared across averages (R5)", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
+     "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))", ("fi2",)),
     ("sorted by capacity", "    kept = [x for x in rows if ok(x)]", "    kept = sorted([x for x in rows if ok(x)], key=lambda x: -(x['t']['_capa'] or 0))", ("fi2", "fi4")),
 ]
 JS_MUTANTS = [
