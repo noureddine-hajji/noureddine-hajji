@@ -520,3 +520,17 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
   a { color: inherit; text-decoration: none; }
   table.stack td { break-inside: avoid; }
 }
+
+/* R7: "Construire ma liste" */
+.guide { list-style: none; padding: 0; margin: 0; }
+.guide-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.guide-head h2 { margin: 0; flex: 1; min-width: 0; }
+.guide-num { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); font-size: var(--fs-sm); font-weight: 700; color: var(--ink); }
+.guide-num .ico { width: 16px; height: 16px; }
+.guide-step.next { border-color: var(--accent); }
+.guide-step p { margin: 0 0 8px; }
+.guide-progress { height: 8px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; margin: 8px 0 4px; }
+.guide-progress span { display: block; height: 100%; background: var(--accent); }
+.btnlink.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.guide-step .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }

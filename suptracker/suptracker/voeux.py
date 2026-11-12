@@ -116,6 +116,7 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "position": position(f),
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
                         "position_moyenne": f.get("position"),     # R5: the average's range among the admits (estimation)
+                        "lec": f["lec"],                           # R6: the page re-reads the zone with the average it keeps
                         "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c),
                         # sprint "Rapports publics": the formation's OWN published figure for the doublette, when its report exists
                         "rapport": rapport(c), "semblable": semblable(c)})
@@ -160,11 +161,16 @@ SUGG_PER_FILIERE = 3
 
 def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
               academie: str | None = None, include_paid: bool = False, per_filiere: int = SUGG_PER_FILIERE,
-              moyenne: float | None = None) -> dict:
+              moyenne: float | None = None, pool: bool = False) -> dict:
+    """R6 `pool` (owner, 2026-11-12): the page keeps the average, reads the list itself and asks only when its own reading
+    finds no sure safety. Per filière, the answer then carries EVERY candidate the rules that do not depend on the average keep
+    (same filière, not listed, not the same concours pool as a listed vœu, not closed, not fragile, not a small cohort, a
+    published rate), with its reading ingredients, its exact distance to the nearest vœu and its tie-break; the page's twin
+    `completerLocal` applies the zone rule (a SURE safety), the paid filter, the order and the caps exactly as below."""
     ev = evaluate(con, ids, serie=serie, dkey=dkey, mention=mention, academie=academie, moyenne=moyenne)
-    needed = any(m["code"] == "aucune_securite" for m in ev["lecture"]["messages"])
+    needed = True if pool else any(m["code"] == "aucune_securite" for m in ev["lecture"]["messages"])
     base = {"session": ev["session"], "needed": needed, "include_paid": include_paid, "per_filiere": per_filiere,
-            "filieres": [], "hidden_paid": 0}
+            "filieres": [], "hidden_paid": 0, **({"pool": True} if pool else {})}
     if not needed:
         return base
     listed = {v["cod_aff_form"] for v in ev["voeux"]}
@@ -177,7 +183,19 @@ def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None
         rows = J.stage2(con, dkey, mention, tk, academie, serie=serie, moyenne=moyenne)["formations"]
         by_cod = {f["cod_aff_form"]: f for f in rows}
         targets = [by_cod[c] for c in mine if c in by_cod]
-        pool = []
+        if pool:
+            cands = []
+            for f in rows:
+                if (f["filiere"] != fil or f["cod_aff_form"] in listed or any(PB.same_pool(t, f) for t in targets)
+                        or f["lec"]["ferme"] or f.get("rate_fragile") or f.get("small_cohort") or f.get("taux_acces_ens") is None):
+                    continue
+                kms = [PB.haversine_km((t.get("lat"), t.get("lon")), (f.get("lat"), f.get("lon"))) for t in targets]
+                kms = [k for k in kms if k is not None]
+                cands.append(PB._pool_view(f, min(kms) if kms else None))
+            fili = next((t.get("fili") for t in targets if t.get("fili")), None)
+            base["filieres"].append({"filiere": fil, "fili": fili, "type_key": tk, "pour": mine, "candidates": cands})
+            continue
+        pool_ = []
         for f in rows:
             if f["filiere"] != fil or f["cod_aff_form"] in listed or not PB.usable(f):
                 continue
@@ -190,11 +208,11 @@ def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None
                 continue
             kms = [PB.haversine_km((t.get("lat"), t.get("lon")), (f.get("lat"), f.get("lon"))) for t in targets]
             kms = [k for k in kms if k is not None]
-            pool.append((f, min(kms) if kms else None))
-        pool.sort(key=lambda x: (0 if academie and x[0]["academie"] == academie else 1,
+            pool_.append((f, min(kms) if kms else None))
+        pool_.sort(key=lambda x: (0 if academie and x[0]["academie"] == academie else 1,
                                  x[1] if x[1] is not None else float("inf"), PB._tiebreak(x[0]["cod_aff_form"])))
         out, per_etab = [], {}
-        for f, km in pool:
+        for f, km in pool_:
             key = (f["etablissement"], f["ville"])
             if per_etab.get(key, 0) >= PB.MAX_PER_ETABLISSEMENT:
                 continue
@@ -203,7 +221,7 @@ def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None
             if len(out) >= per_filiere:
                 break
         fili = next((t.get("fili") for t in targets if t.get("fili")), None)     # "Informatique" is a licence AND a BUT
-        base["filieres"].append({"filiere": fil, "fili": fili, "type_key": tk, "pour": mine, "n_candidates": len(pool),
+        base["filieres"].append({"filiere": fil, "fili": fili, "type_key": tk, "pour": mine, "n_candidates": len(pool_),
                                  "formations": out})
     base["hidden_paid"] = hidden
     return base

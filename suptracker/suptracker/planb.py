@@ -73,7 +73,12 @@ def paid(f: dict) -> bool:
 
 def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention: str = "ab",
            academie: str | None = None, include_paid: bool = False, limit: int = DEFAULT_LIMIT,
-           moyenne: float | None = None) -> dict:
+           moyenne: float | None = None, pool: bool = False) -> dict:
+    """R6 `pool` (owner, 2026-11-12): the page keeps the student's average and reads the zones itself. Instead of the selection,
+    the answer carries the target and EVERY candidate the rules that do not depend on the average keep (same filière, not the
+    target, not the same concours pool, not closed, not fragile, not a small cohort, a published rate), each with its reading
+    ingredients (`lec`), its exact distance and its tie-break; the page's twin `planBLocal` applies the zone rules, the paid
+    filter, the order and the caps exactly as below."""
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     row = con.execute("""
         SELECT r.spe_type_key, fy.fil_lib_voe_acc, fy.g_ea_lib_vx, fy.lat, fy.lon
@@ -95,6 +100,17 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
         return {**base, "status": "non_disponible", "reason": "formation absente du positionnement",
                 "target": None, "alternatives": []}
     t_view = _view(target, None)
+    if pool:
+        here = (lat, lon)
+        cands = []
+        for c in res["formations"]:
+            if (c["cod_aff_form"] == cod or c["filiere"] != filiere or same_pool(target, c) or c["lec"]["ferme"]
+                    or c.get("rate_fragile") or c.get("small_cohort") or c.get("taux_acces_ens") is None):
+                continue
+            km = haversine_km(here, (c["lat"], c["lon"]))
+            cands.append(_pool_view(c, km))
+        return {**base, "status": "pool", "target": _pool_view(target, None), "candidates": cands,
+                "include_paid": include_paid, "type_key": type_key, "limit": limit}
     if target["zone"] not in ZONE_RANK:
         return {**base, "status": "non_disponible", "target": t_view, "alternatives": [],
                 "reason": "la formation visée ne peut pas être située pour votre profil "
@@ -148,3 +164,9 @@ def _view(f: dict, reason: str | None, km: float | None = None) -> dict:
     v.update({"position": _pos(f), "bounds": f["spos"]["bounds"] if f.get("spos") else None,
               "why": reason, "km": None if km is None else round(km)})
     return v
+
+
+def _pool_view(f: dict, km: float | None) -> dict:
+    """R6: a formation of a pool answer: Plan B's view, its reading ingredients, its exact distance and its tie-break."""
+    return {**_view(f, None, km), "lec": f["lec"], "dist": km, "tb": _tiebreak(f["cod_aff_form"]),
+            "small_cohort": bool(f.get("small_cohort")), "rate_fragile": bool(f.get("rate_fragile"))}

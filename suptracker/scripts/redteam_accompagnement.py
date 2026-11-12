@@ -378,6 +378,10 @@ def page_prog(c: Ctx) -> str:
     js = c.js
     parts = [top(js, n) for n in ("fmt", "pct", "pct1", "pc1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "MENTION_SHORT", "vxProfile", "vxQuery", "REO_LABEL", "isReo", "profileLine",
                                   "REO_NO_ZONE", "reoWhy", "reoCell",
+                                  # R6: the list is read in the browser with the average the profile keeps
+                                  "BAND_SIGMA", "erf", "withinBand", "bandParam", "localAverage", "ZONE_RULES", "MIN_BOUNDS_N",
+                                  "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue",
+                                  "lectureOf", "readList", "voeuxLocal",
                                   "zoneShape", "ZONE_FILLED", "zoneMark", "zoneBadge")]   # R4: zones drawn through the shared helpers
     return HARNESS + "\n".join(parts) + block(js, BLOCK_START, BLOCK_END)
 

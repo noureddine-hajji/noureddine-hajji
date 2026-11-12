@@ -59,6 +59,8 @@ FEATURE_ENTRY_POINTS = {
     "filtres_avances": ("app.js", "function searchAdvanced("),
     "cartes_resultats": ("app.js", "function resultCard("),
     "moyenne_continue": ("app.js", "function moyenneCard("),
+    "moyenne_locale": ("app.js", "function relire("),
+    "construire_ma_liste": ("app.js", "async function viewGuide("),
 }
 
 

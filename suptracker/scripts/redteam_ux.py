@@ -241,6 +241,7 @@ const ICONS = new Proxy({}, { get: () => "<svg></svg>" });
 const store = { get: () => null }; const voeux = { get: () => JSON.parse(require('fs').readFileSync(0, 'utf8')) };
 const $view = { innerHTML: "", dataset: {} };
 const document = { getElementById: () => null };
+const guideCard = () => '<div class="card guide-card"><a class="btnlink" href="#/guide">Suivre les étapes</a></div>';   // R7, own red team
 """ + blk.replace('const HOME_EXAMPLES = [', 'const HOME_EXAMPLES = ["<b>x</b>", ') + """
 viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.rendered]));"""
     r = node_run(prog, ["1", "2"])

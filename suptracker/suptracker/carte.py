@@ -296,7 +296,7 @@ def type_diplomes(con) -> dict:
 
 
 def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac: str, serie: str,
-          moyenne: float | None = None) -> dict:
+          moyenne: float | None = None, lecture: bool = False) -> dict:
     """{code: zone} for the formations of a diploma (and mention): journey.stage2 on each formation's own type, `only` its
     codes, so every zone is the one "Mon parcours" shows. Formations without a type get none."""
     lay = formations(con, diplome, mention)
@@ -306,8 +306,11 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
     for f in lay["formations"]:
         if f["type_key"]:
             by_type.setdefault(f["type_key"], []).append(f["cod_aff_form"])
-    out = {}
+    out, lec = {}, {}
     for tk, cods in by_type.items():
         for f in J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods, moyenne=moyenne)["formations"]:
             out[f["cod_aff_form"]] = f["zone"]
-    return {"zones": out}
+            if lecture:      # R6: what the page needs to read the zone with the average it keeps (journey.stage2's `lec`)
+                lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"],
+                                          "lec": f["lec"]}
+    return {"zones": out, **({"lectures": lec} if lecture else {})}

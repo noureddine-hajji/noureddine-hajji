@@ -366,8 +366,10 @@ METHODOLOGY = {
         "12 avec le rattrapage, 13 pour assez bien, 15, 17 et 19), d'écart-type 1 point, et une répartition égale dans la mention. "
         "La zone se lit avec la courbe en cloche ; elle est dite incertaine quand la répartition égale donne une autre zone. Sans "
         "moyenne, la lecture reste celle du haut de la mention. Les mentions ne sont pas publiées par série : la part est lue pour "
-        "tous les bacs, puis ramenée dans l'encadrement exact du bac général quand il existe. Votre moyenne sert à cette réponse "
-        "seulement : elle n'est ni enregistrée ni comptée. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
+        "tous les bacs, puis ramenée dans l'encadrement exact du bac général quand il existe. Votre moyenne reste dans votre "
+        "navigateur : le site n'envoie que votre mention, reçoit les effectifs publiés de cette mention et place lui-même votre "
+        "moyenne dedans, avec la même règle que le serveur. Seule la recherche filtrée par zone l'envoie, sans l'enregistrer ni la "
+        "compter. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
@@ -848,8 +850,9 @@ def carte_formations(diplome: str, mention: str | None = None):
 @app.get("/api/carte/zones")
 def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|rattrapage|sansmention|ab|b|tb|tbf)$"),
                 mention: str | None = None, spe1: str | None = None, spe2: str | None = None,
-                serie: str = Query("bg", pattern="^(bg|bt|bp)$"), moyenne: float | None = MOYENNE):
-    """Sprint "Carte": the zones of "Mon parcours" for these formations (journey.stage2 on their own types)."""
+                serie: str = Query("bg", pattern="^(bg|bt|bp)$"), moyenne: float | None = MOYENNE, lecture: bool = False):
+    """Sprint "Carte": the zones of "Mon parcours" for these formations (journey.stage2 on their own types).
+    R6 `lecture`: each zone with its reading ingredients, so the page reads it with the average it keeps."""
     _journey_ready()
     dkey = None
     if serie == "bg":
@@ -858,7 +861,7 @@ def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac",
         dkey = J.doublette_key(spe1, spe2)
     # R5: "sm" was the map's old code for "sans mention", never accepted by stage 2 (the map showed no zone for it)
     band, moy = _mention("sansmention" if mention_bac == "sm" else mention_bac, moyenne)
-    return CA.zones(_con().cursor(), diplome, mention or None, dkey, band, serie, moy)
+    return CA.zones(_con().cursor(), diplome, mention or None, dkey, band, serie, moy, lecture=lecture)
 
 
 @app.get("/api/comprendre")
@@ -959,8 +962,10 @@ def lycees():
 @app.get("/api/planb/{cod}")
 def planb(cod: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
           serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
-          academie: str | None = Query(None, max_length=80), include_paid: bool = False, moyenne: float | None = MOYENNE):
-    """Plan B: the same programme elsewhere, more accessible for the student's profile."""
+          academie: str | None = Query(None, max_length=80), include_paid: bool = False, moyenne: float | None = MOYENNE,
+          pool: bool = False):
+    """Plan B: the same programme elsewhere, more accessible for the student's profile.
+    R6 `pool`: the candidates with their reading ingredients, for the page that keeps the average (planb.plan_b)."""
     _journey_ready()
     if not cod.isdigit() or len(cod) > 9:
         raise HTTPException(422, "code formation invalide")
@@ -970,7 +975,7 @@ def planb(cod: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
     try:
         band, moy = _mention(mention, moyenne)
         return {**PB.plan_b(_con().cursor(), cod, serie=serie, dkey=dkey, mention=band, academie=academie or None,
-                            include_paid=include_paid, moyenne=moy), "moyenne": moyenne}   # R5 (review): the average given
+                            include_paid=include_paid, moyenne=moy, pool=pool), "moyenne": moyenne}   # R5 (review): the average given
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
 
@@ -1045,7 +1050,7 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str | None = 
                     serie: str = Query("bg", pattern="^(bg|bt|bp)$"), spe1: str | None = None, spe2: str | None = None,
                     academie: str | None = Query(None, max_length=80), paid: int = Query(0, ge=0, le=1),
                     voie: str | None = Query(None, max_length=120),   # sent by the same page query; not used here
-                    moyenne: float | None = MOYENNE):
+                    moyenne: float | None = MOYENNE, pool: bool = False):
     """"Compléter ma liste": when the list has no sure safety, safety vœux of the same filières (Plan B's rules). Same
     inputs as /api/voeux, no analytics event, never shared-cached."""
     _journey_ready()
@@ -1055,7 +1060,7 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str | None = 
     try:
         band, moy = _mention(mention, moyenne)
         return VX.completer(_con().cursor(), ids.split(","), serie=serie, dkey=dkey, mention=band,
-                            academie=academie or None, include_paid=bool(paid), moyenne=moy)
+                            academie=academie or None, include_paid=bool(paid), moyenne=moy, pool=pool)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
 
@@ -1142,7 +1147,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste"]
 
 
 @lru_cache(maxsize=1)

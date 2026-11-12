@@ -2639,3 +2639,75 @@ as "sans mention".
 
 A known limit, said rather than hidden: at exactly 8/20, both hypotheses put the student at the very bottom of "sans mention", so
 almost every formation reads "hors profil". The position is a model, and the card shows the published bounds beside it.
+
+## Sprint R6: the average stays in the browser (owner, 2026-11-12)
+
+Since R5, the student's average ("13,4") travelled with every request that reads a zone. Every such answer was then computed on
+demand instead of being served by Vercel's cache, and a fine personal figure left the phone. R6 keeps the average in the browser,
+as the lycée and the map position already were.
+
+**How.**
+- The page sends the mention BAND only (`mentionParams`; a rattrapage is sent as "sans mention", the band SIES publishes it in).
+  The answers are the same for every student of a band, so they stay shared-cached.
+- Every stage-2 row carries what the reading needs (`lec`): admits with a known mention, admits up to the band, admits in the band,
+  and per campaign the series bounds of the band and of the band below; plus the two rules that do not depend on the average
+  (closed to the series, fragile series rate). Each trend point carries its own three counts.
+- The page reads the zone itself (`relire`, `lire`): the twin of `journey.stage2` with an average (`zone_reading`,
+  `series_position`, `wilson`, `classify_zone`, the uniform reading that makes a zone uncertain). `erf` is now a series accurate to
+  ~1e-15 (it was Abramowitz-Stegun, 1.5e-7), so the twin agrees with Python's `math.erf`.
+- Plan B and Compléter ask with `pool=true`: the server returns every candidate the average-independent rules keep (same filière,
+  not the target or a listed vœu, not the same concours pool, not closed, not fragile, not a small cohort, a published rate), with
+  its ingredients, exact distance and tie-break. The page applies the zone rules, the paid filter, the order and the caps
+  (`planBLocal`, `completerLocal`). Mes vœux re-reads its rows and its list reading (`voeuxLocal`, twin `readList`); the map asks
+  `lecture=true` (`carteZonesLocal`).
+- Without an average, the pages use the answers as before (no pool, no re-reading).
+- The one exception, said in the method text: the search's zone filter is applied by the server on every result, so the search
+  still sends the average. The search is never cached and never records the profile.
+- The server still reads `moyenne` (unchanged, still never cached). It is the ORACLE the red team compares every twin with.
+
+**Red team `scripts/redteam_lecture.py` (LE1-LE9), `tests/test_lecture.py`.**
+- LE1: every row's ingredients re-derived from an independent SQL read of the lineage; invariants.
+- LE2: stage 2, the page's reading of the band answer = the server's reading with the average, for 5 types, 3 series and every
+  band (edges, rattrapage with and without an average): 15,552 rows, zones and "incertain" exactly, shares, intervals, series
+  bounds, positions and trends within 1e-9.
+- LE3: Plan B, 126 answers (ok, aucune, déjà accessible), every alternative in order.
+- LE4: Mes vœux, 104 lists × averages, every row and the list reading; `readList` = `read_list` on 200 random lists.
+- LE5: Compléter asks only when the page's own reading finds no sure safety, then shows the server's suggestions in order.
+- LE6: the map (86,128 zones), the cache policy of each answer, the pool answers.
+- LE7: wiring and wording (no query carries the average except the search; every zone goes through the twin).
+- LE8: browser, no request carrying the average.
+- LE9: mutation test.
+
+## Sprint R7: "Construire ma liste", the site in five steps (owner, 2026-11-12)
+
+Everything a student needs already existed. What was missing was the thread for a 17-year-old who lands on the site without
+knowing where to start. `#/guide` puts the five steps in one place, in any order the student likes:
+
+| Step | Done when | Its links |
+| --- | --- | --- |
+| 1. Mon profil | the profile can be read: outside terminale, or a bac, a mention or an average and, for bac général, two different specialties | Mon profil |
+| 2. Explorer les formations | a formation page was opened in this browser, or the list has a vœu | search, map, jobs |
+| 3. Ajouter des vœux | the list has a vœu (n of 10 said; Parcoursup vœux are not ranked) | Mes vœux |
+| 4. Garder au moins un vœu de sécurité sûr | the list's reading counts a sure safety; "sans objet" outside terminale (no zone is published), with a link to "Je me réoriente" | Mes vœux (Compléter ma liste) |
+| 5. Partager ma liste | the link was copied or the list printed in this browser | Mes vœux (share card) |
+
+- **Local only.** The guide reads the stored profile, the list and two flags set in this browser (`guideVu` by a formation page,
+  `guidePartage` by the share card). It records no event of its own and sends nothing to follow the progress; the page view is
+  counted like any other page (closed route list).
+- **One reading.** Step 4 reads the list with the profile bar's own query (`vxQuery`) and the R6 twin (`voeuxLocal`), so the
+  average stays in the browser. It reuses the bar's reading when it has one. There is no request without a profile, outside
+  terminale, or with an empty list. A failed reading is said, and a late answer never draws over another page.
+- **Wording.** A sure safety is described with its fixed rule (access rate at least 70 %, at least half of the admits with the
+  student's mention or lower, no uncertainty); "des repères, pas des chances d'admission"; vouvoiement.
+- **Entry points.** A card on the home page (before the four doors, with the steps done), a link in Mes vœux, the route `#/guide`
+  in the "Mes vœux" tab.
+
+**Red team `scripts/redteam_guide.py` (GU1-GU8), `tests/test_guide.py`.**
+- GU1: `guideState` against the rules written again in Python, on 3,000 random states (every status seen).
+- GU2: the page drawn for 302 states (links, progress ARIA value, the next step highlighted and linked, escaping, wording, the
+  drawn check mark).
+- GU3: the reading with a fake API (no request in three cases, the bar's query, reuse, failure, race, escaping, and a row the
+  server reads "cible" that the browser reads as a sure safety with the average).
+- GU4: the flags stay in the browser; GU5: entry points and docs; GU6: a student walks the five steps on a phone (browser);
+  GU7: outside terminale; GU8: mutation test, 28/28.
+

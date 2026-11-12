@@ -76,8 +76,19 @@ function bandOf(g) {                                                    // the p
   if (g < 12) return "sansmention";
   return ["ab", "b", "tb"].find((m) => g >= BANDS[m][0] && g < BANDS[m][1]) || "tbf";
 }
-// the mention and the average of a query (the API reads the band from the average and refuses a mismatch)
+// R6 (owner, 2026-11-12): the average never leaves the browser. A query carries the BAND only ("rattrapage" is read in the
+// "sans mention" band, which SIES publishes with it); the page reads the zones inside the band itself (`relire`, below), from
+// the counts every answer carries. The answers stay the same for every student of a band, so they stay shared-cached.
+function bandParam(p) { return p.mention === "rattrapage" ? "sansmention" : p.mention; }
 function mentionParams(qs, p) {
+  qs.set("mention", bandParam(p));
+  return qs;
+}
+// the average the page reads with: the profile's own, else the top of 8-10 for a rattrapage (journey.RATTRAPAGE_TOP), else none
+function localAverage(p) { return p.moyenne !== null && p.moyenne !== undefined ? p.moyenne : p.mention === "rattrapage" ? 10 : null; }
+// the one exception: the search's zone filter is applied by the server on every result (the search is never cached and never
+// records the profile), so it still sends the average (R6, said in the method text)
+function mentionParamsSearch(qs, p) {
   qs.set("mention", p.mention);
   if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));
   return qs;
@@ -116,6 +127,210 @@ function vxQuery(ids, prof) {
   if (prof.serie !== "bg" && typeof prof.voie === "string" && prof.voie) qs.set("voie", prof.voie.slice(0, 120));   // sprint 20
   return qs;
 }
+// ---- R6: the zone read in the browser, twin of journey.stage2 for an average (journey.zone_reading, series_position, wilson,
+// classify_zone; the uniform reading that makes a zone uncertain), of planb.plan_b, of voeux.read_list and voeux.completer.
+// The server's own reading with `moyenne` stays the reference the red team compares every twin with (redteam_lecture.py).
+const ZONE_RULES = { hors_profil_cdf: 0.02, ambitieux_access: 30.0, ambitieux_cdf: 0.15, securite_access: 70.0, securite_cdf: 0.50 };
+const MIN_BOUNDS_N = 10;                                                // journey.MIN_BG_FOR_BOUNDS
+const ZONE_RANK = { hors_profil: 0, ambitieux: 1, cible: 2, securite: 3 };
+const SAME_ZONE_ACCESS_GAIN = 15.0, MAX_PER_ETABLISSEMENT = 2;          // planb.py
+const VX_SITUATED = ["securite", "cible", "ambitieux", "hors_profil"];
+function wilsonCI(k, n) {
+  const z = 1.959964;
+  if (!n) return [null, null];
+  const p = k / n, den = 1 + z * z / n;
+  const centre = (p + z * z / (2 * n)) / den, half = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den;
+  return [k === 0 ? 0 : Math.max(0, centre - half), k === n ? 1 : Math.min(1, centre + half)];
+}
+function zoneOf(taux, cdf) {
+  const z = ZONE_RULES;
+  if (cdf < z.hors_profil_cdf) return "hors_profil";
+  if (taux < z.ambitieux_access || cdf < z.ambitieux_cdf) return "ambitieux";
+  if (taux >= z.securite_access && cdf >= z.securite_cdf) return "securite";
+  return "cible";
+}
+const isNum = (v) => v !== null && v !== undefined;
+function classifyZone(taux, cdf, lo, hi) {
+  if (!isNum(cdf) || !isNum(taux)) return { zone: "indetermine", uncertain: true };
+  const zone = zoneOf(taux, cdf);
+  const probes = [lo, hi].filter(isNum);
+  if (isNum(lo) && isNum(hi)) for (const c of [ZONE_RULES.hors_profil_cdf, ZONE_RULES.ambitieux_cdf, ZONE_RULES.securite_cdf]) if (lo <= c && c <= hi) probes.push(c);
+  return { zone, uncertain: probes.some((v) => zoneOf(taux, v) !== zone) };
+}
+// series_position: each campaign's bounds of the band, mixed with the band below by w (a campaign without the band below is
+// left out when it mixes), summed in the same order
+function seriesPos(s, w, cdfAll) {
+  let klo = 0, khi = 0, g = 0, used = 0;
+  for (const [b0, b1, p0, p1, gc] of s || []) {
+    let lo = b0, hi = b1;
+    if (w < 1) {
+      if (p0 === null || p0 === undefined) continue;
+      lo = (1 - w) * p0 + w * b0; hi = (1 - w) * p1 + w * b1;
+    }
+    klo += lo; khi += hi; g += gc; used += 1;
+  }
+  if (g < MIN_BOUNDS_N) return null;
+  const lo = klo / g, hi = khi / g, proj = cdfAll === null ? null : Math.min(Math.max(cdfAll, lo), hi);
+  return { bounds: [lo, hi], ci: [wilsonCI(klo, g)[0], wilsonCI(khi, g)[1]], width: hi - lo, n: g, campaigns: used,
+    cdf_used: proj !== null ? proj : (lo + hi) / 2, projected: cdfAll !== null && !(lo <= cdfAll && cdfAll <= hi) };
+}
+// the reading of one formation for an average g in band `band` (w: normal curve, wu: uniform spread)
+function lire(L, taux, band, g) {
+  const w = withinBand(g, band), wu = withinBand(g, band, "uniforme");
+  const at = (ww) => {
+    const k = L.kt - (1 - ww) * L.kb, cdf = L.n ? k / L.n : null, [lo, hi] = wilsonCI(k, L.n), sp = seriesPos(L.s, ww, cdf);
+    return { k, cdf, lo, hi, sp, cz: sp ? sp.cdf_used : cdf, ciz: sp ? sp.ci : [lo, hi] };
+  };
+  const r = at(w);
+  let { zone, uncertain } = L.ferme ? { zone: "non_ouvert", uncertain: false } : classifyZone(taux, r.cz, r.ciz[0], r.ciz[1]);
+  if (wu !== w && zone !== "non_ouvert" && zone !== "indetermine" && !uncertain) {
+    const u = at(wu);
+    uncertain = classifyZone(taux, u.cz, u.ciz[0], u.ciz[1]).zone !== zone;      // R5: the within-band hypothesis decides
+  }
+  if (L.fragile && zone !== "non_ouvert") { zone = "indetermine"; uncertain = true; }
+  const n = L.n;
+  return { ...r, w, wu, zone, uncertain,
+    position: !n ? null : { normale: r.k / n, uniforme: (L.kt - (1 - wu) * L.kb) / n, bornes: [(L.kt - L.kb) / n, L.kt / n] } };
+}
+// a stage-2 row (Mon parcours, the map), read for the average
+function relire(f, band, g) {
+  if (!f || !f.lec || g === null) return f;
+  const r = lire(f.lec, f.taux_acces_ens, band, g);
+  return { ...f, zone: r.zone, uncertain: r.uncertain, cdf: r.cdf, cdf_ci: [r.lo, r.hi], spos: r.sp, position: r.position,
+    trend: Array.isArray(f.trend) ? f.trend.map((t) => (isNum(t.kt) ? { ...t, cdf: t.n ? (t.kt - (1 - r.w) * t.kb) / t.n : null } : t)) : f.trend,
+    // calibration.attach(continuous): the share's ranges and the zone's stability were measured on the band's reading
+    repere: f.repere ? { ...f.repere, cdf_hat: null, cdf_lo: null, cdf_hi: null, zone_confirmed: null, zone_n: null, continu: true } : f.repere };
+}
+// a Plan B / Mes vœux view (planb._view): the position is the series reading when it exists, else the all-series share
+function relireVue(v, band, g) {
+  if (!v || !v.lec || g === null) return v;
+  const r = lire(v.lec, v.taux_acces_ens, band, g);
+  return { ...v, zone: r.zone, uncertain: r.uncertain, position: r.sp ? r.sp.cdf_used : r.cdf, bounds: r.sp ? r.sp.bounds : null,
+    _pm: r.position };
+}
+// the profile's reading: the band sent, the average kept (null = no average: the answer is used as it came)
+function lectureOf(p) { const v = vxProfile(p); return { band: bandParam(v), g: localAverage(v), given: v.moyenne }; }
+function stage2Local(d, p) {
+  const { band, g, given } = lectureOf(p);
+  if (!d || g === null) return d;
+  return { ...d, moyenne: given, formations: (d.formations || []).map((f) => relire(f, band, g)) };
+}
+// voeux.read_list: fixed rules over the zones, counts only
+function readList(vx) {
+  const z = vx.map((v) => v.zone), cnt = (k) => z.filter((x) => x === k).length;
+  const n = {};
+  for (const k of [...VX_SITUATED, "indetermine", "non_ouvert"]) n[k] = cnt(k);
+  n.non_situe = vx.filter((v) => v.status !== "ok").length;
+  const sure = vx.filter((v) => v.zone === "securite" && !v.uncertain).length;
+  const situated = VX_SITUATED.reduce((a, k) => a + n[k], 0);
+  const msgs = [];
+  if (vx.length) {
+    if (!sure) msgs.push(["warn", "aucune_securite"]);
+    if (situated && n.ambitieux + n.hors_profil > situated / 2) msgs.push(["warn", "majorite_ambitieuse"]);
+    if (n.hors_profil) msgs.push(["warn", "hors_profil"]);
+    if (n.non_ouvert) msgs.push(["warn", "non_ouvert"]);
+    if (n.indetermine + n.non_situe) msgs.push(["info", "non_situe"]);
+    if (situated && !n.cible) msgs.push(["info", "aucune_cible"]);
+    if (!msgs.length) msgs.push(["info", "equilibree"]);
+  }
+  return { n: vx.length, zones: n, securite_sure: sure, situes: situated, messages: msgs.map(([niveau, code]) => ({ niveau, code })) };
+}
+function voeuxLocal(d, p) {
+  const { band, g, given } = lectureOf(p);
+  if (!d || !Array.isArray(d.voeux) || g === null) return d;
+  const vx = d.voeux.map((v) => {
+    if (v.status !== "ok" || !v.lec) return v;
+    const r = relireVue(v, band, g);
+    const { _pm, ...rest } = r;
+    return { ...rest, position_moyenne: _pm };
+  });
+  return { ...d, moyenne: given, voeux: vx, lecture: readList(vx) };
+}
+// planb.usable / why_better / the order and the caps, over a pool answer
+function pbUsable(f) {
+  return f.zone in ZONE_RANK && !f.rate_fragile && !f.small_cohort && isNum(f.taux_acces_ens) && isNum(f.position);
+}
+function whyBetter(t, c) {
+  const zt = ZONE_RANK[t.zone], zc = ZONE_RANK[c.zone];
+  if (zt === undefined) return null;
+  if (zc > zt && !c.uncertain) return "zone";
+  if (zc >= zt && c.taux_acces_ens >= (t.taux_acces_ens || 0) + SAME_ZONE_ACCESS_GAIN && (c.position || 0) >= (t.position || 0)) return "acces";
+  return null;
+}
+// the order of planb.plan_b and voeux.completer: the student's académie first, then the distance, (Plan B: the better zone),
+// then the attribute-neutral tie-break computed by the server
+function pbOrder(academie, withZone) {
+  const key = (c) => [academie && c.academie === academie ? 0 : 1, isNum(c.dist) ? c.dist : Infinity, withZone ? -ZONE_RANK[c.zone] : 0, c.tb];
+  return (a, b) => {
+    const x = key(a), y = key(b);
+    for (let i = 0; i < x.length; i++) if (x[i] < y[i]) return -1; else if (x[i] > y[i]) return 1;
+    return 0;
+  };
+}
+function capPerEtab(pool, limit) {
+  const out = [], per = new Map();
+  for (const c of pool) {
+    const k = JSON.stringify([c.etablissement, c.ville]);
+    if ((per.get(k) || 0) >= MAX_PER_ETABLISSEMENT) continue;
+    per.set(k, (per.get(k) || 0) + 1);
+    out.push(c);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+const POOL_KEYS = ["lec", "dist", "tb", "_pm"];
+const unpool = (v) => Object.fromEntries(Object.entries(v).filter(([k]) => !POOL_KEYS.includes(k)));
+function planBLocal(d, p, academie) {
+  if (!d || d.status !== "pool") return d;
+  const { band, g, given } = lectureOf(p);
+  const { candidates, limit, ...base } = d;
+  const t = relireVue(d.target, band, g);
+  const head = { ...base, moyenne: given, target: unpool(t) };
+  if (!(t.zone in ZONE_RANK)) return { ...head, status: "non_disponible", alternatives: [],
+    reason: `la formation visée ne peut pas être située pour votre profil (${t.zone.replace(/_/g, " ")})` };
+  if (t.zone === "securite" && !t.uncertain) return { ...head, status: "deja_accessible", alternatives: [],
+    reason: "la formation visée est déjà un vœu de sécurité pour votre profil" };
+  const pool = [];
+  let hidden = 0;
+  for (const c0 of candidates || []) {
+    const c = relireVue(c0, band, g);
+    if (!pbUsable(c)) continue;
+    const why = whyBetter(t, c);
+    if (why && c.paid && !d.include_paid) { hidden += 1; continue; }
+    if (why) pool.push({ ...c, why });
+  }
+  pool.sort(pbOrder(academie, true));
+  const out = capPerEtab(pool, limit).map(unpool);
+  return { ...head, status: out.length ? "ok" : "aucune", alternatives: out, n_candidates: pool.length, hidden_paid: hidden,
+    reason: out.length ? null : "aucune formation de la même filière n'est plus accessible pour votre profil" };
+}
+function completerLocal(d, p, academie) {
+  if (!d || !d.pool) return d;
+  const { band, g } = lectureOf(p);
+  let hidden = 0;
+  const filieres = (d.filieres || []).map((fl) => {
+    const pool = [];
+    for (const c0 of fl.candidates || []) {
+      const c = relireVue(c0, band, g);
+      if (!pbUsable(c) || c.zone !== "securite" || c.uncertain) continue;
+      if (c.paid && !d.include_paid) { hidden += 1; continue; }
+      pool.push({ ...c, why: "securite" });
+    }
+    pool.sort(pbOrder(academie, false));
+    const { candidates, ...rest } = fl;
+    return { ...rest, n_candidates: pool.length, formations: capPerEtab(pool, d.per_filiere).map(unpool) };
+  });
+  const { pool, ...base } = d;
+  return { ...base, filieres, hidden_paid: hidden };
+}
+// the map: the zones read here from the answer's `lectures` (asked only when the profile has an average)
+function carteZonesLocal(z, p) {
+  const { band, g } = lectureOf(p);
+  if (!z || g === null || !z.lectures) return z;
+  const zones = {};
+  for (const [cod, x] of Object.entries(z.lectures)) zones[cod] = lire(x.lec, x.taux_acces_ens, band, g).zone;
+  return { zones };
+}
 const PB_ZONES = ["securite", "cible", "ambitieux"];
 const profileBar = {
   key: "", data: null, tab: "home",
@@ -145,10 +360,12 @@ const profileBar = {
       const k = vxQuery(ids, prof).toString();
       if (this.key !== k) {
         this.key = k; this.data = null;
+        // R6 (review): the band-only answer is kept RAW and read for the CURRENT profile at every render: an average edited
+        // inside its band, or rattrapage <-> sans mention, sends the same query but must change the zones counted here
         api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })
           .catch(() => { if (this.key === k) { this.data = { error: true }; this.render(); } });
       }
-      const d = this.data;
+      const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;
       if (!d) list = `<span class="pb-list muted">Mes vœux : lecture…</span>`;
       else if (d.error || !d.lecture) list = `<a class="pb-link" href="#/voeux">Mes vœux : ${fmt(ids.length)}</a>`;
       else {
@@ -276,6 +493,7 @@ const ICONS = {
   search: ICO('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
   job: ICO('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/>'),
   compass: ICO('<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'),
+  check: ICO('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   reorientation: ICO('<path d="M4 17h9a4 4 0 0 0 0-8H7"/><path d="M10 6L7 9l3 3"/>'),
   profile: ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'),
   warn: ICO('<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5v.5"/>'),
@@ -312,6 +530,100 @@ function searchHash(q, params) {
   return `#/s/${encodeURIComponent(q)}${qs ? `/${encodeURIComponent(qs)}` : ""}`;
 }
 
+// ---- Sprint R7 (owner, 2026-11-12): "Construire ma liste", the five steps of the site in one place ----
+// Everything it reads stays in this browser: the profile, the list and two flags (a formation page opened, the list shared).
+// The list is read with the profile bar's own query, with the average the browser keeps (R6). Counts and facts, never a chance;
+// the progress is never sent (the page view is counted like any other page, nothing more).
+const GUIDE_STEPS = [
+  { key: "profil", titre: "Mon profil", href: "#/profil" },
+  { key: "explorer", titre: "Explorer les formations", href: "#/" },
+  { key: "voeux", titre: "Ajouter des vœux", href: "#/voeux" },
+  { key: "securite", titre: "Garder au moins un vœu de sécurité sûr", href: "#/voeux" },
+  { key: "partager", titre: "Partager ma liste", href: "#/voeux" },
+];
+const GUIDE_STATUT = { fait: "Fait", a_faire: "À faire", en_attente: "Plus tard", lecture: "Lecture…", indisponible: "Lecture impossible", sans_objet: "Sans objet" };
+// a profile the site can read: a situation outside terminale, or a bac, a mention (or an average) and, for bac général, two
+// different specialties (the same rules as "Mon profil")
+function profileReady(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  if (isReo(raw)) return true;
+  if (!["bg", "bt", "bp"].includes(raw.serie)) return false;
+  if (!MENTION_CODES.includes(raw.mention) && validMoyenne(raw.moyenne) === null) return false;
+  return raw.serie !== "bg" || (typeof raw.spe1 === "string" && typeof raw.spe2 === "string" && !!raw.spe1 && !!raw.spe2 && raw.spe1 !== raw.spe2);
+}
+// the state of each step. lecture: the list's reading (voeux.read_list), null while it is read, undefined when it could not be
+function guideState(raw, ids, lecture, flags) {
+  const ready = profileReady(raw), reo = ready && isReo(raw), n = ids.length;
+  const st = {
+    profil: ready ? "fait" : "a_faire",
+    explorer: flags.vu || n > 0 ? "fait" : "a_faire",
+    voeux: n > 0 ? "fait" : "a_faire",
+    securite: reo ? "sans_objet" : !ready || !n ? "en_attente" : lecture === null ? "lecture" : lecture === undefined ? "indisponible"
+      : lecture.securite_sure > 0 ? "fait" : "a_faire",
+    partager: !n ? "en_attente" : flags.partage ? "fait" : "a_faire",
+  };
+  const steps = GUIDE_STEPS.map((x) => ({ ...x, href: x.key === "securite" && reo ? "#/reorientation" : x.href, statut: st[x.key] }));
+  const next = steps.find((x) => x.statut === "a_faire") || null;
+  return { steps, next: next ? next.key : null, faites: steps.filter((x) => x.statut === "fait" || x.statut === "sans_objet").length };
+}
+function guideFlags() { return { vu: store.get("guideVu", false) === true, partage: store.get("guidePartage", false) === true }; }
+function guideHtml(G, c) {
+  const st = Object.fromEntries(G.steps.map((x) => [x.key, x.statut]));
+  const safety = { fait: `${fmt(c.sure)} vœu${c.sure > 1 ? "x" : ""} de sécurité sûr${c.sure > 1 ? "s" : ""} dans votre liste.`,
+    a_faire: "Aucun vœu de sécurité sûr dans votre liste pour l'instant.", lecture: "Lecture de votre liste…",
+    indisponible: "Votre liste n'a pas pu être lue pour le moment.", en_attente: "Après votre profil et vos premiers vœux." }[st.securite] || "";
+  const body = {
+    profil: `<p>Votre bac, vos spécialités et votre mention visée, ou votre situation si vous n'êtes plus en terminale. SupCompass lit ensuite chaque formation pour vous. Votre profil reste dans ce navigateur.</p>${c.profLine ? `<p class="small">Votre profil : <strong>${c.profLine}</strong></p>` : ""}
+      <a class="btnlink" href="#/profil">${st.profil === "fait" ? "Modifier mon profil" : "Créer mon profil"}</a>`,
+    explorer: `<p>Cherchez une formation par son nom, sa ville ou un métier, ou parcourez la carte. Ouvrez la page d'une formation pour voir ses chiffres officiels et ce que regarde le jury.</p>
+      <div class="toolbar"><a class="btnlink" href="#/">Rechercher</a><a class="btnlink" href="#/carte">La carte</a><a class="btnlink" href="#/metiers">Par métier</a></div>`,
+    voeux: `<p>Sur la page d'une formation, choisissez « Ajouter à mes vœux ». Parcoursup accepte jusqu'à ${voeux.MAX} vœux (hors sous-vœux), et ils ne sont pas classés : l'ordre de votre liste ne compte pas.</p>
+      <p class="small">${c.n ? `${fmt(c.n)} vœu${c.n > 1 ? "x" : ""} sur ${voeux.MAX} dans votre liste.` : "Votre liste est vide pour l'instant."}</p><a class="btnlink" href="#/voeux">Voir mes vœux</a>`,
+    securite: c.reo
+      ? `<p>Hors terminale, aucune zone n'est publiée : les chiffres officiels ne donnent ni mention ni série pour ces candidats. Comparez plutôt l'accès estimé hors terminale des formations.</p><a class="btnlink" href="#/reorientation">Je me réoriente</a>`
+      : `<p>Un vœu de sécurité sûr est une formation où, les années passées, le taux d'accès atteignait au moins 70 % et au moins la moitié des admis avaient votre mention ou moins, sans incertitude. Si votre liste n'en a pas, « Compléter ma liste » (dans Mes vœux) en propose dans les mêmes filières.</p>
+      <p class="small">${safety}</p><a class="btnlink" href="#/voeux">Lire ma liste</a>`,
+    partager: `<p>Envoyez le lien de votre liste à un parent ou à votre professeur principal, ou imprimez-la. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case.</p><a class="btnlink" href="#/voeux">Partager depuis Mes vœux</a>`,
+  };
+  const next = G.steps.find((x) => x.key === G.next);
+  return `<div class="card"><h1>Construire ma liste</h1>
+    <p>Cinq étapes, dans l'ordre qui vous convient. Votre avancée reste dans ce navigateur : rien n'est envoyé pour la suivre.</p>
+    <div class="guide-progress" role="progressbar" aria-label="Étapes faites" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${G.faites}"><span style="width:${G.faites * 20}%"></span></div>
+    <p class="small">${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5.</p>
+    ${next ? `<a class="btnlink primary" href="${esc(next.href)}">Continuer : ${esc(next.titre)}</a>`
+      : G.faites === GUIDE_STEPS.length ? `<p class="small">Toutes les étapes sont faites. Relisez chaque fiche sur Parcoursup avant de formuler vos vœux.</p>`
+      : `<p class="small">${st.securite === "indisponible" ? "Votre liste n'a pas pu être lue pour le moment : rouvrez cette page un peu plus tard." : "Lecture de votre liste…"}</p>`}</div>
+  <ol class="guide">${G.steps.map((x, i) => `<li class="card guide-step${x.key === G.next ? " next" : ""}">
+    <div class="guide-head"><span class="guide-num" aria-hidden="true">${x.statut === "fait" ? ICONS.check : i + 1}</span><h2>${esc(x.titre)}</h2><span class="badge">${GUIDE_STATUT[x.statut]}</span></div>
+    ${body[x.key]}</li>`).join("")}</ol>
+  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi.</p>`;
+}
+let guideSeq = 0;
+async function viewGuide() {
+  const raw = store.get("profile", null), ids = voeux.get(), flags = guideFlags();
+  const ready = profileReady(raw), reo = ready && isReo(raw), prof = ready ? vxProfile(raw) : null;
+  const gmk = `guide:${++guideSeq}`;                                   // Codex: one token per visit, never the list alone
+  $view.dataset.rendered = gmk;                                      // before any await (navigation race)
+  const draw = (lecture) => {
+    $view.innerHTML = guideHtml(guideState(raw, ids, lecture, flags),
+      { n: ids.length, reo, profLine: prof ? profileLine(prof, prof.serie) : "", sure: lecture ? lecture.securite_sure : 0 });
+  };
+  draw(null);
+  if (!ready || reo || !ids.length) return;                            // nothing to read: no request
+  const k = vxQuery(ids, prof).toString();                               // the profile bar's own query
+  // the bar's raw answer (same query), read here for this profile: never its reading of another average
+  let d = profileBar.key === k && profileBar.data && profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;
+  if (!d) { try { d = voeuxLocal(await api(`/api/voeux?${k}`), prof); } catch (_) { d = null; } }
+  if ($view.dataset.rendered !== gmk) return;
+  draw(d && d.lecture ? d.lecture : undefined);
+}
+// the home card: where the student stands (no request: the reading of the list is only on the guide's own page)
+function guideCard() {
+  const G = guideState(store.get("profile", null), voeux.get(), null, guideFlags());
+  return `<div class="card guide-card"><p><strong>Construire ma liste en 5 étapes.</strong> Profil, exploration, vœux, un vœu de sécurité sûr, partage : le site pas à pas.</p>
+    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."}</p><a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></div>`;
+}
+
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
 const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
 // R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
@@ -337,6 +649,7 @@ function viewHome() {
     <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p></section>
   ${explorerViews("liste")}
   ${homeProfile()}
+  ${guideCard()}
   <div class="doors">
     <button type="button" class="door" id="door-search"><span class="door-ico" aria-hidden="true">${ICONS.search}</span><strong>Je cherche une formation</strong>
       <span>Un nom, une ville, un sigle : même avec des fautes de frappe.</span></button>
@@ -444,7 +757,7 @@ function fiProfileQuery(qs) {
   if (!p) return false;
   const v = vxProfile(p);
   if (v.serie === "bg" && (!v.spe1 || !v.spe2 || v.spe1 === v.spe2)) return false;
-  qs.set("serie", v.serie); mentionParams(qs, v);
+  qs.set("serie", v.serie); mentionParamsSearch(qs, v);
   if (v.serie === "bg") { qs.set("spe1", v.spe1); qs.set("spe2", v.spe2); }
   return true;
 }
@@ -963,7 +1276,7 @@ async function viewCarte(dArg, mArg) {
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
   const dq = `diplome=${encodeURIComponent(D.label)}${mention ? `&mention=${encodeURIComponent(mention)}` : ""}`;
   const [L0, Z] = await Promise.all([api(`/api/carte/formations?${dq}`),
-    ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${encodeURIComponent(VP.mention)}${VP.moyenne !== null ? `&moyenne=${VP.moyenne}` : ""}`).catch(() => null) : null, carteLeaflet().catch(() => null)]);
+    ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${encodeURIComponent(bandParam(VP))}${localAverage(VP) !== null ? "&lecture=true" : ""}`).then((z) => carteZonesLocal(z, VP)).catch(() => null) : null, carteLeaflet().catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
   if (Z) track("journey", { stage: "stage2" });
   const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
@@ -1211,6 +1524,7 @@ function bindTabs(id) {
 
 async function viewFormation(cod, session) {
   const d = await api(`/api/formation/${encodeURIComponent(cod)}${session ? `?session=${session}` : ""}`);
+  store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);
   const years = d.history.map((h) => h.session);
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
@@ -1311,13 +1625,15 @@ async function loadPlanB(cod, opts = {}) {
   if (serie === "bg") { qs.set("spe1", prof.spe1 || "MATHS"); qs.set("spe2", prof.spe2 || "SES"); }
   if (prof.academie) qs.set("academie", prof.academie);
   if (includePaid) qs.set("include_paid", "true");
+  const pbProf = vxProfile({ mention: "ab", ...prof }), local = lectureOf(pbProf).g !== null;
+  if (local) qs.set("pool", "true");                                  // R6: the candidates, read here with the average kept
   // every request stamps its box: only the latest request made for a box still on the page may
   // fill it (a late answer for formation A, or for a superseded toggle, is dropped)
   const req = String(++planbSeq);
   box.dataset.req = req;
   if (opts.inline) box.innerHTML = `<p class="muted small">Recherche d'un plan B…</p>`;
   let d;
-  try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) {
+  try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); if (local) d = planBLocal(d, pbProf, prof.academie || null); } catch (e) {
     if (box.isConnected && box.dataset.req === req) {
       box.innerHTML = opts.inline ? `<p class="muted small">Plan B indisponible pour le moment.</p>` : "";
       if (!opts.inline && p) fillZoneTile(null);                      // no zone tile left on "…"
@@ -2123,12 +2439,26 @@ const pos = (f) => (f.spos ? f.spos.cdf_used : f.cdf);
 // rows of "Mon parcours" that get a "Voir un plan B" button: a plan B is only proposed when the
 // target is not already a safe choice, and is most useful for the selective ones
 const PLANB_ZONES = ["ambitieux", "hors_profil"];
-// R5: twin of journey.within (normal curve centred on the band's middle, sigma 1, truncated; or uniform). erf: Abramowitz and
-// Stegun 7.1.26 (absolute error below 1.5e-7, far below the 0.1 % shown)
+// R5: twin of journey.within (normal curve centred on the band's middle, sigma 1, truncated; or uniform).
+// R6: the zones are now read here, so erf must match Python's math.erf to ~1e-15 (it was Abramowitz-Stegun, 1.5e-7): the
+// Maclaurin series up to |x| = 3 (the band needs |x| <= 2.2), the continued fraction of erfc beyond
 function erf(x) {
-  const t = 1 / (1 + 0.3275911 * Math.abs(x));
-  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
-  return x >= 0 ? y : -y;
+  const ax = Math.abs(x);
+  if (ax > 6) return x > 0 ? 1 : -1;
+  if (ax <= 3) {
+    let term = x, sum = x;
+    for (let n = 1; n < 200; n++) {
+      term *= -x * x / n;
+      const add = term / (2 * n + 1);
+      sum += add;
+      if (Math.abs(add) < 1e-17 * Math.abs(sum)) break;
+    }
+    return 2 / Math.sqrt(Math.PI) * sum;
+  }
+  let f = 0;                                                            // erfc(x) = exp(-x²)/sqrt(pi) / (x + 1/2/(x + 1/(x + 3/2/(x + ...))))
+  for (let k = 60; k >= 1; k--) f = (k / 2) / (ax + f);
+  const erfc = Math.exp(-ax * ax) / Math.sqrt(Math.PI) / (ax + f);
+  return x > 0 ? 1 - erfc : erfc - 1;
 }
 function withinBand(g, m, model) {
   const [lo, hi, mid] = BANDS[m], x = Math.min(Math.max(g, lo), hi);
@@ -2265,7 +2595,7 @@ async function viewParcours() {
   const s1 = serie !== "bg" || p.spe1 !== p.spe2 ? await api(`/api/journey/stage1?${sq}`) : null;
   if ($view.dataset.rendered !== mk) return;
   const drill = store.get("drill", null);
-  const s2 = s1 && drill ? await api(`/api/journey/stage2?${sq}&${mentionParams(new URLSearchParams(), vxProfile(p))}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`) : null;
+  const s2 = s1 && drill ? stage2Local(await api(`/api/journey/stage2?${sq}&${mentionParams(new URLSearchParams(), vxProfile(p))}&type=${encodeURIComponent(drill.type)}&academie=${encodeURIComponent(p.academie || "")}`), p) : null;
   if ($view.dataset.rendered !== mk) return;
   // sprint 10: the positioning answers are served by the CDN, so the page sends the audience count itself
   if (s1) track("journey", { stage: "stage1" });
@@ -2612,7 +2942,7 @@ async function viewVoeux() {
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, ${mentionWords(p)}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -2624,7 +2954,7 @@ async function viewVoeux() {
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
-  try { d = await api(`/api/voeux?${qs}`); } catch (e) {
+  try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
@@ -2652,10 +2982,10 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe » ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
-    loadCompleter(qs, marker, rate, false);
+    loadCompleter(qs, marker, rate, false, prof);
   }
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
@@ -2683,7 +3013,7 @@ async function viewVoeux() {
 // server with Plan B's rules (same programme, a solid reading, 2 per establishment, académie then distance, paid private
 // institutions only on request and flagged). Zones of past admitted cohorts: never a chance.
 let vxCompleterSeq = 0;
-async function loadCompleter(qs, marker, rate, paid) {
+async function loadCompleter(qs, marker, rate, paid, prof) {
   const box = () => document.getElementById("vx-completer");
   // Codex (PR #44): the paid toggle can fire twice before the first answer; only the LATEST request may draw the card
   const req = String(++vxCompleterSeq);
@@ -2691,8 +3021,10 @@ async function loadCompleter(qs, marker, rate, paid) {
   const current = () => $view.dataset.rendered === marker && box() && box().dataset.req === req;
   const q = new URLSearchParams(qs);
   q.set("paid", paid ? "1" : "0");
+  const local = lectureOf(prof).g !== null;                            // R6: the page read the list itself: every candidate, read here
+  if (local) q.set("pool", "true");
   let d;
-  try { d = await api(`/api/voeux/completer?${q}`); } catch (e) {
+  try { d = await api(`/api/voeux/completer?${q}`); if (local) d = completerLocal(d, prof, prof.academie || null); } catch (e) {
     if (current()) box().innerHTML = `<p class="muted small">Suggestions indisponibles pour le moment.</p>`;
     return;
   }
@@ -2722,7 +3054,7 @@ async function loadCompleter(qs, marker, rate, paid) {
     el.onclick = () => { if (voeux.add(el.dataset.vxadd)) viewVoeux(); };
   });
   const cb = document.getElementById("vx-paid");
-  if (cb) cb.onchange = () => loadCompleter(qs, marker, rate, cb.checked);
+  if (cb) cb.onchange = () => loadCompleter(qs, marker, rate, cb.checked, prof);
 }
 
 // ---- Sprint 12: "Du métier aux formations" (the jobs card read backwards; the catalogue is searched here) ----
@@ -3454,11 +3786,12 @@ function bindShare(ids, prof) {
   if (box) box.onchange = refresh;
   document.getElementById("share-copy").onclick = () => {
     refresh();
+    store.set("guidePartage", true);                                  // R7: step 5 of "Construire ma liste" (this browser only)
     const done = () => { msg.textContent = "Lien copié."; };
     const manual = () => { url.focus(); url.select(); msg.textContent = "Copiez le lien sélectionné."; };
     try { navigator.clipboard.writeText(url.value).then(done, manual); } catch (_) { manual(); }
   };
-  document.getElementById("share-print").onclick = () => window.print();
+  document.getElementById("share-print").onclick = () => { store.set("guidePartage", true); window.print(); };
 }
 async function viewListe(rawCodes, rawProfile) {
   const ids = shareCodes(rawCodes);
@@ -3476,7 +3809,7 @@ async function viewListe(rawCodes, rawProfile) {
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de la liste…</p></div>`;
   const zoned = prof && !isReo(prof);
   let d;
-  try { d = await api(zoned ? `/api/voeux?${vxQuery(ids, prof)}` : `/api/reorientation/voeux?${new URLSearchParams({ ids: ids.join(",") })}`); } catch (e) {
+  try { d = zoned ? voeuxLocal(await api(`/api/voeux?${vxQuery(ids, prof)}`), prof) : await api(`/api/reorientation/voeux?${new URLSearchParams({ ids: ids.join(",") })}`); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
@@ -3515,7 +3848,7 @@ async function viewListe(rawCodes, rawProfile) {
 const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner"];                                                      // "Plus" on a phone
 function markTab(tab) {
@@ -3541,7 +3874,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -3592,6 +3925,7 @@ async function route() {
     if (a === "accompagner") return viewAccompagner();
     if (a === "premiere") return await viewPremiere();
     if (a === "liste") return await viewListe(b || "", c || "");
+    if (a === "guide") return await viewGuide();
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     return await viewSearch("");
