@@ -85,8 +85,11 @@ def node(prog: str, data) -> object:
 
 def zone_shape(js: str) -> str:
     """R4: the markers are drawn by the shared zone shape helper (rond, carré, triangle), defined outside the map section."""
-    m = re.search(r"^function zoneShape\(.*?^\}", js, re.M | re.S)
-    return m.group(0) if m else ""
+    out = []
+    for pat in (r"^function zoneShape\(.*?^\}", r"^const ZONE_FILLED = .*?$", r"^function zoneMark\(.*?^\}", r"^function zoneBadge\(.*?^\}"):
+        m = re.search(pat, js, re.M | re.S)
+        out.append(m.group(0) if m else "")
+    return "\n".join(out)
 
 
 def carte_js(js: str) -> str:
@@ -567,7 +570,7 @@ JS_MUTANTS = [
     ("Leaflet from a CDN", 'src: "/static/vendor/leaflet/leaflet.js"', 'src: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"'),
     ("name unescaped", "<strong>${esc(f.etablissement)}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>", "<strong>${f.etablissement}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>"),
     ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage', 'aria-label="${esc(f.etablissement)}${f.apprentissage'),
-    ("one shape for all", 'const shape = zoneShape(z, 9, 9,', 'const shape = zoneShape("securite", 9, 9,'),
+    ("one shape for all", ': zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8,', ': zoneShape("securite", 9, 9, z === "ambitieux" ? 7.2 : 6.8,'),
     ("caveat dropped", "à partir des admis des campagnes passées : ce ne sont pas des chances d'admission", "à partir des admis des campagnes passées : voici vos résultats"),
     ("apprenticeship filter inverted", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.initiale : !!f.apprentissage;'),
     ("a formation offering both loses one label", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;'),
