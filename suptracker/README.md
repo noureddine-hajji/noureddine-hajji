@@ -2494,3 +2494,60 @@ profil".
 - FI7: the browser check.
 - FI8: 15 mutants, on a passing baseline.
 - FI9: wording and docs.
+
+## Sprint R4: result cards, zone shapes, charts and colour tokens (owner's go, 2026-11-12)
+
+The last step of the redesign changes no figure. It changes how the figures are drawn. Some ideas come from the design
+references in `docs/design-references/`: a single data colour (WattVision), a coloured left edge on cards (Flip7), restraint and
+tabular figures (Genesis). The rest comes from the brief in `docs/brief-ui/`: a palette coded twice, with shapes and labels, for
+colour-blind readers. The brief's scores and simulated ranks stay out: SupCompass never shows a chance.
+
+**Zones: a colour, a shape and a name, everywhere.**
+- One helper, `zoneShape`, draws every zone with the map's shapes: rond = sécurité, carré = cible, triangle = ambitieux, and an
+  empty ring for every other reading.
+- It draws the map markers, the "Où je me situe" chart, the pills (`zonePillHtml`), the badges (`zoneBadge`), the result cards,
+  Plan B, the shared list and the summary tile.
+- A zone is never drawn by hand any more. The map card and list used to show a coloured word, and Mes vœux and Plan B a coloured
+  border: they now use the same badge.
+- Hors-profil, indéterminé and non ouvert have their own readable token, `--zone-autre`. Before, `indéterminé` was drawn in the
+  border colour and could not be read on a white card.
+
+**Search result cards (`resultCard`).**
+- When the zones are read for the profile, the card takes its zone's token as its left edge, never the accent, and its pill.
+- The figure column says what the figure is: "taux d'accès officiel".
+- For a bac techno or bac pro profile, the card adds the same stage-2 row's estimated access for the series. This is the
+  "Accès estimé" of Mon parcours, said as an estimation, with "peu de candidats" below 20 candidates of the series.
+  `filtres.zones` carries it, read from the full type's row.
+- Data check (real warehouse, three searches): 358 of the 360 zoned bac techno or pro results have an estimate, and 70 of them
+  are fragile. Bac général gets no second figure here: its doublette figure needs the formation page (R2).
+- Capacity has a drawn icon, and figures use tabular numbers.
+
+**Charts: colour only where it means something.**
+- Two chart colours were the zones' own (`--c1` = cible blue, `--c2` = ambitieux orange), and a third was close to sécurité
+  green. The admits-by-mention bars therefore looked like zones.
+- The data series now use a neutral ramp (`--c1` darkest to `--c6` lightest, biased like the page's neutrals). It is ordered for
+  the mention bars and the offer timing (which was a blue ramp, the cible blue).
+- On a line chart, each neutral series also has its own dash pattern, and `lineLegend` draws the same dash.
+- Colour stays only for the zones, the bac routes and the accent. The national doublette line no longer borrows the bac techno
+  colour.
+- Every chart has an accessible name: its series and its years.
+- The ⚠ emoji markers became a drawn icon or a text badge (`n<20`, `sous-vœu`), and the "Filtrer" gear became a drawn icon.
+
+**Tokens.**
+- `--zone-ambitieux` is darker in the light theme (`#b9460f`). The pill's white text read 4.41:1 on the old orange, below WCAG
+  AA; it now reads 5.3:1, while staying far from the bac techno colour.
+- Shadows are tokens (`--shadow-tip`, `--shadow-pop`) with a dark-theme value.
+
+**Red team `scripts/redteam_visuel.py` (VI1-VI10), `tests/test_visuel.py`.**
+- **VI1, tokens:** no colour literal in a rule or in app.js; the same tokens in the three theme blocks; no emoji as a CSS marker;
+  no bac route colour on a doublette line.
+- **VI2, data ramp:** neutral, ordered, at least 60 RGB apart from every zone, route and accent colour.
+- **VI3, contrast:** text 4.5, pill text 4.5, zone marks 3, in every theme.
+- **VI4, zone marks:** shapes, mark and name, escaping, one helper.
+- **VI5, the card:** escaping, edge, official rate labelled, estimate only when given (0 % included), no chance wording.
+- **VI6, the API:** each estimate re-derived from the full type's stage-2 row.
+- **VI7, charts:** names, dashes, the legend's dashes, gaps, no emoji marker.
+- **VI8, browser:** light, dark and phone, bac général and techno; card edge colour = pill colour, charts named.
+- **VI9, docs.**
+- **VI10, mutation test:** 26 mutants, all caught.
+- The red teams that drew zones by hand (carte, ux, voeux, admis, filtres) now load the shared helpers.

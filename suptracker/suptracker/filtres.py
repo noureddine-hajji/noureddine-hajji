@@ -78,9 +78,12 @@ def attributes(con, results: list[dict]) -> dict:
 
 
 def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str) -> dict:
-    """{(code, latest campaign): (zone, uncertain)} for the results of the latest campaign (keyed WITH the campaign: a result of an
+    """{(code, latest campaign): (zone, uncertain, estimate, fragile)} for the results of the latest campaign (keyed WITH the campaign: a result of an
     older campaign may share the code and must never take this zone): the stage-2 row of each formation's own type, `only` its
-    codes (the zone of Mon parcours, Mes vœux and the map). Results of an older campaign, or without a type, get none."""
+    codes (the zone of Mon parcours, Mes vœux and the map). Results of an older campaign, or without a type, get none.
+    R4: for a bac techno or pro profile, the same row's ESTIMATED access for the series (`taux_acces_ens` x series proposal rate /
+    all proposal rate, capped: the "Accès estimé" of Mon parcours) and its "peu de candidats" flag ride along; none for bac général
+    (the row's rate there is the official one)."""
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     codes = sorted({r["cod_aff_form"] for r in results if r["session"] == latest})
     if not codes:
@@ -97,7 +100,8 @@ def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str) 
         if key in _CACHE:
             _CACHE.move_to_end(key)
         else:                              # no row limit: a type is read whole for its listed codes
-            _CACHE[key] = {f["cod_aff_form"]: (f["zone"], bool(f.get("uncertain")))
+            _CACHE[key] = {f["cod_aff_form"]: (f["zone"], bool(f.get("uncertain")),
+                                               f.get("taux_acces_ens") if serie != "bg" else None, bool(f.get("rate_fragile")))
                            for f in J.stage2(con, dkey, mention, tk, None, limit=10 ** 6, serie=serie, only=cods)["formations"]}
             while len(_CACHE) > CACHE_SIZE:
                 _CACHE.popitem(last=False)
@@ -114,7 +118,8 @@ def tags(r: dict, attrs: dict, zoned: dict | None) -> dict:
     return {"capacite": band(cap, CAPACITE), "taux": band(r.get("taux_acces_ens"), TAUX),
             "complementaire": None if pc is None else ("oui" if pc > 0 else "non"),
             "statut": CA.statut_of(contrat) if contrat else None, "zone": zone,
-            "_capa": cap, "_acc_pc": pc, "_zone": z[0] if z else None, "_uncertain": bool(z and z[1])}
+            "_capa": cap, "_acc_pc": pc, "_zone": z[0] if z else None, "_uncertain": bool(z and z[1]),
+            "_estime": z[2] if z else None, "_fragile": bool(z and z[3])}
 
 
 def apply(rows: list[dict], active: dict[str, tuple[str, ...]], base: dict) -> tuple[list[dict], dict]:

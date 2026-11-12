@@ -592,7 +592,7 @@ JS_MUTANTS = [
     ("page gate threshold drifts", "const GATE_MIN = 100;", "const GATE_MIN = 50;"),
 ]
 CSS_MUTANTS = [
-    ("route colour equal to a zone", "--voie-bt: #8a6d00;", "--voie-bt: #c4581f;"),
+    ("route colour equal to a zone", "--voie-bt: #8a6d00;", "--voie-bt: #b9460f;"),
 ]
 
 

@@ -237,7 +237,7 @@ def reference(c: Ctx, q: str, combo: dict, prof: dict | None, base: dict):
 def crafted(FI) -> list:
     """Cases every warehouse may lack: an older result sharing a code with a zoned one; a search filter; facets of each group."""
     bad = []
-    zoned = {("A", 2025): ("securite", False)}
+    zoned = {("A", 2025): ("securite", False, None, False)}
     if FI.tags({"cod_aff_form": "A", "session": 2023}, {}, zoned)["zone"] != "autre" or FI.tags({"cod_aff_form": "A", "session": 2025}, {}, zoned)["zone"] != "securite":
         bad.append("an older result takes the latest campaign's zone")
     r = lambda cod, sel, fili: {"cod_aff_form": cod, "session": 2025, "select_form": sel, "fili": fili, "acad_mies": "Lyon", "taux_acces_ens": 50}  # noqa: E731
@@ -403,7 +403,7 @@ def page_ok(c: Ctx):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const isReo = ", "const REO_LABEL = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zonePillHtml", "vxProfile", "fiProfileQuery", "searchAdvanced")]
+    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "vxProfile", "fiProfileQuery", "searchAdvanced")]
     prog = helpers + "\nconst JV = null;\n" + zones + "\n" + bac + "\n" + "\n".join(parts) + PAGE_PROG
     exe = shutil.which("node")
     if not exe:

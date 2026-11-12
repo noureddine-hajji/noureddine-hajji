@@ -123,7 +123,7 @@ const profileBar = {
       else if (d.error || !d.lecture) list = `<a class="pb-link" href="#/voeux">Mes vœux : ${fmt(ids.length)}</a>`;
       else {
         const z = d.lecture.zones, other = (z.hors_profil || 0) + (z.non_ouvert || 0) + (z.indetermine || 0) + (z.non_situe || 0);
-        const parts = PB_ZONES.map((k2) => `<span class="pb-zone"><i class="pb-dot pb-${k2}" style="background:${ZONES[k2].color}" aria-hidden="true"></i>${fmt(z[k2] || 0)} ${esc(ZONES[k2].label.replace(/^Vœu (de )?/, ""))}</span>`);
+        const parts = PB_ZONES.map((k2) => `<span class="pb-zone"><span style="color:${ZONES[k2].color}">${zoneMark(k2)}</span>${fmt(z[k2] || 0)} ${esc(ZONES[k2].label.replace(/^Vœu (de )?/, ""))}</span>`);
         if (other) parts.push(`<span class="pb-zone">${fmt(other)} autre${other > 1 ? "s" : ""}</span>`);
         const alert = d.lecture.messages.some((m) => m.code === "aucune_securite")
           ? `<a class="pb-alert" href="#/voeux">Aucun vœu de sécurité sûr</a>` : "";
@@ -154,7 +154,14 @@ function profileChip(tab, raw) {
 }
 
 // ---- SVG primitives --------------------------------------------------------
+// R4 (owner, 2026-11-12): colour carries a meaning only for the zones (--zone-*), the bac routes (--voie-*) and the accent. Every other
+// series is drawn with the neutral data ramp (--c1 darkest .. --c6 lightest, hue-biased like the page's neutrals) and, on a line chart,
+// told apart by its dash pattern too (the legend draws the same dash): never a zone's colour on a chart that is not about zones.
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
+const DASHES = ["", "6 4", "2 3", "8 3 2 3", "4 2", "1 3"];
+const seriesDash = (s, i) => (s.dash !== undefined ? s.dash : s.color ? "" : DASHES[i % DASHES.length]);   // own colour: solid, unless it says
+// every chart has an accessible name: its series and its years (role="img" alone is announced as an unnamed image)
+const chartName = (names, years) => `Graphique : ${names.filter(Boolean).join(", ")}${years && years.length ? ` (${years[0]}–${years[years.length - 1]})` : ""}`;
 
 function lineChart(years, series, { yMax = 100, unit = "%", h = 180 } = {}) {
   const W = 440, H = h, L = 36, R = 10, T = 10, B = 24;
@@ -175,14 +182,15 @@ function lineChart(years, series, { yMax = 100, unit = "%", h = 180 } = {}) {
       if (v == null) { pen = false; return; }          // gaps stay gaps: no interpolation over missing years
       d += `${pen ? "L" : "M"}${x(i)},${y(v)}`; pen = true;
     });
-    g += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2"/>`;
+    const dash = seriesDash(s, si);
+    g += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
     s.values.forEach((v, i) => {
       if (v == null) return;
       const hollow = s.hollow?.[i];
       g += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="2"><title>${esc(s.name)} ${years[i]} : ${fmt(v, 1)}${unit === "%" ? " %" : ""}${hollow ? " (effectif < seuil)" : ""}</title></circle>`;
     });
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(chartName(series.map((x) => x.name), years))}">${g}</svg>`;
 }
 
 function stackedBars(years, keys, rows, { normalize = true, h = 190 } = {}) {
@@ -205,12 +213,14 @@ function stackedBars(years, keys, rows, { normalize = true, h = 190 } = {}) {
       g += `<rect x="${cx - bw / 2}" y="${y0}" width="${bw}" height="${Math.max(hgt - 1, 0.5)}" fill="${k.color || COLORS[ki]}"><title>${esc(k.name)} ${years[i]} : ${fmt(raw)}${normalize ? ` (${fmt(v, 1)} %)` : ""}</title></rect>`;
       acc += v;
     });
-    if (r.low_n_flag) g += `<text x="${cx}" y="${y(acc) - 4}" text-anchor="middle">⚠ n&lt;${META.low_n_threshold}</text>`;
+    if (r.low_n_flag) g += `<text x="${cx}" y="${y(acc) - 4}" text-anchor="middle">n&lt;${META.low_n_threshold}</text>`;
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(chartName(keys.map((k) => k.name), years))}${normalize ? ", parts en %" : ""}">${g}</svg>`;
 }
 
 const legend = (items) => `<div class="legend">${items.map((k, i) => `<span><i style="background:${k.color || COLORS[i]}"></i>${esc(k.name)}</span>`).join("")}</div>`;
+// the legend of a line chart: the same colour AND the same dash as the line
+const lineLegend = (items) => `<div class="legend">${items.map((k, i) => `<span><svg class="lg-line" viewBox="0 0 22 8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${k.color || COLORS[i]}" stroke-width="2.5"${seriesDash(k, i) ? ` stroke-dasharray="${seriesDash(k, i)}"` : ""}/></svg>${esc(k.name)}</span>`).join("")}</div>`;
 
 function benchBar(p) {
   if (!p.n_peers) return `<span class="muted small">pas de pairs</span>`;
@@ -218,7 +228,7 @@ function benchBar(p) {
   let s = `<rect x="${sx(p.p10)}" y="8" width="${sx(p.p90) - sx(p.p10)}" height="6" fill="var(--range)"/>`
     + `<rect x="${sx(p.p25)}" y="5" width="${Math.max(1, sx(p.p75) - sx(p.p25))}" height="12" fill="var(--box)"/>`
     + `<line x1="${sx(p.p50)}" x2="${sx(p.p50)}" y1="3" y2="19" stroke="var(--ink)" stroke-width="1.5"/>`;
-  if (p.value != null) s += `<circle cx="${sx(p.value)}" cy="11" r="5" fill="${p.in_reference ? "var(--c2)" : "var(--surface)"}" stroke="var(--c2)" stroke-width="2"/>`;
+  if (p.value != null) s += `<circle cx="${sx(p.value)}" cy="11" r="5" fill="${p.in_reference ? "var(--ink)" : "var(--surface)"}" stroke="var(--ink)" stroke-width="2"/>`;
   return `<svg viewBox="0 0 300 22" preserveAspectRatio="none" role="img"><title>p10 ${fmt(p.p10, 1)} · p25 ${fmt(p.p25, 1)} · médiane ${fmt(p.p50, 1)} · p75 ${fmt(p.p75, 1)} · p90 ${fmt(p.p90, 1)} (n=${p.n_peers})</title>${s}</svg>`;
 }
 
@@ -238,6 +248,9 @@ const ICONS = {
   compass: ICO('<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'),
   reorientation: ICO('<path d="M4 17h9a4 4 0 0 0 0-8H7"/><path d="M10 6L7 9l3 3"/>'),
   profile: ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'),
+  warn: ICO('<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5v.5"/>'),
+  filter: ICO('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
+  places: ICO('<rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 17v3M17 17v3M7 9V6.5A1.5 1.5 0 0 1 8.5 5h7A1.5 1.5 0 0 1 17 6.5V9"/>'),
   edit: ICO('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   list: ICO('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
   map: ICO('<path d="M9 4.5l-5 2v13l5-2 6 2 5-2v-13l-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'),
@@ -328,7 +341,7 @@ function searchFilters(P, go, facets, activeOpts, inner) {
   const wide = typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches;
   const chips = on.length ? `<div class="toolbar active-filters" aria-label="Filtres actifs">${on.map(([l, h]) =>
     `<a class="badge exact" href="${esc(h)}" aria-label="Retirer le filtre ${esc(l)}">${esc(l)} ✕</a>`).join("")}</div>` : "";
-  return `${chips}<details class="filters"${wide ? " open" : ""}><summary>Filtrer${on.length ? ` (${on.length} actif${on.length > 1 ? "s" : ""})` : ""}</summary>${inner}</details>`;
+  return `${chips}<details class="filters"${wide ? " open" : ""}><summary>${ICONS.filter}Filtrer${on.length ? ` (${on.length} actif${on.length > 1 ? "s" : ""})` : ""}</summary>${inner}</details>`;
 }
 
 // ---- lot 3 (Claude design guidelines): the same summary-first, folded-detail format on the four working pages ----
@@ -336,7 +349,7 @@ const narrow = () => typeof matchMedia === "function" && matchMedia("(max-width:
 const searchPage = () => (narrow() ? 20 : 40);
 // zoneTiles: the zone counts of a list read as a summary (one tile per zone, the zone's own colour, never a chance)
 function zoneTiles(counts, other) {
-  const tile = (k, n) => `<div class="sum-tile"><span class="zone-pill" style="background:${ZONES[k].color}">${esc(ZONES[k].label.replace(/^Vœu /, ""))}</span>
+  const tile = (k, n) => `<div class="sum-tile">${zonePillHtml(k)}
       <span class="sum-value">${fmt(n)}</span><span class="sum-note">vœu${n > 1 ? "x" : ""}</span></div>`;
   return `<div class="sum-grid">${tile("securite", counts.securite || 0)}${tile("cible", counts.cible || 0)}${tile("ambitieux", counts.ambitieux || 0)}
     <div class="sum-tile"><span class="sum-label">Autres</span><span class="sum-value">${fmt(other)}</span><span class="sum-note">hors-profil, non ouverts ou non situés</span></div></div>`;
@@ -368,11 +381,31 @@ function filtreBand(v, bands) {
   const b = (bands || []).find((x) => (x.min === null || x.min === undefined || v >= x.min) && (x.max === null || x.max === undefined || v < x.max));
   return b ? b.key : null;
 }
-// a zone pill: the zone's colour token and its name (shape and colour are the map's)
+// R4: a zone is drawn with its colour token AND its shape, the map's (rond = sécurité, carré = cible, triangle = ambitieux, an empty
+// ring for every other reading), and always beside its name: never the colour or the shape alone. One shape helper for the map
+// markers, the "Où je me situe" chart, the pills, the badges and the result cards.
+function zoneShape(z, cx, cy, r, attrs) {
+  return z === "cible" ? `<rect x="${cx - r * 0.85}" y="${cy - r * 0.85}" width="${r * 1.7}" height="${r * 1.7}" ${attrs}/>`
+    : z === "ambitieux" ? `<path d="M${cx},${cy - r * 1.05}L${cx + r * 1.05},${cy + r * 0.85}L${cx - r * 1.05},${cy + r * 0.85}Z" ${attrs}/>`
+      : `<circle cx="${cx}" cy="${cy}" r="${r}" ${attrs}/>`;
+}
+const ZONE_FILLED = ["securite", "cible", "ambitieux"];
+function zoneMark(z) {
+  const filled = ZONE_FILLED.includes(z);
+  return `<svg class="zmark" viewBox="0 0 14 14" aria-hidden="true">${zoneShape(z, 7, 7, filled ? 5.5 : 4.3,
+    filled ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="2"')}</svg>`;
+}
+// a zone pill: filled with the zone's token, its shape, its name
 function zonePillHtml(z, uncertain) {
   const zz = ZONES[z];
   if (!zz) return "";
-  return `<span class="zone-pill" style="background:${zz.color}${["indetermine", "non_ouvert", "hors_profil"].includes(z) ? ";color:var(--ink)" : ""}">${esc(zz.label.replace(/^Vœu /, ""))}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
+  return `<span class="zone-pill" style="background:${zz.color}">${zoneMark(z)}${esc(zz.label.replace(/^Vœu /, ""))}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
+}
+// a zone badge (tables): outlined in the zone's token, its shape, its full name
+function zoneBadge(z, uncertain) {
+  const zz = ZONES[z];
+  if (!zz) return '<span class="badge">non situé</span>';
+  return `<span class="badge zbadge" style="--zc:${zz.color}">${zoneMark(z)}${esc(zz.label)}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
 }
 // the search query of the profile (terminale only: no zone exists outside terminale, sprint 21)
 function fiProfileQuery(qs) {
@@ -399,6 +432,26 @@ function searchAdvanced(P, go, d, chip) {
     return `<div class="toolbar fi-group" aria-label="${esc(FI_TITLE[g])}"><span class="small muted">${esc(FI_TITLE[g])} :</span>${opts.map((o) =>
       chip(`${o.label} (${fmt(counts[o.key] || 0)})`, toggle(g, o.key), sel(g).includes(o.key))).join("")}</div>${FI_HELP[g] ? `<p class="muted small">${esc(FI_HELP[g])}</p>` : ""}`;
   }).join("");
+}
+
+// R4 (owner, 2026-11-12): a search result as a card. When the zones were read for the profile, the zone gives the card its left edge
+// and its pill (token + shape + name, never the colour alone). The figure column holds the OFFICIAL access rate of the result's
+// campaign; for a bac techno or pro profile, the same stage-2 row's ESTIMATED access for the series follows it (Mon parcours' "Accès
+// estimé", said as an estimation, "peu de candidats" below 20 candidates of the series); bac général has no second figure here (the
+// doublette figure needs the formation page: R2). Never a chance; every stored string escaped.
+function resultCard(r) {
+  const z = r.zone && ZONES[r.zone] ? r.zone : null;
+  const est = r.estime_serie !== undefined && r.estime_serie !== null
+    ? `<div class="rc-est"><strong>${fmt(r.estime_serie)} %</strong><span>accès estimé pour votre bac (estimation)${r.estime_fragile ? ", peu de candidats" : ""}</span></div>` : "";
+  return `<article class="result rc${z ? " rc-z" : ""}"${z ? ` style="--zc:${ZONES[z].color}"` : ""}>
+    <div class="rc-main">
+      <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
+      <div class="rc-sub">${esc(r.fil_lib_voe_acc)}${r.lib_comp_voe_ins ? ` <span class="muted">${esc(r.lib_comp_voe_ins)}</span>` : ""}</div>
+      <div class="rc-meta muted small"><span>${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span>${r.capa_fin !== undefined && r.capa_fin !== null ? `<span>${ICONS.places}${fmt(r.capa_fin)} places</span>` : ""}<span>campagne ${esc(r.session)} · ${esc(r.lineage_years)} campagne(s)</span></div>
+      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
+    </div>
+    <div class="rc-fig num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès officiel</div>${est}</div>
+  </article>`;
 }
 
 async function viewSearch(q, rawParams) {
@@ -437,14 +490,7 @@ async function viewSearch(q, rawParams) {
       ${(facets.selectivite || []).length > 1 || P.selective ? `<label class="small">Sélectivité <select id="fsel"><option value="">Toutes</option>${(facets.selectivite || []).map((f) => { const v = f.value === "formation sélective" ? "true" : "false"; return `<option value="${v}" ${P.selective === v ? "selected" : ""}>${f.value === "formation sélective" ? "Sélectives" : "Non sélectives"} (${f.count})</option>`; }).join("")}</select></label>` : ""}
     </div>` : ""}
     `)}
-    ${d.results.map((r) => `<div class="result"><div>
-        <a href="#/f/${esc(r.cod_aff_form)}"><strong>${esc(r.g_ea_lib_vx)}</strong></a> <span class="muted">· ${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span><br>
-        ${esc(r.fil_lib_voe_acc)} <span class="muted">${esc(r.lib_comp_voe_ins || "")}</span><br>
-        ${r.zone ? `${zonePillHtml(r.zone, r.uncertain)} ` : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}
-        ${r.capa_fin != null ? `<span class="muted small">${fmt(r.capa_fin)} places</span>` : ""}${r.acc_pc > 0 ? ` <span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}
-        <span class="muted small">${r.session} · ${r.lineage_years} campagne(s)</span>
-        ${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}
-      </div><div class="num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`).join("")}
+    ${d.results.map(resultCard).join("")}
     ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + PAGE }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + d.results.length + PAGE))}) →</a></p>` : ""}
     ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - PAGE) }))}">← Résultats précédents</a></p>` : ""}
     ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
@@ -715,17 +761,17 @@ function doubletteCharts(d, years, sem, rp) {
   let second = "";
   if (d.status === "ok") {
     const g = d.groupe, mine = pickDoublette(g, profileDkey(bacProfile()));
-    const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--muted)", values: at(g.tous.trend, "taux") }];
+    const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--c4)", dash: "2 3", values: at(g.tous.trend, "taux") }];
     const dk = profileDkey(bacProfile());
     // the formation page's estimate: none beside a published figure, the similar formations first, then the national group
     const sEst = ownHasBg(rp) ? null : estimateSemblable(d.series, sem, dk);
     const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);
-    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes, groupe national (estimation)" : `Votre doublette : ${mine.label}, groupe national`, color: "var(--voie-bt)", values: at(mine.trend, "taux") });
-    if (est) lines.unshift({ name: sEst ? `Votre doublette dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Votre doublette dans cette formation (estimation)", color: "var(--voie-bg)", values: at(est.trend, "taux") });
-    second = `<div class="card"><h3>Votre doublette : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${legend(lines)}${lineChart(years, lines)}
+    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes, groupe national (estimation)" : `Votre doublette : ${mine.label}, groupe national`, color: "var(--c2)", dash: "6 4", values: at(mine.trend, "taux") });
+    if (est) lines.unshift({ name: sEst ? `Votre doublette dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Votre doublette dans cette formation (estimation)", color: "var(--c1)", dash: "", values: at(est.trend, "taux") });
+    second = `<div class="card"><h3>Votre doublette : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${lineLegend(lines)}${lineChart(years, lines)}
       <p class="muted small">${DBL_CAVEAT}</p></div>`;
   }
-  return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${legend(series)}${lineChart(years, series)}
+  return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${lineLegend(series)}${lineChart(years, series)}
     <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats de la voie cette année-là.</p></div>${second}`;
 }
 
@@ -745,6 +791,9 @@ function haversineKm(a, b, c, d) {
 }
 const carteZone = (f) => (CARTE_ZONES.includes(f.zone) ? f.zone : "autre");
 const carteLabel = (z) => (z === "autre" ? CARTE_OTHER.label : ZONES[z].label);
+// R4: a map formation outside the three zones: its own reading when it has one (hors-profil...), else the "autre" badge (a ring)
+const carteZoneBadge = (zone, fallback) => (zone && ZONES[zone] ? zoneBadge(zone)
+  : `<span class="badge zbadge" style="--zc:var(--zone-autre)">${zoneMark("autre")}${esc(fallback)}</span>`);
 const carteColor = (z) => (z === "autre" ? CARTE_OTHER.color : ZONES[z].color);
 // the zone of each formation is the one of "Mon parcours" (stage 2 rows), as is; none without a profile (red team C1)
 function carteMerge(neutral, stage2, ok) {
@@ -791,9 +840,7 @@ function carteFilter(rows, F, skip) {
 // one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
 function carteMarker(f) {
   const z = carteZone(f), col = carteColor(z);
-  const shape = z === "cible" ? `<rect x="3" y="3" width="12" height="12" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
-    : z === "ambitieux" ? `<path d="M9,1.5L16.5,15.5L1.5,15.5Z" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`
-      : `<circle cx="9" cy="9" r="6.5" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
+  const shape = zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8, `fill="${col}" stroke="var(--surface)" stroke-width="1.5"`);
   return `<svg viewBox="0 0 18 18" width="18" height="18" role="img" aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage ? ", en apprentissage" : ""}">${shape}</svg>`;
 }
 // points closer than a cell on screen are drawn as one group: a ring split by zone, with its count
@@ -845,7 +892,7 @@ function carteDetail(f, hasProfile) {
   const z = carteZone(f);
   return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
     <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}${autresBadge(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
-    <p class="small">${hasProfile ? (z === "autre" ? `<span class="zone-pill" style="color:var(--muted)">${esc(f.zone ? (ZONES[f.zone] || {}).label || "Non situé" : "Non situé pour votre profil")}</span>` : `<span class="zone-pill" style="color:${ZONES[z].color}">${esc(ZONES[z].label)}</span> <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/profil">Indiquez votre profil</a> pour voir votre zone.`}
+    <p class="small">${hasProfile ? (z === "autre" ? carteZoneBadge(f.zone, "Non situé pour votre profil") : `${zoneBadge(z)} <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/profil">Indiquez votre profil</a> pour voir votre zone.`}
     · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
     ${appOffers(f.offres_app)}
     <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
@@ -858,7 +905,7 @@ function carteList(rows, hasProfile) {
       <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br><span class="badge">en apprentissage</span>${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">—</div><div class="muted small">pas de statistiques</div></div></div>`; }
     return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `<span class="zone-pill" style="color:${carteColor(z)}">${esc(carteLabel(z))}</span> ` : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
+      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `${z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)} ` : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
       <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
@@ -898,7 +945,7 @@ async function viewCarte(dArg, mArg) {
     <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
     <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
   <div class="carte-layout">
-    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>Filtrer</summary><div class="filter-grid" id="cfilters"></div></details>
+    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>${ICONS.filter}Filtrer</summary><div class="filter-grid" id="cfilters"></div></details>
     <div class="carte-main">
       <div class="legend" id="carte-legend"></div>
       <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
@@ -1094,7 +1141,7 @@ function fillZoneTile(target) {
   const el = document.getElementById("sum-zone");
   if (!el) return;
   const z = target && ZONES[target.zone];
-  el.querySelector(".sum-value").innerHTML = z ? `<span class="zone-pill" style="background:${z.color}${["indetermine", "non_ouvert"].includes(target.zone) ? ";color:var(--ink)" : ""}">${esc(z.label.replace(/^Vœu /, ""))}</span>` : "—";
+  el.querySelector(".sum-value").innerHTML = z ? zonePillHtml(target.zone) : "—";
   if (target && target.uncertain) el.querySelector(".sum-note").textContent = "lecture incertaine : peu de données";
 }
 // tabbed: one tab per non-empty group; the first is open; a tile with data-goto opens its tab
@@ -1146,7 +1193,7 @@ async function viewFormation(cod, session) {
       <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
     </div>
   </div>
-  ${d.warnings.map((w) => `<div class="warn">⚠ ${esc(w.text)}</div>`).join("")}
+  ${d.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
   ${summaryBand(r, d)}
   <p class="small fhead-links"><label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       · <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
@@ -1176,11 +1223,11 @@ async function viewFormation(cod, session) {
   </div>
   </div>
   <div class="card"><h2>Position dans la filière · ${esc(r.fil_lib_voe_acc)} ${tip("peers")}</h2>
-    <div class="legend"><span><i style="background:var(--range)"></i>p10–p90</span><span><i style="background:var(--box)"></i>p25–p75</span><span>│ médiane</span><span><i style="background:var(--c2);border-radius:50%"></i>cette formation (creux = hors référence)</span></div>
+    <div class="legend"><span><i style="background:var(--range)"></i>p10–p90</span><span><i style="background:var(--box)"></i>p25–p75</span><span>│ médiane</span><span><i style="background:var(--ink);border-radius:50%"></i>cette formation (creux = hors référence)</span></div>
     ${d.peers.map((p) => `<div class="bench"><div>${esc(META.peer_metrics[p.metric]?.label || p.metric)}<div class="muted small">${pct(p.value)}</div></div>
       <div>${benchBar(p)}</div>
       <div class="num">${p.peer_percentile != null ? `<strong>P${fmt(p.peer_percentile)}</strong>` : `<span class="muted small">${p.value == null ? "n.d." : "hors réf."}</span>`}
-      <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " ⚠" : ""}</div></div></div>`).join("")}
+      <div class="muted small">n=${fmt(p.n_peers)}${p.unstable ? " instable" : ""}</div></div></div>`).join("")}
   </div>
   </details>
 `],
@@ -1256,10 +1303,10 @@ async function loadPlanB(cod, opts = {}) {
   else if (d.status === "non_disponible") body = `<p class="muted small">Plan B indisponible : ${esc(d.reason)}.</p>`;
   else if (!d.alternatives.length) body = `<p class="muted small">Aucune formation de la même filière n'est plus accessible pour votre profil d'après les données 2022–2025.</p>`;
   else {
-    body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : <span class="badge" style="border-color:${ZONES[d.target.zone].color};color:${ZONES[d.target.zone].color}">${ZONES[d.target.zone].label}</span> · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
+    body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : ${zoneBadge(d.target.zone)} · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
     <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">Votre mention ou moins</th><th class="num">Distance de la formation visée</th>${opts.onPin ? "<th></th>" : ""}</tr>
     ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(a.academie)})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
-      <td><span class="badge" style="border-color:${ZONES[a.zone].color};color:${ZONES[a.zone].color}">${ZONES[a.zone].label}</span><div class="muted small">${WHY[a.why] || ""}</div></td>
+      <td>${zoneBadge(a.zone)}<div class="muted small">${WHY[a.why] || ""}</div></td>
       <td class="num">${fmt(a.taux_acces_ens)} %</td>
       <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
       <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td>${opts.onPin ? `<td><button type="button" class="small" data-pbpin="${esc(a.cod_aff_form)}">${W.includes(a.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button></td>` : ""}</tr>`).join("")}</table></div>
@@ -1670,12 +1717,12 @@ function timingCard(r, history) {
   const later = 100 - r.pct_acc_debutpp;
   const yrs = history.filter((h) => h.pct_acc_debutpp != null && h.acc_tot > 0);
   return `<div class="card"><h2>Quand arrivent les propositions ? ${tip("timing")}</h2>
-    ${r.low_n_flag ? `<div class="warn">⚠ Seulement ${fmt(r.acc_tot)} admis : ces parts reposent sur très peu d'élèves.</div>` : ""}
+    ${r.low_n_flag ? `<div class="warn">${ICONS.warn} Seulement ${fmt(r.acc_tot)} admis : ces parts reposent sur très peu d'élèves.</div>` : ""}
     <div class="grid3">${TIMING.map(([k, l]) => `<div><div class="big">${pct(r[k])}</div><div class="muted small">des admis ${r.session} avaient reçu leur proposition ${l}</div></div>`).join("")}</div>
     ${timingBar(r)}
     ${later >= 10 ? `<p class="info">Ne pas avoir de proposition le premier jour n'est pas un refus : en ${r.session}, <strong>${fmt(later)} %</strong> des admis de cette formation ont reçu la leur plus tard, au fil des places libérées.</p>` : `<p class="info">Ici, presque tous les admis (${pct(r.pct_acc_debutpp)}) avaient leur proposition dès l'ouverture : les listes d'attente bougent peu.</p>`}
     ${yrs.length > 1 ? `<div class="scroll"><table><tr><th>Session</th>${TIMING.map(([, l]) => `<th class="num">${esc(l)}</th>`).join("")}<th class="num">Admis</th></tr>
-      ${yrs.map((h) => `<tr><td>${h.session}</td>${TIMING.map(([k]) => `<td class="num">${pct(h[k])}</td>`).join("")}<td class="num">${fmt(h.acc_tot)}${h.low_n_flag ? " ⚠" : ""}</td></tr>`).join("")}</table></div>` : ""}
+      ${yrs.map((h) => `<tr><td>${h.session}</td>${TIMING.map(([k]) => `<td class="num">${pct(h[k])}</td>`).join("")}<td class="num">${fmt(h.acc_tot)}${h.low_n_flag ? ` <span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</td></tr>`).join("")}</table></div>` : ""}
   </div>`;
 }
 
@@ -1695,16 +1742,16 @@ async function viewEvolution(cod) {
     <div><a href="#/f/${esc(f.record.cod_aff_form)}">${esc(f.record.g_ea_lib_vx)}</a> · ${esc(f.record.lib_for_voe_ins)}</div>
     <div class="muted small">Lignée ${esc(lin.lineage_id)} · ${lineageBadge(f.record.lineage_confidence)}
     ${lin.missing_years.length ? ` · absente en ${lin.missing_years.join(", ")} (aucune interpolation)` : ""}</div></div>
-  ${f.warnings.map((w) => `<div class="warn">⚠ ${esc(w.text)}</div>`).join("")}
+  ${f.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
   <div class="charts">
     <div class="card"><h3>Taux d'accès &amp; part des terminales générales parmi les candidats appelés (PP) ${tip("taux_acces_ens")}</h3>
-      ${legend([{ name: "Taux d'accès" }, { name: "Part des terminales générales parmi les appelés" }])}
+      ${lineLegend([{ name: "Taux d'accès" }, { name: "Part des terminales générales parmi les appelés" }])}
       ${lineChart(years, [{ name: "Taux d'accès", values: col("taux_acces_ens") }, { name: "Part term. gén.", values: col("part_terminale_generale_en_position_admis_pp") }])}</div>
     <div class="card"><h3>Admis néo-bacheliers par série de bac ${tip("mentions")}</h3>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
     ${doubletteCharts(f.doublettes, years, f.semblables, f.rapport)}
     <div class="card"><h3>Admis par mention au bac ${tip("mentions")}</h3>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
     <div class="card"><h3>Boursiers, femmes, origine</h3>
-      ${legend([{ name: "% boursiers" }, { name: "% femmes" }, { name: "% même académie" }, { name: "% même établissement" }])}
+      ${lineLegend([{ name: "% boursiers" }, { name: "% femmes" }, { name: "% même académie" }, { name: "% même établissement" }])}
       ${lineChart(years, ["pct_bours", "pct_f", "pct_aca_orig", "pct_etab_orig"].map((k) => ({ name: label(k), values: col(k), hollow })))}
       <p class="muted small">Points creux : moins de ${META.low_n_threshold} admis. ${tip("low_n")}</p></div>
     <div class="card"><h3>Effectifs (trois étapes, non ratio-ables) ${tip("funnel")}</h3><div class="scroll"><table>
@@ -1725,9 +1772,9 @@ async function viewCompare() {
     ["Taux d'accès (PP) " + tip("taux_acces_ens"), (f) => pct(f.record.taux_acces_ens)],
     ["… percentile filière", (f) => metric(f, "taux_acces_ens").peer_percentile != null ? "P" + fmt(metric(f, "taux_acces_ens").peer_percentile) : "—"],
     ["Part des term. générales parmi les appelés (PP) " + tip("part_terminale_generale_en_position_admis_pp"), (f) => pct(f.record.part_terminale_generale_en_position_admis_pp)],
-    ["Vœux (toutes phases)", (f) => fmt(f.record.voe_tot) + (f.record.subwish_flag ? " ⚠ sous-vœu" : "")],
+    ["Vœux (toutes phases)", (f) => fmt(f.record.voe_tot) + (f.record.subwish_flag ? ' <span class="badge warnb">sous-vœu</span>' : "")],
     ["Classés (PP)", (f) => fmt(f.record.nb_cla_pp)], ["Proposés", (f) => fmt(f.record.prop_tot)],
-    ["Admis", (f) => fmt(f.record.acc_tot) + (f.record.low_n_flag ? " ⚠" : "")],
+    ["Admis", (f) => fmt(f.record.acc_tot) + (f.record.low_n_flag ? ` <span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : "")],
     ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],
     ["% TB + TBF", (f) => pct(metric(f, "pct_tb_tbf").value)], ["% boursiers", (f) => pct(f.record.pct_bours)],
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
@@ -1741,8 +1788,8 @@ async function viewCompare() {
       <button data-rm="${esc(f.record.cod_aff_form)}" class="small">retirer</button></th>`).join("")}</tr>
     ${rowsDef.map(([l, fn]) => `<tr><td>${l}</td>${F.map((f) => `<td>${fn(f)}</td>`).join("")}</tr>`).join("")}
   </table></div></div>
-  ${F.flatMap((f) => f.warnings.map((w) => `<div class="warn">⚠ ${esc(f.record.g_ea_lib_vx)} : ${esc(w.text)}</div>`)).join("")}
-  <div class="card"><h3>Taux d'accès 2022–2025</h3>${legend(series)}${lineChart(years, series)}</div>`;
+  ${F.flatMap((f) => f.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(f.record.g_ea_lib_vx)} : ${esc(w.text)}</div>`)).join("")}
+  <div class="card"><h3>Taux d'accès 2022–2025</h3>${lineLegend(series)}${lineChart(years, series)}</div>`;
   $view.querySelectorAll("[data-rm]").forEach((b) => { b.onclick = () => { basket.toggle(b.dataset.rm); viewCompare(); }; });
 }
 
@@ -1769,7 +1816,7 @@ async function viewSpecialites(session, ftype) {
 
 function verificationCard(v) {
   if (!v) return `<div class="card"><h2>Vérification SIES</h2><p class="muted">Aucun rapport publié pour ce build.</p></div>`;
-  const st = (x) => ({ pass: "✓", fail: "✗", upstream_inconsistency: "⚠ incohérence SIES (reproduite à l'identique)" }[x] || "–");
+  const st = (x) => ({ pass: "✓", fail: "✗", upstream_inconsistency: "incohérence SIES (reproduite à l'identique)" }[x] || "–");
   return `<div class="card"><h2>Vérification SIES : ${esc(v.overall)}</h2>
     <p class="muted small">Rapport du ${esc(v.generated_at)}. Identités comptables par campagne (« diag » = contrôle diagnostique du dénominateur).</p>
     <div class="scroll"><table><tr><th>Contrôle</th><th>Session</th><th class="num">Évaluables</th><th class="num">Écarts</th><th class="num">% ok</th><th>Statut</th></tr>
@@ -1809,14 +1856,14 @@ const ZONES = {
   securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" },
   cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" },
-  hors_profil: { label: "Hors-profil statistique", color: "var(--c6)" },
-  indetermine: { label: "Indéterminé", color: "var(--line)" },
-  non_ouvert: { label: "Non ouvert à votre série", color: "var(--line)" },
+  hors_profil: { label: "Hors-profil statistique", color: "var(--zone-autre)" },
+  indetermine: { label: "Indéterminé", color: "var(--zone-autre)" },
+  non_ouvert: { label: "Non ouvert à votre série", color: "var(--zone-autre)" },
 };
 const GATES = {
-  predilection: { label: "Filière de prédilection", color: "var(--c3)" },
-  accessible: { label: "Filière accessible", color: "var(--c1)" },
-  atypique: { label: "Atypique / prérequis non alignés", color: "var(--c6)" },
+  predilection: { label: "Filière de prédilection", color: "var(--c1)" },
+  accessible: { label: "Filière accessible", color: "var(--c3)" },
+  atypique: { label: "Atypique / prérequis non alignés", color: "var(--c5)" },
   insuffisant: { label: "Effectif insuffisant", color: "var(--line)" },
 };
 let JV = null;
@@ -2005,7 +2052,7 @@ function stage1Matrix(s1, show, all) {
   ${allRare ? `<div class="info">Votre doublette est rare : moins de ${DBL_SEUIL} candidats dans chaque filière sur 2022–2025. Les taux affichés sont ceux des « Autres doublettes » de chaque filière (doublettes rares regroupées) : une estimation.</div>`
     : fewOnly ? `<div class="info">Peu de candidats ont votre doublette : moins de ${fmt(GATE_MIN)} dans chaque filière sur 2022–2025, les filières sont donc affichées quand même. Là où ils sont moins de ${DBL_SEUIL}, le taux affiché est celui des « Autres doublettes » (estimation).</div>` : ""}
   <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th><th class="num">Taux de proposition de votre doublette</th><th class="num">… tous les bacheliers généraux</th><th>Part de destination</th><th class="num">Part des admis</th><th class="num">Indice</th><th></th></tr>
-  ${rows.map((f) => `<tr><td><span class="badge" style="border-color:${GATES[f.gate].color};color:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats de la doublette · ${f.years} an(s)</div></td>
+  ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats de la doublette · ${f.years} an(s)</div></td>
     <td class="num" data-label="Taux de proposition de votre doublette">${rate(f)}</td><td class="num muted" data-label="Tous les bacheliers généraux">${pc1(f.offer_rate_all)}</td>
     <td data-label="Part de destination" style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
     <td class="num" data-label="Part des admis">${pc1(f.share)}</td><td class="num" data-label="Indice">×${fmt(f.lift, 2)}</td>
@@ -2022,7 +2069,7 @@ function stage1SeriesMatrix(s1, show, all) {
   const sl = SERIE_SHORT[s1.serie];
   return `<div class="legend">${Object.entries(GATES).map(([k, g]) => `<label style="cursor:pointer"><input type="checkbox" data-gate="${k}" ${show.has(k) ? "checked" : ""}> <i style="background:${g.color}"></i>${g.label} (${s1.filieres.filter((f) => f.gate === k).length})</label>`).join("")}</div>
   <div class="scroll"><table><tr><th>Filière</th><th>Où vont les ${sl} admis</th><th class="num">Part des ${sl} parmi les admis</th><th class="num">Indice</th><th class="num">Accès estimé ${sl} (médiane) ${tip("serie_offer")}</th><th></th></tr>
-  ${rows.map((f) => `<tr><td><span class="badge" style="border-color:${GATES[f.gate].color};color:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.accepted)} ${sl} admis · ${f.years} an(s)</div></td>
+  ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.accepted)} ${sl} admis · ${f.years} an(s)</div></td>
     <td style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
     <td class="num">${pc1(f.share)}</td><td class="num">×${fmt(f.lift, 2)}</td><td class="num"><strong>${f.access_median != null ? `${fmt(f.access_median)} %` : "—"}</strong></td>
     <td>${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : ""}</td></tr>`).join("")}
@@ -2065,10 +2112,10 @@ function scatter(F, onPick) {
     if (f.taux_acces_ens == null || pos(f) == null) return;
     const c = ZONES[f.zone].color, hollow = f.uncertain || f.small_cohort;
     if (f.spos && f.spos.width >= 0.01) g += `<line x1="${x(f.taux_acces_ens)}" x2="${x(f.taux_acces_ens)}" y1="${y(f.spos.bounds[0])}" y2="${y(f.spos.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
-    g += `<circle data-i="${i}" cx="${x(f.taux_acces_ens)}" cy="${y(pos(f))}" r="${f.home_academie ? 6 : 4.5}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></circle>`;
+    g += zoneShape(f.zone, x(f.taux_acces_ens), y(pos(f)), f.home_academie ? 6 : 4.5, `data-i="${i}" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="${f.home_academie ? 3 : 1.5}" style="cursor:pointer"`).replace(/\/>$/, () => `><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · avec votre mention ou moins ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></${f.zone === "cible" ? "rect" : f.zone === "ambitieux" ? "path" : "circle"}>`);
   });
-  setTimeout(() => document.querySelectorAll("svg.positioning circle[data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
-  return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img">${g}</svg>`;
+  setTimeout(() => document.querySelectorAll("svg.positioning [data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
+  return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img" aria-label="Où je me situe : chaque formation selon son taux d'accès et la part des admis avec votre mention ou moins, sa forme et sa couleur donnent sa zone">${g}</svg>`;
 }
 
 function spark(trend, key, scale = 1) {
@@ -2082,9 +2129,9 @@ function spark(trend, key, scale = 1) {
   vals.forEach((v, i) => {
     if (v == null) { pen = false; return; }
     d += `${pen ? "L" : "M"}${xs(i)},${ys(v)}`; pen = true;
-    dots += `<circle cx="${xs(i)}" cy="${ys(v)}" r="1.6" fill="var(--c1)"/>`;
+    dots += `<circle cx="${xs(i)}" cy="${ys(v)}" r="1.6" fill="var(--ink)"/>`;
   });
-  return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="${d}" fill="none" stroke="var(--c1)" stroke-width="1.5"/>${dots}<title>${years.map((y, i) => `${y} : ${vals[i] == null ? "n.d." : (scale === 1 ? pc1(vals[i]) : fmt(vals[i]) + " %")}`).join("\n")}</title></svg>`;
+  return `<svg viewBox="0 0 60 18" style="width:60px;height:18px"><path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>${dots}<title>${years.map((y, i) => `${y} : ${vals[i] == null ? "n.d." : (scale === 1 ? pc1(vals[i]) : fmt(vals[i]) + " %")}`).join("\n")}</title></svg>`;
 }
 
 async function viewParcours() {
@@ -2128,12 +2175,12 @@ async function viewParcours() {
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
     <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les points creux sont incertains (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
     <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
-    <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span><i style="background:${z.color}"></i>${z.label} (${F.filter((f) => f.zone === k).length})</span>`).join("")}</div>
+    <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span style="color:${z.color}">${zoneMark(k)}<span class="lg-text">${z.label} (${F.filter((f) => f.zone === k).length})</span></span>`).join("")}</div>
     ${repereNote(s2.calibration)}
     ${scatter(F, (f) => pin(f))}
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis avec votre mention ou moins ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th>${s2.calibration ? `<th>Repère ${esc(s2.calibration.target)} ${tip("repere")}</th>` : ""}<th>Évolution</th><th></th></tr>
     ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, allPos ? 80 : 20).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${p.lycee && f.cod_uai === p.lycee.uai ? ` · <span class="badge exact">dans votre lycée${f.pct_etab_orig != null ? ` · ${fmt(f.pct_etab_orig)} % des admis en venaient` : ""}</span>` : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
-      <td data-label="Zone"><span class="badge" style="border-color:${ZONES[f.zone].color};color:${ZONES[f.zone].color}">${ZONES[f.zone].label}</span>${f.uncertain ? ' <span class="badge">incertain</span>' : ""}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
+      <td data-label="Zone">${zoneBadge(f.zone, f.uncertain)}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
       <td class="num" data-label="${serie === "bg" ? "Taux d'accès" : "Accès estimé"}">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">estim. · tous ${fmt(f.taux_acces_all)} %</div>` : ""}</td><td class="num" data-label="Admis avec votre mention ou moins">${bgCell(f)}</td>
       <td class="num" data-label="Mention exacte">${pc1(f.exact_share)}</td><td class="num" data-label="${serie === "bg" ? "Bac général" : "Part de votre série"}">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num" data-label="Boursiers">${pc1(f.pct_boursiers)}</td>
       <td class="small" data-label="Groupe d'appel">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
@@ -2454,14 +2501,13 @@ async function viewVoeux() {
   }
   if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
   const L = d.lecture, z = L.zones;
-  const zoneBadge = (v) => v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>${v.uncertain ? ' <span class="badge">incertain</span>' : ""}` : '<span class="badge">non situé</span>';
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
-    return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v)}${flags}</td>
+    return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="Votre mention ou moins">${v.status === "ok" ? position : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
@@ -3310,7 +3356,7 @@ async function viewListe(rawCodes, rawProfile) {
     const name = v.status !== "ok" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${esc(d.session)}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>`;
     const b = v.reorientation;
-    const third = zoned ? `<td data-label="Zone pour ce profil">${v.status === "ok" && v.zone && ZONES[v.zone] ? `<span class="badge" style="border-color:${ZONES[v.zone].color};color:${ZONES[v.zone].color}">${ZONES[v.zone].label}</span>` : "—"}</td>`
+    const third = zoned ? `<td data-label="Zone pour ce profil">${v.status === "ok" && v.zone && ZONES[v.zone] ? zoneBadge(v.zone) : "—"}</td>`
       : isReo(prof) ? `<td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>` : "";
     const rate = v.status !== "ok" ? null : zoned ? (prof.serie === "bg" ? v.taux_acces_ens : v.taux_acces_all) : b && b.taux_acces_ens;
     return `<tr><td data-label="Formation">${name}</td>${third}<td class="num" data-label="Taux d'accès officiel ${esc(d.session)}">${pct(rate)}</td></tr>`;

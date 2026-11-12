@@ -57,6 +57,7 @@ FEATURE_ENTRY_POINTS = {
     "navigation_parcours": ("app.js", "function explorerViews("),
     "taux_profil": ("app.js", "function profileRate("),
     "filtres_avances": ("app.js", "function searchAdvanced("),
+    "cartes_resultats": ("app.js", "function resultCard("),
 }
 
 
