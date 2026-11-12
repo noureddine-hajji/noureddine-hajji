@@ -428,6 +428,16 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   situation first, only its fields, each with what it is used for; first save explicit, later changes saved at once; outside
   terminale the stored fields are kept and no bac field is invented; erase asks first. Profile prompts link `#/profil`. A new page
   needs a TAB_OF entry and a closed analytics route. Red team `redteam_navigation.py` (U1-U8).
+- **"Pour votre profil" (sprint R2, owner 2026-11-11).** L'essentiel shows the official access rate, then ONE figure for the profile
+  with its source in words (`profileRate`, `profileRateTile`): the figure the "Selon votre bac" card shows, same rules, same order:
+  bac général = own report row (doublette, else its "Autres" line) when the report has a bac général table (no row = said, never an
+  estimate), else similar formations, else national group, else the card's "votre bac" row; bac techno/pro = own report line
+  (`pickVoie`), else the card's "votre bac" row (this formation's route proposal rate, the page's campaign, "peu de candidats"
+  below 20; never Plan B's latest-campaign estimate: review). Route rates and estimates are read at the PAGE's campaign (their
+trend entry; the top-level figure is the lineage's latest: Codex). Report figures carry their counts; no two distinct specialties = a
+  link to Mon profil. Outside terminale the estimate keeps its own tile. Published replaces estimate, never beside it. 5 tiles with
+  a terminale profile, 4 otherwise. ART+ART cannot be entered (one Arts code): owner decision pending. Red team
+  `redteam_tauxprofil.py` (Z1-Z6).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

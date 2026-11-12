@@ -179,6 +179,14 @@ def helpers(js: str) -> str:
     return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
 
 
+def r2_defs(js: str) -> str:
+    """Sprint R2: the page's own helpers the summary's "Pour votre profil" tile calls (no copy)."""
+    fns = [re.search(rf"^function {n}\(.*?^\}}", js, re.M | re.S).group(0)
+           for n in ("bacProfile", "profileDkey", "pickDoublette", "estimateDoublette", "estimateSemblable", "pickRapport", "pickVoie")]
+    one = [ln for ln in js.splitlines() if ln.startswith(("const ownHasBg = ", "const VOIE_WORD = ", "const pct1 = ", "const RP_VOIE = ", "const DBL_SEUIL = "))]
+    return "\n".join(one + fns) + "\n"
+
+
 def filters_ui(js: str) -> tuple[bool, str]:
     blk = block(js, "// ---- lot 1 UI: search filters are folded")
     prog = helpers(js) + """
@@ -471,7 +479,7 @@ let PROFILE = null;
 const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--line)" } };
 const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
-""" + blk + """
+""" + r2_defs(js) + blk + """
 const out = {};
 out.noProfile = summaryBand(P.r, P.d);
 PROFILE = { serie: "bg" };
@@ -491,7 +499,7 @@ process.stdout.write(JSON.stringify(out));"""
     if r.startswith("__error__"):
         return False, r
     o = json.loads(r)
-    tiles = len(re.findall(r'class="sum-tile"', o["profile"]))   # 4 with a profile (the zone tile waits for Plan B)
+    tiles = len(re.findall(r'class="sum-tile', o["profile"]))   # R2: 5 with a profile (official, for the profile, zone, admits, jobs)
     words = all(w in o["profile"] for w in ("Taux d'accès 2025", "Votre zone", "Admis 2025", "Métiers visés", "pas des chances d'admission"))
     figures = all(w in o["profile"] for w in ("43", "319", "pour 320 places", ">3<"))
     zone_slot = 'id="sum-zone"' in o["profile"] and 'href="#/profil"' in o["noProfile"] and 'id="sum-zone"' not in o["noProfile"]
@@ -510,14 +518,14 @@ process.stdout.write(JSON.stringify(out));"""
     vm = js[js.index("async function viewMetier("):js.index("// ---- Sprint 15")]
     job = ("const nForm = d.n_formations;" in vm and '<details class="dip"${open ? " open" : ""}>' in vm and "const open = !!mine.length" in vm and 'bindTabs("metier");' in vm
            and "${summary}${tabbed(\"metier\"" in vm and "${esc(x.libelle)}" in vm)
-    ok = (tiles == 4 and words and figures and zone_slot and pill and neutral and roles and bool(first_open) and planb and order
+    ok = (tiles == 5 and words and figures and zone_slot and pill and neutral and roles and bool(first_open) and planb and order
           and groups and fill and job)
-    return ok, (f"tiles {tiles}/4; wording {words}; figures {figures}; zone slot {zone_slot}; pill {pill}; neutral zone {neutral}; "
+    return ok, (f"tiles {tiles}/5; wording {words}; figures {figures}; zone slot {zone_slot}; pill {pill}; neutral zone {neutral}; "
                 f"tabs {roles}; first open {bool(first_open)}; Plan B slot keeps its tab {planb}; summary before tabs {order}; groups {groups}; "
                 f"zone filled by Plan B {fill}; job page folded {job}")
 
 
-@check("X12 summary first, then tabs: formation page summary (4 tiles, zone from Plan B), aria tabs, job page folded by diploma")
+@check("X12 summary first, then tabs: formation page summary (5 tiles since R2, zone from Plan B), aria tabs, job page folded by diploma")
 def x12(c: Ctx):
     return summary_ui(c.js)
 
@@ -588,7 +596,7 @@ def short_fiche(js: str) -> tuple[bool, str]:
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const store = { get: (k, d) => d };
 const document = { getElementById: () => null, querySelectorAll: () => [] };
-""" + block(js, "// ---- lot 2 (Claude design guidelines)") + """
+""" + r2_defs(js) + block(js, "// ---- lot 2 (Claude design guidelines)") + """
 process.stdout.write(JSON.stringify(P.map((jt) => summaryBand({ session: 2025, taux_acces_ens: 40, acc_tot: 30, capa_fin: 30 }, { metiers: null, jury_tab: jt }))));"""
     r = node_run(prog, [{"kind": "own", "session": "<img src=x>"}, {"kind": "semblables"}, None])
     if r is None:

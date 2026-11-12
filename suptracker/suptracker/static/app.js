@@ -943,17 +943,80 @@ function admisBar(a) {
     <p class="small"><span class="adm-key neo"></span>${fmt(a.admis_neobac)} néo-bacheliers${a.pct_neobac != null ? ` (${pct(a.pct_neobac)} des admis)` : ""} · <span class="adm-key autres"></span>${fmt(a.admis_autres)} autres admis</p>${note}</div>`;
 }
 const admisCell = (a) => (!a ? "—" : `${fmt(a.admis_neobac)} / ${fmt(a.admis_autres)}${a.coherent ? "" : ` <span class="muted small">(total publié ${fmt(a.admis)})</span>`}${autresBadge(a)}`);
+// R2 (owner, 2026-11-11): ONE sourced figure for the profile beside the official access rate (inside the lot 2 summary section).
+// It is a figure the "Selon votre bac" card shows for the same profile, chosen by the same rules (a published figure replaces an
+// estimate, never beside it), for the page's own campaign:
+//   bac général: this formation's own report row (the doublette, else its "Autres doublettes" line) when the report has a bac
+//     général table; else the similar formations' estimate; else the national group's estimate; else (no doublette figure)
+//     the card's "votre bac" row, the formation's bac général proposal rate from published counts;
+//   bac techno / pro: the student's line of the report (pickVoie); else the card's "votre bac" row (the proposal rate of the
+//     student's route in this formation, "peu de candidats" below 20, as on the card) — review: never the latest campaign's
+//     estimate on an older page, never a figure the card does not show;
+//   outside terminale: the estimated access (sprint 21), in its own tile.
+// Never a chance: a past rate of candidates like the student, with its source and, for a report row, its counts.
+function profileRate(d, prof) {
+  if (!prof || isReo(prof)) return null;
+  const serie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : "bg";
+  const rp = d.rapport, dbl = d.doublettes;
+  const series = dbl && dbl.series;
+  // Codex (PR #54): the series and estimates carry every campaign of the lineage, their top-level figure is the LATEST one;
+  // the tile reads the entry of the page's own campaign, beside the official rate of that campaign
+  const session = d.record && d.record.session;
+  const at = (trend) => (trend || []).find((t) => t.session === session) || null;
+  const route = () => {                                       // the card's "votre bac" row, for the page's campaign
+    const v = series && series[serie] && at(series[serie].trend);
+    return v && v.taux !== null && v.taux !== undefined
+      ? { kind: "serie", taux: v.taux, what: RP_VOIE[serie], source: "voie", fragile: (v.candidats || 0) < DBL_SEUIL, candidats: v.candidats }
+      : { kind: "aucun", what: RP_VOIE[serie], why: `pas de chiffre publié pour votre bac en ${session}` };
+  };
+  const estAt = (e) => { const t = e && at(e.trend); return t && t.taux !== null && t.taux !== undefined ? t.taux : null; };
+  if (serie === "bg") {
+    const dkey = profileDkey(prof);
+    if (!dkey) return { kind: "incomplet" };                   // review: no doublette without two distinct specialties
+    if (ownHasBg(rp)) {
+      const x = pickRapport(rp, dkey);
+      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "votre doublette, ligne « Autres doublettes »" : x.libelle,
+        source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: x.en_position, confirmes: x.confirmes }
+        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };
+    }
+    const sem = estimateSemblable(series, d.semblables, dkey);
+    if (sem && estAt(sem) !== null) return { kind: "estimation", taux: estAt(sem), what: sem.label, source: "semblables", n_rapports: sem.n_rapports };
+    const nat = dbl && dbl.status === "ok" ? estimateDoublette(series, dbl.groupe, dkey) : null;
+    if (nat && estAt(nat) !== null) return { kind: "estimation", taux: estAt(nat), what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : nat.label, source: "national" };
+    return route();
+  }
+  const v = pickVoie(rp, serie, prof.voie || null);
+  if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${v.libelle} »` : `votre ligne « ${v.libelle} »`,
+    source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: v.en_position, confirmes: v.confirmes };
+  return route();
+}
+const PR_SOURCE = {
+  rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}${pr.recoupe ? "" : ", pas encore recoupé"} · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,
+  semblables: (pr) => `estimation · rapports de ${fmt(pr.n_rapports)} formations semblables`,
+  national: () => "estimation · écart national de votre doublette",
+  voie: (pr) => `taux de proposition de cette formation (effectifs publiés)${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}`,
+};
+function profileRateTile(pr) {
+  const tile = (value, note) => `<button type="button" class="sum-tile sum-profil" data-goto="admission">
+      <span class="sum-label">Pour votre profil</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
+  const link = (note) => `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
+  if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et votre doublette ou votre ligne");
+  if (pr.kind === "incomplet") return link("indiquez vos deux spécialités dans « Mon profil »");
+  if (pr.kind === "aucun" || pr.taux === null || pr.taux === undefined) return tile("—", `${esc(pr.what)} · ${esc(pr.why || "pas de chiffre")}`);
+  return tile(pct1(pr.taux), `${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}`);
+}
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
+  const pr = profileRate(d, bacProfile());
   const jobs = d.metiers && d.metiers.status === "ok" ? d.metiers.metiers.length : null;
   const tile = (tab, label, value, note, extra = "") => `<button type="button" class="sum-tile" data-goto="${tab}"${extra}>
       <span class="sum-label">${label}</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
   return `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2>
     <div class="sum-grid">
-      ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "indicateur officiel, phase principale")}
+      ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "officiel, tous candidats, phase principale")}
+      ${isReo(prof) ? "" : profileRateTile(pr)}
       ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
-        : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"')
-        : `<a class="sum-tile" href="#/profil"><span class="sum-label">Votre zone</span><span class="sum-value">—</span><span class="sum-note">renseignez votre profil dans « Mon profil »</span></a>`}
+        : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
@@ -1107,7 +1170,10 @@ async function loadPlanB(cod, opts = {}) {
   if (opts.inline) box.innerHTML = `<p class="muted small">Recherche d'un plan B…</p>`;
   let d;
   try { d = await api(`/api/planb/${encodeURIComponent(cod)}?${qs}`); } catch (e) {
-    if (box.isConnected && box.dataset.req === req) box.innerHTML = opts.inline ? `<p class="muted small">Plan B indisponible pour le moment.</p>` : "";
+    if (box.isConnected && box.dataset.req === req) {
+      box.innerHTML = opts.inline ? `<p class="muted small">Plan B indisponible pour le moment.</p>` : "";
+      if (!opts.inline && p) fillZoneTile(null);                      // no zone tile left on "…"
+    }
     return;
   }
   if (!box.isConnected || box.dataset.req !== req) return;

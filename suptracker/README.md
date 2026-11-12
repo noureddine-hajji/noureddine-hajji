@@ -2360,3 +2360,70 @@ Smaller fixes from the same review:
 - identical specialties are flagged on "Mon profil", and "Où je me situe" links there;
 - "Mathématiques expertes" is kept when its box is not drawn;
 - a menu closes on a click on one of its links.
+
+## Sprint R2: "Pour votre profil", one sourced figure beside the official access rate (owner's choice, 2026-11-11)
+
+The formation page's summary ("L'essentiel") now shows two rates side by side. First comes the **official access rate**
+(all candidates, main phase). Next to it comes **one figure for the student's profile**, with its source in words. The owner
+chose this option, "Un seul chiffre sourcé": one figure, never several competing ones.
+
+The figure is the one the "Selon votre bac" card already shows, chosen by the same rules in the same order (`profileRate`).
+A published figure replaces an estimate and never sits beside it.
+
+| Profile | Figure, in this order | Shown as |
+| --- | --- | --- |
+| Bac général | the formation's own report, when it has a bac général table: the student's doublette row, else its "Autres doublettes" line | "publié · rapport du jury 2025" |
+| | otherwise, the similar formations' estimate (`estimateSemblable`) | "estimation · rapports de N formations semblables" |
+| | otherwise, the national group's estimate (`estimateDoublette`) | "estimation · écart national de votre doublette" |
+| | otherwise, the card's "votre bac" row: the formation's bac général proposal rate, from published counts | "taux de proposition de cette formation (effectifs publiés)" |
+| Bac techno / pro | the student's line of the report (`pickVoie`, sprint 20) | "publié" |
+| | otherwise, the card's "votre bac" row: this formation's proposal rate for the student's route, for the page's own campaign | "taux de proposition de cette formation (effectifs publiés)"; "peu de candidats (n)" below 20, as on the card |
+| Not in terminale | the estimated access outside terminale (sprint 21), in its own tile | (no zone tile) |
+
+If the report has a bac général table but no row and no "Autres" line for the student's doublette, the tile says so. No
+estimate stands in for it. A report figure is shown with its counts ("7 sur 9 candidats"). A bac général profile without two
+distinct specialties gets a link to "Mon profil", never a figure.
+
+A report SIES has not cross-checked yet carries "pas encore recoupé". The tile opens the "Y entrer" tab, where the card gives
+the calculation.
+
+The summary has 5 tiles with a terminale profile: official rate, for your profile, zone, admits, jobs. It has 4 without a
+profile (one tile invites the student to create one) and 4 outside terminale. On a phone the tiles sit two by two and the fifth
+spans the row. The page only rearranges figures it already had: no new request and no new data.
+
+**Known gap, found by the red team.** Some students take two arts specialties (`ART+ART` exists nationally). The profile form
+has a single "Arts" code and refuses two identical specialties, so it cannot record that doublette. These students get no
+doublette figure: the chain goes on without a doublette, as the page does today. This needs an owner decision (separate arts
+codes in the form).
+
+**Independent review (before Codex).** The first version filled the bac techno / pro fallback from Plan B. That was the latest
+campaign's estimated series access, and it caused four problems:
+- it ignored the "fewer than 20 candidates" rule;
+- it used its own "rare" rule;
+- it was unlabelled on an older-session page;
+- it was a figure the card does not show.
+
+The tile now shows the card's own "votre bac" row for the page's campaign, with the card's "peu de candidats" flag.
+
+**Codex (PR #54).** The route rate and the estimates carry every campaign of the formation's lineage, and their top-level figure
+is the latest one. A 2022 page could therefore show a 2025 rate beside "Taux d'accès 2022". The tile now reads the trend entry
+of the page's own campaign; with no entry, it shows no figure. Red team Z1 now also covers about 140 real older pages.
+
+The same independent review led to these wording fixes:
+- the rate computed from published counts is no longer called "publié";
+- a report figure now carries its counts;
+- labels replace raw specialty codes.
+
+**Red team** `scripts/redteam_tauxprofil.py` (Z1-Z6; `tests/test_tauxprofil.py`):
+- Z1: the page's figure equals the one re-derived in Python from the modules' twins (`rapports.pick`, `semblables.estimate`,
+  `doublettes.estimate`, `voies.pick_voie`).
+  - Cases: about 420 real formation × profile pairs, plus crafted report and similar-formation payloads, so every branch is
+    tested on the synthetic warehouse too.
+- Z2: the card's headline or its "votre bac" row equals the tile, and a published tile never has an estimate beside it.
+- Z3: the tile and the summary, run in Node: escaping, sources and counts in words, the "peu de candidats" flag, tile counts and
+  order.
+- Z4: wiring, layouts, feature and docs.
+- Z5: the browser check on real formations (`--real`).
+- Z6: 15 mutants, run only on a passing baseline.
+
+The ux (X12, X16) and reorientation (E6) harnesses now load the R2 helpers.
