@@ -507,7 +507,7 @@ def ui_completer(js: str) -> tuple[bool, str]:
     words = all(w in f for w in ("pas des chances d'admission", "vérifiez chaque fiche Parcoursup", "zone sécurité sans incertitude",
                                  "privé payant"))
     no_chance = not re.search(r"(?i)\d+\s*% de chances|probabilit|vous serez admis", f)
-    wired = bool(re.search(r'if \(L\.messages\.some\(\(m\) => m\.code === "aucune_securite"\)\) \{[^}]*loadCompleter\(qs, marker, rate, false\);', js))
+    wired = bool(re.search(r'if \(L\.messages\.some\(\(m\) => m\.code === "aucune_securite"\)\) \{[^}]*loadCompleter\(qs, marker, rate, false, prof\);', js))
     ok = not raw and labelled and race and words and no_chance and wired
     return ok, f"unescaped {raw[:3]}; labelled cells {labelled}; race guard {race}; wording {words}; no chance {no_chance}; shown on 'aucune_securite' {wired}"
 
