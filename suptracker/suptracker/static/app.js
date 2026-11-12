@@ -1284,14 +1284,14 @@ function carteList(rows, ctx) {
     const url = f.stats === false ? carteFiche(f) : null;
     const title = f.stats === false ? (url ? `<a class="rc-title" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(f.etablissement)} ↗</a>` : `<span class="rc-title">${esc(f.etablissement)}</span>`)
       : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
-    return `<article class="result rc carte-rc${zc ? " rc-z" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
+    return `<div class="result rc carte-rc${zc ? " rc-z" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
       <div class="rc-main">${title}
         <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
         <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
         <div class="rc-badges">${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? '<span class="badge warnb">établissement privé payant</span>' : ""}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
       </div>
       ${carteFigures(f, { ...ctx, compact: true })}
-    </article>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
+    </div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
 // R9: several types of diploma and several mention groups at once. sel = { d: [diploma, ...], m: { diploma: [group, ...] } }
