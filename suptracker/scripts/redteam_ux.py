@@ -203,6 +203,7 @@ def filters_ui(js: str) -> tuple[bool, str]:
     r3 = "\n".join(re.search(rf"^const {n} = .*?;$", js, re.M | re.S).group(0) for n in ("FI_GROUPS", "FI_TITLE", "fiOptions"))
     prog = helpers(js) + r3 + """
 const FILI_LABEL = {bts: "BTS"}, OPT_LABEL = {distance: "À distance"};
+const ICONS = new Proxy({}, { get: () => "<svg></svg>" });   // R4: the drawn filter icon
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const go = (patch) => "#/s/q?" + new URLSearchParams(patch).toString();
 const out = {};
