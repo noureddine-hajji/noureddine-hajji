@@ -2751,3 +2751,41 @@ After the fixes: 0 axe violations on the 84 page-modes, 0 JS errors.
 Still to test by hand with a real screen reader (VoiceOver, NVDA, TalkBack): the map (Leaflet's markers; the list beside it
 carries the same information), and the reading order of long tables on a phone.
 
+
+## Sprint R9: searching from the map (owner's eight points, 2026-11-12)
+
+The owner reviewed the map page and asked for eight changes. Analysis first (real data, campaign 2025), then the choices he made.
+
+**What was wrong.**
+- One type of diploma and one mention at a time, chosen from two drop-down lists above the page.
+- Mentions are the institutions' own labels: 224 "mentions" for 237 double licences ("Mathématiques / Informatique" in ten spellings, and "Informatique / Mathématiques" too), 24 for 27 CUPGE, 17 for 26 CPES.
+- Order: mentions by number of formations; diplomas by a case-only sort, so "Écoles d'ingénieurs" and "Études de santé" fell after "Sciences Po".
+- One figure per formation (the official access rate).
+- 1,077 formations of the latest campaign never had a zone (CPES 26, CMI 70, licences pro 30, DU 91, FCIL 480, preparatory years 128...). The zone reads only the formation's own published counts, but stage 2 only ran on the types of the SIES specialty dataset, which has none for them.
+
+**What changed.**
+- **Layout.** Wide screen: filters and map on the left, the list in the middle, the chosen formation on the right (owner's choice). Up to 1,180 px: filters and map, then the chosen formation above the list. Phone: one column, filters folded under "Filtrer", nothing wider than the screen. Choosing a formation in the list no longer moves the map (the list follows the map: it shrank to one row).
+- **Several diplomas and mentions at once.** Checkboxes with counts. Each type of diploma is loaded on its own (one cacheable answer per type), the mention groups are kept in the browser. A link `#/carte/<diplôme>[/<mention>]` still works, an old raw mention label opens its group; a stored selection is never trusted (unknown labels dropped).
+- **Mention groups by fixed rules (`carte.groupe_of`), never fuzzy matching.**
+  - Double licence: the unordered pair of disciplines, each under one spelling (`DL_DISCIPLINE`). "Économie" and "Économie et gestion" are one discipline, "Gestion" another (owner). 224 → 75 groups.
+  - CUPGE and CPES: one rule per family, read in order (`FAMILY_RULES`). CUPGE 24 → 6, CPES 17 → 8.
+  - Licence and L.AS: only near-duplicates (the three "Théologie", "Cinéma" / "Cinéma et audiovisuel", "Histoire de l'art").
+  - Every other diploma keeps its labels. The formation keeps its own label in the list; each group lists the labels it gathers.
+- **French alphabetical order** (`carte.sort_key`: accents and case ignored) for diplomas and groups.
+- **Zones for formations with no SIES type.** `journey.stage2` reads them under `J.SANS_TYPE`, ONLY for listed codes (`only`): never a national list of unrelated formations. A row does not depend on the set it is read with. The map, Mes vœux, Plan B (with the untyped formations of the same filière), "Compléter ma liste" and the search's zone filter all read them. 1,077 of 1,077 placed.
+- **Three figures per formation, always in the same place.**
+  - The official access rate.
+  - The figure for the student's doublette: `voeux.figures`, the function Mes vœux reads, now shared (`/api/carte/chiffres`, one page of the list, 40 codes at most, coarse profile, shared-cached like the zones). Own report row first, else similar formations, else the national group: the same figure as Mes vœux and the formation page. Bac techno / pro: the report's lines come back and the page picks the student's line (`pickVoie`): the series or specialty is still sent only to `/api/voeux`.
+  - The average's position among the formation's néo-bachelier admits, a RANGE read in the browser from stage 2's `lec` (normal and uniform hypotheses; without an average, the band's published bounds), labelled "estimation". **SIES publishes no access rate by mention or average**: the page says so and never calls it a rate or a chance.
+- **Speed.** The jury texts are no longer read for lists (`rapports.for_formation(textes=False)`), and each report is read once per answer: Mes vœux and the map's figures are about twice as fast (40 formations ≈ 1.2 s).
+
+**Red team (`scripts/redteam_carterecherche.py`, CR1-CR10, `tests/test_carterecherche.py`).**
+- CR1: every untyped formation gets the stage 2 zone, the same on the map, in Mes vœux and in Plan B; a row read alone = read with its filière; `SANS_TYPE` without `only` is refused.
+- CR2: each mention in exactly one group, counts add up; double licence groups = an independent parse of the pair (no pair split, no two pairs merged); the owner's examples as a truth table (Maths/Info = Info/Maths, Maths/Éco = Éco/Maths = Maths/Éco-gestion, Droit/Gestion ≠ Droit/Éco-gestion); other diplomas untouched.
+- CR3: French order, re-derived with Unicode decomposition.
+- CR4: the API's group filter = the group's formations; page twins `carteSelection`, `carteKeep`, `carteHash` in Node (old link, hostile stored selection).
+- CR5: `/api/carte/chiffres` = Mes vœux's figures for 40 formations; for bac techno, the page's `pickVoie` = Mes vœux's line for every printed key; 41 codes or a bad code refused (422); no series line or average in the endpoint or the page's call; shared cache policy.
+- CR6: the page's `cartePosition` (Node) = the server's stage 2 `position` read with the average, on 480 formation × band cases, typed and untyped; without an average, the published bounds.
+- CR7: wording (no chance, no "taux d'accès" for the position, the caveat in the footnote, vouvoiement), three labelled figures, the doublette figure rendered by Mes vœux's `dblFigure`.
+- CR8 (`--browser` / `--real`): three columns in order on a wide screen, the map in the left column, no horizontal scroll at 390 and 320 px, multi-select and a mention group filter in the page, CPES placed in a zone, 0 JS errors.
+- CR9: 14 mutants (pair kept in printed order, Gestion merged with Économie, order with accents, untyped formations without a zone, another figure than Mes vœux, no limit on codes, bounds swapped, one hypothesis only, mention filter ignored, stored diploma trusted, series line sent, "chance" wording, caveat dropped, another doublette rendering), all caught.
