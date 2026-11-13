@@ -196,9 +196,10 @@ def sitemap_ok(xml_text: str, robots: str, base: str, latest: list[str], jobs: l
         return False, f"sitemap is not XML: {e}"
     ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
     locs = [u.findtext(f"{ns}loc") for u in root.findall(f"{ns}url")]
-    # sprint Q1: plus the five trust and compliance pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité)
+    # sprint Q1: plus the five trust and compliance pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité);
+    # sprint Q4: plus the help page (Se faire aider)
     want = ({f"{base}/formation/{c}" for c in latest} | {f"{base}/metier/{m}" for m in jobs}
-            | {f"{base}/{s}" for s in ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite")})
+            | {f"{base}/{s}" for s in ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide")})
     got = set(locs)
     ok = (root.tag == f"{ns}urlset" and len(locs) == len(got) and got == want and len(locs) <= 50000
           and all(u.startswith("https://") for u in locs))

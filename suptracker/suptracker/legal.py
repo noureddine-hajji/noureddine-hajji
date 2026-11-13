@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import html
 
+from . import aide as AI
 from . import analytics as A
 from . import config
 from . import contact as C
@@ -33,8 +34,8 @@ TILES = {"name": "OpenStreetMap Foundation", "country": "Royaume-Uni", "host": "
          "policy": "https://osmfoundation.org/wiki/Privacy_Policy"}
 DEFENSEUR = "https://formulaire.defenseurdesdroits.fr/"
 CNIL = "https://www.cnil.fr/fr/plaintes"
-SLUGS = ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite")
-FOOTER = (("a-propos", "À propos"), ("contact", "Contact"), ("mentions-legales", "Mentions légales"),
+SLUGS = ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide")       # "aide": sprint Q4 (aide.py)
+FOOTER = (("aide", "Se faire aider"), ("a-propos", "À propos"), ("contact", "Contact"), ("mentions-legales", "Mentions légales"),
           ("confidentialite", "Confidentialité"), ("accessibilite", "Accessibilité : non conforme"))
 
 
@@ -146,7 +147,7 @@ sont enregistrés <strong>uniquement dans votre navigateur</strong> (stockage lo
 identifiant, ce dont le calcul a besoin :</p>
 <ul class="legal-list">
 <li>la série, les spécialités et la tranche de mention, pour situer chaque formation ;</li>
-<li>votre ligne du bac technologique ou professionnel, seulement pour lire votre liste de vœux ;</li>
+<li>la ligne de votre bac technologique ou professionnel (série et spécialités, ou spécialité), seulement pour lire votre liste de vœux ;</li>
 <li>votre académie, si vous l'avez indiquée, avec la recherche, le plan B, « Où je me situe » et votre liste de vœux, pour
 présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
 <li>votre moyenne exacte, seulement avec la recherche avancée, pour son filtre de zone ;</li>
@@ -239,6 +240,8 @@ PAGES = {
                         "sans compte, sans cookie, sans publicité.", confidentialite),
     "accessibilite": ("Déclaration d'accessibilité", "État de conformité de SupCompass au RGAA, limites connues et recours.",
                       accessibilite),
+    "aide": ("Se faire aider pour choisir", "Les services gratuits qui aident à choisir ses études : professeur principal, "
+             "psychologue de l'Éducation nationale, CIO, Mon orientation en ligne, numéro vert Parcoursup.", AI.page),
 }
 
 

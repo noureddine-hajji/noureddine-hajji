@@ -78,7 +78,7 @@ METHODOLOGY = {
         "différents. Diviser le nombre de propositions par le nombre de vœux mélangerait ces phases et compterait des vœux au lieu "
         "de candidats."),
     "part_terminale_generale_en_position_admis_pp": (
-        "Indicateur officiel SIES : parmi les candidats de terminale en position de recevoir "
+        "Indicateur officiel SIES : parmi les candidats de terminale classés assez haut pour recevoir "
         "une proposition en phase principale, la part de ceux qui viennent de terminale générale. C'est une "
         "composition, pas une chance d'accès : avec les parts techno et pro, elle fait 100 % (vérifié sur "
         "99,9 % des formations 2025). 100 % en CPGE scientifique veut dire que les candidats appelés étaient tous "
@@ -113,16 +113,16 @@ METHODOLOGY = {
         "Les cas ambigus ne sont jamais reliés."),
     "journey_stage1": (
         "Étape 1, au niveau national : données SIES « enseignements de spécialité », dont l'unité est le "
-        "candidat (et non le vœu). Taux de proposition : candidats de la doublette ayant reçu au moins une "
-        "proposition dans la filière, rapportés aux candidats de la doublette ayant formulé au moins un vœu "
-        "dans cette filière. Indice de représentation : part de la doublette parmi les admis de la filière, "
+        "candidat (et non le vœu). Taux de proposition : candidats ayant cette paire de spécialités qui ont reçu au moins "
+        "une proposition dans la filière, rapportés aux candidats ayant cette paire qui ont fait au moins un vœu "
+        "dans cette filière. Indice de représentation : part de la paire parmi les admis de la filière, "
         "divisée par sa part parmi l'ensemble des admis bacheliers généraux. Part de destination : part des "
-        "admis de la doublette qui ont accepté cette filière. Les années 2022–2025 sont cumulées. On ne somme "
+        "admis ayant cette paire qui ont accepté cette filière. Les années 2022–2025 sont cumulées. On ne somme "
         "jamais entre filières, et seuls les niveaux d'agrégation 0–1 de l'export 2025 sont lus."),
     "journey_gate": (
-        "Filières de prédilection : la doublette représente au moins 2 % des admis, son indice de "
+        "Filières de prédilection : la paire de spécialités représente au moins 2 % des admis, son indice de "
         "représentation est d'au moins 1,5, et son taux de proposition est au moins égal à celui de "
-        "l'ensemble des candidats de la filière. Filières atypiques : la doublette représente moins de 2 % "
+        "l'ensemble des candidats de la filière. Filières atypiques : la paire représente moins de 2 % "
         "des admis bacheliers généraux. Les autres filières sont accessibles. En dessous de 100 candidats "
         "cumulés, l'effectif est jugé insuffisant."),
     "journey_cdf": (
@@ -311,8 +311,8 @@ METHODOLOGY = {
         "moyenne, et elle n'est jamais combinée avec la note de l'OIT."),
     "licence_master": (
         "Sur une page de licence, chaque master de l'université dans la même grande discipline (MonMaster, dernière "
-        "session) est montré côte à côte : les admis (des personnes) et les vœux (des candidatures additionnées, pas des "
-        "personnes), l'emploi salarié à 18 mois parmi les diplômés sortis des études (InserSup, même université, même "
+        "session) est montré côte à côte. On voit les admis (des personnes) et les vœux (des candidatures additionnées, pas des "
+        "personnes). On voit aussi l'emploi salarié à 18 mois parmi les diplômés sortis des études (InserSup, même université, même "
         "intitulé), et les métiers de la fiche nationale Onisep du master au même intitulé (deux règles d'orthographe "
         "explicites : STAPS écrit en entier, « MEEF » retiré). Pour ces métiers, on donne l'écart entre la plus basse et la "
         "plus haute note d'exposition des tâches à l'IA générative (OIT) et de complémentarité humaine (estimation "
@@ -982,7 +982,7 @@ def journey_stage1(spe1: str | None = None, spe2: str | None = None,
         raise HTTPException(422, "Choisir deux enseignements de spécialité distincts")
     res = J.stage1(_con().cursor(), _dkey(spe1, spe2))
     if not res["national"] or not res["national"]["candidates"]:
-        raise HTTPException(404, "Doublette absente des données SIES 2022–2025")
+        raise HTTPException(404, "Paire de spécialités absente des données SIES 2022–2025")
     return res
 
 

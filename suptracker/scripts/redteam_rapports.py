@@ -294,10 +294,10 @@ def r4(c: Ctx):
         return False, o["error"]
     raw = [k for k, v in o.items() if "<img" in v]
     unlabelled = {k: len(re.findall(r'<td class="num"(?![^>]*data-label)', v)) for k, v in o.items()}
-    mine = "Votre doublette dans cette formation : 50 %" in o["card"] and "rapport public" in o["card"]
-    no_est = "estimation</span>" not in o["card"].split("Détail national du groupe")[0]
-    est_kept = "<span class=\"estim\">estimation</span>" in o["card_nobg"] and "<span class=\"estim\">estimation</span>" in o["card_none"]
-    autres = "Votre doublette dans cette formation : 20 %" in o["card_autres"] and "votre doublette en fait partie" in o["card_autres"]
+    mine = "Vos deux spécialités dans cette formation : 50 %" in o["card"] and "rapport public" in o["card"]
+    no_est = "estim-tag" not in o["card"].split("Détail national du groupe")[0]
+    est_kept = '<span class="estim-tag">estimation</span>' in o["card_nobg"] and '<span class="estim-tag">estimation</span>' in o["card_none"]
+    autres = "Vos deux spécialités dans cette formation : 20 %" in o["card_autres"] and "vos deux spécialités en font partie" in o["card_autres"]
     masked = "chiffres non publiés" in o["card"]
     source = all("voir le rapport" in o[k] and "web.archive.org" in o[k] for k in ("card", "jury"))
     own = o["card"][o["card"].find("Dans cette formation, par doublette"):o["card"].find("Par doublette de spécialités")]

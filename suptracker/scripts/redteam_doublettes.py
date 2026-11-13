@@ -456,16 +456,16 @@ def d8(c: Ctx):
     if "error" in o:
         return False, o["error"]
     raw = any("<img" in v for v in o.values())
-    rare = "Votre doublette : Arts + EPPCS" in o["rare"] and "« Autres doublettes »" in o["rare"] and "estimation" in o["rare"]
+    rare = "Vos spécialités : Arts + EPPCS" in o["rare"] and "« Autres paires de spécialités »" in o["rare"] and "estimation" in o["rare"]
     invite = "Indiquez vos spécialités" in o["none"]
-    nogroup = "Pas de donnée par doublette" in o["nogroup"] and "Votre doublette" not in o["nogroup"]
+    nogroup = "Pas de donnée par paire de spécialités" in o["nogroup"] and "Vos spécialités" not in o["nogroup"]
     unlabelled = [len(re.findall(r'<td class="num"(?![^>]*data-label)', v)) for v in o.values()]
     pills = all(o[k].count('class="voie-pill"') == 3 for k in ("rare", "none", "nogroup", "brk"))
     s1 = o.get("stage1", "")
-    rare_s1 = "Votre doublette est rare" in s1 and "44,7 %" in s1 and "Autres doublettes (estimation" in s1 and "Licence A" in s1
+    rare_s1 = "Votre paire de spécialités est rare" in s1 and "44,7 %" in s1 and "« Autres paires de spécialités » :" in s1 and "estim-tag" in s1 and "Licence A" in s1
     few = o.get("few", "")
-    few_ok = ("Licence B" in few and "61,3 %" in few and "Votre doublette est rare" not in few and "Peu de candidats" in few
-              and "Autres doublettes (estimation" not in few)
+    few_ok = ("Licence B" in few and "61,3 %" in few and "Votre paire de spécialités est rare" not in few and "Peu de candidats" in few
+              and "« Autres paires de spécialités » :" not in few)
     filt = o.get("filtered", "")
     filt_ok = "Licence C" not in filt and "Licence D" not in filt and "Peu de candidats" not in filt and "est rare" not in filt
     brk = o.get("brk", "")
@@ -540,8 +540,8 @@ def d10(c: Ctx):
                 e = M["DB"].estimate(f["series"]["bg"], f["groupe"], keys[0])
                 if (x["doublette"].get("formation") or {}).get("taux") != (e["taux"] if e else None):
                     vx_ok = False
-    words = "Aucune donnée publique ne donne les doublettes établissement par établissement" in c.js and \
-        "Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class=\"estim\">estimation</span>" in c.js
+    words = "Aucune donnée publique ne donne les paires de spécialités établissement par établissement" in c.js and \
+        "Vos deux spécialités dans cette formation : ${pct1(est.taux)}</strong> ${estimTag()}" in c.js
     ok = not bad and twin and cap_ok and vx_ok and words
     return ok, (f"{len(cases)} formation × doublette cases; independent arithmetic {not bad} {bad[:2]}; page twin {twin}; cap at 100 {cap_ok}; "
                 f"vœux list = the estimate {vx_ok}; labelled with its calculation {words}")

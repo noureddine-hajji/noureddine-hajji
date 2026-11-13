@@ -235,7 +235,7 @@ def s11(con, real):
     js = (ROOT / "suptracker" / "static" / "app.js").read_text()
     t = METHODOLOGY.get("serie_offer", "")
     ok = all(w in t for w in ("estimation", "STMG", "ne distingue pas", "plafonné"))
-    ok &= "STMG, STI2D, ST2S" in js and "Accès estimé" in js and "estim. ·" in js and "Estimation. Taux de proposition" in js
+    ok &= "STMG, STI2D, ST2S" in js and "Accès estimé" in js and "officiel tous candidats" in js and "Estimation. Taux de proposition" in js
     # the series code may only be used as a key into a closed label table, never printed raw
     raw = [m for m in re.findall(r"\$\{(?:f\.)?serie\}", js)]
     return ok and not raw, f"disclosure {'ok' if ok else 'MISSING'}; raw serie interpolations {raw}"

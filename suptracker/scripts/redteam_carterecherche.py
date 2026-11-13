@@ -369,8 +369,8 @@ def cr7(c: Ctx):
     chance = [t[:60] for t in texts if CHANCE.search(t)]
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
     pos = sec[sec.index("function cartePosFigure("): sec.index("\n}", sec.index("function cartePosFigure("))]
-    pos_ok = "estimation" in pos and "taux d'accès" not in pos.lower() and "chance" not in pos.lower()
-    labels = all(x in sec for x in ("Taux d'accès ${esc(ctx.session)}", '"Votre doublette"', '"Votre moyenne parmi les admis"', '"Votre mention parmi les admis"'))
+    pos_ok = ("estimation" in pos or "estimTag(" in pos) and "taux d'accès" not in pos.lower() and "chance" not in pos.lower()
+    labels = all(x in sec for x in ("Taux d'accès ${esc(ctx.session)}", '"Vos deux spécialités"', '"Votre moyenne parmi les admis"', '"Votre mention parmi les admis"'))
     footnote = "aucun taux d'accès par moyenne n'est publié" in sec and "pas une chance d'admission" in sec and "jamais par chances" in sec
     official = "officiel" in sec and "dblFigure(ch)" in sec and "voieFigure(" in sec and "pickVoie(ch.voies" in sec
     # Codex: the chosen formation's figures are asked whatever chose it (a map marker can be on no loaded page of the list)
@@ -659,7 +659,7 @@ JS_MUTANTS = [
     ("mention filter ignored", "(!(sel.m[f.diplome] || []).length || sel.m[f.diplome].includes(f.groupe))", "true", "CR4"),
     ("stored diploma trusted", "(stored && Array.isArray(stored.d) ? stored.d : []).filter((x) => typeof x === \"string\" && known(x))", "(stored && Array.isArray(stored.d) ? stored.d : [])", "CR4"),
     ("series line sent to the server", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}`)", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}&voie=${encodeURIComponent(ctx.prof.voie || \"\")}`)", "CR5"),
-    ("position called a chance", "des admis sous votre moyenne\" : \"des admis sous ou à votre mention\"} · estimation", "chances d'être admis\" : \"des admis sous ou à votre mention\"} · estimation", "CR7"),
+    ("position called a chance", "estimTag(pos.moyenne ? \"des admis sous votre moyenne\" : \"des admis sous ou à votre mention\"", "estimTag(pos.moyenne ? \"chances d'être admis\" : \"des admis sous ou à votre mention\"", "CR7"),
     ("footnote without the caveat", "aucun taux d'accès par moyenne n'est publié", "", "CR7"),
     ("doublette figure not Mes vœux's", "ctx.serie === \"bg\" ? dblFigure(ch)", "ctx.serie === \"bg\" ? pct(ch.taux)", "CR7"),
     ("marker choice never asks its figures (Codex)", "    if (f) figures([f]);", "    if (focus && f) figures([f]);", "CR7"),

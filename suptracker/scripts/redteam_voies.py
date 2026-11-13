@@ -376,14 +376,14 @@ process.stdout.write(JSON.stringify(out));"""
     py = [(lambda x: [x["source"], x["taux"]] if x else None)(M["VO"].pick_voie(b, *k)) for k in cases]
     twin = o["picks"] == py
     mine = lambda h: re.findall(r'<tr class="dbl-mine"><td>(.*?)</td>', h)  # noqa: E731
-    own = (mine(o["own"]) == ['Msgn/ Mercatique &amp; Droit et Economie <span class="estim">votre ligne</span>']
-           and "Votre ligne dans cette formation : 36,1 %" in o["own"] and "ligne « Msgn/ Mercatique &amp; Droit et Economie »" in o["own"]
+    own = (mine(o["own"]) == ['Msgn/ Mercatique &amp; Droit et Economie <span class="estim">votre bac</span>']
+           and "Votre bac dans cette formation : 36,1 %" in o["own"] and "ligne « Msgn/ Mercatique &amp; Droit et Economie »" in o["own"]
            and "70 candidats sur 194 de votre série" in o["own"])
     bucket = (mine(o["bucket"]) == ['Autres doublettes <span class="estim">votre série en fait partie</span>']
               and "ligne « Autres doublettes » de la formation" in o["bucket"] and "la vôtre est comptée avec les autres" in o["bucket"])
-    none = not mine(o["none"]) and "Indiquez votre série et vos spécialités</a> pour voir votre ligne" in o["none"]
+    none = not mine(o["none"]) and "Indiquez votre série et vos spécialités</a> pour voir le chiffre de votre bac" in o["none"]
     masked = "la formation n'a pas publié son tableau" in o["masked"] and not mine(o["masked"])
-    bg = mine(o["bg"]) == ['Mathématiques &amp; SES <span class="estim">votre doublette</span>'] and "Votre ligne dans" not in o["bg"]
+    bg = mine(o["bg"]) == ['Mathématiques &amp; SES <span class="estim">vos deux spécialités</span>'] and "Votre ligne dans" not in o["bg"] and "Votre bac dans" not in o["bg"]
     esc_ok = all("<img" not in o[k] for k in ("own", "bucket", "none", "masked", "bg", "line"))
     query = "voie=stmg_merc" in o["qbt"] and "voie=" not in o["qbg"]
     cell = ("40 %" in o["cell"] or "40,0 %" in o["cell"]) and "20 sur 50" in o["cell"] and "pas encore recoupé avec les chiffres de 2026" in o["cell"] \

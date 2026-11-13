@@ -611,3 +611,15 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .cform .ok { color: var(--good); font-weight: 600; }
 .cform .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .msg-text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 420px; }
+/* sprint Q4: plain language. One "estimation" label (estimTag), the zones explained (zoneLegend), "Et maintenant ?" and the help page */
+.estim-tag { display: inline-block; padding: 0 6px; border: 1px dashed var(--muted); border-radius: var(--r-sm); color: var(--muted); font-size: var(--fs-xs); line-height: 1.5; }
+.zone-legend { margin: 8px 0; font-size: var(--fs-sm); }
+.zone-legend summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+.zone-legend ul { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 6px; }
+.zone-legend li { line-height: 1.5; }
+.next-steps ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.next-steps li { line-height: 1.5; }
+.next-steps li:last-child { list-style: none; margin-left: -20px; padding: 8px 10px; background: var(--accent-soft); border-radius: var(--r-sm); }
+.aide-service { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
+.aide-service h2 { font-size: var(--fs-md); margin: 4px 0; }
+.aide-tel a { font-size: var(--fs-lg); font-weight: 700; display: inline-flex; align-items: center; min-height: 44px; }

@@ -43,6 +43,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Je me réoriente (sprint 21):** `reorientation.py` (candidates outside terminale from published counts, estimated access, `#/reorientation`).
   - **Accompaniment (sprint 22):** `calendrier.py` (official Parcoursup calendar read from the PDFs fetched by `suptracker-calendrier`, .ics);
     `#/accompagner`, `#/premiere`, `#/liste` (shared list) in `app.js`.
+  - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -306,7 +307,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   the comparator is `table.cmp` (sticky label column). Red team X14-X15.
 - **Indexable pages (sprint 17).** Page figures are the PUBLISHED ones (same as `/api/formation`), with the "pas des chances" caveat;
   every stored string escaped in HTML, attributes and JSON-LD (`json_ld` escapes `<`, `>`, `&`). Sitemap = latest campaign's
-  formations + every job + the five sprint-Q1 pages; an older formation is `noindex`; a preview (`VERCEL_ENV=preview`) is never indexed; the canonical
+  formations + every job + the five sprint-Q1 pages + the sprint-Q4 help page; an older formation is `noindex`; a preview (`VERCEL_ENV=preview`) is never indexed; the canonical
   origin is `VERCEL_PROJECT_PRODUCTION_URL`, never the visitor's Host. robots.txt never blocks the data the pages render from
   (only search, vœux, stats); a failed load goes through `showError`, which keeps the server summary (Codex). A new public page needs a cache policy and a sitemap
   decision. Red team `redteam_seo.py` (G1-G11; its mutants are built IN MEMORY: never write source files from a test).
@@ -543,6 +544,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   is read from its own lineage, VT2); `/api/carte/zones?diplome=*` = every diploma at once (the page when nothing is ticked).
   `journey.group_applies` and `_fold` are memoised (pure: never make them depend on mutable state). Budget on an emulated phone
   (Pixel 5, CPU x4, slow 4G): list < 9 s, zones < 15 s (VT6, `--browser`). Red team `redteam_vitesse.py` (VT1-VT8).
+- **Plain language and human help (sprint Q4, owner 2026-11-13).** No "doublette" (say « paire de spécialités » / « vos deux
+  spécialités »; the official word only as « on dit aussi « doublette » » and in the glossary title), no « en position de recevoir »
+  (« classés assez haut pour recevoir une proposition »), no « votre ligne » (« votre bac ») in anything a student reads (page strings,
+  method texts, glossary, legal.py pages, module messages). Every computed figure is labelled by `estimTag(detail, block, plain)`
+  (same `ESTIM_DEF` explanation; `plain` inside a button), never a hand-written "estimation" badge; a new renderer goes in red team
+  LA2's ESTIMATE_RENDERERS. Zone meanings come from `zoneHelp` (written from ZONE_RULES, never a typed threshold); pills and badges
+  carry it as a title; the folded `zoneLegend()` sits on every page that shows zones. "Et maintenant ?" (`nextSteps(kind)`): links
+  only, no figure, always ending with the help page. Help page `aide.py` (`/aide`, `#/info/aide`): official services and hosts only,
+  numbers as the services publish them (red team's own table), never opening hours. Short texts: sentences <= 30 words,
+  Kandel-Moles >= 70. Red team `redteam_langage.py` (LA1-LA8; `scripts/jstext.py` reads the page strings).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
