@@ -382,7 +382,9 @@ def page_prog(c: Ctx) -> str:
                                   "BAND_SIGMA", "erf", "withinBand", "bandParam", "localAverage", "ZONE_RULES", "MIN_BOUNDS_N",
                                   "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue",
                                   "lectureOf", "readList", "voeuxLocal",
-                                  "zoneShape", "ZONE_FILLED", "zoneMark", "zoneBadge")]   # R4: zones drawn through the shared helpers
+                                  "zoneShape", "ZONE_FILLED", "zoneMark", "zoneBadge",   # R4: zones drawn through the shared helpers
+                                  # sprint Q4: zone titles, the estimation label and "Et maintenant ?"
+                                  "zoneHelp", "ESTIM_DEF", "estimTag", "AIDE_STEP", "NEXT_STEPS", "nextSteps")]
     return HARNESS + "\n".join(parts) + block(js, BLOCK_START, BLOCK_END)
 
 
@@ -679,7 +681,7 @@ def t7(c: Ctx):
             bad.append(("analytics route", name))
     # R1 (owner, 2026-11-11): the calendar is a main tab, the adult page closes "Plus" on a phone
     if not re.search(r'const TAB_OF = \{[^}]*liste: "liste"', js) or not re.search(r'const TAB_OF = \{[^}]*calendrier: "calendrier"', js) \
-            or not re.search(r'const MORE_TABS = \[\.\.\.COMP_TABS, "accompagner"\]', js):
+            or not re.search(r'const MORE_TABS = \[\.\.\.COMP_TABS, "accompagner", "aide"\]', js):          # Q4: then the help page
         bad.append("tabs")
     for href in ("#/calendrier", "#/accompagner"):
         if c.html.count(f'href="{href}"') != 2:
@@ -782,7 +784,7 @@ JS_MUTANTS += [
 TEXT_MUTANTS = [("cache", "calendar shared nowhere", '(r"/api/calendrier", PUBLIC,', '(r"/api/calendrier", NO_STORE,'),
                 ("css", "print keeps the menus", "  header, nav, .tabbar,", "  header,"),
                 ("css", "print in dark colours", "  :root:root:root { --bg: #ffffff;", "  :root:root:root { --bgx: #ffffff;"),
-                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</nav>', "</nav>")]
+                ("html", "menu link dropped", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n  <a href="#/info/aide"', '  <a href="#/info/aide"')]
 
 
 def mutated(old: str, new: str):

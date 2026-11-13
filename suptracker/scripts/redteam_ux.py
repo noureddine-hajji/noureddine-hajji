@@ -140,7 +140,7 @@ def x3(c: Ctx):
     main = ["#/", "#/profil", "#/voeux", "#/calendrier"]                      # R1 (owner, 2026-11-11): the journey tabs
     plus = 'id="more-btn"' in c.html and 'aria-controls="more-menu"' in c.html and 'id="comp-btn"' in c.html and 'aria-controls="comp-menu"' in c.html
     reach = set(top) <= set(bar) | set(more)
-    marked = "markTab(TAB_OF[a] || \"home\");" in c.js and 'setAttribute("aria-current", "page")' in c.js
+    marked = "markTab(a === \"info\" && b === \"aide\" ? \"aide\" : TAB_OF[a] || \"home\");" in c.js and 'setAttribute("aria-current", "page")' in c.js
     mobile = mobile_css(c.css)
     css = bool(re.search(r"\.topnav\s*\{\s*display:\s*none", mobile)) and bool(re.search(r"\.tabbar\s*\{[^}]*position:\s*fixed", mobile)) \
         and bool(re.search(r"body\s*\{[^}]*padding-bottom", mobile))
@@ -365,7 +365,7 @@ UI_MUTANTS = [
     ("glossary missing from Plus", '  <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>',
      '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>', ("html", (x3,))),
     ("Mon profil tab dropped from the bottom bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', ("html", (x3,))),
-    ("current tab never marked", 'markTab(TAB_OF[a] || "home");', "", ("js", (x3,))),
+    ("current tab never marked", 'markTab(a === "info" && b === "aide" ? "aide" : TAB_OF[a] || "home");', "", ("js", (x3,))),
     ("top menu kept on a phone", "  .topnav { display: none; }\n", "", ("css", (x3,))),
     ("touch targets back to 32 px", "a.badge, .toolbar a, input[type=\"search\"], input[type=\"text\"] { min-height: 44px; }",
      "a.badge, .toolbar a, input[type=\"search\"], input[type=\"text\"] { min-height: 32px; }", ("css", (x4,))),
@@ -493,7 +493,7 @@ let PROFILE = null;
 const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--zone-autre)" } };
 const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
-""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
 const out = {};
 out.noProfile = summaryBand(P.r, P.d);
 PROFILE = { serie: "bg" };
@@ -663,7 +663,7 @@ def lot3_ui(js: str, css: str) -> tuple[bool, str]:
 const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
 let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
-""" + "\n".join(top_def(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS",
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS",
                                          "validMoyenne", "bandOf", "moyenneText", "MENTION_SHORT")) + "\n" + blk + """
 const out = {};
 out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);
