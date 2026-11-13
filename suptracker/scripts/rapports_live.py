@@ -195,6 +195,9 @@ def main(db: str, out: str, live: str, budget_min: float) -> None:
 
 # ------------------------------------------------------------------ probe (mode "liveprobe"): what Parcoursup serves today
 PROBE_REPORTS = [("0160006V", "2986", "1833"), ("0720083Z", "8710", "7269"), ("0670080Y", "31389", "24273")]   # owner's examples
+# fiche pages saved whole (design material for the evaluation grids, weights and expectations, owner 2026-11-13): the owner's
+# CPGE ECG Kléber, then one formation of each kind (BTS, BUT, licence, IFSI, PASS, EFTS) with the most admits in 2025
+PROBE_FICHES = ["31389", "20772", "4100", "22938", "23193", "28451", "24991", "2986", "8710"]
 HOSTS = ("dossier.parcoursup.fr", "dossierappel.parcoursup.fr")
 
 
@@ -221,6 +224,18 @@ def probe(http, out: Path, pause: float = 1.5) -> dict:
             res.append({"url": fiche, "status": None if r is None else r.status_code, "closed": is_closed(r),
                         "links": report_links(r.text, fiche) if r is not None else [],
                         "sessions": SESSION_RE.findall(r.text) if r is not None else []})
+    # the whole fiche pages, with every script and data address they name (the grids may be loaded by the page's own code)
+    pages = out / "fiches_live"
+    pages.mkdir(parents=True, exist_ok=True)
+    for t in PROBE_FICHES:
+        url = f"https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={t}&typeBac=0&originePc=0"
+        r = call(http, url, pause=pause)
+        if r is None or r.status_code != 200 or is_closed(r):
+            res.append({"url": url, "saved": False, "status": None if r is None else r.status_code})
+            continue
+        (pages / f"{t}.html").write_text(r.text, encoding="utf-8")
+        refs = sorted(set(re.findall(r'(?:src|href|url)\s*[=:]\s*["\']([^"\']+)["\']', r.text)))
+        res.append({"url": url, "saved": True, "bytes": len(r.content), "refs": [x for x in refs if not x.startswith("#")][:200]})
     summary = {"checked_at": _now(), "results": res}
     out.mkdir(parents=True, exist_ok=True)
     (out / "probe.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), encoding="utf-8")
