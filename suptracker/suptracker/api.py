@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import logging
 import math
 import os
 import unicodedata
@@ -15,7 +16,7 @@ from pathlib import Path
 import duckdb
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
@@ -53,6 +54,7 @@ from . import prevision as PV
 from . import sources as SRC
 from . import contact as CT
 from . import legal as LG
+from . import securite as SEC
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -436,6 +438,29 @@ async def _cache_policy(request: Request, call_next):
                      _asset_version(), fine="moyenne" in request.query_params)
     if h is not None:
         resp.headers["Cache-Control"] = h
+    return resp
+
+
+@app.middleware("http")
+async def _security(request: Request, call_next):
+    """Sprint Q2: the security headers on EVERY answer, errors included (securite.py); HEAD answered as GET without a body
+    (except the search, which records an event); an unhandled error is logged and answered 500 with the same headers."""
+    path = request.url.path
+    head = request.method == "HEAD" and SEC.head_as_get(path)
+    if head:
+        request.scope["method"] = "GET"
+    try:
+        resp = await call_next(request)
+    except Exception:  # noqa: BLE001 - logged; the visitor gets a plain 500 that still carries the headers
+        logging.getLogger("suptracker").exception("unhandled error on %s", path)
+        resp = PlainTextResponse("Internal Server Error", status_code=500)
+    if head:
+        async for _ in resp.body_iterator:          # the GET answer is computed, its body is not sent
+            pass
+        kept = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+        resp = Response(content=b"", status_code=resp.status_code, headers=kept)
+    for k, v in SEC.headers_for(path, SEC.is_https(request.url.scheme, request.headers)).items():
+        resp.headers[k] = v
     return resp
 
 
@@ -1180,7 +1205,12 @@ async def _small_body(request: Request, cap: int) -> bytes:
 @app.post("/api/contact", status_code=201)
 async def contact_post(request: Request):
     """A message from the contact form. Nothing about the sender is stored but what the form holds (contact.py);
-    a message that could not be stored is an error (503), never a fake success. No audience event."""
+    a message that could not be stored is an error (503), never a fake success. No audience event.
+    Sprint Q2: a post another site makes in the visitor's browser is refused (403), and so is a body that is not JSON (415)."""
+    if SEC.cross_site(request.headers, request.headers.get("x-forwarded-host") or request.headers.get("host")):
+        return JSONResponse({"detail": "Envoi refusé : ce formulaire ne s'envoie que depuis SupCompass."}, status_code=403)
+    if not SEC.json_body(request.headers):
+        return JSONResponse({"detail": "Le formulaire envoyé est mal formé."}, status_code=415)
     body = await _small_body(request, CT.MAX_BODY)
     try:
         payload = json.loads(body or b"null")
@@ -1298,7 +1328,7 @@ def _html_404(request: Request, what: str) -> Response:
     return Response(SEO.page(_shell(), head, SEO.not_found_body(what)), status_code=404, media_type="text/html")
 
 
-@app.api_route("/formation/{cod}", methods=["GET", "HEAD"], include_in_schema=False)
+@app.get("/formation/{cod}", include_in_schema=False)          # HEAD: the security middleware (sprint Q2)
 def formation_page(cod: str, request: Request):
     r = SEO.formation(_con().cursor(), cod)
     if r is None:

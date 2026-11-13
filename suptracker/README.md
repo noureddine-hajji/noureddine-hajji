@@ -2880,3 +2880,39 @@ Red team `scripts/redteam_conformite.py` (QC1-QC11):
 - QC10 runs in the browser: the five pages on a phone, wide dark and 320 px, with axe, a sent message, a 503 said, and the
   tile host as the only third party.
 - QC11 is the mutation test.
+
+## Sprint Q2: security (owner, 2026-11-13)
+
+The second sprint of the plan to reach 90/100 (security was scored 5.5/8).
+
+- **One definition** (`securite.py`), applied by one middleware in `api.py` to EVERY answer, errors included (an unhandled
+  error is logged and answered with a plain 500 that carries the headers, never a traceback).
+  - **Content-Security-Policy.** Scripts, fonts and data come from the site only. Images come from the site, `data:` URIs
+    and the map's tile host (the only third party a page contacts). Inline `style` attributes are allowed (the templates
+    use them); inline scripts and `eval` are not. Nothing is allowed for objects, other sites cannot frame the site
+    (`frame-ancestors 'none'`), and `<base>` and forms are limited to the site. FastAPI's `/docs` and `/redoc` load their
+    viewer from a CDN, so they get a wider policy that still forbids framing.
+  - **Other headers.**
+    - `X-Content-Type-Options: nosniff`.
+    - `Referrer-Policy: strict-origin-when-cross-origin`: other sites see the site's origin, never which formation was
+      read; OpenStreetMap's tile policy needs that origin.
+    - `Permissions-Policy`: no camera, microphone, geolocation, payment or USB.
+    - `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`.
+    - `Strict-Transport-Security` on HTTPS only.
+- **HEAD.** Every GET route answers HEAD with the same status and headers and no body (FastAPI answered 405 to monitors and
+  crawlers). The exception is the search, which records an audience event.
+- **Contact form.** A post another site makes in the visitor's browser is refused (403: Sec-Fetch-Site cross-site, or an
+  Origin that is not the site, `null` included). So is a body that is not JSON (415): a cross-site HTML form cannot send
+  JSON without a CORS preflight, which the site never grants.
+
+Red team `scripts/redteam_securite.py` (SE1-SE10):
+- SE1 checks the headers on every route (49 GET routes, plus 404, 405, 422, an error, POST, DELETE and static files) against
+  rules written in the red team.
+- SE2 checks that the page code fits the policy (no inline handler, eval or `javascript:`, only the site's own scripts and
+  JSON-LD, loaded hosts equal to the CSP's), and SE3 checks HEAD.
+- SE4 sends hostile inputs on every GET parameter of the OpenAPI schema: 1,827 requests (SQL, script, traversal, control
+  and unicode characters, huge and edge numbers), with no 5xx and no script echoed.
+- SE5 runs 10 cross-site cases on the contact form. SE6 checks HSTS and the plain 500, SE7 that no CORS grant or cookie is
+  set, and SE8 that no secret is in the tracked files.
+- SE9 runs in the browser: 24 pages with a stored profile raise no CSP violation, and the form sends under the policy.
+- SE10 catches 20/20 mutants.
