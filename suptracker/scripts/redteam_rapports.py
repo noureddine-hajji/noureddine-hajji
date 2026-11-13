@@ -302,7 +302,7 @@ def r4(c: Ctx):
     autres = "Vos deux spécialités dans cette formation : 20 %" in o["card_autres"] and "vos deux spécialités en font partie" in o["card_autres"]
     masked = "chiffres non publiés" in o["card"]
     source = all("voir le rapport" in o[k] and "web.archive.org" in o[k] for k in ("card", "jury"))
-    own = o["card"][o["card"].find("Dans cette formation, par doublette"):o["card"].find("Par doublette de spécialités")]
+    own = o["card"][o["card"].find("Dans cette formation, par paire de spécialités"):o["card"].find("Par paire de spécialités (bac général)")]
     caveat = "pas des chances d'admission" in own and "détaillé par paire de spécialités" in own and "pas des chances d'admission" in o["jury"]
     me_cited = "le rapport de cette formation la cite" in o["jury"] and "Mathématiques expertes" not in o["jury_nome"].split("Options et parcours")[0]
     ok = not raw and not any(unlabelled.values()) and mine and no_est and est_kept and autres and masked and source and caveat and me_cited

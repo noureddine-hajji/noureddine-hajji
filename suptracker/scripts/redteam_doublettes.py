@@ -578,7 +578,7 @@ JOURNEY_MUTANTS = [
 ]
 JS_MUTANTS = [
     ("page ratio inverted", "const r = p.taux / g.tous.taux;", "const r = g.tous.taux / p.taux;"),
-    ("estimate shown without its caveat", "Aucune donnée publique ne donne les doublettes établissement par établissement", "Chiffre propre à l'établissement"),
+    ("estimate shown without its caveat", "Aucune donnée publique ne donne les paires de spécialités établissement par établissement", "Chiffre propre à l'établissement"),
     ("page uses the bucket for a common doublette", "if (mine && !mine.rare) return", "if (mine && false) return"),
     ("route coloured like a zone", 'bg: { label: "Bac général", color: "var(--voie-bg)" }', 'bg: { label: "Bac général", color: "var(--zone-cible)" }'),
     ("national caveat dropped", "Chiffre national du groupe, pas propre à cet établissement. ", ""),
