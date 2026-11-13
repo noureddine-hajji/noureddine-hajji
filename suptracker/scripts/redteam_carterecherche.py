@@ -369,8 +369,11 @@ def cr7(c: Ctx):
     labels = all(x in sec for x in ("Taux d'accès ${esc(ctx.session)}", '"Votre doublette"', '"Votre moyenne parmi les admis"', '"Votre mention parmi les admis"'))
     footnote = "aucun taux d'accès par moyenne n'est publié" in sec and "pas une chance d'admission" in sec and "jamais par chances" in sec
     official = "officiel" in sec and "dblFigure(ch)" in sec and "voieFigure(" in sec and "pickVoie(ch.voies" in sec
-    ok = not chance and not tu and pos_ok and labels and footnote and official
-    return ok, f"chance wording {chance[:2]}; tutoiement {tu[:2]}; position wording {pos_ok}; three labelled figures {labels}; footnote {footnote}; sources {official}"
+    # Codex: the chosen formation's figures are asked whatever chose it (a map marker can be on no loaded page of the list)
+    show = sec[sec.index("function showSel(focus) {"): sec.index("\n  }", sec.index("function showSel(focus) {"))]
+    picked = "if (f) figures([f]);" in show and "focus && f) figures" not in show
+    ok = not chance and not tu and pos_ok and labels and footnote and official and picked
+    return ok, f"chance wording {chance[:2]}; tutoiement {tu[:2]}; position wording {pos_ok}; three labelled figures {labels}; footnote {footnote}; sources {official}; chosen formation's figures asked {picked}"
 
 
 # ------------------------------------------------------------------ CR8
@@ -488,6 +491,7 @@ JS_MUTANTS = [
     ("position called a chance", "des admis sous votre moyenne\" : \"des admis sous ou à votre mention\"} · estimation", "chances d'être admis\" : \"des admis sous ou à votre mention\"} · estimation", "CR7"),
     ("footnote without the caveat", "aucun taux d'accès par moyenne n'est publié", "", "CR7"),
     ("doublette figure not Mes vœux's", "ctx.serie === \"bg\" ? dblFigure(ch)", "ctx.serie === \"bg\" ? pct(ch.taux)", "CR7"),
+    ("marker choice never asks its figures (Codex)", "    if (f) figures([f]);", "    if (focus && f) figures([f]);", "CR7"),
 ]
 
 

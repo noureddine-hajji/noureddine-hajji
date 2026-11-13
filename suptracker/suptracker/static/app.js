@@ -1485,7 +1485,7 @@ async function viewCarte(dArg, mArg) {
     document.getElementById("carte-sel").innerHTML = carteDetail(f, ctx);
     bindVoeuButton(draw);
     document.querySelectorAll(".carte-rc").forEach((el) => el.toggleAttribute("aria-current", el.dataset.pick === carteUI.sel));
-    if (focus && f) figures([f]);
+    if (f) figures([f]);          // a marker's formation may be on no loaded page of the list (Codex): its figures too
     // R9: choosing a formation in the list never moves the map (the list follows the map: it would shrink to one row)
     if (focus && narrow()) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
   }
