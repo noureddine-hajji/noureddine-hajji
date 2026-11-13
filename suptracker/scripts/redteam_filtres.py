@@ -415,7 +415,7 @@ def page_ok(c: Ctx):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const isReo = ", "const REO_LABEL = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "mentionParamsSearch", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "vxProfile", "fiProfileQuery", "searchAdvanced")]
+    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "ESTIM_DEF", "estimTag", "zoneHelp", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "mentionParamsSearch", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "vxProfile", "fiProfileQuery", "searchAdvanced")]
     prog = helpers + "\nconst JV = null;\n" + zones + "\n" + bac + "\n" + "\n".join(parts) + PAGE_PROG
     exe = shutil.which("node")
     if not exe:

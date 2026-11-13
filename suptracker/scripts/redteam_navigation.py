@@ -118,11 +118,11 @@ def u1(c: Ctx):
         bad.append(("phone bar", bar))
     if 'id="more-btn"' not in c.html or 'aria-controls="more-menu"' not in c.html:
         bad.append("no Plus button")
-    if more != COMP + ["#/accompagner"]:
+    if more != COMP + ["#/accompagner", "#/info/aide"]:                 # sprint Q4: the help page
         bad.append(("Plus menu", more))
     if comp != COMP or 'id="comp-btn"' not in c.html or 'aria-controls="comp-menu"' not in c.html:
         bad.append(("Comprendre menu", comp))
-    if topnav != MAIN + COMP + ["#/accompagner"]:
+    if topnav != MAIN + COMP + ["#/accompagner", "#/info/aide"]:
         bad.append(("wide-screen menu", topnav))
     if set(bar) | set(more) != set(topnav):
         bad.append("a page of one menu is missing from the other")
@@ -615,13 +615,13 @@ def u7(c: Ctx):
 MUTANTS = [
     ("html", "Mon profil dropped from the phone bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', "u1"),
     ("html", "glossary missing from Comprendre", '        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n      </div>', "      </div>", "u1"),
-    ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n</nav>', "</nav>", "u1"),
+    ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n  <a href="#/info/aide"', '  <a href="#/info/aide"', "u1"),
     ("js", "map unreachable from Explorer", 'carte: "#/carte", metiers', 'carte: "#/", metiers', "u1"),
     ("js", "search results lose the views", '${explorerViews("liste", q)}', "", "u1"),
     ("css", "chip kept on a phone", "  .profile-chip { display: none; }\n", "", "u1"),
     ("js", "map back under its own tab", 'carte: "home", compare', 'carte: "carte", compare', "u2"),
     ("js", "Où je me situe under no tab", 'parcours: "profil", profil', 'parcours: "parcours", profil', "u2"),
-    ("js", "Plus marks the calendar", 'const MORE_TABS = [...COMP_TABS, "accompagner"];', 'const MORE_TABS = [...COMP_TABS, "calendrier", "accompagner"];', "u2"),
+    ("js", "Plus marks the calendar", 'const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];', 'const MORE_TABS = [...COMP_TABS, "calendrier", "accompagner", "aide"];', "u2"),
     ("js", "profile page not routed", '    if (a === "profil") return await viewProfil();\n', "", "u2"),
     ("js", "menus left open on navigation", "    if (menu) menu.hidden = true;\n  }\n}", "  }\n}", "u2"),
     ("js", "chip unescaped", '`${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}` : p.voie_label ? esc(p.voie_label) : "";',

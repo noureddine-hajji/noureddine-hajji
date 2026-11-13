@@ -65,7 +65,7 @@ STORE_NAME = "Upstash"                                        # analytics.py / c
 OPERATOR = {"tile.openstreetmap.org": "OpenStreetMap Foundation"}   # every host a page loads -> who runs it
 # personal parameters a page may send -> the words the privacy page must use for it (a parameter sent and not said fails QC2)
 PERSONAL = {"serie": ("la série",), "spe1": ("les spécialités",), "spe2": ("les spécialités",), "mention": ("tranche de mention",),
-            "mention_bac": ("tranche de mention",), "moyenne": ("moyenne exacte",), "voie": ("votre ligne du bac technologique",),
+            "mention_bac": ("tranche de mention",), "moyenne": ("moyenne exacte",), "voie": ("la ligne de votre bac technologique",),
             "academie": ("votre académie, si vous l'avez indiquée",), "near": ("votre académie, si vous l'avez indiquée",),
             "ids": ("les codes des formations de votre liste",), "lycee": ("\x00never",), "lat": ("\x00never",), "lon": ("\x00never",)}
 
@@ -664,8 +664,8 @@ def mutants():
     page_mut("the page's subjects differ", "js", '["autre", "Autre chose"]', '["autre", "Autre"]', {"QC4"})
     page_mut("success shown on any answer", "js", "if (r && r.status === 201 && d.ok) {", "if (r) {", {"QC6"})
     page_mut("no report link on the formation page", "js", '${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}', '${feedbackBox("fiche")}', {"QC9"})
-    page_mut("an address that does not open in the app", "js", "(a-propos|contact|mentions-legales|confidentialite|accessibilite)",
-             "(a-propos|contact|mentions-legales|confidentialite)", {"QC9"})
+    page_mut("an address that does not open in the app", "js", "(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide)",
+             "(a-propos|contact|mentions-legales|confidentialite|aide)", {"QC9"})
     page_mut("tutoiement in the form", "js", "Votre message <span", "Ton message <span", {"QC9"})
     page_mut("the app's title keeps the old tagline", "js", "const HOME_TITLE = \"SupCompass — ", "const HOME_TITLE = \"SupCompass — les vrais chiffres ", {"QC8"})
     return out

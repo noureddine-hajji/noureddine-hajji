@@ -262,7 +262,8 @@ def vi3(c: Ctx):
 def base_defs(js: str) -> str:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "zoneBadge")]
+    parts = [top(js, n) for n in ("ZONE_RULES", "zoneHelp", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml",
+                                  "zoneBadge")]                     # sprint Q4: zone titles and the estimation label
     return helpers + "\n" + zones + "\n" + "\n".join(parts)
 
 
@@ -656,13 +657,13 @@ MUTANTS = [
     ("css", "a colour literal in a rule", ".rc-est strong { font-size: var(--fs-md); color: var(--ink); }",
      ".rc-est strong { font-size: var(--fs-md); color: #333333; }", (vi1,)),
     ("js", "every zone a circle", 'return z === "cible" ? `<rect', 'return z === "nope" ? `<rect', (vi4,)),
-    ("js", "the pill without its mark", 'style="background:${zz.color}">${zoneMark(z)}${esc(', 'style="background:${zz.color}">${esc(', (vi4,)),
+    ("js", "the pill without its mark", '` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label.replace(', '` title="${esc(h)}"` : ""}>${esc(zz.label.replace(', (vi4,)),
     ("js", "the badge without its name", '${zoneMark(z)}${esc(zz.label)}</span>', "${zoneMark(z)}</span>", (vi4,)),
     ("js", "the scatter in circles only", "g += zoneShape(f.zone, x(f.taux_acces_ens)", 'g += zoneShape("securite", x(f.taux_acces_ens)', (vi4,)),
     ("js", "a card title unescaped", '<a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>',
      '<a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${r.g_ea_lib_vx}</a>', (vi5,)),
     ("js", "the official rate unlabelled", '<div class="muted small">taux d\'accès officiel</div>', '<div class="muted small">taux d\'accès</div>', (vi5,)),
-    ("js", "the estimate not said as one", "accès estimé pour votre bac (estimation)", "accès pour votre bac", (vi5,)),
+    ("js", "the estimate not said as one", "accès estimé pour votre bac ${estimTag(", "accès pour votre bac ${(() => \"\")(", (vi5,)),
     ("js", "a 0 % estimate hidden", "const est = r.estime_serie !== undefined && r.estime_serie !== null", "const est = r.estime_serie", (vi5,)),
     ("js", "the zone edge in the accent", '${z ? ` style="--zc:${ZONES[z].color}"` : ""}', '${z ? ` style="--zc:var(--accent)"` : ""}', (vi5,)),
     ("js", "an unnamed line chart", 'role="img" aria-label="${esc(chartName(series.map((x) => x.name), years))}"', 'role="img"', (vi7,)),

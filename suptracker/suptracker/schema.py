@@ -151,11 +151,11 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("taux_acces_ens", "DOUBLE", "taux_acces", stage="indicator",
       label="Taux d'accès (phase principale)"),
     F("part_terminale_generale_en_position_admis_pp", "DOUBLE", "part_acces_gen", stage="indicator",
-      label="Part des terminales générales parmi les candidats en position de recevoir une proposition (PP)"),
+      label="Part des terminales générales parmi les candidats classés assez haut pour recevoir une proposition (phase principale)"),
     F("part_terminale_techno_en_position_admis_pp", "DOUBLE", "part_acces_tec", stage="indicator",
-      label="Part des terminales technologiques parmi les candidats en position de recevoir une proposition (PP)"),
+      label="Part des terminales technologiques parmi les candidats classés assez haut pour recevoir une proposition (phase principale)"),
     F("part_terminale_pro_en_position_admis_pp", "DOUBLE", "part_acces_pro", stage="indicator",
-      label="Part des terminales professionnelles parmi les candidats en position de recevoir une proposition (PP)"),
+      label="Part des terminales professionnelles parmi les candidats classés assez haut pour recevoir une proposition (phase principale)"),
 )
 
 SERIES_FIELDS = ("acc_bg", "acc_bt", "acc_bp")

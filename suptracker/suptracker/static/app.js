@@ -14,6 +14,55 @@ const tip = (key) => {
 };
 const label = (f) => META?.fields?.[f]?.label || f;
 
+// ---- sprint Q4 (owner, 2026-11-13): plain language. ONE "estimation" label for every figure the site computes, with the same
+// short explanation everywhere (the detail says which calculation); zones explained in words from their own rules (ZONE_RULES);
+// an "Et maintenant ?" block on the pages where a student decides; a page of human help (#/info/aide, aide.py).
+// Red team scripts/redteam_langage.py (LA1-LA8).
+const ESTIM_DEF = "Estimation : un chiffre calculé par SupCompass à partir de chiffres officiels publiés. Ce n'est pas un chiffre officiel, ni une chance d'admission.";
+// block: a line under the figure (div); plain: inside a button (a summary tile), where a second button cannot sit
+function estimTag(detail, block, plain) {
+  const t = block ? "div" : "span";
+  const tipBtn = plain ? "" : `<button type="button" class="tip" aria-label="${esc(ESTIM_DEF)}" data-tip="${esc(ESTIM_DEF)}">i</button>`;
+  return `<${t} class="estim"><span class="estim-tag">estimation</span>${tipBtn}${detail ? ` · ${detail}` : ""}</${t}>`;
+}
+// what each zone means, in words, from the zone rules themselves (journey.py constants, mirrored in ZONE_RULES)
+function zoneHelp(z) {
+  const R = ZONE_RULES, sur100 = (x) => Math.round(x * 100);
+  return {
+    securite: `La plupart des candidats ont été appelés (taux d'accès d'au moins ${R.securite_access} %) et au moins ${sur100(R.securite_cdf)} admis sur 100 avaient un niveau au bac égal ou inférieur au vôtre.`,
+    cible: "Entre sécurité et ambitieux : des admis des années passées avaient un niveau proche du vôtre.",
+    ambitieux: `Peu de candidats ont été appelés (taux d'accès sous ${R.ambitieux_access} %), ou moins de ${sur100(R.ambitieux_cdf)} admis sur 100 avaient un niveau au bac égal ou inférieur au vôtre.`,
+    hors_profil: `Presque aucun admis (moins de ${sur100(R.hors_profil_cdf)} sur 100) n'avait un niveau au bac égal ou inférieur au vôtre.`,
+  }[z] || "";
+}
+const ZONE_NOT_CHANCE = "Votre niveau, c'est votre mention, ou votre moyenne si vous l'avez indiquée. Une zone décrit les admis des années passées : ce n'est jamais une chance d'admission.";
+function zoneLegend() {
+  return `<details class="zone-legend"><summary>Que veulent dire les zones ?</summary><ul>${["securite", "cible", "ambitieux", "hors_profil"].map((z) =>
+    `<li>${zonePillHtml(z)} ${esc(zoneHelp(z))}</li>`).join("")}</ul><p class="small muted">${esc(ZONE_NOT_CHANCE)}</p></details>`;
+}
+// "Et maintenant ?": a few next actions, always ending with a person to talk to. Links only (no figure, no ranking).
+const AIDE_STEP = { href: "#/info/aide", text: "En parler à quelqu'un : professeur principal, psychologue de l'Éducation nationale, CIO, Mon orientation en ligne" };
+const NEXT_STEPS = {
+  formation: [{ href: "#/voeux", text: "Voir votre liste Mes vœux et l'équilibre de ses zones" },
+    { href: "#/guide", text: "Construire une liste équilibrée, avec au moins un vœu de sécurité" }],
+  parcours: [{ href: "#/guide", text: "Choisir des vœux dans plusieurs zones, avec au moins un vœu de sécurité" },
+    { href: "#/carte", text: "Voir ces formations sur la carte, près de chez vous" }],
+  voeux: [{ href: "#/guide", text: "Vérifier votre liste étape par étape, puis la partager avec un adulte" },
+    { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
+  reorientation: [{ href: "#/voeux", text: "Garder vos formations dans Mes vœux" },
+    { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
+  metier: [{ href: "#/metiers", text: "Comparer avec d'autres métiers" },
+    { href: "#/carte", text: "Voir les formations sur la carte" }],
+  premiere: [{ href: "#/specialites", text: "Voir quelles spécialités ont les admis de chaque type de formation" },
+    { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
+};
+const NEXT_KINDS = Object.keys(NEXT_STEPS);
+function nextSteps(kind, extra) {
+  const items = [...(extra || []), ...(NEXT_STEPS[kind] || []), AIDE_STEP];
+  return `<section class="card next-steps" aria-labelledby="next-${kind}"><h2 id="next-${kind}">Et maintenant ?</h2><ul>${items.map((x) =>
+    `<li><a href="${esc(x.href)}"${/^https:/.test(x.href) ? ' target="_blank" rel="noopener"' : ""}>${esc(x.text)}${/^https:/.test(x.href) ? " ↗" : ""}</a></li>`).join("")}</ul></section>`;
+}
+
 // A FastAPI validation error carries a LIST of objects: shown raw, the page read "[object Object]" (product audit, 2026-11-10)
 function apiErrorText(detail) {
   if (typeof detail === "string" && detail) return detail;
@@ -638,7 +687,7 @@ function explorerViews(cur, q = "") {
 function homeProfile() {
   const raw = store.get("profile", null);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, votre ligne dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
+    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, chiffre de votre bac dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
       <a class="btnlink" href="#/profil">Créer mon profil</a></div>`;
   }
   const p = vxProfile(raw);
@@ -661,7 +710,7 @@ function viewHome() {
     <a class="door" href="#/reorientation"><span class="door-ico" aria-hidden="true">${ICONS.reorientation}</span><strong>Je me réoriente ou je reprends mes études</strong>
       <span>Vous n'êtes plus en terminale : voyez les formations qui accueillent des candidats comme vous.</span></a>
   </div>
-  <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les doublettes possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Parents et professeurs</a></p>
+  <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les paires possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Parents et professeurs</a></p>
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
     ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
@@ -744,13 +793,15 @@ function zoneMark(z) {
 function zonePillHtml(z, uncertain) {
   const zz = ZONES[z];
   if (!zz) return "";
-  return `<span class="zone-pill" style="background:${zz.color}">${zoneMark(z)}${esc(zz.label.replace(/^Vœu /, ""))}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
+  const h = zoneHelp(z);
+  return `<span class="zone-pill" style="background:${zz.color}"${h ? ` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label.replace(/^Vœu /, ""))}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
 }
 // a zone badge (tables): outlined in the zone's token, its shape, its full name
 function zoneBadge(z, uncertain) {
   const zz = ZONES[z];
   if (!zz) return '<span class="badge">non situé</span>';
-  return `<span class="badge zbadge" style="--zc:${zz.color}">${zoneMark(z)}${esc(zz.label)}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
+  const h = zoneHelp(z);
+  return `<span class="badge zbadge" style="--zc:${zz.color}"${h ? ` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label)}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
 }
 // the search query of the profile (terminale only: no zone exists outside terminale, sprint 21)
 function fiProfileQuery(qs) {
@@ -787,7 +838,7 @@ function searchAdvanced(P, go, d, chip) {
 function resultCard(r) {
   const z = r.zone && ZONES[r.zone] ? r.zone : null;
   const est = r.estime_serie !== undefined && r.estime_serie !== null
-    ? `<div class="rc-est"><strong>${fmt(r.estime_serie)} %</strong><span>accès estimé pour votre bac (estimation)${r.estime_fragile ? ", peu de candidats" : ""}</span></div>` : "";
+    ? `<div class="rc-est"><strong>${fmt(r.estime_serie)} %</strong><span>accès estimé pour votre bac ${estimTag(r.estime_fragile ? "peu de candidats" : "")}</span></div>` : "";
   return `<article class="result rc${z ? " rc-z" : ""}"${z ? ` style="--zc:${ZONES[z].color}"` : ""}>
     <div class="rc-main">
       <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
@@ -905,12 +956,12 @@ function semblablesDoublettes(sem, dkey, est) {
   const mine = dkey ? sem.doublettes.find((x) => x.key === dkey) : null;
   const rows = [mine, ...sem.doublettes.filter((x) => x !== mine).slice(0, 6)].filter(Boolean);
   return `<h4>Dans les formations semblables (${semName(sem)}, rapports publics ${esc(sem.session)})</h4>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Doublette</th><th class="num">Taux d'accès</th><th class="num">Candidats</th><th class="num">Rapports</th></tr>
-    ${rows.map((x) => `<tr${x === mine ? ' class="dbl-mine"' : ""}><td>${x === mine ? "Votre doublette : " : ""}${esc(x.label)}</td>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Spécialités</th><th class="num">Taux d'accès</th><th class="num">Candidats</th><th class="num">Rapports</th></tr>
+    ${rows.map((x) => `<tr${x === mine ? ' class="dbl-mine"' : ""}><td>${x === mine ? "Vos spécialités : " : ""}${esc(x.label)}</td>
       <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${rateBar(x.taux, "var(--voie-bg)")}</td>
       <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td>
       <td class="num" data-label="Rapports">${fmt(x.n_rapports)}</td></tr>`).join("")}</table></div>
-    <p class="muted small">Pour chaque doublette, les rapports des formations semblables qui la détaillent (au moins ${fmt(sem.min_rapports)} rapports et ${fmt(sem.min_candidats)} candidats), additionnés : candidats en position de recevoir une proposition en phase principale sur candidats ayant confirmé le vœu. Ce ne sont pas les chiffres de cette formation, et ce ne sont pas des chances d'admission.${dkey && !mine && est === null ? " Votre doublette n'est détaillée dans aucun ou dans trop peu de ces rapports." : ""}</p>`;
+    <p class="muted small">Pour chaque paire de spécialités, les rapports des formations semblables qui la détaillent (au moins ${fmt(sem.min_rapports)} rapports et ${fmt(sem.min_candidats)} candidats), additionnés : candidats classés assez haut pour recevoir une proposition en phase principale, sur les candidats ayant confirmé le vœu. Ce ne sont pas les chiffres de cette formation, et ce ne sont pas des chances d'admission.${dkey && !mine && est === null ? " Vos deux spécialités ne sont détaillées dans aucun ou dans trop peu de ces rapports." : ""}</p>`;
 }
 // Codex (PR #37): the pooled figures say which campaigns they cumulate; a group with a counting break (doublettes.BREAK_*)
 // names the left-out campaigns and why, next to the figures
@@ -934,26 +985,26 @@ function doubletteCard(d, rp, sem) {
   const dkey0 = profileDkey(prof);
   // where this formation's own report has no bac général table: the similar formations' reports, then the national group
   const semEst = own.hasBg ? null : estimateSemblable(d.series, sem, dkey0);
-  const semBlock = own.hasBg ? "" : `${semEst ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(semEst.taux)}</strong> <span class="estim">estimation à partir de ${fmt(semEst.n_rapports)} rapports de formations semblables</span>${rateBar(semEst.taux, "var(--voie-bg)")}</p>
-      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(semEst.base)}${semEst.fragile ? ", peu de candidats" : ""}) × écart de votre doublette dans ${fmt(semEst.n_rapports)} rapports publics ${esc(sem.session)} de formations semblables (${semName(sem)}) : ${pct1(semEst.mine)} contre ${pct1(semEst.tous)} pour tous les bacheliers généraux de ces mêmes rapports. ${rp ? "Le rapport de cette formation ne détaille pas les doublettes" : "Cette formation n'a pas de rapport public vérifié pour cette session"} : ce chiffre suppose que l'écart mesuré dans les formations semblables vaut aussi ici.</p></div>` : ""}${semblablesDoublettes(sem, dkey0, semEst)}`;
+  const semBlock = own.hasBg ? "" : `${semEst ? `<div class="dbl-est"><p class="small"><strong>Vos deux spécialités dans cette formation : ${pct1(semEst.taux)}</strong> ${estimTag(`à partir de ${fmt(semEst.n_rapports)} rapports de formations semblables`)}${rateBar(semEst.taux, "var(--voie-bg)")}</p>
+      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(semEst.base)}${semEst.fragile ? ", peu de candidats" : ""}) × écart de vos deux spécialités dans ${fmt(semEst.n_rapports)} rapports publics ${esc(sem.session)} de formations semblables (${semName(sem)}) : ${pct1(semEst.mine)} contre ${pct1(semEst.tous)} pour tous les bacheliers généraux de ces mêmes rapports. ${rp ? "Le rapport de cette formation ne détaille pas les paires de spécialités" : "Cette formation n'a pas de rapport public vérifié pour cette session"} : ce chiffre suppose que l'écart mesuré dans les formations semblables vaut aussi ici.</p></div>` : ""}${semblablesDoublettes(sem, dkey0, semEst)}`;
   let dbl;
-  if (d.status !== "ok") dbl = `<p class="muted small">Pas de donnée par doublette pour ce type de formation : le ministère ne la publie que pour les groupes de formations qu'il suit.</p>`;
+  if (d.status !== "ok") dbl = `<p class="muted small">Pas de donnée par paire de spécialités pour ce type de formation : le ministère ne la publie que pour les groupes de formations qu'il suit.</p>`;
   else {
     const g = d.groupe, dkey = profileDkey(prof), mine = pickDoublette(g, dkey);
     const row = (lab, x, color, extra = "", cls = "") => `<tr${cls}><td>${lab}${extra}</td><td class="num" data-label="Taux de proposition">${pct1(x.taux)}${rateBar(x.taux, color)}</td><td class="num" data-label="Candidats">${fmt(x.candidats)}</td></tr>`;
     const top = g.doublettes.filter((x) => !x.rare && x.key !== (mine && mine.source === "doublette" ? dkey : "")).slice(0, 5);
     // the estimate is only shown when this formation's report gives no bac général figure
     const est = own.hasBg || semEst ? null : estimateDoublette(d.series, g, dkey);
-    const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(est.taux)}</strong> <span class="estim">estimation</span>${rateBar(est.taux, "var(--voie-bg)")}</p>
-      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres doublettes »" : "votre doublette"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les doublettes établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
+    const estBlock = est ? `<div class="dbl-est"><p class="small"><strong>Vos deux spécialités dans cette formation : ${pct1(est.taux)}</strong> ${estimTag()}${rateBar(est.taux, "var(--voie-bg)")}</p>
+      <p class="muted small">Calcul : taux de proposition des bacheliers généraux de cette formation (${pct1(est.base)}${est.fragile ? ", peu de candidats" : ""}) × écart de ${est.source === "autres" ? "vos « Autres paires de spécialités »" : "vos deux spécialités"} dans le groupe au niveau national (${pct1(est.mine)} contre ${pct1(est.tous)} pour tous les bacheliers généraux). Aucune donnée publique ne donne les paires de spécialités établissement par établissement : ce chiffre suppose que l'écart national vaut aussi ici.</p></div>` : "";
     dbl = `${estBlock}<h4>Détail national du groupe</h4><p class="small">Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>
-      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Doublette</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>
-      ${mine ? row(`Votre doublette : ${esc(mine.label)}`, mine, "var(--voie-bg)", mine.source === "autres" ? `<div class="estim">peu de candidats avec cette doublette : chiffre des « Autres doublettes » (${fmt(mine.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats regroupées), estimation</div>` : "", ' class="dbl-mine"') : ""}
+      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Spécialités</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>
+      ${mine ? row(`Vos spécialités : ${esc(mine.label)}`, mine, "var(--voie-bg)", mine.source === "autres" ? estimTag(`peu de candidats ont vos deux spécialités : chiffre des « Autres paires de spécialités » (${fmt(mine.n_doublettes)} paires de moins de ${DBL_SEUIL} candidats regroupées)`, true) : "", ' class="dbl-mine"') : ""}
       ${row("Tous les bacheliers généraux du groupe", g.tous, "var(--muted)")}
       ${top.map((x) => row(esc(x.label), x, "var(--voie-bg)")).join("")}
-      ${g.autres.candidats ? row(`Autres doublettes <span class="estim">(${fmt(g.autres.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats)</span>`, g.autres, "var(--voie-bg)") : ""}
+      ${g.autres.candidats ? row(`Autres paires de spécialités <span class="estim">(${fmt(g.autres.n_doublettes)} paires de moins de ${DBL_SEUIL} candidats)</span>`, g.autres, "var(--voie-bg)") : ""}
       </table></div>
-      ${!dkey ? `<p class="small"><a href="#/profil">Indiquez vos spécialités dans « Mon profil »</a> pour voir votre doublette en premier.</p>` : ""}
+      ${!dkey ? `<p class="small"><a href="#/profil">Indiquez vos spécialités dans « Mon profil »</a> pour voir vos deux spécialités en premier.</p>` : ""}
       <p class="muted small">${DBL_CAVEAT}</p>`;
   }
   return `<div class="card"><h2>Selon votre bac</h2>
@@ -961,7 +1012,7 @@ function doubletteCard(d, rp, sem) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
     ${own.html}
-    <h3>Par doublette de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${semBlock}${dbl}</div>`;
+    <h3>Par paire de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${semBlock}${dbl}</div>`;
 }
 // ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
 const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
@@ -989,7 +1040,7 @@ function pickVoie(rp, bac, key) {
   return other ? { ...other, source: "autres" } : null;
 }
 const VOIE_WORD = { bt: "série", bp: "spécialité" };
-const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été en position de recevoir une proposition en phase principale : le taux d'accès de la formation, détaillé par doublette, calculé à partir des effectifs publiés dans son rapport. Seuls y figurent les candidats scolarisés en terminale en France depuis 2020-2021. Ce sont des résultats passés, pas des chances d'admission.";
+const RP_CAVEAT = "Part des candidats ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition en phase principale : le taux d'accès de la formation, détaillé par paire de spécialités, calculé à partir des effectifs publiés dans son rapport. Seuls y figurent les candidats scolarisés en terminale en France depuis 2020-2021. Ce sont des résultats passés, pas des chances d'admission.";
 // a report SIES has not published the figures of yet (owner's choice: shown, with this mark)
 const rpPending = (rp) => (rp && rp.recoupe === false ? ` <span class="badge warnb">pas encore recoupé avec les chiffres de ${esc(rp.session)}</span>` : "");
 function rapportSource(rp) {
@@ -1006,27 +1057,27 @@ function rapportDoublettes(rp, prof) {
   const blocks = ["bg", "bt", "bp"].map((v) => {
     const rows = rp.doublettes[v] || [];
     if (!rows.length) return (rp.masques || []).includes(v) && (v === "bg" || v !== myVoie) ? `<p class="small">${voiePill(v)} <span class="muted">chiffres non publiés par la formation (effectifs trop faibles)</span></p>` : "";
-    return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Doublette"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
+    return `<div class="scroll"><table class="stack"><tr class="stack-head"><th>${voiePill(v)} ${v === "bp" ? "Spécialité" : "Spécialités"}</th><th class="num">Taux d'accès</th><th class="num">Candidats</th></tr>
       ${rows.map((x) => { const me = v === "bg" && mine && (mine.source === "doublette" ? x.key === dkey : x.autres) && myVoie === "bg";
         const meV = v === myVoie && mineV && (mineV.source === "voie" ? x.voie === vkey : x.autres);
-        const tag = me ? (mine.source === "autres" ? "votre doublette en fait partie" : "votre doublette")
-          : meV ? (mineV.source === "autres" ? `votre ${VOIE_WORD[v]} en fait partie` : "votre ligne") : "";
+        const tag = me ? (mine.source === "autres" ? "vos deux spécialités en font partie" : "vos deux spécialités")
+          : meV ? (mineV.source === "autres" ? `votre ${VOIE_WORD[v]} en fait partie` : "votre bac") : "";
         return `<tr${me || meV ? ' class="dbl-mine"' : ""}><td>${esc(x.libelle)}${tag ? ` <span class="estim">${tag}</span>` : ""}</td>
         <td class="num" data-label="Taux d'accès">${pct1(x.taux)}${x.taux !== null && x.taux !== undefined ? rateBar(x.taux, VOIES[v].color) : ""}</td>
         <td class="num" data-label="Candidats">${fmt(x.en_position)} sur ${fmt(x.confirmes)}</td></tr>`; }).join("")}</table></div>`;
   }).join("");
   if (!blocks) return { html: "", hasBg: false };
-  const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Votre doublette dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres doublettes » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
-    <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une doublette autre que celles détaillées" : "cette doublette"} ont été en position de recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses doublettes les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
+  const head = mine && myVoie === "bg" ? `<div class="dbl-est"><p class="small"><strong>Vos deux spécialités dans cette formation : ${pct1(mine.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}${mine.source === "autres" ? ", ligne « Autres paires de spécialités » de la formation" : ""}</span>${rateBar(mine.taux, "var(--voie-bg)")}</p>
+    <p class="muted small">${fmt(mine.en_position)} candidats sur ${fmt(mine.confirmes)} ayant ${mine.source === "autres" ? "une paire de spécialités autre que celles détaillées" : "cette paire de spécialités"} ont été classés assez haut pour recevoir une proposition.${mine.source === "autres" ? " La formation ne détaille que ses paires de spécialités les plus fréquentes : la vôtre est comptée avec les autres." : ""}</p></div>` : "";
   const voieRows = vkey !== null || myVoie === "bt" || myVoie === "bp" ? (rp.doublettes[myVoie] || []) : [];
   const headV = !(myVoie === "bt" || myVoie === "bp") ? ""
-    : mineV ? `<div class="dbl-est"><p class="small"><strong>Votre ligne dans cette formation : ${pct1(mineV.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}, ligne « ${esc(mineV.libelle)} »${mineV.source === "autres" ? " de la formation" : ""}</span>${rateBar(mineV.taux, VOIES[myVoie].color)}</p>
-    <p class="muted small">${fmt(mineV.en_position)} candidats sur ${fmt(mineV.confirmes)} ${mineV.source === "autres" ? `dont la ${VOIE_WORD[myVoie]} n'est pas détaillée` : `de votre ${VOIE_WORD[myVoie]}`} ont été en position de recevoir une proposition.${mineV.source === "autres" ? ` La formation ne détaille que ses ${VOIE_WORD[myVoie]}s les plus fréquentes : la vôtre est comptée avec les autres.` : ""}</p></div>`
+    : mineV ? `<div class="dbl-est"><p class="small"><strong>Votre bac dans cette formation : ${pct1(mineV.taux)}</strong> <span class="estim">rapport public ${esc(rp.session)}, ligne « ${esc(mineV.libelle)} »${mineV.source === "autres" ? " de la formation" : ""}</span>${rateBar(mineV.taux, VOIES[myVoie].color)}</p>
+    <p class="muted small">${fmt(mineV.en_position)} candidats sur ${fmt(mineV.confirmes)} ${mineV.source === "autres" ? `dont la ${VOIE_WORD[myVoie]} n'est pas détaillée` : `de votre ${VOIE_WORD[myVoie]}`} ont été classés assez haut pour recevoir une proposition.${mineV.source === "autres" ? ` La formation ne détaille que ses ${VOIE_WORD[myVoie]}s les plus fréquentes : la vôtre est comptée avec les autres.` : ""}</p></div>`
     : (rp.masques || []).includes(myVoie) ? `<p class="small">Pour le ${myVoie === "bt" ? "bac technologique" : "bac professionnel"}, la formation n'a pas publié son tableau (effectifs trop faibles) : pas de ligne pour vous dans ce rapport.</p>`
-    : voieRows.length && !vkey ? `<p class="small"><a href="#/profil">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir votre ligne.</p>`
+    : voieRows.length && !vkey ? `<p class="small"><a href="#/profil">Indiquez votre ${myVoie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"}</a> pour voir le chiffre de votre bac.</p>`
     : voieRows.length ? `<p class="small">Votre ${VOIE_WORD[myVoie]} n'apparaît pas dans les rapports de la session ${esc(rp.session)} : pas de ligne comparable dans ce rapport.</p>` : "";
   const { bg: bgRows = [] } = rp.doublettes;
-  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par doublette, série ou spécialité (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${headV}${blocks}
+  return { hasBg: !!bgRows.length, html: `<h3>Dans cette formation, par paire de spécialités, série ou spécialité (rapport public ${esc(rp.session)})${rpPending(rp)}</h3>${head}${headV}${blocks}
     <p class="muted small">${RP_CAVEAT}</p><p class="muted small">${rapportSource(rp)}</p>` };
 }
 // what the jury looks at: its criteria with the published importance, the specialties it takes into account, the options it
@@ -1111,9 +1162,9 @@ function doubletteCharts(d, years, sem, rp) {
     // the formation page's estimate: none beside a published figure, the similar formations first, then the national group
     const sEst = ownHasBg(rp) ? null : estimateSemblable(d.series, sem, dk);
     const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);
-    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres doublettes, groupe national (estimation)" : `Votre doublette : ${mine.label}, groupe national`, color: "var(--c2)", dash: "6 4", values: at(mine.trend, "taux") });
-    if (est) lines.unshift({ name: sEst ? `Votre doublette dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Votre doublette dans cette formation (estimation)", color: "var(--c1)", dash: "", values: at(est.trend, "taux") });
-    second = `<div class="card"><h3>Votre doublette : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${lineLegend(lines)}${lineChart(years, lines)}
+    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres paires de spécialités, groupe national (estimation)" : `Vos spécialités : ${mine.label}, groupe national`, color: "var(--c2)", dash: "6 4", values: at(mine.trend, "taux") });
+    if (est) lines.unshift({ name: sEst ? `Vos deux spécialités dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Vos deux spécialités dans cette formation (estimation)", color: "var(--c1)", dash: "", values: at(est.trend, "taux") });
+    second = `<div class="card"><h3>Vos deux spécialités : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${lineLegend(lines)}${lineChart(years, lines)}
       <p class="muted small">${DBL_CAVEAT}</p></div>`;
   }
   return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${lineLegend(series)}${lineChart(years, series)}
@@ -1277,9 +1328,9 @@ function cartePosition(L, taux, band, g) {
 const pctRange = (lo, hi) => { const a = Math.round(100 * lo), b = Math.round(100 * hi); return a === b ? `${a} %` : `${a} à ${b} %`; };
 function cartePosFigure(pos, compact) {
   if (!pos) return '<span class="muted small">non publié</span>';
-  if (compact) return `${pctRange(pos.lo, pos.hi)}<div class="estim">${pos.moyenne ? "des admis sous votre moyenne" : "des admis sous ou à votre mention"} · estimation</div>`;
-  return `${pctRange(pos.lo, pos.hi)}<div class="estim">${pos.moyenne ? "des admis néo-bacheliers avaient une moyenne plus basse que la vôtre · estimation"
-    : "des admis néo-bacheliers avaient une mention plus basse (bas de la fourchette) ou égale (haut) · indiquez votre moyenne pour préciser"}</div>`;
+  if (compact) return `${pctRange(pos.lo, pos.hi)}${estimTag(pos.moyenne ? "des admis sous votre moyenne" : "des admis sous ou à votre mention", true)}`;
+  return `${pctRange(pos.lo, pos.hi)}${pos.moyenne ? estimTag("des admis néo-bacheliers avaient une moyenne plus basse que la vôtre", true)
+    : '<div class="estim">des admis néo-bacheliers avaient une mention plus basse (bas de la fourchette) ou égale (haut) · indiquez votre moyenne pour préciser</div>'}`;
 }
 // ctx: { ok, prof, serie, chiffres: Map(code -> voeux.figures answer, or null while it loads), lec: {code: lec}, band, g, session }
 // R10 (owner, 2026-11-13): the card reads like Parcoursup's, compact: statut, selectivity and zone first; the access rate of
@@ -1304,7 +1355,7 @@ function carteMajo(f) {
 }
 function carteFigures(f, ctx) {
   if (f.stats === false) return "";
-  if (!ctx.ok) return `<p class="small muted"><a href="#/profil">Indiquez votre profil</a> : votre zone, votre doublette et votre moyenne parmi les admis.</p>`;
+  if (!ctx.ok) return `<p class="small muted"><a href="#/profil">Indiquez votre profil</a> : votre zone, le chiffre de vos deux spécialités et votre moyenne parmi les admis.</p>`;
   const ch = ctx.chiffres.get(f.cod_aff_form);
   // bac techno / pro: the student's line is picked HERE (pickVoie): the series or specialty is sent only to /api/voeux
   const pv = ch && ch.voies ? pickVoie(ch.voies, ctx.serie, ctx.prof.voie || null) : null;
@@ -1312,7 +1363,7 @@ function carteFigures(f, ctx) {
     : ctx.serie === "bg" ? dblFigure(ch) : voieFigure(pv ? { ...pv, session: ch.voies.session, recoupe: ch.voies.recoupe } : null, ctx.prof);
   const pos = cartePosition((ctx.lec || {})[f.cod_aff_form], f.taux_acces_ens, ctx.band, ctx.g);
   return `<div class="cfigs">
-    <div class="cf" data-cfig="${esc(f.cod_aff_form)}"><span class="cf-k">${ctx.serie === "bg" ? "Votre doublette" : "Votre ligne du rapport"}</span><span class="cf-v">${second}</span></div>
+    <div class="cf" data-cfig="${esc(f.cod_aff_form)}"><span class="cf-k">${ctx.serie === "bg" ? "Vos deux spécialités" : "Votre bac dans le rapport"}</span><span class="cf-v">${second}</span></div>
     <div class="cf"><span class="cf-k">${ctx.g !== null && ctx.g !== undefined ? "Votre moyenne parmi les admis" : "Votre mention parmi les admis"}</span><span class="cf-v">${cartePosFigure(pos, ctx.compact)}</span></div></div>`;
 }
 function compareButton(cod) {
@@ -1454,7 +1505,7 @@ async function viewCarte(dArg, mArg) {
       <p class="muted small" id="carte-count"></p>
       <div id="carte-sel" aria-live="off"></div>
       <div id="carte-items"></div>
-      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance et" : ""} par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (doublette, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Votre doublette : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
+      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance et" : ""} par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (paire de spécialités, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Vos deux spécialités : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
     </section>
     <div class="carte-mapcol">
       <div class="legend" id="carte-legend"></div>
@@ -1648,32 +1699,32 @@ function profileRate(d, prof) {
     if (!dkey) return { kind: "incomplet" };                   // review: no doublette without two distinct specialties
     if (ownHasBg(rp)) {
       const x = pickRapport(rp, dkey);
-      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "votre doublette, ligne « Autres doublettes »" : x.libelle,
+      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "vos deux spécialités, ligne « Autres paires de spécialités »" : x.libelle,
         source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: x.en_position, confirmes: x.confirmes }
-        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };
+        : { kind: "aucun", what: "vos deux spécialités", why: `pas de ligne dans le rapport ${rp.session}` };
     }
     const sem = estimateSemblable(series, d.semblables, dkey);
     if (sem && estAt(sem) !== null) return { kind: "estimation", taux: estAt(sem), what: sem.label, source: "semblables", n_rapports: sem.n_rapports };
     const nat = dbl && dbl.status === "ok" ? estimateDoublette(series, dbl.groupe, dkey) : null;
-    if (nat && estAt(nat) !== null) return { kind: "estimation", taux: estAt(nat), what: nat.source === "autres" ? "votre doublette, « Autres doublettes »" : nat.label, source: "national" };
+    if (nat && estAt(nat) !== null) return { kind: "estimation", taux: estAt(nat), what: nat.source === "autres" ? "vos deux spécialités, « Autres paires de spécialités »" : nat.label, source: "national" };
     return route();
   }
   const v = pickVoie(rp, serie, prof.voie || null);
-  if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${v.libelle} »` : `votre ligne « ${v.libelle} »`,
+  if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${v.libelle} »` : `votre bac, ligne « ${v.libelle} »`,
     source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: v.en_position, confirmes: v.confirmes };
   return route();
 }
 const PR_SOURCE = {
   rapport: (pr) => `publié · rapport du jury ${esc(pr.session)}${pr.recoupe ? "" : ", pas encore recoupé"} · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,
-  semblables: (pr) => `estimation · rapports de ${fmt(pr.n_rapports)} formations semblables`,
-  national: () => "estimation · écart national de votre doublette",
+  semblables: (pr) => estimTag(`rapports de ${fmt(pr.n_rapports)} formations semblables`, false, true),
+  national: () => estimTag("écart national de vos deux spécialités", false, true),
   voie: (pr) => `taux de proposition de cette formation (effectifs publiés)${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}`,
 };
 function profileRateTile(pr) {
   const tile = (value, note) => `<button type="button" class="sum-tile sum-profil" data-goto="admission">
       <span class="sum-label">Pour votre profil</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
   const link = (note) => `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
-  if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et votre doublette ou votre ligne");
+  if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et le chiffre de votre bac");
   if (pr.kind === "incomplet") return link("indiquez vos deux spécialités dans « Mon profil »");
   if (pr.kind === "aucun" || pr.taux === null || pr.taux === undefined) return tile("—", `${esc(pr.what)} · ${esc(pr.why || "pas de chiffre")}`);
   return tile(pct1(pr.taux), `${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}`);
@@ -1693,6 +1744,7 @@ function summaryBand(r, d) {
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
+    ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
@@ -1810,7 +1862,7 @@ async function viewFormation(cod, session) {
     ${d.history.map((h) => `<tr><td><a href="#/f/${esc(h.cod_aff_form)}/${h.session}">${h.session}</a></td><td>${esc(h.cod_aff_form)}</td><td>${esc(h.lib_for_voe_ins)}</td>
       <td>${h.link_to_next ? lineageBadge(h.link_to_next) : `<span class="muted small">—</span>`}</td><td class="num">${fmt(h.acc_tot)}</td><td class="num">${pct(h.taux_acces_ens)}</td></tr>`).join("")}
   </table></div></div>`],
-  ])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
+  ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
@@ -1951,7 +2003,7 @@ function profileRows(rows, kind) {
     if (code(p.spe1) && code(p.spe2) && p.spe1 !== p.spe2) {
       const d = pick("serie", `bg:${[p.spe1, p.spe2].sort().join("+")}`);
       if (d) { s = d; sLabel = `bac général ${esc(p.spe1)} + ${esc(p.spe2)}`; }
-      else note = "votre doublette n'est pas publiée à part (moins de 1 % des inscrits) : ligne de l'ensemble du bac général";
+      else note = "vos deux spécialités ne sont pas publiées à part (moins de 1 % des inscrits) : ligne de l'ensemble du bac général";
     }
   }
   return { serie: s, serieLabel: sLabel, mention: pick("mention", men), mentionLabel: `mention ${MENTION_TXT[men]}`,
@@ -2364,12 +2416,12 @@ async function viewSpecialites(session, ftype) {
   if (ftype) sq.set("formation_type", ftype);
   const d = await api(`/api/specialites${sq.toString() ? `?${sq}` : ""}`);
   const max = Math.max(1, ...d.rows.map((r) => r.pct_acceptations || 0));
-  $view.innerHTML = `<div class="card"><h1>Doublettes de spécialités des admis</h1>
-    <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par doublette : c'est une répartition, pas un taux d'accès.</p>
+  $view.innerHTML = `<div class="card"><h1>Spécialités des admis, par paire</h1>
+    <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par paire de spécialités : c'est une répartition, pas un taux d'accès.</p>
     <div class="toolbar"><label>Session <select id="ss">${META.years.map((y) => `<option ${y === d.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       <label>Type de formation <select id="st" style="max-width:100%">${d.formation_types.map((t) => `<option ${t === d.formation_type ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label></div>
     <p class="small">${fmt(d.totals.n_accepte)} acceptations · ${fmt(d.totals.n_proposition)} propositions</p>
-    <div class="scroll"><table><tr><th>Doublette</th><th>Part des admis</th><th class="num">Acceptations</th><th class="num">Propositions</th></tr>
+    <div class="scroll"><table><tr><th>Spécialités</th><th>Part des admis</th><th class="num">Acceptations</th><th class="num">Propositions</th></tr>
     ${d.rows.map((r) => `<tr><td>${esc(r.doublette)}</td>
       <td style="min-width:140px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (r.pct_acceptations || 0) / max}" height="10" fill="var(--c1)"/></svg><span class="small">${pct(r.pct_acceptations)}</span></td>
       <td class="num">${fmt(r.n_accepte)}</td><td class="num">${fmt(r.n_proposition)}</td></tr>`).join("") || `<tr><td class="muted">Pas de données pour cette session.</td></tr>`}
@@ -2463,7 +2515,7 @@ function profileForm(p, saved) {
       <label class="pf-opt"><strong><input type="radio" name="statut" value="reorientation" ${reo ? "checked" : ""}> ${REO_LABEL}</strong>
         <span>Réorientation, reprise d'études : le SIES ne publie ni mention ni série pour vous. SupCompass affiche un accès estimé, sans zone.</span></label>
       <a class="pf-opt" href="#/premiere"><strong>En seconde ou en première</strong>
-        <span>Pas encore de doublette ni de mention : comparez les doublettes possibles de vos spécialités.</span></a>
+        <span>Pas encore de spécialités de terminale ni de mention : comparez les paires possibles de vos spécialités.</span></a>
     </div></section>`;
   const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
     "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
@@ -2477,7 +2529,7 @@ function profileForm(p, saved) {
       `Les rapports des jurys publient une ligne par ${serie === "bt" ? "série technologique et ses spécialités" : "spécialité de bac pro"} : la fiche de chaque formation vous montre la vôtre quand elle existe.`) : ""}
     ${serie === "bg" ? field(`<div class="pf-ctl"><span>Vos deux spécialités de terminale</span><div class="pf-pair"><select name="spe1" aria-label="Spécialité 1">${opt(JV.specialties, p.spe1, (x) => x.short)}</select>
       <select name="spe2" aria-label="Spécialité 2">${p.spe2 === p.spe1 ? '<option value="" selected>Choisissez</option>' : ""}${opt(JV.specialties.filter((x) => x.code !== p.spe1), p.spe2, (x) => x.short)}</select></div></div>`,
-      `${p.spe2 === p.spe1 ? '<span class="warn">Votre profil a deux fois la même spécialité : choisissez la deuxième. Vos zones ne sont pas lues avant.</span> ' : ""}En terminale, vous gardez deux des trois spécialités de première, deux spécialités différentes : une seule peut être artistique. C'est votre doublette. Les rapports des jurys publient le taux d'accès de chaque doublette : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.`) : ""}
+      `${p.spe2 === p.spe1 ? '<span class="warn">Votre profil a deux fois la même spécialité : choisissez la deuxième. Vos zones ne sont pas lues avant.</span> ' : ""}En terminale, vous gardez deux des trois spécialités de première, deux spécialités différentes : une seule peut être artistique. C'est votre paire de spécialités (on dit aussi « doublette »). Les rapports des jurys publient le taux d'accès de chaque paire : la fiche de chaque formation affiche celui de la vôtre quand il existe, sinon une estimation dite comme telle.`) : ""}
     ${serie === "bg" && (p.spe1 === "MATHS" || p.spe2 === "MATHS") ? field(`<label class="pf-check"><span><input type="checkbox" name="maths_expertes" ${p.maths_expertes ? "checked" : ""}> Mathématiques expertes</span></label>`,
       "Notée pour vous : les données publiques ne détaillent pas les options de terminale, elle ne change donc aucun chiffre. Regardez les attendus sur la fiche Parcoursup.") : ""}
   </section>`;
@@ -2615,19 +2667,19 @@ function stage1Matrix(s1, show, all) {
   // sprint "Doublettes": the proposal rate of the student's doublette comes first; a doublette with fewer than DBL_SEUIL
   // candidates in a filière shows that filière's "Autres doublettes" bucket, flagged as an estimation
   const rate = (f) => (f.rare && f.autres
-    ? `${pct1(f.autres.taux)}${rateBar(f.autres.taux, "var(--voie-bg)")}<div class="estim">Autres doublettes (estimation : ${fmt(f.autres.n_doublettes)} doublettes de moins de ${DBL_SEUIL} candidats)</div>`
+    ? `${pct1(f.autres.taux)}${rateBar(f.autres.taux, "var(--voie-bg)")}${estimTag(`« Autres paires de spécialités » : ${fmt(f.autres.n_doublettes)} paires de moins de ${DBL_SEUIL} candidats`, true)}`
     : `<strong>${pc1(f.offer_rate)}</strong>${f.offer_rate !== null && f.offer_rate !== undefined ? rateBar(100 * f.offer_rate, "var(--voie-bg)") : ""}`);
   return `<div class="legend">${Object.entries(GATES).map(([k, g]) => `<label style="cursor:pointer"><input type="checkbox" data-gate="${k}" ${show.has(k) ? "checked" : ""}> <i style="background:${g.color}"></i>${g.label} (${s1.filieres.filter((f) => f.gate === k).length})</label>`).join("")}</div>
-  ${allRare ? `<div class="info">Votre doublette est rare : moins de ${DBL_SEUIL} candidats dans chaque filière sur 2022–2025. Les taux affichés sont ceux des « Autres doublettes » de chaque filière (doublettes rares regroupées) : une estimation.</div>`
-    : fewOnly ? `<div class="info">Peu de candidats ont votre doublette : moins de ${fmt(GATE_MIN)} dans chaque filière sur 2022–2025, les filières sont donc affichées quand même. Là où ils sont moins de ${DBL_SEUIL}, le taux affiché est celui des « Autres doublettes » (estimation).</div>` : ""}
-  <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th><th class="num">Taux de proposition de votre doublette</th><th class="num">… tous les bacheliers généraux</th><th>Part de destination</th><th class="num">Part des admis</th><th class="num">Indice</th><th><span class="sr-only">Actions</span></th></tr>
-  ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats de la doublette · ${f.years} an(s)</div></td>
-    <td class="num" data-label="Taux de proposition de votre doublette">${rate(f)}</td><td class="num muted" data-label="Tous les bacheliers généraux">${pc1(f.offer_rate_all)}</td>
+  ${allRare ? `<div class="info">Votre paire de spécialités est rare : moins de ${DBL_SEUIL} candidats dans chaque filière sur 2022–2025. Les taux affichés sont ceux des « Autres paires de spécialités » de chaque filière (paires rares regroupées) : une estimation.</div>`
+    : fewOnly ? `<div class="info">Peu de candidats ont vos deux spécialités : moins de ${fmt(GATE_MIN)} dans chaque filière sur 2022–2025, les filières sont donc affichées quand même. Là où ils sont moins de ${DBL_SEUIL}, le taux affiché est celui des « Autres paires de spécialités » (estimation).</div>` : ""}
+  <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th><th class="num">Taux de proposition pour vos deux spécialités</th><th class="num">… tous les bacheliers généraux</th><th>Part de destination</th><th class="num">Part des admis</th><th class="num">Indice</th><th><span class="sr-only">Actions</span></th></tr>
+  ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats avec ces deux spécialités · ${f.years} an(s)</div></td>
+    <td class="num" data-label="Taux de proposition pour vos deux spécialités">${rate(f)}</td><td class="num muted" data-label="Tous les bacheliers généraux">${pc1(f.offer_rate_all)}</td>
     <td data-label="Part de destination" style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
     <td class="num" data-label="Part des admis">${pc1(f.share)}</td><td class="num" data-label="Indice">×${fmt(f.lift, 2)}</td>
     <td class="acts">${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : '<span class="muted small">pas de correspondance formation par formation</span>'}</td></tr>`).join("")}
   </table></div>
-  <p class="muted small">Taux de proposition : parmi les candidats ayant votre doublette et au moins un vœu dans cette filière (toute la France, 2022–2025), part ayant reçu au moins une proposition. Pas des chances d'admission.</p>
+  <p class="muted small">Taux de proposition : parmi les candidats ayant vos deux spécialités et au moins un vœu dans cette filière (toute la France, 2022–2025), part ayant reçu au moins une proposition. Pas des chances d'admission.</p>
   ${kept.length > 15 ? `<button id="allf">${all ? "Réduire" : `Afficher les ${kept.length} filières`}</button>` : ""}`;
 }
 
@@ -2737,7 +2789,7 @@ function moyenneCard(r) {
 function moyRange(pos) {
   if (!pos) return "";
   const a = Math.min(pos.normale, pos.uniforme), b = Math.max(pos.normale, pos.uniforme);
-  return `<div class="estim">estimation dans la mention : ${Math.abs(b - a) < 0.005 ? pc1(a) : `${pc1(a)} – ${pc1(b)}`} (tous bacs)</div>`;
+  return estimTag(`dans la mention : ${Math.abs(b - a) < 0.005 ? pc1(a) : `${pc1(a)} – ${pc1(b)}`} (tous bacs)`, true);
 }
 function bgCell(f) {
   if (!f.spos) {
@@ -2826,21 +2878,22 @@ async function viewParcours() {
   <div class="card"><h2>1 · Mon profil</h2>${hasProfile ? `<p class="home-profile"><span>Lu pour : <strong>${profileLine(vp, serie)}</strong></span><a class="btnlink" href="#/profil">Modifier mon profil</a></p>`
       : `<p class="home-profile"><span>Exemple avec un bac général Mathématiques + SES, mention assez bien : <strong>créez votre profil</strong> pour lire ces chiffres pour vous.</span><a class="btnlink" href="#/profil">Créer mon profil</a></p>`}${mathsExpertesNote(p, serie)}
     ${!s1 ? `<div class="warn">Vos deux spécialités sont identiques : <a href="#/profil">choisissez deux spécialités distinctes dans « Mon profil »</a>.</div>` : serie === "bg"
-      ? `<p class="small muted">Doublette ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
+      ? `<p class="small muted">Spécialités ${esc(s1.doublette.replace("+", " + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
       : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>
-        <p class="small">Une part faible veut dire « rare », pas « fermé ». Votre ligne publiée dans le rapport du jury de chaque formation s'affiche sur sa fiche et dans « Mes vœux »${p.voie ? "" : ` : indiquez votre ${serie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"} dans <a href="#/profil">« Mon profil »</a>`}.${serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage : <a href="#/carte/${encodeURIComponent("BTS - BTSA - BTSM")}">voir les offres sur la carte</a> (filtre « Apprentissage »).` : ""}</p>`}</div>
+        <p class="small">Une part faible veut dire « rare », pas « fermé ». Le chiffre de votre bac publié dans le rapport du jury de chaque formation s'affiche sur sa fiche et dans « Mes vœux »${p.voie ? "" : ` : indiquez votre ${serie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"} dans <a href="#/profil">« Mon profil »</a>`}.${serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage : <a href="#/carte/${encodeURIComponent("BTS - BTSA - BTSM")}">voir les offres sur la carte</a> (filtre « Apprentissage »).` : ""}</p>`}</div>
   ${lyceeCard(p)}
-  ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "votre doublette" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
+  ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "vos deux spécialités" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
     <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les formes pâles sont incertaines (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis ; un anneau vide est hors des trois zones${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
     <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span style="color:${z.color}">${zoneMark(k)}<span class="lg-text">${z.label} (${F.filter((f) => f.zone === k).length})</span></span>`).join("")}</div>
+    ${zoneLegend()}
     ${repereNote(s2.calibration)}
     ${scatter(F, (f) => pin(f))}
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis ${vp.moyenne !== null ? "sous votre moyenne (estimation)" : "avec votre mention ou moins"} ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th>${s2.calibration ? `<th>Repère ${esc(s2.calibration.target)} ${tip("repere")}</th>` : ""}<th>Évolution</th><th><span class="sr-only">Actions</span></th></tr>
     ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, allPos ? 80 : 20).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${p.lycee && f.cod_uai === p.lycee.uai ? ` · <span class="badge exact">dans votre lycée${f.pct_etab_orig != null ? ` · ${fmt(f.pct_etab_orig)} % des admis en venaient` : ""}</span>` : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
       <td data-label="Zone">${zoneBadge(f.zone, f.uncertain)}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
-      <td class="num" data-label="${serie === "bg" ? "Taux d'accès" : "Accès estimé"}">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">estim. · tous ${fmt(f.taux_acces_all)} %</div>` : ""}</td><td class="num" data-label="${vp.moyenne !== null ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}">${bgCell(f)}${moyRange(f.position)}</td>
+      <td class="num" data-label="${serie === "bg" ? "Taux d'accès" : "Accès estimé"}">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">${estimTag(`officiel tous candidats ${fmt(f.taux_acces_all)} %`)}</div>` : ""}</td><td class="num" data-label="${vp.moyenne !== null ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}">${bgCell(f)}${moyRange(f.position)}</td>
       <td class="num" data-label="Mention exacte">${pc1(f.exact_share)}</td><td class="num" data-label="${serie === "bg" ? "Bac général" : "Part de votre série"}">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num" data-label="Boursiers">${pc1(f.pct_boursiers)}</td>
       <td class="small" data-label="Groupe d'appel">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
       ${s2.calibration ? `<td class="small" data-label="Repère">${repereCell(f, serie)}</td>` : ""}
@@ -2850,7 +2903,7 @@ async function viewParcours() {
     ${F.length > (allPos ? 80 : 20) ? `<p class="muted small">${allPos ? 80 : 20} premières formations affichées (toutes figurent sur la matrice).</p>` : ""}
     ${p.boursier ? `<p class="small muted">Boursier : la part de boursiers parmi les admis est affichée à titre d'information. Les taux minimaux de boursiers fixés par les recteurs ne sont pas publiés formation par formation dans ces données ; aucun ajustement n'est appliqué.</p>` : ""}</div>` : ""}
   <div class="card"><h2>4 · Mes vœux</h2><p id="wishlist">${W.length ? `${fmt(W.length)} vœu(x) dans votre liste.` : "Votre liste est vide : ajoutez des formations depuis le tableau ou un plan B."} <a href="#/voeux">Voir la lecture de ma liste pour ce profil →</a></p>
-    <p class="muted small">La liste est relue pour votre profil actuel à chaque visite (${voeux.MAX} vœux au maximum sur Parcoursup).</p></div>${feedbackBox("parcours")}`;
+    <p class="muted small">La liste est relue pour votre profil actuel à chaque visite (${voeux.MAX} vœux au maximum sur Parcoursup).</p></div>${nextSteps("parcours")}${feedbackBox("parcours")}`;
 
   function pin(f, rerender = true) {
     if (!voeux.add(f.cod_aff_form)) { alert(`${voeux.MAX} vœux au maximum : retirez un vœu dans « Mes vœux » d'abord.`); return; }
@@ -3126,14 +3179,14 @@ document.addEventListener("click", (e) => {
 // sprint 20: the student's row of each vœu's report (bac techno and pro), with its source; never a chance
 // R9: ONE rendering of the figure for the student's doublette (Mes vœux and the map's list read the same voeux.figures answer)
 function dblFigure(v) {
-  return v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—";
+  return v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", autres paires de spécialités" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}${estimTag(`${fmt(v.semblable.n_rapports)} rapports de formations semblables`, true)}` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}${estimTag(`groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (autres paires de spécialités)" : ""}`, true)}` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", autres paires de spécialités" : ""}</div>`) : "—";
 }
 // ... and of the student's line in the report for bac techno / pro
 function voieFigure(r, prof) {
   return r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/profil">indiquez votre série</a>';
 }
 function vxVoieCell(v, prof) {
-  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : voieFigure(v.rapport, prof)}</td>`;
+  return `<td class="num" data-label="Votre bac, rapport du jury">${v.status !== "ok" ? "—" : voieFigure(v.rapport, prof)}</td>`;
 }
 function voeuButton(cod) {
   const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
@@ -3191,21 +3244,22 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${dblFigure(v)}</td>` : vxVoieCell(v, prof)}
+      ${serie === "bg" ? `<td class="num" data-label="Vos deux spécialités, cette formation">${dblFigure(v)}</td>` : vxVoieCell(v, prof)}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
   <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
     ${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}
+    ${zoneLegend()}
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
     <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition de votre doublette (cette formation, estimation)</th>' : '<th class="num">Votre ligne dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition pour vos deux spécialités (cette formation, estimation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
-    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Votre doublette : le rapport public de la formation quand il la détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de votre doublette dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre ligne : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été en position de recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
-    $view.insertAdjacentHTML("beforeend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
+    $view.querySelector(".next-steps").insertAdjacentHTML("beforebegin", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false, prof);
   }
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
@@ -3388,7 +3442,7 @@ async function viewMetier(id, from = "") {
     ${d.diplomes.map(dip).join("")}
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p>`],
       ["avenir", "Avenir du métier", `${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`],
-    ])}`;
+    ])}${nextSteps("metier", /^https:\/\//.test(d.url || "") ? [{ href: d.url, text: "Lire la fiche du métier sur le site de l'Onisep" }] : [])}`;
   bindTabs("metier");
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
@@ -3661,7 +3715,7 @@ function reoWhy(b, ok) {
 }
 function reoCell(b) {
   if (!b || b.acces_estime == null) return `—<div class="estim">${esc(reoWhy(b, ""))}</div>`;
-  return `${pct1(b.acces_estime)}<div class="estim">estimation${b.plafonne ? ", plafonnée à 100 %" : ""} · ${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale${b.propositions === 0 ? " : rare cette année-là, pas forcément fermé" : ""}</div>`;
+  return `${pct1(b.acces_estime)}${estimTag(`${b.plafonne ? "plafonnée à 100 % · " : ""}${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale${b.propositions === 0 ? " : rare cette année-là, pas forcément fermé" : ""}`, true)}`;
 }
 // the formation page's folded card: the published counts, the estimate and its method (review: never a figure without them)
 function reoCard(b) {
@@ -3728,7 +3782,7 @@ async function viewReorientation(dArg, mArg) {
       ${rows.length > shown ? `<p><button type="button" id="rmore">Afficher ${fmt(Math.min(searchPage(), rows.length - shown))} de plus (${fmt(shown)} sur ${fmt(rows.length)})</button></p>` : ""}
       <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
       <p class="muted small">Admis hors néo-bacheliers : admis qui avaient déjà le bac ou venaient d'un autre parcours, effectifs publiés ; le SIES ne les détaille pas.</p></div>
-    ${feedbackBox("reorientation")}`;
+    ${nextSteps("reorientation")}${feedbackBox("reorientation")}`;
     $view.dataset.rendered = marker;
     document.getElementById("rdip").onchange = (e) => goTo(e.target.value, "");
     document.getElementById("rmen").onchange = (e) => goTo(D.label, e.target.value);
@@ -3802,7 +3856,7 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
 }
@@ -3887,7 +3941,7 @@ function viewAccompagner() {
     <p class="small muted">Aucune de ces questions n'appelle une « bonne » réponse : elles servent à préparer les vœux, pas à les juger.</p></section>
   <section class="card"><h2>Pages utiles</h2><ul>
     <li><a href="#/calendrier">Calendrier Parcoursup</a> : les dates officielles, à ajouter à un agenda.</li>
-    <li><a href="#/premiere">En seconde ou en première</a> : les filières où l'on trouve les doublettes de spécialités possibles.</li>
+    <li><a href="#/premiere">En seconde ou en première</a> : les filières où l'on trouve les paires de spécialités possibles.</li>
     <li><a href="#/reorientation">Je me réoriente ou je reprends mes études</a> : pour un élève qui n'est plus en terminale.</li>
     <li><a href="#/glossaire">Glossaire</a> : le sens de chaque mot et de chaque chiffre.</li></ul></section>`;
   $view.dataset.rendered = "accompagner";
@@ -3918,9 +3972,9 @@ async function viewPremiere() {
   const marker = `premiere:${pairs.map((p) => p.join("+")).join(",")}`;
   $view.dataset.rendered = marker;
   const intro = `<div class="card"><h1>En seconde ou en première</h1>
-    <p>Choisissez trois spécialités de première. En terminale, vous en garderez deux : cela fait trois doublettes possibles. Pour chacune, voici les filières où l'on trouvait cette doublette parmi les admis bacheliers généraux de 2022 à 2025.</p>
+    <p>Choisissez trois spécialités de première. En terminale, vous en garderez deux : cela fait trois paires possibles. Pour chacune, voici les filières où l'on trouvait cette paire parmi les admis bacheliers généraux de 2022 à 2025.</p>
     <form id="prem" class="toolbar">${[0, 1, 2].map(sel).join("")}</form>
-    <p class="small">Ce sont des parts d'admis des années passées, pas un conseil de spécialités ni une chance d'admission. Beaucoup de filières admettent des doublettes très variées : les attendus de chaque formation, sur sa fiche Parcoursup, et l'avis de votre professeur principal comptent davantage.</p></div>`;
+    <p class="small">Ce sont des parts d'admis des années passées, pas un conseil de spécialités ni une chance d'admission. Beaucoup de filières admettent des paires de spécialités très variées : les attendus de chaque formation, sur sa fiche Parcoursup, et l'avis de votre professeur principal comptent davantage.</p></div>`;
   const bindForm = () => {
     document.getElementById("prem").onchange = () => {
       const f = new FormData(document.getElementById("prem"));
@@ -3932,7 +3986,7 @@ async function viewPremiere() {
     $view.innerHTML = `${intro}<div class="card"><p class="muted">Choisissez trois spécialités différentes.</p></div>`;
     bindForm();
   } else {
-    $view.innerHTML = `${intro}<div class="card"><p class="muted small">Lecture des doublettes…</p></div>`;
+    $view.innerHTML = `${intro}<div class="card"><p class="muted small">Lecture des paires de spécialités…</p></div>`;
     bindForm();                                                          // a choice made while loading is never lost
     // 404 = the doublette is absent from the data; any other failure is said as such (review)
     const res = await Promise.all(pairs.map(([a, b]) => api(`/api/journey/stage1?spe1=${encodeURIComponent(a)}&spe2=${encodeURIComponent(b)}`)
@@ -3949,13 +4003,13 @@ async function viewPremiere() {
     const rows = [...by.values()].sort((a, b) => b.dest - a.dest || a.label.localeCompare(b.label, "fr"));
     const cell = (f, i) => `<td class="num" data-label="${esc(pairs[i].map(name).join(" + "))}">${!f ? "—"
       : `${pc1(f.share)}<div class="estim">des admis bacheliers généraux${f.rare ? " · rare (moins de 20 candidats)" : ""}</div>`}</td>`;
-    $view.innerHTML = `${intro}<div class="card"><h2>Trois doublettes possibles</h2>
+    $view.innerHTML = `${intro}<div class="card"><h2>Trois paires possibles</h2>
       <ul class="small">${pairs.map((p, i) => `<li><strong>${esc(p.map(name).join(" + "))}</strong> : ${res[i] && !res[i].error ? `${fmt(res[i].national.accepted)} admis sur ${fmt(res[i].national.years)} campagnes, ${pc1(res[i].national.national_share)} de tous les admis bacheliers généraux` : res[i] && res[i].error === "indisponible" ? "lecture impossible pour le moment, réessayez" : "absente des données 2022–2025"}</li>`).join("")}</ul>
       <div class="scroll"><table class="stack"><tr class="stack-head"><th>Filière</th>${pairs.map((p) => `<th class="num">${esc(p.map(name).join(" + "))}</th>`).join("")}</tr>
       ${rows.slice(0, all ? rows.length : PREM_ROWS).map((r) => `<tr><td data-label="Filière">${esc(r.label)}</td>${r.cells.map(cell).join("")}</tr>`).join("")}</table></div>
       ${rows.length > PREM_ROWS ? `<p><button type="button" id="prem-all">${all ? `Afficher les ${PREM_ROWS} premières` : `Afficher les ${fmt(rows.length)} filières`}</button></p>` : ""}
-      <p class="muted small">Ordre : les filières où vont le plus souvent les bacheliers ayant l'une de ces doublettes. Chaque case dit, parmi les admis bacheliers généraux de la filière, la part qui avait cette doublette (2022–2025, campagnes au comptage rompu exclues).</p>
-      <p class="small"><a href="#/specialites">Toutes les doublettes par type de formation</a> · En terminale : <a href="#/profil">Mon profil</a></p></div>`;
+      <p class="muted small">Ordre : les filières où vont le plus souvent les bacheliers ayant l'une de ces paires. Chaque case dit, parmi les admis bacheliers généraux de la filière, la part qui avait cette paire (2022–2025, campagnes au comptage rompu exclues).</p>
+      <p class="small"><a href="#/specialites">Toutes les paires de spécialités par type de formation</a> · En terminale : <a href="#/profil">Mon profil</a></p></div>${nextSteps("premiere")}`;
     const b = document.getElementById("prem-all");
     if (b) b.onclick = () => { store.set("premiereAll", !all); viewPremiere(); };
     bindForm();
@@ -4066,7 +4120,7 @@ async function viewListe(rawCodes, rawProfile) {
 // ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages and the contact form ----
 // The five pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité) come from legal.py, the same HTML as their
 // server page (/a-propos…). The contact form sends only what it shows; a message that was not stored is said, never a fake success.
-const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite"];
+const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide"];   // "aide": sprint Q4
 const CONTACT_TYPES = [["erreur", "Une erreur dans un chiffre ou un texte"], ["question", "Une question sur le site"],
   ["suggestion", "Une suggestion"], ["autre", "Autre chose"]];
 const CONTACT_MAX = 1000, CONTACT_MIN = 10;
@@ -4139,7 +4193,7 @@ const TAB_OF = { info: "info", s: "home", f: "home", evolution: "home", parcours
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
-const MORE_TABS = [...COMP_TABS, "accompagner"];                                                      // "Plus" on a phone
+const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];                                                   // "Plus" on a phone
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
     if (el.dataset.tab === tab) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
@@ -4172,7 +4226,7 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
-  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite)\/?$/.exec(pathname);   // sprint Q1
+  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide)\/?$/.exec(pathname);   // sprint Q1, Q4
   if (i) return `/info/${i[1]}`;
   return null;
 }
@@ -4236,7 +4290,7 @@ async function route() {
   // every navigation invalidates the render marker: only the view that sets it again may still be
   // filled by a late async answer (the lycée suggestion of a search, found in review)
   delete $view.dataset.rendered;
-  markTab(TAB_OF[a] || "home");
+  markTab(a === "info" && b === "aide" ? "aide" : TAB_OF[a] || "home");                  // Q4: the help page has its own menu link
   profileBar.render(TAB_OF[a] || "home");
   try {
     await routeView(a, b, c);

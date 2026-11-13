@@ -43,6 +43,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import jstext  # noqa: E402  (sprint Q4: the page helpers the Node harnesses need)
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from suptracker import journey as J  # noqa: E402
@@ -272,7 +274,7 @@ def node_render(js: str, block: dict, block_nobg: dict):
     prog = helpers + """
 let PROFILE = null; const store = { get: (k, dft) => (k === "profile" ? PROFILE : dft) };
 const tip = () => ""; const legend = () => ""; const lineChart = () => "";
-""" + reo_defs(js) + blk + """
+""" + jstext.q4_defs(js, True) + reo_defs(js) + blk + """
 const [d, b, b2] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 PROFILE = { serie: "bg", spe1: "MATHS", spe2: "PC", maths_expertes: true };
 const out = { card: doubletteCard(d, b), card_nobg: doubletteCard(d, b2), card_none: doubletteCard(d, null), jury: juryCard(b) };
@@ -294,14 +296,14 @@ def r4(c: Ctx):
         return False, o["error"]
     raw = [k for k, v in o.items() if "<img" in v]
     unlabelled = {k: len(re.findall(r'<td class="num"(?![^>]*data-label)', v)) for k, v in o.items()}
-    mine = "Votre doublette dans cette formation : 50 %" in o["card"] and "rapport public" in o["card"]
-    no_est = "estimation</span>" not in o["card"].split("Détail national du groupe")[0]
-    est_kept = "<span class=\"estim\">estimation</span>" in o["card_nobg"] and "<span class=\"estim\">estimation</span>" in o["card_none"]
-    autres = "Votre doublette dans cette formation : 20 %" in o["card_autres"] and "votre doublette en fait partie" in o["card_autres"]
+    mine = "Vos deux spécialités dans cette formation : 50 %" in o["card"] and "rapport public" in o["card"]
+    no_est = "estim-tag" not in o["card"].split("Détail national du groupe")[0]
+    est_kept = '<span class="estim-tag">estimation</span>' in o["card_nobg"] and '<span class="estim-tag">estimation</span>' in o["card_none"]
+    autres = "Vos deux spécialités dans cette formation : 20 %" in o["card_autres"] and "vos deux spécialités en font partie" in o["card_autres"]
     masked = "chiffres non publiés" in o["card"]
     source = all("voir le rapport" in o[k] and "web.archive.org" in o[k] for k in ("card", "jury"))
-    own = o["card"][o["card"].find("Dans cette formation, par doublette"):o["card"].find("Par doublette de spécialités")]
-    caveat = "pas des chances d'admission" in own and "détaillé par doublette" in own and "pas des chances d'admission" in o["jury"]
+    own = o["card"][o["card"].find("Dans cette formation, par paire de spécialités"):o["card"].find("Par paire de spécialités (bac général)")]
+    caveat = "pas des chances d'admission" in own and "détaillé par paire de spécialités" in own and "pas des chances d'admission" in o["jury"]
     me_cited = "le rapport de cette formation la cite" in o["jury"] and "Mathématiques expertes" not in o["jury_nome"].split("Options et parcours")[0]
     ok = not raw and not any(unlabelled.values()) and mine and no_est and est_kept and autres and masked and source and caveat and me_cited
     return ok, (f"raw tag in {raw}; unlabelled {unlabelled}; own figure {mine}; estimate hidden by it {no_est}, kept otherwise {est_kept}; "

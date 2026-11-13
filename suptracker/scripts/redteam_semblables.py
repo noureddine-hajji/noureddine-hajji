@@ -345,7 +345,7 @@ def k6(c: Ctx):
     counts = "3 rapports sur 4" in j and "Non noté" in j and not re.search(r"(?i)moyenne de|en moyenne", j)
     links = 'href="#/f/1"' in j
     mark = "<mark>Mathématiques Spécialité</mark>" in j
-    mine = 'class="dbl-mine"' in d and "Votre doublette" in d
+    mine = 'class="dbl-mine"' in d and "Vos spécialités" in d
     ok = not raw and not unlabelled and caveats and counts and links and mark and mine
     return ok, (f"raw tag {raw}; unlabelled cells {len(unlabelled)}; caveats {caveats}; counts {counts}; links {links}; "
                 f"student's specialty marked {mark}; student's doublette first {mine}")
@@ -433,7 +433,7 @@ PY_MUTANTS = [
     ("estimate uncapped", 'return {"taux": round(min(100.0, series_bg["taux"] * r), 1)', 'return {"taux": round(series_bg["taux"] * r, 1)'),
 ]
 JS_MUTANTS = [
-    ("label unescaped", "${x === mine ? \"Votre doublette : \" : \"\"}${esc(x.label)}", "${x === mine ? \"Votre doublette : \" : \"\"}${x.label}"),
+    ("label unescaped", "${x === mine ? \"Vos spécialités : \" : \"\"}${esc(x.label)}", "${x === mine ? \"Vos spécialités : \" : \"\"}${x.label}"),
     ("establishment unescaped", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>', '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a>'),
     ("profile unescaped", "const ser = { bg: \"bac général\", bt: \"bac technologique\"", "const esc = (s) => s; const ser = { bg: \"bac général\", bt: \"bac technologique\""),
     ("figure without its label", '<td class="num" data-label="Rapports">', '<td class="num">'),

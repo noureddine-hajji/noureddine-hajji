@@ -7,8 +7,8 @@
      in the "Autres doublettes" line, a rare one, bac techno / pro lines, "autre", an unknown route), the page's profileRate gives
      the figure re-derived in Python from the modules' own twins (rapports.pick, semblables.estimate, doublettes.estimate,
      voies.pick_voie) in the published-first order: same kind, same source, same rate
-  Z2 the summary and the card agree: for the same formation and profile, the "Selon votre bac" card's headline ("Votre
-     doublette / Votre ligne dans cette formation : x %") is the tile's figure, and when the tile is published the card shows
+  Z2 the summary and the card agree: for the same formation and profile, the "Selon votre bac" card's headline ("Vos deux
+     spécialités / Votre bac dans cette formation : x %") is the tile's figure, and when the tile is published the card shows
      no estimate (a published figure replaces an estimate, never sits beside it)
   Z3 the tile (Node): escaped, its source said in words (publié + rapport du jury + session / estimation + its basis), never a
      chance; bac techno / pro without a line waits for the Plan B answer and is filled with the estimated series access (or "—",
@@ -233,8 +233,10 @@ def harness(js: str) -> str:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pc1 = ", "const pct = ",
                                                                           "const isReo = ", "const REO_LABEL = ")))
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
+    # sprint Q4: the one estimation label the card and the tile use
+    bac += "\n" + re.search(r"^const ESTIM_DEF = .*$", js, re.M).group(0) + "\n" + re.search(r"^function estimTag\(.*?^\}", js, re.M | re.S).group(0)
     return helpers + "\nlet PROFILE = null; const store = { get: (k, d) => (k === 'profile' ? PROFILE : d) };\n" \
-        + "const tip = () => ''; const legend = () => ''; const lineChart = () => '';\n" + bac + "\n" + blk + "\n" + r2
+        + "const tip = () => ''; const legend = () => ''; const lineChart = () => ''; const zoneLegend = () => '';\n" + bac + "\n" + blk + "\n" + r2
 
 
 Z1_PROG = r"""
@@ -287,7 +289,7 @@ def z1(c: Ctx):
 
 
 ROUTE_ROW = re.compile(r'votre bac</span></td>\s*<td class="num" data-label="Taux de proposition">([0-9][0-9 ,.]*) %')
-HEAD = re.compile(r"Votre (?:doublette|ligne) dans cette formation : ([0-9][0-9 ,.]*) %")
+HEAD = re.compile(r"(?:Vos deux spécialités|Votre bac) dans cette formation : ([0-9][0-9 ,.]*) %")          # sprint Q4 wording
 
 
 def to_num(s: str) -> float:
@@ -318,7 +320,7 @@ def z2(c: Ctx):
                 bad.append(("the card's 'votre bac' row differs", d["record"]["cod_aff_form"], p, pr.get("taux"), row and row.group(1)))
         if heads and p["serie"] == "bg" and pr.get("kind") not in ("publie", "estimation"):
             bad.append(("the card has a doublette figure the tile does not show", d["record"]["cod_aff_form"], p, heads))
-        if pr.get("kind") == "publie" and ("estimation" in g["tile"] or "estimation à partir" in card or "<span class=\"estim\">estimation</span>" in card):
+        if pr.get("kind") == "publie" and ("estimation" in g["tile"] or "estimation à partir" in card or "<span class=\"estim-tag\">estimation</span>" in card.split("Détail national du groupe")[0]):
             bad.append(("estimate beside a published figure", d["record"]["cod_aff_form"], p))
     return not bad, f"{len(cases)} cases; {len(bad)} problems {bad[:2]}"
 
@@ -328,7 +330,7 @@ const H = "<img src=x onerror=alert(1)>";
 const out = {};
 out.none = profileRateTile(null);
 out.incomplet = profileRateTile({ kind: "incomplet" });
-out.pub = profileRateTile({ kind: "publie", taux: 89.84, what: `votre ligne « ${H} »`, source: "rapport", session: 2025, recoupe: true, en_position: 7, confirmes: 9 });
+out.pub = profileRateTile({ kind: "publie", taux: 89.84, what: `votre bac, ligne « ${H} »`, source: "rapport", session: 2025, recoupe: true, en_position: 7, confirmes: 9 });
 out.pending = profileRateTile({ kind: "publie", taux: 50, what: "x", source: "rapport", session: 2026, recoupe: false, en_position: 1, confirmes: 2 });
 out.sem = profileRateTile({ kind: "estimation", taux: 42, what: H, source: "semblables", n_rapports: 7 });
 out.nat = profileRateTile({ kind: "estimation", taux: 42, what: "Mathématiques, SES", source: "national" });
@@ -528,7 +530,7 @@ MUTANTS = [
     ("route row of another bac", "    const v = series && series[serie] && at(series[serie].trend);", "    const v = series && series.bg && at(series.bg.trend);", ("z1", "z2")),
     ("the lineage's latest campaign on an older page", "  const at = (trend) => (trend || []).find((t) => t.session === session) || null;",
      "  const at = (trend) => (trend || []).slice(-1)[0] || null;", ("z1",)),
-    ("series rate shown for a missing report row", '        : { kind: "aucun", what: "votre doublette", why: `pas de ligne dans le rapport ${rp.session}` };',
+    ("series rate shown for a missing report row", '        : { kind: "aucun", what: "vos deux spécialités", why: `pas de ligne dans le rapport ${rp.session}` };',
      "        : route();", ("z1",)),
     ("identical specialties read as a doublette", '    if (!dkey) return { kind: "incomplet" };', "", ("z1",)),
     ("estimate called published", 'if (sem && estAt(sem) !== null) return { kind: "estimation",', 'if (sem && estAt(sem) !== null) return { kind: "publie",', ("z1", "z2")),
@@ -539,7 +541,7 @@ MUTANTS = [
     ("few candidates not said", '${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}', "", ("z3",)),
     ("profile tile after the zone", "      ${isReo(prof) ? \"\" : profileRateTile(pr)}\n      ${isReo(prof) ? tile(",
      "      ${isReo(prof) ? tile(", ("z3", "z4")),
-    ("chance wording", 'national: () => "estimation · écart national de votre doublette",',
+    ("chance wording", 'national: () => estimTag("écart national de vos deux spécialités", false, true),',
      'national: () => "vos chances d\'être admis",', ("z3", "z4")),
     ("raw profile read", "  const pr = profileRate(d, bacProfile());", "  const pr = profileRate(d, prof);", ("z4",)),
 ]

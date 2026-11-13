@@ -100,6 +100,7 @@ class Ctx:
             "/api/page/{slug}": "/api/page/a-propos", "/api/contact/messages": "/api/contact/messages",
             "/a-propos": "/a-propos", "/contact": "/contact", "/mentions-legales": "/mentions-legales",
             "/confidentialite": "/confidentialite", "/accessibilite": "/accessibilite",
+            "/aide": "/aide",                                                       # sprint Q4: the help page
         }
 
 

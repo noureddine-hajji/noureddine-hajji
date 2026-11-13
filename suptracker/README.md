@@ -2951,3 +2951,58 @@ Red team `scripts/redteam_vitesse.py` (VT1-VT8):
 - VT3 checks serving and the byte budget, VT4 the page wiring, and VT5 that the memoised readings equal the plain ones.
 - VT6 runs the emulated phone budget in the browser (`--browser`).
 - VT8 is the mutation test.
+
+## Sprint Q4: plain language and human help (owner, 2026-11-13)
+
+The fourth sprint of the plan to reach 90/100. The orientation expert (Psy-EN) scored 11/15. Their reasons:
+- jargon: « doublette », « en position de recevoir », « votre ligne »;
+- six different ways of saying "estimation";
+- zones never explained in words;
+- no "what now?" and no way to reach a person.
+
+Changes:
+- **Plain words.**
+  - « doublette » becomes « paire de spécialités » or « vos deux spécialités ». The official word is taught once: in « Mon profil »
+    ("on dit aussi « doublette »") and in the glossary title.
+  - « en position de recevoir une proposition » becomes « classés assez haut pour recevoir une proposition », with a glossary entry.
+  - « votre ligne » becomes « votre bac » (« le chiffre de votre bac »).
+  - The method texts, the glossary, the indicator labels and the privacy page are covered too.
+- **One estimation label.** `estimTag(detail)` draws the same "estimation" label with the same short explanation
+  (`ESTIM_DEF`: a figure computed by SupCompass from published official figures, not an official figure, not a chance). The
+  detail says which calculation. Every renderer of a computed figure uses it. Inside a summary tile (a button) it keeps the
+  label without its own button.
+- **Zones explained.**
+  - `zoneHelp(z)` writes each zone's meaning from the zone rules themselves (`ZONE_RULES` = `journey.ZONE_RULES`). For example:
+    access rate of at least 70 % and at least 50 admits in 100 with a level at most yours.
+  - Every zone pill and badge carries it as a title.
+  - A folded legend « Que veulent dire les zones ? » sits on L'essentiel, Mes vœux and Où je me situe. It ends with « jamais une
+    chance d'admission ».
+- **« Et maintenant ? ».** A block of 2-3 next actions sits on the formation page (with the Parcoursup fiche), Où je me situe,
+  Mes vœux, Je me réoriente, the job page (with the Onisep sheet) and the seconde/première page. The block holds links only:
+  no figure, no ranking. It always ends with a person to talk to.
+- **Se faire aider** (`aide.py`, `/aide` and `#/info/aide`, in the footer and both menus). It lists six official, free services,
+  each with who it is for and how to reach it:
+  - the lycée (two professeurs principaux in terminale, the Psy-EN);
+  - the CIO (the Education ministry's directory);
+  - Mon orientation en ligne (Onisep, 01 77 77 12 25);
+  - Parcoursup's numéro vert (0 800 400 070) and the « Contact » messaging;
+  - the référent handicap (Mon parcours handicap);
+  - Fil Santé Jeunes (0 800 235 236).
+
+  The numbers were checked on the services' sites on 13 November 2026. Opening hours are not printed because they change: the
+  page sends to each service's site.
+
+Red team `scripts/redteam_langage.py` (LA1-LA8):
+- LA1 reads 3,594 student-facing texts and finds no banned word. The texts come from the page script's visible strings (a small
+  tokenizer, `scripts/jstext.py`, equal to acorn's reading), index.html, the method texts, the glossary, every legal.py page and
+  the modules' messages.
+- LA2 checks the one estimation label and its explanation. It also checks that no raw badge is left and that each renderer has
+  its number of labelled figures.
+- LA3 checks the zone texts against `journey.ZONE_RULES`, in Node, and checks the legend and titles.
+- LA4 checks the next-step blocks and their links.
+- LA5 checks the help page: official hosts, the red team's own copy of the phone numbers, tel: links, no opening hours, and the
+  page's wiring.
+- LA6 checks readability: no sentence over 30 words in the short texts, and Kandel-Moles (the French Flesch score) ≥ 70. The
+  glossary scores 75, the help page 81. Method sentences stay under 70 words.
+- LA7 is a browser check (`--browser`).
+- LA8 checks the tokenizer against acorn and runs the mutation test: 26/26 mutants are caught.

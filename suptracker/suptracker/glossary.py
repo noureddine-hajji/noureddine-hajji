@@ -14,20 +14,20 @@ GLOSSARY = {
                     "l'accepter ou la refuser ; les admis sont ceux qui ont accepté.", None),
     "admis": ("Admis", "Les candidats qui ont accepté définitivement la proposition d'une formation (phase principale et "
               "complémentaire).", None),
-    "taux_acces": ("Taux d'accès", "Indicateur officiel publié par le ministère : la part des candidats de la phase "
-                   "principale dont le rang de classement était au moins aussi bon que celui du dernier candidat appelé. "
+    "taux_acces": ("Taux d'accès", "Indicateur officiel publié par le ministère. C'est la part des candidats de la phase "
+                   "principale dont le rang était au moins aussi bon que celui du dernier candidat appelé. "
                    "Ce n'est pas votre chance personnelle d'être admis.", "taux_acces_ens"),
     "neo_bachelier": ("Néo-bachelier", "Un élève qui passe le bac l'année de sa candidature (par opposition à un étudiant "
                       "déjà dans le supérieur qui se réoriente).", "mentions"),
-    "mention": ("Mention au bac", "Sans mention (10 à 12, le bac au rattrapage y est compté), assez bien (12 à 14), bien (14 à 16), "
-                "très bien (16 à 18), très bien avec félicitations (18 et plus). Les chiffres « avec votre mention ou moins » décrivent "
-                "les admis des années passées, pas une chance.", "journey_bg"),
+    "mention": ("Mention au bac", "Sans mention : de 10 à 12 (le bac au rattrapage y est compté). Assez bien : de 12 à 14. Bien : de 14 à 16. "
+                "Très bien : de 16 à 18. Très bien avec félicitations : 18 et plus. Les chiffres « avec votre mention ou moins » "
+                "décrivent les admis des années passées. Ce n'est pas une chance.", "journey_bg"),
     "moyenne": ("Moyenne visée", "Facultative, de 8 à 20 : elle vous place à l'intérieur de votre mention (12,1 et 13,9 sont deux "
                 "« assez bien » très différents). Les notes des admis ne sont pas publiées : votre position dans la mention est une "
                 "estimation, donnée en fourchette, jamais une chance.", "moyenne"),
-    "doublette": ("Doublette de spécialités", "Les deux enseignements de spécialité gardés en Terminale (par exemple "
-                  "Mathématiques + SES). Les options comme Mathématiques expertes ne font pas partie de la doublette et "
-                  "ne sont pas publiées dans les données.", "journey_stage1"),
+    "doublette": ("Paire de spécialités (« doublette »)", "Les deux enseignements de spécialité gardés en terminale (par "
+                  "exemple Mathématiques + SES). On dit aussi « doublette ». Les options comme Mathématiques expertes ne font pas "
+                  "partie de la paire et ne sont pas publiées dans les données.", "journey_stage1"),
     "serie": ("Série du bac", "Bac général, bac technologique (STMG, STI2D, ST2S…) ou bac professionnel. Les données ne "
               "distinguent pas les séries technologiques entre elles.", "serie_offer"),
     "groupe_appel": ("Groupe d'appel", "Les candidats d'une formation sont classés par groupes (par exemple « bacheliers "
@@ -62,8 +62,8 @@ GLOSSARY = {
     "du_metier_aux_formations": ("Du métier aux formations", "Pour un métier, les diplômes qui y mènent d'après l'Onisep et les "
                                  "formations Parcoursup qui préparent ces diplômes. La liste est nationale : ce n'est pas "
                                  "une promesse d'emploi.", "metier_formations"),
-    "mes_voeux": ("Mes vœux", "Votre liste de formations (10 au maximum, comme sur Parcoursup), relue pour votre profil actuel : "
-                  "chaque vœu reçoit sa zone, et la liste est lue avec des règles simples qui comptent les zones. Ce ne "
+    "mes_voeux": ("Mes vœux", "Votre liste de formations (10 au maximum, comme sur Parcoursup), relue pour votre profil actuel. "
+                  "Chaque vœu reçoit sa zone, puis des règles simples comptent les zones de la liste. Ce ne "
                   "sont pas des chances d'admission.", "voeux"),
     "metiers_onisep": ("Métiers visés (Onisep)", "Les métiers auxquels prépare un diplôme, d'après l'Onisep, avec le niveau "
                        "d'études minimum pour y accéder. Certains demandent de poursuivre ses études après ce diplôme.", "metiers"),
@@ -88,7 +88,15 @@ GLOSSARY = {
     "paysage": ("Identifiant Paysage", "Le code officiel d'un établissement dans le référentiel du ministère. Il sert à relier "
                 "une formation Parcoursup aux autres sources (réussite, insertion) sans se tromper d'université.", None),
     "zone": ("Zones (sécurité, cible, ambitieux)", "Un repère pour équilibrer votre liste, calculé à partir des admis des "
-             "années passées : ce ne sont pas des probabilités d'admission.", "journey_zones"),
+             "années passées. Sécurité : la plupart des candidats ont été appelés et beaucoup d'admis avaient un niveau au bac "
+             "égal ou inférieur au vôtre. Ambitieux : peu de candidats ont été appelés, ou peu d'admis avaient votre niveau. "
+             "Cible : entre les deux. Ce ne sont pas des probabilités d'admission.", "journey_zones"),
+    "estimation": ("Estimation", "Un chiffre calculé par SupCompass à partir de chiffres officiels publiés, quand le chiffre "
+                   "officiel n'existe pas (par exemple pour vos deux spécialités dans une formation). Chaque estimation dit "
+                   "comment elle est calculée. Ce n'est pas un chiffre officiel, ni une chance d'admission.", None),
+    "en_position": ("Classé assez haut pour recevoir une proposition", "Un candidat dont le rang de classement a été atteint pendant la phase principale. La "
+                    "formation lui a fait une proposition, ou lui en aurait fait une s'il n'avait pas déjà renoncé à ce vœu. "
+                    "Les rapports des jurys et les chiffres du ministère comptent ces candidats.", "taux_acces_ens"),
     "plan_b": ("Plan B", "Une formation du même programme, ailleurs, plus accessible pour votre profil d'après les admis des "
                "années passées.", "planb"),
 }

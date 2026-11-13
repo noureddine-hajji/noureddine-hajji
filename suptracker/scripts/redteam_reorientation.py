@@ -32,6 +32,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import jstext  # noqa: E402  (sprint Q4: the page helpers the Node harnesses need)
 sys.path.insert(0, str(ROOT))
 from suptracker import reorientation as RO  # noqa: E402
 
@@ -327,7 +329,9 @@ def page_prog(c: Ctx) -> str:
     js = c.js
     parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "mentionParamsSearch", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT")]   # R5: the average
     parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
-              top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine")]
+              top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine"),
+              ]
+    parts.append(jstext.q4_defs(js, present="\n".join(parts)))     # sprint Q4: the estimation label, zone texts, next steps
     sec = block(js, BLOCK_START, BLOCK_END)
     return "\n".join(parts) + "\n" + sec
 
@@ -602,7 +606,11 @@ def e6(c: Ctx):
     # sprint R2: the summary's "Pour votre profil" tile and the page's own helpers it calls
     r2 = "".join(top(js, n) for n in ("pickDoublette", "estimateDoublette", "estimateSemblable", "ownHasBg", "pickRapport", "pickVoie",
                                        "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile"))
-    harness = r2 + top(js, "admisBar") + top(js, "summaryBand")
+    pre = r2 + page_prog(c)
+    zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
+    draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
+    harness = r2 + jstext.q4_defs(js, present=pre) + zones + draw \
+        + top(js, "admisBar") + top(js, "summaryBand")
     vf = top(js, "viewFormation")
     more = vf[vf.find("Plus de chiffres sur l'admission"):]
     more = more[:more.find("</details>")]
@@ -722,8 +730,8 @@ JS_MUTANTS = [
      '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ?'),
     ("cell without label", '<td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>\n      <td class="acts" data-label="Mes vœux">${voeuButton',
      '<td class="num">${reoAutres(b)}</td>\n      <td class="acts" data-label="Mes vœux">${voeuButton'),
-    ("estimation word dropped", '<div class="estim">estimation${b.plafonne', '<div class="estim">${b.plafonne'),
-    ("cap not said", '${b.plafonne ? ", plafonnée à 100 %" : ""}', ""),
+    ("estimation word dropped", '${estimTag(`${b.plafonne', '${(() => "")(`${b.plafonne'),
+    ("cap not said", '${b.plafonne ? "plafonnée à 100 % · " : ""}', ""),
     ("threshold reason dropped", "`moins de ${b.min_candidats} candidats hors terminale (${b.candidats}) : pas d'estimation`", '"pas d\'estimation"'),
     ("paging broken", "rows.slice(0, shown).map(row)", "rows.map(row)"),
     ("other-admits filter ignored", "(!onlyAutres || (f.reorientation && f.reorientation.autres_majoritaires))", "true"),
@@ -744,7 +752,7 @@ JS_MUTANTS = [
     ("chance wording", "Les chiffres ci-dessous sont des parts", "Vous serez admis : les chiffres ci-dessous sont des parts"),
     ("tutoiement", "<p>Vous n'êtes plus en terminale", "<p>Tu n'es plus en terminale"),
     # independent review's gaps
-    ("official rate shown as the estimate", '${pct1(b.acces_estime)}<div class="estim">estimation', '${pct1(b.taux_acces_ens)}<div class="estim">estimation'),
+    ("official rate shown as the estimate", '${pct1(b.acces_estime)}${estimTag(', '${pct1(b.taux_acces_ens)}${estimTag('),
     ("share of other admits reversed", "`${pct1(b.part_admis_autres)}<div", "`${pct1(100 - b.part_admis_autres)}<div"),
     ("race guard dropped (list)", "  if ($view.dataset.rendered !== first) return;\n  JV = V;", "  JV = V;"),
     ("race guard dropped (Mes vœux)", "  if ($view.dataset.rendered !== marker) return;\n  const ok = d.voeux", "  const ok = d.voeux"),
