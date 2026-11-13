@@ -1125,6 +1125,50 @@ function juryCard(rp) {
     <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
+// owner's request (2026-11-13): the evaluation grid and the expected skills the LIVE Parcoursup fiche publishes for its own
+// campaign (grilles.py): the weight of each field (global view), each criterion with what is read and its importance (detailed
+// view), the national and the formation's own expectations, the advice. Published values, verbatim and escaped; never a score
+// or a chance; the fiche fait foi.
+const GR_IMP = { 4: "Essentiel", 3: "Très important", 2: "Important", 1: "Complémentaire" };
+function ficheText(t) {
+  const out = [];
+  let list = [];
+  const flush = () => { if (list.length) { out.push(`<ul class="small gr-list">${list.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`); list = []; } };
+  for (const ln of String(t || "").split("\n")) {
+    if (/^- /.test(ln)) { list.push(ln.slice(2)); continue; }
+    flush();
+    if (ln.trim()) out.push(`<p class="small">${esc(ln)}</p>`);
+  }
+  flush();
+  return out.join("");
+}
+function grilleImp(n) {
+  const lab = GR_IMP[n];
+  if (!lab) return "";
+  return `<span class="gr-imp"><span class="rp-imp imp${4 - n}">${esc(lab)}</span> <span class="gr-dots" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span></span>`;
+}
+function grilleCard(g) {
+  if (!g || (!g.grille && !g.nationaux && !g.complementaires)) return "";
+  const lu = g.lu_le ? new Date(`${g.lu_le}T12:00:00Z`).toLocaleDateString("fr-FR") : null;
+  const camp = g.session ? ` pour la campagne ${esc(g.session)}` : "";
+  const champs = g.grille ? g.champs || [] : [];
+  const global = champs.length ? `<h3>Vue d'ensemble : le poids de chaque partie du dossier</h3>
+    <ul class="gr-global">${champs.map((c) => `<li><span class="gr-lab">${esc(c.champ)}</span>${rateBar(c.poids, "var(--ink)")}<strong class="num">${fmt(c.poids)} %</strong></li>`).join("")}</ul>
+    <p class="muted small">Les parts additionnées font 100 %. C'est la formation qui les a fixées.</p>` : "";
+  const detail = champs.length ? `<h3>Vue détaillée : les critères et leur importance</h3>
+    ${champs.map((c) => `<details class="dip gr-champ"><summary><span><strong>${esc(c.champ)}</strong> · ${fmt(c.poids)} % · ${fmt(c.criteres.length)} critère${c.criteres.length > 1 ? "s" : ""}</span></summary>
+      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Critère</th><th>Ce qui est regardé</th><th>Importance</th></tr>
+      ${c.criteres.map((k) => `<tr><td data-label="Critère">${esc(k.critere)}</td><td data-label="Ce qui est regardé">${esc(k.elements || "")}</td><td data-label="Importance">${grilleImp(k.importance)}</td></tr>`).join("")}
+      </table></div></details>`).join("")}
+    <p class="muted small">L'importance va de « Complémentaire » (1 sur 4) à « Essentiel » (4 sur 4), comme sur la fiche.</p>` : "";
+  const fold = (title, t, open) => (t ? `<details class="dip"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
+  return `<div class="card gr-card"><h2>Comment votre dossier sera examiné · fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}</h2>
+    <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
+    ${global}${detail}
+    ${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}${fold("Les conseils de la formation", g.conseils, false)}
+    <p class="muted small">La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Elle décrit l'examen des dossiers, pas des chances d'admission.</p>
+    <p class="muted small">Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.</p></div>`;
+}
 // owner's request (2026-11-10): no readable jury texts in this formation's own report, so the counts of what the commissions of
 // its similar formations published (same diploma, same mention), never their average, never this formation's own criteria
 const SEM_CRIT_N = 8;
@@ -1755,7 +1799,7 @@ function summaryBand(r, d) {
     </div>
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
-    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
+    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
 function fillZoneTile(target) {
@@ -1807,8 +1851,11 @@ async function viewFormation(cod, session) {
   const years = d.history.map((h) => h.session);
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
   // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
-  const juryHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
-  d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session } : { kind: "semblables" };
+  // the fiche's grid first (the campaign it serves), then the jury's own report, else the similar formations' reports
+  const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
+  const juryHtml = grHtml + repHtml;
+  d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
+    : grHtml ? { kind: "grille", session: d.grille.session } : { kind: "semblables" };
   $view.innerHTML = `
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>

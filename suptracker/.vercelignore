@@ -10,5 +10,6 @@ requirements-pipeline.txt
 **/data/probe/
 **/data/sources/
 **/data/rapports/
+**/data/fiches/
 **/data/calendrier/*.pdf
 **/docs/brief-ui/
