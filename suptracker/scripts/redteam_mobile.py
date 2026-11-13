@@ -286,7 +286,9 @@ def browser_results(c: Ctx):
         return c.page
     node = shutil.which("node")
     db = c.db or ROOT / "data" / "suptracker.duckdb"
-    if not node or not db.exists():
+    # like FI7 / MO7: the browser checks need node with Playwright (CI runners have neither the module nor Chromium)
+    has_pw = bool(node) and subprocess.run([node, "-e", "require('playwright')"], capture_output=True).returncode == 0
+    if not has_pw or not db.exists():
         c.page = {"skipped": True}
         return c.page
     s = socket.socket()
@@ -324,7 +326,7 @@ def browser_results(c: Ctx):
 def mb5(c: Ctx):
     r = browser_results(c)
     if r.get("skipped"):
-        return True, "skipped (--browser / --real, needs node and the warehouse)"
+        return True, "skipped (--browser / --real, needs node with Playwright and the warehouse)"
     probs = [p for p in r["problems"] if not any(w in p for w in ("unnamed", "h1", "banner", "main count", "contentinfo", "tablist",
                                                                   "tab ", "read in main", "first Tab", "focus", "first heading", "first control"))]
     s = r.get("seen", {})
@@ -335,7 +337,7 @@ def mb5(c: Ctx):
 def mb6(c: Ctx):
     r = browser_results(c)
     if r.get("skipped"):
-        return True, "skipped (--browser / --real, needs node and the warehouse)"
+        return True, "skipped (--browser / --real, needs node with Playwright and the warehouse)"
     probs = [p for p in r["problems"] if any(w in p for w in ("unnamed", "h1", "banner", "main count", "contentinfo", "tablist", "tab ",
                                                                 "read in main", "first Tab", "focus", "first heading", "first control"))]
     return not probs, f"problems {probs[:4]}"
