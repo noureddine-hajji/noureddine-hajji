@@ -37,6 +37,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import jstext  # noqa: E402  (sprint Q4: the page helpers the Node harnesses need)
 sys.path.insert(0, str(ROOT))
 from suptracker import carte as CA  # noqa: E402
 from suptracker import journey as J  # noqa: E402
@@ -89,7 +91,8 @@ def zone_shape(js: str) -> str:
     for pat in (r"^function zoneShape\(.*?^\}", r"^const ZONE_FILLED = .*?$", r"^function zoneMark\(.*?^\}", r"^function zoneBadge\(.*?^\}"):
         m = re.search(pat, js, re.M | re.S)
         out.append(m.group(0) if m else "")
-    return "\n".join(out)
+    rules = "" if re.search(r"^const ZONE_RULES = ", "\n".join(out), re.M) else "rules"
+    return "\n".join(out) + jstext.q4_defs(js, bool(rules))        # sprint Q4: zone titles and the estimation label
 
 
 def carte_js(js: str) -> str:

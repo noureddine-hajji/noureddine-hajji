@@ -43,6 +43,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import jstext  # noqa: E402  (sprint Q4: the page helpers the Node harnesses need)
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from suptracker import journey as J  # noqa: E402
@@ -272,7 +274,7 @@ def node_render(js: str, block: dict, block_nobg: dict):
     prog = helpers + """
 let PROFILE = null; const store = { get: (k, dft) => (k === "profile" ? PROFILE : dft) };
 const tip = () => ""; const legend = () => ""; const lineChart = () => "";
-""" + reo_defs(js) + blk + """
+""" + jstext.q4_defs(js, True) + reo_defs(js) + blk + """
 const [d, b, b2] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 PROFILE = { serie: "bg", spe1: "MATHS", spe2: "PC", maths_expertes: true };
 const out = { card: doubletteCard(d, b), card_nobg: doubletteCard(d, b2), card_none: doubletteCard(d, null), jury: juryCard(b) };

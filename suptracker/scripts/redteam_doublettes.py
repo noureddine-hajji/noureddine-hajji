@@ -35,6 +35,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import jstext  # noqa: E402  (sprint Q4: the page helpers the Node harnesses need)
 sys.path.insert(0, str(ROOT))
 
 from suptracker import doublettes as DB  # noqa: E402
@@ -421,7 +423,7 @@ def node_card(js: str):
     prog = helpers + """
 let PROFILE = null; const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const tip = () => ""; const legend = () => ""; const lineChart = () => "";
-""" + reo_defs(js) + blk + """
+""" + jstext.q4_defs(js, True) + reo_defs(js) + blk + """
 const [d, prof] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = {}; PROFILE = prof; out.rare = doubletteCard(d); PROFILE = null; out.none = doubletteCard(d);
 out.nogroup = doubletteCard({ ...d, status: "sans_groupe", groupe: null });

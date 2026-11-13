@@ -145,3 +145,11 @@ def visible(piece: str) -> str:
     attrs = " ".join(ATTR_TEXT.findall(piece))
     text = ATTR_ANY.sub(" ", TAG.sub(" ", piece))
     return f"{text} {attrs}".strip()
+
+
+def q4_defs(js: str, rules: bool = False) -> str:
+    """Sprint Q4: the page helpers every card now calls (the estimation label, the zone texts), for the red teams that run
+    parts of the page in Node. `rules`: also ZONE_RULES, for a harness that does not define it already."""
+    pats = [r"^const ESTIM_DEF = .*?$", r"^function estimTag\(.*?^\}", r"^function zoneHelp\(.*?^\}",
+            r"^const ZONE_NOT_CHANCE = .*?$", r"^function zoneLegend\(.*?^\}"] + ([r"^const ZONE_RULES = .*?$"] if rules else [])
+    return "\n" + "\n".join(re.search(p, js, re.M | re.S).group(0) for p in pats) + "\n"
