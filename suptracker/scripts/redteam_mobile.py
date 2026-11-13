@@ -151,7 +151,15 @@ const LAYOUT = () => {
   const accRgb = getComputedStyle(probe).color; probe.remove();
   const filled = [...main.querySelectorAll('a, button')].filter((e) => e.offsetParent !== null && getComputedStyle(e).backgroundColor === accRgb);
   if (filled.length !== 1) p.push(`${filled.length} filled accent controls in main: ${filled.map((e) => e.textContent.trim().slice(0, 25)).join(' | ')}`);
-  if (document.documentElement.scrollWidth > innerWidth + 1) p.push('horizontal scroll');
+  // the device's own width: an emulated phone widens its layout viewport (innerWidth) to fit a too wide block
+  const W = document.documentElement.clientWidth;   // innerWidth grows on an emulated phone to fit a too wide block
+  if (document.documentElement.scrollWidth > W + 1) p.push('horizontal scroll');
+  // a block wider than the screen that no scrolling container holds is cut on a phone, even when the page itself cannot scroll
+  const cut = [...main.querySelectorAll('*')].filter((e) => { const r = e.getBoundingClientRect();
+    if (!r.width || r.right <= W + 1) return false;
+    for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o === 'auto' || o === 'scroll') return false; }
+    return true; });
+  if (cut.length) p.push(`horizontal scroll: ${cut.length} blocks wider than the screen (${cut[0].tagName.toLowerCase()}.${String(cut[0].className).slice(0, 30)})`);
   return { p, filled: filled.map((e) => e.textContent.trim().slice(0, 40)) };
 };
 const READER = () => {
@@ -162,7 +170,10 @@ const READER = () => {
   if (document.querySelectorAll('header, [role=banner]').length !== 1) p.push('banner count');
   if (document.querySelectorAll('main').length !== 1) p.push('main count');
   if (document.querySelectorAll('footer, [role=contentinfo]').length !== 1) p.push('contentinfo count');
-  for (const n of document.querySelectorAll('nav')) if (!name(n) && !n.getAttribute('aria-label')) p.push('unnamed navigation');
+  // a landmark is named by aria-label or aria-labelledby only, never by the text of its links (Codex review)
+  const label = (e) => (e.getAttribute('aria-label') || (e.getAttribute('aria-labelledby') || '').split(' ').filter(Boolean)
+    .map((id) => (document.getElementById(id) || {}).textContent || '').join(' ')).trim();
+  for (const n of document.querySelectorAll('nav')) if (!label(n)) p.push('unnamed navigation');
   const main = document.querySelector('main');
   const h1 = main.querySelectorAll('h1');
   if (h1.length !== 1) p.push(`${h1.length} h1 in main`);
@@ -226,12 +237,15 @@ const READER = () => {
       await page.goto(base + '/#/voeux'); await page.waitForTimeout(800);
       if (await page.evaluate(() => document.getElementById('profile-bar').hidden)) problems.push('voeux without a profile: the profile bar is hidden');
     }
-    // page mutants (MB8): each must make LAYOUT or READER fail
+    // page mutants (MB8): each must raise, against the unmutated page, the very problem it targets
     if (!profile) {
-      for (const [mname, code] of MUT) {
+      await page.goto(base + '/#/'); await page.waitForSelector('.hero-cta');
+      const b0 = await evalChecks(page); const base0 = new Set([...b0.lay.p, ...b0.rd]);
+      for (const [mname, code, expect] of MUT) {
         await page.goto(base + '/#/'); await page.waitForSelector('.hero-cta');
         const { lay: l2, rd: r2 } = await evalChecks(page, code);
-        seen.mutants = seen.mutants || {}; seen.mutants[mname] = (l2.p.length + r2.length) > 0;
+        const fresh = [...l2.p, ...r2].filter((x) => !base0.has(x));
+        seen.mutants = seen.mutants || {}; seen.mutants[mname] = fresh.some((x) => x.includes(expect));
       }
     }
     await ctx.close();
@@ -275,15 +289,17 @@ const READER = () => {
 })();
 """
 # DOM perturbations: each turns one thing MB5/MB6 must see wrong (MB8)
+# (name, DOM change, the problem it must raise: a substring of MB5/MB6's own message)
 PAGE_MUTANTS = [
-    ("a second filled button in main", "() => { const b = document.createElement('button'); b.className = 'primary'; b.textContent = 'Autre'; document.querySelector('main .hero').appendChild(b); }"),
-    ("an unnamed button", "() => { const b = document.createElement('button'); b.innerHTML = '<svg aria-hidden=\"true\"></svg>'; document.querySelector('main .hero').appendChild(b); }"),
-    ("a second h1", "() => { const h = document.createElement('h1'); h.textContent = 'x'; document.querySelector('main').appendChild(h); }"),
-    ("an unnamed navigation", "() => { document.querySelector('nav.tabbar').removeAttribute('aria-label'); }"),
-    ("a 'undefined' read", "() => { const s = document.createElement('p'); s.textContent = 'Taux undefined'; document.querySelector('main').appendChild(s); }"),
-    ("a too wide block", "() => { const d = document.createElement('div'); d.style.width = '900px'; d.textContent = 'x'; document.querySelector('main').appendChild(d); }"),
-    ("an unnamed summary", "() => { const d = document.createElement('details'); d.innerHTML = '<summary></summary>'; document.querySelector('main').appendChild(d); }"),
-    ("a heading before the h1", "() => { const h = document.createElement('h2'); h.textContent = 'x'; const m = document.querySelector('main'); m.insertBefore(h, m.firstChild); }"),
+    ("a second filled button in main", "() => { const b = document.createElement('button'); b.className = 'primary'; b.textContent = 'Autre'; document.querySelector('main .hero').appendChild(b); }", "filled accent controls"),
+    ("an unnamed button", "() => { const b = document.createElement('button'); b.innerHTML = '<svg aria-hidden=\"true\"></svg>'; document.querySelector('main .hero').appendChild(b); }", "unnamed button"),
+    ("a second h1", "() => { const h = document.createElement('h1'); h.textContent = 'x'; document.querySelector('main').appendChild(h); }", "h1 in main"),
+    ("an unnamed navigation", "() => { document.querySelector('nav.tabbar').removeAttribute('aria-label'); }", "unnamed navigation"),
+    ("a 'undefined' read", "() => { const s = document.createElement('p'); s.textContent = 'Taux undefined'; document.querySelector('main').appendChild(s); }", "read in main"),
+    ("a too wide block", "() => { const d = document.createElement('div'); d.style.width = '900px'; d.textContent = 'x'; document.querySelector('main').appendChild(d); }", "horizontal scroll"),
+    ("an unnamed summary", "() => { const d = document.createElement('details'); d.innerHTML = '<summary></summary>'; document.querySelector('main').appendChild(d); }", "unnamed summary"),
+    ("a heading before the h1", "() => { const h = document.createElement('h2'); h.textContent = 'x'; const m = document.querySelector('main'); m.insertBefore(h, m.firstChild); }", "first heading"),
+    ("a navigation named by its links only", "() => { const n = document.querySelector('nav.views'); if (n) n.removeAttribute('aria-label'); }", "unnamed navigation"),
 ]
 
 
@@ -322,7 +338,7 @@ def browser_results(c: Ctx):
                     core.formation_year) AND taux_acces_ens IS NOT NULL ORDER BY length(lib_for_voe_ins) DESC, cod_aff_form LIMIT 3""").fetchall()]
         script = Path(tmp) / "mb.js"
         script.write_text(BROWSER_JS.replace("__PORT__", str(port)).replace("__CODS__", json.dumps(cods))
-                          .replace("__MUTANTS__", "[" + ",".join(f"[{json.dumps(n)}, {code}]" for n, code in PAGE_MUTANTS) + "]"))
+                          .replace("__MUTANTS__", "[" + ",".join(f"[{json.dumps(n)}, {code}, {json.dumps(e)}]" for n, code, e in PAGE_MUTANTS) + "]"))
         r = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=900)
         out = (r.stdout or "").strip().splitlines()
         c.page = json.loads(out[-1]) if out and out[-1].startswith("{") else {"problems": [r.stderr[-500:]], "seen": {}}
@@ -403,7 +419,7 @@ def mb8(c: Ctx):
     page = "page mutants skipped (--browser)"
     if not r.get("skipped"):
         res = (r.get("seen") or {}).get("mutants") or {}
-        pm = [n for n, _ in PAGE_MUTANTS if not res.get(n)]
+        pm = [n for n, _c, _e in PAGE_MUTANTS if not res.get(n)]
         caught += len(PAGE_MUTANTS) - len(pm)
         missed += [f"page: {n}" for n in pm]
         page = f"{len(PAGE_MUTANTS) - len(pm)}/{len(PAGE_MUTANTS)} page mutants"

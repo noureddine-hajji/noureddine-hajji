@@ -3046,7 +3046,10 @@ Red team `scripts/redteam_mobile.py` (MB1-MB8):
   - the tabs form a valid tablist;
   - the focus is on the h1 after a navigation;
   - no "undefined", "null" or "NaN" is read.
-- MB8 is the mutation test: 13 source mutants and 8 page mutants (the DOM altered before MB5/MB6 read it), all caught.
+- MB8 is the mutation test: 13 source mutants and 9 page mutants (the DOM altered before MB5/MB6 read it), each caught by the
+  very problem it targets, new against the unmutated page.
+- Review fixes: a navigation landmark is named by `aria-label` / `aria-labelledby` only, never by the text of its links (Codex).
+  The overflow checks compare with `clientWidth`, because an emulated phone widens `innerWidth` to fit a too wide block (LA7 too).
 - Audit fix: on a phone, the map's markers (Leaflet panes, z-index 400-1000) covered the bottom tab bar, which could not be
   tapped there. The map now forms its own stacking context, and MB5 taps five points of the bar on the map page.
 
