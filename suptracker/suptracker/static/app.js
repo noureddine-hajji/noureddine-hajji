@@ -1341,6 +1341,9 @@ async function viewCarte(dArg, mArg) {
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
   const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
   store.set("carteSel", sel);
+  // R10: the page's heading and a loading line at once (every diploma takes a few seconds the first time)
+  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Carte des formations</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  document.title = "Carte des formations — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const P = bacProfile();                                                // sprint 21: no zone outside terminale
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   // R5: the profile's own codes ("sm" was never a profile value: a sans-mention student got no zone on the map)

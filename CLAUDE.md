@@ -500,6 +500,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   rate; the doublette figure from `voeux.figures` (shared with Mes vœux, `/api/carte/chiffres` <= 40 codes, coarse profile; bac
   techno/pro lines picked by the page, the series is never sent); the average's position among the admits as a RANGE from `lec`,
   "estimation", never an access rate or a chance (none is published by mention). Red team `redteam_carterecherche.py` (CR1-CR10).
+- **Map page as on Parcoursup (sprint R10, owner 2026-11-13).** Filters left, list middle, map right (sticky); a formation chosen on
+  the map is pinned atop the list. Nothing ticked in a group = everything (diplomas included: one cacheable answer each; the layer is
+  built ONCE per warehouse, `carte._LAYER`); list first, zones after. Card: statut + selectivity badges, official rate, rate per bac
+  route (`carte.bac_lines`: the cross-checked report's en_position / confirmes over the route's lines incl. "Autres", masked = "non
+  publié"; no report = `journey.series_access_sql` estimation, starred and named, fragile < 20), the most represented line among the
+  admits (route with the most SIES admits, tie = none; that route's report line with the most `acceptes`, never "Autres"; tie =
+  "ex æquo"), profile figures, Mes vœux / Comparer (basket, 6) / Fiche. Sorted stats first then name (punctuation off), never by a
+  figure. Red team CR11-CR13 in `redteam_carterecherche.py`.
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

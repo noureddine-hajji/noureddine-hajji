@@ -2789,3 +2789,40 @@ The owner reviewed the map page and asked for eight changes. Analysis first (rea
 - CR7: wording (no chance, no "taux d'accès" for the position, the caveat in the footnote, vouvoiement), three labelled figures, the doublette figure rendered by Mes vœux's `dblFigure`.
 - CR8 (`--browser` / `--real`): three columns in order on a wide screen, the map in the left column, no horizontal scroll at 390 and 320 px, multi-select and a mention group filter in the page, CPES placed in a zone, 0 JS errors.
 - CR9: 15 mutants (a map marker's choice that never asks its figures (Codex: the figure stayed at « … »), pair kept in printed order, Gestion merged with Économie, order with accents, untyped formations without a zone, another figure than Mes vœux, no limit on codes, bounds swapped, one hypothesis only, mention filter ignored, stored diploma trusted, series line sent, "chance" wording, caveat dropped, another doublette rendering), all caught.
+
+## Sprint R10: the map page as on Parcoursup (owner, 2026-11-13)
+
+The owner compared the map page with Parcoursup's own search (filters on the left, the list in the middle, the map on the right)
+and with a Parcoursup table listing, per formation, the specialties most represented among the admits.
+
+**Data first.** No SIES file publishes a "most represented specialty" per formation, and SIES publishes no access rate per bac
+route. The formations' own jury reports, which the site already reads and checks (12,592 formations of the 2025 campaign), print
+for each bac route (général, techno, pro) and each line (doublette, series, specialty) the confirmed candidates, those in a
+position to receive a proposal and the admits who accepted. These are published counts, the source of the Parcoursup fiche's "taux d'accès" per bac.
+
+**What changed.**
+- **Layout.** Filters on the left, the list in the middle, the map on the right (sticky, as high as the screen). A formation
+  chosen on the map is pinned at the top of the list with its full card and a close button; one chosen in the list is marked.
+  Up to 1,180 px: filters, then the map above the list; phone: filters folded, map, list.
+- **Nothing ticked = everything.** Unticking every type of diploma shows every formation, as on Parcoursup (one cacheable answer
+  per diploma); every other group has a "Tout décocher" button. The list and the map come first, the zones after
+  ("Zones en cours de chargement…"); the server builds the whole layer once per warehouse (23,120 formations in 1.2 s instead of 34 passes).
+- **Compact card.** Statut (Public, Privé sous contrat, Privé hors contrat (payant), Privé en apprentissage) and selectivity as
+  badges (the "Sélectivité" filter); the zone; name, place, places; the official access rate; the rate of each bac route; the
+  line most admits come from; the two figures for the profile; "Ajouter à mes vœux", "Comparer" (the comparator, 6 at most) and "Fiche".
+- **Rate per bac route** (`carte.bac_lines`): the formation's report of the latest campaign (cross-checked), en_position /
+  confirmes over every line of the route, its "Autres" bucket included; a masked table says "non publié". Without a report: the
+  site's estimated access of the route (`journey.series_access_sql`, capped at 100), starred, "(estimation)" for screen readers,
+  "peu de candidats" below 20. 29,328 report rates and 13,428 estimations.
+- **Most represented line among the admits** (owner's rule: one line, with its bac): the route with the most admits in the SIES
+  campaign (a tie = none), then that route's report line with the most admits (never the "Autres" bucket); a tie on the top line
+  says "ex æquo". Bac général as "Maths & Physique-chimie", bac techno as "STMG · Mercatique", bac pro as printed. 8,710 formations.
+- **Order.** Formations with published figures first, then the apprenticeship offers; then the name without its leading
+  punctuation ("(CFA …)" sorted with C). Never by a figure.
+
+**Red team (`scripts/redteam_carterecherche.py`, CR1-CR13).**
+- CR11: the rate per bac and the line re-derived from the report tables, the masks and the SIES counts for all 14,252 formations of the campaign, with an independent short-name table.
+- CR12: the card's pieces in Node (masked, starred and named estimation, escaped line, ex æquo, statut words, compare states, sort).
+- CR13: nothing ticked = everything, the clear buttons, the list before the zones, no sort by a figure.
+- CR8 (browser): filters < list < map from left to right, the map on the first screen, each card with the official rate, three bac routes, two profile figures and a compare button.
+- CR9: 25 mutants, all caught.
