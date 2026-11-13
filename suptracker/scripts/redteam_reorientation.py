@@ -330,7 +330,8 @@ def page_prog(c: Ctx) -> str:
     parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "mentionParamsSearch", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT")]   # R5: the average
     parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
               top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine"),
-              jstext.q4_defs(js)]                                   # sprint Q4: the estimation label and zone texts
+              ]
+    parts.append(jstext.q4_defs(js, present="\n".join(parts)))     # sprint Q4: the estimation label, zone texts, next steps
     sec = block(js, BLOCK_START, BLOCK_END)
     return "\n".join(parts) + "\n" + sec
 
@@ -605,7 +606,11 @@ def e6(c: Ctx):
     # sprint R2: the summary's "Pour votre profil" tile and the page's own helpers it calls
     r2 = "".join(top(js, n) for n in ("pickDoublette", "estimateDoublette", "estimateSemblable", "ownHasBg", "pickRapport", "pickVoie",
                                        "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile"))
-    harness = r2 + jstext.q4_defs(js, "const ZONE_RULES" not in r2) + top(js, "admisBar") + top(js, "summaryBand")
+    pre = r2 + page_prog(c)
+    zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
+    draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
+    harness = r2 + jstext.q4_defs(js, present=pre) + zones + draw \
+        + top(js, "admisBar") + top(js, "summaryBand")
     vf = top(js, "viewFormation")
     more = vf[vf.find("Plus de chiffres sur l'admission"):]
     more = more[:more.find("</details>")]

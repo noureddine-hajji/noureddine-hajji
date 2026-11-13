@@ -147,9 +147,15 @@ def visible(piece: str) -> str:
     return f"{text} {attrs}".strip()
 
 
-def q4_defs(js: str, rules: bool = False) -> str:
-    """Sprint Q4: the page helpers every card now calls (the estimation label, the zone texts), for the red teams that run
-    parts of the page in Node. `rules`: also ZONE_RULES, for a harness that does not define it already."""
-    pats = [r"^const ESTIM_DEF = .*?$", r"^function estimTag\(.*?^\}", r"^function zoneHelp\(.*?^\}",
-            r"^const ZONE_NOT_CHANCE = .*?$", r"^function zoneLegend\(.*?^\}"] + ([r"^const ZONE_RULES = .*?$"] if rules else [])
-    return "\n" + "\n".join(re.search(p, js, re.M | re.S).group(0) for p in pats) + "\n"
+def q4_defs(js: str, rules: bool = False, present: str = "") -> str:
+    """Sprint Q4: the page helpers every card now calls (the estimation label, the zone texts, "Et maintenant ?"), for the red
+    teams that run parts of the page in Node. `rules`: also ZONE_RULES. `present`: the harness so far (a definition it already
+    holds is not repeated)."""
+    pats = {"ESTIM_DEF": r"^const ESTIM_DEF = .*?$", "estimTag": r"^function estimTag\(.*?^\}", "zoneHelp": r"^function zoneHelp\(.*?^\}",
+            "ZONE_NOT_CHANCE": r"^const ZONE_NOT_CHANCE = .*?$", "zoneLegend": r"^function zoneLegend\(.*?^\}",
+            "AIDE_STEP": r"^const AIDE_STEP = .*?$", "NEXT_STEPS": r"^const NEXT_STEPS = \{.*?^\};", "nextSteps": r"^function nextSteps\(.*?^\}"}
+    if rules:
+        pats["ZONE_RULES"] = r"^const ZONE_RULES = .*?$"
+    out = [re.search(p, js, re.M | re.S).group(0) for n, p in pats.items()
+           if not re.search(rf"^(?:const|let|function) {n}\b", present, re.M)]
+    return "\n" + "\n".join(out) + "\n"
