@@ -887,6 +887,21 @@ def carte_formations(diplome: str, mention: str | None = None):
                                           only=lambda f: f.get("stats") is not False)}   # apprenticeship offers: no SIES figure
 
 
+@app.get("/api/carte/couche")
+def carte_couche(request: Request, partie: str = Query("base", pattern="^(base|details)$")):
+    """Sprint Q3: the whole neutral layer of the map in one compact answer (carte.couche), built and compressed once per
+    warehouse: "base" (the list, the map, the filters) then "details" (the cards); base + details = the same formations and
+    values as /api/carte/formations for every type of diploma (red team VT1)."""
+    c = CA.couche(_con().cursor(), ADM.mark, partie)
+    if request.headers.get("if-none-match") == c["etag"]:
+        return Response(status_code=304, headers={"ETag": c["etag"]})
+    gz = "gzip" in (request.headers.get("accept-encoding") or "").lower()
+    headers = {"ETag": c["etag"], "Vary": "Accept-Encoding"}
+    if gz:
+        headers["Content-Encoding"] = "gzip"
+    return Response(c["gzip"] if gz else c["json"], media_type="application/json", headers=headers)
+
+
 @app.get("/api/carte/zones")
 def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac", pattern="^(sm|rattrapage|sansmention|ab|b|tb|tbf)$"),
                 mention: str | None = None, spe1: str | None = None, spe2: str | None = None,

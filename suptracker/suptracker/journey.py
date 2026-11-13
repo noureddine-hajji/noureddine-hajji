@@ -19,6 +19,7 @@ an empirical share of a published cohort.
 from __future__ import annotations
 
 import math
+import functools
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -51,6 +52,7 @@ SPECIALTY_SHORT = {
 SCIENTIFIC = {"MATHS", "PC", "SVT", "NSI", "SI", "BIOECO"}
 
 
+@functools.lru_cache(maxsize=65536)          # sprint Q3: the same few labels are folded thousands of times per answer
 def _fold(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s).replace("\xa0", " ")).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
@@ -234,6 +236,14 @@ def series_access_sql(serie: str, alias: str = "fy") -> str:
 
 def group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None,
                   serie: str = "bg") -> bool | None:
+    """Sprint Q3: memoised. A pure function of its arguments, and the 2022-2025 exports have a few dozen distinct labels
+    for tens of thousands of calls per map answer (the regexes were half of the zones' time)."""
+    return _group_applies(label, tuple(spe) if spe is not None else None, sex, serie)
+
+
+@functools.lru_cache(maxsize=8192)
+def _group_applies(label: str | None, spe: tuple[str, str] | None, sex: str | None = None,
+                   serie: str = "bg") -> bool | None:
     """Does a Parcoursup calling group (lib_grp*) apply to a *bac général* student?
 
     True / False when the label decides it, None when it depends on information we do
@@ -745,7 +755,7 @@ def untyped_codes(con, filieres: list[str] | None = None) -> list[str]:
 
 def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | None = None,
            sex: str | None = None, limit: int = 4000, serie: str = "bg", only: list[str] | None = None,
-           moyenne: float | None = None) -> dict:
+           moyenne: float | None = None, types: list[str] | None = None) -> dict:
     """Formations of one type for a student. serie='bg' (doublette `dkey` used for calling groups)
     or 'bt' / 'bp' (B4: the series' official access rate, groups and mention position).
     `only` (sprint 11, "Mes vœux"): restrict to these formation codes. Every row is computed from its
@@ -754,6 +764,11 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
         raise ValueError(f"mention must be one of {MENTIONS}")
     if type_key_ == SANS_TYPE and only is None:
         raise ValueError("sans_type is read only for listed formations (`only`)")
+    # sprint Q3: several types in ONE query (the map's zones: 101 queries became one per diploma). Every row is computed from
+    # its own lineage, so a row read with `types` is exactly the row read under its own type (red team VT2)
+    if types is not None and only is None:
+        raise ValueError("types is read only for listed formations (`only`)")
+    tlist = list(types) if types is not None else [type_key_]
     if moyenne is not None and band_of(moyenne) != mention and not (mention == "sansmention" and moyenne < RATTRAPAGE_TOP):
         raise ValueError("la mention et la moyenne ne correspondent pas")
     # R5: the within-band fraction of the average, normal (the reading) and uniform (the other end of the range)
@@ -776,7 +791,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
       LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form)
       LEFT JOIN core.taxonomy_rule r USING (rule_id)
       WHERE fy.session = $latest
-        AND (r.spe_type_key = $type OR ($type = '{SANS_TYPE}' AND r.spe_type_key IS NULL))
+        AND (list_contains($types, r.spe_type_key) OR (list_contains($types, '{SANS_TYPE}') AND r.spe_type_key IS NULL))
         AND ($only IS NULL OR list_contains($only, fy.cod_aff_form))),
     hist AS (
       SELECT l.lineage_id,
@@ -802,7 +817,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
            t.cod_uai, t.pct_etab_orig,
            h.n_known, h.k_cum, h.k_exact, h.neobac, h.bg, h.brs, h.years, h.trend, h.bg_margins, h.s_sum
     FROM target t JOIN hist h USING (lineage_id)
-    ORDER BY taux NULLS LAST, t.cod_aff_form LIMIT {int(limit)}""", {"latest": latest, "type": type_key_,
+    ORDER BY taux NULLS LAST, t.cod_aff_form LIMIT {int(limit)}""", {"latest": latest, "types": tlist,
                                                     "only": list(only) if only is not None else None}).fetchall()
     cols = ["cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "select_form",
             "taux_acces_ens", "acc_bg_latest", "acc_neobac_latest", "pct_aca_orig", "lat", "lon", "fiche_url",

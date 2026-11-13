@@ -412,6 +412,102 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
     return {"diplome": diplome, "mention": mention, "session": session, "offre_apprentissage": offre, "formations": out}
 
 
+# ---- sprint Q3 (owner, 2026-11-13): the whole map layer in ONE compact answer, built and compressed once per warehouse ----
+# The map asked 34 answers (one per type of diploma, 22 MB of JSON when nothing is ticked), each re-encoded and re-compressed
+# by the server at every call. `couche` serves the same formations, the same keys and values (red team VT1 decodes it and
+# compares it with every per-diploma answer), as rows of values under a few key templates, repeated strings sent once.
+TOUS = "*"                 # /api/carte/zones?diplome=* : the zones of every type of diploma at once
+DICT_KEYS = ("etablissement", "ville", "academie", "contrat_etab", "select_form", "internat", "distance", "formation", "mention",
+             "groupe", "statut", "diplome")
+_COUCHE: dict = {}
+
+
+DETAIL_KEYS = ("bacs", "majo", "offres_app", "fiche")   # read by the cards only: sent in a second answer, after the list
+
+
+def couche(con, mark=None, partie: str = "base") -> dict:
+    """{"json": bytes, "gzip": bytes, "etag": str, "n": int} of the whole layer. `mark` = admis.mark (the list label), applied
+    as /api/carte/formations applies it. `partie` "base": every key but DETAIL_KEYS (what the list, the map and the filters
+    read); "details": for each formation its code and its DETAIL_KEYS present (the cards). base + details = each formation."""
+    key = _fingerprint(con)
+    if key not in _COUCHE:
+        _COUCHE.clear()
+        _COUCHE[key] = _couche_build(con, mark)
+    return _COUCHE[key][partie]
+
+
+def _couche_build(con, mark) -> dict:
+    import gzip
+    import hashlib
+    import json
+    facs = facets(con)
+    parts = {}
+    for partie in ("base", "details"):
+        parts[partie] = {"strings": [], "sidx": {}, "kinds": [], "kidx": {}, "rows": []}
+    session = offre = None
+    def enc(P, v, top=False):
+        """An object = [-(1 + its key template), values...]; a list = its encoded items; a string of DICT_KEYS (top level)
+        = its index in `strings`; anything else as it is."""
+        if isinstance(v, dict):
+            cols = tuple(v)
+            if cols not in P["kidx"]:
+                P["kidx"][cols] = len(P["kinds"])
+                P["kinds"].append(list(cols))
+            out = [-1 - P["kidx"][cols]]
+            for c in cols:
+                x = v[c]
+                if top and c in DICT_KEYS and isinstance(x, str):
+                    if x not in P["sidx"]:
+                        P["sidx"][x] = len(P["strings"])
+                        P["strings"].append(x)
+                    out.append(P["sidx"][x])
+                else:
+                    out.append(enc(P, x))
+            return out
+        if isinstance(v, list):
+            return [enc(P, x) for x in v]
+        return v
+
+    for d in [x["label"] for x in facs["diplomes"]]:
+        lay = public(formations(con, d))
+        if lay is None:
+            continue
+        session, offre = lay["session"], lay["offre_apprentissage"]
+        items = lay["formations"]
+        if mark is not None:
+            items = mark(con, items, session=lay["session"], only=lambda f: f.get("stats") is not False)
+        for f in items:
+            f = {**f, "diplome": d}
+            pieces = {"base": {k: v for k, v in f.items() if k not in DETAIL_KEYS},
+                      "details": {"cod_aff_form": f["cod_aff_form"], **{k: f[k] for k in DETAIL_KEYS if k in f}}}
+            for partie, obj in pieces.items():
+                P = parts[partie]
+                row = enc(P, obj, top=True)
+                if dec(row, P["kinds"], P["strings"], top=True) != obj:   # self-check: the page's decoder twin reads it back
+                    raise RuntimeError(f"couche: {f.get('cod_aff_form')} does not round-trip")
+                P["rows"].append(row)
+    out = {}
+    for partie, P in parts.items():
+        payload = {"partie": partie, "session": session, "offre_apprentissage": offre, "dict_keys": list(DICT_KEYS),
+                   "strings": P["strings"], "kinds": P["kinds"], "rows": P["rows"]}
+        raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        out[partie] = {"json": raw, "gzip": gzip.compress(raw, 6, mtime=0),
+                       "etag": '"' + hashlib.sha256(raw).hexdigest()[:20] + '"', "n": len(P["rows"])}
+    return out
+
+
+def dec(v, kinds: list, strings: list, top: bool = False):
+    """The decoder (the page's twin is `coucheDec` in app.js). An encoded object is a list whose first item is a negative
+    int; a plain list never starts with one in this layer (the build checks every row round-trips)."""
+    if isinstance(v, list):
+        if v and isinstance(v[0], int) and not isinstance(v[0], bool) and v[0] < 0:
+            cols = kinds[-1 - v[0]]
+            return {c: (strings[x] if top and c in DICT_KEYS and isinstance(x, int) and not isinstance(x, bool)
+                        else dec(x, kinds, strings)) for c, x in zip(cols, v[1:])}
+        return [dec(x, kinds, strings) for x in v]
+    return v
+
+
 def _layer(con) -> tuple:
     rows = con.execute("""
         WITH s AS (SELECT max(session) AS s FROM core.formation_year)
@@ -476,20 +572,29 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
           moyenne: float | None = None, lecture: bool = False) -> dict:
     """{code: zone} for the formations of a diploma (and mention): journey.stage2 on each formation's own type, `only` its
     codes, so every zone is the one "Mon parcours" shows. Formations without a SIES type are read under J.SANS_TYPE (R9)."""
-    lay = formations(con, diplome, mention)
-    if lay is None:
-        return {"zones": {}}
+    if diplome == TOUS:          # sprint Q3: every type of diploma in one answer (the map when nothing is ticked)
+        items = [f for d in facets(con)["diplomes"] for f in (formations(con, d["label"]) or {"formations": []})["formations"]]
+    else:
+        lay = formations(con, diplome, mention)
+        if lay is None:
+            return {"zones": {}}
+        items = lay["formations"]
     by_type: dict = {}
-    for f in lay["formations"]:
+    for f in items:
         if f.get("stats", True) is not False:   # R9: a formation with no SIES type is read under J.SANS_TYPE
             by_type.setdefault(f["type_key"] or J.SANS_TYPE, []).append(f["cod_aff_form"])
     out, lec = {}, {}
-    for tk, cods in by_type.items():
-        for f in J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods, moyenne=moyenne)["formations"]:
-            out[f["cod_aff_form"]] = f["zone"]
-            if lecture:      # R6: what the page needs to read the zone with the average it keeps (journey.stage2's `lec`)
-                lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"],
-                                          "lec": f["lec"]}
+    cods = [c for cs in by_type.values() for c in cs]
+    if not cods:
+        return {"zones": {}, **({"lectures": {}} if lecture else {})}
+    # sprint Q3: every type of the diploma in one stage-2 query (each row is read from its own lineage, the same row)
+    rows = J.stage2(con, dkey, mention_bac, next(iter(by_type)), None, serie=serie, only=cods, moyenne=moyenne,
+                    types=list(by_type), limit=len(cods) + 1)["formations"]
+    for f in rows:
+        out[f["cod_aff_form"]] = f["zone"]
+        if lecture:      # R6: what the page needs to read the zone with the average it keeps (journey.stage2's `lec`)
+            lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"],
+                                      "lec": f["lec"]}
     return {"zones": out, **({"lectures": lec} if lecture else {})}
 
 

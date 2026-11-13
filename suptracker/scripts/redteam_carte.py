@@ -559,8 +559,9 @@ PY_MUTANTS = [
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
     ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),
     ("any link kept", 'fiche if (fiche or "").startswith(FICHE_PREFIX) else None', "fiche"),
-    ("zones from another profile", "J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods, moyenne=moyenne)",
-     "J.stage2(con, dkey, 'tb', tk, None, serie=serie, only=cods, moyenne=None)"),
+    # sprint Q3: every type of the diploma in ONE stage-2 query
+    ("zones from another profile", "rows = J.stage2(con, dkey, mention_bac, next(iter(by_type)), None, serie=serie, only=cods, moyenne=moyenne,",
+     "rows = J.stage2(con, dkey, 'tb', next(iter(by_type)), None, serie=serie, only=cods, moyenne=None,"),
 ]
 JS_MUTANTS = [
     ("zone shown without a profile", "zone: ok ? (zones.get(f.cod_aff_form) || null) : null", "zone: zones.get(f.cod_aff_form) || null"),

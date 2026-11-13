@@ -571,11 +571,13 @@ def cr13(c: Ctx):
     sec = section(c.js)
     view = c.js[c.js.index("async function viewCarte("): c.js.index("\n// ---- lot 2 (Claude design guidelines)")]
     checks = {
-        "every diploma when none ticked": "const dips = sel.d.length ? sel.d : FAC.diplomes.map((d) => d.label);" in view,
+        # sprint Q3: the layer is one answer (all diplomas), the ticked ones kept in the browser; nothing ticked = all
+        "every diploma when none ticked": "const tous = !sel.d.length;" in view and "const dips = tous ? FAC.diplomes.map((d) => d.label) : sel.d;" in view
+                                          and "carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok)" in view,
         "unticking every diploma allowed": "at least one type of diploma" not in view and "data-clear-dips" in view,
         "a group's clear button": "data-clear=" in view and "F[b.dataset.clear] = [];" in view,
         "selectivity group named": '["select", "Sélectivité",' in c.js,
-        "zones after the list": "const zonesP = partsP.then(" in view and "zonesReady" in view,
+        "zones after the list": "const zonesP = coucheP.then(" in view and "zonesReady" in view,
         "sort: stats first then name": "(a.stats === false) - (b.stats === false)" in view and "carteSortName(a).localeCompare(carteSortName(b), \"fr\")" in view,
         "no figure in the sort": not re.search(r"\.sort\(\(a, b\) => [^\n]*(taux|zone|position)", view),
         "keep all with nothing ticked": "!sel.d.length ||" in sec,
@@ -665,7 +667,7 @@ JS_MUTANTS = [
     ("estimation not named", "'<span class=\"sr-only\"> (estimation)</span>'", "''", "CR12"),
     ("compare button never wired", "basket.toggle(b.dataset.cmp); draw(false);", "draw(false);", "CR12"),
     ("payant not said", 'prive: "Privé hors contrat (payant)"', 'prive: "Privé"', "CR12"),
-    ("one diploma when none ticked", "const dips = sel.d.length ? sel.d : FAC.diplomes.map((d) => d.label);", "const dips = sel.d.length ? sel.d : [FAC.diplomes[0].label];", "CR13"),
+    ("one diploma when none ticked", "carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok)", "carteMerge(C.rows.filter((f) => f.diplome === dips[0]), null, ok)", "CR13"),
     ("cards revealed by the zones never get their figures", "panel(); draw();          // a saved zone filter", "panel(); draw(false);          // a saved zone filter", "CR13"),
     ("figures asked again for every redraw", "!ctx.chiffres.has(f.cod_aff_form)", "true", "CR13"),
     ("sorted by the access rate", "|| carteSortName(a).localeCompare(carteSortName(b), \"fr\"));", "|| (b.taux_acces_ens || 0) - (a.taux_acces_ens || 0));", "CR13"),
