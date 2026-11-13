@@ -494,7 +494,8 @@ def mutants():
              'fetch("/api/contact", { method: "POST", headers: { "Content-Type": "text/plain" }', {"SE5"})
 
     def secret(c):
-        c._files = {"x.env": "KV_REST_API_TOKEN=AXyzAbcdEfghIjklMnopQrstUvwxYz0123456789"}
+        # built at run time: written whole here, this fake token would itself be found by SE8 in this tracked file
+        c._files = {"x.env": "KV_REST_API_TOKEN" + "=" + "AXyzAbcdEfghIjklMnopQrstUvwxYz" + "0123456789"}
 
     out.append(("a committed token", secret, lambda c: c.__dict__.pop("_files", None), {"SE8"}))
     return out
