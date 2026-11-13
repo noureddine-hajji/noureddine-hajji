@@ -15,7 +15,7 @@ profile card, with a discreet "Créer mon profil"; the formation page was long, 
   MB5 phone layout (browser, Pixel 5): the home's main action is on the first screen, with and without a profile; the
       formation pages' tab bar starts within two screens (the longest titles of the latest campaign); inside <main>, exactly
       one control is filled with the accent colour on the home and on a formation page; the tab bar sticks at 0 and a tab
-      opened down the page shows its panel just under it; no horizontal scroll; no JS error.
+      opened down the page shows its panel just under it; the map never covers the bottom tab bar; no horizontal scroll; no JS error.
   MB6 screen-reader reading (browser, Chromium's accessibility tree; not a real screen reader, see the README protocol):
       the skip link is the first Tab stop and leads to <main>; one banner, one main, one contentinfo, every navigation named;
       one h1, first in <main>; on the home the main action is the first control after the h1; every link, button and
@@ -131,6 +131,8 @@ def mb4(c: Ctx):
         probs.append("the tab bar is not sticky at the top with an opaque background")
     if not re.search(r"\.tabs button\s*\{[^}]*min-height:\s*44px", c.css):
         probs.append("tabs under 44 px")
+    if ".carte-osm, .leaflet-container { position: relative; z-index: 0; isolation: isolate; }" not in c.css:
+        probs.append("the map's panes are not kept under the tab bar")
     bt = top(c.js, "bindTabs")
     if "if (shown && bar.getBoundingClientRect().top <= 1) window.scrollBy(0, shown.getBoundingClientRect().top - bar.offsetHeight);" not in bt:
         probs.append("a tab opened down the page does not show its panel's start")
@@ -261,6 +263,13 @@ const READER = () => {
   const focus = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
   if (focus !== 'H1') problems.push(`focus after navigation on ${focus}, not the h1`);
   problems.push(...errs.map((x) => `fiche js: ${x}`));
+  // the map never covers the phone's bottom tab bar (Leaflet's panes have z-index 400-1000)
+  await page.goto(base + '/#/carte'); await page.waitForSelector('.leaflet-container', { timeout: 60000 }).catch(() => problems.push('carte: no map'));
+  await page.waitForTimeout(3000);
+  const under = await page.evaluate(() => { const bar = document.querySelector('nav.tabbar').getBoundingClientRect();
+    return [0.1, 0.3, 0.5, 0.7, 0.9].map((f) => { const e = document.elementFromPoint(innerWidth * f, bar.top + bar.height / 2); return !!(e && e.closest('nav.tabbar')); }); });
+  seen.carteTabbar = under;
+  if (under.some((x) => !x)) problems.push(`carte: the map covers the tab bar ${JSON.stringify(under)}`);
   await ctx.close(); await b.close();
   console.log(JSON.stringify({ problems, seen }));
 })();
@@ -366,6 +375,7 @@ SOURCE_MUTANTS = [
     ("js", "a listed formation still primary", '${primary && !inV && !full ? \' class="primary"\' : ""}', '${primary ? \' class="primary"\' : ""}', "MB3"),
     ("css", "tabs not sticky", ".tabs { position: sticky; top: 0;", ".tabs { position: static; top: 0;", "MB4"),
     ("css", "transparent sticky bar", "z-index: 20; background: var(--bg); }", "z-index: 20; }", "MB4"),
+    ("css", "the map above the tab bar", ".carte-osm, .leaflet-container { position: relative; z-index: 0; isolation: isolate; }", "", "MB4"),
     ("js", "the opened panel left above", "    if (shown && bar.getBoundingClientRect().top <= 1) window.scrollBy(0, shown.getBoundingClientRect().top - bar.offsetHeight);\n", "", "MB4"),
 ]
 

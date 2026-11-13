@@ -560,7 +560,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   is an outlined pill). Without a profile, the profile bar is hidden on the home only (the router passes "accueil"). On the
   formation page the main action is "Ajouter à mes vœux" (`voeuButton(cod, true)`, only when it can be added), "Comparer" is
   secondary; the tab bar is sticky (`top: 0`, opaque) and an opened tab shows its panel under it; the tabs start within two
-  phone screens. Red team `redteam_mobile.py` (MB1-MB8; MB6 = Chromium's accessibility tree, the README gives the manual
+  phone screens. The map is its own stacking context (`.leaflet-container { isolation: isolate }`): it never covers the phone's tab bar. Red team `redteam_mobile.py` (MB1-MB8; MB6 = Chromium's accessibility tree, the README gives the manual
   NVDA/VoiceOver protocol).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn

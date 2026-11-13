@@ -3046,7 +3046,9 @@ Red team `scripts/redteam_mobile.py` (MB1-MB8):
   - the tabs form a valid tablist;
   - the focus is on the h1 after a navigation;
   - no "undefined", "null" or "NaN" is read.
-- MB8 is the mutation test: 12 source mutants and 8 page mutants (the DOM altered before MB5/MB6 read it), all caught.
+- MB8 is the mutation test: 13 source mutants and 8 page mutants (the DOM altered before MB5/MB6 read it), all caught.
+- Audit fix: on a phone, the map's markers (Leaflet panes, z-index 400-1000) covered the bottom tab bar, which could not be
+  tapped there. The map now forms its own stacking context, and MB5 taps five points of the bar on the map page.
 
 **Manual check with a real screen reader** (10 minutes; the automated MB6 reads the same tree but is not a screen reader):
 1. On a phone, iPhone with **VoiceOver** (Réglages > Accessibilité > VoiceOver) or Android with **TalkBack**; on a computer,
