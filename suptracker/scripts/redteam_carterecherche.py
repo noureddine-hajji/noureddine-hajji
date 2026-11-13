@@ -467,7 +467,11 @@ def cr11(c: Ctx):
             SELECT d.cod_aff_form, d.bac, d.libelle, d.doublette_key, d.autres, d.confirmes, d.en_position, d.acceptes
             FROM core.rapport_doublette d JOIN core.rapport r USING (cod_aff_form, session) WHERE d.session = ? AND r.recoupe""", [L]).fetchall():
         rep.setdefault(cod, {}).setdefault(bac, []).append((lib, dkey, autres, conf or 0, pos or 0, acc or 0))
-    masked = set(c.con.execute("SELECT cod_aff_form, bac FROM core.rapport_masque WHERE session = ?", [L]).fetchall())
+    # a cross-checked report exists apart from its detail rows (every table masked: still "non publié", never an estimation; Codex)
+    reports = {r for (r,) in c.con.execute("SELECT cod_aff_form FROM core.rapport WHERE session = ? AND recoupe", [L]).fetchall()}
+    masked = set(c.con.execute("""SELECT m.cod_aff_form, m.bac FROM core.rapport_masque m JOIN core.rapport r USING (cod_aff_form, session)
+                                  WHERE m.session = ? AND r.recoupe""", [L]).fetchall())
+    n_nodetail = len({cod for cod in reports if cod not in rep})
     sies = {r[0]: r[1:] for r in c.con.execute(f"""SELECT fy.cod_aff_form, fy.acc_bg, fy.acc_bt, fy.acc_bp,
         {J.series_access_sql('bg')}, {J.series_candidates_sql('bg')}, {J.series_access_sql('bt')}, {J.series_candidates_sql('bt')},
         {J.series_access_sql('bp')}, {J.series_candidates_sql('bp')} FROM core.formation_year fy WHERE fy.session = ?""", [L]).fetchall()}
@@ -477,7 +481,7 @@ def cr11(c: Ctx):
         if g is None:
             bad.append((cod, "missing"))
             continue
-        mine = rep.get(cod)
+        mine = rep.get(cod, {}) if cod in reports else None
         for b, e, n in (("bg", ebg, nbg), ("bt", ebt, nbt), ("bp", ebp, nbp)):
             x = g["bacs"][b]
             if mine is not None:
@@ -516,7 +520,8 @@ def cr11(c: Ctx):
         if (m is None) != (want is None) or (m and (m["bac"], m["acceptes"], m["exaequo"]) != want[:3]) or (m and want[3] and m["libelle"] != want[3]):
             bad.append((cod, "majo", m, want))
         n_majo += m is not None
-    return n_rep > 0 and not bad, f"{len(sies)} formations; {n_rep} report rates, {n_est} estimations, {n_majo} lines; differing {bad[:3]}"
+    return n_rep > 0 and not bad, (f"{len(sies)} formations; {n_rep} report rates ({n_nodetail} reports print no line), {n_est} estimations, "
+                                   f"{n_majo} lines; differing {bad[:3]}")
 
 
 CARD_TWINS = ("esc", "fmt", "pct", "pct1", "STATUT_LABEL", "carteBacs", "carteMajo", "compareButton", "carteSortName")
@@ -574,6 +579,11 @@ def cr13(c: Ctx):
         "sort: stats first then name": "(a.stats === false) - (b.stats === false)" in view and "carteSortName(a).localeCompare(carteSortName(b), \"fr\")" in view,
         "no figure in the sort": not re.search(r"\.sort\(\(a, b\) => [^\n]*(taux|zone|position)", view),
         "keep all with nothing ticked": "!sel.d.length ||" in sec,
+        # cards a saved zone filter reveals only once the zones arrive need their figures (Codex): that redraw fetches, the
+        # figures' own redraw never does (no request loop), and a pending or known code is never asked twice
+        "figures after the zones": bool(re.search(r"if \(applyZones\(zs\)\)[^\n]*\n\s*panel\(\); draw\(\);", view)),
+        "no figures loop": "if (seq === carteUI.seq && $view.dataset.rendered === \"carte\") { draw(false); }" in view
+                           and "!ctx.chiffres.has(f.cod_aff_form)" in view,
     }
     bad = [k for k, v in checks.items() if not v]
     return not bad, f"problems {bad}"
@@ -612,6 +622,8 @@ def py_mutants():
                         x["taux"] = 0.0
                     if kind == "uncapped" and x["source"] == "estimation" and x["taux"] is not None:
                         x["taux"] = round(x["taux"] * 1.5, 1)
+                if kind == "nodetail" and all(x["source"] == "rapport" and not x.get("n") for x in v["bacs"].values()):
+                    v["bacs"] = {b: {"taux": 50.0, "source": "estimation", "n": 30, "fragile": False} for b in v["bacs"]}
                 if v["majo"] and kind == "noexaequo":
                     v["majo"]["exaequo"] = False
                 if v["majo"] and kind == "route":
@@ -632,6 +644,7 @@ def py_mutants():
         ("the map's figure is not Mes vœux's", lambda: setattr(VX, "figures", other_figures), {"CR5"}),
         ("no limit on the codes", lambda: setattr(C, "CHIFFRES_MAX", 10 ** 6), {"CR5"}),
         ("a masked bac table shown as 0 %", lambda: setattr(C, "bac_lines", lines_mut("masked0")), {"CR11"}),
+        ("a report printing no line (tables masked) read as no report", lambda: setattr(C, "bac_lines", lines_mut("nodetail")), {"CR11"}),
         ("estimation not capped at 100", lambda: setattr(C, "bac_lines", lines_mut("uncapped")), {"CR11"}),
         ("ex aequo never said", lambda: setattr(C, "bac_lines", lines_mut("noexaequo")), {"CR11"}),
         ("line of another route than the majority", lambda: setattr(C, "bac_lines", lines_mut("route")), {"CR11"}),
@@ -653,6 +666,8 @@ JS_MUTANTS = [
     ("compare button never wired", "basket.toggle(b.dataset.cmp); draw(false);", "draw(false);", "CR12"),
     ("payant not said", 'prive: "Privé hors contrat (payant)"', 'prive: "Privé"', "CR12"),
     ("one diploma when none ticked", "const dips = sel.d.length ? sel.d : FAC.diplomes.map((d) => d.label);", "const dips = sel.d.length ? sel.d : [FAC.diplomes[0].label];", "CR13"),
+    ("cards revealed by the zones never get their figures", "panel(); draw();          // a saved zone filter", "panel(); draw(false);          // a saved zone filter", "CR13"),
+    ("figures asked again for every redraw", "!ctx.chiffres.has(f.cod_aff_form)", "true", "CR13"),
     ("sorted by the access rate", "|| carteSortName(a).localeCompare(carteSortName(b), \"fr\"));", "|| (b.taux_acces_ens || 0) - (a.taux_acces_ens || 0));", "CR13"),
 ]
 

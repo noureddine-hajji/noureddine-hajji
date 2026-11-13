@@ -2813,7 +2813,7 @@ position to receive a proposal and the admits who accepted. These are published 
 - **Rate per bac route** (`carte.bac_lines`): the formation's report of the latest campaign (cross-checked), en_position /
   confirmes over every line of the route, its "Autres" bucket included; a masked table says "non publié". Without a report: the
   site's estimated access of the route (`journey.series_access_sql`, capped at 100), starred, "(estimation)" for screen readers,
-  "peu de candidats" below 20. 29,328 report rates and 13,428 estimations.
+  "peu de candidats" below 20. 37,776 report rates (2,816 cross-checked reports print no line: every table masked, "non publié", never an estimation) and 4,980 estimations.
 - **Most represented line among the admits** (owner's rule: one line, with its bac): the route with the most admits in the SIES
   campaign (a tie = none), then that route's report line with the most admits (never the "Autres" bucket); a tie on the top line
   says "ex æquo". Bac général as "Maths & Physique-chimie", bac techno as "STMG · Mercatique", bac pro as printed. 8,710 formations.

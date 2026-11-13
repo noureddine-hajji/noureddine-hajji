@@ -1544,7 +1544,7 @@ async function viewCarte(dArg, mArg) {
   if (ok) zonesP.then((zs) => {
     if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
     if (applyZones(zs)) track("journey", { stage: "stage2" });
-    panel(); draw(false);
+    panel(); draw();          // a saved zone filter reveals its cards only now: fetch their figures (cached codes are skipped; Codex)
   });
 }
 // ---- lot 2 (Claude design guidelines): the summary comes before the detail; details live in tabs ----

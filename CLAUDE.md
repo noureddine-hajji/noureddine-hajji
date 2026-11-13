@@ -504,7 +504,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the map is pinned atop the list. Nothing ticked in a group = everything (diplomas included: one cacheable answer each; the layer is
   built ONCE per warehouse, `carte._LAYER`); list first, zones after. Card: statut + selectivity badges, official rate, rate per bac
   route (`carte.bac_lines`: the cross-checked report's en_position / confirmes over the route's lines incl. "Autres", masked = "non
-  publié"; no report = `journey.series_access_sql` estimation, starred and named, fragile < 20), the most represented line among the
+  publié" even when the report prints no line (a report exists apart from its detail rows: Codex); no report = `journey.series_access_sql` estimation, starred and named, fragile < 20), the most represented line among the
   admits (route with the most SIES admits, tie = none; that route's report line with the most `acceptes`, never "Autres"; tie =
   "ex æquo"), profile figures, Mes vœux / Comparer (basket, 6) / Fiche. Sorted stats first then name (punctuation off), never by a
   figure. Red team CR11-CR13 in `redteam_carterecherche.py`.

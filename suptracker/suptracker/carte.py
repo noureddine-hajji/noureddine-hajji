@@ -243,24 +243,29 @@ def bac_lines(con) -> dict:
     fy = con.execute(f"""SELECT fy.cod_aff_form, fy.acc_bg, fy.acc_bt, fy.acc_bp, {est}
                          FROM core.formation_year fy WHERE fy.session = ?""", [latest]).fetchall()
     has = lambda t: con.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'core' AND table_name = ?", [t]).fetchone()[0]  # noqa: E731
-    rows, masked = {}, set()
+    rows, masked, reports = {}, set(), set()
     if has("rapport") and has("rapport_doublette"):
         rec = "AND r.recoupe" if con.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'core'
                                                 AND table_name = 'rapport' AND column_name = 'recoupe'""").fetchone()[0] else ""
+        # a report EXISTS apart from its detail rows: 2,816 cross-checked 2025 reports print no line (every table masked,
+        # or no candidate of a bac); they are reports, never "no report" (Codex)
+        reports = {c for (c,) in con.execute(f"SELECT DISTINCT r.cod_aff_form FROM core.rapport r WHERE r.session = ? {rec}", [latest]).fetchall()}
         for cod, bac, rang, lib, dkey, autres, conf, pos, acc in con.execute(f"""
                 SELECT d.cod_aff_form, d.bac, d.rang, d.libelle, d.doublette_key, d.autres, d.confirmes, d.en_position, d.acceptes
                 FROM core.rapport_doublette d JOIN core.rapport r ON r.cod_aff_form = d.cod_aff_form AND r.session = d.session
                 WHERE d.session = ? {rec} ORDER BY d.cod_aff_form, d.bac, d.rang""", [latest]).fetchall():
             rows.setdefault(cod, {}).setdefault(bac, []).append((rang, lib, bool(autres), conf or 0, pos or 0, acc or 0, dkey))
         if has("rapport_masque"):
-            masked = {(c, b) for c, b in con.execute("SELECT cod_aff_form, bac FROM core.rapport_masque WHERE session = ?", [latest]).fetchall()}
+            masked = {(c, b) for c, b in con.execute(f"""SELECT m.cod_aff_form, m.bac FROM core.rapport_masque m
+                      JOIN core.rapport r ON r.cod_aff_form = m.cod_aff_form AND r.session = m.session
+                      WHERE m.session = ? {rec}""", [latest]).fetchall()}
     out = {}
     for cod, abg, abt, abp, ebg, nbg, ebt, nbt, ebp, nbp in fy:
         acc, estim, cand = {"bg": abg, "bt": abt, "bp": abp}, {"bg": ebg, "bt": ebt, "bp": ebp}, {"bg": nbg, "bt": nbt, "bp": nbp}
-        mine = rows.get(cod)
+        mine = rows.get(cod, {}) if cod in reports else None
         bacs = {}
         for b in BACS:
-            if mine is not None and (cod, b) in masked:
+            if (cod, b) in masked:
                 bacs[b] = {"taux": None, "source": "rapport", "masque": True}
             elif mine is not None and mine.get(b):
                 c = sum(x[3] for x in mine[b])
