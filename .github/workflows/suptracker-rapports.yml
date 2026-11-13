@@ -6,6 +6,9 @@
 #                   fiches are closed (between campaigns) it stops after three fiches, once they open it collects and resumes
 #   mode "harvest": every report PDF archived by the Internet Archive, parsed into CSVs in data/rapports/harvest/
 #                   (resumable: each run stops after `budget` minutes and commits; push request.json again to continue)
+#   mode "grilles": the evaluation grids (field weights, criteria and importance) and the expected skills printed on the
+#                   LIVE fiches (scripts/fiches_grilles.py) into data/fiches/; resumable, each fiche read again after 20 days
+#   mode "quotidien" (the daily schedule): "live" (150 min at most), then "grilles" with the time left (170 min)
 # Triggered by workflow_dispatch, or by a push of data/rapports/request.json on a claude/ branch (a new workflow can only be
 # dispatched once it is on the default branch).
 name: suptracker-rapports
@@ -13,11 +16,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe, harvest, repair or live"
+        description: "probe, harvest, repair, live, grilles or quotidien"
         required: false
         default: "harvest"
   schedule:
-    - cron: "17 4 * * *"        # daily, mode "live" (schedules run on the default branch only)
+    - cron: "17 4 * * *"        # daily, mode "quotidien" = live + grilles (schedules run on the default branch only)
   push:
     branches: ["claude/**"]
     paths: ["suptracker/data/rapports/request.json"]
@@ -45,10 +48,11 @@ jobs:
           python - <<'EOF' >> "$GITHUB_OUTPUT"
           import json, os
           r = json.load(open("data/rapports/request.json")) if os.path.exists("data/rapports/request.json") else {}
-          mode = "${{ inputs.mode }}" or ("live" if "${{ github.event_name }}" == "schedule" else r.get("mode", "harvest"))
+          mode = "${{ inputs.mode }}" or ("quotidien" if "${{ github.event_name }}" == "schedule" else r.get("mode", "harvest"))
           print(f"mode={mode}")
           print(f"sample={r.get('sample', 12)}")
-          print(f"budget={330 if '${{ github.event_name }}' == 'schedule' else r.get('budget_min', 300)}")
+          print(f"budget={150 if mode == 'quotidien' else r.get('budget_min', 300)}")
+          print(f"budget_grilles={170 if mode == 'quotidien' else r.get('budget_min', 300)}")
           print(f"enumerate={'--enumerate' if r.get('enumerate') else ''}")
           EOF
       - name: Probe
@@ -61,17 +65,20 @@ jobs:
         if: steps.req.outputs.mode == 'repair'
         run: python scripts/rapports_harvest.py data/rapports/harvest "${{ steps.req.outputs.budget }}" --repair
       - name: Collect reports from the live fiches
-        if: steps.req.outputs.mode == 'live'
+        if: steps.req.outputs.mode == 'live' || steps.req.outputs.mode == 'quotidien'
         run: python scripts/rapports_live.py data/suptracker.duckdb data/rapports/harvest data/rapports/live "${{ steps.req.outputs.budget }}"
       - name: Probe the live Parcoursup reports
         if: steps.req.outputs.mode == 'liveprobe'
         run: python scripts/rapports_live.py --probe data/rapports/live
+      - name: Read the evaluation grids of the live fiches
+        if: (steps.req.outputs.mode == 'grilles' || steps.req.outputs.mode == 'quotidien') && !cancelled()
+        run: python scripts/fiches_grilles.py data/suptracker.duckdb data/fiches "${{ steps.req.outputs.budget_grilles }}"
       - name: Commit
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/rapports/probe data/rapports/harvest data/rapports/live 2>/dev/null || true
+          git add data/rapports/probe data/rapports/harvest data/rapports/live data/fiches 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Parcoursup public reports: ${{ steps.req.outputs.mode }} ($(date -u +%Y-%m-%d))"
           git pull --rebase
