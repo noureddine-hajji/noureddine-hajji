@@ -306,7 +306,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   the comparator is `table.cmp` (sticky label column). Red team X14-X15.
 - **Indexable pages (sprint 17).** Page figures are the PUBLISHED ones (same as `/api/formation`), with the "pas des chances" caveat;
   every stored string escaped in HTML, attributes and JSON-LD (`json_ld` escapes `<`, `>`, `&`). Sitemap = latest campaign's
-  formations + every job; an older formation is `noindex`; a preview (`VERCEL_ENV=preview`) is never indexed; the canonical
+  formations + every job + the five sprint-Q1 pages; an older formation is `noindex`; a preview (`VERCEL_ENV=preview`) is never indexed; the canonical
   origin is `VERCEL_PROJECT_PRODUCTION_URL`, never the visitor's Host. robots.txt never blocks the data the pages render from
   (only search, vœux, stats); a failed load goes through `showError`, which keeps the server summary (Codex). A new public page needs a cache policy and a sitemap
   decision. Red team `redteam_seo.py` (G1-G11; its mutants are built IN MEMORY: never write source files from a test).
@@ -508,6 +508,22 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   admits (route with the most SIES admits, tie = none; that route's report line with the most `acceptes`, never "Autres"; tie =
   "ex æquo"), profile figures, Mes vœux / Comparer (basket, 6) / Fiche. Sorted stats first then name (punctuation off), never by a
   figure. Red team CR11-CR13 in `redteam_carterecherche.py`.
+- **Trust and compliance (sprint Q1, owner 2026-11-13).** Five pages from ONE source (`legal.py`): À propos, Contact, Mentions
+  légales, Confidentialité, Accessibilité, served at `/<slug>` (indexable, sitemap, readable without JS) and to the app by
+  `/api/page/<slug>` (`#/info/<slug>`); the footer links them on every page. Publisher = "M. N. HAJJI, à titre personnel", also
+  publication director (owner's wording; never another name). Legal notice: host Vercel Inc. + postal address, LCEN sentence,
+  every `sources.py` source "en_ligne" with its licence (generated). Privacy: every third party a page loads is named (only the
+  OSM tile host today; a new external host needs its operator in the page and in red team QC2's OPERATOR table), retentions
+  read from the code's constants. Accessibility: "non conforme" until an RGAA audit exists, never "partiellement/totalement
+  conforme". The privacy page says every PERSONAL parameter a page sends (série, spécialités, mention band, voie, the
+  académie with search/Plan B/stage 2/Mes vœux, the average with the advanced search only, the list's codes; never the lycée):
+  red team QC2's PERSONAL table fails on a parameter sent and not said (Codex). Contact form (`contact.py`): closed subjects,
+  10-1,000 characters, optional reply address, hidden field, 5 per visitor-day then 300 a day (the visitor's cap checked FIRST:
+  a blocked visitor never consumes the global quota; one atomic Lua script in Redis), ONLY the form's fields + day stored (no IP,
+  user agent or pseudonym), 12-month TTL per message, fails CLOSED (503 "non envoyé"; on Vercel without Redis the store is
+  `Unavailable`, never /tmp), submitted off the event loop (`run_in_threadpool`), read/deleted on `#/stats` with the stats
+  token (escaped). Tagline = `legal.TAGLINE`
+  everywhere ("les vrais chiffres" is gone). Red team `redteam_conformite.py` (QC1-QC11).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

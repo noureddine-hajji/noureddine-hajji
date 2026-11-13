@@ -2,7 +2,7 @@
 
     python scripts/redteam_seo.py [--db data/suptracker.duckdb] [--real] [--browser]
 
-  G1 sitemap: valid XML, absolute https URLs, under the 50 000-URL limit, exactly the latest campaign's formations and every
+  G1 sitemap: valid XML, absolute https URLs, under the 50 000-URL limit, exactly the latest campaign's formations, the five Q1 pages and every
      job (re-derived from the warehouse), no duplicate, nothing else; robots.txt points to it, leaves the data the pages render
      from open (a crawler that runs the app must load it: Codex) and keeps search, vœux and stats off
   G2 formation page: 200, the app shell, one <title>, a meta description, a canonical equal to its own address, Open Graph,
@@ -196,7 +196,9 @@ def sitemap_ok(xml_text: str, robots: str, base: str, latest: list[str], jobs: l
         return False, f"sitemap is not XML: {e}"
     ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
     locs = [u.findtext(f"{ns}loc") for u in root.findall(f"{ns}url")]
-    want = {f"{base}/formation/{c}" for c in latest} | {f"{base}/metier/{m}" for m in jobs}
+    # sprint Q1: plus the five trust and compliance pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité)
+    want = ({f"{base}/formation/{c}" for c in latest} | {f"{base}/metier/{m}" for m in jobs}
+            | {f"{base}/{s}" for s in ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite")})
     got = set(locs)
     ok = (root.tag == f"{ns}urlset" and len(locs) == len(got) and got == want and len(locs) <= 50000
           and all(u.startswith("https://") for u in locs))

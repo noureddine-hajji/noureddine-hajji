@@ -28,10 +28,10 @@ import os
 import re
 
 SITE = "SupCompass"
-TAGLINE = "Parcoursup 2022–2025, les vrais chiffres"
+TAGLINE = "Les chiffres officiels de l'orientation post-bac, expliqués"     # sprint Q1 (owner, 2026-11-13); legal.TAGLINE
 INDEPENDENT = "SupCompass est un site indépendant, non affilié à Parcoursup ni au ministère de l'Enseignement supérieur."
 CAVEAT = "Des résultats des campagnes passées, pas des chances d'admission."
-ROBOTS_OFF = ("/api/search", "/api/voeux", "/api/e", "/api/stats")
+ROBOTS_OFF = ("/api/search", "/api/voeux", "/api/e", "/api/stats", "/api/contact")
 COD = re.compile(r"^\d{1,9}$")
 MAX_RELATED = 12
 
@@ -117,7 +117,8 @@ def sitemap_entries(con) -> list[str]:
     has = con.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'core' AND table_name = 'onisep_metier'").fetchone()[0]
     if has:
         paths += [f"/metier/{m}" for (m,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall()]
-    return paths
+    from . import legal                                   # sprint Q1: the trust and compliance pages are indexable too
+    return paths + [f"/{s}" for s in legal.SLUGS]
 
 
 # ------------------------------------------------------------------------- rendering
@@ -225,7 +226,8 @@ def page(shell: str, head: str, body: str) -> str:
 def home_head(canonical: str) -> str:
     return head_tags(f"{SITE} — {TAGLINE}",
                      "Taux d'accès, admis, profils des admis, réussite, poursuite d'études et métiers de chaque formation Parcoursup, "
-                     "à partir des données officielles 2022–2025. Pas des chances d'admission : les vrais chiffres des campagnes passées.",
+                     "à partir des données officielles 2022–2025, expliqués simplement. Des résultats des campagnes passées, "
+                     "pas des chances d'admission.",
                      canonical, True, {"@context": "https://schema.org", "@type": "WebSite", "name": SITE, "url": canonical})
 
 
