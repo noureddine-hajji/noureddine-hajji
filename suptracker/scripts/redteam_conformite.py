@@ -63,6 +63,18 @@ OWNER = "M. N. HAJJI"                                         # owner's wording,
 HOST_NAME, HOST_STREET = "Vercel Inc.", "440 N Barranca Ave #4133, Covina, CA 91723"   # Vercel's own terms of service
 STORE_NAME = "Upstash"                                        # analytics.py / contact.py: UPSTASH_REDIS_REST_URL or KV_REST_API_URL
 OPERATOR = {"tile.openstreetmap.org": "OpenStreetMap Foundation"}   # every host a page loads -> who runs it
+# personal parameters a page may send -> the words the privacy page must use for it (a parameter sent and not said fails QC2)
+PERSONAL = {"serie": ("la série",), "spe1": ("les spécialités",), "spe2": ("les spécialités",), "mention": ("tranche de mention",),
+            "mention_bac": ("tranche de mention",), "moyenne": ("moyenne exacte",), "voie": ("votre ligne du bac technologique",),
+            "academie": ("votre académie, si vous l'avez indiquée",), "near": ("votre académie, si vous l'avez indiquée",),
+            "ids": ("les codes des formations de votre liste",), "lycee": ("\x00never",), "lat": ("\x00never",), "lon": ("\x00never",)}
+
+
+def sent(js: str, key: str) -> bool:
+    """The page code puts `key` in a request: qs.set("key", …), "?key=${…}" / "&key=${…}", or a URLSearchParams literal."""
+    return bool(re.search(rf'qs\.set\("{key}"|[?&]{key}=\$\{{|URLSearchParams\(\{{[^}}]*\b{key}:|\["[^"\]]*"{key}"', js))
+
+
 PER_DAY, RETENTION = 5, 365                                   # owner-confirmed limits (5 messages per visitor-day, 12 months)
 TU = re.compile(r"\b(tu|ton|ta|tes|toi|t'|te)\b", re.I)
 
@@ -116,6 +128,11 @@ def client(db: Path | None):
                     os.environ[k] = v
 
 
+def fn_src_py(mod, name: str) -> str:
+    import inspect
+    return inspect.getsource(getattr(mod, name))
+
+
 def fn_src(js: str, name: str) -> str:
     m = re.search(rf"^(?:async )?function {re.escape(name)}\(", js, re.M)
     if not m:
@@ -166,7 +183,7 @@ def qc2(c: Ctx):
         "k-anon": f"au moins {A.K_ANON} visiteurs" in t,
         "contact months": f"{CT.RETENTION_DAYS // 365 * 12} mois" in t,
         "profile in browser": "uniquement dans votre navigateur" in t,
-        "lycée never sent": "lycée et votre académie ne sont jamais envoyés" in t,
+        "lycée never sent": "Votre lycée n'est jamais envoyé" in t and not sent(c.js, "lycee"),
         "no IP stored": "Aucune adresse IP" in t,
         "dnt/gpc": "Do Not Track" in t and "Global Privacy Control" in t,
         "cnil": "cnil.fr" in LG.confidentialite(),
@@ -179,6 +196,12 @@ def qc2(c: Ctx):
         for p in ("/", *(f"/{s}" for s in LG.SLUGS), *(("/api/meta",) if c.db else ())):
             if "set-cookie" in {k.lower() for k in cl.get(p).headers}:
                 cookies.append(p)
+    # what the page SENDS (Codex: the académie was said never sent): every personal parameter the page code puts in a
+    # request must be said, in the words below; a new personal parameter fails until the page says it
+    said = {k: (not sent(c.js, k)) or all(w in t for w in words) for k, words in PERSONAL.items()}
+    need.update({f"sent {k} said": v for k, v in said.items()})
+    if "ne sont jamais envoyés" in t and "académie" in t.split("ne sont jamais envoyés")[0][-60:]:
+        need["académie said never sent"] = False
     bad = [k for k, v in need.items() if not v] + [h for h, ok in named.items() if not ok]
     return bool(tiles) and not bad and not cookies, f"loaded third-party hosts {sorted(loaded)}; missing {bad}; cookies {cookies}"
 
@@ -311,6 +334,38 @@ def qc6(c: Ctx):
             CT.GLOBAL_DAY = saved
         if 429 not in got:
             bad.append(("no global cap", got))
+        # Codex: a blocked visitor never uses up everyone's quota (fresh store: 6 places a day, one visitor tries 20 times)
+        with tempfile.TemporaryDirectory() as d:
+            CT.reset_store(CT.SqliteStore(Path(d) / "q.sqlite"))
+            CT.GLOBAL_DAY = PER_DAY + 1
+            try:
+                spam = [cl.post("/api/contact", json=_ok(), headers={"x-real-ip": "192.0.2.50", "user-agent": "S"}).status_code for _ in range(20)]
+                other = cl.post("/api/contact", json=_ok(), headers={"x-real-ip": "192.0.2.51", "user-agent": "T"}).status_code
+            finally:
+                CT.GLOBAL_DAY = saved
+            if spam.count(201) != PER_DAY or other != 201:
+                bad.append(("a blocked visitor uses up the global quota", spam.count(201), other))
+        lua = CT.UpstashStore.LIMIT_LUA
+        if not (0 <= lua.find("KEYS[1]") < lua.find("return 0 end") < lua.find("KEYS[2]")):
+            bad.append("Redis: the global counter is incremented before the visitor's cap is checked")
+        # Codex: on Vercel without Redis, /tmp is wiped with the instance: messages are refused, never confirmed then lost
+        saved_env = {k: os.environ.pop(k, None) for k in ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL", "KV_REST_API_TOKEN")}
+        os.environ["VERCEL"] = "1"
+        try:
+            CT.reset_store(None)
+            kind = CT.store().kind
+            r = cl.post("/api/contact", json=_ok(), headers={"x-real-ip": "192.0.2.60", "user-agent": "V"})
+            if kind != "indisponible" or r.status_code != 503 or "non envoyé" not in r.json().get("detail", ""):
+                bad.append(("Vercel without Redis", kind, r.status_code))
+        finally:
+            os.environ.pop("VERCEL", None)
+            for k, v in saved_env.items():
+                if v is not None:
+                    os.environ[k] = v
+            CT.reset_store(None)
+        # Codex: the store is reached over HTTP: never from the event loop
+        if "await run_in_threadpool(CT.submit, payload, _hdrs(request))" not in fn_src_py(api, "contact_post"):
+            bad.append("the contact store is called on the event loop")
 
         class Broken(CT.SqliteStore):
             def put(self, *a, **k):
@@ -565,6 +620,30 @@ def mutants():
                 return "00000000-000000000000"
         return s
     py("a failing store answered as sent", CT, "submit", fail_open, {"QC6"})
+
+    def greedy(f):                                           # the old limiter: every counter incremented, whatever the visitor's
+        def lim(self, visitor, everyone):
+            ok = True
+            for k, cap in (visitor, everyone):
+                ok &= f(self, (k, cap), (k + ":x", 10 ** 9))
+            return ok
+        return lim
+    py("a blocked visitor consumes the global quota", CT.SqliteStore, "limit", greedy, {"QC6"})
+    py("Redis checks the visitor after the global counter", CT.UpstashStore, "LIMIT_LUA",
+       "local g = redis.call('INCR', KEYS[2]) local v = redis.call('INCR', KEYS[1]) if v > tonumber(ARGV[1]) then return 0 end return 1", {"QC6"})
+    py("Vercel without Redis falls back to /tmp", CT, "Unavailable",
+       lambda f: (lambda: CT.SqliteStore(Path(tempfile.mkdtemp()) / "tmp.sqlite")), {"QC6"})
+
+    def on_loop(f):
+        async def contact_post(request):
+            body = await api._small_body(request, CT.MAX_BODY)
+            mid = CT.submit(json.loads(body or b"null"), api._hdrs(request))
+            return {"ok": True, "id": mid}
+        return contact_post
+    py("the contact store called on the event loop", api, "contact_post", on_loop, {"QC6"})
+    py("the académie said never sent", LG, "confidentialite",
+       lambda f: (lambda: f().replace("Votre lycée n'est jamais envoyé.", "Votre lycée et votre académie ne sont jamais envoyés.")
+                  .replace("votre académie, si vous l'avez indiquée", "")), {"QC2"})
     py("messages readable without the token", api, "_owner", lambda f: (lambda request: None), {"QC7"})
     py("the contact form shared-cached", CACHE, "_COMPILED",
        lambda f: [(rx, CACHE.PUBLIC if rx.pattern == "^/api/contact$" else pol, why) for rx, pol, why in f], {"QC7"})

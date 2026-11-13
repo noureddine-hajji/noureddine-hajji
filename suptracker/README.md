@@ -2864,6 +2864,12 @@ accessibility statement, no contact, and the tagline "les vrais chiffres". Owner
   - **Reading.** The owner reads and deletes messages on `#/stats` with the stats token (`/api/contact/messages`, no-store,
     every field escaped).
 - **Tagline.** One tagline in the shell, the home head and the app's titles.
+- **Codex review.**
+  - The privacy page now lists every personal parameter a page sends. This includes the académie (search, Plan B, « Où je
+    me situe », Mes vœux), which the first version wrongly said was never sent. QC2 compares the page with the page code.
+  - A blocked visitor no longer consumes the global daily quota: the visitor's cap is checked first, atomically in Redis.
+  - On Vercel without Redis, the form refuses messages (503) instead of keeping them in a /tmp that is wiped.
+  - The store is called off the event loop.
 
 Red team `scripts/redteam_conformite.py` (QC1-QC11):
 - QC1-QC3 check the three legal pages against values written independently in the red team (publisher, host and address,

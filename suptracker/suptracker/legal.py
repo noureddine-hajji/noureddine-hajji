@@ -140,12 +140,19 @@ conservé, pendant combien de temps, et à qui.</p>
 <h2>Responsable du traitement</h2>
 <p>{PUBLISHER}, éditeur du site. Contact : {_contact_link()}.</p>
 <h2>1. Votre profil et votre liste de vœux restent dans votre navigateur</h2>
-<p>Votre situation, votre bac, vos spécialités, votre mention, votre moyenne, votre lycée et votre liste de vœux sont
-enregistrés <strong>uniquement dans votre navigateur</strong> (stockage local). {SITE} ne les conserve pas.</p>
-<p>Pour lire les formations selon votre profil, la page envoie au serveur la série, les spécialités et la tranche de mention,
-dans l'adresse de la demande, sans aucun identifiant. Votre moyenne exacte n'est envoyée que par la recherche avancée, pour
-son filtre de zone. Votre lycée et votre académie ne sont jamais envoyés. Ces demandes ne sont ni enregistrées ni reliées à vous par
-{SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
+<p>Votre situation, votre bac, vos spécialités, votre mention, votre moyenne, votre académie, votre lycée et votre liste de vœux
+sont enregistrés <strong>uniquement dans votre navigateur</strong> (stockage local). {SITE} ne les conserve pas.</p>
+<p>Pour lire les formations selon votre profil, la page envoie au serveur, dans l'adresse de la demande et sans aucun
+identifiant, ce dont le calcul a besoin :</p>
+<ul class="legal-list">
+<li>la série, les spécialités et la tranche de mention, pour situer chaque formation ;</li>
+<li>votre ligne du bac technologique ou professionnel, seulement pour lire votre liste de vœux ;</li>
+<li>votre académie, si vous l'avez indiquée, avec la recherche, le plan B, « Où je me situe » et votre liste de vœux, pour
+présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
+<li>votre moyenne exacte, seulement avec la recherche avancée, pour son filtre de zone ;</li>
+<li>les codes des formations de votre liste de vœux, pour la lire.</li>
+</ul>
+<p>Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
 <h2>2. Mesure d'audience, sans cookie</h2>
 <p>{SITE} compte ses visites pour s'améliorer, sans cookie et sans rien lire sur votre appareil. Aucune adresse IP et aucun
 identifiant de navigateur n'est enregistré : un visiteur est un pseudonyme calculé pour la journée, qui change chaque jour

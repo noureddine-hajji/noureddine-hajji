@@ -10,7 +10,9 @@ What is kept, and what is not (each point is checked by scripts/redteam_conformi
   daily pseudonym (the audience measurement's HMAC of day, IP and browser, kept only as a counter key for two days) and
   at most GLOBAL_DAY messages a day in all.
 * Storage fails CLOSED: a message that could not be stored is an error the page shows ("non envoyé"), never a fake
-  success. (Audience measurement fails open; a message is not a statistic.)
+  success. (Audience measurement fails open; a message is not a statistic.) On Vercel a message needs Redis: the
+  instance's /tmp is wiped, so without Redis the form answers "non envoyé" (`Unavailable`).
+* A visitor over their cap never consumes the global quota (checked first, atomically in Redis).
 * The owner reads and deletes messages on the private dashboard (#/stats) with the stats token; the dashboard escapes them.
 
 Storage: the audience measurement's Upstash Redis (REST) when configured, else a local SQLite file (Docker, dev, tests).
@@ -107,7 +109,9 @@ def validate(payload) -> dict:
 class Store:
     kind = "abstract"
 
-    def limit(self, keys: list[tuple[str, int]]) -> bool: ...          # increments every counter; False if one is over
+    # counts one message against the visitor's counter FIRST; only a visitor still under its cap consumes the global
+    # quota (Codex: a blocked visitor must never use up everyone's daily capacity). False when either cap is passed.
+    def limit(self, visitor: tuple[str, int], everyone: tuple[str, int]) -> bool: ...
     def put(self, key: str, value: str, ttl: int) -> None: ...
     def all(self) -> list[str]: ...
     def delete(self, key: str) -> bool: ...
@@ -132,15 +136,17 @@ class SqliteStore(Store):
         finally:
             c.close()
 
-    def limit(self, keys):
+    def limit(self, visitor, everyone):
         now = time.time()
         with self._lock, self._db() as c:
             c.execute("BEGIN IMMEDIATE")
             c.execute("DELETE FROM rl WHERE exp < ?", [now])
             ok = True
-            for k, cap in keys:
+            for k, cap in (visitor, everyone):
                 c.execute("INSERT INTO rl VALUES (?, 1, ?) ON CONFLICT (k) DO UPDATE SET n = n + 1", [k, now + 172800])
-                ok &= c.execute("SELECT n FROM rl WHERE k = ?", [k]).fetchone()[0] <= cap
+                if c.execute("SELECT n FROM rl WHERE k = ?", [k]).fetchone()[0] > cap:
+                    ok = False
+                    break                                           # over the visitor's cap: the global quota is not touched
             c.execute("COMMIT")
             return ok
 
@@ -176,12 +182,15 @@ class UpstashStore(Store):
         with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - configured https URL
             return json.loads(r.read())
 
-    def limit(self, keys):
-        cmds = []
-        for k, _cap in keys:
-            cmds += [["INCR", k], ["EXPIRE", k, "172800"]]
-        res = self._call("/pipeline", cmds)
-        return all(int(res[2 * i].get("result") or 0) <= cap for i, (_k, cap) in enumerate(keys))
+    # one atomic script: the visitor's counter, then (only under its cap) the global one
+    LIMIT_LUA = ("local v = redis.call('INCR', KEYS[1]) redis.call('EXPIRE', KEYS[1], 172800) "
+                 "if v > tonumber(ARGV[1]) then return 0 end "
+                 "local g = redis.call('INCR', KEYS[2]) redis.call('EXPIRE', KEYS[2], 172800) "
+                 "if g > tonumber(ARGV[2]) then return 0 end return 1")
+
+    def limit(self, visitor, everyone):
+        res = self._call("", ["EVAL", self.LIMIT_LUA, "2", visitor[0], everyone[0], str(visitor[1]), str(everyone[1])])
+        return int(res.get("result") or 0) == 1
 
     def put(self, key, value, ttl):
         res = self._call("/pipeline", [["SET", key, value, "EX", str(ttl), "NX"]])
@@ -206,6 +215,17 @@ class UpstashStore(Store):
         return int(self._call("", ["DEL", key]).get("result") or 0) > 0
 
 
+class Unavailable(Store):
+    """On Vercel without Redis: /tmp is wiped with the instance, so a message would be confirmed then lost (Codex).
+    Every operation fails: the form answers 503 "non envoyé" and the dashboard says the store is unreachable."""
+    kind = "indisponible"
+
+    def _no(self, *_a, **_k):
+        raise RuntimeError("no durable store for contact messages (set the Upstash / Vercel KV variables)")
+
+    limit = put = all = delete = _no
+
+
 _STORE: Store | None = None
 _LOCK = threading.Lock()
 
@@ -218,9 +238,11 @@ def store() -> Store:
             tok = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("KV_REST_API_TOKEN")
             if url and tok:
                 _STORE = UpstashStore(url, tok)
+            elif os.environ.get("VERCEL"):
+                _STORE = Unavailable()
             else:
                 from . import config
-                default = Path("/tmp/suptracker-analytics") if os.environ.get("VERCEL") else config.DATA_DIR / "analytics"
+                default = config.DATA_DIR / "analytics"
                 _STORE = SqliteStore(Path(os.environ.get("SUPTRACKER_ANALYTICS_DIR", default)) / "contact.sqlite")
         return _STORE
 
@@ -239,7 +261,7 @@ def submit(payload, headers, day: date | None = None) -> str:
     vid = A.visitor_id(A.client_ip(headers), headers.get("user-agent", ""), day)
     d = day.strftime("%Y%m%d")
     s = store()
-    if not s.limit([(f"{PREFIX}:rl:{d}:{vid}", PER_VISITOR_DAY), (f"{PREFIX}:rl:{d}:all", GLOBAL_DAY)]):
+    if not s.limit((f"{PREFIX}:rl:{d}:{vid}", PER_VISITOR_DAY), (f"{PREFIX}:rl:{d}:all", GLOBAL_DAY)):
         raise Limited("Trop de messages envoyés aujourd'hui. Réessayez demain.")
     mid = f"{d}-{secrets.token_hex(6)}"
     rec = {"id": mid, "jour": day.isoformat(), **rec}

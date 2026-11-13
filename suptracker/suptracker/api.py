@@ -17,6 +17,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from . import admis as ADM
 from . import analytics as A
@@ -1185,8 +1186,8 @@ async def contact_post(request: Request):
         payload = json.loads(body or b"null")
     except ValueError:
         payload = None
-    try:
-        mid = CT.submit(payload, _hdrs(request))
+    try:   # the store is reached over HTTP (Redis REST): never on the event loop (Codex)
+        mid = await run_in_threadpool(CT.submit, payload, _hdrs(request))
     except CT.Invalid as e:
         return JSONResponse({"detail": str(e), "field": e.field}, status_code=422)
     except CT.Limited as e:

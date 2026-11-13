@@ -515,9 +515,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   every `sources.py` source "en_ligne" with its licence (generated). Privacy: every third party a page loads is named (only the
   OSM tile host today; a new external host needs its operator in the page and in red team QC2's OPERATOR table), retentions
   read from the code's constants. Accessibility: "non conforme" until an RGAA audit exists, never "partiellement/totalement
-  conforme". Contact form (`contact.py`): closed subjects, 10-1,000 characters, optional reply address, hidden field, 5 per
-  visitor-day and 300 a day, ONLY the form's fields + day stored (no IP, user agent or pseudonym), 12-month TTL per message,
-  fails CLOSED (503 "non envoyé"), read/deleted on `#/stats` with the stats token (escaped). Tagline = `legal.TAGLINE`
+  conforme". The privacy page says every PERSONAL parameter a page sends (série, spécialités, mention band, voie, the
+  académie with search/Plan B/stage 2/Mes vœux, the average with the advanced search only, the list's codes; never the lycée):
+  red team QC2's PERSONAL table fails on a parameter sent and not said (Codex). Contact form (`contact.py`): closed subjects,
+  10-1,000 characters, optional reply address, hidden field, 5 per visitor-day then 300 a day (the visitor's cap checked FIRST:
+  a blocked visitor never consumes the global quota; one atomic Lua script in Redis), ONLY the form's fields + day stored (no IP,
+  user agent or pseudonym), 12-month TTL per message, fails CLOSED (503 "non envoyé"; on Vercel without Redis the store is
+  `Unavailable`, never /tmp), submitted off the event loop (`run_in_threadpool`), read/deleted on `#/stats` with the stats
+  token (escaped). Tagline = `legal.TAGLINE`
   everywhere ("les vrais chiffres" is gone). Red team `redteam_conformite.py` (QC1-QC11).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
