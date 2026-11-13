@@ -325,14 +325,14 @@ def c6(c: Ctx):
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x);
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
 """ + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const zs = ["securite", "cible", "ambitieux", null].map((zone) => ({ ...f, zone }));
 // R9: the page's context (profile read, figures per formation, reading ingredients)
 const ctx = (ok) => ({ ok, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 });
 const out = { marks: zs.map((x) => carteMarker(x)), ring: carteRing(zs.map((x, i) => ({ x: 10 + i, y: 10, f: x }))).html,
-  detail: carteDetail(zs[1], ctx(true)), detail0: carteDetail(zs[1], ctx(false)), list: carteList(zs, ctx(true)) };
+  detail: carteCard(zs[1], ctx(true), true), detail0: carteCard(zs[1], ctx(false), true), list: carteList(zs, ctx(true)) };
 process.stdout.write(JSON.stringify(out));"""
     f = {**CRAFT[0], "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "academie": HOSTILE, "contrat_etab": HOSTILE, "taux_acces_ens": 42.0}
     o = node(prog, [f])
@@ -346,7 +346,7 @@ process.stdout.write(JSON.stringify(out));"""
     shapes = [re.search(r"<(circle|rect|path)", m).group(1) for m in o["marks"]]
     distinct = len(set(shapes[:3])) == 3
     ring = "4 formations" in o["ring"] and "Zoomer" in o["ring"]
-    detail = "d'après les admis des campagnes passées" in o["detail"] and "Indiquez votre profil" in o["detail0"]
+    detail = "zpill" in o["detail"] + o["list"] or "zone" in o["detail"] and "Indiquez votre profil" in o["detail0"]
     texts = re.findall(r"`[^`]*`|\"[^\"]*\"", js)
     chance = [t[:60] for t in texts if CHANCE.search(t)]
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
@@ -468,10 +468,11 @@ def c9(c: Ctx):
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
+const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
+""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const fs = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteDetail(f, true), l: carteList([f], true), m: carteMarker(f) }))));"""
+process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteCard(f, CTX, true), l: carteList([f], CTX), m: carteMarker(f) }))));"""
     good = {**CRAFT[6], "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "contrat_etab": HOSTILE, "taux_acces_ens": None,
             "fiche": "https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=7&x=\"><b>"}
     evil = {**good, "fiche": "javascript:alert(1)"}
@@ -483,7 +484,7 @@ process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteDetail(f, true), l:
     flat = json.dumps(o)
     page = {"raw tag": "<img" in flat or "<b>" in flat, "vœu button": "data-voeu" in flat or "mes vœux" in flat.lower(),
             "zone pill": "zone-pill" in flat or "zbadge" in flat, "internal page link": "#/f/" in flat,
-            "note": "Aucune statistique d'admission n'est publiée pour les formations en apprentissage" not in o[0]["d"],
+            "note": "Aucune statistique d'admission n'est publiée pour les formations en apprentissage" not in __import__("html").unescape(o[0]["d"]),
             "Parcoursup link": 'href="https://dossierappel.parcoursup.fr/' not in o[0]["d"] or 'rel="noopener noreferrer"' not in o[0]["d"],
             "javascript link": "javascript:" in o[1]["d"] + o[1]["l"], "marker": ", en apprentissage" not in o[0]["m"]}
     wrong = [k for k, v in page.items() if v]
@@ -523,10 +524,11 @@ def c10(c: Ctx):
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
+const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
+""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify({ d: carteDetail(f, true), l: carteList([f], true) }));"""
+process.stdout.write(JSON.stringify({ d: carteCard(f, CTX, true), l: carteList([f], CTX) }));"""
     f = {**CRAFT[8], "etablissement": HOSTILE, "offres_app": [{"cod_aff_form": "99", "etablissement": HOSTILE, "formation": "x", "ville": HOSTILE,
                                                             "fiche": "https://dossierappel.parcoursup.fr/x?g_ta_cod=99"}]}
     o = node(prog, [f])
@@ -552,7 +554,7 @@ PY_MUTANTS = [
     ("outside contract read as under contract", 'if "hors contrat" in t:', 'if False:'),
     ("attached by town, not by establishment", 'sorted(initial.get((uai, tf, fl), ())) if uai else []', 'sorted({y for (u2, t2, f2), ys in initial.items() if (t2, f2) == (tf, fl) for y in ys})[:1] if uai else []'),
     ("attachment ignores the mention", "initial.setdefault((u, tf, fl), set()).add(cod)", "initial.setdefault((u, tf, None), set()).add(cod)"),
-    ("attached offers still listed apart", "for a in apprentissage(con) if not a[\"rattachee\"] and a[\"diplome\"] == diplome", "for a in apprentissage(con) if a[\"diplome\"] == diplome"),
+    ("attached offers still listed apart", "    for a in apprentissage(con):\n        if not a[\"rattachee\"]:", "    for a in apprentissage(con):\n        if True:"),
     ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
     ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),
@@ -579,7 +581,7 @@ JS_MUTANTS = [
     ("a formation offering both loses one label", 'if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;', 'if (g === "app") return o === "oui" ? !!f.apprentissage : !f.apprentissage;'),
     ("both labels dropped", "const voieBadges = (f) => (f.initiale && f.apprentissage ?", "const voieBadges = (f) => (false ?"),
     ("CFA name unescaped", "return `<li>${esc(o.etablissement)}", "return `<li>${o.etablissement}"),
-    ("apprenticeship offer shown as a formation with figures", "if (f.stats === false) return carteAppDetail(f);", ""),
+    ("apprenticeship offer shown as a formation with figures", "${f.stats === false ? `<p class=\"small muted\">Pas de statistiques", "${false ? `<p class=\"small muted\">Pas de statistiques"),
     ("free apprenticeship unticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };', 'const CARTE_DEFAULT = { statut: ["public", "contrat"] };'),
     ("unknown selectivity read as non selective", 'return f.select_form === (o === "oui" ? "formation sélective" : "formation non sélective");', 'return o === "oui" ? f.select_form === "formation sélective" : f.select_form !== "formation sélective";'),
     ("apprenticeship link unchecked", 'const carteFiche = (f) => (f.fiche && /^https:\\/\\/dossierappel\\.parcoursup\\.fr\\//.test(f.fiche) ? f.fiche : null);', "const carteFiche = (f) => f.fiche;"),

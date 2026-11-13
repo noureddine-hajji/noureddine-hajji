@@ -258,8 +258,9 @@ def h5(c: Ctx):
     # R4: the search result is drawn by resultCard, used by the search page
     search = "${offerBadges(r, true)}${autresBadge(r)}" in block(js, "function resultCard(", "async function viewSearch") \
         and "${d.results.map(resultCard).join(\"\")}" in block(js, "async function viewSearch", "function suggestLycee") if "function resultCard(" in js else False
-    carte = block(js, "function carteDetail(", "// Leaflet")
-    carte_ok = carte.count("${autresBadge(f)}") == 2
+    # R10: one card for the map's list and the pinned formation (carteCard)
+    carte = block(js, "function carteCard(", "function carteList(")
+    carte_ok = carte.count("${autresBadge(f)}") == 1 and "carteCard(f, ctx, false)" in js and "carteCard(f, ctx, true)" in js
     cmp_ok = '["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)]' in block(js, "async function viewCompare(", "async function viewSpecialites(")
     vx_ok = "${autresBadge(v)}`;" in block(js, "async function viewVoeux(", "const position = v.bounds")
     summary = "    ${admisBar(d.admis)}\n" in block(js, "function summaryBand(", "function fillZoneTile(")

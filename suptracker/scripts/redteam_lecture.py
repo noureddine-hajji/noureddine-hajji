@@ -635,7 +635,7 @@ ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof
            "stage2Local(await api(`/api/journey/stage2?",
            "if (local) d = planBLocal(d, pbProf, prof.academie || null);",
            "if (local) d = completerLocal(d, prof, prof.academie || null);",
-           "const Z = Zraw ? carteZonesLocal(Zraw, VP) : null;",
+           "Object.assign(zone, carteZonesLocal(Zraw, VP).zones);",
            'if (local) q.set("pool", "true");', 'if (local) qs.set("pool", "true");')
 
 
