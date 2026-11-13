@@ -7,8 +7,8 @@
      in the "Autres doublettes" line, a rare one, bac techno / pro lines, "autre", an unknown route), the page's profileRate gives
      the figure re-derived in Python from the modules' own twins (rapports.pick, semblables.estimate, doublettes.estimate,
      voies.pick_voie) in the published-first order: same kind, same source, same rate
-  Z2 the summary and the card agree: for the same formation and profile, the "Selon votre bac" card's headline ("Votre
-     doublette / Votre ligne dans cette formation : x %") is the tile's figure, and when the tile is published the card shows
+  Z2 the summary and the card agree: for the same formation and profile, the "Selon votre bac" card's headline ("Vos deux
+     spécialités / Votre bac dans cette formation : x %") is the tile's figure, and when the tile is published the card shows
      no estimate (a published figure replaces an estimate, never sits beside it)
   Z3 the tile (Node): escaped, its source said in words (publié + rapport du jury + session / estimation + its basis), never a
      chance; bac techno / pro without a line waits for the Plan B answer and is filled with the estimated series access (or "—",
@@ -233,8 +233,10 @@ def harness(js: str) -> str:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pc1 = ", "const pct = ",
                                                                           "const isReo = ", "const REO_LABEL = ")))
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
+    # sprint Q4: the one estimation label the card and the tile use
+    bac += "\n" + re.search(r"^const ESTIM_DEF = .*$", js, re.M).group(0) + "\n" + re.search(r"^function estimTag\(.*?^\}", js, re.M | re.S).group(0)
     return helpers + "\nlet PROFILE = null; const store = { get: (k, d) => (k === 'profile' ? PROFILE : d) };\n" \
-        + "const tip = () => ''; const legend = () => ''; const lineChart = () => '';\n" + bac + "\n" + blk + "\n" + r2
+        + "const tip = () => ''; const legend = () => ''; const lineChart = () => ''; const zoneLegend = () => '';\n" + bac + "\n" + blk + "\n" + r2
 
 
 Z1_PROG = r"""
@@ -287,7 +289,7 @@ def z1(c: Ctx):
 
 
 ROUTE_ROW = re.compile(r'votre bac</span></td>\s*<td class="num" data-label="Taux de proposition">([0-9][0-9 ,.]*) %')
-HEAD = re.compile(r"Votre (?:doublette|ligne) dans cette formation : ([0-9][0-9 ,.]*) %")
+HEAD = re.compile(r"(?:Vos deux spécialités|Votre bac) dans cette formation : ([0-9][0-9 ,.]*) %")          # sprint Q4 wording
 
 
 def to_num(s: str) -> float:

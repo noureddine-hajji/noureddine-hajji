@@ -414,7 +414,7 @@ def w6(c: Ctx):
 def w7(c: Ctx):
     js = c.js
     form = 'select name="voie"' in top(js, "profileForm") and "return { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null)," in top(js, "readForm")
-    column = 'data-label="Votre ligne, rapport du jury"' in js and "Votre ligne dans le rapport du jury (cette formation)" in js
+    column = 'data-label="Votre bac, rapport du jury"' in js and "Votre bac dans le rapport du jury (cette formation)" in js
     appr = 'serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage' in js
     vocab = '"voies": VO.choices(_con().cursor())' in c.api
     voeux = "x = VO.pick_voie(b, serie, voie)" in c.vx and "voie=VO.valid(_con().cursor(), serie, voie)" in c.api
@@ -449,7 +449,7 @@ JS_MUTANTS = [
     ("route sent for bac général", 'if (prof.serie !== "bg" && typeof prof.voie === "string" && prof.voie)', 'if (typeof prof.voie === "string" && prof.voie)'),
     ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : "", men', ': p.voie_label ? p.voie_label : "", men'),
     ("closed instead of rare", "Une part faible veut dire « rare », pas « fermé ».", "Une part faible veut dire que la formation est fermée."),
-    ("chance wording", "pour voir votre ligne.</p>", "pour voir vos chances d'être admis.</p>"),
+    ("chance wording", "pour voir le chiffre de votre bac.</p>", "pour voir vos chances d'être admis.</p>"),
     ("Mes vœux cell without its recheck flag", '${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie',
      '</div>` : prof.voie'),
     ("Mes vœux cell shows the candidates", "r ? `${pct1(r.taux)}<div", "r ? `${pct1(r.confirmes)}<div"),
