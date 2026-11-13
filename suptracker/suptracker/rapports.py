@@ -200,9 +200,9 @@ def rate(pos, conf):
     return None if not conf or pos is None else round(100 * pos / conf, 1)
 
 
-def for_formation(con, cod: str, session: int | None = None) -> dict | None:
+def for_formation(con, cod: str, session: int | None = None, textes: bool = True) -> dict | None:
     """The report block of a formation page: the report of this session when there is one, else the most recent one of
-    this code (its session is always shown)."""
+    this code (its session is always shown). `textes=False` (lists: Mes vœux, the map) skips the jury texts."""
     if not _has(con, "core", "rapport"):
         return None
     has = lambda col: con.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'core'
@@ -221,7 +221,7 @@ def for_formation(con, cod: str, session: int | None = None) -> dict | None:
                                           "confirmes": c, "classes": cl, "en_position": p, "acceptes": a, "taux": rate(p, c)})
     masked = [b for (b,) in con.execute("SELECT bac FROM core.rapport_masque WHERE cod_aff_form = ? AND session = ? ORDER BY bac",
                                         [cod, s]).fetchall()]
-    t = texte(con, dig)
+    t = texte(con, dig) if textes else None
     textes = json.loads(t) if t else None
     sessions = [x for (x,) in con.execute("SELECT session FROM core.rapport WHERE cod_aff_form = ? ORDER BY session", [cod]).fetchall()]
     live = src == "live"                  # read on the Parcoursup fiche itself: the link is Parcoursup's (until the next campaign)

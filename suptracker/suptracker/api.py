@@ -864,6 +864,24 @@ def carte_zones(diplome: str, mention_bac: str = Query(..., alias="mention_bac",
     return CA.zones(_con().cursor(), diplome, mention or None, dkey, band, serie, moy, lecture=lecture)
 
 
+@app.get("/api/carte/chiffres")
+def carte_chiffres(codes: str = Query(..., max_length=600), serie: str = Query("bg", pattern="^(bg|bt|bp)$"),
+                   spe1: str | None = None, spe2: str | None = None):
+    """R9: for one page of the map's list (at most 40 codes), the figure for the student's doublette or line, exactly as
+    Mes vœux shows it; bac techno / pro: the report's lines, the page picks its own. A coarse profile only (no average, no
+    académie, no series line), like /api/carte/zones."""
+    _journey_ready()
+    dkey = None
+    if serie == "bg":
+        if not spe1 or not spe2 or spe1 == spe2:
+            raise HTTPException(422, "deux spécialités différentes sont requises")
+        dkey = _dkey(spe1, spe2)
+    try:
+        return CA.chiffres(_con().cursor(), codes.split(","), serie, dkey)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
 @app.get("/api/comprendre")
 def comprendre():
     """How far the lists were called and when the offers came, per type of diploma (latest campaign, published counts)."""
@@ -1147,7 +1165,7 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche"]
 
 
 @lru_cache(maxsize=1)

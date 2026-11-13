@@ -216,6 +216,68 @@ def for_formation(con, cod: str) -> list:
     return offres_par_formation(con).get(cod, [])
 
 
+# ---- R9 (owner, 2026-11-12): mentions that name the same thing are grouped by FIXED rules, never by fuzzy matching ----
+# Double licence: the unordered pair of disciplines (Maths / Info = Info / Maths), each discipline under one spelling.
+# "Economie" and "Economie et gestion" are one discipline, "Gestion" another (owner). Unknown spellings stay as printed.
+DL_DISCIPLINE = {
+    "economie": "Économie", "economie et gestion": "Économie", "gestion": "Gestion",
+    "langues, litteratures et civilisations etrangeres et regionales": "Langues (LLCER)", "llcer": "Langues (LLCER)",
+    "langues etrangeres appliquees": "Langues étrangères appliquées (LEA)",
+    "mathematiques et informatique appliquees aux sciences humaines et sociales": "MIASHS",
+    "physique, chimie": "Physique-chimie", "geographie et amenagement": "Géographie", "geographie": "Géographie",
+    "histoire de l'art et archeologie": "Histoire de l'art et archéologie", "lettres, langues": "Lettres",
+    "cinema et audiovisuel": "Cinéma", "cinema": "Cinéma", "cinema : pratique et esthetique": "Cinéma",
+    "musique et musicologie": "Musicologie", "etudes theatrales": "Études théâtrales", "sciences de l'homme, anthropologie, ethnologie": "Anthropologie, ethnologie",
+}
+# CUPGE and CPES: one rule per family, read in order on the folded mention (the first that matches wins)
+FAMILY_RULES = {
+    "CUPGE": [("commerce", "Préparation aux écoles de commerce"), (r"agro|veto|sciences de la vie", "Biologie, préparation agro-véto"),
+              (r"lettres", "Lettres"), (r"chimie", "Physique-chimie"),
+              (r"informatique|math|physique|mecanique|isima|ingenieur|scientifique", "Maths, physique, informatique"),
+              (r".", "Sans précision de discipline")],
+    "CPES": [(r"donnees", "Sciences des données"), (r"ingenieur", "Sciences pour l'ingénieur"),
+             (r"environnement|ecologique", "Environnement, transition écologique"),
+             (r"economie|droit", "Économie, droit, société"), (r"sciences et humanites", "Sciences et humanités"),
+             (r"humanites|sciences sociales", "Humanités, sciences sociales"), (r"sciences et societe", "Sciences et société"),
+             (r"matiere|sciences de la vie|^sciences$", "Sciences (matière, vie)"), (r".", "Autre CPES")],
+}
+# Licence and L.AS: only near-duplicates of one national mention
+NEAR_DUPLICATES = {"theologie": "Théologie", "theologie catholique": "Théologie", "theologie protestante": "Théologie",
+                   "cinema": "Cinéma et Audiovisuel", "cinema et audiovisuel": "Cinéma et Audiovisuel",
+                   "histoire de l'art": "Histoire de l'art et archéologie"}
+
+
+def sort_key(label: str) -> str:
+    """Alphabetical order in French: accents and case ignored ("Écoles" sorts with "E", not after "z")."""
+    return " ".join(_fold(label).split())
+
+
+def _dl_discipline(x: str) -> str:
+    k = " ".join(_fold(x).split())
+    if k in DL_DISCIPLINE:
+        return DL_DISCIPLINE[k]
+    x = " ".join(x.split())
+    return x[:1].upper() + x[1:].lower() if x.isupper() else x
+
+
+def groupe_of(diplome: str, mention: str | None) -> str:
+    """The group a mention is shown under in the map's mention filter (the formation keeps its own label)."""
+    m = " ".join((mention or "").split())
+    if diplome == "Double licence":
+        head = m.split(" - ")[0] if "/" in m.split(" - ")[0] else m
+        parts = [p for p in re.split(r"\s*/\s*|\s+-\s+", head) if p.strip()][:2]
+        if len(parts) < 2:
+            return m or "Sans précision"
+        a, b = sorted((_dl_discipline(p) for p in parts), key=sort_key)
+        return f"{a} / {b}"
+    if diplome in FAMILY_RULES:
+        f = " ".join(_fold(m).split())
+        return next(label for rx, label in FAMILY_RULES[diplome] if re.search(rx, f))
+    if diplome in ("Licence", "Licence Accès Santé (L.AS)"):
+        return NEAR_DUPLICATES.get(" ".join(_fold(m).split()), m)
+    return m
+
+
 def facets(con) -> dict:
     """Every type of diploma and its mentions, with their number of formations in the latest campaign (and the current
     apprenticeship offers)."""
@@ -226,10 +288,15 @@ def facets(con) -> dict:
         d, m = r
         x = out.setdefault(d, {"n": 0, "mentions": {}})
         x["n"] += 1
-        x["mentions"][m] = x["mentions"].get(m, 0) + 1
+        g = x["mentions"].setdefault(groupe_of(d, m), {"n": 0, "variantes": set()})
+        g["n"] += 1
+        g["variantes"].add(m)
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
-    return {"session": session, "offre_apprentissage": _offer_session(con), "types": type_diplomes(con), "diplomes": [{"label": d, "n": x["n"], "mentions": [{"label": m, "n": n} for m, n in sorted(x["mentions"].items(), key=lambda kv: (-kv[1], kv[0]))]}
-                                              for d, x in sorted(out.items(), key=lambda kv: kv[0].lower())]}
+    # R9: diplomas and mention groups in French alphabetical order; each group lists the published labels it gathers
+    return {"session": session, "offre_apprentissage": _offer_session(con), "types": type_diplomes(con),
+            "diplomes": [{"label": d, "n": x["n"], "mentions": [{"label": g, "n": v["n"], "variantes": sorted(v["variantes"], key=sort_key)}
+                                                                for g, v in sorted(x["mentions"].items(), key=lambda kv: sort_key(kv[0]))]}
+                         for d, x in sorted(out.items(), key=lambda kv: sort_key(kv[0]))]}
 
 
 def _offer_session(con):
@@ -251,12 +318,12 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
     offres = offres_par_formation(con)
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
-        if d != diplome or (mention and m != mention):
+        if d != diplome or (mention and mention not in (m, groupe_of(d, m))):
             continue
         x = dict(zip(FIELDS, r[:15]))
         if x["lat"] is not None:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
-        x["mention"], x["statut"] = m, statut_of(x["contrat_etab"])
+        x["mention"], x["groupe"], x["statut"] = m, groupe_of(d, m), statut_of(x["contrat_etab"])
         x["capa_fin"], x["acc_pc"] = r[19], r[20]       # sprint R3: capacity and complementary-phase admits (the map's filters)
         sies_app = bool(r[18])                # SIES's own "en apprentissage" formations (3 in 2025)
         x["stats"], x["fiche"] = True, None
@@ -266,8 +333,10 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         x["offres_app"] = offres.get(x["cod_aff_form"], [])
         x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
         out.append(x)
-    out += [{**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")}, "initiale": False, "offres_app": []}
-            for a in apprentissage(con) if not a["rattachee"] and a["diplome"] == diplome and (not mention or a["mention"] == mention)]
+    out += [{**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")}, "groupe": groupe_of(diplome, a["mention"]),
+             "initiale": False, "offres_app": []}
+            for a in apprentissage(con) if not a["rattachee"] and a["diplome"] == diplome
+            and (not mention or mention in (a["mention"], groupe_of(diplome, a["mention"])))]
     if not out:
         return None
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
@@ -298,14 +367,14 @@ def type_diplomes(con) -> dict:
 def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac: str, serie: str,
           moyenne: float | None = None, lecture: bool = False) -> dict:
     """{code: zone} for the formations of a diploma (and mention): journey.stage2 on each formation's own type, `only` its
-    codes, so every zone is the one "Mon parcours" shows. Formations without a type get none."""
+    codes, so every zone is the one "Mon parcours" shows. Formations without a SIES type are read under J.SANS_TYPE (R9)."""
     lay = formations(con, diplome, mention)
     if lay is None:
         return {"zones": {}}
     by_type: dict = {}
     for f in lay["formations"]:
-        if f["type_key"]:
-            by_type.setdefault(f["type_key"], []).append(f["cod_aff_form"])
+        if f.get("stats", True) is not False:   # R9: a formation with no SIES type is read under J.SANS_TYPE
+            by_type.setdefault(f["type_key"] or J.SANS_TYPE, []).append(f["cod_aff_form"])
     out, lec = {}, {}
     for tk, cods in by_type.items():
         for f in J.stage2(con, dkey, mention_bac, tk, None, serie=serie, only=cods, moyenne=moyenne)["formations"]:
@@ -314,3 +383,31 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
                 lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"],
                                           "lec": f["lec"]}
     return {"zones": out, **({"lectures": lec} if lecture else {})}
+
+
+CHIFFRES_MAX = 40          # one page of the map's list (searchPage: 20 on a phone, 40 on a wide screen)
+
+
+def chiffres(con, codes: list[str], serie: str, dkey: str | None) -> dict:
+    """R9 (owner, 2026-11-12): for the formations of one page of the map's list, the figure for the student's doublette
+    (bac général): voeux.figures, the function Mes vœux reads, so the map, Mes vœux and the formation page show one figure.
+    Bac techno / pro: the report's lines of that bac (`voies`), the page picks the student's line itself (pickVoie): the
+    series / specialty is sent only to /api/voeux. No zone, no average here: the page reads those from /api/carte/zones."""
+    from . import rapports as RP
+    from . import voeux as V
+    cods = list(dict.fromkeys(c.strip() for c in codes if c.strip()))
+    if len(cods) > CHIFFRES_MAX or any(not re.fullmatch(r"\d{1,9}", c) for c in cods):
+        raise ValueError(f"au plus {CHIFFRES_MAX} codes de formation (chiffres)")
+    latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+    types = dict(con.execute("""SELECT fy.cod_aff_form, r.spe_type_key FROM core.formation_year fy
+        LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form) LEFT JOIN core.taxonomy_rule r USING (rule_id)
+        WHERE fy.session = ? AND list_contains(?, fy.cod_aff_form)""", [latest, cods]).fetchall())
+    known = [c for c in cods if c in types]
+    figs = V.figures(con, known, types, serie=serie, dkey=dkey)
+    if serie in ("bt", "bp"):
+        for c in known:
+            b = RP.for_formation(con, c, textes=False)
+            figs[c]["voies"] = None if not b else {"session": b["session"], "recoupe": b["recoupe"],
+                                                    "doublettes": {serie: b["doublettes"].get(serie) or []},
+                                                    "voie_keys": {serie: (b.get("voie_keys") or {}).get(serie)}}
+    return {"session": latest, "serie": serie, "doublette": dkey, "chiffres": figs}

@@ -63,45 +63,13 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
             meta[cod] = {"type_key": tk, "filiere": fil, "etablissement": etab, "ville": ville, "capa_fin": capa}
     by_type = {}
     for c in cods:
-        if c in meta and meta[c]["type_key"]:
-            by_type.setdefault(meta[c]["type_key"], []).append(c)
+        if c in meta:          # R9: a formation with no SIES type is read under J.SANS_TYPE (its own published counts)
+            by_type.setdefault(meta[c]["type_key"] or J.SANS_TYPE, []).append(c)
     rows = {}
     for tk, cs in by_type.items():
         for f in J.stage2(con, dkey, mention, tk, academie, serie=serie, only=cs, moyenne=moyenne)["formations"]:
             rows[f["cod_aff_form"]] = f
-    groups = {tk: DB.for_group(con, tk) for tk in by_type} if serie == "bg" and dkey else {}
-
-    def dbl(tk, cod=None):
-        """The student's doublette: the per-formation estimate (this formation's bac général rate x the doublette's ratio in its
-        group), with the group's national figure it rests on; no trend here."""
-        x = DB.pick(groups.get(tk), dkey)
-        if not x:
-            return None
-        out = {k: v for k, v in x.items() if k != "trend"}
-        est = DB.estimate(DB.series(con, cod)["bg"], groups.get(tk), dkey) if cod else None
-        out["formation"] = {k: v for k, v in est.items() if k != "trend"} if est else None
-        return out
-    def rapport(cod):
-        if serie in ("bt", "bp"):                      # sprint 20: the student's series / specialty row (or the formation's bucket)
-            b = RP.for_formation(con, cod)
-            x = VO.pick_voie(b, serie, voie)
-            return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
-                    "en_position": x["en_position"], "recoupe": b["recoupe"], "libelle": x["libelle"]} if x else None
-        if serie != "bg" or not dkey:
-            return None
-        b = RP.for_formation(con, cod)
-        x = RP.pick(b, dkey)
-        return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
-                "en_position": x["en_position"], "recoupe": b["recoupe"]} if x else None
-    def semblable(cod):
-        """Where the formation's own report has no bac général table: the estimate from its similar formations' reports."""
-        if serie != "bg" or not dkey:
-            return None
-        b = RP.for_formation(con, cod)
-        if b and (b["doublettes"].get("bg") or []):
-            return None
-        est = SB.estimate(DB.series(con, cod)["bg"], SB.for_formation(con, cod), dkey)
-        return {k: v for k, v in est.items() if k != "trend"} if est else None
+    figs = figures(con, [c for c in cods if c in rows], {c: meta[c]["type_key"] for c in meta}, serie=serie, dkey=dkey, voie=voie)
     out = []
     for c in cods:
         if c not in meta:
@@ -117,11 +85,56 @@ def evaluate(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None,
                         "bounds": f["spos"]["bounds"] if f.get("spos") else None, "capa_fin": meta[c]["capa_fin"],
                         "position_moyenne": f.get("position"),     # R5: the average's range among the admits (estimation)
                         "lec": f["lec"],                           # R6: the page re-reads the zone with the average it keeps
-                        "type_key": meta[c]["type_key"], "doublette": dbl(meta[c]["type_key"], c),
-                        # sprint "Rapports publics": the formation's OWN published figure for the doublette, when its report exists
-                        "rapport": rapport(c), "semblable": semblable(c)})
+                        "type_key": meta[c]["type_key"], **figs[c]})
     return {"session": latest, "serie": serie, "mention": mention, "moyenne": moyenne, "doublette": dkey, "academie": academie,
             "max": MAX_VOEUX, "voeux": out, "lecture": read_list(out)}
+
+
+def figures(con, cods: list[str], types: dict, *, serie: str = "bg", dkey: str | None = None, voie: str | None = None) -> dict:
+    """{code: {"doublette", "rapport", "semblable"}}: the figure for the student's doublette (bac général) or line (bac techno /
+    pro) in each formation, as Mes vœux shows it. R9: the map's list reads the SAME function (one figure everywhere).
+    `types`: {code: SIES type key or None}."""
+    tks = {types.get(c) for c in cods} - {None}
+    groups = {tk: DB.for_group(con, tk) for tk in tks} if serie == "bg" and dkey else {}
+    reports: dict = {}
+
+    def report(cod):                                   # one read per code, without the jury texts
+        if cod not in reports:
+            reports[cod] = RP.for_formation(con, cod, textes=False)
+        return reports[cod]
+
+    def dbl(tk, cod=None):
+        """The student's doublette: the per-formation estimate (this formation's bac général rate x the doublette's ratio in its
+        group), with the group's national figure it rests on; no trend here."""
+        x = DB.pick(groups.get(tk), dkey)
+        if not x:
+            return None
+        out = {k: v for k, v in x.items() if k != "trend"}
+        est = DB.estimate(DB.series(con, cod)["bg"], groups.get(tk), dkey) if cod else None
+        out["formation"] = {k: v for k, v in est.items() if k != "trend"} if est else None
+        return out
+    def rapport(cod):
+        if serie in ("bt", "bp"):                      # sprint 20: the student's series / specialty row (or the formation's bucket)
+            b = report(cod)
+            x = VO.pick_voie(b, serie, voie)
+            return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
+                    "en_position": x["en_position"], "recoupe": b["recoupe"], "libelle": x["libelle"]} if x else None
+        if serie != "bg" or not dkey:
+            return None
+        b = report(cod)
+        x = RP.pick(b, dkey)
+        return {"session": b["session"], "source": x["source"], "taux": x["taux"], "confirmes": x["confirmes"],
+                "en_position": x["en_position"], "recoupe": b["recoupe"]} if x else None
+    def semblable(cod):
+        """Where the formation's own report has no bac général table: the estimate from its similar formations' reports."""
+        if serie != "bg" or not dkey:
+            return None
+        b = report(cod)
+        if b and (b["doublettes"].get("bg") or []):
+            return None
+        est = SB.estimate(DB.series(con, cod)["bg"], SB.for_formation(con, cod), dkey)
+        return {k: v for k, v in est.items() if k != "trend"} if est else None
+    return {c: {"doublette": dbl(types.get(c), c), "rapport": rapport(c), "semblable": semblable(c)} for c in cods}
 
 
 def read_list(voeux: list[dict]) -> dict:
@@ -176,11 +189,13 @@ def completer(con, ids: list[str], *, serie: str = "bg", dkey: str | None = None
     listed = {v["cod_aff_form"] for v in ev["voeux"]}
     groups = {}
     for v in ev["voeux"]:
-        if v["status"] == "ok" and v.get("type_key") and v.get("filiere"):
-            groups.setdefault((v["type_key"], v["filiere"]), []).append(v["cod_aff_form"])
+        if v["status"] == "ok" and v.get("filiere"):
+            groups.setdefault((v.get("type_key") or J.SANS_TYPE, v["filiere"]), []).append(v["cod_aff_form"])
     hidden = 0
     for (tk, fil), mine in groups.items():
-        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie, moyenne=moyenne)["formations"]
+        # R9: a formation with no SIES type is completed from the untyped formations of its own filière
+        only = J.untyped_codes(con, [fil]) if tk == J.SANS_TYPE else None
+        rows = J.stage2(con, dkey, mention, tk, academie, serie=serie, moyenne=moyenne, only=only)["formations"]
         by_cod = {f["cod_aff_form"]: f for f in rows}
         targets = [by_cod[c] for c in mine if c in by_cod]
         if pool:

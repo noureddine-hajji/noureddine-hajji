@@ -89,10 +89,10 @@ def zones(con, results: list[dict], serie: str, dkey: str | None, mention: str, 
     if not codes:
         return {}
     by_type: dict = {}
-    for c, tk in con.execute("""SELECT t.cod_aff_form, r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
-                                WHERE t.session = ? AND t.cod_aff_form IN (SELECT unnest(?))""", [latest, codes]).fetchall():
-        if tk:
-            by_type.setdefault(tk, []).append(c)
+    for c, tk in con.execute("""SELECT fy.cod_aff_form, r.spe_type_key FROM core.formation_year fy
+                                LEFT JOIN core.taxonomy_link t USING (session, cod_aff_form) LEFT JOIN core.taxonomy_rule r USING (rule_id)
+                                WHERE fy.session = ? AND fy.cod_aff_form IN (SELECT unnest(?))""", [latest, codes]).fetchall():
+        by_type.setdefault(tk or J.SANS_TYPE, []).append(c)     # R9: no SIES type = read under J.SANS_TYPE
     db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()[0]
     out = {}
     for tk, cods in by_type.items():

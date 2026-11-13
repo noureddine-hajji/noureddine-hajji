@@ -325,12 +325,14 @@ def c6(c: Ctx):
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + js + """
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x);
+""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const zs = ["securite", "cible", "ambitieux", null].map((zone) => ({ ...f, zone }));
+// R9: the page's context (profile read, figures per formation, reading ingredients)
+const ctx = (ok) => ({ ok, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 });
 const out = { marks: zs.map((x) => carteMarker(x)), ring: carteRing(zs.map((x, i) => ({ x: 10 + i, y: 10, f: x }))).html,
-  detail: carteDetail(zs[1], true), detail0: carteDetail(zs[1], false), list: carteList(zs, true) };
+  detail: carteDetail(zs[1], ctx(true)), detail0: carteDetail(zs[1], ctx(false)), list: carteList(zs, ctx(true)) };
 process.stdout.write(JSON.stringify(out));"""
     f = {**CRAFT[0], "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "academie": HOSTILE, "contrat_etab": HOSTILE, "taux_acces_ens": 42.0}
     o = node(prog, [f])
@@ -361,8 +363,8 @@ def c7(c: Ctx):
     from suptracker import analytics, cache
     route = 'if (a === "carte") return await viewCarte(b || "", c || "");' in c.js and 'carte: "carte"' in c.js
     # R1 (owner, 2026-11-11): the map is one of the Explorer views (list, map, jobs), shown on the home, search and map pages
-    menus = 'carte: "#/carte", metiers' in c.js and all("explorerViews(" in c.js[c.js.index(f"function {fn}("):][:3000]
-                                                        for fn in ("viewHome", "viewCarte"))
+    menus = 'carte: "#/carte", metiers' in c.js and all("explorerViews(" in c.js[c.js.index(f"function {fn}("):][:6000]
+                                                        for fn in ("viewHome", "viewCarte"))   # noqa
     an = "carte" in analytics.ROUTES
     pol = cache.policy("/api/carte") and cache.policy("/api/carte/formations") and cache.policy("/api/carte/zones")
     rel = '"carte": ("app.js", "function viewCarte(")' in (ROOT / "tests" / "test_release.py").read_text()
@@ -569,7 +571,7 @@ JS_MUTANTS = [
     ("unlocated formations dropped from the list", "kept.filter((f) => inView(f) || f.lat == null)", "kept.filter((f) => inView(f))"),
     ("IP note dropped", "qui voient votre adresse IP", "rapides"),
     ("Leaflet from a CDN", 'src: "/static/vendor/leaflet/leaflet.js"', 'src: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"'),
-    ("name unescaped", "<strong>${esc(f.etablissement)}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>", "<strong>${f.etablissement}</strong></a> <span class=\"muted\">· ${esc(f.ville)}</span>"),
+    ("name unescaped", "<a class=\"rc-title\" href=\"#/f/${esc(f.cod_aff_form)}\">${esc(f.etablissement)}</a>`;", "<a class=\"rc-title\" href=\"#/f/${esc(f.cod_aff_form)}\">${f.etablissement}</a>`;"),
     ("marker without its zone", 'aria-label="${esc(f.etablissement)}, ${esc(carteLabel(z))}${f.apprentissage', 'aria-label="${esc(f.etablissement)}${f.apprentissage'),
     ("one shape for all", ': zoneShape(z, 9, 9, z === "ambitieux" ? 7.2 : 6.8,', ': zoneShape("securite", 9, 9, z === "ambitieux" ? 7.2 : 6.8,'),
     ("caveat dropped", "à partir des admis des campagnes passées : ce ne sont pas des chances d'admission", "à partir des admis des campagnes passées : voici vos résultats"),

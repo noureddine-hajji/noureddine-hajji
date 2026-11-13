@@ -491,6 +491,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. `seo.page` fills the shell's
   `<main id="view" ...>` whatever its attributes (it raises rather than serve a page without content). Red team `redteam_a11y.py` (A1-A6;
   A4 runs axe-core when installed).
+- **Searching from the map (sprint R9, owner 2026-11-12).** Wide screen: filters + map left, list middle, chosen formation right;
+  several diplomas and mention groups at once (`carteSelection`, stored selection never trusted, one cacheable answer per diploma);
+  choosing in the list never moves the map. Mentions grouped by FIXED rules only (`carte.groupe_of`: double licence = unordered pair,
+  `DL_DISCIPLINE` with Économie = Économie et gestion, Gestion apart (owner); `FAMILY_RULES` for CUPGE/CPES; licence near-duplicates);
+  French order (`sort_key`). Formations with no SIES type are read by stage 2 under `J.SANS_TYPE`, ONLY with `only` codes (map, Mes
+  vœux, Plan B and Compléter with the untyped formations of the same filière, search zones). Three figures per formation: official
+  rate; the doublette figure from `voeux.figures` (shared with Mes vœux, `/api/carte/chiffres` <= 40 codes, coarse profile; bac
+  techno/pro lines picked by the page, the series is never sent); the average's position among the admits as a RANGE from `lec`,
+  "estimation", never an access rate or a chance (none is published by mention). Red team `redteam_carterecherche.py` (CR1-CR10).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

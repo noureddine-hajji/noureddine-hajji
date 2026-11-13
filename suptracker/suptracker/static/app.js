@@ -1231,29 +1231,90 @@ function appOffers(list) {
   return `<div class="small"><strong>Aussi en apprentissage</strong> <span class="muted">(pas de statistiques d'admission publiées pour cette voie)</span><ul class="offer-list">${list.map((o) => { const url = carteFiche(o);
     return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul></div>`;
 }
-function carteDetail(f, hasProfile) {
-  if (!f) return "";
+// R9 (owner, 2026-11-12): three figures per formation, always in the same place: the OFFICIAL access rate; the figure for the
+// student's doublette (or bac techno / pro line), the one Mes vœux and the formation page show (voeux.figures, read per page of
+// the list); where the student's average or mention stands among the formation's néo-bachelier admits, a RANGE read here from
+// the published counts (journey.stage2's `lec`), never an access rate or a chance: SIES publishes no access rate by mention.
+function cartePosition(L, taux, band, g) {
+  if (!L || !L.n) return null;
+  if (g !== null && g !== undefined) {
+    const p = lire(L, taux, band, g).position;
+    return p ? { lo: Math.min(p.normale, p.uniforme), hi: Math.max(p.normale, p.uniforme), moyenne: true } : null;
+  }
+  return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };
+}
+const pctRange = (lo, hi) => { const a = Math.round(100 * lo), b = Math.round(100 * hi); return a === b ? `${a} %` : `${a} à ${b} %`; };
+function cartePosFigure(pos, compact) {
+  if (!pos) return '<span class="muted small">non publié</span>';
+  if (compact) return `${pctRange(pos.lo, pos.hi)}<div class="estim">${pos.moyenne ? "des admis sous votre moyenne" : "des admis sous ou à votre mention"} · estimation</div>`;
+  return `${pctRange(pos.lo, pos.hi)}<div class="estim">${pos.moyenne ? "des admis néo-bacheliers avaient une moyenne plus basse que la vôtre · estimation"
+    : "des admis néo-bacheliers avaient une mention plus basse (bas de la fourchette) ou égale (haut) · indiquez votre moyenne pour préciser"}</div>`;
+}
+// ctx: { ok, prof, serie, chiffres: Map(code -> voeux.figures answer, or null while it loads), lec: {code: lec}, band, g, session }
+function carteFigures(f, ctx) {
+  const off = `<div class="cf"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span><span class="cf-v">${pct(f.taux_acces_ens)}</span><span class="estim">officiel${ctx.compact ? "" : ", tous candidats"}</span></div>`;
+  if (f.stats === false) return `<div class="cfigs"><div class="cf"><span class="cf-k">Taux d'accès</span><span class="cf-v">—</span><span class="estim">pas de statistiques publiées</span></div></div>`;
+  const prompt = (what) => `<div class="cf"><span class="cf-k">${what}</span><span class="cf-v">—</span><span class="estim"><a href="#/profil">indiquez votre profil</a></span></div>`;
+  if (!ctx.ok) return `<div class="cfigs">${off}${prompt(ctx.serie === "bg" ? "Votre doublette" : "Votre ligne")}${prompt("Votre moyenne parmi les admis")}</div>`;
+  const ch = ctx.chiffres.get(f.cod_aff_form);
+  // bac techno / pro: the student's line is picked HERE (pickVoie): the series or specialty is sent only to /api/voeux
+  const pv = ch && ch.voies ? pickVoie(ch.voies, ctx.serie, ctx.prof.voie || null) : null;
+  const second = ch === undefined || ch === null ? '<span class="muted">…</span>'
+    : ctx.serie === "bg" ? dblFigure(ch) : voieFigure(pv ? { ...pv, session: ch.voies.session, recoupe: ch.voies.recoupe } : null, ctx.prof);
+  const pos = cartePosition((ctx.lec || {})[f.cod_aff_form], f.taux_acces_ens, ctx.band, ctx.g);
+  return `<div class="cfigs">${off}
+    <div class="cf" data-cfig="${esc(f.cod_aff_form)}"><span class="cf-k">${ctx.serie === "bg" ? "Votre doublette" : "Votre ligne du rapport"}</span><span class="cf-v">${second}</span></div>
+    <div class="cf"><span class="cf-k">${ctx.g !== null && ctx.g !== undefined ? "Votre moyenne parmi les admis" : "Votre mention parmi les admis"}</span><span class="cf-v">${cartePosFigure(pos, ctx.compact)}</span></div></div>`;
+}
+function carteDetail(f, ctx) {
+  if (!f) return `<div class="card carte-sel carte-sel-empty muted small">Choisissez une formation dans la liste ou sur la carte : sa fiche résumée s'affiche ici.</div>`;
   if (f.stats === false) return carteAppDetail(f);
   const z = carteZone(f);
-  return `<div class="card carte-sel"><h3><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h3>
+  return `<div class="card carte-sel"><h2 class="h3"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a></h2>
     <p class="small">${esc(f.formation)}${carteMentionTail(f)} ${voieBadges(f)}${autresBadge(f)}<br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}${f.payant ? " (payant)" : ""}</span></p>
-    <p class="small">${hasProfile ? (z === "autre" ? carteZoneBadge(f.zone, "Non situé pour votre profil") : `${zoneBadge(z)} <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/profil">Indiquez votre profil</a> pour voir votre zone.`}
-    · taux d'accès ${pct(f.taux_acces_ens)} <span class="muted">(officiel)</span></p>
+    <p class="small">${ctx.ok ? (z === "autre" ? carteZoneBadge(f.zone, "Non situé pour votre profil") : `${zoneBadge(z)} <span class="muted">d'après les admis des campagnes passées</span>`) : `<a href="#/profil">Indiquez votre profil</a> pour voir votre zone.`}</p>
+    ${carteFigures(f, ctx)}
     ${appOffers(f.offres_app)}
+    <p class="muted small">Résultats des campagnes passées, pas des chances d'admission.</p>
     <div class="toolbar">${voeuButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Voir la fiche →</a></div></div>`;
 }
-function carteList(rows, hasProfile) {
+function carteList(rows, ctx) {
   const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
-  return `<div class="carte-list">${part.map((f) => { const z = carteZone(f);
-    if (f.stats === false) { const url = carteFiche(f);
-      return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(f.etablissement)}</strong> ↗</a>` : `<strong>${esc(f.etablissement)}</strong>`} <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br><span class="badge">en apprentissage</span>${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
-      <div class="num"><div class="big">—</div><div class="muted small">pas de statistiques</div></div></div>`; }
-    return `<div class="result" data-pick="${esc(f.cod_aff_form)}"><div><a href="#/f/${esc(f.cod_aff_form)}"><strong>${esc(f.etablissement)}</strong></a> <span class="muted">· ${esc(f.ville)}</span>${f.dist != null ? ` <span class="muted small">${fmt(f.dist)} km</span>` : ""}<br>
-      <span class="small">${esc(f.formation)}${carteMentionTail(f)}</span><br>${hasProfile ? `${z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)} ` : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? ' <span class="badge warnb">établissement privé payant</span>' : ""}${f.lat == null ? ' <span class="badge">non localisée</span>' : ""}</div>
-      <div class="num"><div class="big">${pct(f.taux_acces_ens)}</div><div class="muted small">taux d'accès</div></div></div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
+  return `<div class="carte-list" role="list">${part.map((f) => { const z = carteZone(f), zc = ctx.ok && z !== "autre" ? ZONES[z].color : null;
+    const url = f.stats === false ? carteFiche(f) : null;
+    const title = f.stats === false ? (url ? `<a class="rc-title" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(f.etablissement)} ↗</a>` : `<span class="rc-title">${esc(f.etablissement)}</span>`)
+      : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
+    return `<div class="result rc carte-rc${zc ? " rc-z" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
+      <div class="rc-main">${title}
+        <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
+        <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
+        <div class="rc-badges">${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}${f.payant ? '<span class="badge warnb">établissement privé payant</span>' : ""}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
+      </div>
+      ${carteFigures(f, { ...ctx, compact: true })}
+    </div>`; }).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
+// R9: several types of diploma and several mention groups at once. sel = { d: [diploma, ...], m: { diploma: [group, ...] } }
+// (an empty group list keeps every mention of that diploma). Only known labels are kept: a stored value is never trusted.
+function carteSelection(FAC, dArg, mArg, stored) {
+  const known = (d) => FAC.diplomes.find((x) => x.label === d);
+  const clean = (sel) => {
+    const d = [...new Set((sel && Array.isArray(sel.d) ? sel.d : []).filter((x) => typeof x === "string" && known(x)))];
+    const m = {};
+    for (const x of d) { const ok = known(x).mentions.map((g) => g.label); m[x] = [...new Set(((sel.m || {})[x] || []).filter((g) => ok.includes(g)))]; }
+    return { d, m };
+  };
+  if (dArg && known(dArg)) {
+    const g = known(dArg).mentions.find((x) => x.label === mArg || (x.variantes || []).includes(mArg));
+    return { d: [dArg], m: { [dArg]: g ? [g.label] : [] } };
+  }
+  const s = clean(stored);
+  return s.d.length ? s : { d: [known("BUT") ? "BUT" : FAC.diplomes[0].label], m: {} };
+}
+const foldText = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const carteHash = (sel) => (sel.d.length === 1 && (sel.m[sel.d[0]] || []).length <= 1
+  ? `#/carte/${encodeURIComponent(sel.d[0])}${(sel.m[sel.d[0]] || []).length ? `/${encodeURIComponent(sel.m[sel.d[0]][0])}` : ""}` : "#/carte");
+const carteKeep = (f, sel) => sel.d.includes(f.diplome) && (!(sel.m[f.diplome] || []).length || sel.m[f.diplome].includes(f.groupe));
 // Leaflet (static/vendor/leaflet, BSD-2) is loaded by this page only, never by the page shell
 function carteLeaflet() {
   if (window.L) return Promise.resolve();
@@ -1264,44 +1325,78 @@ async function viewCarte(dArg, mArg) {
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
-  const known = (d) => FAC.diplomes.find((x) => x.label === d);
-  const D = known(dArg) || known(store.get("carteDiplome", null)) || known("BUT") || FAC.diplomes[0];   // stored value never trusted
-  const mention = D.mentions.some((m) => m.label === mArg) ? mArg : "";
-  store.set("carteDiplome", D.label);
+  const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
+  store.set("carteSel", sel);
   const P = bacProfile();                                                // sprint 21: no zone outside terminale
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   // R5: the profile's own codes ("sm" was never a profile value: a sans-mention student got no zone on the map)
   const VP = P ? vxProfile(P) : null;
   const ok = P && (serie !== "bg" || (P.spe1 && P.spe2 && P.spe1 !== P.spe2)) && MENTION_CODES.includes(VP && VP.mention);
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
-  const dq = `diplome=${encodeURIComponent(D.label)}${mention ? `&mention=${encodeURIComponent(mention)}` : ""}`;
-  const [L0, Z] = await Promise.all([api(`/api/carte/formations?${dq}`),
-    ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${encodeURIComponent(bandParam(VP))}${localAverage(VP) !== null ? "&lecture=true" : ""}`).then((z) => carteZonesLocal(z, VP)).catch(() => null) : null, carteLeaflet().catch(() => null)]);
-  if (!/^#\/carte(\/|$)/.test(location.hash)) return;        // the visitor left while the map loaded (navigation race)
-  if (Z) track("journey", { stage: "stage2" });
-  const rows = carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok);
+  const { band, g } = ok ? lectureOf(P) : { band: null, g: null };
+  const seq = (carteUI.seq = (carteUI.seq || 0) + 1);
+  carteUI.cache = carteUI.cache || new Map();
+  carteUI.chiffres = carteUI.sq === sq && carteUI.chiffres ? carteUI.chiffres : new Map();
+  carteUI.sq = sq;
+  // one answer per type of diploma (cacheable), the mention groups are kept in the browser; zones always with their reading
+  // ingredients (`lec`): the page reads the zone with the average it keeps and the position among the admits
+  const load = (d) => {
+    const key = `${d}|${sq}|${bandParam(VP || {})}`;
+    if (!carteUI.cache.has(key)) {
+      const dq = `diplome=${encodeURIComponent(d)}`;
+      carteUI.cache.set(key, Promise.all([api(`/api/carte/formations?${dq}`),
+        ok ? api(`/api/carte/zones?${dq}&${sq}&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true`).catch(() => null) : null])
+        .catch((e) => { carteUI.cache.delete(key); throw e; }));
+    }
+    return carteUI.cache.get(key);
+  };
+  const [parts] = await Promise.all([Promise.all(sel.d.map(load)), carteLeaflet().catch(() => null)]);
+  if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;        // the visitor left while the map loaded
+  if (ok && parts.some(([, z]) => z)) track("journey", { stage: "stage2" });
+  const lec = {};
+  let rows = [];
+  parts.forEach(([L0, Zraw], k) => {
+    const Z = Zraw ? carteZonesLocal(Zraw, VP) : null;
+    Object.entries((Zraw && Zraw.lectures) || {}).forEach(([c, x]) => { lec[c] = x.lec; });
+    rows = rows.concat(carteMerge(L0.formations, Z && { formations: Object.entries(Z.zones).map(([cod_aff_form, zone]) => ({ cod_aff_form, zone })) }, ok)
+      .map((f) => ({ ...f, diplome: sel.d[k] })));
+  });
+  const session = parts[0][0].session, offre = parts[0][0].offre_apprentissage;
+  const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session };
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
-  for (const [g, , opts] of carteGroups()) F[g] = Array.isArray(F[g]) ? F[g].filter((o) => opts.some(([k]) => k === o)) : [];
+  for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
-  const goTo = (d, m) => { carteUI.sel = null; carteUI.bounds = null; location.hash = `#/carte/${encodeURIComponent(d)}${m ? `/${encodeURIComponent(m)}` : ""}`; };
-  $view.innerHTML = `${explorerViews("carte")}<div class="card"><h1>Carte des formations</h1>
-    <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p>
-    <div class="carte-pick"><label class="small">Type de diplôme <select id="cdip">${FAC.diplomes.map((d) => `<option value="${esc(d.label)}" ${d.label === D.label ? "selected" : ""}>${esc(d.label)} (${fmt(d.n)})</option>`).join("")}</select></label>
-    <label class="small">Mention <select id="cmen"><option value="">Toutes les mentions (${fmt(D.n)})</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)} (${fmt(m.n)})</option>`).join("")}</select></label></div></div>
+  const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
+  $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Carte des formations</h1>
+    <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p></div>
   <div class="carte-layout">
-    <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>${ICONS.filter}Filtrer</summary><div class="filter-grid" id="cfilters"></div></details>
-    <div class="carte-main">
-      <div class="legend" id="carte-legend"></div>
-      <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
-      <p class="muted small">Fond de carte OpenStreetMap : votre navigateur demande les images de la carte aux serveurs d'OpenStreetMap, qui voient votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.</p>
+    <div class="carte-side">
+      <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>${ICONS.filter}Filtrer</summary>
+        <div class="carte-scroll">
+          <fieldset class="small carte-dips"><legend>Type de diplôme <span class="muted">(plusieurs choix possibles)</span></legend>
+            ${FAC.diplomes.map((d) => `<label><input type="checkbox" data-dip="${esc(d.label)}" ${sel.d.includes(d.label) ? "checked" : ""}> ${esc(d.label)} <span class="muted">${fmt(d.n)}</span></label>`).join("")}</fieldset>
+          ${sel.d.map((d) => { const D = FAC.diplomes.find((x) => x.label === d); return D.mentions.length < 2 ? "" : `<fieldset class="small carte-mens"><legend>Mention : ${esc(d)}</legend>
+            ${D.mentions.length > 12 ? `<input type="search" class="cmen-q" data-for="${esc(d)}" placeholder="Chercher une mention" aria-label="Chercher une mention de ${esc(d)}">` : ""}
+            ${D.mentions.map((m) => `<label data-men-label="${esc(foldText(m.label))}"><input type="checkbox" data-men="${esc(m.label)}" data-mdip="${esc(d)}" ${(sel.m[d] || []).includes(m.label) ? "checked" : ""}> ${esc(m.label)} <span class="muted">${fmt(m.n)}</span></label>`).join("")}</fieldset>`; }).join("")}
+          <div class="filter-grid" id="cfilters"></div>
+        </div>
+      </details>
+      <div class="carte-mapwrap">
+        <div class="legend" id="carte-legend"></div>
+        <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
+        <p class="muted small">Fond de carte OpenStreetMap : votre navigateur demande les images de la carte aux serveurs d'OpenStreetMap, qui voient votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.</p>
+      </div>
+    </div>
+    <section class="carte-results card" aria-labelledby="carte-h2"><h2 id="carte-h2">Formations de la carte</h2>
       <p class="muted small" id="carte-count"></p>
-      <div id="carte-sel"></div>
-      <div class="card"><h2>Formations de la carte</h2><div id="carte-items"></div>
-      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(L0.session)}${L0.offre_apprentissage ? ` ; apprentissage : cartographie Parcoursup ${esc(L0.offre_apprentissage)}` : ""}.</p></div>
-    </div></div>`;
+      <div id="carte-items"></div>
+      <p class="muted small">Liste triée par nom${F.autour ? ", puis par distance" : ""}, jamais par chances. Taux d'accès : officiel (Parcoursup). Votre doublette : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
+    </section>
+    <aside class="carte-detail" id="carte-sel" aria-label="Formation choisie"></aside>
+  </div>`;
   $view.dataset.rendered = "carte";
   const box = document.getElementById("carte-osm");
   if (!window.L) { box.innerHTML = `<div class="warn">La carte n'a pas pu être chargée ; la liste reste disponible.</div>`; }
@@ -1310,15 +1405,18 @@ async function viewCarte(dArg, mArg) {
     carteUI.map = L.map(box, { zoomControl: true }).fitBounds([[41.3, -5.2], [51.1, 9.6]]);   // metropolitan France on any screen
     L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB }).addTo(carteUI.map);
     carteUI.layer = L.layerGroup().addTo(carteUI.map);
-    if (carteUI.type === D.label + mention && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    const type = JSON.stringify(sel);
+    if (carteUI.type === type && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    carteUI.type = type;
     carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
   }
-  carteUI.type = D.label + mention;
   const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
+  const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
   function panel() {
-    const box2 = (g, o, label) => { const n = carteFilter(rows, F, g).filter((f) => carteHas(f, g, o)).length;
-      return `<label class="small"><input type="checkbox" data-g="${g}" data-o="${o}" ${(F[g] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
+    const base = shown();
+    const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr).filter((f) => carteHas(f, gr, o)).length;
+      return `<label class="small"><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
     const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
     document.getElementById("cfilters").innerHTML = `
       <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
@@ -1326,9 +1424,9 @@ async function viewCarte(dArg, mArg) {
       <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
       <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
-      ${carteGroups().map(([g, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(g, o, esc(label))).join("")}
-        ${g === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
-      <p class="muted small">Formations en apprentissage : offre ${esc(L0.offre_apprentissage || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
+      ${carteGroups().map(([gr, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
+        ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
+      <p class="muted small">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
     document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
     document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
     const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
@@ -1338,10 +1436,21 @@ async function viewCarte(dArg, mArg) {
     document.getElementById("ctown").onchange = setTown;
     document.getElementById("ckm").onchange = setTown;
     document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
-      const g = el.dataset.g; F[g] = [...document.querySelectorAll(`[data-g="${g}"]:checked`)].map((x) => x.dataset.o); save(); }; });
+      const gr = el.dataset.g; F[gr] = [...document.querySelectorAll(`[data-g="${gr}"]:checked`)].map((x) => x.dataset.o); save(); }; });
   }
-  function draw() {
-    const kept = carteFilter(rows, F);
+  // the figures for the student's doublette or line: one request per page of the list, kept for the profile
+  function figures(list) {
+    if (!ok) return;
+    const want = list.filter((f) => f.stats !== false && !ctx.chiffres.has(f.cod_aff_form)).map((f) => f.cod_aff_form).slice(0, 40);
+    if (!want.length) return;
+    want.forEach((c) => ctx.chiffres.set(c, null));
+    api(`/api/carte/chiffres?codes=${want.join(",")}&${sq}`).then((r) => {
+      Object.entries(r.chiffres || {}).forEach(([c, x]) => ctx.chiffres.set(c, x));
+      if (seq === carteUI.seq && $view.dataset.rendered === "carte") { draw(false); }
+    }).catch(() => want.forEach((c) => ctx.chiffres.delete(c)));
+  }
+  function draw(fetch = true) {
+    const kept = carteFilter(shown(), F);
     kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
     const listed = kept.filter((f) => inView(f) || f.lat == null)
       .sort((a, b) => (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0) || a.etablissement.localeCompare(b.etablissement, "fr"));
@@ -1352,38 +1461,51 @@ async function viewCarte(dArg, mArg) {
       carteUI.layer.clearLayers();
       const map = carteUI.map, pts = kept.filter((f) => f.lat != null).map((f) => { const p = map.latLngToLayerPoint([f.lat, f.lon]); return { x: p.x, y: p.y, f }; });
       // from zoom 16 every formation is drawn on its own (several in one building would never split otherwise)
-      for (const g of (map.getZoom() >= 16 ? pts.map((p) => [p]) : carteClusters(pts, map.getZoom() >= 13 ? 20 : 52))) {
-        if (g.length === 1) {
-          const f = g[0].f;
+      for (const gp of (map.getZoom() >= 16 ? pts.map((p) => [p]) : carteClusters(pts, map.getZoom() >= 13 ? 20 : 52))) {
+        if (gp.length === 1) {
+          const f = gp[0].f;
           L.marker([f.lat, f.lon], { icon: L.divIcon({ className: "carte-pin", html: carteMarker(f), iconSize: [18, 18] }), keyboard: true, title: `${f.etablissement}, ${carteLabel(carteZone(f))}` })
             .on("click", () => { carteUI.sel = f.cod_aff_form; showSel(); }).addTo(carteUI.layer);
         } else {
-          const lat = g.reduce((a, p) => a + p.f.lat, 0) / g.length, lon = g.reduce((a, p) => a + p.f.lon, 0) / g.length, ring = carteRing(g);
-          L.marker([lat, lon], { icon: L.divIcon({ className: "carte-pin", html: ring.html, iconSize: [ring.size, ring.size] }), keyboard: true, title: `${g.length} formations` })
+          const lat = gp.reduce((a, p) => a + p.f.lat, 0) / gp.length, lon = gp.reduce((a, p) => a + p.f.lon, 0) / gp.length, ring = carteRing(gp);
+          L.marker([lat, lon], { icon: L.divIcon({ className: "carte-pin", html: ring.html, iconSize: [ring.size, ring.size] }), keyboard: true, title: `${gp.length} formations` })
             .on("click", () => map.setView([lat, lon], Math.min(map.getZoom() + 2, 18))).addTo(carteUI.layer);
         }
       }
     }
     showSel();
-    document.getElementById("carte-items").innerHTML = carteList(listed, ok);
+    document.getElementById("carte-items").innerHTML = carteList(listed, ctx);
     bindVoeuButton(draw);
     document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
     document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; showSel(true); }; });
+    if (fetch) figures(listed.slice(carteUI.page * searchPage(), (carteUI.page + 1) * searchPage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
   }
   function showSel(focus) {
     const f = rows.find((x) => x.cod_aff_form === carteUI.sel);
-    document.getElementById("carte-sel").innerHTML = carteDetail(f, ok);
+    document.getElementById("carte-sel").innerHTML = carteDetail(f, ctx);
     bindVoeuButton(draw);
-    if (focus && f && f.lat != null && carteUI.map) carteUI.map.setView([f.lat, f.lon], Math.max(carteUI.map.getZoom(), 12));
-    if (focus) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
+    document.querySelectorAll(".carte-rc").forEach((el) => el.toggleAttribute("aria-current", el.dataset.pick === carteUI.sel));
+    if (f) figures([f]);          // a marker's formation may be on no loaded page of the list (Codex): its figures too
+    // R9: choosing a formation in the list never moves the map (the list follows the map: it would shrink to one row)
+    if (focus && narrow()) document.getElementById("carte-sel").scrollIntoView({ block: "nearest" });
   }
   function save(repanel = true) { store.set("carteFiltres2", F); carteUI.page = 0; if (repanel) panel(); draw(); }
-  document.getElementById("cdip").onchange = (e) => goTo(e.target.value, "");
-  document.getElementById("cmen").onchange = (e) => goTo(D.label, e.target.value);
+  document.querySelectorAll("[data-dip]").forEach((el) => { el.onchange = () => {
+    const picked = [...document.querySelectorAll("[data-dip]:checked")].map((x) => x.dataset.dip);
+    if (!picked.length) { el.checked = true; return; }                // at least one type of diploma
+    sel.d = FAC.diplomes.map((d) => d.label).filter((d) => picked.includes(d));
+    sel.m = Object.fromEntries(sel.d.map((d) => [d, sel.m[d] || []]));
+    reselect(); }; });
+  document.querySelectorAll("[data-men]").forEach((el) => { el.onchange = () => {
+    const d = el.dataset.mdip;
+    sel.m[d] = [...document.querySelectorAll("[data-men]:checked")].filter((x) => x.dataset.mdip === d).map((x) => x.dataset.men);
+    store.set("carteSel", sel); history.replaceState(null, "", carteHash(sel)); carteUI.page = 0; panel(); draw(); }; });
+  document.querySelectorAll(".cmen-q").forEach((el) => { el.oninput = () => {
+    const q = foldText(el.value.trim());
+    el.closest("fieldset").querySelectorAll("[data-men-label]").forEach((lab) => { lab.hidden = !!q && !lab.dataset.menLabel.includes(q); }); }; });
   panel();
   draw();
 }
-
 // ---- lot 2 (Claude design guidelines): the summary comes before the detail; details live in tabs ----
 // summaryBand: four figures read at a glance (official access rate, the student's zone, admits, jobs); every tile opens its tab.
 // The zone tile is filled by the Plan B answer (same profile, same zone as « Mon parcours »); without a stored profile it asks for one.
@@ -2911,9 +3033,16 @@ document.addEventListener("click", (e) => {
 
 // ---- Sprint 11: "Mes vœux" (the list read for the CURRENT profile) ----------
 // sprint 20: the student's row of each vœu's report (bac techno and pro), with its source; never a chance
+// R9: ONE rendering of the figure for the student's doublette (Mes vœux and the map's list read the same voeux.figures answer)
+function dblFigure(v) {
+  return v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—";
+}
+// ... and of the student's line in the report for bac techno / pro
+function voieFigure(r, prof) {
+  return r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/profil">indiquez votre série</a>';
+}
 function vxVoieCell(v, prof) {
-  const r = v.rapport;
-  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(r.libelle)} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/profil">indiquez votre série</a>'}</td>`;
+  return `<td class="num" data-label="Votre ligne, rapport du jury">${v.status !== "ok" ? "—" : voieFigure(v.rapport, prof)}</td>`;
 }
 function voeuButton(cod) {
   const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
@@ -2971,7 +3100,7 @@ async function viewVoeux() {
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
-      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${v.rapport ? `${pct1(v.rapport.taux)}<div class="estim">rapport public ${esc(v.rapport.session)} de la formation${v.rapport.source === "autres" ? ", Autres doublettes" : ""}${v.rapport.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(v.rapport.session)}` : ""}</div>` : v.semblable ? `${pct1(v.semblable.taux)}<div class="estim">estimation · ${fmt(v.semblable.n_rapports)} rapports de formations semblables</div>` : v.doublette ? (v.doublette.formation ? `${pct1(v.doublette.formation.taux)}<div class="estim">estimation · groupe national ${pct1(v.doublette.taux)}${v.doublette.source === "autres" ? " (Autres doublettes)" : ""}</div>` : `${pct1(v.doublette.taux)}<div class="estim">groupe national${v.doublette.source === "autres" ? ", Autres doublettes" : ""}</div>`) : "—"}</td>` : vxVoieCell(v, prof)}
+      ${serie === "bg" ? `<td class="num" data-label="Votre doublette, cette formation">${dblFigure(v)}</td>` : vxVoieCell(v, prof)}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}

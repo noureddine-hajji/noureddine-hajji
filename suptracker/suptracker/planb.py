@@ -90,10 +90,10 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
         raise LookupError(f"formation {cod} absente de la campagne {latest}")
     type_key, filiere, etab, lat, lon = row
     base = {"cod_aff_form": cod, "filiere": filiere, "session": latest, "serie": serie, "mention": mention, "moyenne": moyenne}
-    if type_key is None:
-        return {**base, "status": "non_disponible", "reason": "formation non rattachée à un type de filière",
-                "target": None, "alternatives": []}
-    res = J.stage2(con, dkey, mention, type_key, academie, serie=serie, moyenne=moyenne)   # R5: the average
+    # R9: a formation with no SIES type (CPES, CMI...) is read with the untyped formations of its own filière
+    only = J.untyped_codes(con, [filiere]) if type_key is None else None
+    type_key = type_key or J.SANS_TYPE
+    res = J.stage2(con, dkey, mention, type_key, academie, serie=serie, moyenne=moyenne, only=only)   # R5: the average
     by_cod = {f["cod_aff_form"]: f for f in res["formations"]}
     target = by_cod.get(cod)
     if target is None:
