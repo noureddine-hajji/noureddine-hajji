@@ -76,7 +76,7 @@ def test_every_feature_is_wired():
     assert "${butCard(d.but)}" in js and "${masterCard(d.master)}" in js and "${passerellesCard(d.passerelles)}" in js and "${insertionCard(d.insertion)}" in js and "${previsionCard(d.prevision)}" in js and "${cereqCard(d.cereq)}" in js and "${metiersCard(d.metiers)}" in js
     assert "loadPlanB(r.cod_aff_form)" in js and "${timingCard(r, d.history)}" in js and "${offerCard(r, d.apprentissage)}" in js and "${appelCard(d.appel)}" in js
     assert 'if (a === "stats") return await viewStats(b)' in js
-    assert 'if (a === "voeux") return await viewVoeux()' in js and "${voeuButton(r.cod_aff_form)}" in js
+    assert 'if (a === "voeux") return await viewVoeux()' in js and "${voeuButton(r.cod_aff_form, true)}" in js
     # R1: the jobs are one of the Explorer views (list, map, jobs), no longer a menu entry of their own
     assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'carte: "#/carte", metiers: "#/metiers"' in js
     assert 'if (a === "metiers") return await viewMetiers(' in js

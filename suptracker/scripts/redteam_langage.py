@@ -442,7 +442,7 @@ const { chromium, devices } = require('playwright');
     await page.waitForTimeout(800);
     const r = await page.evaluate(() => ({ next: document.querySelectorAll('.next-steps').length, legend: document.querySelectorAll('.zone-legend').length,
       services: document.querySelectorAll('.aide-service').length, tel: document.querySelectorAll('a[href^="tel:"]').length,
-      h1: document.querySelectorAll('h1').length, wide: document.documentElement.scrollWidth > window.innerWidth + 1,
+      h1: document.querySelectorAll('h1').length, wide: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,   // innerWidth grows on an emulated phone
       lastNext: (() => { const a = document.querySelectorAll('.next-steps a'); return a.length ? a[a.length - 1].getAttribute('href') : null; })() }));
     seen[name] = r;
     if (r.h1 !== 1) problems.push(`${name}: ${r.h1} h1`);

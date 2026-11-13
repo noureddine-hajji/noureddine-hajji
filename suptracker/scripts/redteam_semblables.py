@@ -407,7 +407,7 @@ def k8(c: Ctx):
     chance = [t[:60] for t in texts if CHANCE.search(t)]
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
     shell = 'id="profile-bar"' in c.html and c.html.index('id="profile-bar"') < c.html.index('<main id="view"')
-    route = 'profileBar.render(TAB_OF[a] || "home");' in c.js and 'if (k === "profile") profileBar.render();' in c.js
+    route = 'profileBar.render(!a && !pathRoute(location.pathname, location.hash) ? "accueil" : TAB_OF[a] || "home");' in c.js and 'if (k === "profile") profileBar.render();' in c.js
     rel = (ROOT / "tests" / "test_release.py").read_text()
     guards = '"profil_visible": ("app.js", "const profileBar = {")' in rel and '"formations_semblables": ("app.js", "function semblablesJuryCard(")' in rel
     from suptracker import api

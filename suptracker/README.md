@@ -3006,3 +3006,59 @@ Red team `scripts/redteam_langage.py` (LA1-LA8):
   glossary scores 75, the help page 81. Method sentences stay under 70 words.
 - LA7 is a browser check (`--browser`).
 - LA8 checks the tokenizer against acorn and runs the mutation test: 26/26 mutants are caught.
+
+## Sprint Q5: the home and the formation page on a phone, read by a screen reader (owner, 2026-11-13)
+
+The fifth sprint of the plan to reach 90/100. The designer scored 11/15 and accessibility 8.5/10, for three reasons:
+- the home stacked a search, a profile banner, a title and a profile card, with a discreet "Créer mon profil";
+- the formation page was long and its tabs were two screens down;
+- no screen-reader check had been run.
+
+Changes:
+- **One main action on the home.** `homeCta()` sits in the hero, right under the title and its sentence.
+  - Without a profile, it is "Créer mon profil", with "1 minute, sans compte" and a link "Ou cherchez directement une
+    formation".
+  - With a profile, it is "Voir où je me situe".
+  - It is the only filled button of the page. The guide card, the doors, the profile line (now a sentence with a link) and the
+    Liste / Carte / Métiers switch (now an outlined pill) are secondary.
+  - On the home without a profile, the profile bar is hidden: the hero already carries the call. Every other page keeps it.
+- **The formation page on a phone.**
+  - "Ajouter à mes vœux" is the main (filled) button and "Comparer" is a secondary one.
+  - The tab bar is sticky at the top of the screen. A tab chosen down a long section opens its section from the start, just
+    under the bar.
+  - The long official label is smaller on a phone, and the definitions of the "Qui sont les admis" bar are folded.
+  - On the latest campaign's longest titles, the tabs now start at 1,346 to 1,414 px instead of 1,481, within two phone
+    screens.
+
+Red team `scripts/redteam_mobile.py` (MB1-MB8):
+- MB1-MB4 read the code: the one main action, no repeated call, the formation header, and the sticky tabs.
+- MB5 runs on an emulated Pixel 5 (`--browser` / `--real`, and in CI on the committed warehouse). It checks:
+  - the home's main action is on the first screen;
+  - the tabs start within two screens on the three longest titles;
+  - exactly one accent-filled control is in `<main>`;
+  - the bar sticks at 0 and an opened section starts under it;
+  - there is no horizontal scroll and no JS error.
+- MB6 reads Chromium's accessibility tree, as a screen reader would. It checks:
+  - the skip link is the first Tab stop;
+  - there is one banner, one main and one contentinfo, and every navigation is named;
+  - there is one h1, first in `<main>`, and the main action is the first control after it;
+  - every link, button, summary and tab has a name;
+  - the tabs form a valid tablist;
+  - the focus is on the h1 after a navigation;
+  - no "undefined", "null" or "NaN" is read.
+- MB8 is the mutation test: 13 source mutants and 9 page mutants (the DOM altered before MB5/MB6 read it), each caught by the
+  very problem it targets, new against the unmutated page.
+- Review fixes: a navigation landmark is named by `aria-label` / `aria-labelledby` only, never by the text of its links (Codex).
+  The overflow checks compare with `clientWidth`, because an emulated phone widens `innerWidth` to fit a too wide block (LA7 too).
+- Audit fix: on a phone, the map's markers (Leaflet panes, z-index 400-1000) covered the bottom tab bar, which could not be
+  tapped there. The map now forms its own stacking context, and MB5 taps five points of the bar on the map page.
+
+**Manual check with a real screen reader** (10 minutes; the automated MB6 reads the same tree but is not a screen reader):
+1. On a phone, iPhone with **VoiceOver** (Réglages > Accessibilité > VoiceOver) or Android with **TalkBack**; on a computer,
+   **NVDA** (free, nvaccess.org) with Firefox or Chrome.
+2. Home page: swipe right (or Tab). Expect "Aller au contenu", the menus, then the title "Trouvez votre voie après le bac",
+   its sentence, and the "Créer mon profil" link.
+3. Open a formation from the search: the title is read first. Then "L'essentiel", the tiles and "Que veulent dire les
+   zones ?". The tabs are read as "onglet, 1 sur 5, sélectionné".
+4. Choose a tab: its content is read. Scroll down: the tab bar stays at the top of the screen.
+5. Note anything read twice, unnamed ("bouton" alone) or in the wrong order, and send it through the contact form.

@@ -259,7 +259,7 @@ def ui(js: str) -> tuple[bool, str]:
     codes_ok = bool(msg) and all(f"{k}:" in msg.group(1) for k in ("aucune_securite", "majorite_ambitieuse", "hors_profil", "non_ouvert",
                                                                   "non_situe", "aucune_cible", "equilibree"))
     no_chance = bool(msg) and not re.search(r"(?i)\bchances? de\b|probabilit|\d+\s*% de chances", msg.group(1))
-    wired = all(x in js for x in ('if (a === "voeux") return await viewVoeux()', "${voeuButton(r.cod_aff_form)}", "voeux.render(); route();"))
+    wired = all(x in js for x in ('if (a === "voeux") return await viewVoeux()', "${voeuButton(r.cod_aff_form, true)}", "voeux.render(); route();"))
     ok = not raw and trusted and race and zone_guard and rate_label and words and codes_ok and no_chance and wired
     return ok, (f"unescaped {raw[:3]}; stored list validated {trusted}; race guard {race}; zone guard {zone_guard}; rate label {rate_label}; wording {words}; "
                 f"messages {codes_ok}; no chance wording {no_chance}; wired {wired}")

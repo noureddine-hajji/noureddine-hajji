@@ -554,6 +554,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   only, no figure, always ending with the help page. Help page `aide.py` (`/aide`, `#/info/aide`): official services and hosts only,
   numbers as the services publish them (red team's own table), never opening hours. Short texts: sentences <= 30 words,
   Kandel-Moles >= 70. Red team `redteam_langage.py` (LA1-LA8; `scripts/jstext.py` reads the page strings).
+- **Home and formation page on a phone (sprint Q5, owner 2026-11-13).** The home has ONE main action, `homeCta()` in the hero
+  right after the title and its sentence: "Créer mon profil" (#/profil) without a profile, "Voir où je me situe" (#/parcours) with
+  one; it is the only filled (accent) control in `<main>`: other calls are outlined buttons or links (the Liste/Carte/Métiers switch
+  is an outlined pill). Without a profile, the profile bar is hidden on the home only (the router passes "accueil"). On the
+  formation page the main action is "Ajouter à mes vœux" (`voeuButton(cod, true)`, only when it can be added), "Comparer" is
+  secondary; the tab bar is sticky (`top: 0`, opaque) and an opened tab shows its panel under it; the tabs start within two
+  phone screens. The map is its own stacking context (`.leaflet-container { isolation: isolate }`): it never covers the phone's tab bar. Red team `redteam_mobile.py` (MB1-MB8; MB6 = Chromium's accessibility tree, the README gives the manual
+  NVDA/VoiceOver protocol).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

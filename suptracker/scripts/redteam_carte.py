@@ -329,7 +329,7 @@ def c6(c: Ctx):
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
+""" + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const zs = ["securite", "cible", "ambitieux", null].map((zone) => ({ ...f, zone }));
 // R9: the page's context (profile read, figures per formation, reading ingredients)
@@ -473,7 +473,7 @@ def c9(c: Ctx):
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
+""" + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const fs = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteCard(f, CTX, true), l: carteList([f], CTX), m: carteMarker(f) }))));"""
     good = {**CRAFT[6], "etablissement": HOSTILE, "formation": HOSTILE, "ville": HOSTILE, "contrat_etab": HOSTILE, "taux_acces_ens": None,
@@ -529,7 +529,7 @@ def c10(c: Ctx):
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] };
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
-""" + block(c.js, "function voeuButton(cod) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
+""" + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify({ d: carteCard(f, CTX, true), l: carteList([f], CTX) }));"""
     f = {**CRAFT[8], "etablissement": HOSTILE, "offres_app": [{"cod_aff_form": "99", "etablissement": HOSTILE, "formation": "x", "ville": HOSTILE,
