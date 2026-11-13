@@ -55,6 +55,7 @@ POLICY = [
     (r"/api/journey/stage2", PUBLIC, "positioning (the audience count is sent by the page)"),
     (r"/api/planb/[^/]+", PUBLIC, "plan B for one formation and a coarse profile"),
     (r"/api/carte", PUBLIC, "map: the types of diploma and their mentions (no parameter)"),
+    (r"/api/carte/couche", PUBLIC, "sprint Q3: the whole neutral layer of the map in one compact answer (no parameter)"),
     (r"/api/carte/formations", PUBLIC, "map: the neutral layer of a type of diploma (no profile, no position)"),
     (r"/api/carte/chiffres", PUBLIC, "map (R9): doublette / line figures of one page of the list for a coarse profile (no average)"),
     (r"/api/carte/zones", PUBLIC, "map: zones of Mon parcours for a coarse profile (the audience count is sent by the page)"),
@@ -94,7 +95,7 @@ def header(method: str, path: str, query_v: str | None, status: int, current_ver
     pol = p[0]
     if pol is None:
         return None
-    if status != 200 or (fine and pol != "asset"):
+    if status not in (200, 304) or (fine and pol != "asset"):     # Q3: a 304 keeps the stored answer's policy
         return NO_STORE
     if pol == "asset":
         return IMMUTABLE if query_v and query_v == current_version else SHORT

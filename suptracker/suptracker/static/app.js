@@ -1141,6 +1141,36 @@ const carteZoneBadge = (zone, fallback) => (zone && ZONES[zone] ? zoneBadge(zone
   : `<span class="badge zbadge" style="--zc:var(--zone-autre)">${zoneMark("autre")}${esc(fallback)}</span>`);
 const carteColor = (z) => (z === "autre" ? CARTE_OTHER.color : ZONES[z].color);
 // the zone of each formation is the one of "Mon parcours" (stage 2 rows), as is; none without a profile (red team C1)
+// sprint Q3: the map layer arrives as rows of values under key templates (carte.couche); this twin of carte.dec rebuilds
+// exactly the objects /api/carte/formations served (red team VT1 compares them). An object = [-(1 + template), values...]
+const CARTE_TOUS = "*";
+const CARTE_DETAIL_KEYS = ["bacs", "majo", "offres_app", "fiche"];      // carte.DETAIL_KEYS
+function coucheDec(v, K, S, top) {
+  if (Array.isArray(v)) {
+    if (v.length && Number.isInteger(v[0]) && v[0] < 0) {
+      const cols = K.kinds[-1 - v[0]], o = {};
+      for (let i = 0; i < cols.length; i++) {
+        const x = v[i + 1];
+        o[cols[i]] = top && K.dict.has(cols[i]) && Number.isInteger(x) ? S[x] : coucheDec(x, K, S, false);
+      }
+      return o;
+    }
+    return v.map((x) => coucheDec(x, K, S, false));
+  }
+  return v;
+}
+function coucheDecode(P) {
+  const K = { kinds: P.kinds, dict: new Set(P.dict_keys) };
+  return { session: P.session, offre_apprentissage: P.offre_apprentissage, rows: P.rows.map((r) => coucheDec(r, K, P.strings, true)) };
+}
+// the cards' keys (rates per bac, most represented line, apprenticeship offers, Parcoursup page) come in a second answer: they
+// are added to the SAME row objects (the cached layer then holds whole formations, as /api/carte/formations served them)
+function coucheDetails(C, D) {
+  const by = new Map(C.rows.map((f) => [f.cod_aff_form, f]));
+  D.rows.forEach((x) => { const f = by.get(x.cod_aff_form); if (f) Object.assign(f, x); });
+  C.details = true;
+  return C;
+}
 function carteMerge(neutral, stage2, ok) {
   const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
   return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
@@ -1257,6 +1287,8 @@ function cartePosFigure(pos, compact) {
 // the two figures for the profile; then the actions (vœu, comparateur, fiche).
 const STATUT_LABEL = { public: "Public", contrat: "Privé sous contrat", prive: "Privé hors contrat (payant)", prive_app: "Privé, en apprentissage" };
 function carteBacs(f) {
+  // sprint Q3: a formation's rates per bac arrive with the cards' answer, just after the list (never shown as missing)
+  if (f.bacs === undefined && f.stats !== false) return '<p class="cbacs-wait small muted">Taux d\'accès par bac : chargement…</p>';
   if (!f.bacs) return "";
   const cell = (b) => { const x = f.bacs[b] || {};
     const v = x.masque ? '<span class="muted">non publié</span>' : x.taux === null || x.taux === undefined ? '<span class="muted">—</span>'
@@ -1337,6 +1369,14 @@ function carteLeaflet() {
   return Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
 }
 async function viewCarte(dArg, mArg) {
+  // sprint Q3: the layer is asked at once, beside the types of diploma (it does not depend on them)
+  carteUI.cache = carteUI.cache || new Map();
+  const cached = (key, make) => {
+    if (!carteUI.cache.has(key)) carteUI.cache.set(key, make().catch((e) => { carteUI.cache.delete(key); throw e; }));
+    return carteUI.cache.get(key);
+  };
+  const loadCouche = () => cached("couche", () => api("/api/carte/couche").then(coucheDecode));
+  loadCouche().catch(() => {});
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
@@ -1353,27 +1393,26 @@ async function viewCarte(dArg, mArg) {
   const sq = !ok ? "" : serie === "bg" ? `spe1=${encodeURIComponent(P.spe1)}&spe2=${encodeURIComponent(P.spe2)}` : `serie=${encodeURIComponent(serie)}`;
   const { band, g } = ok ? lectureOf(P) : { band: null, g: null };
   const seq = (carteUI.seq = (carteUI.seq || 0) + 1);
-  carteUI.cache = carteUI.cache || new Map();
   carteUI.chiffres = carteUI.sq === sq && carteUI.chiffres ? carteUI.chiffres : new Map();
   carteUI.sq = sq;
   // one answer per type of diploma (cacheable), the mention groups are kept in the browser; zones always with their reading
   // ingredients (`lec`): the page reads the zone with the average it keeps and the position among the admits
   // R10: the neutral layer first (list and map at once), the zones after: with every diploma the zones take the longest
-  const cached = (key, make) => {
-    if (!carteUI.cache.has(key)) carteUI.cache.set(key, make().catch((e) => { carteUI.cache.delete(key); throw e; }));
-    return carteUI.cache.get(key);
-  };
-  const loadF = (d) => cached(`f|${d}`, () => api(`/api/carte/formations?diplome=${encodeURIComponent(d)}`));
+  // sprint Q3: the whole layer in ONE compact answer (cached by the browser and the CDN), decoded once; the selected diplomas
+  // are kept in the browser. Zones: one answer for every diploma when nothing is ticked, else one per ticked diploma
+  const loadDetails = (C) => cached("couche-details", () => api("/api/carte/couche?partie=details").then((D) => coucheDetails(C, coucheDecode(D))));
   const loadZ = (d) => (ok ? cached(`z|${d}|${sq}|${bandParam(VP)}`, () => api(`/api/carte/zones?diplome=${encodeURIComponent(d)}&${sq}&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true`)).catch(() => null) : Promise.resolve(null));
-  // R10: no diploma ticked = every diploma (one cacheable answer each)
-  const dips = sel.d.length ? sel.d : FAC.diplomes.map((d) => d.label);
-  const partsP = Promise.all(dips.map(loadF));
-  const zonesP = partsP.then(() => Promise.all(dips.map(loadZ)), () => []);      // asked once the list is in: it comes first
-  const [parts] = await Promise.all([partsP, carteLeaflet().catch(() => null)]);
+  // R10: no diploma ticked = every diploma
+  const tous = !sel.d.length;
+  const dips = tous ? FAC.diplomes.map((d) => d.label) : sel.d;
+  const coucheP = loadCouche();
+  const zonesP = coucheP.then(() => Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ)), () => []);   // the list comes first
+  const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;        // the visitor left while the map loaded
   const lec = {};
-  let rows = [], zonesReady = false;
-  parts.forEach((L0, k) => { rows = rows.concat(carteMerge(L0.formations, null, ok).map((f) => ({ ...f, diplome: dips[k] }))); });
+  let zonesReady = false;
+  const keep = new Set(dips);
+  let rows = carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok);
   // the zones, read with the average the page keeps, land on the same rows when they come (navigation race checked)
   const applyZones = (zs) => {
     const zone = {};
@@ -1386,7 +1425,7 @@ async function viewCarte(dArg, mArg) {
     zonesReady = true;
     return zs.some(Boolean);
   };
-  const session = parts[0].session, offre = parts[0].offre_apprentissage;
+  const session = C.session, offre = C.offre_apprentissage;
   const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session };
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
@@ -1542,6 +1581,16 @@ async function viewCarte(dArg, mArg) {
     el.closest("fieldset").querySelectorAll("[data-men-label]").forEach((lab) => { lab.hidden = !!q && !lab.dataset.menLabel.includes(q); }); }; });
   panel();
   draw();
+  // sprint Q3: the cards' keys after the list (one cached answer); a failure leaves the rates out, never "chargement…" forever
+  if (!C.details) loadDetails(C).then(() => {
+    if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
+    const by = new Map(C.rows.map((f) => [f.cod_aff_form, f]));
+    rows.forEach((f) => { const g = by.get(f.cod_aff_form); if (g) CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; }); });
+    draw(false);
+  }, () => {
+    rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; });
+    if (seq === carteUI.seq && $view.dataset.rendered === "carte") draw(false);
+  });
   if (ok) zonesP.then((zs) => {
     if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
     if (applyZones(zs)) track("journey", { stage: "stage2" });

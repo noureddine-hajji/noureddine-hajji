@@ -546,7 +546,7 @@ def wiring_ok(js: str, api_src: str, cache_src: str, cal_src: str, readme: str, 
     if "!MENTION_CODES.includes(p.mention)) return null;   // never a default; the average is never shared" not in js \
             or re.search(r'q\.set\("[a-z]+", prof\.moyenne\)', js):
         bad.append("the shared list and the average")
-    if 'fine="moyenne" in request.query_params' not in api_src or 'if status != 200 or (fine and pol != "asset"):' not in cache_src:
+    if 'fine="moyenne" in request.query_params' not in api_src or 'if status not in (200, 304) or (fine and pol != "asset"):' not in cache_src:
         bad.append("an answer read for an average may be shared-cached")
     if 'continuous=moyenne is not None' not in api_src or '"zone_confirmed": None' not in cal_src:
         bad.append("calibration keeps the band's share range or stability with an average")

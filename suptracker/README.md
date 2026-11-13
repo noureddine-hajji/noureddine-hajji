@@ -2916,3 +2916,38 @@ Red team `scripts/redteam_securite.py` (SE1-SE10):
   set, and SE8 that no secret is in the tracked files.
 - SE9 runs in the browser: 24 pages with a stored profile raise no CSP violation, and the form sends under the policy.
 - SE10 catches 20/20 mutants.
+
+## Sprint Q3: speed of the map (owner, 2026-11-13)
+
+The third sprint of the plan to reach 90/100 (performance was scored 6/10). Measured first, on a phone emulated in Chromium
+(Pixel 5, CPU 4x slower, slow 4G):
+- the map showed its list after 17 s and its zones after 23 s;
+- the browser computed for less than a second;
+- the server answered 34 per-diploma layers (22 MB of JSON, each re-encoded and re-compressed at every call), then 34 zone
+  answers (7.5 s of server time even warm, half of it re-reading the same calling-group labels with regexes).
+
+Changes (no figure changes, see the red team):
+- **One compact layer** (`carte.couche`, `GET /api/carte/couche`).
+  - **Encoding.** The whole map in rows of values under a few key templates; repeated names are sent once.
+  - **Caching.** It is built and gzip-compressed ONCE per warehouse (the build checks that every row reads back exactly), with
+    an ETag (304), `Vary: Accept-Encoding` and the public cache.
+  - **Two parts.** `base` holds what the list, the map and the filters read (569 KB compressed). `details` holds what only the
+    cards read: rates per bac, most represented line, apprenticeship offers, Parcoursup page (385 KB). It comes after the list,
+    and the cards say "chargement…" for the rates meanwhile.
+  - **Early request.** The page asks for the layer at once, beside the types of diploma.
+- **Zones in one query per answer.** `journey.stage2(types=…)` reads several types in one query: every row is still read from
+  its own lineage, so it is the same row. When nothing is ticked, `/api/carte/zones?diplome=*` gives every diploma's zones in
+  ONE answer (about 2 s of server time instead of 7.5 s over 34 answers).
+- **Memoised readings.** The calling-group reading (`journey.group_applies`) and the label folding are memoised: pure functions
+  of a few dozen labels.
+- **Result on the same emulated phone:** list after 7.5 s instead of 17.3 s, zones after 12.8 s instead of 23.1 s, and
+  1 layer request + 1 details request + 1 zones request instead of 68.
+
+Red team `scripts/redteam_vitesse.py` (VT1-VT8):
+- VT1 decodes the layer by the server's decoder AND the page's twin (Node). It gives exactly the 23,120 formations, keys,
+  values and order of the per-diploma answers.
+- VT2 checks that the one-query zones equal the type-by-type algorithm, re-implemented, for 4 profiles × every diploma (57,008
+  zones), and that `*` equals their union.
+- VT3 checks serving and the byte budget, VT4 the page wiring, and VT5 that the memoised readings equal the plain ones.
+- VT6 runs the emulated phone budget in the browser (`--browser`).
+- VT8 is the mutation test.

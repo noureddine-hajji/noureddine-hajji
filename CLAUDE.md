@@ -534,6 +534,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   post (403: Sec-Fetch-Site cross-site, a foreign or `null` Origin) and a non-JSON body (415). A new external host a page
   loads needs the CSP, the privacy page and red teams QC2 and SE2. Never an inline `on…=` handler, `javascript:` URL or
   `eval` in the page code. Red team `redteam_securite.py` (SE1-SE10, SE4 = 1,827 hostile requests, SE9 browser CSP check).
+- **Speed (sprint Q3, owner 2026-11-13).** The map reads ONE compact layer (`carte.couche`, `/api/carte/couche`): rows of values
+  under key templates, DICT_KEYS strings sent once, built and gzipped ONCE per warehouse (round-trip checked at build; ETag, 304,
+  Vary, public cache); `base` = what the list, the map and the filters read, `details` (`carte.DETAIL_KEYS` = app.js
+  `CARTE_DETAIL_KEYS`: bacs, majo, offres_app, fiche) = what only the cards read, loaded after the list ("chargement…", cleared on
+  failure). base + details = /api/carte/formations for every diploma (red team VT1, page twin `coucheDec`). The list, the map and
+  the filters must never read a detail key. Zones: `journey.stage2(types=…)` reads several types in ONE query (same rows: each
+  is read from its own lineage, VT2); `/api/carte/zones?diplome=*` = every diploma at once (the page when nothing is ticked).
+  `journey.group_applies` and `_fold` are memoised (pure: never make them depend on mutable state). Budget on an emulated phone
+  (Pixel 5, CPU x4, slow 4G): list < 9 s, zones < 15 s (VT6, `--browser`). Red team `redteam_vitesse.py` (VT1-VT8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
