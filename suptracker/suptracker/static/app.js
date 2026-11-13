@@ -391,6 +391,7 @@ const profileBar = {
     const raw = store.get("profile", null);
     profileChip(this.tab, raw);
     if (this.tab === "stats" || this.tab === "liste") { el.hidden = true; return; }   // sprint 22: a shared list is someone else's
+    if (this.tab === "accueil" && !hasStoredProfile(raw)) { el.hidden = true; return; }  // Q5: the hero carries the one call
     el.hidden = false;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       this.key = ""; this.data = null;
@@ -683,20 +684,27 @@ function explorerViews(cur, q = "") {
   return `<nav class="views" aria-label="Explorer : choisir la vue">${EXPLORER_VIEWS.map(([k, label, ico]) =>
     `<a href="${esc(href[k])}"${k === cur ? ' aria-current="true"' : ""}>${ICONS[ico]}${label}</a>`).join("")}</nav>`;
 }
-// the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: one call to create it
+// sprint Q5 (owner, 2026-11-13): the home has ONE primary action, in the hero, right under the title: no profile -> create it;
+// a profile -> where I stand. Every other call on the home is a secondary button or a link (red team redteam_mobile.py MB1).
+const hasStoredProfile = (raw) => !!raw && typeof raw === "object" && !Array.isArray(raw);
+function homeCta() {
+  const has = hasStoredProfile(store.get("profile", null));
+  const [href, label, note] = has ? ["#/parcours", "Voir où je me situe", "Les formations lues pour votre profil, d'après les admis des années passées."]
+    : ["#/profil", "Créer mon profil", "1 minute, sans compte : votre bac, vos spécialités et votre mention. Il reste dans ce navigateur."];
+  return `<div class="hero-cta"><a class="btnlink primary" href="${href}">${label}</a><p class="small">${note} <button type="button" class="linkish" id="hero-search">Ou cherchez directement une formation</button></p></div>`;
+}
+// the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: the hero carries the call
 function homeProfile() {
   const raw = store.get("profile", null);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return `<div class="card home-profile"><p><strong>Commencez par votre profil.</strong> Votre bac, vos spécialités et votre mention visée : SupCompass lit alors chaque formation pour vous (zone, chiffre de votre bac dans le rapport du jury). Une minute, sans compte, gardé dans ce navigateur.</p>
-      <a class="btnlink" href="#/profil">Créer mon profil</a></div>`;
-  }
+  if (!hasStoredProfile(raw)) return "";
   const p = vxProfile(raw);
-  return `<div class="card home-profile"><p class="small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong></p><a class="btnlink" href="#/profil">Modifier mon profil</a></div>`;
+  return `<p class="home-profile small">Les résultats sont lus pour : <strong>${profileLine(p, p.serie)}</strong> · <a href="#/profil">Modifier mon profil</a></p>`;
 }
 function viewHome() {
   const n = voeux.get().length;
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
-    <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p></section>
+    <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p>
+    ${homeCta()}</section>
   ${explorerViews("liste")}
   ${homeProfile()}
   ${guideCard()}
@@ -714,8 +722,8 @@ function viewHome() {
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
     ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
-  const door = document.getElementById("door-search");
-  if (door) door.onclick = () => { const q = document.getElementById("q"); q.scrollIntoView({ block: "center" }); q.focus(); };
+  const toSearch = () => { const q = document.getElementById("q"); q.scrollIntoView({ block: "center" }); q.focus(); };
+  for (const id of ["door-search", "hero-search"]) { const b = document.getElementById(id); if (b) b.onclick = toSearch; }
   $view.dataset.rendered = "home";
 }
 
@@ -1659,7 +1667,8 @@ const autresBadge = (x) => (x && x.autres_majoritaires ? ` <span class="badge au
 function admisBar(a) {
   if (!a) return "";
   const head = `<strong>Qui sont les admis ${esc(a.session)} ?</strong>`;
-  const note = `<p class="muted small">Néo-bacheliers : ils passaient le bac l'année de leur admission. Autres admis : ils avaient déjà le bac ou venaient d'un autre parcours (réorientation, reprise d'études…) ; le SIES ne les détaille pas. Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.</p>`;
+  // sprint Q5: the definitions are folded (the summary stays short on a phone); the text is unchanged
+  const note = `<details class="adm-more"><summary class="small">Néo-bacheliers, autres admis : que veulent dire ces mots ?</summary><p class="muted small">Néo-bacheliers : ils passaient le bac l'année de leur admission. Autres admis : ils avaient déjà le bac ou venaient d'un autre parcours (réorientation, reprise d'études…) ; le SIES ne les détaille pas. Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.</p></details>`;
   if (!a.coherent) return `<div class="adm"><p class="small">${head} ${fmt(a.admis_neobac)} néo-bacheliers et ${fmt(a.admis_autres)} autres admis publiés, pour ${fmt(a.admis)} admis : les deux effectifs ne font pas exactement le total publié, la répartition n'est pas dessinée.</p>${note}</div>`;
   const w = (n) => (100 * n / a.admis).toFixed(2);
   return `<div class="adm"><p class="small">${head}${autresBadge(a)}</p>
@@ -1767,12 +1776,16 @@ function bindTabs(id) {
   const bar = document.querySelector(`[data-tabs="${id}"]`);
   if (!bar) return;
   const open = (k) => {
+    let shown = null;
     bar.querySelectorAll("[role=tab]").forEach((b) => {
       const on = b.dataset.tabKey === k;
       b.setAttribute("aria-selected", String(on));
       const panel = document.getElementById(b.getAttribute("aria-controls"));
       if (panel) panel.hidden = !on;
+      if (panel && on) shown = panel;
     });
+    // sprint Q5: the tab bar is sticky; a tab chosen down a long panel shows the new panel from its start, under the bar
+    if (shown && bar.getBoundingClientRect().top <= 1) window.scrollBy(0, shown.getBoundingClientRect().top - bar.offsetHeight);
     if (id === "fiche") track("action", { a: "onglet", tab: k });   // sprint 18: which tab of a formation page, never which formation
   };
   bar.querySelectorAll("[role=tab]").forEach((b) => { b.onclick = () => open(b.dataset.tabKey); });
@@ -1799,11 +1812,11 @@ async function viewFormation(cod, session) {
   $view.innerHTML = `
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>
-    <div>${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
+    <div class="fhead-lib">${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
     <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
     <div class="toolbar" style="margin-top:8px">
-      ${voeuButton(r.cod_aff_form)}
-      <button id="bask" class="${inBasket ? "" : "primary"}">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
+      ${voeuButton(r.cod_aff_form, true)}
+      <button id="bask">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
     </div>
   </div>
   ${d.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
@@ -3188,9 +3201,10 @@ function voieFigure(r, prof) {
 function vxVoieCell(v, prof) {
   return `<td class="num" data-label="Votre bac, rapport du jury">${v.status !== "ok" ? "—" : voieFigure(v.rapport, prof)}</td>`;
 }
-function voeuButton(cod) {
+// primary (sprint Q5): the formation page's one main action is adding the formation to Mes vœux
+function voeuButton(cod, primary) {
   const inV = voeux.has(cod), full = !inV && voeux.get().length >= voeux.MAX;
-  return `<button type="button" data-voeu="${esc(cod)}" ${full ? `disabled title="${voeux.MAX} vœux au maximum sur Parcoursup"` : ""}>${inV ? "Retirer de mes vœux" : full ? "Mes vœux : liste pleine" : "Ajouter à mes vœux"}</button>`;
+  return `<button type="button" data-voeu="${esc(cod)}"${primary && !inV && !full ? ' class="primary"' : ""} ${full ? `disabled title="${voeux.MAX} vœux au maximum sur Parcoursup"` : ""}>${inV ? "Retirer de mes vœux" : full ? "Mes vœux : liste pleine" : "Ajouter à mes vœux"}</button>`;
 }
 function bindVoeuButton(after) {
   $view.querySelectorAll("[data-voeu]").forEach((el) => {
@@ -4291,7 +4305,7 @@ async function route() {
   // filled by a late async answer (the lycée suggestion of a search, found in review)
   delete $view.dataset.rendered;
   markTab(a === "info" && b === "aide" ? "aide" : TAB_OF[a] || "home");                  // Q4: the help page has its own menu link
-  profileBar.render(TAB_OF[a] || "home");
+  profileBar.render(!a && !pathRoute(location.pathname, location.hash) ? "accueil" : TAB_OF[a] || "home");   // Q5: the home itself
   try {
     await routeView(a, b, c);
   } catch (e) {

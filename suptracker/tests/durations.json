@@ -26,6 +26,7 @@
  "tests/test_lycee.py": 162,
  "tests/test_mentions.py": 170,
  "tests/test_metiers.py": 97,
+ "tests/test_mobile.py": 30.0,
  "tests/test_moyenne.py": 300.0,
  "tests/test_navigation.py": 40.0,
  "tests/test_nomenclatures.py": 342,

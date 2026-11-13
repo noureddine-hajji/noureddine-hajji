@@ -513,7 +513,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .views { display: flex; gap: 4px; padding: 4px; margin-bottom: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill); width: fit-content; max-width: 100%; }
 .views a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: var(--r-pill); color: var(--muted); text-decoration: none; font-weight: 600; }
 .views a .ico { width: 18px; height: 18px; }
-.views a[aria-current="true"] { background: var(--accent); color: var(--surface); }
+.views a[aria-current="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }   /* Q5: the one filled button of a page is its main action */
 .views a:not([aria-current="true"]):hover, .views a:not([aria-current="true"]):focus-visible { color: var(--ink); background: var(--accent-soft); }
 .home-profile { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .home-profile p { margin: 0; flex: 1 1 280px; min-width: 0; }
@@ -623,3 +623,13 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .aide-service { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
 .aide-service h2 { font-size: var(--fs-md); margin: 4px 0; }
 .aide-tel a { font-size: var(--fs-lg); font-weight: 700; display: inline-flex; align-items: center; min-height: 44px; }
+/* sprint Q5: one primary action in the home hero; the formation page's tab bar stays on screen */
+.hero-cta { display: grid; gap: 8px; justify-items: start; margin-top: 12px; }
+.hero-cta .btnlink.primary { min-height: 52px; padding: 0 24px; font-size: var(--fs-md); font-weight: 700; }
+.hero-cta p { margin: 0; }
+.tabs { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.tabs button { min-height: 44px; }
+.adm-more summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+@media (max-width: 640px) {
+  .fhead-lib { font-size: var(--fs-sm); line-height: 1.4; }   /* sprint Q5: the long official label stays readable, shorter */
+}
