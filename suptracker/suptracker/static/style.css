@@ -589,3 +589,25 @@ label:has(> select) { display: inline-block; max-width: 100%; }
 .scroll:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .tip.tip-off::after { display: none; }
 #view .leaflet-control-attribution a, .leaflet-container .leaflet-control-attribution a { text-decoration: underline; }
+
+/* ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages, contact form, footer links ---- */
+.legal { max-width: 760px; }
+.legal h2 { margin-top: 20px; }
+.legal p, .legal li { line-height: 1.6; }
+.legal-list { padding-left: 20px; display: grid; gap: 6px; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0; }
+.legal-links a { color: var(--muted); }
+footer .legal-links a { min-height: 24px; display: inline-flex; align-items: center; }
+.report-link { margin: 4px 0 16px; }
+.cform { display: grid; gap: 8px; max-width: 640px; }
+.cform fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px; display: grid; gap: 4px; }
+.cform label.radio { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.cform label:not(.radio) { font-weight: 600; margin-top: 8px; }
+.cform textarea, .cform input[type="email"] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line-input); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); box-sizing: border-box; }
+.cform textarea { min-height: 140px; resize: vertical; }
+.cform [aria-invalid="true"] { border-color: var(--bad); outline: 2px solid var(--bad); outline-offset: 1px; }
+.cform button[type="submit"] { justify-self: start; min-height: 44px; padding: 0 20px; }
+.cform .ok { color: var(--good); font-weight: 600; }
+.cform .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 420px; }

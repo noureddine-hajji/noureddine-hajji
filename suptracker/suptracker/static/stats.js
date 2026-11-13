@@ -6,7 +6,7 @@ const STATS_TOKEN_KEY = "statsToken";
 const tokenGet = () => { try { return sessionStorage.getItem(STATS_TOKEN_KEY) || ""; } catch (_) { return ""; } };
 const tokenSet = (v) => { try { v ? sessionStorage.setItem(STATS_TOKEN_KEY, v) : sessionStorage.removeItem(STATS_TOKEN_KEY); } catch (_) { /* storage blocked */ } };
 const pc = (v, d = 1) => (v == null ? "—" : `${fmt(100 * v, d)} %`);
-const ROUTE_LABEL = { home: "Accueil", search: "Recherche", fiche: "Fiche formation", evolution: "Évolution", compare: "Comparateur",
+const ROUTE_LABEL = { home: "Accueil", info: "Pages d'information", search: "Recherche", fiche: "Fiche formation", evolution: "Évolution", compare: "Comparateur",
   specialites: "Spécialités", qualite: "Qualité des données", parcours: "Mon parcours", stats: "Audience", voeux: "Mes vœux", metiers: "Métiers",
   reorientation: "Je me réoriente", calendrier: "Calendrier", accompagner: "Accompagner un élève",
   premiere: "Seconde et première", liste: "Liste partagée" };
@@ -184,6 +184,33 @@ function toCsv(d) {
   return lines.join("\n");
 }
 
+// sprint Q1 (owner, 2026-11-13): the contact form's messages, read and deleted with the same token. Every field is escaped.
+async function loadMessages() {
+  const box = document.getElementById("msgs");
+  if (!box) return;
+  let d;
+  try {
+    const r = await fetch("/api/contact/messages", { headers: { Authorization: `Bearer ${tokenGet()}` }, cache: "no-store" });
+    d = await r.json();
+    if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "lecture impossible");
+  } catch (e) { box.innerHTML = `<h2>Messages reçus</h2><div class="warn">${esc(e.message)}</div>`; return; }
+  if (!document.body.contains(box)) return;
+  const m = d.messages || [];
+  box.innerHTML = `<h2>Messages reçus (${fmt(m.length)})</h2>
+    <p class="muted small">Formulaire de contact. Supprimés automatiquement au bout de ${fmt(Math.round(d.retention_days / 30.4))} mois · stockage ${esc(d.store)}.
+      Aucune adresse IP ni navigateur n'est gardé avec un message.</p>
+    ${m.length ? `<div class="scroll"><table class="stack"><tr class="stack-head"><th>Jour</th><th>Sujet</th><th>Page</th><th>Message</th><th>Réponse à</th><th><span class="sr-only">Action</span></th></tr>
+      ${m.map((x) => `<tr><td data-label="Jour">${esc(x.jour)}</td><td data-label="Sujet">${esc(x.type_label)}</td>
+        <td data-label="Page">${x.code ? `<a href="#/f/${esc(x.code)}">formation ${esc(x.code)}</a>` : x.page ? esc(x.page) : "—"}</td>
+        <td data-label="Message" class="msg-text">${esc(x.message)}</td><td data-label="Réponse à">${x.email ? esc(x.email) : "—"}</td>
+        <td data-label="Action"><button type="button" class="small" data-del="${esc(x.id)}">Supprimer</button></td></tr>`).join("")}</table></div>`
+      : `<p class="muted small">Aucun message.</p>`}`;
+  box.querySelectorAll("[data-del]").forEach((b) => { b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(`/api/contact/messages/${encodeURIComponent(b.dataset.del)}`, { method: "DELETE", headers: { Authorization: `Bearer ${tokenGet()}` } }).catch(() => null);
+    if (r && r.ok) loadMessages(); else { b.disabled = false; b.textContent = "Échec, réessayer"; }
+  }; });
+}
 async function viewStats(daysArg) {
   if (!tokenGet()) return tokenForm();
   const days = [7, 30, 90, 180].includes(+daysArg) ? +daysArg : 30;
@@ -247,6 +274,7 @@ async function viewStats(daysArg) {
     <tr><td>Erreurs serveur (5xx)</td><td class="num">${fmt(q.server_errors)}</td></tr>
     <tr><td>Recherches / fiches masquées sous le seuil d'anonymat</td><td class="num">${fmt(q.hidden_queries)} / ${fmt(q.hidden_fiches)}</td></tr>
     </table>${d.store.salt_configured ? "" : `<div class="warn" style="margin-top:8px">SUPTRACKER_ANALYTICS_SALT n'est pas défini : les visiteurs uniques peuvent être surestimés.</div>`}</div>
+  <div class="card" id="msgs"><h2>Messages reçus</h2><p class="muted small">Chargement…</p></div>
   <div class="card"><h2>Méthode</h2><p class="small muted">Aucun cookie, aucun identifiant, aucune adresse IP ni user agent n'est enregistré. Trois actions sont comptées (vœu ajouté, plan B ouvert, onglet de fiche) sans jamais la formation concernée.
     Un visiteur est un pseudonyme quotidien (HMAC du jour, de l'IP et du navigateur) qui change chaque jour : on compte donc des
     <strong>visiteurs-jours</strong>, et deux jours ne peuvent pas être reliés. Seuls des compteurs agrégés par jour sont conservés
@@ -259,6 +287,7 @@ async function viewStats(daysArg) {
   const roll = rolling(d.daily);
   bindCrosshair("ch-z", d.daily, (r) => { const w = roll[d.daily.indexOf(r)]; return w.searches ? `${pc(w.rate)} sans résultat sur 7 jours (${fmt(w.zero)}/${fmt(w.searches)})` : "aucune recherche"; });
   document.getElementById("logout").onclick = () => { tokenSet(""); tokenForm(); };
+  loadMessages();
   document.getElementById("csv").onclick = () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([toCsv(d)], { type: "text/csv;charset=utf-8" }));

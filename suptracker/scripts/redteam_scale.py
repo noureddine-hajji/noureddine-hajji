@@ -96,6 +96,10 @@ class Ctx:
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
             "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",
             "/sitemap.xml": "/sitemap.xml", "/robots.txt": "/robots.txt",
+            # sprint Q1: the trust and compliance pages, their app twin and the owner's message list (token: not 200 here)
+            "/api/page/{slug}": "/api/page/a-propos", "/api/contact/messages": "/api/contact/messages",
+            "/a-propos": "/a-propos", "/contact": "/contact", "/mentions-legales": "/mentions-legales",
+            "/confidentialite": "/confidentialite", "/accessibilite": "/accessibilite",
         }
 
 
@@ -138,7 +142,7 @@ def s1(c: Ctx):
         # persona / verification reports exist for the real warehouse only; a job page needs the Onisep jobs (sprint 12)
         ok_codes = lambda r: ({200, 404} if r in ("/api/metier/{met_id}", "/metier/{met_id}") and not c.has_jobs else  # noqa: E731
                               {200} if c.real or r not in ("/api/journey/persona", "/api/verification") else {200, 404})
-        bad = [(r, cl.get(samples[r]).status_code) for r in routes if r in samples and r != "/api/stats"
+        bad = [(r, cl.get(samples[r]).status_code) for r in routes if r in samples and r not in ("/api/stats", "/api/contact/messages")
                and cl.get(samples[r]).status_code not in ok_codes(r)]
     return not missing and not nopol and not bad, f"{len(routes)} routes; no sample {missing}; no policy {nopol}; not 200 {bad}"
 

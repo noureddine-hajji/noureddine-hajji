@@ -50,6 +50,8 @@ from . import selectivite as SEL
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
+from . import contact as CT
+from . import legal as LG
 from .crosswalk import EXACT, INFERRED, continuity_report
 from .indicators import PEER_METRICS
 from .schema import FIELD_BY_NAME, MENTION_FIELDS, SERIES_FIELDS, VOEUX_FIELDS
@@ -1162,10 +1164,84 @@ def stats(request: Request, days: int = Query(30, ge=7, le=180)):
     return JSONResponse(data, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
+# ---------------------------------------------------------------- sprint Q1: contact form and trust pages (contact.py, legal.py)
+async def _small_body(request: Request, cap: int) -> bytes:
+    if int(request.headers.get("content-length") or 0) > cap:
+        raise HTTPException(413, "Message trop long.")
+    body = b""
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > cap:
+            raise HTTPException(413, "Message trop long.")
+    return body
+
+
+@app.post("/api/contact", status_code=201)
+async def contact_post(request: Request):
+    """A message from the contact form. Nothing about the sender is stored but what the form holds (contact.py);
+    a message that could not be stored is an error (503), never a fake success. No audience event."""
+    body = await _small_body(request, CT.MAX_BODY)
+    try:
+        payload = json.loads(body or b"null")
+    except ValueError:
+        payload = None
+    try:
+        mid = CT.submit(payload, _hdrs(request))
+    except CT.Invalid as e:
+        return JSONResponse({"detail": str(e), "field": e.field}, status_code=422)
+    except CT.Limited as e:
+        return JSONResponse({"detail": str(e)}, status_code=429)
+    except Exception:  # noqa: BLE001 - the store is unreachable: say the message was NOT sent
+        return JSONResponse({"detail": "Message non envoyé : le service est momentanément indisponible. Réessayez plus tard."},
+                            status_code=503)
+    return {"ok": True, "id": mid}
+
+
+def _owner(request: Request) -> None:
+    token = os.environ.get("SUPTRACKER_STATS_TOKEN", "")
+    if len(token) < 16:
+        raise HTTPException(503, "Tableau de bord désactivé : définissez SUPTRACKER_STATS_TOKEN.")
+    given = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not hmac.compare_digest(given.encode(), token.encode()):
+        raise HTTPException(401, "Jeton invalide")
+
+
+@app.get("/api/contact/messages")
+def contact_messages(request: Request):
+    """The messages received (owner only, stats token)."""
+    _owner(request)
+    try:
+        msgs = CT.messages()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Stockage des messages injoignable : {type(exc).__name__}") from None
+    return JSONResponse({"messages": msgs, "retention_days": CT.RETENTION_DAYS, "store": CT.store().kind},
+                        headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
+
+
+@app.delete("/api/contact/messages/{mid}")
+def contact_delete(mid: str, request: Request):
+    _owner(request)
+    try:
+        ok = CT.remove(mid)
+    except CT.Invalid:
+        raise HTTPException(422, "identifiant de message invalide") from None
+    if not ok:
+        raise HTTPException(404, "message introuvable")
+    return {"ok": True}
+
+
+@app.get("/api/page/{slug}")
+def legal_page(slug: str):
+    p = LG.page(slug)
+    if p is None:
+        raise HTTPException(404, "page inconnue")
+    return p
+
+
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite"]
 
 
 @lru_cache(maxsize=1)
@@ -1199,6 +1275,7 @@ def _shell() -> str:
     for name in ("app.js", "stats.js", "style.css"):
         html = html.replace(f'"/static/{name}"', f'"/static/{name}?v={v}"')
     label = _commit() or v
+    html = html.replace("<!--legal-->", LG.footer())
     return html.replace("<!--version-->", f'<span class="muted">version {label}</span>')
 
 
@@ -1238,6 +1315,20 @@ def metier_page(met_id: str, request: Request):
     url = f"{_base(request)}/metier/{d['id']}"
     head = SEO.head_tags(SEO.metier_title(d), SEO.metier_description(d), url, True, SEO.metier_ld(d, url))
     return Response(SEO.page(_shell(), head, SEO.metier_body(d)), media_type="text/html")
+
+
+def _legal_route(slug: str):
+    def view(request: Request):
+        p = LG.page(slug)
+        url = f"{_base(request)}/{slug}"
+        head = SEO.head_tags(f"{p['title']} | {SEO.SITE}", p["description"], url, not SEO.is_preview(), None)
+        return Response(SEO.page(_shell(), head, LG.body(slug)), media_type="text/html")
+    view.__name__ = f"legal_{slug.replace('-', '_')}"
+    return view
+
+
+for _slug in LG.SLUGS:
+    app.api_route(f"/{_slug}", methods=["GET", "HEAD"], include_in_schema=False)(_legal_route(_slug))
 
 
 @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)

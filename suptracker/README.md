@@ -2826,3 +2826,51 @@ position to receive a proposal and the admits who accepted. These are published 
 - CR13: nothing ticked = everything, the clear buttons, the list before the zones, no sort by a figure.
 - CR8 (browser): filters < list < map from left to right, the map on the first screen, each card with the official rate, three bac routes, two profile figures and a compare button.
 - CR9: 25 mutants, all caught.
+
+## Sprint Q1: trust and compliance (owner's choices, 2026-11-13)
+
+The red-team evaluation of 2026-11-13 scored the site 75/100. Its weakest points were a missing legal notice, privacy page and
+accessibility statement, no contact, and the tagline "les vrais chiffres". Owner's choices:
+- the publisher is shown as "M. N. HAJJI, à titre personnel", also publication director;
+- the contact is an on-site form (no address published), with messages kept 12 months;
+- the new tagline is "Les chiffres officiels de l'orientation post-bac, expliqués".
+
+- **Five pages, one source** (`legal.py`): À propos, Contact, Mentions légales, Politique de confidentialité and Déclaration
+  d'accessibilité.
+  - Each is served at its own indexable address (`/a-propos`, `/contact`, `/mentions-legales`, `/confidentialite`,
+    `/accessibilite`), rendered by the server and readable without JavaScript. They are also in the sitemap.
+  - The app gets the same HTML from `/api/page/<slug>` (route `#/info/<slug>`).
+  - The footer links them on every page ("Accessibilité : non conforme").
+- **Legal notice.**
+  - Publisher and director, and the host (Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723).
+  - The LCEN sentence for a non-professional publisher, and independence from Parcoursup and the ministry.
+  - Every served source with its licence, generated from `sources.py`, plus OpenStreetMap, Leaflet and the fonts.
+- **Privacy page.** It says what is sent, what is kept and for how long. The retentions are read from the code's constants:
+  - the profile and the list stay in the browser;
+  - the audience measurement uses no cookie and no IP (400 days, k = 3, DNT/GPC);
+  - the contact form keeps messages 12 months;
+  - the map tiles are fetched from the OpenStreetMap Foundation;
+  - the third parties are Vercel and Upstash;
+  - the page lists the visitor's rights and the CNIL.
+- **Accessibility statement.** No conformity is claimed without an audit ("non conforme" in the RGAA sense). It lists the checks
+  actually run, the known limits (map, charts, jury PDFs, no screen-reader test yet), a contact and the Défenseur des droits.
+- **Contact form** (`contact.py`, `POST /api/contact`).
+  - **Fields.** A closed list of subjects, a message of 10 to 1,000 characters, the page and formation (prefilled from a
+    formation page's "Signaler une erreur" link) and an optional reply address.
+  - **What is stored.** Only these fields and the day, with no IP, user agent or pseudonym. Each message has its own 12-month expiry.
+  - **Anti-abuse.** A hidden field, 5 messages per visitor and day (the daily pseudonym is kept only as a two-day counter key)
+    and 300 a day in all.
+  - **Failure.** The form fails closed: a message that was not stored is a 503 "non envoyé", never a fake success.
+  - **Reading.** The owner reads and deletes messages on `#/stats` with the stats token (`/api/contact/messages`, no-store,
+    every field escaped).
+- **Tagline.** One tagline in the shell, the home head and the app's titles.
+
+Red team `scripts/redteam_conformite.py` (QC1-QC11):
+- QC1-QC3 check the three legal pages against values written independently in the red team (publisher, host and address,
+  store, tile operator) and against the source register.
+- QC4-QC7 check the form: 16 hostile payloads, the store dump, the limits, a failing store, the token, caching, robots and
+  the sitemap.
+- QC8 checks the single tagline, and QC9 the wiring and vouvoiement.
+- QC10 runs in the browser: the five pages on a phone, wide dark and 320 px, with axe, a sent message, a 503 said, and the
+  tile host as the only third party.
+- QC11 is the mutation test.

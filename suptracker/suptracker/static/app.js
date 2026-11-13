@@ -3,6 +3,7 @@
 
 const $view = document.getElementById("view");
 let META = null;
+const HOME_TITLE = "SupCompass — Les chiffres officiels de l'orientation post-bac, expliqués";   // sprint Q1 (owner): legal.TAGLINE
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toLocaleString("fr-FR", { maximumFractionDigits: d });
@@ -1760,7 +1761,7 @@ async function viewFormation(cod, session) {
     ${d.history.map((h) => `<tr><td><a href="#/f/${esc(h.cod_aff_form)}/${h.session}">${h.session}</a></td><td>${esc(h.cod_aff_form)}</td><td>${esc(h.lib_for_voe_ins)}</td>
       <td>${h.link_to_next ? lineageBadge(h.link_to_next) : `<span class="muted small">—</span>`}</td><td class="num">${fmt(h.acc_tot)}</td><td class="num">${pct(h.taux_acces_ens)}</td></tr>`).join("")}
   </table></div></div>`],
-  ])}${feedbackBox("fiche")}`;
+  ])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
@@ -4013,10 +4014,78 @@ async function viewListe(rawCodes, rawProfile) {
   document.getElementById("liste-print").onclick = () => window.print();
 }
 
+// ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages and the contact form ----
+// The five pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité) come from legal.py, the same HTML as their
+// server page (/a-propos…). The contact form sends only what it shows; a message that was not stored is said, never a fake success.
+const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite"];
+const CONTACT_TYPES = [["erreur", "Une erreur dans un chiffre ou un texte"], ["question", "Une question sur le site"],
+  ["suggestion", "Une suggestion"], ["autre", "Autre chose"]];
+const CONTACT_MAX = 1000, CONTACT_MIN = 10;
+const reportLink = (cod) => `<p class="report-link small"><a href="#/info/contact/${esc(cod)}">Signaler une erreur sur cette page</a></p>`;
+async function viewInfo(slug, code) {
+  if (!INFO_SLUGS.includes(slug)) slug = "a-propos";
+  const kept = $view.querySelector(`[data-seo="${slug}"]`);
+  if (!kept) {
+    const p = await api(`/api/page/${slug}`);
+    $view.innerHTML = `<article class="card legal" data-seo="${esc(slug)}">${p.html}</article>`;
+  }
+  $view.dataset.rendered = "info";
+  if (slug === "contact") contactForm(/^\d{1,9}$/.test(code) ? code : "");
+}
+function contactForm(code) {
+  const box = document.getElementById("contact-form");
+  if (!box) return;
+  const page = code ? `/formation/${code}` : "";
+  box.innerHTML = `<form id="cform" class="cform" novalidate>
+    ${code ? `<p class="small">Formation concernée : <a href="#/f/${esc(code)}">n° ${esc(code)}</a></p>` : ""}
+    <fieldset><legend>Sujet de votre message</legend>
+      ${CONTACT_TYPES.map(([k, l], i) => `<label class="radio"><input type="radio" name="type" value="${k}"${(code ? k === "erreur" : i === 0) ? " checked" : ""}> ${esc(l)}</label>`).join("")}
+    </fieldset>
+    <label for="cmsg">Votre message <span class="muted small">(${CONTACT_MIN} à ${CONTACT_MAX} caractères)</span></label>
+    <textarea id="cmsg" name="message" rows="6" maxlength="${CONTACT_MAX}" required aria-describedby="cmsg-n cmsg-help"></textarea>
+    <p id="cmsg-help" class="muted small">Pour une erreur, dites quel chiffre ou quel texte, et ce que vous attendiez. N'écrivez pas d'information personnelle (nom, numéro de dossier).</p>
+    <p id="cmsg-n" class="muted small" aria-live="polite">0 / ${CONTACT_MAX}</p>
+    <label for="cmail">Votre adresse e-mail, si vous souhaitez une réponse <span class="muted small">(facultatif)</span></label>
+    <input id="cmail" name="email" type="email" maxlength="120" autocomplete="email" aria-describedby="cmail-help">
+    <p id="cmail-help" class="muted small">Elle sert seulement à vous répondre et elle est supprimée avec le message, au bout de 12 mois. Moins de 15 ans : demandez l'accord d'un parent.</p>
+    <div class="hp" aria-hidden="true"><label for="csite">Ne pas remplir</label><input id="csite" name="site" type="text" tabindex="-1" autocomplete="off"></div>
+    <button type="submit" class="primary">Envoyer</button>
+    <p id="cform-msg" role="status" class="small"></p>
+  </form>`;
+  const f = document.getElementById("cform"), msg = document.getElementById("cmsg"), n = document.getElementById("cmsg-n"), out = document.getElementById("cform-msg");
+  msg.oninput = () => { n.textContent = `${msg.value.length} / ${CONTACT_MAX}`; };
+  const mark = (field) => {
+    f.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    const target = field === "message" ? msg : field === "email" ? document.getElementById("cmail") : null;
+    if (target) { target.setAttribute("aria-invalid", "true"); target.focus(); }
+  };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { type: (f.querySelector("[name=type]:checked") || {}).value || "", message: msg.value,
+      email: document.getElementById("cmail").value.trim(), site: document.getElementById("csite").value };
+    if (page) { body.page = page; body.code = code; }
+    if (msg.value.trim().length < CONTACT_MIN) { mark("message"); out.className = "small warn"; out.textContent = `Votre message est trop court (au moins ${CONTACT_MIN} caractères).`; return; }
+    const btn = f.querySelector("button[type=submit]");
+    btn.disabled = true; out.className = "small muted"; out.textContent = "Envoi en cours…";
+    let r = null, d = {};
+    try { r = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); d = await r.json().catch(() => ({})); }
+    catch (_) { r = null; }
+    btn.disabled = false;
+    if (r && r.status === 201 && d.ok) {
+      f.reset(); n.textContent = `0 / ${CONTACT_MAX}`; mark(null);
+      out.className = "small ok"; out.textContent = "Message envoyé. Merci : il sera lu et, si vous avez laissé une adresse, vous recevrez une réponse.";
+      return;
+    }
+    mark(r && r.status === 422 ? d.field : null);
+    out.className = "small warn";
+    out.textContent = r ? `Message non envoyé. ${apiErrorText(d.detail)}` : "Message non envoyé : pas de connexion. Vérifiez votre réseau et réessayez.";
+  };
+}
+
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 // R1 (owner, 2026-11-11): the tabs follow the student's journey. Explorer ("home") holds the list, the map, the jobs and every
 // formation page; "Mon profil" holds the profile, "Où je me situe", "Je me réoriente" and the seconde/première page.
-const TAB_OF = { s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
+const TAB_OF = { info: "info", s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
@@ -4042,7 +4111,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 }
 
 // ---- router ----------------------------------------------------------------
-const ROUTE_NAME = { s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
+const ROUTE_NAME = { info: "info", s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
@@ -4054,6 +4123,8 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
+  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite)\/?$/.exec(pathname);   // sprint Q1
+  if (i) return `/info/${i[1]}`;
   return null;
 }
 // Sprint 17 (Codex): when the app cannot load its data (a crawler that may not fetch /api/, a network error), the
@@ -4074,7 +4145,7 @@ let a11yFirst = true;
 function a11yAfterRoute() {
   const h = $view.querySelector("h1");
   const name = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
-  document.title = name ? `${name} — SupCompass` : "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
+  document.title = name ? `${name} — SupCompass` : HOME_TITLE;
   if (a11yFirst) { a11yFirst = false; return; }
   const st = document.getElementById("sr-status");
   if (st) st.textContent = name ? `Page : ${name}` : "Page chargée";
@@ -4109,7 +4180,7 @@ let routeSeq = 0;
 async function route() {
   const seq = ++routeSeq;
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
-  if (!pathRoute(location.pathname, location.hash)) document.title = "SupCompass — Parcoursup 2022–2025, les vrais chiffres";
+  if (!pathRoute(location.pathname, location.hash)) document.title = HOME_TITLE;
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(safeDecode);
   trackView(ROUTE_NAME[a] || "home", a === "f" ? b : null);
@@ -4148,6 +4219,7 @@ async function routeView(a, b, c) {
     if (a === "guide") return await viewGuide();
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
+    if (a === "info") return await viewInfo(b || "", c || "");
     return await viewSearch("");
   }
 }
