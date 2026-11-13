@@ -201,6 +201,93 @@ def _apprentissage(con) -> list[dict]:
     return out
 
 
+# ---- R10 (owner, 2026-11-13): per formation, the access rate of each bac route and the most represented line among the admits ----
+BACS = ("bg", "bt", "bp")
+BAC_NAME = {"bg": "bac général", "bt": "bac techno", "bp": "bac pro"}
+_LINES: dict = {}
+
+
+SPE_SHORT = {"MATHS": "Maths", "PC": "Physique-chimie", "SVT": "SVT", "SES": "SES", "HGGSP": "HGGSP", "LLCER": "LLCER", "HLP": "HLP",
+             "NSI": "NSI", "SI": "SI", "LLCA": "LLCA", "EPPCS": "EPPCS", "ART": "Arts", "BIOECO": "Biologie-écologie"}
+
+
+def _line_label(bac: str, libelle: str, dkey: str | None = None) -> str:
+    """A report line as a student reads it: bac général 'SES & HGGSP' (short names from the doublette key, else the printed
+    label without 'Spécialité'); bac techno 'SERIE · specialty'; bac pro the specialty as printed."""
+    if bac == "bg" and dkey and all(p in SPE_SHORT for p in dkey.split("+")):
+        return " & ".join(SPE_SHORT[p] for p in dkey.split("+"))
+    if bac == "bt":
+        from . import voies as VO
+        k = VO.voie_key("bt", libelle)
+        if k in VO.BT_NAME:
+            serie, spe = VO.BT_NAME[k]
+            return f"{serie} · {spe}"
+        return re.sub(r"^Msgn/\s*", "STMG · ", " ".join(libelle.split()))
+    return " ".join(re.sub(r"\s+Spécialité\b", "", libelle).split())
+
+
+def bac_lines(con) -> dict:
+    """{code: {"bacs": {bac: {taux, source, n}}, "majo": {...} | None}} for the latest SIES campaign.
+    - Rate per bac: the formation's own report of that campaign (verified, cross-checked), en_position / confirmes over every
+      line of the bac (its "Autres" bucket included): published counts, the Parcoursup fiche's "taux d'accès" of that bac, for
+      candidates in terminale in France; a masked table = no figure (`masque`). No report: the site's ESTIMATED access of the
+      route (journey.series_access_sql, capped at 100), flagged `source` "estimation" and `fragile` below 20 candidates.
+    - Most represented line among the admits (owner): the route with the most admits in the SIES campaign (acc_bg / acc_bt /
+      acc_bp; a tie = none), then that route's report line with the most admits (`acceptes`, never the "Autres" bucket); a tie on
+      the top = `exaequo`. No report, a masked table or no admits = none."""
+    key = _fingerprint(con)
+    if key in _LINES:
+        return _LINES[key]
+    latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+    est = ", ".join(f"{J.series_access_sql(b)}, {J.series_candidates_sql(b)}" for b in BACS)
+    fy = con.execute(f"""SELECT fy.cod_aff_form, fy.acc_bg, fy.acc_bt, fy.acc_bp, {est}
+                         FROM core.formation_year fy WHERE fy.session = ?""", [latest]).fetchall()
+    has = lambda t: con.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'core' AND table_name = ?", [t]).fetchone()[0]  # noqa: E731
+    rows, masked = {}, set()
+    if has("rapport") and has("rapport_doublette"):
+        rec = "AND r.recoupe" if con.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'core'
+                                                AND table_name = 'rapport' AND column_name = 'recoupe'""").fetchone()[0] else ""
+        for cod, bac, rang, lib, dkey, autres, conf, pos, acc in con.execute(f"""
+                SELECT d.cod_aff_form, d.bac, d.rang, d.libelle, d.doublette_key, d.autres, d.confirmes, d.en_position, d.acceptes
+                FROM core.rapport_doublette d JOIN core.rapport r ON r.cod_aff_form = d.cod_aff_form AND r.session = d.session
+                WHERE d.session = ? {rec} ORDER BY d.cod_aff_form, d.bac, d.rang""", [latest]).fetchall():
+            rows.setdefault(cod, {}).setdefault(bac, []).append((rang, lib, bool(autres), conf or 0, pos or 0, acc or 0, dkey))
+        if has("rapport_masque"):
+            masked = {(c, b) for c, b in con.execute("SELECT cod_aff_form, bac FROM core.rapport_masque WHERE session = ?", [latest]).fetchall()}
+    out = {}
+    for cod, abg, abt, abp, ebg, nbg, ebt, nbt, ebp, nbp in fy:
+        acc, estim, cand = {"bg": abg, "bt": abt, "bp": abp}, {"bg": ebg, "bt": ebt, "bp": ebp}, {"bg": nbg, "bt": nbt, "bp": nbp}
+        mine = rows.get(cod)
+        bacs = {}
+        for b in BACS:
+            if mine is not None and (cod, b) in masked:
+                bacs[b] = {"taux": None, "source": "rapport", "masque": True}
+            elif mine is not None and mine.get(b):
+                c = sum(x[3] for x in mine[b])
+                bacs[b] = {"taux": round(100 * sum(x[4] for x in mine[b]) / c, 1) if c else None, "source": "rapport", "n": c}
+            elif mine is not None:
+                bacs[b] = {"taux": None, "source": "rapport", "n": 0}          # the report prints no candidate of this bac
+            else:                                     # no report: the site's estimated access of the route (journey), flagged
+                n = cand[b] or 0
+                bacs[b] = {"taux": None if estim[b] is None or not n else round(estim[b], 1), "source": "estimation", "n": n,
+                           "fragile": n < J.MIN_SERIES_CANDIDATES}
+        majo = None
+        a = {b: (acc[b] or 0) for b in BACS}
+        top = max(a.values())
+        route = [b for b in BACS if a[b] == top]
+        if top > 0 and len(route) == 1 and mine is not None and (cod, route[0]) not in masked:
+            lines = [x for x in mine.get(route[0], []) if not x[2] and x[5] > 0]
+            if lines:
+                best = max(x[5] for x in lines)
+                win = [x for x in lines if x[5] == best]
+                majo = {"bac": route[0], "libelle": _line_label(route[0], win[0][1], win[0][6]), "acceptes": best,
+                        "exaequo": len(win) > 1, "admis_route": a[route[0]]}
+        out[cod] = {"bacs": bacs, "majo": majo}
+    _LINES.clear()
+    _LINES[key] = out
+    return out
+
+
 def offres_par_formation(con) -> dict:
     """{initial formation code: the apprenticeship offers attached to it (CFA, Parcoursup page)}."""
     out: dict = {}
@@ -303,7 +390,24 @@ def _offer_session(con):
     return con.execute("SELECT max(carto_session) FROM core.cartographie").fetchone()[0] if _has_labels(con) else None
 
 
+_LAYER: dict = {}
+
+
 def formations(con, diplome: str, mention: str | None = None) -> dict | None:
+    """The neutral layer of a type of diploma (and mention group). R10: the whole layer is built once per warehouse and sliced
+    (34 answers when no diploma is ticked); each answer gets its own dicts (callers add keys to them)."""
+    key = _fingerprint(con)
+    if key not in _LAYER:
+        _LAYER.clear()
+        _LAYER[key] = _layer(con)
+    by_dip, session, offre = _LAYER[key]
+    out = [dict(x) for x in by_dip.get(diplome, []) if not mention or mention in (x["mention"], x["groupe"])]
+    if not out:
+        return None
+    return {"diplome": diplome, "mention": mention, "session": session, "offre_apprentissage": offre, "formations": out}
+
+
+def _layer(con) -> tuple:
     rows = con.execute("""
         WITH s AS (SELECT max(session) AS s FROM core.formation_year)
         SELECT f.cod_aff_form, f.g_ea_lib_vx, f.lib_for_voe_ins, f.ville_etab, f.acad_mies, f.lat, f.lon, f.contrat_etab,
@@ -314,12 +418,11 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
         LEFT JOIN core.taxonomy_link t ON t.cod_aff_form = f.cod_aff_form AND t.session = f.session
         LEFT JOIN core.taxonomy_rule r USING (rule_id)
         ORDER BY f.g_ea_lib_vx, f.cod_aff_form""").fetchall()
-    out = []
+    by_dip: dict = {}
     offres = offres_par_formation(con)
+    lines = bac_lines(con)                    # R10: rate per bac and most represented line among the admits
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
-        if d != diplome or (mention and mention not in (m, groupe_of(d, m))):
-            continue
         x = dict(zip(FIELDS, r[:15]))
         if x["lat"] is not None:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
@@ -331,16 +434,16 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
             x["statut"] = "prive_app"         # free for the apprentice: never the fee-charging rule
         x["payant"] = x["statut"] == "prive"
         x["offres_app"] = offres.get(x["cod_aff_form"], [])
+        ln = lines.get(x["cod_aff_form"]) or {}
+        x["bacs"], x["majo"] = ln.get("bacs"), ln.get("majo")
         x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
-        out.append(x)
-    out += [{**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")}, "groupe": groupe_of(diplome, a["mention"]),
-             "initiale": False, "offres_app": []}
-            for a in apprentissage(con) if not a["rattachee"] and a["diplome"] == diplome
-            and (not mention or mention in (a["mention"], groupe_of(diplome, a["mention"])))]
-    if not out:
-        return None
+        by_dip.setdefault(d, []).append(x)
+    for a in apprentissage(con):
+        if not a["rattachee"]:
+            by_dip.setdefault(a["diplome"], []).append({**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")},
+                                                        "groupe": groupe_of(a["diplome"], a["mention"]), "initiale": False, "offres_app": []})
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
-    return {"diplome": diplome, "mention": mention, "session": session, "offre_apprentissage": _offer_session(con), "formations": out}
+    return by_dip, session, _offer_session(con)
 
 
 def public(lay: dict | None) -> dict | None:
