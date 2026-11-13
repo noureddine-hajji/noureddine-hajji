@@ -226,6 +226,15 @@ def se3(c: Ctx):
                 bad.append((r, "headers"))
             elif h.headers.get("cache-control") != g.headers.get("cache-control"):
                 bad.append((r, "cache", g.headers.get("cache-control"), h.headers.get("cache-control")))
+            elif h.headers.get("content-encoding") != g.headers.get("content-encoding"):
+                bad.append((r, "encoding", g.headers.get("content-encoding"), h.headers.get("content-encoding")))
+            else:
+                # the representation a GET would get, its size included (Codex). Compared uncompressed: a few answers
+                # list their items in an order that varies between calls, so their gzip size moves by a few bytes
+                ident = {"accept-encoding": "identity"}
+                gl, hl = cl.get(url, headers=ident).headers.get("content-length"), cl.head(url, headers=ident).headers.get("content-length")
+                if gl != hl:
+                    bad.append((r, "representation", gl, hl))
         n = len(calls)
         hs = cl.head(s["/api/search"])
         if hs.status_code != 405 or len(calls) != n:
@@ -316,10 +325,13 @@ def se6(c: Ctx):
             raise RuntimeError("secret detail /home/user/x.py")
         try:
             r = cl.get("/__redteam_boom")
+            rh = cl.head("/__redteam_boom")       # Codex: the error answer of a HEAD carries the headers too
         finally:
             api.app.router.routes[:] = [x for x in api.app.router.routes if getattr(x, "path", "") != "/__redteam_boom"]
         if r.status_code != 500 or headers_ok(r.headers, "/x") or any(w in r.text for w in ("Traceback", "secret detail", "/home/", ".py")):
             bad.append(("500", r.status_code, r.text[:80], headers_ok(r.headers, "/x")[:2]))
+        if rh.status_code != 500 or headers_ok(rh.headers, "/x") or rh.content:
+            bad.append(("HEAD 500", rh.status_code, headers_ok(rh.headers, "/x")[:2]))
     return not bad, f"problems {bad}"
 
 
@@ -470,6 +482,17 @@ def mutants():
        lambda f: (lambda headers, host: bool(headers.get("origin")) and headers.get("origin") not in ("", None)
                   and not (headers.get("origin") or "").split("//")[-1].startswith(host or "\x00")), {"SE5"})
     py("any body accepted", SEC, "json_body", lambda f: (lambda headers: True), {"SE5"})
+    from fastapi.responses import Response as _R
+    py("HEAD rebuilt with length 0 and no encoding", api, "_HeadOnly",
+       lambda f: (lambda status, raw: _R(content=b"", status_code=status, headers={k.decode(): v.decode() for k, v in raw
+                                                                                 if k not in (b"content-length", b"content-encoding")})),
+       {"SE3"})
+
+    def stream_always(_c):                               # the middleware sees every answer as a stream (the bug Codex found)
+        api.hasattr = lambda o, n: True if n == "body_iterator" else __builtins__["hasattr"](o, n) \
+            if isinstance(__builtins__, dict) else getattr(__import__("builtins"), "hasattr")(o, n)
+
+    out.append(("an error answer drained as a stream", stream_always, lambda _c: api.__dict__.pop("hasattr", None), {"SE6"}))
     py("HSTS on http", SEC, "is_https", lambda f: (lambda scheme, headers: True), {"SE6"})
     py("tracebacks shown", api, "PlainTextResponse",
        lambda f: (lambda content, status_code=200: f(__import__("traceback").format_exc(), status_code=status_code)), {"SE6"})

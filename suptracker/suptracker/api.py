@@ -441,6 +441,18 @@ async def _cache_policy(request: Request, call_next):
     return resp
 
 
+class _HeadOnly(Response):
+    """A HEAD answer: the GET answer's status and headers exactly (Content-Length, Content-Encoding and the rest describe
+    the representation a GET would get), and no body."""
+
+    def __init__(self, status_code: int, raw_headers: list):
+        self.status_code, self.background, self.raw_headers, self.body = status_code, None, list(raw_headers), b""
+
+    async def __call__(self, scope, receive, send):
+        await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
+        await send({"type": "http.response.body", "body": b""})
+
+
 @app.middleware("http")
 async def _security(request: Request, call_next):
     """Sprint Q2: the security headers on EVERY answer, errors included (securite.py); HEAD answered as GET without a body
@@ -455,10 +467,10 @@ async def _security(request: Request, call_next):
         logging.getLogger("suptracker").exception("unhandled error on %s", path)
         resp = PlainTextResponse("Internal Server Error", status_code=500)
     if head:
-        async for _ in resp.body_iterator:          # the GET answer is computed, its body is not sent
-            pass
-        kept = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
-        resp = Response(content=b"", status_code=resp.status_code, headers=kept)
+        if hasattr(resp, "body_iterator"):          # a streamed GET answer: computed, its body is not sent
+            async for _ in resp.body_iterator:
+                pass
+        resp = _HeadOnly(resp.status_code, resp.raw_headers)    # the GET's headers kept as they are (Codex)
     for k, v in SEC.headers_for(path, SEC.is_https(request.url.scheme, request.headers)).items():
         resp.headers[k] = v
     return resp
