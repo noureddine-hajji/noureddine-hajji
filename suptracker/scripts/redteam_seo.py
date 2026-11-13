@@ -483,7 +483,8 @@ MUTANTS = [
 API_MUTANTS = [
     ("unknown code answers 200", '        return _html_404(request, "Cette formation n\'existe pas dans les données Parcoursup 2022–2025.")',
      '        return Response("introuvable", media_type="text/html")'),
-    ("HEAD refused", '@app.api_route("/formation/{cod}", methods=["GET", "HEAD"], include_in_schema=False)', '@app.get("/formation/{cod}")'),
+    # sprint Q2: HEAD is answered for every GET route by the security middleware
+    ("HEAD refused", '    head = request.method == "HEAD" and SEC.head_as_get(path)', '    head = False'),
 ]
 JS_MUTANTS = [
     ("router ignores the path", "(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")", "(location.hash.slice(1) || \"/\")"),

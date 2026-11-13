@@ -524,6 +524,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `Unavailable`, never /tmp), submitted off the event loop (`run_in_threadpool`), read/deleted on `#/stats` with the stats
   token (escaped). Tagline = `legal.TAGLINE`
   everywhere ("les vrais chiffres" is gone). Red team `redteam_conformite.py` (QC1-QC11).
+- **Security (sprint Q2, owner 2026-11-13).** ONE definition (`securite.py`), one middleware (`_security` in api.py, the
+  outermost): every answer, errors included, carries the CSP (scripts/fonts/data from 'self' only; images 'self', `data:` and
+  the map's tile host = `securite.TILE_HOST` = app.js `CARTE_TILES`; inline style attributes allowed, NEVER inline script or
+  eval; object-src/frame-ancestors 'none'), nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (no
+  camera/microphone/geolocation/payment/USB), X-Frame-Options DENY, COOP same-origin, HSTS on HTTPS only; FastAPI's /docs and
+  /redoc alone get the wider CDN policy. An unhandled error is logged and answered with a plain 500 (headers, no traceback).
+  HEAD = GET without a body on every route, except the search (it records an event). The contact form refuses a cross-site
+  post (403: Sec-Fetch-Site cross-site, a foreign or `null` Origin) and a non-JSON body (415). A new external host a page
+  loads needs the CSP, the privacy page and red teams QC2 and SE2. Never an inline `on…=` handler, `javascript:` URL or
+  `eval` in the page code. Red team `redteam_securite.py` (SE1-SE10, SE4 = 1,827 hostile requests, SE9 browser CSP check).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
