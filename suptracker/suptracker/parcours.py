@@ -72,7 +72,10 @@ FAMILY_RULES = [
      [("Ecole de Commerce", None, None), ("CPGE", "|".join(CPGE_ECO), None)],
      "On entre en école de commerce après le bac (sur Parcoursup) ou après une prépa économique et commerciale ; "
      "des admissions parallèles existent après un bac + 2 ou + 3."),
-    ("architecture", ("label_or_type", r"^diplome des ecoles d architecture|\barchitect"), [("Autre formation", r"^Architecture", None)],
+    # building architecture only: "architecte réseaux", "architecture logicielle" are computing (Codex)
+    ("architecture", ("label_or_type", r"^diplome des ecoles d architecture|\barchitecte?\b|\barchitecture\b",
+                      r"reseau|logiciel|informati|systeme|cloud|donnee|cyber|application|numerique|\bdata\b|securite|solution|\bsi\b"),
+     [("Autre formation", r"^Architecture", None)],
      "Les écoles nationales d'architecture recrutent sur Parcoursup."),
     ("iep", ("type", r"^diplome d iep"), [("Autre formation", r"Sciences Po", None)],
      "Les instituts d'études politiques recrutent après le bac, sur Parcoursup ou par leur concours."),
@@ -125,9 +128,10 @@ def plain(html: str | None) -> str:
 
 def rule_of(sheet: dict) -> tuple | None:
     """The family rule a diploma sheet falls under, or None (first match in FAMILY_RULES)."""
-    for rid, (field, rx), groups, text in FAMILY_RULES:
+    for rid, (field, rx, *excl), groups, text in FAMILY_RULES:
         vals = [sheet["lib"]] if field == "label" else [sheet["type"]] if field == "type" else [sheet["lib"], sheet["type"]]
-        if any(re.search(rx, _fold(v)) for v in vals):          # on the folded text: no accent, no apostrophe, no hyphen
+        folded = [_fold(v) for v in vals]                        # no accent, no apostrophe, no hyphen
+        if any(re.search(rx, v) for v in folded) and not any(re.search(x, v) for x in excl for v in folded):
             return rid, groups, text
     return None
 
@@ -305,6 +309,37 @@ def build(con, sources: dict | None = None) -> dict:
             "sans_postbac": stats["sans_postbac"]}
 
 
+FORMATIONS_MAX = 400
+
+
+def entry_codes_sql(key: str) -> tuple[str, list]:
+    """The SQL selecting an entry's formation codes in core.formation_year (alias y) for a session (first parameter)."""
+    if key.startswith("onisep:"):
+        return ("SELECT DISTINCT y.cod_aff_form FROM core.onisep_link l JOIN core.formation_year y ON y.session = l.session "
+                "AND y.cod_aff_form = l.cod_aff_form WHERE l.session = ? AND l.for_id = ?", [key.split(":", 1)[1]])
+    parts = key.split(":", 3)
+    sql, args = "SELECT y.cod_aff_form FROM core.formation_year y WHERE y.session = ? AND y.fili = ?", [parts[1]]
+    if len(parts) >= 3:
+        sql += " AND coalesce(y.fil_lib_voe_acc, '') = ?"
+        args.append(parts[2])
+    if len(parts) == 4:
+        sql += " AND coalesce(y.form_lib_voe_acc, '') = ?"
+        args.append(parts[3])
+    return sql, args
+
+
+def entry_formations(con, key: str, session: int) -> list[dict]:
+    """The formations of one entry (at most FORMATIONS_MAX), by académie, town and name, as compact rows [code, establishment,
+    town, académie, places, label]: exactly the group its count and places count (no search on its label). The label (the
+    formation's own Parcoursup title, trailing dash off) tells apart two formations of one establishment."""
+    sql, args = entry_codes_sql(key)
+    rows = con.execute(f"""SELECT f.cod_aff_form, f.g_ea_lib_vx, f.ville_etab, f.acad_mies, f.capa_fin,
+        nullif(trim(regexp_replace(coalesce(f.lib_for_voe_ins, ''), '[\\s-]+$', '')), '') FROM core.formation_year f
+        WHERE f.session = ? AND f.cod_aff_form IN ({sql}) ORDER BY f.acad_mies, f.ville_etab, f.g_ea_lib_vx, f.cod_aff_form LIMIT ?""",
+                       [session, session, *args, FORMATIONS_MAX]).fetchall()
+    return [list(r) for r in rows]                       # compact rows: [code, establishment, town, académie, places, label]
+
+
 def for_metier(con, met_id: str) -> dict | None:
     """The job's routes with their entries (label, count, places, search words), its status and the build's coverage."""
     if not ON._has(con, "parcours_metier"):
@@ -320,7 +355,10 @@ def for_metier(con, met_id: str) -> dict | None:
         for k, lab, kind, fili, n, places, rech in con.execute(f"""SELECT entree, libelle, kind, fili, n_formations, places, recherche
                 FROM core.parcours_entree WHERE entree IN ({q})""", keys).fetchall():
             ent[k] = {"libelle": lab, "kind": kind, "fili": fili, "n_formations": n, "places": places, "recherche": rech}
+    session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     for x in data["routes"]:
         x["entree_info"] = ent.get(x["entree"])
+        # the entry's own formations, as counted (Codex: a search link on its label found only part of them)
+        x["formations"] = entry_formations(con, x["entree"], session)
     m = con.execute("SELECT a_besoin, couverts, couverture FROM core.parcours_mesure").fetchone()
     return {"statut": statut, **data, "mesure": dict(zip(("a_besoin", "couverts", "couverture"), m)) if m else None}

@@ -655,3 +655,4 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .pa-entry { font-weight: 600; }
 .pa-step { white-space: normal; }
 .pa-rules { padding-left: 1.1rem; }
+.pa-flist { max-height: 22rem; overflow-y: auto; padding-left: 1.1rem; }

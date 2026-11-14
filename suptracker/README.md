@@ -3183,7 +3183,7 @@ formation, and none of the long-study jobs did. Onisep gives three things:
    - vétérinaire → the national vet schools and BCPST/TB;
    - engineers → post-bac engineering schools and scientific CPGE;
    - business schools → schools and ECG/ECT;
-   - architecture, IEP, DN MADE, art schools, the DCG;
+   - architecture (never a computing job: "architecte réseaux", "ingénieur système", Codex), IEP, DN MADE, art schools, the DCG;
    - law professions → a law licence;
    - a master whose mention contains a licence's name → that licence.
 4. **No diploma at all.** The job's own name goes through the same rules (expert-comptable → DCG). Otherwise the routes of
@@ -3200,7 +3200,9 @@ programme), with its count and places (`capa_fin`). A programme reached by two r
   Onisep sheet (lycée professionnel, apprenticeship, CFA), plus any routes "pour aller plus loin".
 
 **On the job page.** The tab "Diplômes et formations" opens with "Le chemin vers ce métier", which shows:
-- each route as entry → steps → diploma, the entry linked to the search, with its formations and places;
+- each route as entry → steps → diploma, with its count and places, and the entry's OWN formations folded under "Voir les n
+  formations" (the same SQL group its count sums, at most 400, the student's académie first, each with its own Parcoursup title).
+  It used to link a search on the entry's label, which found only part of them (Codex);
 - the rules' sentences;
 - Onisep's access text, folded and credited (ODbL).
 
@@ -3211,7 +3213,9 @@ Red team `scripts/redteam_parcours.py` (PA1-PA8). It builds on a copy of the war
 - PA2 checks every direct or graph chain against an independent reading of the XML.
 - PA3 checks every rule route against an independent keyword table, and that the health texts name PASS/LAS.
 - PA4 re-sums every entry by SQL and checks the 80 % prefix.
-- PA5 holds the ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, a CAP job.
+- PA4 also checks that each entry's listed formations are exactly its group (capped at 400).
+- PA5 holds the ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, orthophoniste, architecte vs
+  architecte réseaux, a CAP job.
 - PA6 renders the card in node.
 - PA7 checks the plumbing.
 - PA8 is the mutation test.
