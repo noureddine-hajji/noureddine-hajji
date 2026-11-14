@@ -26,7 +26,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import types
 import unicodedata
@@ -69,16 +68,21 @@ class Ctx:
         self._built = {}
 
     def built(self):
-        """(module, connection) on a copy of the warehouse, built with the current (possibly mutated) module; cached per source."""
+        """(module, connection) over the warehouse (read only), built with the current (possibly mutated) module; cached per source."""
         key = self.src["pa"]
         if key not in self._built:
             import duckdb
             if self.db is None:
                 return None, None
-            tmp = Path(tempfile.mkdtemp()) / "w.duckdb"
-            shutil.copy(self.db, tmp)
+            # an in-memory database reading the warehouse's tables through views: no copy left on disk (each mutant builds again)
             pa = load(ROOT / "suptracker" / "parcours.py", "suptracker.parcours_rt", key, "suptracker")
-            con = duckdb.connect(str(tmp))
+            con = duckdb.connect()
+            con.execute(f"ATTACH '{self.db}' AS w (READ_ONLY)")
+            con.execute("CREATE SCHEMA core")
+            for (t,) in con.execute("SELECT table_name FROM w.information_schema.tables WHERE table_schema = 'core' AND "
+                                    "table_name IN ('formation_year', 'onisep_metier', 'onisep_formation_metier', 'onisep_link', "
+                                    "'onisep_formation')").fetchall():
+                con.execute(f"CREATE VIEW core.{t} AS SELECT * FROM w.core.{t}")
             pa.build(con)
             self._built = {key: (pa, con)}
         return self._built[key]

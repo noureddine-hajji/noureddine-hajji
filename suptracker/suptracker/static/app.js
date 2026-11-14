@@ -3445,7 +3445,7 @@ async function viewMetiers(id, from = "") {
   run();
   input.focus();
 }
-// ---- owner, 2026-11-14: the route from the bac to the job (parcours.py) ------------------------------------------------------
+// owner, 2026-11-14: the route from the bac to the job (parcours.py), inside the Sprint 12 block (red team M6 reads it whole).
 // Entries are GROUPS of Parcoursup formations (a diploma, a programme), ranked by their places in the latest campaign; the first
 // ones that gather 80 % of them are open, the others folded. Places are a proxy: no open data counts who reached a job by which
 // route. A job that needs no higher studies says so and links the Onisep sheet of its diploma (outside Parcoursup).
