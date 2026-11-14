@@ -3157,3 +3157,60 @@ Red team `scripts/redteam_grilles.py` (GR1-GR9):
 - GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
 - GR8 checks the plumbing.
 - GR9 is the mutation test: 36 mutants, each caught.
+
+## From each job to its first formations on Parcoursup (owner, 2026-11-14)
+
+The owner asked for every job to be linked to the routes students can start after the bac. His example was pédiatre: PASS or LAS,
+then medical studies, then the doctorate and the specialty. He asked for a Pareto approach covering at least 80 %, and 100 % when
+possible. A job that needs no higher studies should say so and link its diploma outside Parcoursup.
+
+**What the data says** (Onisep Idéo-Fiches, 2026-09-15). Before this change, only 331 of the 1,124 jobs reached a Parcoursup
+formation, and none of the long-study jobs did. Onisep gives three things:
+- **Required diplomas.** Each job sheet names its required diploma(s) (`formations_min_requise`, 987 jobs).
+- **Continuations.** Each diploma sheet lists its continuations (`poursuites_etudes`: licence → master…). Followed backwards,
+  they lead to a Parcoursup diploma for 341 more jobs.
+- **Access in words.** Each diploma says in words how one gets in (`descriptif_acces`). The doctor of medicine says "PASS ou LAS",
+  and every health-rule diploma's text names PASS or LAS.
+
+**The routes** (`suptracker/parcours.py`), read backwards from the required diploma with fixed rules:
+1. **Direct.** The diploma itself is a Parcoursup formation (onisep.match: BTS, BUT, licence, LAS, IFSI, EFTS).
+2. **Graph.** Onisep's continuations are followed backwards, at most 4 steps, up to a Parcoursup diploma. The chain is shown.
+3. **Family rules.** One rule per family, each written from Onisep's access texts:
+   - médecine, pharmacie, odontologie, maïeutique → PASS and LAS;
+   - kinésithérapie → PASS, LAS, STAPS;
+   - paramedical state diplomas → their institutes on Parcoursup;
+   - vétérinaire → the national vet schools and BCPST/TB;
+   - engineers → post-bac engineering schools and scientific CPGE;
+   - business schools → schools and ECG/ECT;
+   - architecture, IEP, DN MADE, art schools, the DCG;
+   - law professions → a law licence;
+   - a master whose mention contains a licence's name → that licence.
+4. **No diploma at all.** The job's own name goes through the same rules (expert-comptable → DCG). Otherwise the routes of
+   Onisep's "métiers associés" are used, flagged on the page (psychiatre → médecin spécialiste → PASS/LAS).
+
+**Entries and the 80 % rule.** An entry is a GROUP of Parcoursup formations of the latest campaign (a diploma's formations, or a
+programme), with its count and places (`capa_fin`). A programme reached by two rules is counted once.
+- **Coverage.** Among the 737 jobs that need higher studies, 642 have a route: 87.1 %, measured at build (`core.parcours_mesure`)
+  and printed. The 95 others go through a doctorate, a civil-service or military competition, or a school after a first degree.
+  Their page says so and quotes Onisep's access text.
+- **Ranking.** On each job, entries are ranked by places. The first ones that gather 80 % of them are open ("voies principales");
+  the others are folded. Places are a proxy: no open data counts who reached a job by which route, and the page says so.
+- **Jobs at the bac or below** (387): "Ce métier ne demande pas d'études après le bac". The page shows the diplomas with their
+  Onisep sheet (lycée professionnel, apprenticeship, CFA), plus any routes "pour aller plus loin".
+
+**On the job page.** The tab "Diplômes et formations" opens with "Le chemin vers ce métier", which shows:
+- each route as entry → steps → diploma, the entry linked to the search, with its formations and places;
+- the rules' sentences;
+- Onisep's access text, folded and credited (ODbL).
+
+The warehouse grows by about 2 MB (`core.parcours_*`).
+
+Red team `scripts/redteam_parcours.py` (PA1-PA8). It builds on a copy of the warehouse with the module under test.
+- PA1 checks coverage ≥ 80 %, the recount, and statuses by level.
+- PA2 checks every direct or graph chain against an independent reading of the XML.
+- PA3 checks every rule route against an independent keyword table, and that the health texts name PASS/LAS.
+- PA4 re-sums every entry by SQL and checks the 80 % prefix.
+- PA5 holds the ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, a CAP job.
+- PA6 renders the card in node.
+- PA7 checks the plumbing.
+- PA8 is the mutation test.
