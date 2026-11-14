@@ -1161,7 +1161,7 @@ function grilleCard(g) {
       ${c.criteres.map((k) => `<tr><td data-label="Critère">${esc(k.critere)}</td><td data-label="Ce qui est regardé">${esc(k.elements || "")}</td><td data-label="Importance">${grilleImp(k.importance)}</td></tr>`).join("")}
       </table></div></details>`).join("")}
     <p class="muted small">L'importance va de « Complémentaire » (1 sur 4) à « Essentiel » (4 sur 4), comme sur la fiche.</p>` : "";
-  const fold = (title, t, open) => (t ? `<details class="dip"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
+  const fold = (title, t, open) => (t ? `<details class="dip gr-txt"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
   return `<div class="card gr-card"><h2>Comment votre dossier sera examiné · fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}</h2>
     <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
     ${global}${detail}
