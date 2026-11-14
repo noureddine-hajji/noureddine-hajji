@@ -145,6 +145,10 @@ def c1(c: Ctx):
         want = {}
         for tk in {f["type_key"] for f in lay["formations"] if f["type_key"]}:          # the FULL type, as Mon parcours reads it
             want.update({f["cod_aff_form"]: f["zone"] for f in J.stage2(c.con, dk, "ab", tk, None)["formations"]})
+        # R9: a formation with no SIES type is read under J.SANS_TYPE, only with its own code (as "Mes vœux" and Plan B do)
+        untyped = [f["cod_aff_form"] for f in lay["formations"] if not f["type_key"] and f.get("stats", True) is not False]
+        if untyped:
+            want.update({f["cod_aff_form"]: f["zone"] for f in J.stage2(c.con, dk, "ab", J.SANS_TYPE, None, only=untyped)["formations"]})
         mine = {f["cod_aff_form"] for f in lay["formations"]}
         want = {k: v for k, v in want.items() if k in mine}
         if got != want:
