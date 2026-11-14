@@ -3178,7 +3178,8 @@ formation, and none of the long-study jobs did. Onisep gives three things:
 3. **Family rules.** One rule per family, each written from Onisep's access texts:
    - médecine, pharmacie, odontologie, maïeutique → PASS and LAS;
    - kinésithérapie → PASS, LAS, STAPS;
-   - paramedical state diplomas → their institutes on Parcoursup;
+   - each paramedical state diploma → its OWN institutes on Parcoursup, one rule per profession (Codex: a shared rule sent
+     the orthophonie certificate to ergotherapy, podiatry and radiography schools too);
    - vétérinaire → the national vet schools and BCPST/TB;
    - engineers → post-bac engineering schools and scientific CPGE;
    - business schools → schools and ECG/ECT;

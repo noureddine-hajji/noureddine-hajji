@@ -193,7 +193,10 @@ def pa2(c: Ctx):
 FAMILY = {  # independent keyword table: rule -> (words in the diploma or job name, Parcoursup filières it may reach)
     "sante_mmopk": (r"medecine|pharmacie|dentaire|sage femme|maieutique", {"PASS", "Licence_Las"}),
     "kine": (r"kinesither", {"PASS", "Licence_Las", "Licence"}),
-    "paramedical": (r"ergoth|psychomot|podolog|radiolog|orthophon|orthopt|audioprot", {"Autre formation"}),
+    "para_ergo": (r"ergoth", {"Autre formation"}), "para_psychomot": (r"psychomot", {"Autre formation"}),
+    "para_podo": (r"podolog", {"Autre formation"}), "para_radio": (r"radiolog|imagerie", {"Autre formation"}),
+    "para_ortho": (r"orthophon", {"Autre formation"}), "para_orthopt": (r"orthopt", {"Autre formation"}),
+    "para_audio": (r"audioprot", {"Autre formation"}),
     "veterinaire": (r"veterinaire", {"Autre formation", "CPGE"}),
     "ingenieur": (r"ingenieur|ingenierie", {"Ecole d'Ingénieur", "CPGE"}),
     "commerce": (r"commerce", {"Ecole de Commerce", "CPGE"}),
@@ -238,6 +241,8 @@ def pa3(c: Ctx):
                 bad.append(f"{mid}: {rule} from {src[:50]!r}")
             if fili.get(r["entree"]) not in filis:
                 bad.append(f"{mid}: {rule} reaches {fili.get(r['entree'])}")
+            if rule.startswith("para_") and not re.search(words, plainfold(r["entree"].split(":", 2)[-1]).replace("dts ", "")):
+                bad.append(f"{mid}: {rule} reaches another profession's programme {r['entree']}")   # Codex
             if rule == "sante_mmopk" and r["etapes"]:
                 sante += 1
                 sante_txt += bool(re.search(r"PASS|L\.?AS", F.get(r["etapes"][0]["id"], {}).get("acces", "")))
@@ -289,7 +294,7 @@ def pa4(c: Ctx):
 
 # ---------------------------------------------------------------- PA5
 
-@check("PA5 ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, a CAP job")
+@check("PA5 ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, orthophoniste, a CAP job")
 def pa5(c: Ctx):
     pa, con = c.built()
     if con is None:
@@ -317,6 +322,9 @@ def pa5(c: Ctx):
     p = job("ingénieur/e en mécanique")
     if not p or not any(e.startswith("ps:CPGE:MPSI") for e in entries(p)) or not any(e.startswith("ps:Ecole d'Ingénieur") for e in entries(p)):
         bad.append(f"ingénieur en mécanique: {sorted(entries(p))[:4]}")
+    p = job("orthophoniste")
+    if not p or not entries(p) or any("Orthophon" not in e for e in entries(p)):
+        bad.append(f"orthophoniste: {sorted(entries(p))[:4]}")                     # Codex: never another profession's school
     p = job("peintre en bâtiment")
     if not p or p["statut"] != "sans_postbac" or not p["cibles"] or not all(x["url"].startswith("https://www.onisep.fr/") for x in p["cibles"]):
         bad.append(f"peintre en bâtiment: {p and p['statut']}")
@@ -435,6 +443,8 @@ SOURCE_MUTANTS = [
     ("pa", "bac read as higher studies", "        need = rank is not None and rank >= 1", "        need = rank is not None and rank >= 0", "PA1"),
     ("pa", "measure typed", "    cov = round(stats[\"postbac\"] / need, 4) if need else None", "    cov = 0.9", "PA1"),
     ("pa", "master matched the reverse way", "f\" {f} \" in f\" {mention} \"]", "f\" {mention} \" in f\" {f} \"]", "PA3"),
+    ("pa", "one programme list for every paramedical profession", '[("Autre formation", r"Orthophon", None)]',
+     '[("Autre formation", r"Ergoth|Psychomot|Pédicure|manipulateur|Imagerie médicale|Orthophon|Orthopt|Audioprot", None)]', "PA5"),
     ("pa", "health rule to every licence", "[(\"PASS\", None, None), (\"Licence_Las\", None, None)],\n     \"Les études de médecine",
      "[(\"PASS\", None, None), (\"Licence\", None, None)],\n     \"Les études de médecine", "PA3"),
     ("js", "step unescaped", "<span class=\"pa-step\">${esc(s.libelle)}", "<span class=\"pa-step\">${s.libelle}", "PA6"),
