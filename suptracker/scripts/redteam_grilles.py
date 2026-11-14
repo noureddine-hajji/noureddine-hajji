@@ -569,7 +569,7 @@ process.stdout.write(JSON.stringify(data.map((g) => grilleCard(g))));"""
     if re.search(r"\b(tu|ton|ta|tes|toi)\b", txt, re.I) or re.search(r"\bchances?\b", txt.replace("pas des chances", "")):
         bad.append("tutoiement or a chance")
     vf = top(c.js, "viewFormation")
-    if "grilleCard(d.grille)" not in vf or "const juryHtml = grHtml + repHtml;" not in vf or 'kind: "grille"' not in vf:
+    if "grilleCard(d.grille)" not in vf or "const juryHtml = grHtml + specialitesCard(d.specialites, d) + repHtml;" not in vf or 'kind: "grille"' not in vf:
         bad.append("the jury tab does not put the grid first")
     if 'd.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné' not in top(c.js, "summaryBand"):
         bad.append("the summary link does not name the grid")
@@ -672,7 +672,7 @@ SOURCE_MUTANTS = [
     ("js", "expectations not escaped", "if (/^- /.test(ln)) { list.push(ln.slice(2)); continue; }", "if (/^- /.test(ln)) { out.push(`<li>${ln.slice(2)}</li>`); continue; }", "GR7"),
     ("js", "dots off by one", "`<i class=\"${i <= n ? \"on\" : \"\"}\"></i>`", "`<i class=\"${i < n ? \"on\" : \"\"}\"></i>`", "GR7"),
     ("js", "no fait foi", "La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi.", "La grille peut changer.", "GR7"),
-    ("js", "grid not in the jury tab", "const juryHtml = grHtml + repHtml;", "const juryHtml = repHtml;", "GR7"),
+    ("js", "grid not in the jury tab", "const juryHtml = grHtml + specialitesCard(d.specialites, d) + repHtml;", "const juryHtml = specialitesCard(d.specialites, d) + repHtml;", "GR7"),
     ("js", "empty card shown", "if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return \"\";", "if (!g) return \"\";", "GR7"),
 ]
 

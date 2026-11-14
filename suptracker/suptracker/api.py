@@ -46,6 +46,7 @@ from . import seo as SEO
 from . import doublettes as DBL
 from . import semblables as SB
 from . import grilles as GR
+from . import exigences as EX
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -725,6 +726,9 @@ def formation(cod: str, session: int | None = None):
             # the evaluation grid (field weights, criteria and their importance) and the expected skills, as the LIVE
             # Parcoursup fiche publishes them for its own campaign (grilles.py); verbatim, never a chance
             "grille": GR.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # what the same fiche WRITES about specialties (quoted, required / advised / not required by fixed rules measured
+            # against hand-read sentences) and about setting a file aside; never "accepted" or "refused" (exigences.py)
+            "specialites": EX.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
@@ -945,6 +949,13 @@ def carte_chiffres(codes: str = Query(..., max_length=600), serie: str = Query("
 def comprendre():
     """How far the lists were called and when the offers came, per type of diploma (latest campaign, published counts)."""
     return AP.by_type(_con().cursor())
+
+
+@app.get("/api/exigences")
+def exigences():
+    """The specialty groups each Parcoursup fiche writes as required, per formation, with the measure of the reading rules.
+    No parameter: the student's pair stays in the browser, which compares it with the groups (exigences.py)."""
+    return EX.listing(_con().cursor())
 
 
 @app.get("/api/selectivite")
@@ -1303,7 +1314,7 @@ def legal_page(slug: str):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "exigences_specialites"]
 
 
 @lru_cache(maxsize=1)

@@ -604,7 +604,7 @@ def short_fiche(js: str) -> tuple[bool, str]:
     out = all(x in folded and x not in shown for x in Y_FOLDED)
     # the fiche's grid first (owner, 2026-11-13), then the own report, else the similar formations' reports
     same = ("const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);" in vf
-            and "const juryHtml = grHtml + repHtml;" in vf
+            and "const juryHtml = grHtml + specialitesCard(d.specialites, d) + repHtml;" in vf
             and '["jury", "Ce que regarde le jury", juryHtml]' in vf and "d.jury_tab = !juryHtml ? null :" in vf)
     head = vf[vf.index('<div class="card fhead">'):vf.index("${summaryBand(r, d)}")]
     compact = "code établissement" not in head and "Code de l'établissement (UAI) : ${esc(r.cod_uai)}" in vf and "fhead-links" not in head
@@ -640,7 +640,7 @@ SHORT_MUTANTS = [
     ("link without a jury tab", "d.jury_tab = !juryHtml ? null :", "d.jury_tab = false ? null :"),
     ("report session unescaped", "son rapport public ${esc(d.jury_tab.session)}", "son rapport public ${d.jury_tab.session}"),
     ("grid session unescaped", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : \"\"}", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${d.jury_tab.session}` : \"\"}"),
-    ("grid left out of the jury tab", "const juryHtml = grHtml + repHtml;", "const juryHtml = repHtml;"),
+    ("grid left out of the jury tab", "const juryHtml = grHtml + specialitesCard(d.specialites, d) + repHtml;", "const juryHtml = specialitesCard(d.specialites, d) + repHtml;"),
     ("establishment code back in the header", "· n° Parcoursup ${esc(r.cod_aff_form)}</div>", "· n° Parcoursup ${esc(r.cod_aff_form)} · code établissement ${esc(r.cod_uai)}</div>"),
 ]
 

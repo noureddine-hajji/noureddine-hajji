@@ -550,6 +550,7 @@ const ICONS = {
   warn: ICO('<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5v.5"/>'),
   filter: ICO('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
   places: ICO('<rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 17v3M17 17v3M7 9V6.5A1.5 1.5 0 0 1 8.5 5h7A1.5 1.5 0 0 1 17 6.5V9"/>'),
+  fiche: ICO('<path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5"/>'),
   edit: ICO('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   list: ICO('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
   map: ICO('<path d="M9 4.5l-5 2v13l5-2 6 2 5-2v-13l-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'),
@@ -852,7 +853,7 @@ function resultCard(r) {
       <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
       <div class="rc-sub">${esc(r.fil_lib_voe_acc)}${r.lib_comp_voe_ins ? ` <span class="muted">${esc(r.lib_comp_voe_ins)}</span>` : ""}</div>
       <div class="rc-meta muted small"><span>${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span>${r.capa_fin !== undefined && r.capa_fin !== null ? `<span>${ICONS.places}${fmt(r.capa_fin)} places</span>` : ""}<span>campagne ${esc(r.session)} · ${esc(r.lineage_years)} campagne(s)</span></div>
-      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
+      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${exigeMark(r.cod_aff_form)}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
     </div>
     <div class="rc-fig num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès officiel</div>${est}</div>
   </article>`;
@@ -868,7 +869,7 @@ async function viewSearch(q, rawParams) {
   if (near) qs.set("near", near);
   const withProfile = fiProfileQuery(qs);                             // R3: the zones of every result, read for this answer only
   if (!withProfile) { qs.delete("zone"); delete P.zone; }            // review: no zone chip left for a filter not applied
-  const d = await api(`/api/search?${qs}`);
+  const [d] = await Promise.all([api(`/api/search?${qs}`), exigLoad()]);
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
   const keep = Object.fromEntries(["fili", "academie", "selective", "options", ...FI_GROUPS].map((k) => [k, P[k]]));
   const go = (patch) => searchHash(q, { ...keep, ...patch, offset: patch.offset || 0 });
@@ -1169,6 +1170,110 @@ function grilleCard(g) {
     <p class="muted small">La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Elle décrit l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.</p></div>`;
 }
+// ---- what the fiche WRITES about specialties (owner, 2026-11-14; exigences.py) -------------------------------------------------
+// The sentences of the live fiche that name a specialty, quoted verbatim, and the ones its fixed rules read as "a specialty must
+// have been followed". Never "accepted" or "refused": the lists show a neutral "à lire" mark (owner's choice), the formation page
+// quotes the sentences, and the published figure for the pair stays the factual answer. The pair never leaves the browser.
+const EX_SPE = { MATHS: "Mathématiques", PC: "Physique-chimie", SVT: "SVT", SES: "SES", HGGSP: "HGGSP", HLP: "HLP", LLCER: "LLCER",
+  LLCA: "LLCA", NSI: "NSI", SI: "Sciences de l'ingénieur", BIOECO: "Biologie-écologie", EPPCS: "EPPCS", ART: "Arts",
+  MATHS_EXP: "option Maths expertes", MATHS_COMP: "option Maths complémentaires" };
+const EX_SRC = { complementaires: "Attendus de la formation", conseils: "Conseils aux candidats", info: "Candidater", critere: "Critère de la grille" };
+const EX_CLASS = { exigee: "écrit comme obligatoire", conseillee: "conseillé", non_exigee: "écrit comme non obligatoire" };
+const EX_YEAR = { premiere: " en première", terminale: " en terminale", les_deux: " en première et en terminale", l_une: " en première ou en terminale" };
+let EXIG = null, EXIG_P = null;
+function exigLoad() {                                               // one cacheable answer, no parameter
+  if (!EXIG_P) EXIG_P = api("/api/exigences").then((d) => (EXIG = d)).catch(() => { EXIG_P = null; return null; });
+  return EXIG_P;
+}
+// the pair as the reading needs it: a stored terminale bac général profile with two distinct specialties, else null
+function exigPair() {
+  const p = bacProfile();
+  if (!p || (p.serie && p.serie !== "bg") || !EX_SPE[p.spe1] || !EX_SPE[p.spe2] || p.spe1 === p.spe2) return null;
+  return { spe: [p.spe1, p.spe2], me: !!p.maths_expertes };
+}
+// twin of exigences.missing: the required groups the pair does NOT meet (première-only groups never read; Maths complémentaires
+// unknown unless the pair has Maths; Maths expertes from the profile)
+function exigeManque(groups, pr) {
+  if (!pr) return [];
+  return (groups || []).filter((g) => {
+    if (g.annee === "premiere" || g.annee === "l_une") return false;
+    const v = g.spe.map((k) => (k === "MATHS_EXP" ? pr.me && pr.spe.includes("MATHS") : k === "MATHS_COMP" ? (pr.spe.includes("MATHS") ? true : null) : pr.spe.includes(k)));
+    return !v.includes(true) && !v.includes(null);
+  });
+}
+const exGroup = (g) => `${g.spe.map((k) => esc(EX_SPE[k] || k)).join(" ou ")}${EX_YEAR[g.annee] || ""}`;
+const EX_HELP = "Lecture automatique de la fiche Parcoursup, moins sûre : la fiche écrit qu'une spécialité que vous ne suivez pas en terminale est obligatoire. Lisez la phrase sur la page de la formation. Ce n'est pas un refus.";
+// the neutral mark of the lists (search, map, Mes vœux): never a zone colour, never "refusé"
+function exigeMark(cod) {
+  const f = EXIG && EXIG.formations && EXIG.formations[cod];
+  const pr = f ? exigPair() : null;
+  if (!f || !pr || !exigeManque(f.exige, pr).length) return "";
+  return `<span class="badge ex-mark" title="${esc(EX_HELP)}">${ICONS.fiche}Spécialités : condition à lire</span>`;
+}
+function exMesure(m) {
+  return m && m.lus_exiges ? `Sur ${fmt(m.n)} phrases relues à la main, ${fmt(m.lus_exiges)} étaient lues comme « obligatoire » : ${fmt(m.justes)} l'étaient vraiment. Ces phrases ont servi à écrire les règles : la mesure est donc optimiste.` : "";
+}
+function exQuote(p, mine) {
+  let h = "", at = 0;
+  for (const [a, b, k] of (p.marques || []).slice().sort((x, y) => x[0] - y[0])) {
+    if (a < at) continue;
+    h += esc(p.texte.slice(at, a)) + (mine.includes(k) ? `<mark class="ex-mine">${esc(p.texte.slice(a, b))}</mark>` : `<span class="ex-spe">${esc(p.texte.slice(a, b))}</span>`);
+    at = b;
+  }
+  return h + esc(p.texte.slice(at));
+}
+function specialitesCard(sp, d) {
+  if (!sp || !(sp.phrases || []).length) return "";
+  const pr = exigPair(), mine = pr ? pr.spe.concat(pr.me ? ["MATHS_EXP"] : []) : [];
+  const manque = exigeManque(sp.exige, pr);
+  const cls = (p) => (p.groupes.some((g) => g.classe === "exigee") ? "exigee" : p.groupes.some((g) => g.classe === "conseillee") ? "conseillee" : p.groupes.some((g) => g.classe === "non_exigee") ? "non_exigee" : "citee");
+  const where = (p) => `${esc(EX_SRC[p.src] || "")}${p.src === "critere" && p.champ ? ` · ${esc(p.champ)}${p.importance ? ` · ${esc(GR_IMP[p.importance] || "")}` : ""}` : ""}`;
+  const item = (p) => { const c = cls(p);
+    return `<li class="ex-p ex-${c}">${EX_CLASS[c] ? `<span class="badge ex-cl">${esc(EX_CLASS[c])}</span> ` : ""}« ${exQuote(p, mine)} » <span class="muted small">(${where(p)})</span></li>`; };
+  const spePh = sp.phrases.filter((p) => p.groupes.length);
+  const order = { exigee: 0, conseillee: 1, non_exigee: 2, citee: 3 };
+  const top = spePh.filter((p) => cls(p) !== "citee").sort((a, b) => order[cls(a)] - order[cls(b)]);
+  const rest = spePh.filter((p) => cls(p) === "citee");
+  const elim = sp.phrases.filter((p) => p.ecarter);
+  const rate = pr ? profileRate(d, bacProfile()) : null;
+  let head;
+  if (!pr) head = `<p class="small">Indiquez vos deux spécialités dans <a href="#/profil">Mon profil</a> pour les voir surlignées.</p>`;
+  else if (manque.length) head = `<div class="ex-alert"><p><strong>La fiche écrit comme obligatoire : ${manque.map(exGroup).join(" ; ")}.</strong> Vous ne la suivez pas en terminale, d'après votre profil.</p><p class="small">C'est une lecture automatique : lisez la phrase ci-dessous. La fiche Parcoursup fait foi. Ce n'est pas un refus.</p></div>`;
+  else if ((sp.exige || []).length) head = `<p class="small">La fiche écrit comme obligatoire : ${sp.exige.map(exGroup).join(" ; ")}. Votre paire ne semble pas concernée, mais lisez les phrases.</p>`;
+  else head = `<p class="small">La fiche n'écrit aucune spécialité comme obligatoire, d'après la lecture automatique.</p>`;
+  const fig = rate && rate.taux !== null && rate.taux !== undefined && PR_SOURCE[rate.source]
+    ? `<p class="small">Le chiffre de votre paire ici : <strong>${pct1(rate.taux)}</strong> · ${esc(rate.what)} · ${PR_SOURCE[rate.source](rate)}. Ce sont des admis passés, pas des chances.</p>` : "";
+  return `<div class="card ex-card"><h2>Ce que la fiche écrit sur les spécialités</h2>
+    ${head}${fig}
+    ${top.length ? `<ul class="ex-list">${top.map(item).join("")}</ul>` : ""}
+    ${rest.length ? `<details class="dip ex-fold"${top.length ? "" : " open"}><summary>Les autres phrases qui citent des spécialités (${fmt(rest.length)})</summary><ul class="ex-list">${rest.map(item).join("")}</ul></details>` : ""}
+    ${elim.length ? `<details class="dip ex-fold"><summary>Ce que la fiche écrit sur les dossiers écartés (${fmt(elim.length)})</summary><ul class="ex-list">${elim.map((p) => `<li class="ex-p">« ${esc(p.texte)} » <span class="muted small">(${where(p)})</span></li>`).join("")}</ul><p class="muted small">Ces phrases sont citées telles quelles. Elles ne disent pas qui sera retenu.</p></details>` : ""}
+    <p class="muted small">${exMesure(sp.mesure)} La fiche Parcoursup fait foi.</p></div>`;
+}
+// the specialties page: per type of formation, how many fiches write a specialty as required, and how many one the pair lacks
+function exigencesTypeCard(E) {
+  if (!E || !E.formations) return "";
+  const pr = exigPair(), by = {};
+  for (const [cod, f] of Object.entries(E.formations)) {
+    if (!f.type) continue;
+    const t = by[f.type] || (by[f.type] = { all: [], miss: [] });
+    t.all.push([cod, f]);
+    if (pr && exigeManque(f.exige, pr).length) t.miss.push([cod, f]);
+  }
+  const types = Object.keys(by).sort((a, b) => by[b].all.length - by[a].all.length || a.localeCompare(b, "fr"));
+  if (!types.length) return "";
+  const list = (xs) => `<ul class="ex-list">${xs.map(([cod, f]) => `<li><a href="#/f/${esc(cod)}">${esc(f.etab || cod)}</a> · ${f.exige.map(exGroup).join(" ; ")}</li>`).join("")}</ul>`;
+  const concerned = pr ? types.filter((t) => by[t].miss.length).sort((a, b) => by[b].miss.length - by[a].miss.length || a.localeCompare(b, "fr")) : [];
+  const table = `<div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de formation</th><th class="num">Fiches lues</th><th class="num">Spécialité écrite comme obligatoire</th>${pr ? '<th class="num">Dont une que vous n\'avez pas</th>' : ""}</tr>
+    ${types.map((t) => `<tr><td>${esc(t)}</td><td class="num" data-label="Fiches lues">${fmt((E.lues || {})[t])}</td><td class="num" data-label="Spécialité écrite comme obligatoire">${fmt(by[t].all.length)}</td>${pr ? `<td class="num" data-label="Dont une que vous n'avez pas">${fmt(by[t].miss.length)}</td>` : ""}</tr>`).join("")}
+    </table></div>`;
+  return `<div class="card ex-card"><h2>Ce que les fiches Parcoursup écrivent comme obligatoire</h2>
+    <p class="small">La plupart des fiches n'écrivent aucune règle sur les spécialités : elles disent seulement ce que le jury regarde. ${fmt(Object.keys(E.formations).length)} fiches écrivent qu'une spécialité doit avoir été suivie.</p>
+    ${pr ? (concerned.length ? `<h3>Celles qui citent une spécialité que vous n'avez pas</h3><ul class="ex-list">${concerned.map((t) => `<li><details class="dip ex-fold"><summary>${esc(t)} : ${fmt(by[t].miss.length)} fiche${by[t].miss.length > 1 ? "s" : ""} sur ${fmt((E.lues || {})[t])} lues</summary>${list(by[t].miss)}</details></li>`).join("")}</ul>`
+      : `<p class="small">Aucune fiche lue ne cite comme obligatoire une spécialité que vous n'avez pas.</p>`) : `<p class="small">Indiquez vos deux spécialités dans <a href="#/profil">Mon profil</a> pour voir les fiches qui vous concernent.</p>`}
+    <details class="dip ex-fold"><summary>Tous les types de formation (${fmt(types.length)})</summary>${table}</details>
+    <p class="muted small">Lecture automatique des fiches, moins sûre. ${exMesure(E.mesure)} Ce n'est jamais un refus : la fiche fait foi, et les admis passés de votre paire sont dans le tableau ci-dessus.</p></div>`;
+}
 // owner's request (2026-11-10): no readable jury texts in this formation's own report, so the counts of what the commissions of
 // its similar formations published (same diploma, same mention), never their average, never this formation's own criteria
 const SEM_CRIT_N = 8;
@@ -1429,7 +1534,7 @@ function carteCard(f, ctx, pinned) {
     : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
   const sel = f.select_form === "formation sélective" ? '<span class="badge sel">Sélective</span>' : f.select_form === "formation non sélective" ? '<span class="badge">Non sélective</span>' : "";
   return `<div class="result rc carte-rc${zc ? " rc-z" : ""}${pinned ? " carte-pinned" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
-    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
+    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}${exigeMark(f.cod_aff_form)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
@@ -1480,7 +1585,9 @@ async function viewCarte(dArg, mArg) {
   };
   const loadCouche = () => cached("couche", () => api("/api/carte/couche").then(coucheDecode));
   loadCouche().catch(() => {});
+  const exigP = exigLoad();                                             // the specialties marks of the cards (no parameter)
   const FAC = await api("/api/carte");
+  await exigP;
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
   const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
@@ -1799,6 +1906,7 @@ function summaryBand(r, d) {
     </div>
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
+    ${d.specialites && exigeManque(d.specialites.exige, exigPair()).length ? `<p class="small sum-exige"><button type="button" class="linkish" data-goto="jury">${ICONS.fiche}Spécialités : la fiche écrit comme obligatoire une spécialité que vous ne suivez pas en terminale. À lire (lecture automatique) →</button></p>` : ""}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
@@ -1853,7 +1961,7 @@ async function viewFormation(cod, session) {
   // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
   // the fiche's grid first (the campaign it serves), then the jury's own report, else the similar formations' reports
   const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
-  const juryHtml = grHtml + repHtml;
+  const juryHtml = grHtml + specialitesCard(d.specialites, d) + repHtml;
   d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
     : grHtml ? { kind: "grille", session: d.grille.session } : { kind: "semblables" };
   $view.innerHTML = `
@@ -2474,7 +2582,7 @@ async function viewSpecialites(session, ftype) {
   const sq = new URLSearchParams();
   if (/^\d{4}$/.test(String(session || ""))) sq.set("session", session);
   if (ftype) sq.set("formation_type", ftype);
-  const d = await api(`/api/specialites${sq.toString() ? `?${sq}` : ""}`);
+  const [d, E] = await Promise.all([api(`/api/specialites${sq.toString() ? `?${sq}` : ""}`), exigLoad()]);
   const max = Math.max(1, ...d.rows.map((r) => r.pct_acceptations || 0));
   $view.innerHTML = `<div class="card"><h1>Spécialités des admis, par paire</h1>
     <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par paire de spécialités : c'est une répartition, pas un taux d'accès.</p>
@@ -2485,7 +2593,7 @@ async function viewSpecialites(session, ftype) {
     ${d.rows.map((r) => `<tr><td>${esc(r.doublette)}</td>
       <td style="min-width:140px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (r.pct_acceptations || 0) / max}" height="10" fill="var(--c1)"/></svg><span class="small">${pct(r.pct_acceptations)}</span></td>
       <td class="num">${fmt(r.n_accepte)}</td><td class="num">${fmt(r.n_proposition)}</td></tr>`).join("") || `<tr><td class="muted">Pas de données pour cette session.</td></tr>`}
-    </table></div></div>`;
+    </table></div></div>${exigencesTypeCard(E)}`;
   document.getElementById("ss").onchange = (e) => { location.hash = `#/specialites/${e.target.value}/${encodeURIComponent(d.formation_type || "")}`; };
   document.getElementById("st").onchange = (e) => { location.hash = `#/specialites/${d.session}/${encodeURIComponent(e.target.value)}`; };
 }
@@ -3289,17 +3397,19 @@ async function viewVoeux() {
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
+  const exigP = exigLoad();                                             // the specialties marks of the rows (no parameter)
   try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
+  await exigP;
   if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
   const L = d.lecture, z = L.zones;
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>`;
-    const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
+    const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}${exigeMark(v.cod_aff_form)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>

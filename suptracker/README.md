@@ -3157,3 +3157,76 @@ Red team `scripts/redteam_grilles.py` (GR1-GR9):
 - GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
 - GR8 checks the plumbing.
 - GR9 is the mutation test: 36 mutants, each caught.
+
+## What the fiches write about specialties (owner, 2026-11-14)
+
+The owner asked whether a pair of specialties (Maths + SES in a scientific CPGE, for example) is accepted by each formation's jury.
+He also asked for the elimination criteria, and how both could show in the menus, the search results and the map.
+
+**What the data says.** The grids harvest read 24,826 live fiches.
+- **Few explicit rules.** Only 143 formations write that a specialty or an option must have been followed. In MPSI that is 9 fiches
+  of 124 ("Spé mathématiques obligatoire en première et terminale"). Most fiches only say what the jury reads: 31 MPSI grids rate
+  physics results "Essentiel", often "selon la situation du candidat". The national expectations never require a specialty.
+- **Free wording.** Requirements are written as "obligatoire", "indispensable" or "il faut avoir suivi". They come with:
+  - alternatives ("spécialité ou option maths complémentaires", "soit … soit …");
+  - negations ("nullement obligatoire", "n'est pas un prérequis");
+  - conditions ("lorsque la spécialité SVT est suivie…");
+  - many strong words about a LEVEL, not a choice ("un bon niveau en physique est requis").
+- **The factual answer is the published counts.** In 2025, 413 candidates with Maths + SES applied to scientific CPGE nationally;
+  19 % got a proposal (75 % for Maths + Physique-chimie). Each MPSI report details only Maths + PC; Maths + SES falls in "Autres
+  paires". The site already shows that figure for the student's pair.
+- **Elimination sentences cover everything.** About 300 sentences mention behaviour, absences, missing documents, language
+  level, a minimum mark. Many are negations ("une faiblesse n'est pas éliminatoire").
+
+**The design.** It never says "accepted" or "refused". It QUOTES the fiche, verbatim, and marks with fixed rules the sentences that
+write a specialty requirement. The rules (`suptracker/exigences.py`) work as follows:
+- **Specialty names.** Short codes ("SI", "SES") count only in capitals, since "si" and "ses" are French words. A name right after
+  "licence", "BUT", "parcours"… is the formation's name. "Condition physique" and the ST2S "physique-chimie pour la santé" are not
+  physics.
+- **Groups.** Mentions joined by "ou", "/", "et/ou" form ONE group of alternatives.
+- **Class of each group.** The words right after the name decide first ("l'option maths expertes est un plus"). Then come the
+  words after it, then the words before it. A negation reads "non exigée". A requirement word needs a choice word in the sentence
+  (spécialité, avoir suivi, le suivi de, option…) or must come right after the name. A level ("niveau", "compétences",
+  "résultats"…) or a condition ("lorsque", "si", "dans le cas de") never reads as required.
+- **Year.** It reads "en première", "en terminale", both, or "première et/ou terminale" (either year).
+
+**The measure.** The rules were measured against the hand-labelled set `data/exigences_gold.csv`. It holds all 360 sentences of the
+harvest that name a specialty and carry a requirement word, each read by hand. The rules score precision 0.95 and recall 0.91. These
+sentences served to write the rules, so the page says the measure is optimistic. The build recomputes it (`core.exigence_mesure`)
+and the page prints it; it is never typed.
+
+**The pair check.** `exigences.missing`, with its page twin `exigeManque`, compares the pair with the required groups in the
+browser. A group is met when the pair holds one of its specialties.
+- Maths expertes is read from the profile.
+- Maths complémentaires is unknown: it is met when the pair has Maths.
+- A group written for première only, or for either year, is never checked: the profile holds the terminale pair.
+
+**Storage.**
+- `core.fiche_exigence` holds the required groups per formation (the lists read them).
+- The quoted sentences (`exigence_data`) go to `rapport_textes.duckdb`, beside the grids.
+- `/api/formation` returns `specialites`.
+- `/api/exigences` takes NO parameter and is publicly cached. The pair never leaves the browser.
+
+**Where it shows.**
+- **Formation page, jury tab.** After the grid comes "Ce que la fiche écrit sur les spécialités". It shows:
+  - the group the pair lacks, with "lecture automatique", "la fiche fait foi", "ce n'est pas un refus";
+  - the published figure for the pair (the same one as "L'essentiel");
+  - the sentences written as obligatory, advised or not obligatory, with the student's specialties marked; the sentences that only
+    cite a specialty are folded;
+  - the sentences about setting a file aside, quoted and folded;
+  - the measure.
+- **L'essentiel.** A line links to that card when a group is missing.
+- **Search results, map cards, Mes vœux.** A neutral dashed mark "Spécialités : condition à lire". The owner's choice
+  (2026-11-14): a careful mark, never a zone colour, never "refusé".
+- **Specialties page.** The types of formation whose fiches cite a specialty the pair lacks, each with its formations folded, and
+  every type in a folded table.
+
+Red team `scripts/redteam_exigences.py` (EX1-EX8):
+- EX1 checks the measure and that the build stores the recount.
+- EX2 rereads every mark against an independent table of word stems.
+- EX3 feeds 16 hostile sentences and 5 elimination sentences.
+- EX4 checks the page twin against the Python rule for 156 pairs × every group served.
+- EX5 runs the round trip on synthetic fiches, then on the warehouse.
+- EX6 renders the page in node with 8 profiles.
+- EX7 checks the plumbing.
+- EX8 is the mutation test.

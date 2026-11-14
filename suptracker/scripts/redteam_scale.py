@@ -91,7 +91,7 @@ class Ctx:
             "/api/selectivite": "/api/selectivite?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation": "/api/reorientation?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation/voeux": f"/api/reorientation/voeux?ids={c}",
-            "/api/calendrier": "/api/calendrier", "/api/calendrier.ics": "/api/calendrier.ics",
+            "/api/calendrier": "/api/calendrier", "/api/calendrier.ics": "/api/calendrier.ics", "/api/exigences": "/api/exigences",
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",
             "/formation/{cod}": f"/formation/{c}", "/metier/{met_id}": f"/metier/{self.met_id}",
