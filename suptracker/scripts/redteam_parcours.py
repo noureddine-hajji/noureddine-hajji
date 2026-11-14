@@ -193,7 +193,10 @@ def pa2(c: Ctx):
 FAMILY = {  # independent keyword table: rule -> (words in the diploma or job name, Parcoursup filières it may reach)
     "sante_mmopk": (r"medecine|pharmacie|dentaire|sage femme|maieutique", {"PASS", "Licence_Las"}),
     "kine": (r"kinesither", {"PASS", "Licence_Las", "Licence"}),
-    "paramedical": (r"ergoth|psychomot|podolog|radiolog|orthophon|orthopt|audioprot", {"Autre formation"}),
+    "para_ergo": (r"ergoth", {"Autre formation"}), "para_psychomot": (r"psychomot", {"Autre formation"}),
+    "para_podo": (r"podolog", {"Autre formation"}), "para_radio": (r"radiolog|imagerie", {"Autre formation"}),
+    "para_ortho": (r"orthophon", {"Autre formation"}), "para_orthopt": (r"orthopt", {"Autre formation"}),
+    "para_audio": (r"audioprot", {"Autre formation"}),
     "veterinaire": (r"veterinaire", {"Autre formation", "CPGE"}),
     "ingenieur": (r"ingenieur|ingenierie", {"Ecole d'Ingénieur", "CPGE"}),
     "commerce": (r"commerce", {"Ecole de Commerce", "CPGE"}),
@@ -238,6 +241,8 @@ def pa3(c: Ctx):
                 bad.append(f"{mid}: {rule} from {src[:50]!r}")
             if fili.get(r["entree"]) not in filis:
                 bad.append(f"{mid}: {rule} reaches {fili.get(r['entree'])}")
+            if rule.startswith("para_") and not re.search(words, plainfold(r["entree"].split(":", 2)[-1]).replace("dts ", "")):
+                bad.append(f"{mid}: {rule} reaches another profession's programme {r['entree']}")   # Codex
             if rule == "sante_mmopk" and r["etapes"]:
                 sante += 1
                 sante_txt += bool(re.search(r"PASS|L\.?AS", F.get(r["etapes"][0]["id"], {}).get("acces", "")))
@@ -274,6 +279,21 @@ def pa4(c: Ctx):
             q = con.execute(sql, args).fetchone()
         if (n, p) != tuple(q):
             bad.append(f"{k}: stored {n}, {p} vs {q}")
+    # the formations listed under each entry are exactly its group (Codex: never a search on the label), capped
+    seen = 0
+    for k, (n, _p) in list(E.items())[:: max(1, len(E) // 60)]:
+        got = [x[0] for x in pa.entry_formations(con, k, last)]
+        if k.startswith("onisep:"):
+            want = {c for (c,) in con.execute("""SELECT DISTINCT cod_aff_form FROM core.onisep_link WHERE session = ? AND for_id = ?""",
+                                              [last, k.split(":", 1)[1]]).fetchall()}
+        else:
+            parts = k.split(":", 3)
+            q = "SELECT cod_aff_form FROM core.formation_year WHERE session = ? AND fili = ?" + \
+                (" AND coalesce(fil_lib_voe_acc, '') = ?" if len(parts) >= 3 else "") + (" AND coalesce(form_lib_voe_acc, '') = ?" if len(parts) == 4 else "")
+            want = {c for (c,) in con.execute(q, [last, *parts[1:]]).fetchall()}
+        if len(got) != min(n, pa.FORMATIONS_MAX) or not set(got) <= want or (n <= pa.FORMATIONS_MAX and set(got) != want):
+            bad.append(f"{k}: {len(got)} formations listed for {n}")
+        seen += 1
     for mid, (_st, d) in rows(con).items():
         pl = [E[r["entree"]][1] for r in d["routes"]]
         if pl != sorted(pl, reverse=True):
@@ -284,12 +304,12 @@ def pa4(c: Ctx):
             cum += x
         if [r["principale"] for r in d["routes"]] != want:
             bad.append(f"{mid}: open routes are not the 80 % prefix")
-    return not bad, f"{len(E)} entries re-summed; {bad[:4]}"
+    return not bad, f"{len(E)} entries re-summed, {seen} formation lists checked; {bad[:4]}"
 
 
 # ---------------------------------------------------------------- PA5
 
-@check("PA5 ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, a CAP job")
+@check("PA5 ground truth: pédiatre, psychiatre, expert-comptable, vétérinaire, an engineer, orthophoniste, architecte vs architecte réseaux, a CAP job")
 def pa5(c: Ctx):
     pa, con = c.built()
     if con is None:
@@ -317,7 +337,17 @@ def pa5(c: Ctx):
     p = job("ingénieur/e en mécanique")
     if not p or not any(e.startswith("ps:CPGE:MPSI") for e in entries(p)) or not any(e.startswith("ps:Ecole d'Ingénieur") for e in entries(p)):
         bad.append(f"ingénieur en mécanique: {sorted(entries(p))[:4]}")
+    p = job("orthophoniste")
+    if not p or not entries(p) or any("Orthophon" not in e for e in entries(p)):
+        bad.append(f"orthophoniste: {sorted(entries(p))[:4]}")                     # Codex: never another profession's school
+    p = job("architecte réseaux")
+    if not p or any("Architecture" in e for e in entries(p)):
+        bad.append("architecte réseaux reaches the architecture schools")                # Codex: computing, not building
+    p = job("architecte")
+    if not p or not any("Architecture" in e for e in entries(p)):
+        bad.append("architecte does not reach the architecture schools")
     p = job("peintre en bâtiment")
+
     if not p or p["statut"] != "sans_postbac" or not p["cibles"] or not all(x["url"].startswith("https://www.onisep.fr/") for x in p["cibles"]):
         bad.append(f"peintre en bâtiment: {p and p['statut']}")
     return not bad, f"{bad[:4]}"
@@ -357,15 +387,16 @@ def pa6(c: Ctx):
     defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "PA_HOW", "paRoute", "parcoursCard"))
     route = {"entree": "ps:PASS", "etapes": [{"id": "FOR.1", "libelle": "DE " + HOSTILE, "niveau": "bac + 9"}], "comment": "regle",
              "regle": "sante_mmopk", "principale": True,
-             "entree_info": {"libelle": "PASS " + HOSTILE, "n_formations": 287, "places": 26646, "recherche": "PASS " + HOSTILE}}
-    rest = dict(route, principale=False, entree="ps:X", entree_info=dict(route["entree_info"], libelle="LAS"))
+             "entree_info": {"libelle": "PASS " + HOSTILE, "n_formations": 287, "places": 26646, "recherche": "PASS"},
+             "formations": [["123", "Université " + HOSTILE, "Lyon", "Lyon", 120, "Licence - " + HOSTILE], ["456", "Fac", "Brest", "Rennes", None, None]]}
+    rest = dict(route, principale=False, entree="ps:X", entree_info=dict(route["entree_info"], libelle="LAS"), formations=[])
     mes = {"a_besoin": 612, "couverts": 510, "couverture": 0.8333}          # not the real figures: a typed measure shows
     cib = [{"id": "FOR.9", "libelle": "CAP " + HOSTILE, "niveau": "CAP", "url": "https://www.onisep.fr/x"}]
     cases = [{"statut": "postbac", "routes": [route, rest], "cibles": cib, "voisins": [{"id": "MET.1", "nom": "médecin " + HOSTILE}],
               "regles": [{"id": "sante_mmopk", "texte": "Texte " + HOSTILE}], "acces": "Accès\n" + HOSTILE, "mesure": mes},
              {"statut": "sans_postbac", "routes": [], "cibles": cib, "voisins": [], "regles": [], "acces": None, "mesure": mes},
              {"statut": "hors_parcoursup", "routes": [], "cibles": [], "voisins": [], "regles": [], "acces": "x", "mesure": mes}, None]
-    prog = defs + """
+    prog = "const store = { get: (k, d) => d };\n" + defs + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       process.stdout.write(JSON.stringify(D.map((p) => parcoursCard(p, { session: 2025 }))));"""
     out = node(prog, cases)
@@ -383,8 +414,8 @@ def pa6(c: Ctx):
     h0, h1, h2, h3 = out
     if "26 646" not in h0.replace(" ", " ") or "Les voies principales" not in h0 or "Autres voies (1)" not in h0 or "83 %" not in h0 or "612" not in h0:
         bad.append("postbac: places, open/folded routes or the measure missing")
-    if "#/s/PASS%20%3Cimg" not in h0:
-        bad.append("postbac: the entry's search link is not URL-encoded")
+    if 'href="#/f/123"' not in h0 or "Voir 2 des 287 formations" not in h0 or "#/s/" in h0:
+        bad.append("postbac: the entry's own formations are not listed (or a search link is back)")
     if "ne demande pas d'études après le bac" not in h1 or "https://www.onisep.fr/x" not in h1 or "80 %" in h1:
         bad.append("sans_postbac: wording, Onisep link, or a places sentence without routes")
     if "Pas de voie Parcoursup identifiée" not in h2:
@@ -429,16 +460,22 @@ SOURCE_MUTANTS = [
     ("pa", "graph read forwards", "                for p in pred.get(node, ()):", "                for p in forms[node][\"suite\"]:", "PA2"),
     ("pa", "branch not ended at a Parcoursup diploma", "                    continue                               # a Parcoursup diploma ends the branch",
      "                    pass", "PA2"),
-    ("pa", "rules on unfolded text", "        if any(re.search(rx, _fold(v)) for v in vals):", "        if any(re.search(rx, v) for v in vals):", "PA5"),
+    ("pa", "rules on unfolded text", "        folded = [_fold(v) for v in vals]", "        folded = list(vals)", "PA5"),
     ("pa", "no nearby jobs", "        if not targets and not routes:                      # else the routes", "        if False:                      # else the routes", "PA5"),
     ("pa", "no job-name rule", "            hit = rule_of({\"lib\": noms.get(mid) or \"\", \"type\": \"\"})", "            hit = None", "PA5"),
     ("pa", "bac read as higher studies", "        need = rank is not None and rank >= 1", "        need = rank is not None and rank >= 0", "PA1"),
     ("pa", "measure typed", "    cov = round(stats[\"postbac\"] / need, 4) if need else None", "    cov = 0.9", "PA1"),
     ("pa", "master matched the reverse way", "f\" {f} \" in f\" {mention} \"]", "f\" {mention} \" in f\" {f} \"]", "PA3"),
+    ("pa", "one programme list for every paramedical profession", '[("Autre formation", r"Orthophon", None)]',
+     '[("Autre formation", r"Ergoth|Psychomot|Pédicure|manipulateur|Imagerie médicale|Orthophon|Orthopt|Audioprot", None)]', "PA5"),
     ("pa", "health rule to every licence", "[(\"PASS\", None, None), (\"Licence_Las\", None, None)],\n     \"Les études de médecine",
      "[(\"PASS\", None, None), (\"Licence\", None, None)],\n     \"Les études de médecine", "PA3"),
     ("js", "step unescaped", "<span class=\"pa-step\">${esc(s.libelle)}", "<span class=\"pa-step\">${s.libelle}", "PA6"),
-    ("js", "search link not encoded", "href=\"#/s/${encodeURIComponent(q)}\"", "href=\"#/s/${q}\"", "PA6"),
+    ("js", "formation row unescaped", "<a href=\"#/f/${esc(cod)}\">${esc(etab)}</a>", "<a href=\"#/f/${esc(cod)}\">${etab}</a>", "PA6"),
+    ("js", "formation title unescaped", "${lib ? ` · ${esc(lib)}` : \"\"}", "${lib ? ` · ${lib}` : \"\"}", "PA6"),
+    ("pa", "entry list ignores the programme", "        sql += \" AND coalesce(y.fil_lib_voe_acc, '') = ?\"\n        args.append(parts[2])",
+     "        pass", "PA4"),
+    ("pa", "architecture for computing jobs", "and not any(re.search(x, v) for x in excl for v in folded)", "and True", "PA5"),
     ("js", "no-postbac wording dropped", "<strong>Ce métier ne demande pas d'études après le bac.</strong>", "<strong>Ce métier.</strong>", "PA6"),
     ("js", "measure typed", "${fmt(100 * m.couverture)} % des ${fmt(m.a_besoin)}", "87 % des 737", "PA6"),
 ]

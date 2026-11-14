@@ -578,10 +578,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **From each job to Parcoursup (owner, 2026-11-14).** `parcours.py` reads each job's route BACKWARDS from the diploma Onisep
   requires (else names): direct (a Parcoursup diploma), Onisep's continuations (`poursuites_etudes`, <= 4 steps, a branch ends at a
   Parcoursup diploma), then FAMILY_RULES (one per family, written from Onisep's access texts: PASS/LAS for MMOPK, engineering, business,
-  architecture, IEP, DN MADE, art, DCG, law, paramedical, vet; a master containing a licence's name), then the job's own name, then
+  architecture, IEP, DN MADE, art, DCG, law, vet, ONE RULE PER paramedical profession to its own programme only (Codex); a master
+  containing a licence's name), then the job's own name, then
   Onisep's "métiers associés" (flagged). Rules match the FOLDED text (no accent, apostrophe or hyphen). An entry = a Parcoursup group of
   the latest campaign with its count and places, counted once; per job, entries ranked by places, the prefix reaching 80 % open, the rest
-  folded; places are a proxy (said). Coverage of the jobs needing higher studies measured at build (`core.parcours_mesure`, >= 80 %,
+  folded; places are a proxy (said). An entry lists its OWN formations (the SQL group it counts, <= 400, own title), never a search on
+  its label; the architecture rule excludes computing labels (Codex). Coverage of the jobs needing higher studies measured at build (`core.parcours_mesure`, >= 80 %,
   87.1 % on 2026-11-14), printed; a job at the bac or below says "pas d'études après le bac" with its Onisep diploma links. Never a
   chance. Red team `redteam_parcours.py` (PA1-PA8, built on a copy of the warehouse).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not

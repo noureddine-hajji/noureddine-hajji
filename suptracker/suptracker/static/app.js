@@ -3454,9 +3454,14 @@ const PA_HOW = { direct: "le diplôme se prépare directement sur Parcoursup", g
 function paRoute(r, d) {
   const e = r.entree_info || {};
   const steps = (r.etapes || []).map((s) => `<span class="pa-step">${esc(s.libelle)}${s.niveau ? ` <span class="muted">(${esc(s.niveau)})</span>` : ""}</span>`);
-  const q = e.recherche || e.libelle || "";
-  return `<li class="pa-route"><div class="pa-chain"><a class="pa-entry" href="#/s/${encodeURIComponent(q)}">${esc(e.libelle || "")}</a>${steps.length ? ` <span aria-hidden="true">→</span> ${steps.join(' <span aria-hidden="true">→</span> ')}` : ""}</div>
-    <div class="muted small">${fmt(e.n_formations)} formation${e.n_formations > 1 ? "s" : ""} sur Parcoursup ${esc(d.session)} · ${fmt(e.places)} places · ${esc(PA_HOW[r.comment] || "")}</div></li>`;
+  // the entry's own formations, exactly the group its count and places count (Codex: a search on its label found only part)
+  const prof = store.get("profile", {}) || {};
+  const home = typeof prof.academie === "string" ? prof.academie : "";
+  const rows = (r.formations || []).slice().sort((a, b) => (b[3] === home) - (a[3] === home));
+  const list = rows.length ? `<details class="dip pa-forms"><summary>Voir ${rows.length < e.n_formations ? `${fmt(rows.length)} des ${fmt(e.n_formations)}` : `les ${fmt(rows.length)}`} formation${rows.length > 1 ? "s" : ""}${home ? ` (votre académie d'abord)` : ""}</summary>
+    <ul class="small pa-flist">${rows.map(([cod, etab, ville, acad, places, lib]) => `<li><a href="#/f/${esc(cod)}">${esc(etab)}</a>${lib ? ` · ${esc(lib)}` : ""} · ${esc(ville || "")}${acad ? ` (${esc(acad)})` : ""}${places != null ? ` · ${fmt(places)} places` : ""}</li>`).join("")}</ul></details>` : "";
+  return `<li class="pa-route"><div class="pa-chain"><strong class="pa-entry">${esc(e.libelle || "")}</strong>${steps.length ? ` <span aria-hidden="true">→</span> ${steps.join(' <span aria-hidden="true">→</span> ')}` : ""}</div>
+    <div class="muted small">${fmt(e.n_formations)} formation${e.n_formations > 1 ? "s" : ""} sur Parcoursup ${esc(d.session)} · ${fmt(e.places)} places · ${esc(PA_HOW[r.comment] || "")}</div>${list}</li>`;
 }
 function parcoursCard(p, d) {
   if (!p) return "";
