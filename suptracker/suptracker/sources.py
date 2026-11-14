@@ -147,7 +147,7 @@ SOURCES = (
     {"key": "fiches_parcoursup", "title": "Fiches formations Parcoursup : grille d'examen des dossiers (poids des champs, critères et leur importance), attendus nationaux et de la formation",
      "producer": "Parcoursup (MESR) et chaque formation", "access": "download",
      "granularity": "formation (sa fiche, pour sa campagne)", "keys": ("g_ta_cod",),
-     "feeds": ("grilles",), "status": "en_ligne", "sprint": 23,
+     "feeds": ("grilles", "exigences"), "status": "en_ligne", "sprint": 23,
      "role": "source (lue sur la fiche publique en ligne, reprise telle quelle ; la fiche fait foi)",
      "licence": "document administratif public (réutilisation libre, source citée)",
      "url": "https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation"},

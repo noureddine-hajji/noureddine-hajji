@@ -367,7 +367,8 @@ process.stdout.write(JSON.stringify(out));
 
 
 def card_ok(js: str) -> tuple[bool, str]:
-    r = node(base_defs(js) + "\n" + top(js, "resultCard") + CARD_PROG)
+    # the specialties mark (exigences, 2026-11-14) with no table loaded: nothing, as before it loads
+    r = node(base_defs(js) + "\nlet EXIG = null;\n" + top(js, "exigeMark") + "\n" + top(js, "resultCard") + CARD_PROG)
     if r is None:
         return True, "node not installed"
     if r.startswith("__error__"):

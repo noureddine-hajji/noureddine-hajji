@@ -575,6 +575,17 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   members appended; `grille_texte` and the grids' JSON `grille_data` in rapport_textes.duckdb, never in the warehouse: 95 MB budget). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
+- **What the fiches write about specialties (owner, 2026-11-14).** `exigences.py` QUOTES the live fiche's sentences that name a
+  specialty (own expectations, advice, notice, grid criteria; the national expectations never require one) and marks with fixed
+  rules the ones that WRITE a specialty or option requirement; never "accepted" / "refused", never a chance. Short codes (SI, SES)
+  only in capitals; a formation's name, "condition physique", ST2S "physique-chimie pour la santé" are not specialties;
+  alternatives ("ou", "et/ou") are ONE group; a level ("un bon niveau ... est requis"), a negation or a condition ("lorsque") is
+  never required. Measured against the hand-read `data/exigences_gold.csv` (360 sentences, precision >= 0.90, recall >= 0.85,
+  recomputed at build, printed as "optimiste": they served to write the rules). The pair check (`missing`, page twin `exigeManque`)
+  runs in the browser (`/api/exigences` has no parameter): Maths expertes from the profile, Maths complémentaires unknown (met
+  with Maths), première-only or either-year groups never checked. Lists (search, map, Mes vœux) show only the neutral dashed
+  "Spécialités : condition à lire" (owner's choice), never a zone colour; the jury tab quotes the sentences with the pair's
+  published figure; elimination sentences are quoted, never counted. Red team `redteam_exigences.py` (EX1-EX8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

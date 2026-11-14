@@ -647,3 +647,17 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 }
 /* sprint Q5 (audit): Leaflet's panes (z-index 400-1000) stay inside the map, never above the phone's bottom tab bar */
 .carte-osm, .leaflet-container { position: relative; z-index: 0; isolation: isolate; }
+
+/* ---- what the fiche writes about specialties (owner, 2026-11-14): a neutral mark, never a zone colour ---- */
+.badge.ex-mark { display: inline-flex; align-items: center; gap: .3em; border-style: dashed; }
+.badge.ex-mark svg, .sum-exige svg { width: 1em; height: 1em; flex: none; display: inline-block; }
+.ex-card .ex-list { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .55rem; }
+.ex-card .ex-p { line-height: 1.5; }
+.ex-card .ex-p.ex-exigee { border-left: 3px solid var(--ink); padding-left: .6rem; }
+.ex-card .ex-cl { font-size: var(--fs-xs); }
+.ex-card mark.ex-mine { background: var(--accent-soft); color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.ex-card .ex-spe { font-weight: 600; }
+.ex-alert { border: 1px dashed var(--line); border-radius: var(--r-md); padding: .6rem .8rem; margin: .5rem 0; }
+.ex-alert p { margin: .2rem 0; }
+.sum-exige button { text-align: left; }
+.sum-exige svg, .badge.ex-mark svg { vertical-align: -0.15em; margin-right: .25em; }
