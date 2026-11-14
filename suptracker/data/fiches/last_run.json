@@ -1,0 +1,13 @@
+{
+ "status": "open",
+ "checked_at": "20261114042957",
+ "lues": 13000,
+ "total": 26509,
+ "by_status": {
+  "rejetee": 292,
+  "ok": 9128,
+  "sans_grille": 3580,
+  "retry": 1607,
+  "todo": 11902
+ }
+}
