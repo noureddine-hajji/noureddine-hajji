@@ -63,7 +63,6 @@ FEATURE_ENTRY_POINTS = {
     "construire_ma_liste": ("app.js", "async function viewGuide("),
     "accessibilite": ("app.js", "function a11yAfterRoute("),
     "carte_recherche": ("app.js", "function carteSelection("),
-    "exigences_specialites": ("app.js", "function specialitesCard("),
 }
 
 
