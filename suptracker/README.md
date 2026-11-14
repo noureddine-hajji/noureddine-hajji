@@ -3062,3 +3062,98 @@ Red team `scripts/redteam_mobile.py` (MB1-MB8):
    zones ?". The tabs are read as "onglet, 1 sur 5, sélectionné".
 4. Choose a tab: its content is read. Scroll down: the tab bar stays at the top of the screen.
 5. Note anything read twice, unnamed ("bouton" alone) or in the wrong order, and send it through the contact form.
+
+## The evaluation grids of the Parcoursup fiches (owner, 2026-11-13)
+
+The owner asked for the evaluation grid of each formation, as its Parcoursup fiche publishes it: the weight of each field in %
+(the global view), each criterion with its importance (the detailed view), and the national expectations. His example is the
+CPGE ECG of Lycée Kléber in Strasbourg (code 31389).
+
+**What the fiche publishes.** This was checked on 9 live fiches of every kind (CPGE, BUT, BTS, licence, PASS, IFSI, EFTS,
+school), saved by the "liveprobe" mode in `data/rapports/live/fiches_live/`. Every fiche has the same structure:
+- **Global view.** A table of 4 or 5 fields with their weight. The fields are Résultats scolaires, Méthodes de travail,
+  Savoir-être, Motivation, and Engagement et activités. The weights add up to 100 %, with a last row "Au total".
+  For example, Kléber ECG reads 50 / 30 / 10 / 5 / 5.
+- **Detailed view.** One table per field, in the same order. Its caption repeats the weight ("comptent pour 50%"). Each row
+  gives a criterion, the elements read and the importance: Complémentaire (1 on 4), Important (2), Très important (3) or
+  Essentiel (4).
+- **Texts.** "Les attendus nationaux" is on every fiche. "Les attendus complémentaires" appears on some licences and PASS.
+  A "Conseils aux candidats" box follows.
+- **Campaign.** The fiche says which campaign it serves ("analysent les candidatures en avril-mai 2026").
+
+The fiches also name people, for example the disability referent's e-mail address. Those are never stored.
+
+**What the first harvest taught (2026-11-14, 13,000 fiches read).** 9,128 grids read, 292 rejected, 3,580 without a grid,
+1,607 not reached. Twelve masked samples of the unusable fiches (mode `grilles_echantillon`) showed three cases, now read:
+- the Geipi Polytech competition (the 292 rejections) has ONE field, "Résultats scolaires 100 %", and prints no "Au total"
+  row. A one-field grid is accepted without it; several fields still need it, and it must say 100;
+- apprenticeship formations print, instead of a grid, "Cette formation n'examine pas les candidatures : tous les candidats
+  … sont invités à rechercher un contrat d'apprentissage …". The notice is kept verbatim (`info`) and shown on the card;
+- some answers are an error page ("Oups…", "Mise à jour de données"): not a fiche, so a failed read retried later, never
+  "no grid", and a grid already stored is kept.
+
+The reader carries a version (`fiche_parse.VERSION`): the fiches an older reader could not use are read again first. The
+design and diagnosis pages the repository keeps are stored masked (e-mail addresses and phone numbers).
+
+**How it is read.**
+- `scripts/fiche_parse.py` (stdlib only) reads one fiche. It rejects the whole fiche, with a reason, if any of these fail:
+  - the weights must add up to 100;
+  - the "Au total" row must say 100;
+  - there must be one detailed table per field;
+  - each caption must give its field's weight;
+  - each importance label must match its "n sur 4".
+- Texts are kept verbatim. E-mail addresses and phone numbers are masked.
+- `scripts/fiches_grilles.py` reads every fiche of the latest SIES campaign and cartographie session into `data/fiches/`:
+  - `etat.csv`: the status, the reading date and the campaign of each fiche;
+  - `champs.csv` and `criteres.csv`: the grids;
+  - `attendus.csv`: the expectations;
+  - `textes.csv.gz`: each text stored once by digest, in appended gzip members. A national text is shared by every formation
+    of its mention.
+- The harvest can resume where it stopped. A fiche is read again after 20 days: the grids change with each campaign, and the
+  2027 fiches open in December. A closed site (three fiches answering 404 or "indisponible") writes nothing.
+- **Workflow.** `suptracker-rapports` runs mode "grilles" by hand. The daily schedule runs "quotidien": the live reports
+  (150 min at most), then the grids (140 min: a slow fiche with its retries can overrun a budget by ~30 min, and the job stops at 355).
+  - The warehouse fingerprint takes the grids' content files, so a changed grid publishes a new warehouse.
+  - Of `etat.csv`, which is rewritten with every reading date, it takes only each fiche's code and status: the build keeps a
+    fiche by its status, so a fiche that fails or comes back with the same content still publishes a new warehouse (Codex).
+  - `data/fiches/` is kept out of the Vercel bundle.
+
+**In the warehouse.** `suptracker/grilles.py` checks everything again at build:
+- the weights add up to 100;
+- the field ranks have no gap;
+- every criterion belongs to a field;
+- every importance is between 1 and 4;
+- every text id resolves.
+
+A formation that fails is left out whole, never half shown. It builds three tables:
+- `core.fiche_grille`: one row per formation (campaign, reading date, link, grid or not);
+- `core.fiche_champ`: the field weights, for later SQL;
+- `core.fiche_audit`.
+
+The grids themselves (JSON with text ids, `grille_data`) and the texts (`grille_texte`) go to `rapport_textes.duckdb` beside the
+warehouse: at half the harvest the JSON already took 5 MB of the warehouse (85.5 -> 90.7 MB, budget 95 MB). `/api/formation` returns
+`grille` (`grilles.for_formation`).
+
+**On the formation page.** The tab "Ce que regarde le jury" opens with the card "Comment votre dossier sera examiné · fiche
+Parcoursup 2026". The formation's own jury report (the past session) follows, or else the similar formations'.
+- **Global view.** One bar per field, with its weight. The bars are neutral ink: the label and the % carry the meaning.
+- **Detailed view.** One folded section per field, with a table of criterion, what is read and importance. Importance shows the
+  official label and four dots.
+- **Texts.** The national expectations, the formation's own and its advice are folded, verbatim and escaped.
+- **Credit and caveat.** "Lu le … sur la fiche Parcoursup" with its link. The card says the grid can change from one campaign
+  to the next, that the fiche fait foi, and that it describes how files are examined, not chances of admission.
+- **Summary link.** With no own report, the summary's jury link names the grid.
+
+Red team `scripts/redteam_grilles.py` (GR1-GR9):
+- GR1 re-reads the 9 saved pages with BeautifulSoup and its own rules (independent reading).
+- GR2 holds the owner's example as ground truth (50/30/10/5/5, 8+2+2+1+1 criteria) and the invariants of every fiche.
+- GR3 checks privacy: 71 addresses in the raw pages, none in what is read.
+- GR4 feeds hostile pages: weights summing to 99 with an agreeing caption, a total of 90, a caption that differs, a label
+  against its score, the last table missing, a row without importance, several fields without "Au total", markup in a
+  criterion, junk. It also reads the three kept cases: the one-field grid, the apprenticeship notice, the error page.
+- GR5 runs the harvest against a fake Parcoursup. It checks closed, open, rerun, refresh after 25 days (a fiche rejected on
+  refresh loses its old grid), texts stored once, and retry then failed.
+- GR6 runs the round trip from harvest to build to API, plus 5 tampered stores dropped whole.
+- GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
+- GR8 checks the plumbing.
+- GR9 is the mutation test: 36 mutants, each caught.

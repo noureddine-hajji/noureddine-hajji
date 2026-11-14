@@ -574,7 +574,7 @@ const base = process.argv[2], cod = process.argv[3];
   o.stored = await p.evaluate(() => JSON.parse(localStorage.getItem("profile")));
   o.disabled = await p.$eval('#pf [name="mention"]', (s) => s.disabled);
   await p.goto(base + "/#/voeux"); await p.waitForTimeout(3500);
-  o.voeux = await p.evaluate(() => document.body.innerText.includes("estimation dans la mention"));
+  o.voeux = await p.evaluate(() => /estimation\S{0,2} · dans la mention : /.test(document.body.innerText));   // Q4: estimTag adds its "i" button
   await p.goto(base + "/#/f/" + cod); await p.waitForTimeout(3500);
   await p.evaluate(() => document.querySelectorAll("details.more-card").forEach((d) => (d.open = true)));
   o.card = await p.evaluate(() => [...document.querySelectorAll("h2")].some((h) => h.textContent.startsWith("Votre moyenne parmi les admis")));

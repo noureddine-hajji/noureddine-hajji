@@ -562,6 +562,19 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   secondary; the tab bar is sticky (`top: 0`, opaque) and an opened tab shows its panel under it; the tabs start within two
   phone screens. The map is its own stacking context (`.leaflet-container { isolation: isolate }`): it never covers the phone's tab bar. Red team `redteam_mobile.py` (MB1-MB8; MB6 = Chromium's accessibility tree, the README gives the manual
   NVDA/VoiceOver protocol).
+- **Evaluation grids of the Parcoursup fiches (owner, 2026-11-13).** Read on the LIVE fiche (`scripts/fiche_parse.py`, harvest
+  `scripts/fiches_grilles.py` into data/fiches/, workflow mode "grilles", daily "quotidien" = live + grilles): global view (field
+  weights, sum 100, "Au total" 100), detailed view (criterion, elements, importance 1-4 whose label and "n sur 4" agree, captions
+  repeating the weight), attendus nationaux / complémentaires, conseils. Any inconsistency rejects the WHOLE fiche (reason kept);
+  the build (`grilles.py`) checks again and drops a formation whole, never half shown. Published values verbatim, escaped, never
+  merged, averaged or scored, never a chance; the card names the fiche's own campaign, "la fiche fait foi", "lu le …" + link.
+  A one-field grid (Geipi Polytech) has no "Au total" row; an apprenticeship fiche prints "n'examine pas les candidatures"
+  (kept verbatim, `info`); an error page is not a fiche (failed read, stored grid kept); `fiche_parse.VERSION` re-reads first the
+  fiches an older reader could not use. E-mail addresses and phone numbers are masked at reading (the fiches name people), and so
+  is every page the repository keeps. Texts once by digest (`textes.csv.gz`
+  members appended; `grille_texte` and the grids' JSON `grille_data` in rapport_textes.duckdb, never in the warehouse: 95 MB budget). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
+  stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
+  `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

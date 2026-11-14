@@ -45,6 +45,7 @@ from . import cereq as CQ
 from . import seo as SEO
 from . import doublettes as DBL
 from . import semblables as SB
+from . import grilles as GR
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -721,6 +722,9 @@ def formation(cod: str, session: int | None = None):
             "rapport": RP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the verified reports of similar formations (same diploma and mention), read where the own report lacks a part
             "semblables": SB.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # the evaluation grid (field weights, criteria and their importance) and the expected skills, as the LIVE
+            # Parcoursup fiche publishes them for its own campaign (grilles.py); verbatim, never a chance
+            "grille": GR.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)

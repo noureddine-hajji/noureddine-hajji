@@ -57,8 +57,10 @@ jobs:
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Probe source files ($(date -u +%Y-%m-%d))"
           git push
-  # After a harvest run: rebuild only when it committed new reports (the harvest files differ from those of the last
-  # published warehouse, data/harvest_fingerprint.txt); a closed site writes nothing and costs no build.
+  # After a harvest run: rebuild only when it committed new reports or new evaluation grids (the harvest files and the
+  # grids' CONTENT files differ from those of the last published warehouse, data/harvest_fingerprint.txt; of the grids'
+  # etat.csv, rewritten with each reading date, only (code, status) counts: the build keeps a fiche by its status (Codex));
+  # a closed site writes nothing and costs no build.
   harvest-changed:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -72,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - id: fp
         run: |
-          fp=$(git ls-files -s -- data/rapports/harvest | sha256sum | cut -d' ' -f1)
+          fp=$( { git ls-files -s -- data/rapports/harvest data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/textes.csv.gz; cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true; } | sha256sum | cut -d' ' -f1)
           if [ -f data/harvest_fingerprint.txt ] && [ "$(cat data/harvest_fingerprint.txt)" = "$fp" ]; then
             echo "no new report since the last published warehouse"; echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -128,12 +130,12 @@ jobs:
           # is a 40+ MB binary, and an identical rebuild must not grow the git history.
           # the harvested reports are an input too: without them, a day's new reports never reached the site
           fp=$( { jq -r '.[].sha256' data/raw/manifest.json | sort; \
-                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources data/rapports/harvest; } | sha256sum | cut -d' ' -f1 )
+                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources data/rapports/harvest data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/textes.csv.gz; cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true; } | sha256sum | cut -d' ' -f1 )
           if [ -f data/fingerprint.txt ] && [ "$(cat data/fingerprint.txt)" = "$fp" ]; then
             echo "SIES exports and pipeline unchanged since the last published warehouse"; exit 0
           fi
           echo "$fp" > data/fingerprint.txt
-          git ls-files -s -- data/rapports/harvest | sha256sum | cut -d' ' -f1 > data/harvest_fingerprint.txt
+          { git ls-files -s -- data/rapports/harvest data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/textes.csv.gz; cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true; } | sha256sum | cut -d' ' -f1 > data/harvest_fingerprint.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/suptracker.duckdb data/rapport_textes.duckdb data/verification data/fingerprint.txt data/harvest_fingerprint.txt

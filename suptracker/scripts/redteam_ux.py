@@ -602,7 +602,9 @@ def short_fiche(js: str) -> tuple[bool, str]:
     n_cards = len(re.findall(r'<div class="card">|<div id="planb"></div>|\$\{(?:doubletteCard|appelCard|offerCard|previsionCard|timingCard|lyceeHere)\(', shown))
     in_view = all(x in shown for x in Y_SHOWN) and n_cards == 5
     out = all(x in folded and x not in shown for x in Y_FOLDED)
-    same = ("const juryHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);" in vf
+    # the fiche's grid first (owner, 2026-11-13), then the own report, else the similar formations' reports
+    same = ("const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);" in vf
+            and "const juryHtml = grHtml + repHtml;" in vf
             and '["jury", "Ce que regarde le jury", juryHtml]' in vf and "d.jury_tab = !juryHtml ? null :" in vf)
     head = vf[vf.index('<div class="card fhead">'):vf.index("${summaryBand(r, d)}")]
     compact = "code établissement" not in head and "Code de l'établissement (UAI) : ${esc(r.cod_uai)}" in vf and "fhead-links" not in head
@@ -612,17 +614,18 @@ const store = { get: (k, d) => d };
 const document = { getElementById: () => null, querySelectorAll: () => [] };
 """ + r2_defs(js) + block(js, "// ---- lot 2 (Claude design guidelines)") + """
 process.stdout.write(JSON.stringify(P.map((jt) => summaryBand({ session: 2025, taux_acces_ens: 40, acc_tot: 30, capa_fin: 30 }, { metiers: null, jury_tab: jt }))));"""
-    r = node_run(prog, [{"kind": "own", "session": "<img src=x>"}, {"kind": "semblables"}, None])
+    r = node_run(prog, [{"kind": "own", "session": "<img src=x>"}, {"kind": "semblables"}, None, {"kind": "grille", "session": "<b>2026"}])
     if r is None:
         return in_view and out and same and compact, "node not installed"
     if r.startswith("__error__"):
         return False, r
-    own, sem, none = json.loads(r)
+    own, sem, none, gri = json.loads(r)
     link = ('data-goto="jury"' in own and "son rapport public &lt;img" in own and "<img" not in own
-            and 'data-goto="jury"' in sem and "formations semblables (pas de rapport pour celle-ci)" in sem and 'data-goto="jury"' not in none)
+            and 'data-goto="jury"' in sem and "formations semblables (pas de rapport pour celle-ci)" in sem and 'data-goto="jury"' not in none
+            and 'data-goto="jury"' in gri and "la grille de la fiche Parcoursup &lt;b&gt;2026" in gri and "<b>" not in gri)
     ok = in_view and out and same and compact and link
     return ok, (f"Y entrer: {n_cards} cards in view {in_view}, five folded {out}; jury tab and link from the same render {same}; "
-                f"header compact {compact}; summary link (own, similar, none, escaped) {link}")
+                f"header compact {compact}; summary link (own, similar, grid, none, escaped) {link}")
 
 
 @check("X16 sprint 19: Y entrer shows 5 cards and folds the others; the summary links to the jury tab; a compact header")
@@ -636,6 +639,8 @@ SHORT_MUTANTS = [
     ("nothing folded", '<details class="more-card">', '<div class="more-card">'),
     ("link without a jury tab", "d.jury_tab = !juryHtml ? null :", "d.jury_tab = false ? null :"),
     ("report session unescaped", "son rapport public ${esc(d.jury_tab.session)}", "son rapport public ${d.jury_tab.session}"),
+    ("grid session unescaped", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : \"\"}", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${d.jury_tab.session}` : \"\"}"),
+    ("grid left out of the jury tab", "const juryHtml = grHtml + repHtml;", "const juryHtml = repHtml;"),
     ("establishment code back in the header", "· n° Parcoursup ${esc(r.cod_aff_form)}</div>", "· n° Parcoursup ${esc(r.cod_aff_form)} · code établissement ${esc(r.cod_uai)}</div>"),
 ]
 
