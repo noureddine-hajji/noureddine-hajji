@@ -3083,6 +3083,18 @@ school), saved by the "liveprobe" mode in `data/rapports/live/fiches_live/`. Eve
 
 The fiches also name people, for example the disability referent's e-mail address. Those are never stored.
 
+**What the first harvest taught (2026-11-14, 13,000 fiches read).** 9,128 grids read, 292 rejected, 3,580 without a grid,
+1,607 not reached. Twelve masked samples of the unusable fiches (mode `grilles_echantillon`) showed three cases, now read:
+- the Geipi Polytech competition (the 292 rejections) has ONE field, "Résultats scolaires 100 %", and prints no "Au total"
+  row. A one-field grid is accepted without it; several fields still need it, and it must say 100;
+- apprenticeship formations print, instead of a grid, "Cette formation n'examine pas les candidatures : tous les candidats
+  … sont invités à rechercher un contrat d'apprentissage …". The notice is kept verbatim (`info`) and shown on the card;
+- some answers are an error page ("Oups…", "Mise à jour de données"): not a fiche, so a failed read retried later, never
+  "no grid", and a grid already stored is kept.
+
+The reader carries a version (`fiche_parse.VERSION`): the fiches an older reader could not use are read again first. The
+design and diagnosis pages the repository keeps are stored masked (e-mail addresses and phone numbers).
+
 **How it is read.**
 - `scripts/fiche_parse.py` (stdlib only) reads one fiche. It rejects the whole fiche, with a reason, if any of these fail:
   - the weights must add up to 100;
@@ -3136,10 +3148,11 @@ Red team `scripts/redteam_grilles.py` (GR1-GR9):
 - GR2 holds the owner's example as ground truth (50/30/10/5/5, 8+2+2+1+1 criteria) and the invariants of every fiche.
 - GR3 checks privacy: 71 addresses in the raw pages, none in what is read.
 - GR4 feeds hostile pages: weights summing to 99 with an agreeing caption, a total of 90, a caption that differs, a label
-  against its score, the last table missing, a row without importance, markup in a criterion, junk.
+  against its score, the last table missing, a row without importance, several fields without "Au total", markup in a
+  criterion, junk. It also reads the three kept cases: the one-field grid, the apprenticeship notice, the error page.
 - GR5 runs the harvest against a fake Parcoursup. It checks closed, open, rerun, refresh after 25 days (a fiche rejected on
   refresh loses its old grid), texts stored once, and retry then failed.
 - GR6 runs the round trip from harvest to build to API, plus 5 tampered stores dropped whole.
 - GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
 - GR8 checks the plumbing.
-- GR9 is the mutation test: 27 mutants, each caught.
+- GR9 is the mutation test: 35 mutants, each caught.

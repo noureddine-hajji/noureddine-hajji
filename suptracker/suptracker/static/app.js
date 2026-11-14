@@ -1148,7 +1148,7 @@ function grilleImp(n) {
   return `<span class="gr-imp"><span class="rp-imp imp${4 - n}">${esc(lab)}</span> <span class="gr-dots" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span></span>`;
 }
 function grilleCard(g) {
-  if (!g || (!g.grille && !g.nationaux && !g.complementaires)) return "";
+  if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return "";
   const lu = g.lu_le ? new Date(`${g.lu_le}T12:00:00Z`).toLocaleDateString("fr-FR") : null;
   const camp = g.session ? ` pour la campagne ${esc(g.session)}` : "";
   const champs = g.grille ? g.champs || [] : [];
@@ -1164,7 +1164,7 @@ function grilleCard(g) {
   const fold = (title, t, open) => (t ? `<details class="dip gr-txt"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
   return `<div class="card gr-card"><h2>Comment votre dossier sera examiné · fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}</h2>
     <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
-    ${global}${detail}
+    ${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}${global}${detail}
     ${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}${fold("Les conseils de la formation", g.conseils, false)}
     <p class="muted small">La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Elle décrit l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.</p></div>`;

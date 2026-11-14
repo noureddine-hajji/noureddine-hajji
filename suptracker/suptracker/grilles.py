@@ -5,7 +5,8 @@ The harvest (scripts/fiches_grilles.py, workflow mode "grilles") stores in data/
     Engagement et activités) with their weight in % (they add up to 100);
   * the DETAILED grid: per field, each criterion, the elements it reads and its importance (Complémentaire 1, Important 2,
     Très important 3, Essentiel 4, as the fiche prints it);
-  * the national expectations ("attendus nationaux"), the formation's complementary ones, the advice to candidates.
+  * the national expectations ("attendus nationaux"), the formation's complementary ones, the advice to candidates;
+  * the notice under "Candidater à la formation" (`info`), e.g. an apprenticeship formation that examines no application.
 
 Rules:
   * Published values only, verbatim: no weight or importance is recomputed, merged, averaged or turned into a score;
@@ -77,7 +78,7 @@ def assemble(src: Path) -> tuple[list[dict], dict, list[tuple]]:
         try:
             g = {"cod_aff_form": c, "session": _int(e.get("session")), "lu_le": e.get("lu_le") or "", "url": e.get("url") or "",
                  "nationaux": tx(a.get("nationaux_id")), "complementaires": tx(a.get("complementaires_id")),
-                 "conseils": tx(a.get("conseils_id")), "champs": [], "grille": st == "ok"}
+                 "conseils": tx(a.get("conseils_id")), "info": tx(a.get("info_id")), "champs": [], "grille": st == "ok"}
             if st == "ok":
                 ch = sorted(champs.get(c, []), key=lambda r: _int(r["rang"]) or 0)
                 cr = crits.get(c, [])
@@ -94,7 +95,7 @@ def assemble(src: Path) -> tuple[list[dict], dict, list[tuple]]:
                                                       "importance": _int(x["importance"])} for x in k]})
                 if sum(len(x["criteres"]) for x in g["champs"]) != len(cr):
                     raise ValueError("critères hors champ")
-            if not g["grille"] and not (g["nationaux"] or g["complementaires"]):
+            if not g["grille"] and not (g["nationaux"] or g["complementaires"] or g["info"]):
                 audit.append((c, st, "rien à montrer"))
                 continue
         except (KeyError, ValueError) as err:
@@ -119,7 +120,7 @@ def build(con, textes: Path | None = None, src: Path | None = FICHES) -> dict:
     RP._insert(con, "INSERT INTO core.fiche_audit VALUES (?, ?, ?)", audit)
     RP._insert(con, "INSERT INTO core.fiche_grille VALUES (?, ?, ?, ?, ?, ?)",
                [(g["cod_aff_form"], g["session"], g["lu_le"], g["url"], g["grille"],
-                 json.dumps({k: g[k] for k in ("nationaux", "complementaires", "conseils", "champs")}, ensure_ascii=False))
+                 json.dumps({k: g[k] for k in ("nationaux", "complementaires", "conseils", "info", "champs")}, ensure_ascii=False))
                 for g in rows])
     RP._insert(con, "INSERT INTO core.fiche_champ VALUES (?, ?, ?, ?)",
                [(g["cod_aff_form"], x["rang"], x["champ"], x["poids"]) for g in rows for x in g["champs"]])
@@ -166,7 +167,7 @@ def for_formation(con, cod: str) -> dict | None:
         return None
     s, lu, url, grille, data = r
     d = json.loads(data)
-    ids = {d.get("nationaux"), d.get("complementaires"), d.get("conseils")}
+    ids = {d.get("nationaux"), d.get("complementaires"), d.get("conseils"), d.get("info")}
     for x in d["champs"]:
         ids.add(x.get("intitule"))
         for k in x["criteres"]:
@@ -177,7 +178,7 @@ def for_formation(con, cod: str) -> dict | None:
     return {"session": s, "lu_le": f"{lu[:4]}-{lu[4:6]}-{lu[6:8]}" if len(lu) >= 8 else None,
             "url": url if url.startswith("https://") and "parcoursup.fr/" in url else None, "grille": bool(grille),
             "nationaux": t.get(d.get("nationaux")), "complementaires": t.get(d.get("complementaires")),
-            "conseils": t.get(d.get("conseils")),
+            "conseils": t.get(d.get("conseils")), "info": t.get(d.get("info")),
             "champs": [{"rang": x["rang"], "champ": x["champ"], "poids": x["poids"], "intitule": t.get(x.get("intitule")),
                         "criteres": [{"critere": t[k["critere"]], "elements": t.get(k["elements"]), "importance": k["importance"],
                                       "importance_label": IMPORTANCE[k["importance"]]} for k in x["criteres"]]}

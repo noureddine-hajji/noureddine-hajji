@@ -5,7 +5,10 @@ elements evaluated and its importance (detailed view), the national expectations
 
 What the fiche prints (checked on 9 live fiches of every kind, data/rapports/live/fiches_live/, 2026-11-13):
   * global grid: `table#table-analyse-cddt-onglet2`, one row per field (`th` = field, `td` = "50 %") and a last row
-    "Au total" = 100 %; 4 or 5 fields (a formation may leave one out);
+    "Au total" = 100 %; 4 or 5 fields (a formation may leave one out); a one-field grid (Geipi Polytech: "Résultats
+    scolaires 100 %") prints no "Au total" row;
+  * a formation that examines no application (apprenticeship) prints a notice under "Candidater à la formation" instead
+    of a grid: kept verbatim (`info`); an error page ("Oups...", "Mise à jour de données") is not a fiche;
   * detailed grid: one `table.table-forme-notation-cgev` per field, in the global grid's order, its caption naming the
     field and its weight ("Vos résultats scolaires ... comptent pour 50%"); each row: criterion (`th`), elements evaluated
     (`td`), importance (`p.psup-rating-text` = Complémentaire / Important / Très important / Essentiel and "n sur 4");
@@ -29,6 +32,7 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PHONE = re.compile(r"(?<!\d)(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)")
 MASK_EMAIL, MASK_PHONE = "[adresse sur la fiche Parcoursup]", "[numéro sur la fiche Parcoursup]"
 SESSION = re.compile(r"analysent les candidatures en [^.]*?(20\d\d)")
+VERSION = 2          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
 
 
 def text(fragment: str) -> str:
@@ -67,11 +71,18 @@ def _section(page: str, heading: str) -> str | None:
 
 def parse(page: str) -> dict:
     out = {"ok": False, "reason": "", "session": None, "champs": [], "criteres": [], "attendus_nationaux": None,
-           "attendus_complementaires": None, "conseils": None}
+           "attendus_complementaires": None, "conseils": None, "info": None}
+    t = re.search(r"<title>(.*?)</title>", page, re.S)
+    if not t or not text(t.group(1)).startswith("Fiche formation"):
+        out["reason"] = "pas une fiche"          # "Oups..." or "Mise à jour de données": an error page, read again later
+        return out
     s = SESSION.search(text(page))
     out["session"] = int(s.group(1)) if s else None
     out["attendus_nationaux"] = mask(_section(page, "Les attendus nationaux"))
     out["attendus_complementaires"] = mask(_section(page, "Les attendus complémentaires"))
+    # the notice under "Candidater à la formation" (e.g. an apprenticeship formation that examines no application)
+    n = re.search(r"<h3[^>]*>\s*Candidater à la formation\s*</h3>\s*<div class=\"fr-alert[^\"]*\">(.*?)</div>", page, re.S)
+    out["info"] = (mask(text(n.group(1))) or None) if n else None
     c = re.search(r"<h[45] class=\"fr-callout__title\">\s*Conseils aux candidats\s*</h[45]>\s*(.*?)</div>\s*</div>", page, re.S)
     out["conseils"] = mask(text(c.group(1))) if c else None
     g = re.search(r'<table id="table-analyse-cddt-onglet2".*?</table>', page, re.S)
@@ -82,7 +93,9 @@ def parse(page: str) -> dict:
     total = [r for r in rows if r[0] == "Au total"]
     champs = [r for r in rows if r[0] != "Au total"]
     pct = lambda v: int(m.group(1)) if (m := re.fullmatch(r"(\d{1,3})\s*%", v)) else None  # noqa: E731
-    if not champs or len(total) != 1 or any(pct(v) is None for _c, v in champs) or pct(total[0][1]) != 100:
+    # "Au total" is printed when the grid has several fields: when present it must say 100 (a one-field grid has none)
+    if not champs or len(total) > 1 or (len(champs) > 1 and not total) or any(pct(v) is None for _c, v in champs) \
+            or (total and pct(total[0][1]) != 100):
         out["reason"] = "grille illisible"
         return out
     out["champs"] = [{"rang": i + 1, "champ": c, "poids": pct(v)} for i, (c, v) in enumerate(champs)]

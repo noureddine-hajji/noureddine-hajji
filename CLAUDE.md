@@ -568,7 +568,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   repeating the weight), attendus nationaux / complémentaires, conseils. Any inconsistency rejects the WHOLE fiche (reason kept);
   the build (`grilles.py`) checks again and drops a formation whole, never half shown. Published values verbatim, escaped, never
   merged, averaged or scored, never a chance; the card names the fiche's own campaign, "la fiche fait foi", "lu le …" + link.
-  E-mail addresses and phone numbers are masked at reading (the fiches name people). Texts once by digest (`textes.csv.gz`
+  A one-field grid (Geipi Polytech) has no "Au total" row; an apprenticeship fiche prints "n'examine pas les candidatures"
+  (kept verbatim, `info`); an error page is not a fiche (failed read, stored grid kept); `fiche_parse.VERSION` re-reads first the
+  fiches an older reader could not use. E-mail addresses and phone numbers are masked at reading (the fiches name people), and so
+  is every page the repository keeps. Texts once by digest (`textes.csv.gz`
   members appended; `grille_texte` in rapport_textes.duckdb). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).

@@ -29,15 +29,15 @@ from pathlib import Path
 import httpx
 
 sys.path.insert(0, str(Path(__file__).parent))
-from fiche_parse import parse  # noqa: E402
+from fiche_parse import VERSION, parse  # noqa: E402
 from rapports_harvest import UA, write  # noqa: E402
 from rapports_live import codes, fetch_fiche  # noqa: E402
 
 REFRESH_DAYS = 20
-ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url"]
+ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "version"]
 CHAMP_COLS = ["cod_aff_form", "session", "rang", "champ", "poids", "intitule_id"]
 CRIT_COLS = ["cod_aff_form", "session", "champ_rang", "rang", "critere_id", "elements_id", "importance"]
-ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id"]
+ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
 
 
 def tid(t: str | None) -> str:
@@ -78,7 +78,7 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     order = codes(db)
     etat = {r["cod_aff_form"]: r for r in read_rows(out / "etat.csv")}
     for c in order:
-        etat.setdefault(c, {"cod_aff_form": c, "status": "todo", "lu_le": "", "session": "", "raison": "", "url": ""})
+        etat.setdefault(c, {"cod_aff_form": c, "status": "todo", "lu_le": "", "session": "", "raison": "", "url": "", "version": ""})
     champs = {}
     for r in read_rows(out / "champs.csv"):
         champs.setdefault(r["cod_aff_form"], []).append(r)
@@ -89,8 +89,12 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     ids = known_ids(out / "textes.csv.gz")
     new_texts: list[dict] = []
     old = (datetime.now(timezone.utc) - timedelta(days=refresh_days)).strftime("%Y%m%d%H%M%S")
+    # first the fiches never read, then those the reader could not use read by an older reader (a new reader may read them)
     first = [etat[c] for c in order if etat[c]["status"] in ("todo", "retry")]
-    again = sorted((etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee", "failed") and etat[c]["lu_le"] < old),
+    first += [etat[c] for c in order if etat[c]["status"] in ("sans_grille", "rejetee") and etat[c].get("version") != str(VERSION)]
+    seen = {id(r) for r in first}
+    again = sorted((etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee", "failed") and etat[c]["lu_le"] < old
+                    and id(etat[c]) not in seen),
                    key=lambda r: r["lu_le"])
     queue = first + again
     # is the site open? three fiches first (no write at all when closed)
@@ -117,11 +121,17 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
             r["raison"] = f"fiche {resp.status_code if resp is not None else 'none'}"
             continue
         p = parse(resp.text)
+        if p["reason"] == "pas une fiche":            # an error page: like a failed read, the stored grid is kept
+            r["status"] = "retry" if r["status"] == "todo" else "failed"
+            r["raison"] = "pas une fiche"
+            continue
+        r["version"] = str(VERSION)
         r["url"], r["session"] = url, p["session"] or ""
         champs.pop(c, None)
         crits.pop(c, None)
         atts[c] = {"cod_aff_form": c, "session": p["session"] or "", "nationaux_id": text_id(p["attendus_nationaux"]),
-                   "complementaires_id": text_id(p["attendus_complementaires"]), "conseils_id": text_id(p["conseils"])}
+                   "complementaires_id": text_id(p["attendus_complementaires"]), "conseils_id": text_id(p["conseils"]),
+                   "info_id": text_id(p.get("info"))}
         if not p["ok"]:
             r["status"] = "sans_grille" if p["reason"] == "pas de grille" else "rejetee"
             r["raison"] = p["reason"]

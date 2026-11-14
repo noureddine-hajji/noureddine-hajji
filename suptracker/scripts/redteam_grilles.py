@@ -12,8 +12,10 @@ the jury tab's grilleCard).
       (pages and synthetic texts) and in every page the repository keeps (design and diagnosis samples); the masking never
       touches a weight.
   GR4 hostile pages are rejected whole, with a reason: weights summing to 99, a total that is not 100, a caption weight that
-      differs, an importance label against its score, a detailed table missing, a row without importance; a page without grid
-      is "pas de grille" with its expectations still read; markup inside a criterion stays text (the page escapes it).
+      differs, an importance label against its score, a detailed table missing, a row without importance, several fields
+      without "Au total"; a one-field grid without it is read (Geipi Polytech); an apprenticeship fiche is "pas de grille"
+      with its notice ("n'examine pas les candidatures") and expectations read; an error page is "pas une fiche"; markup
+      inside a criterion stays text (the page escapes it).
   GR5 harvest (fake Parcoursup): a closed site writes nothing; an open one writes every fiche; a second run reads nothing new;
       a reading older than REFRESH_DAYS is read again; a shared text is stored once; a missing fiche goes retry, then failed;
       a rejected fiche keeps its expectations and no grid.
@@ -81,6 +83,9 @@ class Ctx:
                     "gr": (ROOT / "suptracker" / "grilles.py").read_text()}
         self.js = (ROOT / "suptracker" / "static" / "app.js").read_text()
         self.pages = {p.stem: p.read_text(encoding="utf-8") for p in sorted(PAGES.glob("*.html"))}
+        # edge cases met in the first harvest (2026-11-14), masked: a one-field grid without "Au total" (Geipi Polytech,
+        # 292 fiches rejected by reader 1), an apprenticeship formation that examines no application, an error page
+        self.cas = {p.stem: p.read_text(encoding="utf-8") for p in sorted((PAGES / "cas").glob("*.html"))}
 
     def mod(self, k: str):
         if k == "fp":
@@ -155,8 +160,15 @@ def gr1(c: Ctx):
                 bad.append(f"{cod} {k}: {str(mine_t)[:60]!r} vs {str(theirs_t)[:60]!r}")
         if a["session"] != b["session"]:
             bad.append(f"{cod} session {a['session']} vs {b['session']}")
+    g = c.cas.get("geipi_un_champ", "")
+    a, b = fp.parse(g), bs_read(g)
+    mine = [(k["importance"], norm(k["critere"])) for k in a["criteres"]]
+    theirs = [(n, norm(fp.mask(cr))) for _r, cr, _e, _l, n in b["criteres"]]
+    if not a["ok"] or [(x["champ"], x["poids"]) for x in a["champs"]] != b["champs"] or b["champs"] != [("Résultats scolaires", 100)] \
+            or mine != theirs or not mine:
+        bad.append(f"one-field grid: {a['reason']} {a['champs']} vs {b['champs']}")
     n = sum(len(bs_read(p)["criteres"]) for p in c.pages.values())
-    return not bad, f"{len(c.pages)} fiches, {n} criteria read twice; {bad[:4]}"
+    return not bad, f"{len(c.pages)} fiches + a one-field grid, {n} criteria read twice; {bad[:4]}"
 
 
 @check("GR2 ground truth (Kléber ECG 50/30/10/5/5, 8+2+2+1+1) and invariants on every saved fiche")
@@ -212,7 +224,7 @@ def gr3(c: Ctx):
             bad.append(f"synthetic {s!r} -> {m!r}")
     if fp.mask("comptent pour 50 %, 2026, 14 critères, 1ère et Terminale") != "comptent pour 50 %, 2026, 14 critères, 1ère et Terminale":
         bad.append("masking touches figures")
-    for f in sorted((FICHES / "echantillon").glob("*.html")):
+    for f in sorted((FICHES / "echantillon").glob("*.html")) + sorted((PAGES / "cas").glob("*.html")):
         t = f.read_text(encoding="utf-8")
         raw += len(em.findall(t)) + len(ph.findall(t))
     if raw:
@@ -258,6 +270,19 @@ def gr4(c: Ctx):
         p = fp.parse(hostile)
         if not p["ok"] or p["criteres"][0]["critere"] != "<img src=x onerror=alert(1)> Notes":
             bad.append(f"markup criterion: {p['criteres'][:1]}")
+    no_total = re.sub(r'<tr[^>]*>\s*<th scope="row"[^>]*>\s*Au total\s*</th>.*?</tr>', "", page, count=1, flags=re.S)
+    if no_total == page or fp.parse(no_total)["ok"]:
+        bad.append("several fields without 'Au total' accepted (or anchor gone)")
+    one = fp.parse(c.cas.get("geipi_un_champ", ""))
+    if not one["ok"] or len(one["champs"]) != 1 or one["champs"][0]["poids"] != 100:
+        bad.append(f"one-field grid without 'Au total' refused: {one['reason']}")
+    app = fp.parse(c.cas.get("apprentissage_sans_examen", ""))
+    if app["ok"] or app["reason"] != "pas de grille" or not (app["info"] or "").startswith("Cette formation n'examine pas les candidatures") \
+            or not app["attendus_nationaux"]:
+        bad.append(f"apprenticeship notice: {app['reason']} {str(app['info'])[:40]!r}")
+    err = fp.parse(c.cas.get("page_erreur", ""))
+    if err["reason"] != "pas une fiche":
+        bad.append(f"error page read as a fiche: {err['reason']}")
     for junk in ("", "<html></html>", "<table id=\"table-analyse-cddt-onglet2\"></table>"):
         if fp.parse(junk)["ok"]:
             bad.append(f"junk {junk!r} accepted")
@@ -344,7 +369,25 @@ def gr5(c: Ctx):
             bad.append(f"refresh after 25 days read {len(reads3)} fiches")
         if not (set(c.pages) <= set(reads3)):
             bad.append("an old reading is not read again")
-    return not bad, f"closed, open, rerun, refresh; {bad[:4]}"
+        # an error page on a later refresh: a failed read, the stored grid kept (never "sans grille")
+        _fake_harvest(c, out, dict(pages, **{"4100": c.cas["page_erreur"]}), now_shift_days=75)
+        etat4 = {r["cod_aff_form"]: r for r in csv.DictReader(open(out / "etat.csv", encoding="utf-8"))}
+        kept = any(r["cod_aff_form"] == "4100" for r in csv.DictReader(open(out / "champs.csv", encoding="utf-8")))
+        if etat4["4100"]["status"] != "failed" or not kept:
+            bad.append(f"an error page on refresh: {etat4['4100']['status']}, grid kept {kept}")
+        # a fiche the reader could not use, read by an older reader, is read again before any refresh is due
+        rows = list(csv.DictReader(open(out / "etat.csv", encoding="utf-8")))
+        for r in rows:
+            if r["cod_aff_form"] == "31390":
+                r["version"] = "1"
+        with open(out / "etat.csv", "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        _r5, reads5 = _fake_harvest(c, out, pages, now_shift_days=76)
+        if "31390" not in reads5:
+            bad.append(f"an older reader's rejected fiche is not read again: {reads5[:6]}")
+    return not bad, f"closed, open, rerun, refresh, error page, older reader; {bad[:4]}"
 
 
 def _built(c: Ctx, out: Path, gr=None):
@@ -380,6 +423,14 @@ def gr6(c: Ctx):
                 bad.append(f"{cod} url/date {g['url']} {g['lu_le']}")
         if gr.for_formation(con, "0") is not None:
             bad.append("an unknown code is served")
+        con.close()
+        out2 = Path(d) / "fiches2"
+        _fake_harvest(c, out2, {"2029": c.cas["apprentissage_sans_examen"]})
+        gra, con = _built(c, out2)[0:2]
+        g = gra.for_formation(con, "2029")
+        app = fp.parse(c.cas["apprentissage_sans_examen"])
+        if not g or g["grille"] or g["info"] != app["info"] or g["nationaux"] != app["attendus_nationaux"] or g["champs"]:
+            bad.append(f"apprenticeship notice after the round trip: {g and (g['grille'], str(g['info'])[:30])}")
         con.close()
 
         def tamper(fname, fn):
@@ -468,16 +519,17 @@ def gr7(c: Ctx):
                         {"critere": "Projet", "elements": "Lettre", "importance": 3, "importance_label": "Très important"}]}]}
     empty = {"session": 2026, "grille": False, "nationaux": None, "complementaires": None, "champs": []}
     only = dict(empty, nationaux="Attendus " + HOSTILE)
+    notice = dict(empty, info="Cette formation n'examine pas les candidatures " + HOSTILE)
     prog = defs + """
 const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
 process.stdout.write(JSON.stringify(data.map((g) => grilleCard(g))));"""
     try:
-        out = node(prog, [g, empty, only, None])
+        out = node(prog, [g, empty, only, None, notice])
     except RuntimeError as e:
         return False, f"node: {e}"
     if out is None:
         return True, "node not installed"
-    h, e, o, n = out
+    h, e, o, n, nt = out
     bad = []
     if "<img" in h or "<img" in o or "&lt;img src=x onerror=alert(1)&gt;" not in h:
         bad.append("a stored string is not escaped")
@@ -492,6 +544,8 @@ process.stdout.write(JSON.stringify(data.map((g) => grilleCard(g))));"""
         bad.append("importance class")
     if "<li>" not in h:
         bad.append("expectations list not rendered as a list")
+    if "examine pas les candidatures" not in nt or "<img" in nt or 'class="gr-info"' not in nt:
+        bad.append("the notice alone is not shown, or not escaped")
     if e != "" or n != "" or "Les attendus nationaux" not in o or "Vue d'ensemble" in o:
         bad.append(f"empty/only-expectations: {e[:40]!r} {o[:40]!r}")
     txt = re.sub(r"<[^>]+>", " ", h)
@@ -568,7 +622,7 @@ def fingerprint_follows_status(c: Ctx, proj: str) -> list:
 SOURCE_MUTANTS = [
     ("fp", "caption weight not checked", "if not w or int(w.group(1)) != out[\"champs\"][i][\"poids\"]:", "if not w:", "GR4"),
     ("fp", "sum not checked", 'if sum(x["poids"] for x in out["champs"]) != 100:', "if False:", "GR4"),
-    ("fp", "total not checked", "or pct(total[0][1]) != 100:", "or pct(total[0][1]) is None:", "GR4"),
+    ("fp", "total not checked", "or (total and pct(total[0][1]) != 100):", "or (total and pct(total[0][1]) is None):", "GR4"),
     ("fp", "label vs score not checked", "if IMPORTANCE.get(label) != int(sur.group(1)):", "if label not in IMPORTANCE:", "GR4"),
     ("fp", "table count not checked", "if len(tables) != len(champs):", "if not tables:", "GR4"),
     ("fp", "importance shifted", '"importance": int(sur.group(1)), "importance_label": label', '"importance": 5 - int(sur.group(1)), "importance_label": label', "GR1"),
@@ -578,9 +632,17 @@ SOURCE_MUTANTS = [
     ("fp", "complementary read as national", 'out["attendus_complementaires"] = mask(_section(page, "Les attendus complémentaires"))',
      'out["attendus_complementaires"] = mask(_section(page, "Les attendus nationaux"))', "GR1"),
     ("fp", "no session", "out[\"session\"] = int(s.group(1)) if s else None", "out[\"session\"] = None", "GR2"),
+    ("fp", "every grid needs 'Au total'", "if not champs or len(total) > 1 or (len(champs) > 1 and not total)", "if not champs or len(total) != 1", "GR4"),
+    ("fp", "several fields without 'Au total' accepted", " or (len(champs) > 1 and not total)", "", "GR4"),
+    ("fp", "error page read as a fiche", 'if not t or not text(t.group(1)).startswith("Fiche formation"):', "if False:", "GR4"),
+    ("fp", "notice not read", 'out["info"] = (mask(text(n.group(1))) or None) if n else None', 'out["info"] = None', "GR4"),
+    ("fg", "error page stored as no grid", 'if p["reason"] == "pas une fiche":', "if False:", "GR5"),
+    ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)]', "and False]", "GR5"),
+    ("gr", "notice dropped at build", '"info": tx(a.get("info_id")), "champs"', '"info": None, "champs"', "GR6"),
+    ("js", "notice not shown", '${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}', "", "GR7"),
     ("fg", "closed site writes", "if probe and all(fetch_fiche(http, c, pause)[0] is None for c in probe):", "if False:", "GR5"),
     ("fg", "texts stored again", "if i and i not in ids:", "if i:", "GR5"),
-    ("fg", "no refresh", 'and etat[c]["lu_le"] < old)', 'and False)', "GR5"),
+    ("fg", "no refresh", 'and etat[c]["lu_le"] < old\n', 'and False\n', "GR5"),
     ("fg", "a rejected fiche keeps an old grid", "        champs.pop(c, None)\n        crits.pop(c, None)\n", "", "GR5"),
     ("fg", "retry forever", 'r["status"] = "retry" if r["status"] == "todo" else "failed"', 'r["status"] = "retry"', "GR5"),
     ("gr", "weights not checked again", "sum(poids) != 100 or", "False or", "GR6"),
@@ -593,7 +655,7 @@ SOURCE_MUTANTS = [
     ("js", "dots off by one", "`<i class=\"${i <= n ? \"on\" : \"\"}\"></i>`", "`<i class=\"${i < n ? \"on\" : \"\"}\"></i>`", "GR7"),
     ("js", "no fait foi", "La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi.", "La grille peut changer.", "GR7"),
     ("js", "grid not in the jury tab", "const juryHtml = grHtml + repHtml;", "const juryHtml = repHtml;", "GR7"),
-    ("js", "empty card shown", "if (!g || (!g.grille && !g.nationaux && !g.complementaires)) return \"\";", "if (!g) return \"\";", "GR7"),
+    ("js", "empty card shown", "if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return \"\";", "if (!g) return \"\";", "GR7"),
 ]
 
 
