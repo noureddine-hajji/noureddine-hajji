@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14T10:26:03+00:00",
+  "generated_at": "2026-11-14T11:25:36+00:00",
   "identities": [
     {
       "check": "series_eq_acc_neobac",
@@ -124,10 +124,10 @@
       "status": "upstream_inconsistency",
       "sample_violators": [
         "11735",
-        "31322",
-        "2574",
-        "26436",
-        "26129"
+        "27461",
+        "28125",
+        "25368",
+        "23431"
       ]
     },
     {
@@ -142,11 +142,11 @@
       "pct_ok": 99.89,
       "status": "upstream_inconsistency",
       "sample_violators": [
+        "33058",
+        "11783",
+        "2000",
         "2406",
-        "31333",
-        "5453",
-        "25105",
-        "35239"
+        "31333"
       ]
     },
     {
