@@ -19,7 +19,37 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 6,2026,3,Savoir-être,4,a25294e19631f0d0
 6,2026,4,Motivation,4,3f2bdee96943befa
 6,2026,5,Engagement et activités,4,9f288da0f5965639
+8,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+9,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+10,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+11,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+12,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 13,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+14,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+15,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+16,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+17,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+18,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+19,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+20,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+21,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+22,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+23,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+24,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+25,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+26,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+27,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+28,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+29,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+30,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+31,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+32,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+33,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+34,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+35,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+36,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+38,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+41,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 47,2026,1,Résultats scolaires,80,e0def7626ea037c7
 47,2026,2,Motivation,20,663290aaa278124e
 54,2026,1,Résultats scolaires,50,c04f277ab00917cf
@@ -187,6 +217,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 116,2026,3,Savoir-être,15,3d9ec2c40941b0dd
 116,2026,4,Motivation,20,663290aaa278124e
 116,2026,5,Engagement et activités,5,4cd33c4b3ee728f1
+123,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 125,2026,1,Résultats scolaires,30,72b904140170b865
 125,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 125,2026,3,Savoir-être,10,585e20ecb7910280
@@ -282,6 +313,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 259,2026,3,Savoir-être,10,585e20ecb7910280
 259,2026,4,Motivation,20,663290aaa278124e
 259,2026,5,Engagement et activités,10,d55f73a38ab4a09a
+263,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+317,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 358,2026,1,Résultats scolaires,80,e0def7626ea037c7
 358,2026,2,Motivation,20,663290aaa278124e
 372,2026,1,Résultats scolaires,80,e0def7626ea037c7
@@ -298,6 +331,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 392,2026,3,Savoir-être,3,c7771ccb8253ce1b
 392,2026,4,Motivation,5,6af5ddd109ca85ed
 392,2026,5,Engagement et activités,2,a4ab0b594b4bf49d
+432,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+433,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 434,2026,1,Résultats scolaires,80,e0def7626ea037c7
 434,2026,2,Motivation,20,663290aaa278124e
 440,2026,1,Résultats scolaires,17,ac8ca6a174308ef6
@@ -361,6 +396,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 471,2026,3,Savoir-être,3,c7771ccb8253ce1b
 471,2026,4,Motivation,5,6af5ddd109ca85ed
 471,2026,5,Engagement et activités,2,a4ab0b594b4bf49d
+472,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 473,2026,1,Résultats scolaires,40,a0623181a8524df8
 473,2026,2,Méthodes de travail,50,0e25e681e726e823
 473,2026,3,Savoir-être,3,c7771ccb8253ce1b
@@ -1243,6 +1279,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 2214,2026,3,Savoir-être,35,f715123f681e40a3
 2214,2026,4,Motivation,20,663290aaa278124e
 2214,2026,5,Engagement et activités,10,d55f73a38ab4a09a
+2215,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 2217,2026,1,Résultats scolaires,40,a0623181a8524df8
 2217,2026,2,Méthodes de travail,10,952d4a7f586323e7
 2217,2026,3,Savoir-être,10,585e20ecb7910280
@@ -1381,6 +1418,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 2258,2026,1,Résultats scolaires,45,4b55eabe2cc94af1
 2258,2026,2,Motivation,45,4077085d39cd0ff6
 2258,2026,3,Engagement et activités,10,d55f73a38ab4a09a
+2290,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 2291,2026,1,Résultats scolaires,30,72b904140170b865
 2291,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 2291,2026,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -2704,6 +2742,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 2660,2026,2,Savoir-être,10,585e20ecb7910280
 2660,2026,3,Motivation,20,663290aaa278124e
 2660,2026,4,Engagement et activités,20,a0b01707f6a00ab3
+2661,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+2662,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 2663,2026,1,Résultats scolaires,35,4c980b06ec435cdc
 2663,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 2663,2026,3,Savoir-être,25,47f346a4ef2278e9
@@ -60949,6 +60989,10 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 34858,,5,Engagement et activités,20,a0b01707f6a00ab3
 34860,,1,Résultats scolaires,100,552d8cd02c6ed220
 34861,,1,Résultats scolaires,100,552d8cd02c6ed220
+34862,,1,Résultats scolaires,100,552d8cd02c6ed220
+34863,,1,Résultats scolaires,100,552d8cd02c6ed220
+34864,,1,Résultats scolaires,100,552d8cd02c6ed220
+34865,,1,Résultats scolaires,100,552d8cd02c6ed220
 34867,,1,Résultats scolaires,50,c04f277ab00917cf
 34867,,2,Méthodes de travail,20,ad04135c95d93d3b
 34867,,3,Savoir-être,10,585e20ecb7910280
@@ -60997,6 +61041,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 34902,,3,Savoir-être,20,98aa358c23e5447f
 34902,,4,Motivation,20,663290aaa278124e
 34902,,5,Engagement et activités,20,a0b01707f6a00ab3
+34905,,1,Résultats scolaires,100,552d8cd02c6ed220
 34907,,1,Résultats scolaires,30,72b904140170b865
 34907,,2,Méthodes de travail,25,2b99875d4d571c8a
 34907,,3,Savoir-être,25,47f346a4ef2278e9
@@ -61081,6 +61126,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 34969,,5,Engagement et activités,20,a0b01707f6a00ab3
 34975,,1,Résultats scolaires,50,c04f277ab00917cf
 34975,,2,Motivation,50,5228cb39c2e8fcab
+34976,,1,Résultats scolaires,100,552d8cd02c6ed220
 34979,2026,1,Méthodes de travail,5,a9acc049ca80d344
 34979,2026,2,Savoir-être,40,1ed4a47a11896faa
 34979,2026,3,Motivation,50,5228cb39c2e8fcab
@@ -61262,6 +61308,9 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 35136,2026,3,Savoir-être,3,c7771ccb8253ce1b
 35136,2026,4,Motivation,5,6af5ddd109ca85ed
 35136,2026,5,Engagement et activités,2,a4ab0b594b4bf49d
+35138,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+35139,2026,1,Résultats scolaires,100,552d8cd02c6ed220
+35140,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 35148,2026,1,Résultats scolaires,30,72b904140170b865
 35148,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 35148,2026,3,Savoir-être,10,585e20ecb7910280
@@ -61825,6 +61874,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 35373,2026,3,Savoir-être,10,585e20ecb7910280
 35373,2026,4,Motivation,25,574b00b88eebfc66
 35373,2026,5,Engagement et activités,5,4cd33c4b3ee728f1
+35385,2026,1,Motivation,100,8e483a6270002d96
 35386,2026,1,Résultats scolaires,60,c8492940189234a9
 35386,2026,2,Savoir-être,10,585e20ecb7910280
 35386,2026,3,Motivation,25,574b00b88eebfc66
@@ -62235,6 +62285,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 35577,2026,2,Méthodes de travail,10,952d4a7f586323e7
 35577,2026,3,Savoir-être,10,585e20ecb7910280
 35577,2026,4,Motivation,10,2ddc7c64df918352
+35578,2026,1,Méthodes de travail,100,b5ba1adcec533d2b
 35586,2026,1,Résultats scolaires,40,a0623181a8524df8
 35586,2026,2,Méthodes de travail,30,894334c2483dc2f2
 35586,2026,3,Savoir-être,20,98aa358c23e5447f
@@ -63643,6 +63694,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 36496,2026,1,Résultats scolaires,30,72b904140170b865
 36496,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 36496,2026,3,Motivation,50,5228cb39c2e8fcab
+36497,,1,Résultats scolaires,100,552d8cd02c6ed220
 36498,,1,Résultats scolaires,20,f126a895e0889386
 36498,,2,Méthodes de travail,20,ad04135c95d93d3b
 36498,,3,Savoir-être,30,2722bfc6bfd91a5e
@@ -63931,6 +63983,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 36684,,1,Savoir-être,50,e06f36bbc5c82383
 36684,,2,Motivation,40,f6578ea5166fd59e
 36684,,3,Engagement et activités,10,d55f73a38ab4a09a
+36685,,1,Résultats scolaires,100,552d8cd02c6ed220
 36688,,1,Résultats scolaires,25,cdbf0c650f38598d
 36688,,2,Méthodes de travail,25,2b99875d4d571c8a
 36688,,3,Savoir-être,20,98aa358c23e5447f
@@ -64340,6 +64393,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 36937,,3,Savoir-être,33,b6cf07ba39e835b5
 36937,,4,Motivation,16,52b600e0afc0e0a2
 36937,,5,Engagement et activités,2,a4ab0b594b4bf49d
+36941,,1,Motivation,100,8e483a6270002d96
 36948,,1,Résultats scolaires,60,c8492940189234a9
 36948,,2,Méthodes de travail,5,a9acc049ca80d344
 36948,,3,Savoir-être,25,47f346a4ef2278e9
@@ -64359,6 +64413,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 36956,,2,Savoir-être,25,47f346a4ef2278e9
 36956,,3,Motivation,10,2ddc7c64df918352
 36956,,4,Engagement et activités,5,4cd33c4b3ee728f1
+36959,,1,Motivation,100,8e483a6270002d96
 36965,,1,Résultats scolaires,40,a0623181a8524df8
 36965,,2,Méthodes de travail,20,ad04135c95d93d3b
 36965,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -64532,6 +64587,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37095,,3,Savoir-être,20,98aa358c23e5447f
 37095,,4,Motivation,20,663290aaa278124e
 37095,,5,Engagement et activités,10,d55f73a38ab4a09a
+37098,,1,Méthodes de travail,100,b5ba1adcec533d2b
 37103,,1,Résultats scolaires,30,72b904140170b865
 37103,,2,Méthodes de travail,25,2b99875d4d571c8a
 37103,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -64836,6 +64892,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37268,,2,Savoir-être,30,2722bfc6bfd91a5e
 37268,,3,Motivation,30,9815befb8c297b66
 37268,,4,Engagement et activités,20,a0b01707f6a00ab3
+37272,,1,Motivation,100,8e483a6270002d96
 37274,,1,Résultats scolaires,20,f126a895e0889386
 37274,,2,Méthodes de travail,25,2b99875d4d571c8a
 37274,,3,Savoir-être,25,47f346a4ef2278e9
@@ -64865,6 +64922,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37305,,3,Savoir-être,25,47f346a4ef2278e9
 37305,,4,Motivation,25,574b00b88eebfc66
 37305,,5,Engagement et activités,25,f7d3ee2a4e380823
+37306,,1,Motivation,100,8e483a6270002d96
 37307,,1,Résultats scolaires,30,72b904140170b865
 37307,,2,Méthodes de travail,30,894334c2483dc2f2
 37307,,3,Savoir-être,20,98aa358c23e5447f
@@ -65030,6 +65088,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37407,,1,Résultats scolaires,25,cdbf0c650f38598d
 37407,,2,Savoir-être,25,47f346a4ef2278e9
 37407,,3,Motivation,50,5228cb39c2e8fcab
+37408,,1,Savoir-être,100,7f1bec17935cdfff
 37413,,1,Résultats scolaires,40,a0623181a8524df8
 37413,,2,Méthodes de travail,10,952d4a7f586323e7
 37413,,3,Savoir-être,10,585e20ecb7910280
@@ -65300,6 +65359,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37534,,2,Méthodes de travail,20,ad04135c95d93d3b
 37534,,3,Savoir-être,15,3d9ec2c40941b0dd
 37534,,4,Motivation,15,c60632339c6a5c81
+37535,,1,Motivation,100,8e483a6270002d96
 37536,,1,Résultats scolaires,50,c04f277ab00917cf
 37536,,2,Méthodes de travail,30,894334c2483dc2f2
 37536,,3,Savoir-être,10,585e20ecb7910280
@@ -65409,11 +65469,14 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37602,,3,Savoir-être,20,98aa358c23e5447f
 37602,,4,Motivation,20,663290aaa278124e
 37602,,5,Engagement et activités,20,a0b01707f6a00ab3
+37603,,1,Résultats scolaires,100,552d8cd02c6ed220
 37604,,1,Résultats scolaires,20,f126a895e0889386
 37604,,2,Méthodes de travail,20,ad04135c95d93d3b
 37604,,3,Savoir-être,20,98aa358c23e5447f
 37604,,4,Motivation,20,663290aaa278124e
 37604,,5,Engagement et activités,20,a0b01707f6a00ab3
+37605,,1,Résultats scolaires,100,552d8cd02c6ed220
+37607,,1,Résultats scolaires,100,552d8cd02c6ed220
 37608,,1,Résultats scolaires,50,c04f277ab00917cf
 37608,,2,Savoir-être,20,98aa358c23e5447f
 37608,,3,Motivation,30,9815befb8c297b66
@@ -65440,11 +65503,13 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37613,,3,Savoir-être,5,fc2a39063d164211
 37613,,4,Motivation,10,2ddc7c64df918352
 37613,,5,Engagement et activités,5,4cd33c4b3ee728f1
+37614,,1,Résultats scolaires,100,552d8cd02c6ed220
 37615,,1,Résultats scolaires,60,c8492940189234a9
 37615,,2,Méthodes de travail,10,952d4a7f586323e7
 37615,,3,Savoir-être,5,fc2a39063d164211
 37615,,4,Motivation,20,663290aaa278124e
 37615,,5,Engagement et activités,5,4cd33c4b3ee728f1
+37616,,1,Résultats scolaires,100,552d8cd02c6ed220
 37618,,1,Résultats scolaires,50,c04f277ab00917cf
 37618,,2,Savoir-être,20,98aa358c23e5447f
 37618,,3,Motivation,30,9815befb8c297b66
@@ -65564,6 +65629,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37690,,3,Savoir-être,30,2722bfc6bfd91a5e
 37690,,4,Motivation,20,663290aaa278124e
 37690,,5,Engagement et activités,5,4cd33c4b3ee728f1
+37693,,1,Motivation,100,8e483a6270002d96
 37694,,1,Résultats scolaires,20,f126a895e0889386
 37694,,2,Méthodes de travail,20,ad04135c95d93d3b
 37694,,3,Savoir-être,20,98aa358c23e5447f
@@ -65625,6 +65691,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37737,,1,Résultats scolaires,34,a3655b1a1ee4c139
 37737,,2,Savoir-être,33,b6cf07ba39e835b5
 37737,,3,Motivation,33,a3c92fa8cc53559e
+37744,,1,Motivation,100,8e483a6270002d96
 37748,,1,Résultats scolaires,30,72b904140170b865
 37748,,2,Méthodes de travail,20,ad04135c95d93d3b
 37748,,3,Savoir-être,20,98aa358c23e5447f
@@ -65680,6 +65747,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 37818,,3,Savoir-être,25,47f346a4ef2278e9
 37818,,4,Motivation,10,2ddc7c64df918352
 37818,,5,Engagement et activités,5,4cd33c4b3ee728f1
+37821,,1,Motivation,100,8e483a6270002d96
 37823,,1,Résultats scolaires,50,c04f277ab00917cf
 37823,,2,Méthodes de travail,30,894334c2483dc2f2
 37823,,3,Savoir-être,10,585e20ecb7910280
@@ -66163,6 +66231,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38075,,3,Savoir-être,20,98aa358c23e5447f
 38075,,4,Motivation,20,663290aaa278124e
 38075,,5,Engagement et activités,20,a0b01707f6a00ab3
+38080,,1,Résultats scolaires,100,552d8cd02c6ed220
 38081,,1,Résultats scolaires,20,f126a895e0889386
 38081,,2,Méthodes de travail,15,7f49eab87e18f120
 38081,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -66172,6 +66241,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38088,,3,Savoir-être,25,47f346a4ef2278e9
 38088,,4,Motivation,20,663290aaa278124e
 38088,,5,Engagement et activités,10,d55f73a38ab4a09a
+38093,,1,Résultats scolaires,100,552d8cd02c6ed220
 38098,,1,Résultats scolaires,40,a0623181a8524df8
 38098,,2,Méthodes de travail,20,ad04135c95d93d3b
 38098,,3,Motivation,30,9815befb8c297b66
@@ -66305,6 +66375,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38160,,3,Savoir-être,30,2722bfc6bfd91a5e
 38160,,4,Motivation,15,c60632339c6a5c81
 38160,,5,Engagement et activités,5,4cd33c4b3ee728f1
+38163,,1,Motivation,100,8e483a6270002d96
 38164,,1,Résultats scolaires,30,72b904140170b865
 38164,,2,Méthodes de travail,30,894334c2483dc2f2
 38164,,3,Savoir-être,25,47f346a4ef2278e9
@@ -66458,6 +66529,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38226,,3,Savoir-être,20,98aa358c23e5447f
 38226,,4,Motivation,20,663290aaa278124e
 38226,,5,Engagement et activités,20,a0b01707f6a00ab3
+38227,,1,Motivation,100,8e483a6270002d96
 38229,,1,Résultats scolaires,20,f126a895e0889386
 38229,,2,Méthodes de travail,20,ad04135c95d93d3b
 38229,,3,Savoir-être,20,98aa358c23e5447f
@@ -66638,6 +66710,10 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38349,,3,Savoir-être,10,585e20ecb7910280
 38349,,4,Motivation,10,2ddc7c64df918352
 38349,,5,Engagement et activités,10,d55f73a38ab4a09a
+38350,,1,Résultats scolaires,100,552d8cd02c6ed220
+38351,,1,Résultats scolaires,100,552d8cd02c6ed220
+38352,,1,Résultats scolaires,100,552d8cd02c6ed220
+38353,,1,Résultats scolaires,100,552d8cd02c6ed220
 38358,,1,Résultats scolaires,25,cdbf0c650f38598d
 38358,,2,Méthodes de travail,20,ad04135c95d93d3b
 38358,,3,Savoir-être,20,98aa358c23e5447f
@@ -66667,6 +66743,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38369,,1,Résultats scolaires,50,c04f277ab00917cf
 38369,,2,Savoir-être,20,98aa358c23e5447f
 38369,,3,Motivation,30,9815befb8c297b66
+38370,,1,Motivation,100,8e483a6270002d96
 38385,2026,1,Résultats scolaires,40,a0623181a8524df8
 38385,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 38385,2026,3,Savoir-être,20,98aa358c23e5447f
@@ -66763,6 +66840,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38470,,2,Méthodes de travail,10,952d4a7f586323e7
 38470,,3,Savoir-être,30,2722bfc6bfd91a5e
 38470,,4,Motivation,30,9815befb8c297b66
+38472,,1,Résultats scolaires,100,552d8cd02c6ed220
 38480,2026,1,Résultats scolaires,1,4090e072cc0be2a3
 38480,2026,2,Méthodes de travail,65,eb76738840c2b918
 38480,2026,3,Savoir-être,11,b051ff381d766358
@@ -66941,6 +67019,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38632,,2,Méthodes de travail,30,894334c2483dc2f2
 38632,,3,Savoir-être,30,2722bfc6bfd91a5e
 38632,,4,Motivation,30,9815befb8c297b66
+38635,,1,Résultats scolaires,100,552d8cd02c6ed220
 38637,,1,Résultats scolaires,40,a0623181a8524df8
 38637,,2,Méthodes de travail,20,ad04135c95d93d3b
 38637,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -67103,6 +67182,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 38714,,3,Savoir-être,4,a25294e19631f0d0
 38714,,4,Motivation,4,3f2bdee96943befa
 38714,,5,Engagement et activités,1,a1d2fba379a724e3
+38715,,1,Résultats scolaires,100,552d8cd02c6ed220
 38716,,1,Résultats scolaires,15,869b59ea90c16b1f
 38716,,2,Méthodes de travail,10,952d4a7f586323e7
 38716,,3,Savoir-être,50,e06f36bbc5c82383
@@ -68270,6 +68350,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 39402,,3,Savoir-être,20,98aa358c23e5447f
 39402,,4,Motivation,20,663290aaa278124e
 39402,,5,Engagement et activités,20,a0b01707f6a00ab3
+39404,,1,Motivation,100,8e483a6270002d96
 39408,,1,Résultats scolaires,35,4c980b06ec435cdc
 39408,,2,Savoir-être,35,f715123f681e40a3
 39408,,3,Motivation,30,9815befb8c297b66
@@ -68417,6 +68498,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 39509,,2,Savoir-être,30,2722bfc6bfd91a5e
 39509,,3,Motivation,35,78fce109a7a45261
 39509,,4,Engagement et activités,10,d55f73a38ab4a09a
+39510,,1,Motivation,100,8e483a6270002d96
 39516,,1,Résultats scolaires,30,72b904140170b865
 39516,,2,Méthodes de travail,20,ad04135c95d93d3b
 39516,,3,Savoir-être,20,98aa358c23e5447f
@@ -68634,6 +68716,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 39598,2026,3,Savoir-être,25,47f346a4ef2278e9
 39598,2026,4,Motivation,20,663290aaa278124e
 39598,2026,5,Engagement et activités,20,a0b01707f6a00ab3
+39601,,1,Résultats scolaires,100,552d8cd02c6ed220
+39602,,1,Résultats scolaires,100,552d8cd02c6ed220
 39603,2026,1,Résultats scolaires,45,4b55eabe2cc94af1
 39603,2026,2,Motivation,45,4077085d39cd0ff6
 39603,2026,3,Engagement et activités,10,d55f73a38ab4a09a
@@ -69830,6 +69914,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40308,,1,Méthodes de travail,30,894334c2483dc2f2
 40308,,2,Savoir-être,40,1ed4a47a11896faa
 40308,,3,Motivation,30,9815befb8c297b66
+40314,,1,Motivation,100,8e483a6270002d96
 40318,,1,Résultats scolaires,40,a0623181a8524df8
 40318,,2,Méthodes de travail,30,894334c2483dc2f2
 40318,,3,Savoir-être,20,98aa358c23e5447f
@@ -70386,6 +70471,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40618,,1,Résultats scolaires,50,c04f277ab00917cf
 40618,,2,Savoir-être,20,98aa358c23e5447f
 40618,,3,Motivation,30,9815befb8c297b66
+40626,,1,Savoir-être,100,7f1bec17935cdfff
 40629,,1,Résultats scolaires,10,8b58e1c7d7632864
 40629,,2,Méthodes de travail,20,ad04135c95d93d3b
 40629,,3,Savoir-être,40,1ed4a47a11896faa
@@ -70483,6 +70569,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40679,,1,Résultats scolaires,55,45634452eb468997
 40679,,2,Motivation,25,574b00b88eebfc66
 40679,,3,Engagement et activités,20,a0b01707f6a00ab3
+40681,,1,Résultats scolaires,100,552d8cd02c6ed220
 40685,,1,Résultats scolaires,30,72b904140170b865
 40685,,2,Méthodes de travail,20,ad04135c95d93d3b
 40685,,3,Savoir-être,20,98aa358c23e5447f
@@ -70524,8 +70611,14 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40724,,3,Savoir-être,15,3d9ec2c40941b0dd
 40724,,4,Motivation,20,663290aaa278124e
 40724,,5,Engagement et activités,5,4cd33c4b3ee728f1
+40730,,1,Résultats scolaires,100,552d8cd02c6ed220
+40731,,1,Résultats scolaires,100,552d8cd02c6ed220
 40733,,1,Résultats scolaires,80,e0def7626ea037c7
 40733,,2,Savoir-être,20,98aa358c23e5447f
+40734,,1,Résultats scolaires,100,552d8cd02c6ed220
+40736,,1,Résultats scolaires,100,552d8cd02c6ed220
+40737,,1,Résultats scolaires,100,552d8cd02c6ed220
+40738,,1,Résultats scolaires,100,552d8cd02c6ed220
 40743,,1,Résultats scolaires,40,a0623181a8524df8
 40743,,2,Méthodes de travail,20,ad04135c95d93d3b
 40743,,3,Savoir-être,20,98aa358c23e5447f
@@ -70759,6 +70852,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40898,,3,Savoir-être,20,98aa358c23e5447f
 40898,,4,Motivation,20,663290aaa278124e
 40898,,5,Engagement et activités,10,d55f73a38ab4a09a
+40899,,1,Savoir-être,100,7f1bec17935cdfff
 40901,,1,Résultats scolaires,1,4090e072cc0be2a3
 40901,,2,Méthodes de travail,20,ad04135c95d93d3b
 40901,,3,Savoir-être,30,2722bfc6bfd91a5e
@@ -70889,6 +70983,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 40971,,3,Savoir-être,20,98aa358c23e5447f
 40971,,4,Motivation,20,663290aaa278124e
 40971,,5,Engagement et activités,10,d55f73a38ab4a09a
+40978,,1,Motivation,100,8e483a6270002d96
 40981,2026,1,Résultats scolaires,25,cdbf0c650f38598d
 40981,2026,2,Méthodes de travail,25,2b99875d4d571c8a
 40981,2026,3,Savoir-être,25,47f346a4ef2278e9
@@ -71110,6 +71205,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 41104,,2,Méthodes de travail,30,894334c2483dc2f2
 41104,,3,Savoir-être,30,2722bfc6bfd91a5e
 41104,,4,Motivation,20,663290aaa278124e
+41108,,1,Motivation,100,8e483a6270002d96
 41111,,1,Résultats scolaires,15,869b59ea90c16b1f
 41111,,2,Savoir-être,15,3d9ec2c40941b0dd
 41111,,3,Motivation,65,bcace3eb4c3ec5bc
@@ -71793,6 +71889,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 41565,,2,Méthodes de travail,20,ad04135c95d93d3b
 41565,,3,Savoir-être,35,f715123f681e40a3
 41565,,4,Motivation,15,c60632339c6a5c81
+41572,,1,Motivation,100,8e483a6270002d96
 41574,,1,Résultats scolaires,30,72b904140170b865
 41574,,2,Méthodes de travail,15,7f49eab87e18f120
 41574,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -71902,6 +71999,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 41634,,1,Résultats scolaires,50,c04f277ab00917cf
 41634,,2,Savoir-être,20,98aa358c23e5447f
 41634,,3,Motivation,30,9815befb8c297b66
+41640,,1,Motivation,100,8e483a6270002d96
 41642,,1,Résultats scolaires,20,f126a895e0889386
 41642,,2,Méthodes de travail,20,ad04135c95d93d3b
 41642,,3,Savoir-être,20,98aa358c23e5447f
@@ -72312,6 +72410,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 41879,,3,Savoir-être,20,98aa358c23e5447f
 41879,,4,Motivation,30,9815befb8c297b66
 41879,,5,Engagement et activités,10,d55f73a38ab4a09a
+41882,,1,Motivation,100,8e483a6270002d96
 41884,,1,Résultats scolaires,20,f126a895e0889386
 41884,,2,Méthodes de travail,40,27da5dcfbdc975bf
 41884,,3,Savoir-être,20,98aa358c23e5447f
@@ -72321,6 +72420,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 41886,,3,Savoir-être,50,e06f36bbc5c82383
 41886,,4,Motivation,30,9815befb8c297b66
 41886,,5,Engagement et activités,5,4cd33c4b3ee728f1
+41888,,1,Motivation,100,8e483a6270002d96
 41891,,1,Résultats scolaires,40,a0623181a8524df8
 41891,,2,Méthodes de travail,20,ad04135c95d93d3b
 41891,,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -72458,6 +72558,11 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42004,,1,Résultats scolaires,30,72b904140170b865
 42004,,2,Savoir-être,40,1ed4a47a11896faa
 42004,,3,Motivation,30,9815befb8c297b66
+42005,,1,Résultats scolaires,100,552d8cd02c6ed220
+42006,,1,Résultats scolaires,100,552d8cd02c6ed220
+42007,,1,Résultats scolaires,100,552d8cd02c6ed220
+42008,,1,Résultats scolaires,100,552d8cd02c6ed220
+42010,,1,Résultats scolaires,100,552d8cd02c6ed220
 42013,,1,Résultats scolaires,15,869b59ea90c16b1f
 42013,,2,Méthodes de travail,15,7f49eab87e18f120
 42013,,3,Savoir-être,30,2722bfc6bfd91a5e
@@ -72475,6 +72580,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42028,,3,Savoir-être,20,98aa358c23e5447f
 42028,,4,Motivation,35,78fce109a7a45261
 42028,,5,Engagement et activités,5,4cd33c4b3ee728f1
+42029,,1,Résultats scolaires,100,552d8cd02c6ed220
 42031,,1,Méthodes de travail,35,10f7dd04a625c156
 42031,,2,Savoir-être,20,98aa358c23e5447f
 42031,,3,Motivation,35,78fce109a7a45261
@@ -72562,6 +72668,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42100,,3,Savoir-être,25,47f346a4ef2278e9
 42100,,4,Motivation,20,663290aaa278124e
 42100,,5,Engagement et activités,10,d55f73a38ab4a09a
+42107,,1,Résultats scolaires,100,552d8cd02c6ed220
 42108,,1,Résultats scolaires,20,f126a895e0889386
 42108,,2,Méthodes de travail,20,ad04135c95d93d3b
 42108,,3,Savoir-être,20,98aa358c23e5447f
@@ -72731,6 +72838,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42212,,3,Savoir-être,15,3d9ec2c40941b0dd
 42212,,4,Motivation,20,663290aaa278124e
 42212,,5,Engagement et activités,5,4cd33c4b3ee728f1
+42213,,1,Résultats scolaires,100,552d8cd02c6ed220
 42214,,1,Méthodes de travail,35,10f7dd04a625c156
 42214,,2,Savoir-être,30,2722bfc6bfd91a5e
 42214,,3,Motivation,35,78fce109a7a45261
@@ -72788,6 +72896,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42245,,1,Résultats scolaires,40,a0623181a8524df8
 42245,,2,Savoir-être,40,1ed4a47a11896faa
 42245,,3,Motivation,20,663290aaa278124e
+42247,,1,Résultats scolaires,100,552d8cd02c6ed220
 42254,,1,Résultats scolaires,30,72b904140170b865
 42254,,2,Méthodes de travail,20,ad04135c95d93d3b
 42254,,3,Savoir-être,20,98aa358c23e5447f
@@ -72855,6 +72964,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42300,,3,Savoir-être,20,98aa358c23e5447f
 42300,,4,Motivation,20,663290aaa278124e
 42300,,5,Engagement et activités,5,4cd33c4b3ee728f1
+42302,,1,Motivation,100,8e483a6270002d96
 42303,,1,Résultats scolaires,20,f126a895e0889386
 42303,,2,Méthodes de travail,10,952d4a7f586323e7
 42303,,3,Savoir-être,25,47f346a4ef2278e9
@@ -72881,6 +72991,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 42333,,2,Savoir-être,30,2722bfc6bfd91a5e
 42333,,3,Motivation,30,9815befb8c297b66
 42333,,4,Engagement et activités,10,d55f73a38ab4a09a
+42346,,1,Résultats scolaires,100,552d8cd02c6ed220
 42347,,1,Résultats scolaires,25,cdbf0c650f38598d
 42347,,2,Méthodes de travail,25,2b99875d4d571c8a
 42347,,3,Savoir-être,25,47f346a4ef2278e9
@@ -74578,6 +74689,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 43450,2026,2,Méthodes de travail,10,952d4a7f586323e7
 43450,2026,3,Savoir-être,10,585e20ecb7910280
 43450,2026,4,Motivation,10,2ddc7c64df918352
+43451,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 43454,2026,1,Résultats scolaires,30,72b904140170b865
 43454,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 43454,2026,3,Savoir-être,20,98aa358c23e5447f
@@ -75053,6 +75165,9 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 43728,,3,Savoir-être,5,fc2a39063d164211
 43728,,4,Motivation,60,e630e0f1b4a13ba1
 43728,,5,Engagement et activités,5,4cd33c4b3ee728f1
+43731,,1,Motivation,100,8e483a6270002d96
+43732,,1,Motivation,100,8e483a6270002d96
+43733,,1,Motivation,100,8e483a6270002d96
 43734,,1,Résultats scolaires,20,f126a895e0889386
 43734,,2,Méthodes de travail,20,ad04135c95d93d3b
 43734,,3,Savoir-être,30,2722bfc6bfd91a5e
@@ -77419,6 +77534,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 45297,,3,Savoir-être,25,47f346a4ef2278e9
 45297,,4,Motivation,25,574b00b88eebfc66
 45297,,5,Engagement et activités,10,d55f73a38ab4a09a
+45299,,1,Résultats scolaires,100,552d8cd02c6ed220
 45304,,1,Résultats scolaires,30,72b904140170b865
 45304,,2,Méthodes de travail,20,ad04135c95d93d3b
 45304,,3,Savoir-être,20,98aa358c23e5447f
@@ -78277,6 +78393,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 45721,,2,Méthodes de travail,20,ad04135c95d93d3b
 45721,,3,Savoir-être,40,1ed4a47a11896faa
 45721,,4,Engagement et activités,20,a0b01707f6a00ab3
+45724,,1,Résultats scolaires,100,552d8cd02c6ed220
+45726,,1,Résultats scolaires,100,552d8cd02c6ed220
 45738,2026,1,Résultats scolaires,40,a0623181a8524df8
 45738,2026,2,Méthodes de travail,20,ad04135c95d93d3b
 45738,2026,3,Savoir-être,20,98aa358c23e5447f
@@ -78650,6 +78768,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 46058,,3,Savoir-être,10,585e20ecb7910280
 46058,,4,Motivation,6,f8cbb3f96ffca1eb
 46058,,5,Engagement et activités,4,9f288da0f5965639
+46064,,1,Motivation,100,8e483a6270002d96
 46069,,1,Résultats scolaires,50,c04f277ab00917cf
 46069,,2,Méthodes de travail,10,952d4a7f586323e7
 46069,,3,Savoir-être,10,585e20ecb7910280
@@ -78730,6 +78849,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 46111,,3,Savoir-être,15,3d9ec2c40941b0dd
 46111,,4,Motivation,25,574b00b88eebfc66
 46111,,5,Engagement et activités,15,b2e3e4cd0702256f
+46123,,1,Motivation,100,8e483a6270002d96
 46136,,1,Résultats scolaires,30,72b904140170b865
 46136,,2,Méthodes de travail,15,7f49eab87e18f120
 46136,,3,Savoir-être,25,47f346a4ef2278e9
@@ -79395,6 +79515,8 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 46600,,3,Savoir-être,20,98aa358c23e5447f
 46600,,4,Motivation,20,663290aaa278124e
 46600,,5,Engagement et activités,10,d55f73a38ab4a09a
+46602,,1,Motivation,100,8e483a6270002d96
+46603,,1,Motivation,100,8e483a6270002d96
 46604,,1,Résultats scolaires,20,f126a895e0889386
 46604,,2,Méthodes de travail,20,ad04135c95d93d3b
 46604,,3,Savoir-être,35,f715123f681e40a3
@@ -80304,6 +80426,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 47368,,2,Savoir-être,20,98aa358c23e5447f
 47368,,3,Motivation,29,9f170a9af571b63f
 47368,,4,Engagement et activités,1,a1d2fba379a724e3
+47374,2026,1,Méthodes de travail,100,b5ba1adcec533d2b
 47376,2026,1,Résultats scolaires,24,cacb77f438f1d681
 47376,2026,2,Méthodes de travail,41,3138cffb3420d8e5
 47376,2026,3,Savoir-être,14,a8c4b0b4780904f5
@@ -81030,6 +81153,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 47674,,2,Méthodes de travail,10,952d4a7f586323e7
 47674,,3,Savoir-être,30,2722bfc6bfd91a5e
 47674,,4,Motivation,20,663290aaa278124e
+47677,,1,Résultats scolaires,100,552d8cd02c6ed220
 47680,,1,Résultats scolaires,50,c04f277ab00917cf
 47680,,2,Méthodes de travail,10,952d4a7f586323e7
 47680,,3,Savoir-être,10,585e20ecb7910280
@@ -83546,6 +83670,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 48874,,3,Savoir-être,13,482ce349a6a05162
 48874,,4,Motivation,33,a3c92fa8cc53559e
 48874,,5,Engagement et activités,5,4cd33c4b3ee728f1
+48886,,1,Motivation,100,8e483a6270002d96
 48887,,1,Résultats scolaires,60,c8492940189234a9
 48887,,2,Savoir-être,30,2722bfc6bfd91a5e
 48887,,3,Motivation,10,2ddc7c64df918352
@@ -84819,6 +84944,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 49615,,3,Savoir-être,20,98aa358c23e5447f
 49615,,4,Motivation,30,9815befb8c297b66
 49615,,5,Engagement et activités,10,d55f73a38ab4a09a
+49616,,1,Résultats scolaires,100,552d8cd02c6ed220
 49617,,1,Résultats scolaires,60,c8492940189234a9
 49617,,2,Méthodes de travail,10,952d4a7f586323e7
 49617,,3,Savoir-être,10,585e20ecb7910280
@@ -84950,6 +85076,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 49686,,1,Résultats scolaires,40,a0623181a8524df8
 49686,,2,Méthodes de travail,40,27da5dcfbdc975bf
 49686,,3,Motivation,20,663290aaa278124e
+49687,,1,Savoir-être,100,7f1bec17935cdfff
 49694,,1,Résultats scolaires,30,72b904140170b865
 49694,,2,Méthodes de travail,30,894334c2483dc2f2
 49694,,3,Savoir-être,20,98aa358c23e5447f
@@ -85014,11 +85141,14 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 49726,,1,Résultats scolaires,50,c04f277ab00917cf
 49726,,2,Savoir-être,20,98aa358c23e5447f
 49726,,3,Motivation,30,9815befb8c297b66
+49727,,1,Savoir-être,100,7f1bec17935cdfff
 49728,,1,Résultats scolaires,10,8b58e1c7d7632864
 49728,,2,Méthodes de travail,10,952d4a7f586323e7
 49728,,3,Savoir-être,40,1ed4a47a11896faa
 49728,,4,Motivation,30,9815befb8c297b66
 49728,,5,Engagement et activités,10,d55f73a38ab4a09a
+49729,,1,Savoir-être,100,7f1bec17935cdfff
+49730,,1,Savoir-être,100,7f1bec17935cdfff
 49732,,1,Résultats scolaires,25,cdbf0c650f38598d
 49732,,2,Méthodes de travail,25,2b99875d4d571c8a
 49732,,3,Savoir-être,20,98aa358c23e5447f
@@ -85135,6 +85265,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 49843,,3,Savoir-être,35,f715123f681e40a3
 49843,,4,Motivation,35,78fce109a7a45261
 49843,,5,Engagement et activités,10,d55f73a38ab4a09a
+49850,,1,Résultats scolaires,100,552d8cd02c6ed220
 49851,,1,Résultats scolaires,10,8b58e1c7d7632864
 49851,,2,Méthodes de travail,20,ad04135c95d93d3b
 49851,,3,Savoir-être,25,47f346a4ef2278e9
@@ -85194,6 +85325,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 49880,,1,Résultats scolaires,50,c04f277ab00917cf
 49880,,2,Savoir-être,20,98aa358c23e5447f
 49880,,3,Motivation,30,9815befb8c297b66
+49893,,1,Résultats scolaires,100,552d8cd02c6ed220
 49894,,1,Résultats scolaires,25,cdbf0c650f38598d
 49894,,2,Méthodes de travail,15,7f49eab87e18f120
 49894,,3,Savoir-être,20,98aa358c23e5447f
@@ -85699,6 +85831,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 50138,,3,Savoir-être,25,47f346a4ef2278e9
 50138,,4,Motivation,25,574b00b88eebfc66
 50138,,5,Engagement et activités,5,4cd33c4b3ee728f1
+50140,,1,Résultats scolaires,100,552d8cd02c6ed220
 50142,,1,Résultats scolaires,20,f126a895e0889386
 50142,,2,Méthodes de travail,20,ad04135c95d93d3b
 50142,,3,Savoir-être,25,47f346a4ef2278e9
@@ -86232,6 +86365,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 50517,2026,3,Savoir-être,10,585e20ecb7910280
 50517,2026,4,Motivation,10,2ddc7c64df918352
 50517,2026,5,Engagement et activités,10,d55f73a38ab4a09a
+50518,2026,1,Méthodes de travail,100,b5ba1adcec533d2b
 50519,2026,1,Résultats scolaires,30,72b904140170b865
 50519,2026,2,Méthodes de travail,15,7f49eab87e18f120
 50519,2026,3,Savoir-être,15,3d9ec2c40941b0dd
@@ -86705,6 +86839,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 50774,2026,3,Savoir-être,10,585e20ecb7910280
 50774,2026,4,Motivation,30,9815befb8c297b66
 50774,2026,5,Engagement et activités,20,a0b01707f6a00ab3
+50775,2026,1,Résultats scolaires,100,552d8cd02c6ed220
 50776,2026,1,Résultats scolaires,40,a0623181a8524df8
 50776,2026,2,Méthodes de travail,50,0e25e681e726e823
 50776,2026,3,Savoir-être,3,c7771ccb8253ce1b
@@ -86960,6 +87095,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 50906,2026,3,Savoir-être,10,585e20ecb7910280
 50906,2026,4,Motivation,20,663290aaa278124e
 50906,2026,5,Engagement et activités,5,4cd33c4b3ee728f1
+50907,2026,1,Méthodes de travail,100,b5ba1adcec533d2b
 50908,2026,1,Résultats scolaires,10,8b58e1c7d7632864
 50908,2026,2,Méthodes de travail,25,2b99875d4d571c8a
 50908,2026,3,Savoir-être,25,47f346a4ef2278e9
@@ -87377,6 +87513,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 51178,,1,Résultats scolaires,40,a0623181a8524df8
 51178,,2,Savoir-être,30,2722bfc6bfd91a5e
 51178,,3,Motivation,30,9815befb8c297b66
+51180,,1,Résultats scolaires,100,552d8cd02c6ed220
 51181,,1,Résultats scolaires,25,cdbf0c650f38598d
 51181,,2,Méthodes de travail,25,2b99875d4d571c8a
 51181,,3,Savoir-être,25,47f346a4ef2278e9
@@ -89315,6 +89452,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 52099,,3,Savoir-être,20,98aa358c23e5447f
 52099,,4,Motivation,30,9815befb8c297b66
 52099,,5,Engagement et activités,15,b2e3e4cd0702256f
+52104,,1,Motivation,100,8e483a6270002d96
 52106,,1,Résultats scolaires,10,8b58e1c7d7632864
 52106,,2,Méthodes de travail,10,952d4a7f586323e7
 52106,,3,Savoir-être,40,1ed4a47a11896faa
@@ -93305,6 +93443,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 53809,,3,Savoir-être,25,47f346a4ef2278e9
 53809,,4,Motivation,25,574b00b88eebfc66
 53809,,5,Engagement et activités,5,4cd33c4b3ee728f1
+53812,,1,Motivation,100,8e483a6270002d96
 53813,,1,Résultats scolaires,30,72b904140170b865
 53813,,2,Méthodes de travail,10,952d4a7f586323e7
 53813,,3,Savoir-être,10,585e20ecb7910280
@@ -93316,6 +93455,7 @@ cod_aff_form,session,rang,champ,poids,intitule_id
 53817,,1,Savoir-être,40,1ed4a47a11896faa
 53817,,2,Motivation,40,f6578ea5166fd59e
 53817,,3,Engagement et activités,20,a0b01707f6a00ab3
+53819,,1,Motivation,100,8e483a6270002d96
 53821,,1,Résultats scolaires,20,f126a895e0889386
 53821,,2,Méthodes de travail,25,2b99875d4d571c8a
 53821,,3,Savoir-être,25,47f346a4ef2278e9
