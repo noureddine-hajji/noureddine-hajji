@@ -9,7 +9,8 @@ the jury tab's grilleCard).
       criteria; every saved fiche: weights add up to 100, each caption's weight equals its field's, every importance label
       matches its "n sur 4", 4 or 5 fields among the five the fiches name, national expectations present.
   GR3 privacy: the e-mail addresses and phone numbers a page prints in its free texts are masked in everything read
-      (pages and synthetic texts); the masking never touches a weight.
+      (pages and synthetic texts) and in every page the repository keeps (design and diagnosis samples); the masking never
+      touches a weight.
   GR4 hostile pages are rejected whole, with a reason: weights summing to 99, a total that is not 100, a caption weight that
       differs, an importance label against its score, a detailed table missing, a row without importance; a page without grid
       is "pas de grille" with its expectations still read; markup inside a criterion stays text (the page escapes it).
@@ -194,9 +195,10 @@ def gr3(c: Ctx):
     fp, bad = c.mod("fp"), []
     em = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
     ph = re.compile(r"(?<!\d)(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)")
-    raw = 0
+    raw, masked = 0, 0
     for cod, page in c.pages.items():
-        raw += len(em.findall(page))
+        raw += len(em.findall(page)) + len(ph.findall(page))       # the saved pages are stored masked (fiches name people)
+        masked += page.count(fp.MASK_EMAIL) + page.count(fp.MASK_PHONE)
         p = fp.parse(page)
         texts = [p["attendus_nationaux"], p["attendus_complementaires"], p["conseils"]] + \
             [x.get("intitule") for x in p["champs"]] + [y[k] for y in p["criteres"] for k in ("critere", "elements")]
@@ -210,7 +212,12 @@ def gr3(c: Ctx):
             bad.append(f"synthetic {s!r} -> {m!r}")
     if fp.mask("comptent pour 50 %, 2026, 14 critères, 1ère et Terminale") != "comptent pour 50 %, 2026, 14 critères, 1ère et Terminale":
         bad.append("masking touches figures")
-    return not bad and raw > 0, f"{raw} addresses in the raw pages, none in what is read; {bad[:3]}"
+    for f in sorted((FICHES / "echantillon").glob("*.html")):
+        t = f.read_text(encoding="utf-8")
+        raw += len(em.findall(t)) + len(ph.findall(t))
+    if raw:
+        bad.append(f"{raw} unmasked addresses or numbers in the saved pages")
+    return not bad and masked > 0, f"{masked} addresses and numbers masked in the saved pages, none left, none in what is read; {bad[:3]}"
 
 
 def _mutate_page(page: str, old: str, new: str, count: int = 1) -> str | None:

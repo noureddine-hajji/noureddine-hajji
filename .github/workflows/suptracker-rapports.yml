@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe, harvest, repair, live, grilles or quotidien"
+        description: "probe, harvest, repair, live, grilles, grilles_echantillon or quotidien"
         required: false
         default: "harvest"
   schedule:
@@ -73,6 +73,9 @@ jobs:
       - name: Read the evaluation grids of the live fiches
         if: (steps.req.outputs.mode == 'grilles' || steps.req.outputs.mode == 'quotidien') && !cancelled()
         run: python scripts/fiches_grilles.py data/suptracker.duckdb data/fiches "${{ steps.req.outputs.budget_grilles }}"
+      - name: Save masked samples of the fiches without a usable grid
+        if: steps.req.outputs.mode == 'grilles_echantillon'
+        run: python scripts/fiches_grilles.py --echantillon data/fiches
       - name: Commit
         if: always()
         run: |

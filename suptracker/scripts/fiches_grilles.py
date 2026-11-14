@@ -155,6 +155,27 @@ def _save(out: Path, etat: dict, champs: dict, crits: dict, atts: dict, new_text
     write(out / "attendus.csv", ATT_COLS, [atts[c] for c in sorted(atts, key=key)])
 
 
+def sample(http, out: Path, per_status: int = 6, pause: float = 1.0) -> dict:
+    """Design material: a few fiches of each status the reader could not use (sans_grille, rejetee), saved MASKED (e-mail
+    addresses and phone numbers replaced, as in what is read) under data/fiches/echantillon/<status>_<code>.html."""
+    from fiche_parse import mask
+    etat = read_rows(out / "etat.csv")
+    dest = out / "echantillon"
+    dest.mkdir(parents=True, exist_ok=True)
+    picked: dict = {}
+    for r in etat:
+        if r["status"] in ("sans_grille", "rejetee") and len(picked.setdefault(r["status"], [])) < per_status:
+            picked[r["status"]].append(r["cod_aff_form"])
+    saved = []
+    for st, cods in picked.items():
+        for c in cods:
+            url, resp = fetch_fiche(http, c, pause)
+            if url is not None:
+                (dest / f"{st}_{c}.html").write_text(mask(resp.text), encoding="utf-8")
+                saved.append(f"{st}_{c}")
+    return {"saved": saved}
+
+
 def main(db: str, out: str, budget_min: float) -> None:
     with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
         res = harvest(http, db, Path(out), budget_min * 60)
@@ -162,4 +183,8 @@ def main(db: str, out: str, budget_min: float) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 300)
+    if sys.argv[1] == "--echantillon":
+        with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
+            print(json.dumps(sample(http, Path(sys.argv[2]))), flush=True)
+    else:
+        main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 300)
