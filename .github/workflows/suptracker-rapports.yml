@@ -8,7 +8,7 @@
 #                   (resumable: each run stops after `budget` minutes and commits; push request.json again to continue)
 #   mode "grilles": the evaluation grids (field weights, criteria and importance) and the expected skills printed on the
 #                   LIVE fiches (scripts/fiches_grilles.py) into data/fiches/; resumable, each fiche read again after 20 days
-#   mode "quotidien" (the daily schedule): "live" (150 min at most), then "grilles" with the time left (170 min)
+#   mode "quotidien" (the daily schedule): "live" (150 min at most), then "grilles" (140 min: a slow fiche can overrun by ~30 min, the job stops at 355)
 # Triggered by workflow_dispatch, or by a push of data/rapports/request.json on a claude/ branch (a new workflow can only be
 # dispatched once it is on the default branch).
 name: suptracker-rapports
@@ -52,7 +52,7 @@ jobs:
           print(f"mode={mode}")
           print(f"sample={r.get('sample', 12)}")
           print(f"budget={150 if mode == 'quotidien' else r.get('budget_min', 300)}")
-          print(f"budget_grilles={170 if mode == 'quotidien' else r.get('budget_min', 300)}")
+          print(f"budget_grilles={140 if mode == 'quotidien' else r.get('budget_min', 300)}")
           print(f"enumerate={'--enumerate' if r.get('enumerate') else ''}")
           EOF
       - name: Probe

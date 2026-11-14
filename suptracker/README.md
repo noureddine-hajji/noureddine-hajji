@@ -3112,7 +3112,7 @@ design and diagnosis pages the repository keeps are stored masked (e-mail addres
 - The harvest can resume where it stopped. A fiche is read again after 20 days: the grids change with each campaign, and the
   2027 fiches open in December. A closed site (three fiches answering 404 or "indisponible") writes nothing.
 - **Workflow.** `suptracker-rapports` runs mode "grilles" by hand. The daily schedule runs "quotidien": the live reports
-  (150 min at most), then the grids (170 min).
+  (150 min at most), then the grids (140 min: a slow fiche with its retries can overrun a budget by ~30 min, and the job stops at 355).
   - The warehouse fingerprint takes the grids' content files, so a changed grid publishes a new warehouse.
   - Of `etat.csv`, which is rewritten with every reading date, it takes only each fiche's code and status: the build keeps a
     fiche by its status, so a fiche that fails or comes back with the same content still publishes a new warehouse (Codex).
