@@ -79,7 +79,7 @@ class Ctx:
             con = duckdb.connect()
             con.execute(f"ATTACH '{self.db}' AS w (READ_ONLY)")
             con.execute("CREATE SCHEMA core")
-            for (t,) in con.execute("SELECT table_name FROM w.information_schema.tables WHERE table_schema = 'core' AND "
+            for (t,) in con.execute("SELECT table_name FROM duckdb_tables() WHERE database_name = 'w' AND schema_name = 'core' AND "
                                     "table_name IN ('formation_year', 'onisep_metier', 'onisep_formation_metier', 'onisep_link', "
                                     "'onisep_formation')").fetchall():
                 con.execute(f"CREATE VIEW core.{t} AS SELECT * FROM w.core.{t}")
