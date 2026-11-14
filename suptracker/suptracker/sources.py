@@ -83,7 +83,7 @@ SOURCES = (
      "url": "https://www.cereq.fr/datavisualisation/insertion-professionnelle-des-jeunes/les-chiffres-cles-par-diplome"},
     {"key": "onisep", "title": "Onisep : formations initiales, fiches formations et fiches métiers (Idéo)", "producer": "Onisep",
      "access": "owner_upload", "file_glob": "ONISEP-*",
-     "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers",), "status": "en_ligne",
+     "granularity": "diplôme (formation) × métier", "keys": ("libelle_diplome",), "feeds": ("metiers", "parcours"), "status": "en_ligne",
      "sprint": 8, "licence": ODBL, "url": "https://opendata.onisep.fr/2-les-donnees.htm"},
     # ---- Horizon 2030 (sprints 13-16): committed by the owner, not ingested yet (status "depose")
     {"key": "metiers_2030", "title": "Les métiers en 2030 : projections par famille professionnelle (FAP-87)",

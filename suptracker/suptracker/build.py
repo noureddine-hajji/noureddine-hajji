@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, doublettes, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import bmo, config, cereq, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -51,6 +51,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         passerelles.build(con, raw_dir, reo_source=src)
         insertion.build(con, raw_dir)
         onisep.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
+        parcours.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)
         nomenclatures.build(con, nomenclatures.find_sources() if nomen_sources is _SOURCE else nomen_sources)
         emploi2030.build(con, emploi2030.source_path() if m2030_source is _SOURCE else m2030_source)

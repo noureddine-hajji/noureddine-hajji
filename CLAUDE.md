@@ -575,6 +575,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   members appended; `grille_texte` and the grids' JSON `grille_data` in rapport_textes.duckdb, never in the warehouse: 95 MB budget). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
+- **From each job to Parcoursup (owner, 2026-11-14).** `parcours.py` reads each job's route BACKWARDS from the diploma Onisep
+  requires (else names): direct (a Parcoursup diploma), Onisep's continuations (`poursuites_etudes`, <= 4 steps, a branch ends at a
+  Parcoursup diploma), then FAMILY_RULES (one per family, written from Onisep's access texts: PASS/LAS for MMOPK, engineering, business,
+  architecture, IEP, DN MADE, art, DCG, law, paramedical, vet; a master containing a licence's name), then the job's own name, then
+  Onisep's "métiers associés" (flagged). Rules match the FOLDED text (no accent, apostrophe or hyphen). An entry = a Parcoursup group of
+  the latest campaign with its count and places, counted once; per job, entries ranked by places, the prefix reaching 80 % open, the rest
+  folded; places are a proxy (said). Coverage of the jobs needing higher studies measured at build (`core.parcours_mesure`, >= 80 %,
+  87.1 % on 2026-11-14), printed; a job at the bac or below says "pas d'études après le bac" with its Onisep diploma links. Never a
+  chance. Red team `redteam_parcours.py` (PA1-PA8, built on a copy of the warehouse).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

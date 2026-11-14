@@ -3445,6 +3445,44 @@ async function viewMetiers(id, from = "") {
   run();
   input.focus();
 }
+// owner, 2026-11-14: the route from the bac to the job (parcours.py), inside the Sprint 12 block (red team M6 reads it whole).
+// Entries are GROUPS of Parcoursup formations (a diploma, a programme), ranked by their places in the latest campaign; the first
+// ones that gather 80 % of them are open, the others folded. Places are a proxy: no open data counts who reached a job by which
+// route. A job that needs no higher studies says so and links the Onisep sheet of its diploma (outside Parcoursup).
+const PA_HOW = { direct: "le diplôme se prépare directement sur Parcoursup", graphe: "chaîne des poursuites d'études de l'Onisep",
+  regle: "voie d'accès officielle de ce type de diplôme", nom: "voie d'accès officielle, d'après le nom du métier", voisin: "voie d'un métier proche (Onisep)" };
+function paRoute(r, d) {
+  const e = r.entree_info || {};
+  const steps = (r.etapes || []).map((s) => `<span class="pa-step">${esc(s.libelle)}${s.niveau ? ` <span class="muted">(${esc(s.niveau)})</span>` : ""}</span>`);
+  const q = e.recherche || e.libelle || "";
+  return `<li class="pa-route"><div class="pa-chain"><a class="pa-entry" href="#/s/${encodeURIComponent(q)}">${esc(e.libelle || "")}</a>${steps.length ? ` <span aria-hidden="true">→</span> ${steps.join(' <span aria-hidden="true">→</span> ')}` : ""}</div>
+    <div class="muted small">${fmt(e.n_formations)} formation${e.n_formations > 1 ? "s" : ""} sur Parcoursup ${esc(d.session)} · ${fmt(e.places)} places · ${esc(PA_HOW[r.comment] || "")}</div></li>`;
+}
+function parcoursCard(p, d) {
+  if (!p) return "";
+  const main = (p.routes || []).filter((r) => r.principale), rest = (p.routes || []).filter((r) => !r.principale);
+  const PA_CIBLES = 3;                                                 // the first diplomas, the others counted
+  const allC = p.cibles || [];
+  const cibles = allC.slice(0, PA_CIBLES).map((c) => `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.libelle)} ↗</a>${c.niveau ? ` <span class="muted">(${esc(c.niveau)})</span>` : ""}`).join(" · ")
+    + (allC.length > PA_CIBLES ? ` et ${fmt(allC.length - PA_CIBLES)} autre${allC.length - PA_CIBLES > 1 ? "s" : ""} (liste plus bas)` : "");
+  let head;
+  if (p.statut === "sans_postbac") {
+    head = `<div class="info"><p><strong>Ce métier ne demande pas d'études après le bac.</strong> Il s'apprend avec un diplôme comme : ${cibles || "voir la fiche Onisep du métier"}. Ces diplômes se préparent hors de Parcoursup (lycée professionnel, apprentissage, CFA).</p></div>`;
+  } else if (p.statut === "hors_parcoursup") {
+    head = `<div class="info"><p><strong>Pas de voie Parcoursup identifiée pour ce métier.</strong> On y accède le plus souvent par un concours, un doctorat ou une école recrutant après un premier diplôme.${cibles ? ` Diplômes cités par l'Onisep : ${cibles}.` : ""}</p></div>`;
+  } else {
+    head = `<p class="small">Les études commencent sur Parcoursup par une de ces voies, puis passent par les étapes indiquées.${cibles ? ` Diplôme visé : ${cibles}.` : ""}</p>`;
+  }
+  const voisins = (p.voisins || []).length ? `<p class="small muted">L'Onisep ne relie aucun diplôme à ce métier : ces voies sont celles de métiers proches (${p.voisins.map((v) => `<a href="#/metier/${esc(v.id)}">${esc(v.nom || v.id)}</a>`).join(", ")}).</p>` : "";
+  const routes = main.length ? `${p.statut === "sans_postbac" ? `<h3>Pour aller plus loin après le bac</h3>` : `<h3>Les voies principales</h3>`}<ul class="pa-list">${main.map((r) => paRoute(r, d)).join("")}</ul>` : "";
+  const more = rest.length ? `<details class="dip"><summary>Autres voies (${fmt(rest.length)})</summary><ul class="pa-list">${rest.map((r) => paRoute(r, d)).join("")}</ul></details>` : "";
+  const regles = (p.regles || []).map((g) => `<li>${esc(g.texte)}</li>`).join("");
+  const acces = p.acces ? `<details class="dip"><summary>Ce que dit l'Onisep sur l'accès au métier</summary>${p.acces.split("\n").map((x) => `<p class="small">${esc(x)}</p>`).join("")}<p class="muted small">Source : Onisep, Idéo (licence ODbL).</p></details>` : "";
+  const m = p.mesure;
+  return `<div class="card pa-card"><h2>Le chemin vers ce métier</h2>${head}${voisins}${routes}${more}
+    ${regles ? `<ul class="small pa-rules">${regles}</ul>` : ""}${acces}
+    ${(p.routes || []).length ? `<p class="muted small">Les voies sont rangées par nombre de places sur Parcoursup ${esc(d.session)} : les premières regroupent 80 % des places. Ce n'est pas le nombre de personnes qui exercent ce métier après chaque voie, que personne ne publie.${m && m.couverture != null ? ` Une voie Parcoursup est trouvée pour ${fmt(100 * m.couverture)} % des ${fmt(m.a_besoin)} métiers qui demandent des études supérieures.` : ""}</p>` : ""}</div>`;
+}
 async function viewMetier(id, from = "") {
   const marker = `metier:${id}:${from}`;
   $view.dataset.rendered = marker;
@@ -3497,7 +3535,7 @@ async function viewMetier(id, from = "") {
     <p class="small">${d.niveau_acces_min ? `Niveau d'études minimum (Onisep) : ${esc(d.niveau_acces_min)} · ` : ""}<a href="${esc(d.url)}" target="_blank" rel="noopener">Fiche métier Onisep ↗</a></p>
     </div>
     ${summary}${tabbed("metier", [
-      ["formations", "Diplômes et formations", `${status}
+      ["formations", "Diplômes et formations", `${parcoursCard(d.parcours, d)}${status}
     ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     ${d.diplomes.map(dip).join("")}
