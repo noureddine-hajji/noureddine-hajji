@@ -3102,7 +3102,8 @@ The fiches also name people, for example the disability referent's e-mail addres
 - **Workflow.** `suptracker-rapports` runs mode "grilles" by hand. The daily schedule runs "quotidien": the live reports
   (150 min at most), then the grids (170 min).
   - The warehouse fingerprint takes the grids' content files, so a changed grid publishes a new warehouse.
-  - It does not take `etat.csv`, which is rewritten with every reading date.
+  - Of `etat.csv`, which is rewritten with every reading date, it takes only each fiche's code and status: the build keeps a
+    fiche by its status, so a fiche that fails or comes back with the same content still publishes a new warehouse (Codex).
   - `data/fiches/` is kept out of the Vercel bundle.
 
 **In the warehouse.** `suptracker/grilles.py` checks everything again at build:

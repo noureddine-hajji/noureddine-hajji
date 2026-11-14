@@ -569,7 +569,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the build (`grilles.py`) checks again and drops a formation whole, never half shown. Published values verbatim, escaped, never
   merged, averaged or scored, never a chance; the card names the fiche's own campaign, "la fiche fait foi", "lu le …" + link.
   E-mail addresses and phone numbers are masked at reading (the fiches name people). Texts once by digest (`textes.csv.gz`
-  members appended; `grille_texte` in rapport_textes.duckdb). The fingerprint takes the content files, never etat.csv; data/fiches
+  members appended; `grille_texte` in rapport_textes.duckdb). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not

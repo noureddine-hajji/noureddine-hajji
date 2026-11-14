@@ -23,7 +23,9 @@ the jury tab's grilleCard).
       (4 = Essentiel), says the campaign, "fait foi" and "pas des chances", no tutoiement, nothing without grid nor
       expectations; the jury tab puts it first and the summary link names it when there is no own report.
   GR8 plumbing: workflow modes "grilles" and "quotidien" (the schedule), data/fiches committed; the warehouse fingerprint
-      takes the grids' content files, never etat.csv; .vercelignore; sources.py; the formation API; README, CLAUDE.md, durations.
+      takes the grids' content files and the (code, status) of etat.csv, never its reading dates: a status flip with unchanged
+      content moves it, a date-only refresh does not (Codex, run on fake harvests with the workflow's own command);
+      .vercelignore; sources.py; the formation API; README, CLAUDE.md, durations.
   GR9 mutation test: mutants of the reader, the harvest, the build and the page, each caught.
 """
 from __future__ import annotations
@@ -507,8 +509,10 @@ def gr8(c: Ctx):
             bad.append(f"rapports workflow: {w[:50]}")
     dw = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
     content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/textes.csv.gz"
-    if dw.count(content) != 3 or "data/fiches/etat.csv" in dw or re.search(r"data/fiches(?:/)?[ ;|]", dw):
+    proj = "cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true;"
+    if dw.count(content) != 3 or dw.count(proj) != 3 or dw.count("data/fiches/etat.csv") != 3 or re.search(r"data/fiches(?:/)?[ ;|]", dw):
         bad.append("data workflow fingerprint")
+    bad += fingerprint_follows_status(c, proj)
     if "**/data/fiches/" not in (ROOT / ".vercelignore").read_text().splitlines():
         bad.append(".vercelignore")
     from suptracker import sources
@@ -531,6 +535,27 @@ def gr8(c: Ctx):
     if "beautifulsoup4" not in (ROOT / "requirements-pipeline.txt").read_text():
         bad.append("requirements-pipeline (bs4)")
     return not bad, f"{bad}"
+
+
+def fingerprint_follows_status(c: Ctx, proj: str) -> list:
+    """Codex: the build keeps a fiche by its etat.csv STATUS, so a status flip with unchanged content files must change the
+    fingerprint, and a reading-date-only refresh must not. Runs the workflow's own projection command on fake harvests."""
+    bad = []
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "data" / "fiches"
+        run_proj = lambda: subprocess.run(["bash", "-c", proj.rstrip(";")], cwd=d, capture_output=True, text=True).stdout  # noqa: E731
+        content = lambda: [(out / f).read_bytes() for f in ("champs.csv", "criteres.csv", "attendus.csv", "textes.csv.gz")]  # noqa: E731
+        _fake_harvest(c, out, c.pages)
+        p1, c1, e1 = run_proj(), content(), (out / "etat.csv").read_bytes()
+        _fake_harvest(c, out, c.pages, now_shift_days=25)              # every fiche read again, same content
+        p2, c2, e2 = run_proj(), content(), (out / "etat.csv").read_bytes()
+        if not p1 or p1 != p2 or c1 != c2 or e1 == e2:
+            bad.append("a reading-date-only refresh moves the fingerprint (or the test did not refresh)")
+        _fake_harvest(c, out, dict(c.pages, **{"31389": None}), now_shift_days=50)   # a fiche fails on refresh
+        p3, c3 = run_proj(), content()
+        if c3 != c2 or p3 == p2 or "31389,failed" not in p3:
+            bad.append("a status flip with unchanged content leaves the fingerprint unchanged")
+    return bad
 
 
 SOURCE_MUTANTS = [
