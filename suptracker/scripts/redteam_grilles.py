@@ -462,6 +462,23 @@ def gr6(c: Ctx):
             if gr2.for_formation(con2, "4100") is None:
                 bad.append(f"{name}: another formation lost")
             con2.close()
+        # the full build: the grids' JSON and texts go to the file beside the warehouse (10 MB of JSON would push it over its
+        # 95 MB budget); the warehouse keeps one small row per formation, and the API still reads the whole grid
+        for f, b in keep.items():                    # the stores as harvested (the tampering above is undone)
+            (out / f).write_bytes(b)
+        import duckdb
+        wh, side = Path(d) / "w.duckdb", Path(d) / "rapport_textes.duckdb"
+        duckdb.connect(str(side)).close()
+        cw = duckdb.connect(str(wh))
+        c.mod("gr").build(cw, textes=side, src=out)
+        held = [t for (t,) in cw.execute("SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'grille_%'").fetchall()]
+        cw.close()
+        cw = duckdb.connect(str(wh), read_only=True)
+        grw = c.mod("gr")
+        g = grw.for_formation(cw, "31389")
+        cw.close()
+        if held or not g or [x["poids"] for x in g["champs"]] != [50, 30, 10, 5, 5]:
+            bad.append(f"full build: warehouse holds {held}, served {bool(g)}")
     real = ""
     if c.real and (FICHES / "etat.csv").exists():
         gr = c.mod("gr")
@@ -638,6 +655,7 @@ SOURCE_MUTANTS = [
     ("fp", "notice not read", 'out["info"] = (mask(text(n.group(1))) or None) if n else None', 'out["info"] = None', "GR4"),
     ("fg", "error page stored as no grid", 'if p["reason"] == "pas une fiche":', "if False:", "GR5"),
     ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)]', "and False]", "GR5"),
+    ("gr", "grid JSON kept in the warehouse", '    if textes is None or not textes.exists():\n        write(con, "core.")', '    if True:\n        write(con, "core.")', "GR6"),
     ("gr", "notice dropped at build", '"info": tx(a.get("info_id")), "champs"', '"info": None, "champs"', "GR6"),
     ("js", "notice not shown", '${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}', "", "GR7"),
     ("fg", "closed site writes", "if probe and all(fetch_fiche(http, c, pause)[0] is None for c in probe):", "if False:", "GR5"),

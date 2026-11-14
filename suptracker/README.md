@@ -3126,11 +3126,12 @@ design and diagnosis pages the repository keeps are stored masked (e-mail addres
 - every text id resolves.
 
 A formation that fails is left out whole, never half shown. It builds three tables:
-- `core.fiche_grille`: one row per formation, its grid as JSON with text ids;
+- `core.fiche_grille`: one row per formation (campaign, reading date, link, grid or not);
 - `core.fiche_champ`: the field weights, for later SQL;
 - `core.fiche_audit`.
 
-The texts go to `rapport_textes.duckdb` beside the warehouse, in table `grille_texte`. `/api/formation` returns
+The grids themselves (JSON with text ids, `grille_data`) and the texts (`grille_texte`) go to `rapport_textes.duckdb` beside the
+warehouse: at half the harvest the JSON already took 5 MB of the warehouse (85.5 -> 90.7 MB, budget 95 MB). `/api/formation` returns
 `grille` (`grilles.for_formation`).
 
 **On the formation page.** The tab "Ce que regarde le jury" opens with the card "Comment votre dossier sera examiné · fiche
@@ -3155,4 +3156,4 @@ Red team `scripts/redteam_grilles.py` (GR1-GR9):
 - GR6 runs the round trip from harvest to build to API, plus 5 tampered stores dropped whole.
 - GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
 - GR8 checks the plumbing.
-- GR9 is the mutation test: 35 mutants, each caught.
+- GR9 is the mutation test: 36 mutants, each caught.

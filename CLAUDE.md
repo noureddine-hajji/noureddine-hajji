@@ -572,7 +572,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   (kept verbatim, `info`); an error page is not a fiche (failed read, stored grid kept); `fiche_parse.VERSION` re-reads first the
   fiches an older reader could not use. E-mail addresses and phone numbers are masked at reading (the fiches name people), and so
   is every page the repository keeps. Texts once by digest (`textes.csv.gz`
-  members appended; `grille_texte` in rapport_textes.duckdb). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
+  members appended; `grille_texte` and the grids' JSON `grille_data` in rapport_textes.duckdb, never in the warehouse: 95 MB budget). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
