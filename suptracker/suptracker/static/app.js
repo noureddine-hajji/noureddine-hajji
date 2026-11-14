@@ -1585,7 +1585,9 @@ async function viewCarte(dArg, mArg) {
   };
   const loadCouche = () => cached("couche", () => api("/api/carte/couche").then(coucheDecode));
   loadCouche().catch(() => {});
-  const [FAC] = await Promise.all([api("/api/carte"), exigLoad()]);   // the specialties marks of the cards (no parameter)
+  const exigP = exigLoad();                                             // the specialties marks of the cards (no parameter)
+  const FAC = await api("/api/carte");
+  await exigP;
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
   const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
@@ -3395,10 +3397,12 @@ async function viewVoeux() {
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
-  try { d = voeuxLocal((await Promise.all([api(`/api/voeux?${qs}`), exigLoad()]))[0], prof); } catch (e) {
+  const exigP = exigLoad();                                             // the specialties marks of the rows (no parameter)
+  try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
+  await exigP;
   if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
   const L = d.lecture, z = L.zones;
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
