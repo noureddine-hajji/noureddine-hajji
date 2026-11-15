@@ -391,6 +391,13 @@ def v4(c: Ctx):
             bad.append(f"Crous rent {r1}")
         if (res.get("Sans prix") or {}).get("loyer_min") is not None or (res.get("Sans prix") or {}).get("url"):
             bad.append("a residence without euros got a rent, or a javascript: link kept")
+        # a range sharing one euro sign keeps both ends (Codex: "351,57 à 404,24 €" gave 404.24 only)
+        for txt, want_ in (("Loyer : 351,57 à 404,24 € par mois", [351.57, 404.24]),
+                           ("Studio de 404,54 - 509,94 euros charges comprises", [404.54, 509.94]),
+                           ("Loyer 1 200 à 1 300 €", [1200.0, 1300.0]), ("Chambre 250 € à 300 €", [250.0, 300.0]),
+                           ("Studio T1 - 400 €", [400.0]), ("Chambre 20 à 300 €", [300.0])):
+            if vie.crous_loyers(txt)[0] != want_:
+                bad.append(f"Crous rent range {txt!r}: {vie.crous_loyers(txt)[0]} != {want_}")
         cl = (p or {}).get("crous_loyers") or {}
         if (cl.get("min"), cl.get("max"), cl.get("n")) != (269, 450.5, 1):
             bad.append(f"Crous rents of the radius {cl}")
@@ -651,6 +658,7 @@ SOURCE_MUTANTS = [
      'cents += int(re.sub(r"\\D", "", m.group(1))) * 100', "V3"),
     ("vie", "decimals glued to the euros", 'cents += int(re.sub(r"\\D", "", m.group(1))) * 100 + int((m.group(2) or "0").ljust(2, "0"))',
      'cents += int(re.sub(r"\\D", "", m.group(1)) + (m.group(2) or "")) * 100', "V3"),
+    ("vie", "Crous range: upper end only", 'r"(?=\\s*(?:à|a|-|–|—)\\s*" + EURO + ")"', 'r"(?=\\s*(?:à|a|-|–|—)\\s*" + EURO + "XX)"', "V4"),
     ("vie", "studio 25 m²", "STUDIO_M2 = 20", "STUDIO_M2 = 25", "V4"),
     ("vie", "rent by name only", '    key = f"{fold(nom)}|{str(dep or \'\').strip()}"', '    key = f"{fold(nom)}|%"', "V4"),
     ("vie", "zone-predicted rent not flagged", "(typ or \"\").strip().lower() != \"commune\"", "False", "V4"),

@@ -63,7 +63,8 @@ OVE = {"titre": "Observatoire national de la vie étudiante, enquête Conditions
        "url": "https://www.ove-national.education.fr/enquete/enquete-conditions-de-vie-des-etudiants-2023/"}
 LOYERS = {"titre": "Carte des loyers 2025, appartements d'une ou deux pièces, charges comprises (Ministère de la Transition écologique)",
           "url": "https://www.data.gouv.fr/datasets/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2025"}
-EURO = r"(\d{1,3}(?:[\s \xa0.]\d{3})+|\d+)(?:[,.](\d{1,2}))?\s*(?:€|euros?\b)"
+NOMBRE = r"(\d{1,3}(?:[\s \xa0.]\d{3})+|\d+)(?:[,.](\d{1,2}))?"
+EURO = NOMBRE + r"\s*(?:€|euros?\b)"
 
 
 def _num(x) -> float | None:
@@ -241,10 +242,14 @@ def crous_loyers(text: str) -> tuple[list[float], str | None]:
         f = fold(seg)
         if not re.search(LOYER_MOTS, f) or re.search(HORS_LOYER, f):
             continue
-        vals = [a for a in (_num(m.group(1).replace(" ", "").replace("\u202f", "").replace("\xa0", "").replace(".", "")
-                                 + ("." + m.group(2) if m.group(2) else ""))
-                            # an amount glued to a letter ("= T1468,86 €" is "T1" then "468,86 €") is not read
-                            for m in re.finditer(r"(?<![\w,.])" + EURO, seg, flags=re.I)) if a is not None and 80 <= a <= 1500]
+        amount = lambda m: _num(m.group(1).replace(" ", "").replace("\u202f", "").replace("\xa0", "").replace(".", "")  # noqa: E731
+                                + ("." + m.group(2) if m.group(2) else ""))
+        # an amount glued to a letter ("= T1468,86 €" is "T1" then "468,86 €") is not read
+        found = [(m.start(), amount(m)) for m in re.finditer(r"(?<![\w,.])" + EURO, seg, flags=re.I)]
+        # a range sharing one euro sign ("351,57 à 404,24 €", "404,54 - 509,94 euros"): its lower end too (Codex)
+        found += [(m.start(), amount(m)) for m in re.finditer(r"(?<![\w,.])" + NOMBRE + r"(?=\s*(?:à|a|-|–|—)\s*" + EURO + ")",
+                                                               seg, flags=re.I)]
+        vals = [a for _i, a in sorted(found) if a is not None and 80 <= a <= 1500]
         if vals:
             out += vals
             extrait = extrait or re.sub(r"\s+", " ", seg).strip()[:200]
