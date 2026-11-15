@@ -74,6 +74,13 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("insersup", ("fr-esr-insersup",), "insertion"),
     Dataset("inserjeunes_lycee", ("fr-en-inserjeunes-lycee_pro-formation-fine",), "insertion", base=EDU_ODS_BASE),
     Dataset("inserjeunes_cfa", ("fr-en-inserjeunes-cfa-formation_fine",), "insertion", base=EDU_ODS_BASE),
+    # Sprint V1 « Étudier là-bas » (owner, 2026-11-15): the Crous residences and restaurants (SIES portal) and the rent
+    # indicators of the "Carte des loyers" (Ministère de la Transition écologique, 1-2 room flats, per commune, 2025);
+    # optional: a failed download leaves the cost card without its local lines, never the refresh blocked
+    Dataset("crous_logement", ("fr_crous_logement_france_entiere",), "vie", optional=True),
+    Dataset("crous_restauration", ("fr_crous_restauration_france_entiere",), "vie", optional=True),
+    Dataset("loyers_app12_2025", (), "vie", optional=True,
+            url="https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2025/20251211-144934/pred-app12-mef-dhup.csv"),
 )
 
 

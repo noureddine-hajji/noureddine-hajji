@@ -58,7 +58,7 @@ DEVICES = ("mobile", "tablet", "desktop")
 FEEDBACK_PAGES = ("fiche", "parcours", "search", "voeux", "reorientation")
 # sprint 18 (owner, 2026-11-11): three student actions, counted without the formation they concern
 ACTIONS = ("voeu", "planb", "onglet")          # vœu added to the list, Plan B opened, a formation-page tab opened
-FICHE_TABS = ("admission", "jury", "reussite", "emploi", "historique")
+FICHE_TABS = ("admission", "jury", "cout", "reussite", "emploi", "historique")   # V1: "cout" (Combien ça coûte)
 FEEDBACK_REASONS = ("utile", "introuvable", "incomprehensible", "manque_info", "erreur_donnees", "lent")
 # Traffic sources: anything else is "autre", so a spoofed referrer cannot mint counters.
 REFERRERS = {

@@ -46,6 +46,8 @@ from . import seo as SEO
 from . import doublettes as DBL
 from . import semblables as SB
 from . import grilles as GR
+from . import reconnaissance as RC
+from . import vie as VIE
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -725,6 +727,10 @@ def formation(cod: str, session: int | None = None):
             # the evaluation grid (field weights, criteria and their importance) and the expected skills, as the LIVE
             # Parcoursup fiche publishes them for its own campaign (grilles.py); verbatim, never a chance
             "grille": GR.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # sprint V1: the State label the fiche prints (one badge, the label verbatim) and the cost of studying there
+            # (local rent and Crous, national items of the OVE survey, the fiche's tuition fees verbatim): ranges, sources
+            "reconnaissance": RC.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "vie": VIE.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
@@ -785,7 +791,9 @@ def compare(ids: str, session: int | None = None):
                                ("session", "cod_aff_form", "g_ea_lib_vx", "ville_etab", "fil_lib_voe_acc",
                                 "lib_comp_voe_ins", "lineage_id", "lineage_confidence", "fiche_url",
                                 *DECOMP, *OFFER)},
-                    "admis": f["admis"], "peers": f["peers"], "history": f["history"], "warnings": f["warnings"]})
+                    "admis": f["admis"], "peers": f["peers"], "history": f["history"], "warnings": f["warnings"],
+                    # sprint V1: the State label and the cost lines the formation page shows (same answers)
+                    "reconnaissance": f.get("reconnaissance"), "vie": f.get("vie")})
     return {"formations": out}
 
 
@@ -1140,6 +1148,14 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str | None = 
                             academie=academie or None, include_paid=bool(paid), moyenne=moy, pool=pool)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
+
+
+@app.get("/api/reconnaissance")
+def reconnaissance_liste():
+    """Sprint V1: the State-label badge and the tuition read on the fiche, for every formation whose fiche was read, sent
+    whole so the lists (search, map, Mes vœux, comparator) show them without one request per formation. No parameter."""
+    con = _con().cursor()
+    return RC.compact(con, VIE.compact(con))
 
 
 @app.get("/api/metiers")

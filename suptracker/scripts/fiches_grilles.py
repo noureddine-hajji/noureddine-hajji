@@ -9,7 +9,10 @@ and stored in data/fiches/:
   * criteres.csv  the detailed grid: one row per criterion (field rank, rank, criterion and elements as text ids, importance 1-4);
   * attendus.csv  one row per code: national and complementary expectations, advice to candidates (text ids);
   * textes.csv.gz the texts, each stored ONCE under its digest (id), gzip members appended (a national text is shared by
-                  every formation of a mention; the history stays small).
+                  every formation of a mention; the history stays small);
+  * identite.csv  one row per code (reader version 3, owner 2026-11-15): the establishment's status badge, the grants badge
+                  (oui / non / empty when not printed) and the State label(s) as Parcoursup prints them (image code + text);
+  * frais.csv     the tuition-fee lines (rank, callout title, heading, text id), verbatim.
 A fiche is read again when its last reading is older than REFRESH_DAYS (the grids change with each campaign: the 2027 fiches open
 in December). Closed site (three fiches answer 404 / "indisponible"): nothing is written. Polite: one request at a time, paced,
 the shared generic User-Agent.
@@ -38,6 +41,8 @@ ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "ver
 CHAMP_COLS = ["cod_aff_form", "session", "rang", "champ", "poids", "intitule_id"]
 CRIT_COLS = ["cod_aff_form", "session", "champ_rang", "rang", "critere_id", "elements_id", "importance"]
 ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
+ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes"]
+FRAIS_COLS = ["cod_aff_form", "session", "rang", "titre", "rubrique", "texte_id"]
 
 
 def tid(t: str | None) -> str:
@@ -86,12 +91,17 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     for r in read_rows(out / "criteres.csv"):
         crits.setdefault(r["cod_aff_form"], []).append(r)
     atts = {r["cod_aff_form"]: r for r in read_rows(out / "attendus.csv")}
+    idents = {r["cod_aff_form"]: r for r in read_rows(out / "identite.csv")}
+    fees = {}
+    for r in read_rows(out / "frais.csv"):
+        fees.setdefault(r["cod_aff_form"], []).append(r)
     ids = known_ids(out / "textes.csv.gz")
     new_texts: list[dict] = []
     old = (datetime.now(timezone.utc) - timedelta(days=refresh_days)).strftime("%Y%m%d%H%M%S")
-    # first the fiches never read, then those the reader could not use read by an older reader (a new reader may read them)
+    # first the fiches never read, then those an older reader read (a new reader may read them, and version 3 reads the
+    # identity badges and the fees of EVERY fiche, grid or not)
     first = [etat[c] for c in order if etat[c]["status"] in ("todo", "retry")]
-    first += [etat[c] for c in order if etat[c]["status"] in ("sans_grille", "rejetee") and etat[c].get("version") != str(VERSION)]
+    first += [etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee") and etat[c].get("version") != str(VERSION)]
     seen = {id(r) for r in first}
     again = sorted((etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee", "failed") and etat[c]["lu_le"] < old
                     and id(etat[c]) not in seen),
@@ -132,6 +142,13 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
         atts[c] = {"cod_aff_form": c, "session": p["session"] or "", "nationaux_id": text_id(p["attendus_nationaux"]),
                    "complementaires_id": text_id(p["attendus_complementaires"]), "conseils_id": text_id(p["conseils"]),
                    "info_id": text_id(p.get("info"))}
+        bd = p.get("badges") or {}
+        idents[c] = {"cod_aff_form": c, "session": p["session"] or "", "etab_type": bd.get("etab_type") or "",
+                     "bourses": {True: "oui", False: "non"}.get(bd.get("bourses"), ""),
+                     "labels_codes": "|".join(x["code"] for x in bd.get("labels", [])),
+                     "labels_textes": "|".join(x["texte"].replace("|", "/") for x in bd.get("labels", []))}
+        fees[c] = [{"cod_aff_form": c, "session": p["session"] or "", "rang": i + 1, "titre": x["titre"], "rubrique": x["rubrique"],
+                    "texte_id": text_id(x["texte"])} for i, x in enumerate(p.get("frais") or [])]
         if not p["ok"]:
             r["status"] = "sans_grille" if p["reason"] == "pas de grille" else "rejetee"
             r["raison"] = p["reason"]
@@ -145,9 +162,9 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
         n += 1
         if n % 500 == 0:
             print(f"{n} fiches lues, {time.time() - t0:.0f} s", flush=True)
-            _save(out, etat, champs, crits, atts, new_texts)
+            _save(out, etat, champs, crits, atts, new_texts, idents, fees)
             new_texts = []
-    _save(out, etat, champs, crits, atts, new_texts)
+    _save(out, etat, champs, crits, atts, new_texts, idents, fees)
     by: dict = {}
     for r in etat.values():
         by[r["status"]] = by.get(r["status"], 0) + 1
@@ -156,13 +173,18 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     return res
 
 
-def _save(out: Path, etat: dict, champs: dict, crits: dict, atts: dict, new_texts: list) -> None:
+def _save(out: Path, etat: dict, champs: dict, crits: dict, atts: dict, new_texts: list, idents: dict | None = None,
+          fees: dict | None = None) -> None:
     key = lambda c: (len(c), c)  # noqa: E731  numeric order of the codes
     append_texts(out / "textes.csv.gz", new_texts)
     write(out / "etat.csv", ETAT_COLS, [etat[c] for c in sorted(etat, key=key)])
     write(out / "champs.csv", CHAMP_COLS, [x for c in sorted(champs, key=key) for x in champs[c]])
     write(out / "criteres.csv", CRIT_COLS, [x for c in sorted(crits, key=key) for x in crits[c]])
     write(out / "attendus.csv", ATT_COLS, [atts[c] for c in sorted(atts, key=key)])
+    if idents is not None:
+        write(out / "identite.csv", ID_COLS, [idents[c] for c in sorted(idents, key=key)])
+    if fees is not None:
+        write(out / "frais.csv", FRAIS_COLS, [x for c in sorted(fees, key=key) for x in fees[c]])
 
 
 def sample(http, out: Path, per_status: int = 6, pause: float = 1.0) -> dict:

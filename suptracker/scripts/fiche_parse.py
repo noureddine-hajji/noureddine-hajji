@@ -32,7 +32,8 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PHONE = re.compile(r"(?<!\d)(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)")
 MASK_EMAIL, MASK_PHONE = "[adresse sur la fiche Parcoursup]", "[numéro sur la fiche Parcoursup]"
 SESSION = re.compile(r"analysent les candidatures en [^.]*?(20\d\d)")
-VERSION = 2          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
+VERSION = 3          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
+#                      3 (2026-11-15): the identity badges (State label, establishment, grants) and the tuition fees
 
 
 def text(fragment: str) -> str:
@@ -69,15 +70,55 @@ def _section(page: str, heading: str) -> str | None:
     return t or None
 
 
+def badges(page: str) -> dict:
+    """The fiche's identity card (`div#header-ff-liste-badges`, owner 2026-11-15): the establishment's status badge, whether the
+    formation opens the right to grants, and the State label(s): Parcoursup's own image code (`labellisation/DL_xx.svg`)
+    with the badge printed next to it ("Diplôme national de licence contrôlé par l'Etat"). A fiche with no label prints
+    none (kept as an empty list, never guessed)."""
+    out = {"etab_type": None, "bourses": None, "labels": []}
+    m = re.search(r'<div id="header-ff-liste-badges">(.*?)(?=<div class="psup-rating|<div id="ff-|<h2|<h3)', page, re.S)
+    if not m:
+        return out
+    b = m.group(1)
+    e = re.search(r'<span id="badge-type-contrat"[^>]*>(.*?)</span>', b, re.S)
+    out["etab_type"] = text(e.group(1)) or None if e else None
+    spans = [text(x) for x in re.findall(r'<span[^>]*\bfr-badge\b[^>]*>(.*?)</span>', b, re.S)]
+    for x in spans:
+        if re.fullmatch(r"Formation ouvrant droit aux bourses", x):
+            out["bourses"] = True
+        elif re.fullmatch(r"Formation n.ouvrant pas droit aux bourses", x):
+            out["bourses"] = False
+    for code, lab in re.findall(r'labellisation/([A-Za-z0-9_]+)\.svg".*?<span[^>]*\bfr-badge\b[^>]*>(.*?)</span>', b, re.S):
+        out["labels"].append({"code": code, "texte": text(lab)})
+    return out
+
+
+def frais(page: str) -> list[dict]:
+    """The tuition-fee callout ("Frais de scolarité", sometimes "... au titre de la double inscription en Licence"): each
+    printed line as (heading, text), VERBATIM (the amounts are free text: "178 euros + 800 euros de frais spécifiques",
+    "Aucun frais - les frais sont à la charge de l'employeur"). The callout's own title is the first line's context."""
+    # the callout's title is an h4 or an h5 and its lines h5 or h6, depending on the fiche's layout (both seen on live fiches)
+    m = re.search(r'<h([45]) class="fr-callout__title">\s*(Frais de scolarit[^<]*?)\s*</h\1>(.*?)(?=<div class="fr-alert|<div class="fr-accordions|<h3[\s>]|<section)',
+                  page, re.S)
+    if not m:
+        return []
+    titre = text(m.group(2))
+    rows = [{"titre": titre, "rubrique": text(a), "texte": mask(text(c))}
+            for _h, a, c in re.findall(r"<h([56])[^>]*>(.*?)</h\1>\s*<p[^>]*>(.*?)</p>", m.group(3), re.S)]
+    return [r for r in rows if r["rubrique"]]
+
+
 def parse(page: str) -> dict:
     out = {"ok": False, "reason": "", "session": None, "champs": [], "criteres": [], "attendus_nationaux": None,
-           "attendus_complementaires": None, "conseils": None, "info": None}
+           "attendus_complementaires": None, "conseils": None, "info": None, "badges": None, "frais": []}
     t = re.search(r"<title>(.*?)</title>", page, re.S)
     if not t or not text(t.group(1)).startswith("Fiche formation"):
         out["reason"] = "pas une fiche"          # "Oups..." or "Mise à jour de données": an error page, read again later
         return out
     s = SESSION.search(text(page))
     out["session"] = int(s.group(1)) if s else None
+    out["badges"] = badges(page)          # read on every fiche, grid or not (version 3)
+    out["frais"] = frais(page)
     out["attendus_nationaux"] = mask(_section(page, "Les attendus nationaux"))
     out["attendus_complementaires"] = mask(_section(page, "Les attendus complémentaires"))
     # the notice under "Candidater à la formation" (e.g. an apprenticeship formation that examines no application)

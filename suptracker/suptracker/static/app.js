@@ -852,7 +852,7 @@ function resultCard(r) {
       <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
       <div class="rc-sub">${esc(r.fil_lib_voe_acc)}${r.lib_comp_voe_ins ? ` <span class="muted">${esc(r.lib_comp_voe_ins)}</span>` : ""}</div>
       <div class="rc-meta muted small"><span>${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span>${r.capa_fin !== undefined && r.capa_fin !== null ? `<span>${ICONS.places}${fmt(r.capa_fin)} places</span>` : ""}<span>campagne ${esc(r.session)} · ${esc(r.lineage_years)} campagne(s)</span></div>
-      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
+      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${recoBadge(r.cod_aff_form)}${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
     </div>
     <div class="rc-fig num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès officiel</div>${est}</div>
   </article>`;
@@ -868,7 +868,7 @@ async function viewSearch(q, rawParams) {
   if (near) qs.set("near", near);
   const withProfile = fiProfileQuery(qs);                             // R3: the zones of every result, read for this answer only
   if (!withProfile) { qs.delete("zone"); delete P.zone; }            // review: no zone chip left for a filter not applied
-  const d = await api(`/api/search?${qs}`);
+  const [d] = await Promise.all([api(`/api/search?${qs}`), recoLoad()]);   // V1: the State-label badges of the results
   if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
   const keep = Object.fromEntries(["fili", "academie", "selective", "options", ...FI_GROUPS].map((k) => [k, P[k]]));
   const go = (patch) => searchHash(q, { ...keep, ...patch, offset: patch.offset || 0 });
@@ -1429,7 +1429,7 @@ function carteCard(f, ctx, pinned) {
     : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
   const sel = f.select_form === "formation sélective" ? '<span class="badge sel">Sélective</span>' : f.select_form === "formation non sélective" ? '<span class="badge">Non sélective</span>' : "";
   return `<div class="result rc carte-rc${zc ? " rc-z" : ""}${pinned ? " carte-pinned" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
-    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
+    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
@@ -1480,7 +1480,7 @@ async function viewCarte(dArg, mArg) {
   };
   const loadCouche = () => cached("couche", () => api("/api/carte/couche").then(coucheDecode));
   loadCouche().catch(() => {});
-  const FAC = await api("/api/carte");
+  const [FAC] = await Promise.all([api("/api/carte"), recoLoad()]);   // V1: the State-label badges of the cards
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
   const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
@@ -1844,6 +1844,86 @@ function bindTabs(id) {
   });
 }
 
+// sprint V1 « Étudier là-bas » (owner, 2026-11-15): the State label the LIVE Parcoursup fiche prints, as ONE badge
+// (reconnaissance.py: the label verbatim beside it, the fiche fait foi), and what a year there costs (vie.py): the local rent
+// of a 20 m² studio (Carte des loyers 2025) and the Crous residences, the national items of the OVE survey (2023), the fiche's
+// tuition fees verbatim. Ranges, each line with its source; always an estimation, never a promise or a family's budget.
+let RECO = null, RECO_P = null;
+function recoLoad() {
+  if (RECO) return Promise.resolve(RECO);
+  if (!RECO_P) {
+    RECO_P = api("/api/reconnaissance").then((d) => {
+      const cat = {};
+      for (const [k, v] of Object.entries(d.codes || {})) for (const c of String(v).split(",")) if (c) cat[c] = k;
+      RECO = { cat, sans: new Set(String(d.sans_bourse || "").split(",").filter(Boolean)), frais: d.frais || {},
+        lib: d.categories || {}, exp: d.explications || {} };
+      return RECO;
+    }).catch(() => { RECO_P = null; return null; });
+  }
+  return RECO_P;
+}
+function recoPill(k, lib, exp) {
+  if (!k || !lib) return "";
+  const icon = k === "aucun" || k === "autre" ? "" : ICONS.check;
+  return `<span class="badge reco reco-${esc(k)}" title="${esc(exp || "")}">${icon}${esc(lib)}</span>`;
+}
+function recoBadge(cod) {                                            // the lists: nothing when the fiche was not read yet
+  const k = RECO && RECO.cat[cod];
+  return k ? recoPill(k, RECO.lib[k], RECO.exp[k]) : "";
+}
+function recoCard(rc) {
+  if (!rc) return "";
+  const lab = rc.labels.length
+    ? `<p class="small">La fiche Parcoursup affiche : ${rc.labels.map((t) => `« ${esc(t)} »`).join(", ")}.</p>`
+    : rc.source === "intitule" ? `<p class="small">La fiche n'affiche pas de label de l'État ; l'intitulé de la formation sur Parcoursup indique un titre professionnel.</p>` : "";
+  const brs = rc.bourses === true ? "La formation ouvre droit aux bourses de l'enseignement supérieur."
+    : rc.bourses === false ? "La fiche indique que la formation n'ouvre pas droit aux bourses." : "";
+  return `<div class="card reco-card"><h2>Ce diplôme est-il reconnu par l'État ?</h2>
+    <p>${recoPill(rc.categorie, rc.libelle, rc.explication)}</p>
+    <p>${esc(rc.explication)}</p>${lab}${brs ? `<p class="small">${esc(brs)}</p>` : ""}
+    <p class="muted small">Lu sur la fiche Parcoursup${rc.session ? ` de la campagne ${esc(rc.session)}` : ""}. La fiche fait foi.</p></div>`;
+}
+const euros = (x) => `${fmt(x)} €`;
+const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
+function coutCard(v, r) {
+  if (!v) return `<div class="card"><h2>Combien coûte une année ici ?</h2><p class="muted small">Pas encore de données sur le coût de la vie pour cette formation.</p></div>`;
+  const fr = v.frais, m = v.mensuel, an = v.annuel, lo = v.loyer;
+  const tiles = `<div class="sum-grid cout-tiles">
+    <div class="sum-tile"><span class="sum-label">Par mois sur place</span><span class="sum-value">${m ? eurosRange(m.min, m.max) : "—"}</span><span class="sum-note">${m ? `logement, courses, transports… ${estimTag("loyer local + moyennes nationales")}` : "loyer de la commune non publié"}</span></div>
+    <div class="sum-tile"><span class="sum-label">Frais de la formation</span><span class="sum-value">${fr && fr.montant !== null && fr.montant !== undefined ? `${euros(fr.montant)} par an` : "—"}</span><span class="sum-note">${fr ? "selon la fiche Parcoursup" : "fiche pas encore lue"}</span></div>
+    <div class="sum-tile"><span class="sum-label">Sur une année (${esc(v.mois)} mois)</span><span class="sum-value">${an ? eurosRange(an.min, an.max) : "—"}</span><span class="sum-note">${an ? `vie sur place, frais${an.cvec ? " et CVEC" : ""} ${estimTag("somme des lignes ci-dessous")}` : "il manque une partie du calcul"}</span></div>
+  </div>`;
+  const fraisHtml = fr ? `<h3>${esc(fr.titre || "Frais de scolarité")}</h3>
+    <ul class="small cout-frais">${fr.lignes.map((l) => `<li><strong>${esc(l.rubrique)}</strong> : ${esc(l.texte)}</li>`).join("")}${fr.cvec ? `<li>${esc(v.cvec.texte)} <a href="${esc(v.cvec.url)}" target="_blank" rel="noopener">En savoir plus ↗</a></li>` : ""}</ul>
+    <p class="muted small">Recopié de la fiche Parcoursup, qui fait foi.</p>` : "";
+  const loyerRow = lo ? `<tr><td>Loyer d'un studio de ${esc(v.studio_m2)} m² ${lo.maille ? '<span class="badge warnb" title="Peu d\'annonces dans cette commune : le loyer est estimé à partir des communes voisines.">peu d\'annonces</span>' : ""}</td>
+      <td class="num" data-label="Par mois">${eurosRange(lo.min, lo.max)}</td>
+      <td data-label="D'où vient ce chiffre" class="small">Loyer des annonces à ${esc(lo.commune)} : ${fmt(lo.bas_m2)} à ${fmt(lo.haut_m2)} € le m² charges comprises (${fmt(lo.m2)} € en moyenne), carte des loyers 2025 ${estimTag("× " + v.studio_m2 + " m²")}</td></tr>`
+    : `<tr><td>Loyer</td><td class="num" data-label="Par mois">—</td><td data-label="D'où vient ce chiffre" class="small">Pas de loyer publié pour cette commune.</td></tr>`;
+  const posteRow = (p) => `<tr><td>${esc(p.poste)}${p.inclus === "selon" ? ' <span class="badge">selon votre situation</span>' : ""}</td>
+      <td class="num" data-label="Par mois">${euros(p.montant)}</td>
+      <td data-label="D'où vient ce chiffre" class="small">Moyenne nationale de l'enquête 2023 chez les ${fmt(p.part)} % d'étudiants qui ont cette dépense${p.inclus === "selon" ? " ; comptée seulement dans le haut de la fourchette" : ""}</td></tr>`;
+  const table = `<h3>Vivre à ${esc(v.commune || "")}, chaque mois</h3>
+    <div class="scroll"><table class="stack cout-table"><tr class="stack-head"><th>Poste</th><th class="num">Par mois</th><th>D'où vient ce chiffre</th></tr>
+    ${loyerRow}${v.postes.map(posteRow).join("")}
+    ${m ? `<tr class="cout-total"><td><strong>Total</strong></td><td class="num" data-label="Par mois"><strong>${eurosRange(m.min, m.max)}</strong></td><td data-label="D'où vient ce chiffre" class="small">Bas : loyer bas + les ${fmt(m.courants)} € de dépenses courantes. Haut : loyer haut + toutes les lignes ${estimTag("total")}</td></tr>` : ""}
+    </table></div>
+    <p class="muted small">Seul le loyer est propre à la commune. Les autres lignes sont des moyennes nationales (${esc(v.sources.ove.titre)}), pas les prix de cette ville.</p>`;
+  const crous = v.crous.length ? `<h3>Se loger au Crous</h3>
+    <p class="small">${fmt(v.crous_n)} résidence${v.crous_n > 1 ? "s" : ""} Crous à moins de 10 km. Les places sont attribuées sur dossier social étudiant.</p>
+    <ul class="small">${v.crous.map((c) => `<li><strong>${esc(c.nom)}</strong> · ${fmt(c.km)} km${c.loyer_min ? ` · ${eurosRange(c.loyer_min, c.loyer_max)} par mois${c.loyer_date ? ` (prix écrits par le Crous au ${esc(c.loyer_date)})` : " (prix écrits par le Crous)"}` : " · loyer non indiqué"}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">Demander un logement ↗</a>` : ""}</li>`).join("")}</ul>`
+    : `<h3>Se loger au Crous</h3><p class="small muted">Aucune résidence Crous recensée à moins de 10 km.</p>`;
+  const repas = `<p class="small">${esc(v.repas_ru.texte)}${v.resto_n ? ` ${fmt(v.resto_n)} lieu${v.resto_n > 1 ? "x" : ""} de restauration du Crous à moins de 2 km.` : ""}</p>`;
+  const aides = `<h3>Ce qui peut baisser la facture</h3><ul class="small">
+    <li>La bourse sur critères sociaux et le logement Crous : <a href="https://messervices.etudiant.gouv.fr/" target="_blank" rel="noopener">dossier social étudiant ↗</a></li>
+    <li>L'aide au logement de la CAF : <a href="https://www.caf.fr/allocataires/aides-et-demarches/mes-demarches/faire-une-simulation" target="_blank" rel="noopener">faire une simulation ↗</a></li>
+    <li>Les boursiers ne paient ni la CVEC ni les droits d'inscription nationaux.</li></ul>`;
+  return `<div class="card cout-card"><h2>Combien coûte une année ici ?</h2>
+    <p class="muted small">Des ordres de grandeur pour préparer votre budget, pas un devis. Chaque ligne dit d'où vient son chiffre.</p>
+    ${tiles}${fraisHtml}${table}${crous}${repas}${aides}
+    <p class="muted small">Sources : <a href="${esc(v.sources.loyers.url)}" target="_blank" rel="noopener">${esc(v.sources.loyers.titre)} ↗</a> ; <a href="${esc(v.sources.ove.url)}" target="_blank" rel="noopener">${esc(v.sources.ove.titre)} ↗</a> ; Crous (résidences et restaurants) ; fiche Parcoursup.</p></div>`;
+}
+
 async function viewFormation(cod, session) {
   const d = await api(`/api/formation/${encodeURIComponent(cod)}${session ? `?session=${session}` : ""}`);
   store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
@@ -1860,6 +1940,7 @@ async function viewFormation(cod, session) {
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>
     <div class="fhead-lib">${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
+    ${d.reconnaissance ? `<div class="fhead-reco">${recoPill(d.reconnaissance.categorie, d.reconnaissance.libelle, d.reconnaissance.explication)}</div>` : ""}
     <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
     <div class="toolbar" style="margin-top:8px">
       ${voeuButton(r.cod_aff_form, true)}
@@ -1906,7 +1987,9 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r)],
     ["reussite", "Réussir et poursuivre", `
+  ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
   ${masterCard(d.master)}
   ${passerellesCard(d.passerelles)}
@@ -2456,6 +2539,9 @@ async function viewCompare() {
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
     ["% même académie", (f) => pct(f.record.pct_aca_orig)],
     ["Proposition dès l'ouverture " + tip("timing"), (f) => (f.record.acc_tot > 0 ? pct(f.record.pct_acc_debutpp) : "—")],
+    ["Reconnaissance par l'État", (f) => (f.reconnaissance ? recoPill(f.reconnaissance.categorie, f.reconnaissance.libelle, f.reconnaissance.explication) : '<span class="muted small">fiche pas encore lue</span>')],
+    ["Frais de scolarité par an", (f) => (f.vie && f.vie.frais ? (f.vie.frais.montant !== null && f.vie.frais.montant !== undefined ? euros(f.vie.frais.montant) : '<span class="muted small">voir la fiche</span>') : "—")],
+    ["Vivre sur place, par mois " + estimTag("loyer local + moyennes nationales"), (f) => (f.vie && f.vie.mensuel ? eurosRange(f.vie.mensuel.min, f.vie.mensuel.max) : "—")],
     ["Options", (f) => offerBadges(f.record) || '<span class="muted small">—</span>'], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
   ];
   const series = F.map((f) => { const by = Object.fromEntries(f.history.map((h) => [h.session, h.taux_acces_ens])); return { name: `${f.record.g_ea_lib_vx} · ${f.record.fil_lib_voe_acc}`, values: years.map((y) => by[y] ?? null) }; });
@@ -3289,7 +3375,7 @@ async function viewVoeux() {
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
-  try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); } catch (e) {
+  try { const [ans] = await Promise.all([api(`/api/voeux?${qs}`), recoLoad()]); d = voeuxLocal(ans, prof); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
@@ -3298,7 +3384,7 @@ async function viewVoeux() {
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>${recoBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>
