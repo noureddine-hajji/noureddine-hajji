@@ -249,6 +249,8 @@ def v2(c: Ctx):
 # ---------------------------------------------------------------- V3
 
 FEES = {
+    "4 900 €/an": 4900, "1625 euros pour l'année": 1625, "1110 euros pour l'année 2024-2025 (Montant pour 2025/2026)": 1110,
+    "2000 euros payables en 10 mensualités (Montant pour 2025/2026)": None,
     "2329,79 €": 2330, "1542.42 euros": 1542, "1708,4 euros (Montant pour 2025/2026)": 1708, "170,50 € + 30,50 €": 201,
     "178 euros + 800 euros de frais spécifiques": 978, "178 euros.": 178, "777": 777, "Aucun frais": 0,
     "628 € (Montant pour 2025/2026)": 628, "0 (Montant pour 2025/2026)": 0, "8 900 € par an": 8900,
@@ -266,7 +268,7 @@ def numbers_sum(text: str) -> int:
     """Independent: the sum of the amounts printed (thousands separated by spaces or dots, decimals after a comma or a dot
     followed by one or two digits), the year left out, rounded to the euro half up."""
     from decimal import ROUND_HALF_UP, Decimal
-    t = re.sub(r"\(montant pour 20\d\d/20\d\d\)", "", text, flags=re.I)
+    t = re.sub(r"\(montant pour 20\d\d/20\d\d\)|pour l[’']année 20\d\d ?[-/] ?20\d\d", "", text, flags=re.I)
     total = Decimal(0)
     for whole, dec in re.findall(r"(\d{1,3}(?:[ \u202f\xa0.]\d{3})+(?!\d)|\d+)(?:[,.](\d{1,2})(?!\d))?", t):
         total += Decimal(re.sub(r"\D", "", whole) + "." + (dec or "0"))
@@ -507,8 +509,10 @@ def node(prog: str, data):
 @check("V6 page: escaped, computed figures labelled, fiche fait foi, only the rent is local, vouvoiement, no chance, safe links")
 def v6(c: Ctx):
     rc, vie, _fp = c.mods()
-    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "euros", "eurosRange", "recoPill", "recoBadge", "recoCard", "coutCard"))
+    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "euros", "eurosRange", "recoPill", "recoBadge", "recoCard", "coutCard",
+                                            "haversineKm", "villeLabel", "villeDepart", "distanceText", "distanceBlock"))
     stub = """const ICONS = { check: '<svg class="i"></svg>' };
+      const store = { get: () => null };
       const estimTag = (d) => `<span class="estim">estimation</span> ${esc(d || "")}`;
       let RECO = null;\n"""
     import duckdb
@@ -606,7 +610,7 @@ def v7(c: Ctx):
 def v8(c: Ctx):
     bad = []
     b = (ROOT / "suptracker" / "build.py").read_text()
-    if "reconnaissance.build(con)" not in b or "vie.build(con, raw_dir)" not in b:
+    if "reconnaissance.build(con)" not in b or "vie.build(con, raw_dir" not in b:
         bad.append("build.py")
     api = (ROOT / "suptracker" / "api.py").read_text()
     for w in ('"reconnaissance": RC.for_formation(', '"vie": VIE.for_formation(', '@app.get("/api/reconnaissance")'):

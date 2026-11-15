@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, reconnaissance, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import apprentissage, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -43,7 +43,8 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         semblables.build(con, rapports.textes_path(db_path))
         grilles.build(con, textes=rapports.textes_path(db_path))
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
-        vie.build(con, raw_dir)            # sprint V1: rents, Crous, national items, tuition fees (fiche, verbatim)
+        vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
+        tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
         calibration.build_calibration(con)
@@ -52,6 +53,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         success.attach(con, src)
         passerelles.build(con, raw_dir, reo_source=src)
         insertion.build(con, raw_dir)
+        apprentissage.build(con)           # sprint V2: BTS apprentices vs voie scolaire, AFTER core.inserjeunes_bts (Codex)
         onisep.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         parcours.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)

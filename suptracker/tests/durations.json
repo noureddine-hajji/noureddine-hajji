@@ -56,5 +56,6 @@
  "tests/test_visuel.py": 230.0,
  "tests/test_vitesse.py": 170,
  "tests/test_voeux.py": 540,
+ "tests/test_voiepro.py": 6.0,
  "tests/test_voies.py": 100.0
 }

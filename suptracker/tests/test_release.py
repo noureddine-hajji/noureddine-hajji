@@ -65,6 +65,7 @@ FEATURE_ENTRY_POINTS = {
     "carte_recherche": ("app.js", "function carteSelection("),
     "parcours_metier": ("app.js", "function parcoursCard("),
     "reconnaissance_vie": ("app.js", "function coutCard("),
+    "voie_pro_apprentissage": ("app.js", "function apprentiCard("),
 }
 
 

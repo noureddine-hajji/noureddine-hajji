@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import html
 
-CHECKED = "13 novembre 2026"
+CHECKED = "15 novembre 2026"
 OFFICIAL_HOSTS = ("www.parcoursup.gouv.fr", "www.onisep.fr", "www.education.gouv.fr", "www.filsantejeunes.com",
                   "www.monparcourshandicap.gouv.fr")
 
@@ -52,6 +52,14 @@ SERVICES = (
                 "officiel Mon parcours handicap dit à qui s'adresser.",
      "tel": None, "url": "https://www.monparcourshandicap.gouv.fr/etudes-superieures/orientation-quels-sont-vos-interlocuteurs",
      "lien": "Mon parcours handicap : vos interlocuteurs"},
+    {"id": "sans-proposition", "titre": "Sans proposition à la fin de la phase principale : la phase complémentaire, puis la CAES",
+     "pour": "Les candidats qui n'ont reçu aucune proposition d'admission.",
+     "comment": "Pendant la phase complémentaire, vous pouvez faire de nouveaux vœux dans les formations qui ont encore des "
+                "places. Sans proposition ensuite, demandez l'aide de la commission d'accès à l'enseignement supérieur (CAES) "
+                "de votre académie, depuis votre dossier. Elle cherche avec vous une formation proche de votre projet.",
+     "tel": None,
+     "url": "https://www.parcoursup.gouv.fr/contenus/les-solutions-si-vous-n-avez-pas-recu-de-proposition-d-admission-3456",
+     "lien": "Parcoursup : les solutions si vous n'avez reçu aucune proposition"},
     {"id": "ecoute", "titre": "Si c'est trop lourd en ce moment : Fil Santé Jeunes",
      "pour": "Les jeunes de 12 à 25 ans. C'est gratuit et anonyme.",
      "comment": "Le stress des choix et des résultats arrive à beaucoup d'élèves. Des professionnels vous écoutent au téléphone "

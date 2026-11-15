@@ -48,7 +48,8 @@ const NEXT_STEPS = {
   parcours: [{ href: "#/guide", text: "Choisir des vœux dans plusieurs zones, avec au moins un vœu de sécurité" },
     { href: "#/carte", text: "Voir ces formations sur la carte, près de chez vous" }],
   voeux: [{ href: "#/guide", text: "Vérifier votre liste étape par étape, puis la partager avec un adulte" },
-    { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
+    { href: "#/calendrier", text: "Noter les dates de Parcoursup" },
+    { href: "https://www.parcoursup.gouv.fr/contenus/les-solutions-si-vous-n-avez-pas-recu-de-proposition-d-admission-3456", text: "Sans proposition en juillet : la phase complémentaire, puis la commission d'accès (CAES)" }],
   reorientation: [{ href: "#/voeux", text: "Garder vos formations dans Mes vœux" },
     { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
   metier: [{ href: "#/metiers", text: "Comparer avec d'autres métiers" },
@@ -852,7 +853,7 @@ function resultCard(r) {
       <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
       <div class="rc-sub">${esc(r.fil_lib_voe_acc)}${r.lib_comp_voe_ins ? ` <span class="muted">${esc(r.lib_comp_voe_ins)}</span>` : ""}</div>
       <div class="rc-meta muted small"><span>${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span>${r.capa_fin !== undefined && r.capa_fin !== null ? `<span>${ICONS.places}${fmt(r.capa_fin)} places</span>` : ""}<span>campagne ${esc(r.session)} · ${esc(r.lineage_years)} campagne(s)</span></div>
-      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${recoBadge(r.cod_aff_form)}${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
+      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${recoBadge(r.cod_aff_form)}${tensionBadge(r.cod_aff_form)}${r.apprentissage === true ? "" : appBadge(r.cod_aff_form)}${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
     </div>
     <div class="rc-fig num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès officiel</div>${est}</div>
   </article>`;
@@ -1429,7 +1430,7 @@ function carteCard(f, ctx, pinned) {
     : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
   const sel = f.select_form === "formation sélective" ? '<span class="badge sel">Sélective</span>' : f.select_form === "formation non sélective" ? '<span class="badge">Non sélective</span>' : "";
   return `<div class="result rc carte-rc${zc ? " rc-z" : ""}${pinned ? " carte-pinned" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
-    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
+    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form) + tensionBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
@@ -1796,13 +1797,22 @@ function summaryBand(r, d) {
       ${isReo(prof) ? "" : profileRateTile(pr)}
       ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
         : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
-      ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places` : "places non publiées")}
+      ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places${d.tension ? ` · ${fmt(d.tension.par_place)} vœux par place${d.tension.libelle ? ` <span class="badge tension">${esc(d.tension.libelle)}</span>` : ""}` : ""}` : "places non publiées")}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
+    ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
+}
+// sprint V2: how many vœux the formation received for each place, placed among its type (tension.py): demand, never a chance
+function tensionCard(t, session) {
+  if (!t) return "";
+  return `<div class="card"><h2>Combien de candidats pour une place ?</h2>
+    <p><strong>${fmt(t.voeux)} vœux</strong> en phase principale ${esc(session)} pour <strong>${fmt(t.places)} places</strong> : ${fmt(t.par_place)} vœux par place ${estimTag("vœux ÷ places, deux chiffres publiés")}${t.libelle ? ` <span class="badge tension">${esc(t.libelle)}</span>` : ""}</p>
+    ${t.explication ? `<p class="small">${esc(t.explication)} Comparaison avec les ${fmt(t.n_type)} formations du même type de la campagne.</p>` : `<p class="small muted">Comparée aux ${fmt(t.n_type)} formations du même type de la campagne, la demande n'est pas parmi les plus fortes.</p>`}
+    <p class="small muted">${esc(t.prudence)}</p></div>`;
 }
 function fillZoneTile(target) {
   const el = document.getElementById("sum-zone");
@@ -1857,8 +1867,11 @@ function recoLoad() {
     RECO_P = api("/api/reconnaissance").then((d) => {
       const cat = {};
       for (const [k, v] of Object.entries(d.codes || {})) for (const c of String(v).split(",")) if (c) cat[c] = k;
-      RECO = { cat, sans: new Set(String(d.sans_bourse || "").split(",").filter(Boolean)), frais: d.frais || {},
-        lib: d.categories || {}, exp: d.explications || {} };
+      const ens = (x) => new Set(String(x || "").split(",").filter(Boolean));
+      const t = d.tension || {};
+      RECO = { cat, sans: ens(d.sans_bourse), frais: d.frais || {}, lib: d.categories || {}, exp: d.explications || {},
+        // sprint V2: the formations of strong demand (tension.py) and those that can be done as an apprentice (apprentissage.py)
+        tres: ens(t.tres), tresLib: t.libelle || "Forte demande", tresExp: t.explication || "", app: ens(d.apprentissage) };
       return RECO;
     }).catch(() => { RECO_P = null; return null; });
   }
@@ -1872,6 +1885,14 @@ function recoPill(k, lib, exp) {
 function recoBadge(cod) {                                            // the lists: nothing when the fiche was not read yet
   const k = RECO && RECO.cat[cod];
   return k ? recoPill(k, RECO.lib[k], RECO.exp[k]) : "";
+}
+// sprint V2: the lists say when a formation receives many vœux for its places (a fact about demand, never a chance) and when
+// it can also be done as an apprentice; both are lookups by code, every string escaped
+function tensionBadge(cod) {
+  return RECO && RECO.tres && RECO.tres.has(cod) ? `<span class="badge tension" title="${esc(RECO.tresExp)}">${esc(RECO.tresLib)}</span>` : "";
+}
+function appBadge(cod) {
+  return RECO && RECO.app && RECO.app.has(cod) ? '<span class="badge app" title="Cette formation se fait aussi en apprentissage : formation gratuite et salaire.">aussi en apprentissage</span>' : "";
 }
 function recoCard(rc) {
   if (!rc) return "";
@@ -1922,8 +1943,88 @@ function coutCard(v, r) {
     <li>Les boursiers ne paient ni la CVEC ni les droits d'inscription nationaux.</li></ul>`;
   return `<div class="card cout-card"><h2>Combien coûte une année ici ?</h2>
     <p class="muted small">Des ordres de grandeur pour préparer votre budget, pas un devis. Chaque ligne dit d'où vient son chiffre.</p>
-    ${tiles}${fraisHtml}${table}${crous}${repas}${aides}
+    ${tiles}${distanceBlock(v)}${fraisHtml}${table}${crous}${repas}${aides}
     <p class="muted small">Sources : <a href="${esc(v.sources.loyers.url)}" target="_blank" rel="noopener">${esc(v.sources.loyers.titre)} ↗</a> ; <a href="${esc(v.sources.ove.url)}" target="_blank" rel="noopener">${esc(v.sources.ove.titre)} ↗</a> ; Crous (résidences et restaurants) ; fiche Parcoursup.</p></div>`;
+}
+
+// sprint V2: the distance from the student's town, computed HERE (the town is never sent): the commune list (API Géo) is
+// loaded once, searched in the browser, and the chosen town is kept in this browser only (store "villeDepart")
+let COMMUNES = null, COMMUNES_P = null;
+function communesLoad() {
+  if (COMMUNES) return Promise.resolve(COMMUNES);
+  if (!COMMUNES_P) COMMUNES_P = api("/api/communes").then((d) => { COMMUNES = (d.communes || []).map((c) => ({ nom: c[0], dep: c[1], lat: c[2], lon: c[3], cle: foldTxt(c[0]) })); return COMMUNES; })
+    .catch(() => { COMMUNES_P = null; return null; });
+  return COMMUNES_P;
+}
+const foldTxt = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/œ/g, "oe").replace(/æ/g, "ae").toLowerCase().replace(/[’'`-]/g, " ").replace(/\s+/g, " ").trim();
+const villeLabel = (c) => `${c.nom} (${c.dep})`;
+function villeDepart() {
+  const v = store.get("villeDepart", null);           // never trusted: a name, a department and two finite coordinates
+  return v && typeof v.nom === "string" && typeof v.dep === "string" && Number.isFinite(v.lat) && Number.isFinite(v.lon)
+    && Math.abs(v.lat) <= 90 && Math.abs(v.lon) <= 180 ? { nom: v.nom.slice(0, 80), dep: v.dep.slice(0, 3), lat: v.lat, lon: v.lon } : null;
+}
+function distanceText(from, lat, lon) {
+  const km = haversineKm(from.lat, from.lon, lat, lon);
+  if (km < 1) return `Vous êtes dans la même commune ou presque (moins de 1 km à vol d'oiseau depuis le centre de ${esc(villeLabel(from))}).`;
+  return `<strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau depuis le centre de ${esc(villeLabel(from))} ${estimTag("distance en ligne droite entre les centres des communes ; la route est plus longue")}.${km > 50 ? " À cette distance, la plupart des étudiants se logent sur place : le loyer ci-dessous compte." : " À cette distance, des allers-retours sont souvent possibles : regardez les transports."}`;
+}
+function distanceBlock(v) {
+  if (!v || v.lat == null || v.lon == null) return "";
+  const from = villeDepart();
+  return `<div class="dist-box" data-lat="${esc(v.lat)}" data-lon="${esc(v.lon)}"><h3>Depuis chez vous</h3>
+    <label class="small" for="dist-ville">Votre ville</label>
+    <div class="dist-row"><input id="dist-ville" list="dist-communes" autocomplete="off" placeholder="ex. Arras (62)" value="${from ? esc(villeLabel(from)) : ""}"><datalist id="dist-communes"></datalist></div>
+    <p class="small" id="dist-out" aria-live="polite">${from ? distanceText(from, v.lat, v.lon) : "Tapez le nom de votre commune pour voir la distance."}</p>
+    <p class="muted small">Votre ville reste dans ce navigateur : la distance est calculée ici, rien n'est envoyé au site.</p></div>`;
+}
+function bindDistance() {
+  const box = document.querySelector(".dist-box"), input = document.getElementById("dist-ville");
+  if (!box || !input) return;
+  const lat = Number(box.dataset.lat), lon = Number(box.dataset.lon), out = document.getElementById("dist-out"), list = document.getElementById("dist-communes");
+  input.addEventListener("focus", () => { communesLoad(); }, { once: true });
+  input.addEventListener("input", async () => {
+    const C = await communesLoad();
+    if (!C || !input.isConnected) return;
+    const q = foldTxt(input.value.replace(/\s*\(\w{1,3}\)\s*$/, ""));
+    const exact = C.find((c) => villeLabel(c) === input.value.trim());
+    if (exact) {
+      store.set("villeDepart", { nom: exact.nom, dep: exact.dep, lat: exact.lat, lon: exact.lon });
+      out.innerHTML = distanceText(exact, lat, lon);
+      return;
+    }
+    if (q.length < 2) { list.innerHTML = ""; return; }
+    const hits = C.filter((c) => c.cle.startsWith(q)).slice(0, 30);
+    list.innerHTML = hits.map((c) => `<option value="${esc(villeLabel(c))}">`).join("");
+    out.textContent = hits.length ? "Choisissez votre commune dans la liste." : "Aucune commune de ce nom.";
+  });
+}
+// sprint V2: doing the formation as an apprentice (apprentissage.py): free tuition and a salary, the CFA that teach it here,
+// where to find a company; official links only, never a computed salary
+function apprentiCard(a) {
+  if (!a || !a.propose) return "";
+  const offres = (a.offres || []).length ? `<p class="small">${a.offres.length > 1 ? "Ces établissements la proposent" : "Cet établissement la propose"} en apprentissage (pas de statistiques d'admission publiées pour cette voie) :</p>
+    <ul class="small">${a.offres.map((o) => { const url = carteFiche(o);
+      return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul>` : "";
+  return `<div class="card app-card"><h2>Et en apprentissage ?</h2>
+    <ul class="small">
+      <li><strong>Pas de frais de formation</strong> : la formation d'un apprenti est gratuite pour lui (Code du travail, article L6211-1).</li>
+      <li><strong>Un salaire</strong> : un pourcentage du Smic qui dépend de votre âge et de l'année de formation. <a href="${esc(a.liens.salaire)}" target="_blank" rel="noopener">Calculer votre salaire d'apprenti ↗</a></li>
+      <li><strong>Il faut un employeur</strong> : on signe un contrat d'apprentissage avec une entreprise, puis on alterne cours et travail. <a href="${esc(a.liens.entreprises)}" target="_blank" rel="noopener">Trouver une entreprise qui recrute des apprentis (La bonne alternance) ↗</a></li>
+    </ul>
+    ${a.sies_apprentissage ? '<p class="small">Cette formation est elle-même proposée en apprentissage.</p>' : ""}${offres}
+    <p class="muted small">Pour en savoir plus sur le salaire et les droits de l'apprenti : <a href="${esc(a.liens.guide)}" target="_blank" rel="noopener">guide officiel de La bonne alternance ↗</a>. Une formation en apprentissage a sa propre fiche Parcoursup : vérifiez-la.</p></div>`;
+}
+function apprentiInsertionCard(a) {
+  const n = a && a.national;
+  if (!n || !n.voies.length) return "";
+  return `<div class="card"><h2>Après ce BTS : en apprentissage ou en lycée ?</h2>
+    <p class="small">Dans toute la France, pour ce BTS (${esc(n.voies[0].annee)}). Chaque établissement publie ses propres taux ; on montre le taux du milieu des établissements qui le publient ${estimTag("médiane des établissements, pas un taux national")}.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">En emploi 6 mois après la sortie</th><th class="num">Poursuivent leurs études</th><th class="num">Établissements</th></tr>
+    ${n.voies.map((v) => `<tr><td>${esc(v.libelle)}</td>
+      <td class="num" data-label="En emploi 6 mois après la sortie">${fmt(v.emploi_med)} % <span class="muted small">(la moitié des établissements entre ${fmt(v.emploi_q1)} et ${fmt(v.emploi_q3)} %)</span></td>
+      <td class="num" data-label="Poursuivent leurs études">${v.poursuite_med !== null && v.poursuite_med !== undefined ? `${fmt(v.poursuite_med)} %` : "—"}</td>
+      <td class="num" data-label="Établissements">${fmt(v.n_emploi)} sur ${fmt(v.n_etab)}</td></tr>`).join("")}</table></div>
+    <p class="muted small">Le taux d'emploi compte les jeunes qui ont quitté les études ; les petits effectifs ne sont pas publiés. Source : Inserjeunes (ministère de l'Éducation nationale), sortants de dernière année. Ce sont des résultats passés, pas une promesse d'emploi.</p></div>`;
 }
 
 async function viewFormation(cod, session) {
@@ -1966,7 +2067,8 @@ async function viewFormation(cod, session) {
   ${appelCard(d.appel)}
   <div id="planb"></div>
   ${offerCard(r, d.apprentissage)}
-  <details class="more-card"><summary><strong>Plus de chiffres sur l'admission</strong> <span class="muted small">votre moyenne parmi les admis, prévision, calendrier des propositions, lycées d'origine, étapes de la sélection, comparaison avec la filière, candidats hors terminale</span></summary>
+  <details class="more-card"><summary><strong>Plus de chiffres sur l'admission</strong> <span class="muted small">candidats par place, votre moyenne parmi les admis, prévision, calendrier des propositions, lycées d'origine, étapes de la sélection, comparaison avec la filière, candidats hors terminale</span></summary>
+  ${tensionCard(d.tension, r.session)}
   ${isReo(store.get("profile", null)) ? "" : moyenneCard(r)}
   ${previsionCard(d.prevision)}
   ${reoCard(d.reorientation)}
@@ -1989,7 +2091,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", coutCard(d.vie, r)],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -1999,6 +2101,7 @@ async function viewFormation(cod, session) {
   ${butCard(d.but)}`],
     ["emploi", "Emploi et métiers", `
   ${insertionCard(d.insertion)}
+  ${apprentiInsertionCard(d.apprenti)}
   ${cereqCard(d.cereq)}
   ${metiersCard(d.metiers)}`],
     ["historique", "Historique", `
@@ -2009,6 +2112,7 @@ async function viewFormation(cod, session) {
   </table></div></div>`],
   ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
+  bindDistance();
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
@@ -2543,6 +2647,8 @@ async function viewCompare() {
     ["Proposition dès l'ouverture " + tip("timing"), (f) => (f.record.acc_tot > 0 ? pct(f.record.pct_acc_debutpp) : "—")],
     ["Reconnaissance par l'État", (f) => (f.reconnaissance ? recoPill(f.reconnaissance.categorie, f.reconnaissance.libelle, f.reconnaissance.explication) : '<span class="muted small">fiche pas encore lue</span>')],
     ["Frais de scolarité par an", (f) => (f.vie && f.vie.frais ? (f.vie.frais.montant !== null && f.vie.frais.montant !== undefined ? euros(f.vie.frais.montant) : '<span class="muted small">voir la fiche</span>') : "—")],
+    ["Vœux par place " + estimTag("vœux ÷ places"), (f) => (f.tension ? `${fmt(f.tension.par_place)}${f.tension.libelle ? ` <span class="badge tension">${esc(f.tension.libelle)}</span>` : ""}` : "—")],
+    ["Aussi en apprentissage", (f) => (f.apprenti && f.apprenti.propose ? "oui" : "non")],
     ["Vivre sur place, par mois " + estimTag("loyer local + moyennes nationales"), (f) => (f.vie && f.vie.mensuel ? eurosRange(f.vie.mensuel.min, f.vie.mensuel.max) : "—")],
     ["Options", (f) => offerBadges(f.record) || '<span class="muted small">—</span>'], ["Lignée", (f) => lineageBadge(f.record.lineage_confidence) + ` ${f.history.length} camp.`],
   ];
@@ -3388,7 +3494,7 @@ async function viewVoeux() {
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>${recoBadge(v.cod_aff_form)}`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>

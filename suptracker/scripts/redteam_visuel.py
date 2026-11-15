@@ -368,7 +368,8 @@ process.stdout.write(JSON.stringify(out));
 
 def card_ok(js: str) -> tuple[bool, str]:
     # sprint V1: the card shows the State-label badge from the lists' answer (none loaded here: no badge)
-    r = node(base_defs(js) + "\nlet RECO = null;\n" + top(js, "recoPill") + "\n" + top(js, "recoBadge") + "\n" + top(js, "resultCard") + CARD_PROG)
+    r = node(base_defs(js) + "\nlet RECO = null;\n" + top(js, "recoPill") + "\n" + top(js, "recoBadge") + "\n" + top(js, "tensionBadge") + "\n"
+             + top(js, "appBadge") + "\n" + top(js, "resultCard") + CARD_PROG)
     if r is None:
         return True, "node not installed"
     if r.startswith("__error__"):
