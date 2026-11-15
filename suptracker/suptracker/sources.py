@@ -166,7 +166,7 @@ SOURCES = (
      "url": "https://www.data.gouv.fr/datasets/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2025"},
     {"key": "ove_cdv2023", "title": "OVE, enquête Conditions de vie des étudiants 2023 : brochure « Repères » (dépenses mensuelles moyennes, p. 27)",
      "producer": "Observatoire national de la vie étudiante", "access": "owner_upload",
-     "file_glob": ("ove/OVE-BROCHURE-REPERES-CDV2023-1.pdf", "ove/ove_cdv2023_depenses.csv"),
+     "file_glob": ("OVE-BROCHURE-REPERES-CDV2023-1.pdf", "ove_cdv2023_depenses.csv"),
      "granularity": "France entière (moyennes nationales)", "keys": ("poste de dépense",), "feeds": ("vie",),
      "status": "en_ligne", "sprint": "V1",
      "role": "source (le PDF est conservé ; ses montants sont recopiés dans le CSV, vérifié contre le PDF par le red team)",

@@ -413,7 +413,7 @@ def v4(c: Ctx):
 def v5(c: Ctx):
     _rc, vie, _fp = c.mods()
     bad = []
-    pdf = ROOT / "data" / "sources" / "ove" / "OVE-BROCHURE-REPERES-CDV2023-1.pdf"
+    pdf = ROOT / "data" / "sources" / "OVE-BROCHURE-REPERES-CDV2023-1.pdf"
     rows = list(csv.DictReader(open(vie.OVE_CSV, encoding="utf-8")))
     if len(rows) != 12:
         bad.append(f"{len(rows)} items")
@@ -431,8 +431,24 @@ def v5(c: Ctx):
         text = doc.pages[26].extract_text() or ""
     logging.disable(logging.NOTSET)
     flat = re.sub(r"\s+", " ", text).replace("\u2019", "'")
+    toks = flat.split()
+
+    def on_page(label: str) -> bool:
+        """The label's words in order, a two-line label being interleaved with its figures and the next column (at most 8
+        foreign words in all): pdfplumber reads the chart line by line."""
+        lw = label.split()
+        for i, t in enumerate(toks):
+            if t != lw[0]:
+                continue
+            j, k = i + 1, 1
+            while k < len(lw) and j < i + len(lw) + 8 and j < len(toks):
+                k += toks[j] == lw[k]
+                j += 1
+            if k == len(lw):
+                return True
+        return False
     for r in rows:
-        if r["poste"].split(" (")[0] not in flat:
+        if not on_page(r["poste"].split(" (")[0]):
             bad.append(f"label {r['poste']!r} not on page 27")
         if not re.search(rf"\b{r['montant']} €", flat):
             bad.append(f"amount {r['montant']} € not on page 27")

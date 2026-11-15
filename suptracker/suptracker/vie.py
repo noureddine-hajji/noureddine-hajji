@@ -38,7 +38,7 @@ from pathlib import Path
 from .reconnaissance import fold
 
 SOURCES_DIR = Path(__file__).resolve().parents[1] / "data" / "sources"
-OVE_CSV = SOURCES_DIR / "ove" / "ove_cdv2023_depenses.csv"
+OVE_CSV = SOURCES_DIR / "ove_cdv2023_depenses.csv"
 FICHES = Path(__file__).resolve().parents[1] / "data" / "fiches"
 
 STUDIO_M2 = 20

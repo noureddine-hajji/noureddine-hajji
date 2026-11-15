@@ -3254,7 +3254,7 @@ contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénie
   - Closed residences are left out, and only https links are kept.
   - The Crous restaurants within 2 km are counted, with the national meal price (1 € since 4 May 2026).
 - **Everything else, national.** The OVE survey "Conditions de vie des étudiants 2023" (brochure "Repères", p. 27), monthly
-  means among the students concerned. The brochure is kept in `data/sources/ove/` (fetched through the Internet Archive:
+  means among the students concerned. The brochure is kept in `data/sources/` (fetched through the Internet Archive:
   the OVE site refuses automated downloads), and its amounts are transcribed into `ove_cdv2023_depenses.csv`.
   - Running items, in both bounds: daily life 95 €, transport 76 €, university restaurant 50 €, phone and internet 40 €.
   - Items "selon votre situation", in the upper bound only: other housing costs 115 €, health insurance 47 €, study costs

@@ -597,7 +597,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   - Cost (owner's choices: a monthly TOTAL as a range, line by line with its source; a 20 m² studio): rent = 20 m² x the Carte des
     loyers 2025 interval (1-2 rooms, charges included) of the formation's town AND department, zone-predicted communes flagged, no
     match = no rent and no total; Crous residences <= 10 km (rent only when the text prints euros, closed ones out, https links);
-    every other item is a NATIONAL mean of the OVE 2023 survey (brochure kept in data/sources/ove, amounts transcribed, red team V5
+    every other item is a NATIONAL mean of the OVE 2023 survey (brochure kept in data/sources, amounts transcribed, red team V5
     checks the PDF), POSTES_COURANTS in both bounds, POSTES_SELON in the upper one only, the survey's rent and child care never.
     Fees verbatim from the fiche; an amount only from a plain sum of euro amounts. Year = 10 months + fees + CVEC (when printed),
     only when every part is known. Always "estimation", never a budget or a promise; only the rent is local (said).
