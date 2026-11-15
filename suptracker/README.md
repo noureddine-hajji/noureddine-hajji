@@ -3325,6 +3325,9 @@ and the CAES (commission d'accès à l'enseignement supérieur).
 (a fiche may print "internat indisponible"); the grids harvest now accepts any page titled "Fiche formation", reads a failed
 fiche again at the next run, and marks "hors_campagne" a formation the current cartographie no longer offers (716 of them),
 never a failure. Red team `redteam_grilles.py` GR5 and GR9 (39 mutants).
+After the re-read of 2026-11-15: 22,222 fiches with a grid, 3,515 without one, 716 "hors_campagne", 56 still failed (read
+again by the daily run); 25,737 identities, which cover 13,536 of the 14,252 formations of the 2025 campaign (the other 716
+are the formations no longer offered). Fee amounts are read on 23,167 of the 25,737 "Par année" lines.
 
 Red team `scripts/redteam_voiepro.py` (VP1-VP8):
 - VP1: demand per place re-derived on a fixture (ratio, percentiles by linear interpolation, the class rule, the lists' codes).
