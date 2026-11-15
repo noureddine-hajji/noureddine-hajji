@@ -167,6 +167,10 @@ GROUND = {
     "Diplôme visé contrôlé par l'Etat": "vise", "Titre RNCP de niveau 6": "rncp",
     "Diplôme national des métiers d'art et du design contrôlé par l'Etat": "national",
     "Un label inconnu": "autre",
+    # the live harvest of 2026-11-15
+    "DNMADE contrôlé par l'Etat": "national", "Certificat de spécialisation contrôlé par l'Etat": "national",
+    "DTS contrôlé par l'Etat": "national", "Classe préparatoire universitaire": "cpge",
+    "Diplôme de spécialisation professionnelle": "autre", "Formation DU PAREO": "autre",
 }
 
 
@@ -188,7 +192,8 @@ def independent_cat(label: str) -> str:
         return "rncp"
     if " diplome d etat " in f:
         return "etat"
-    if " diplome national " in f or w & {"bts", "btsa", "but", "dcg", "deust", "dma", "licence", "master"} or " dn made " in f:
+    if " diplome national " in f or w & {"bts", "btsa", "but", "dcg", "deust", "dma", "licence", "master", "dnmade", "dts"} \
+            or " dn made " in f or " certificat de specialisation " in f:
         return "national"
     return "autre"
 
@@ -244,6 +249,7 @@ def v2(c: Ctx):
 # ---------------------------------------------------------------- V3
 
 FEES = {
+    "2329,79 €": 2330, "1542.42 euros": 1542, "1708,4 euros (Montant pour 2025/2026)": 1708, "170,50 € + 30,50 €": 201,
     "178 euros + 800 euros de frais spécifiques": 978, "178 euros.": 178, "777": 777, "Aucun frais": 0,
     "628 € (Montant pour 2025/2026)": 628, "0 (Montant pour 2025/2026)": 0, "8 900 € par an": 8900,
     "1 415 € - Possibilité de régler en plusieurs fois sans frais": 1415,
@@ -257,9 +263,14 @@ FEES = {
 
 
 def numbers_sum(text: str) -> int:
-    """Independent: the sum of the integer amounts printed (thousands separated by spaces or dots), the year left out."""
+    """Independent: the sum of the amounts printed (thousands separated by spaces or dots, decimals after a comma or a dot
+    followed by one or two digits), the year left out, rounded to the euro half up."""
+    from decimal import ROUND_HALF_UP, Decimal
     t = re.sub(r"\(montant pour 20\d\d/20\d\d\)", "", text, flags=re.I)
-    return sum(int(re.sub(r"\D", "", m)) for m in re.findall(r"\d{1,3}(?:[ \u202f\xa0.]\d{3})+|\d+", t))
+    total = Decimal(0)
+    for whole, dec in re.findall(r"(\d{1,3}(?:[ \u202f\xa0.]\d{3})+(?!\d)|\d+)(?:[,.](\d{1,2})(?!\d))?", t):
+        total += Decimal(re.sub(r"\D", "", whole) + "." + (dec or "0"))
+    return int(total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 @check("V3 fees: ground truth, hostile and mixed texts give no amount, every real amount = the numbers its text prints")
@@ -636,6 +647,10 @@ SOURCE_MUTANTS = [
     ("rc", "RNCP from any title", '        elif re.search(TITLE_RNCP, fold(titles.get(r["cod_aff_form"]))):', "        elif True:", "V2"),
     ("vie", "CVEC summed in the fees", '    if "cvec" in f:\n        return None', '    if False:\n        return None', "V3"),
     ("vie", "comment with figures accepted", 'r"(.*?\\d.*?)\\s+-\\s+([^\\d+]*)"', 'r"(.*?\\d.*?)\\s+-\\s+(.*)"', "V3"),
+    ("vie", "cents dropped", 'cents += int(re.sub(r"\\D", "", m.group(1))) * 100 + int((m.group(2) or "0").ljust(2, "0"))',
+     'cents += int(re.sub(r"\\D", "", m.group(1))) * 100', "V3"),
+    ("vie", "decimals glued to the euros", 'cents += int(re.sub(r"\\D", "", m.group(1))) * 100 + int((m.group(2) or "0").ljust(2, "0"))',
+     'cents += int(re.sub(r"\\D", "", m.group(1)) + (m.group(2) or "")) * 100', "V3"),
     ("vie", "studio 25 m²", "STUDIO_M2 = 20", "STUDIO_M2 = 25", "V4"),
     ("vie", "rent by name only", '    key = f"{fold(nom)}|{str(dep or \'\').strip()}"', '    key = f"{fold(nom)}|%"', "V4"),
     ("vie", "zone-predicted rent not flagged", "(typ or \"\").strip().lower() != \"commune\"", "False", "V4"),

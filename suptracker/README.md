@@ -3237,6 +3237,10 @@ contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénie
   fiche fait foi. A diploma of engineer controlled by the State confers the grade de master; a preparatory class is a
   controlled formation, not a diploma.
 - A label no rule knows keeps its text under "autre" and is listed in `meta.reconnaissance_audit`.
+- First harvest (2026-11-15, 15,580 fiches): BTS 6,829, licence 1,226, BUT 616, certificat de spécialisation (agriculture,
+  national) 513, diplôme d'État 430, prépa 386, ingénieur 242, DCG 147, DEUST 118, grade de licence 92, visé 48, DNMADE 46,
+  DTS (national) 22; still "autre": "Diplôme de spécialisation professionnelle" (8) and "Formation DU PAREO" (2). Fee
+  amounts read on 14,734 of the 15,580 "Par année" lines; the others are ranges or texts, shown alone.
 - No label means "Aucun label de l'État sur la fiche", never "non reconnu". The only exception is a Parcoursup title that
   names a professional title (RNCP).
 - The badge appears on the formation page header, in a "Ce diplôme est-il reconnu par l'État ?" card (tab "Réussir et
@@ -3262,7 +3266,7 @@ contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénie
   - The survey's rent and child care items are never used. The page says that only the rent is local.
 - **The formation, annual.** The tuition-fee lines of the live fiche, verbatim (`data/fiches/frais.csv`).
   - An amount is read only from a plain sum of euro amounts: "178 euros + 800 euros de frais spécifiques" = 978,
-    "Aucun frais" = 0.
+    "Aucun frais" = 0; cents are kept and the sum rounded to the euro ("2329,79 €" = 2,330, never 2,329 or 232,979).
   - A text mixing the CVEC or giving several figures shows the text only.
   - The CVEC (105 € in 2026-2027) is added when the fiche prints its paragraph; grant holders are exempt.
 - **The year.** 10 months × the monthly bounds + the fees read + the CVEC, only when every part is known. Every computed
@@ -3277,4 +3281,4 @@ Red team `scripts/redteam_vie.py` (V1-V9):
 - V6: the page in node (escaping, estimation labels, wording, safe links).
 - V7: the real tables re-derived.
 - V8: plumbing.
-- V9: 25 mutants.
+- V9: 27 mutants.

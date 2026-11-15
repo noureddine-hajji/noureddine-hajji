@@ -97,13 +97,14 @@ def montant_annuel(texte: str | None) -> int | None:
     if re.fullmatch(r"\d{1,3}(?:[\s \xa0.]\d{3})*|\d+", t2):
         return int(re.sub(r"\D", "", t2))
     terms = re.split(r"\s*\+\s*", t2)
-    total = 0
+    cents = 0
     for term in terms:
         m = re.fullmatch(EURO + r"(?:\s+de frais [a-zéèêàç ]+)?", term.strip(" ."), flags=re.I)
         if not m:
             return None
-        total += int(re.sub(r"\D", "", m.group(1)))
-    return total
+        # "2329,79 €" is 2,329.79 euros (never 2,329 nor 232,979): the cents are kept, the sum rounded to the euro, half up
+        cents += int(re.sub(r"\D", "", m.group(1))) * 100 + int((m.group(2) or "0").ljust(2, "0"))
+    return (cents + 50) // 100
 
 
 def _fees(src: Path) -> dict:

@@ -38,7 +38,10 @@ RULES = (
     ("vise", r"\bvise\b"),
     ("rncp", r"\brncp\b|\btitre (?:professionnel|certifie|enregistre)"),
     ("etat", r"\bdiplome d etat\b"),
-    ("national", r"\bdiplome national\b|\bbtsa?\b|\bbut\b|\bdn ?made\b|\bdcg\b|\bdeust\b|\bdma\b|\blicence\b|\bmaster\b"),
+    # 2026-11-15 harvest: "Certificat de spécialisation contrôlé par l'Etat" (513 fiches: the agriculture ministry's national
+    # certificate) and "DTS contrôlé par l'Etat" (22: diplôme de technicien supérieur, e.g. imaging) are national diplomas
+    ("national", r"\bdiplome national\b|\bbtsa?\b|\bbut\b|\bdn ?made\b|\bdcg\b|\bdeust\b|\bdma\b|\blicence\b|\bmaster\b"
+                 r"|\bcertificat de specialisation\b|\bdts\b"),
 )
 LIBELLE = {
     "national": "Diplôme national",
