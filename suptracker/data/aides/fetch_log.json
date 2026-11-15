@@ -4,17 +4,17 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
   "bytes": 148333,
-  "sha256": "17abfdf925bc11400931e76b85d3172a08ae910f7adc085924c4da184c5786d7",
-  "fetched": "2026-11-15T16:59:14+00:00",
+  "sha256": "20885fc82c09ad339b84745ac2946bdd4be41bc95c63e6e81b66176f36798a81",
+  "fetched": "2026-11-15T17:01:49+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12214.txt"
  },
  {
   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
-  "bytes": 110868,
-  "sha256": "a811d8578095772513a41cfd7319f6d23bd1bef07ae6d030670199eb0b4b7e79",
-  "fetched": "2026-11-15T16:59:14+00:00",
+  "bytes": 108329,
+  "sha256": "de422abfccb60f0d5a0108d3df1fd775295f419087049f1b199815d5711ee2c5",
+  "fetched": "2026-11-15T17:01:49+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1010.txt"
  },
  {
@@ -22,8 +22,8 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34643",
   "bytes": 103470,
-  "sha256": "ad4c572fb9945cfec1e30024ff35242ab44d18d4e0267d5849c45660abcd82a4",
-  "fetched": "2026-11-15T16:59:14+00:00",
+  "sha256": "4c356d1c7ebbe65281f3cfdc501a083ab862fc5b68a9b4ba3af4012354c02aa9",
+  "fetched": "2026-11-15T17:01:49+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F34643.txt"
  },
  {
@@ -31,8 +31,8 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2865",
   "bytes": 160447,
-  "sha256": "2bca1ced7e60235fb2a644eb93c28cbf373b8f0ca3f1ddd60f0d38b1427a8180",
-  "fetched": "2026-11-15T16:59:14+00:00",
+  "sha256": "90d60428793f5315df9efd16619424b385e143c573c806c731c06903769b5b94",
+  "fetched": "2026-11-15T17:01:49+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2865.txt"
  },
  {
@@ -41,7 +41,7 @@
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
   "bytes": 145947,
   "sha256": "098801ed16a884eeadb8590c824b348bd81415228fb7aeebd44d9597d6136a50",
-  "fetched": "2026-11-15T16:59:15+00:00",
+  "fetched": "2026-11-15T17:01:50+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-au-merite-1291.txt"
  },
  {
@@ -50,7 +50,7 @@
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
   "bytes": 147180,
   "sha256": "730fb36ad9c2326b4c7d1045468e42470accb1cf8109680fce6e56534b59c99c",
-  "fetched": "2026-11-15T16:59:16+00:00",
+  "fetched": "2026-11-15T17:01:51+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-la-mobilite-parcoursup-1447.txt"
  },
  {
@@ -59,15 +59,34 @@
   "final_url": "https://cvec.etudiant.gouv.fr/",
   "bytes": 28779,
   "sha256": "5c0e6206a777de091369e2d94e7e03deb75f1cc3779cab11db45a61e6b76a91f",
-  "fetched": "2026-11-15T16:59:17+00:00",
+  "fetched": "2026-11-15T17:01:52+00:00",
   "file": "cvec.etudiant.gouv.fr_.txt"
  },
  {
-  "url": "https://www.etudiant.gouv.fr/fr/se-restaurer",
-  "status": 404,
-  "final_url": "https://www.etudiant.gouv.fr/fr/se-restaurer",
-  "bytes": 133008,
-  "sha256": "ac4a104dbaf5c17d9e5e3a3febe0876e170d3f10bfc913f9b23897857ff6be45",
-  "fetched": "2026-11-15T16:59:17+00:00"
+  "url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123",
+  "status": 200,
+  "final_url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123",
+  "bytes": 138276,
+  "sha256": "19812d483b251fb27acb06ab728c742ff0018c35574e512d57c0a19db9237b0f",
+  "fetched": "2026-11-15T17:01:52+00:00",
+  "file": "www.etudiant.gouv.fr_fr_comment-beneficier-du-repas-crous-1-eu-3123.txt"
+ },
+ {
+  "url": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
+  "status": 200,
+  "final_url": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
+  "bytes": 164981,
+  "sha256": "188228d8fc7c71c98803a8a8366bd34ce314dae467facb89546a240b12a3d406",
+  "fetched": "2026-11-15T17:01:52+00:00",
+  "file": "www.etudiant.gouv.fr_fr_aides-des-regions-et-des-outre-mer-2006.txt"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
+  "status": 200,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
+  "bytes": 94618,
+  "sha256": "66b0a5dc0dbfac997e7ac9ecb55dbd3c0de0912b687559cc9ac578d1e99509d8",
+  "fetched": "2026-11-15T17:01:52+00:00",
+  "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1563.txt"
  }
 ]
