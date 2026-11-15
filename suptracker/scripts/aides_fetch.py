@@ -32,6 +32,19 @@ def page_text(html: str) -> str:
     return re.sub(r"\n\s*\n+", "\n", "\n".join(x.strip() for x in t.splitlines())).strip() + "\n"
 
 
+def page_links(html: str, base: str) -> list:
+    """[text, absolute https URL] of every link of the page, in order, deduplicated (the card links only what an official
+    page links: the simulator, the online services)."""
+    out, seen = [], set()
+    for href, inner in re.findall(r'<a\b[^>]*?href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.S | re.I):
+        url = str(httpx.URL(base).join(htmlmod.unescape(href)))
+        text = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", inner))).strip()
+        if url.startswith("https://") and (text, url) not in seen:
+            seen.add((text, url))
+            out.append([text, url])
+    return out
+
+
 def name_of(url: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", url.split("://", 1)[-1])[:140] + ".txt"
 
@@ -60,6 +73,8 @@ def main(out: str) -> int:
                    "fetched": datetime.now(timezone.utc).isoformat(timespec="seconds")}
             if r.status_code == 200:
                 (d / name_of(url)).write_text(page_text(r.text))
+                (d / name_of(url).replace(".txt", ".links.json")).write_text(
+                    json.dumps(page_links(r.text, str(r.url)), ensure_ascii=False, indent=0) + "\n")
                 row["file"] = name_of(url)
             log.append(row)
     if not any(row.get("status") == 200 for row in log):
