@@ -158,7 +158,8 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
                 la, lo = _num(la), _num(lo)
                 if nom and la is not None and lo is not None and -90 <= la <= 90 and -180 <= lo <= 180:
                     rows.append((code, nom.strip(), (dep or "").strip(), la, lo))
-            con.executemany("INSERT INTO core.vie_commune VALUES (?, ?, ?, ?, ?)", rows)
+            if rows:
+                con.executemany("INSERT INTO core.vie_commune VALUES (?, ?, ?, ?, ?)", rows)
             got["communes"] = len(rows)
     # rents
     p = raw_dir / "loyers_app12_2025.parquet"

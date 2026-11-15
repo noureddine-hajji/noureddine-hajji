@@ -438,8 +438,8 @@ def vp7(c: Ctx):
 
 SOURCE_MUTANTS = [
     ("ts", "ratio inverted", "nb_voe_pp * 1.0 / capa_fin AS par_place", "capa_fin * 1.0 / nb_voe_pp AS par_place", "VP1"),
-    ("ts", "places zero kept", "WHERE capa_fin > 0 AND nb_voe_pp IS NOT NULL", "WHERE nb_voe_pp IS NOT NULL AND capa_fin IS NOT NULL", "VP1"),
-    ("ts", "percentiles over every type", "FROM r GROUP BY session, fili)", "FROM r GROUP BY session, fili, cod_aff_form)", "VP1"),
+    ("ts", "places zero kept", "            WHERE capa_fin > 0 AND nb_voe_pp IS NOT NULL),", "            WHERE nb_voe_pp IS NOT NULL AND capa_fin IS NOT NULL),", "VP1"),
+    ("ts", "percentiles over every type", "            FROM r GROUP BY session, fili)", "            FROM r GROUP BY session, fili, cod_aff_form)", "VP1"),
     ("ts", "small types positioned", "or n_type < MIN_TYPE:", "or n_type < 0:", "VP1"),
     ("ts", "p75 as the top class", "    if par_place >= p90:\n        return \"tres\"", "    if par_place >= p75:\n        return \"tres\"", "VP1"),
     ("ts", "lists from every class", "AND classe = 'tres' ORDER BY", "AND classe IS NOT NULL ORDER BY", "VP1"),

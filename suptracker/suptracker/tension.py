@@ -40,7 +40,7 @@ def build(con) -> dict:
     """mart.tension: one row per (formation, campaign) with places: vœux, places, ratio, type, its size and percentiles,
     the class."""
     con.execute("CREATE SCHEMA IF NOT EXISTS mart")
-    con.execute("""CREATE OR REPLACE TABLE mart.tension AS
+    rows = con.execute("""
         WITH r AS (
             SELECT cod_aff_form, session, fili, nb_voe_pp AS voeux, capa_fin AS places,
                    nb_voe_pp * 1.0 / capa_fin AS par_place
@@ -50,11 +50,15 @@ def build(con) -> dict:
             SELECT session, fili, count(*) AS n_type,
                    quantile_cont(par_place, 0.75) AS p75, quantile_cont(par_place, 0.90) AS p90
             FROM r GROUP BY session, fili)
-        SELECT r.*, q.n_type, q.p75, q.p90 FROM r JOIN q USING (session, fili)""")
-    con.execute("ALTER TABLE mart.tension ADD COLUMN classe VARCHAR")
-    rows = con.execute("SELECT cod_aff_form, session, par_place, p75, p90, n_type FROM mart.tension").fetchall()
-    upd = [(classe(pp, a, b, n), cod, s) for cod, s, pp, a, b, n in rows]
-    con.executemany("UPDATE mart.tension SET classe = ? WHERE cod_aff_form = ? AND session = ?", [u for u in upd if u[0]])
+        SELECT r.*, q.n_type, q.p75, q.p90 FROM r JOIN q USING (session, fili)""").fetchall()
+    import pandas as pd
+    df = pd.DataFrame(rows, columns=["cod_aff_form", "session", "fili", "voeux", "places", "par_place", "n_type", "p75", "p90"])
+    df["classe"] = [classe(pp, a, b, n) for pp, a, b, n in zip(df["par_place"], df["p75"], df["p90"], df["n_type"])]
+    con.register("tension_df", df)
+    con.execute("""CREATE OR REPLACE TABLE mart.tension AS SELECT cod_aff_form, session, fili, CAST(voeux AS INTEGER) AS voeux,
+        CAST(places AS INTEGER) AS places, CAST(par_place AS DOUBLE) AS par_place, CAST(n_type AS INTEGER) AS n_type,
+        CAST(p75 AS DOUBLE) AS p75, CAST(p90 AS DOUBLE) AS p90, CAST(classe AS VARCHAR) AS classe FROM tension_df""")
+    con.unregister("tension_df")
     out = dict(con.execute("SELECT coalesce(classe, 'aucune'), count(*) FROM mart.tension GROUP BY 1").fetchall())
     return out
 
