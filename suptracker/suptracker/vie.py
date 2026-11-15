@@ -300,7 +300,7 @@ def for_formation(con, cod: str) -> dict | None:
     ville, dep, lat, lon = f
     lat, lon = (float(lat), float(lon)) if lat is not None and lon is not None else (None, None)
     out = {"commune": ville, "loyer": None, "crous": [], "crous_n": 0, "resto_n": None, "postes": [], "mensuel": None,
-           "frais": None, "annuel": None, "studio_m2": STUDIO_M2, "mois": MOIS_PAR_AN, "repas_ru": REPAS_RU, "cvec": CVEC,
+           "frais": None, "annuel": None, "crous_loyers": None, "studio_m2": STUDIO_M2, "mois": MOIS_PAR_AN, "repas_ru": REPAS_RU, "cvec": CVEC,
            "sources": {"loyers": LOYERS, "ove": OVE}}
     nom = re.sub(r"\s+", " ", ville or "")
     key = f"{fold(nom)}|{str(dep or '').strip()}"
@@ -320,6 +320,10 @@ def for_formation(con, cod: str) -> dict | None:
                             "loyer_date": ldate, "url": url})                   # https only, kept so at build
         res.sort(key=lambda x: (x["km"], x["nom"]))
         out["crous"], out["crous_n"] = res[:5], len(res)
+        priced = [x for x in res if x["loyer_min"] is not None]
+        if priced:                                     # every residence of the radius, not only the five listed
+            out["crous_loyers"] = {"min": min(x["loyer_min"] for x in priced), "max": max(x["loyer_max"] for x in priced),
+                                   "n": len(priced)}
         if _has(con, "vie_resto"):
             out["resto_n"] = sum(1 for _n, la, lo2 in con.execute("SELECT * FROM core.vie_resto").fetchall()
                                  if km(lat, lon, la, lo2) <= RAYON_RESTO_KM)

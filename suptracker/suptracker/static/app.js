@@ -1910,8 +1910,8 @@ function coutCard(v, r) {
     </table></div>
     <p class="muted small">Seul le loyer est propre à la commune. Les autres lignes sont des moyennes nationales (${esc(v.sources.ove.titre)}), pas les prix de cette ville.</p>`;
   const crous = v.crous.length ? `<h3>Se loger au Crous</h3>
-    <p class="small">${fmt(v.crous_n)} résidence${v.crous_n > 1 ? "s" : ""} Crous à moins de 10 km. Les places sont attribuées sur dossier social étudiant.</p>
-    <ul class="small">${v.crous.map((c) => `<li><strong>${esc(c.nom)}</strong> · ${fmt(c.km)} km${c.loyer_min ? ` · ${eurosRange(c.loyer_min, c.loyer_max)} par mois${c.loyer_date ? ` (prix écrits par le Crous au ${esc(c.loyer_date)})` : " (prix écrits par le Crous)"}` : " · loyer non indiqué"}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">Demander un logement ↗</a>` : ""}</li>`).join("")}</ul>`
+    <p class="small">${fmt(v.crous_n)} résidence${v.crous_n > 1 ? "s" : ""} Crous à moins de 10 km. Les places sont attribuées sur dossier social étudiant.${v.crous_loyers ? ` Loyers écrits par le Crous dans ce rayon : ${eurosRange(Math.round(v.crous_loyers.min), Math.round(v.crous_loyers.max))} par mois (${fmt(v.crous_loyers.n)} résidence${v.crous_loyers.n > 1 ? "s" : ""} les indiquent).` : ""}</p>
+    <ul class="small">${v.crous.map((c) => `<li><strong>${esc(c.nom)}</strong> · ${esc(Number(c.km).toLocaleString("fr-FR", { maximumFractionDigits: 1 }))} km${c.loyer_min ? ` · ${eurosRange(c.loyer_min, c.loyer_max)} par mois${c.loyer_date ? ` (prix écrits par le Crous au ${esc(c.loyer_date)})` : " (prix écrits par le Crous)"}` : " · loyer non indiqué"}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">Demander un logement ↗</a>` : ""}</li>`).join("")}</ul>`
     : `<h3>Se loger au Crous</h3><p class="small muted">Aucune résidence Crous recensée à moins de 10 km.</p>`;
   const repas = `<p class="small">${esc(v.repas_ru.texte)}${v.resto_n ? ` ${fmt(v.resto_n)} lieu${v.resto_n > 1 ? "x" : ""} de restauration du Crous à moins de 2 km.` : ""}</p>`;
   const aides = `<h3>Ce qui peut baisser la facture</h3><ul class="small">

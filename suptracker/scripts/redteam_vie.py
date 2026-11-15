@@ -380,6 +380,9 @@ def v4(c: Ctx):
             bad.append(f"Crous rent {r1}")
         if (res.get("Sans prix") or {}).get("loyer_min") is not None or (res.get("Sans prix") or {}).get("url"):
             bad.append("a residence without euros got a rent, or a javascript: link kept")
+        cl = (p or {}).get("crous_loyers") or {}
+        if (cl.get("min"), cl.get("max"), cl.get("n")) != (269, 450.5, 1):
+            bad.append(f"Crous rents of the radius {cl}")
         if (p or {}).get("resto_n") != 1:
             bad.append(f"restaurants within 2 km {p and p.get('resto_n')}")
         post = {x["source_poste"]: x for x in (p or {}).get("postes", [])}
