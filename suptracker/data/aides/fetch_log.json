@@ -1,28 +1,20 @@
 [
  {
-  "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053788130",
-  "status": 403,
-  "final_url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053788130",
-  "bytes": 5720,
-  "sha256": "128d0851fa7b36cff025e828d0cca16a8a2ff5d8625bd83c07e2fccc27dc0517",
-  "fetched": "2026-11-15T16:55:55+00:00"
- },
- {
   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
-  "bytes": 148307,
-  "sha256": "6ec30da77eca57cf716e137248800daba938ed3cfe0c168722de32ce9103c19c",
-  "fetched": "2026-11-15T16:55:56+00:00",
+  "bytes": 148333,
+  "sha256": "17abfdf925bc11400931e76b85d3172a08ae910f7adc085924c4da184c5786d7",
+  "fetched": "2026-11-15T16:59:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12214.txt"
  },
  {
   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
-  "bytes": 108341,
-  "sha256": "ad99ccf318b4bd98db0d63971b6c099e5c45ec5f6f13d8d0f1ca6957d0bea975",
-  "fetched": "2026-11-15T16:55:56+00:00",
+  "bytes": 110868,
+  "sha256": "a811d8578095772513a41cfd7319f6d23bd1bef07ae6d030670199eb0b4b7e79",
+  "fetched": "2026-11-15T16:59:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1010.txt"
  },
  {
@@ -30,8 +22,8 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34643",
   "bytes": 103470,
-  "sha256": "dd9b40e5ccf4bf9a5b40738412b67cbf0041bb83369834cdc6d5f473426acecc",
-  "fetched": "2026-11-15T16:55:56+00:00",
+  "sha256": "ad4c572fb9945cfec1e30024ff35242ab44d18d4e0267d5849c45660abcd82a4",
+  "fetched": "2026-11-15T16:59:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F34643.txt"
  },
  {
@@ -39,25 +31,9 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2865",
   "bytes": 160447,
-  "sha256": "ea2ebfd047c2274a12ef8be8eae3df6a4363ad8722051a617e8e9a5cb4e602eb",
-  "fetched": "2026-11-15T16:55:56+00:00",
+  "sha256": "2bca1ced7e60235fb2a644eb93c28cbf373b8f0ca3f1ddd60f0d38b1427a8180",
+  "fetched": "2026-11-15T16:59:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2865.txt"
- },
- {
-  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34484",
-  "status": 404,
-  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34484",
-  "bytes": 16625,
-  "sha256": "c0a936cf2e9e60afb57562dc4da086c70caa29e1391b2bdfa385c80ea3f68640",
-  "fetched": "2026-11-15T16:55:56+00:00"
- },
- {
-  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F36092",
-  "status": 404,
-  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F36092",
-  "bytes": 16625,
-  "sha256": "c0a936cf2e9e60afb57562dc4da086c70caa29e1391b2bdfa385c80ea3f68640",
-  "fetched": "2026-11-15T16:55:57+00:00"
  },
  {
   "url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
@@ -65,7 +41,7 @@
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
   "bytes": 145947,
   "sha256": "098801ed16a884eeadb8590c824b348bd81415228fb7aeebd44d9597d6136a50",
-  "fetched": "2026-11-15T16:55:58+00:00",
+  "fetched": "2026-11-15T16:59:15+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-au-merite-1291.txt"
  },
  {
@@ -74,16 +50,8 @@
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
   "bytes": 147180,
   "sha256": "730fb36ad9c2326b4c7d1045468e42470accb1cf8109680fce6e56534b59c99c",
-  "fetched": "2026-11-15T16:55:58+00:00",
+  "fetched": "2026-11-15T16:59:16+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-la-mobilite-parcoursup-1447.txt"
- },
- {
-  "url": "https://www.parcoursup.gouv.fr/preparer-sa-vie-etudiante/l-aide-la-mobilite-parcoursup-1667-1667",
-  "status": 403,
-  "final_url": "https://www.parcoursup.gouv.fr/preparer-sa-vie-etudiante/l-aide-la-mobilite-parcoursup-1667-1667",
-  "bytes": 5831,
-  "sha256": "40160fd0b9e3111f10dce707d66135336bfae46cf2ac895022ca7e1fe9e50d6a",
-  "fetched": "2026-11-15T16:55:59+00:00"
  },
  {
   "url": "https://cvec.etudiant.gouv.fr/",
@@ -91,7 +59,15 @@
   "final_url": "https://cvec.etudiant.gouv.fr/",
   "bytes": 28779,
   "sha256": "5c0e6206a777de091369e2d94e7e03deb75f1cc3779cab11db45a61e6b76a91f",
-  "fetched": "2026-11-15T16:56:00+00:00",
+  "fetched": "2026-11-15T16:59:17+00:00",
   "file": "cvec.etudiant.gouv.fr_.txt"
+ },
+ {
+  "url": "https://www.etudiant.gouv.fr/fr/se-restaurer",
+  "status": 404,
+  "final_url": "https://www.etudiant.gouv.fr/fr/se-restaurer",
+  "bytes": 133008,
+  "sha256": "ac4a104dbaf5c17d9e5e3a3febe0876e170d3f10bfc913f9b23897857ff6be45",
+  "fetched": "2026-11-15T16:59:17+00:00"
  }
 ]
