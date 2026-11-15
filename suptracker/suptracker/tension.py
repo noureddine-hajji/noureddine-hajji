@@ -36,11 +36,7 @@ def classe(par_place: float | None, p75: float | None, p90: float | None, n_type
     return None
 
 
-def build(con) -> dict:
-    """mart.tension: one row per (formation, campaign) with places: vœux, places, ratio, type, its size and percentiles,
-    the class."""
-    con.execute("CREATE SCHEMA IF NOT EXISTS mart")
-    rows = con.execute("""
+RATIOS_SQL = """
         WITH r AS (
             SELECT cod_aff_form, session, fili, nb_voe_pp AS voeux, capa_fin AS places,
                    nb_voe_pp * 1.0 / capa_fin AS par_place
@@ -50,16 +46,26 @@ def build(con) -> dict:
             SELECT session, fili, count(*) AS n_type,
                    quantile_cont(par_place, 0.75) AS p75, quantile_cont(par_place, 0.90) AS p90
             FROM r GROUP BY session, fili)
-        SELECT r.*, q.n_type, q.p75, q.p90 FROM r JOIN q USING (session, fili)""").fetchall()
-    import pandas as pd
-    df = pd.DataFrame(rows, columns=["cod_aff_form", "session", "fili", "voeux", "places", "par_place", "n_type", "p75", "p90"])
-    df["classe"] = [classe(pp, a, b, n) for pp, a, b, n in zip(df["par_place"], df["p75"], df["p90"], df["n_type"])]
-    con.register("tension_df", df)
-    con.execute("""CREATE OR REPLACE TABLE mart.tension AS SELECT cod_aff_form, session, fili, CAST(voeux AS INTEGER) AS voeux,
-        CAST(places AS INTEGER) AS places, CAST(par_place AS DOUBLE) AS par_place, CAST(n_type AS INTEGER) AS n_type,
-        CAST(p75 AS DOUBLE) AS p75, CAST(p90 AS DOUBLE) AS p90, CAST(classe AS VARCHAR) AS classe FROM tension_df""")
-    con.unregister("tension_df")
-    out = dict(con.execute("SELECT coalesce(classe, 'aucune'), count(*) FROM mart.tension GROUP BY 1").fetchall())
+        SELECT r.*, q.n_type, q.p75, q.p90 FROM r JOIN q USING (session, fili)"""
+
+
+def ratios(con) -> list[tuple]:
+    """Every (formation, campaign) with places: code, campaign, type, vœux, places, ratio, size of its type, p75, p90, class."""
+    return [(*r, classe(r[5], r[7], r[8], r[6])) for r in con.execute(RATIOS_SQL).fetchall()]
+
+
+def build(con) -> dict:
+    """mart.tension: only the classed formations (code, campaign, class): the ratio itself is two published counts of
+    core.formation_year, read again by the page (the warehouse stays under 95 MB)."""
+    con.execute("CREATE SCHEMA IF NOT EXISTS mart")
+    con.execute("CREATE OR REPLACE TABLE mart.tension (cod_aff_form VARCHAR, session SMALLINT, classe VARCHAR)")
+    rows = ratios(con)
+    kept = [(r[0], r[1], r[9]) for r in rows if r[9]]
+    if kept:
+        con.executemany("INSERT INTO mart.tension VALUES (?, ?, ?)", kept)
+    out = {"aucune": len(rows) - len(kept)}
+    for _c, _s, cl in kept:
+        out[cl] = out.get(cl, 0) + 1
     return out
 
 
@@ -69,15 +75,19 @@ def _has(con) -> bool:
 
 
 def for_formation(con, cod: str, session: int) -> dict | None:
-    """The ratio of one formation at the page's campaign, with its counts, its type and its class."""
+    """The ratio of one formation at the page's campaign, with its counts, the size of its type and its stored class."""
     if not _has(con):
         return None
-    r = con.execute("""SELECT voeux, places, par_place, fili, n_type, classe FROM mart.tension
-        WHERE cod_aff_form = ? AND session = ?""", [cod, session]).fetchone()
+    r = con.execute("""SELECT nb_voe_pp, capa_fin, fili FROM core.formation_year WHERE cod_aff_form = ? AND session = ?
+        AND capa_fin > 0 AND nb_voe_pp IS NOT NULL""", [cod, session]).fetchone()
     if not r:
         return None
-    voeux, places, pp, fili, n, cl = r
-    return {"voeux": voeux, "places": places, "par_place": round(pp, 1), "type": fili, "n_type": n, "classe": cl,
+    voeux, places, fili = r
+    n = con.execute("""SELECT count(*) FROM core.formation_year WHERE session = ? AND fili IS NOT DISTINCT FROM ?
+        AND capa_fin > 0 AND nb_voe_pp IS NOT NULL""", [session, fili]).fetchone()[0]
+    c = con.execute("SELECT classe FROM mart.tension WHERE cod_aff_form = ? AND session = ?", [cod, session]).fetchone()
+    cl = c[0] if c else None
+    return {"voeux": voeux, "places": places, "par_place": round(voeux / places, 1), "type": fili, "n_type": n, "classe": cl,
             "libelle": LIBELLE.get(cl), "explication": EXPLICATION.get(cl), "prudence": PRUDENCE}
 
 
@@ -88,5 +98,5 @@ def compact(con) -> dict:
     if not _has(con):
         return out
     out["tres"] = ",".join(c for (c,) in con.execute("""SELECT cod_aff_form FROM mart.tension
-        WHERE session = (SELECT max(session) FROM mart.tension) AND classe = 'tres' ORDER BY cod_aff_form""").fetchall())
+        WHERE session = (SELECT max(session) FROM core.formation_year) AND classe = 'tres' ORDER BY cod_aff_form""").fetchall())
     return out

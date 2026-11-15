@@ -131,7 +131,31 @@ def _postes(path: Path = OVE_CSV) -> list[dict]:
     return [{"poste": r["poste"], "montant": int(r["montant"]), "part": int(r["part_concernes"])} for r in rows]
 
 
-def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV) -> dict:
+def _write_communes(con, rows: list, textes: Path | None) -> None:
+    """The communes as ONE compressed JSON value, in the file beside the warehouse (like the report texts and the grids):
+    in the warehouse they pushed it over its 95 MB budget (2026-11-15). Tests without that file keep it in core."""
+    import json
+    import zlib
+    payload = sorted(([nom, dep, round(la, 3), round(lo, 3)] for _c, nom, dep, la, lo in rows), key=lambda x: (x[0], x[1]))
+    blob = zlib.compress(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 9)
+
+    def write(c, prefix):
+        c.execute(f"CREATE OR REPLACE TABLE {prefix}vie_communes (n INTEGER, data BLOB)")
+        c.execute(f"INSERT INTO {prefix}vie_communes VALUES (?, ?)", [len(payload), blob])
+
+    if textes is None or not Path(textes).exists():
+        write(con, "core.")
+        return
+    import duckdb
+    tc = duckdb.connect(str(textes))
+    try:
+        write(tc, "")
+        tc.execute("CHECKPOINT")
+    finally:
+        tc.close()
+
+
+def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV, textes: Path | None = None) -> dict:
     """core.vie_loyer (commune rents), core.vie_crous (residences), core.vie_resto (restaurants), core.vie_poste (national
     items), core.vie_frais (fee lines per formation, verbatim, with the amount read). Returns counts for the audit."""
     con.execute("CREATE SCHEMA IF NOT EXISTS core")
@@ -140,7 +164,7 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
     con.execute("""CREATE OR REPLACE TABLE core.vie_crous (nom VARCHAR, zone VARCHAR, lat DOUBLE, lon DOUBLE, loyer_min DOUBLE,
         loyer_max DOUBLE, loyer_date VARCHAR, url VARCHAR, extrait VARCHAR)""")
     con.execute("CREATE OR REPLACE TABLE core.vie_resto (nom VARCHAR, lat DOUBLE, lon DOUBLE)")
-    con.execute("CREATE OR REPLACE TABLE core.vie_commune (code VARCHAR, nom VARCHAR, dep VARCHAR, lat DOUBLE, lon DOUBLE)")
+
     con.execute("CREATE OR REPLACE TABLE core.vie_poste (poste VARCHAR, montant INTEGER, part INTEGER, inclus VARCHAR)")
     con.execute("""CREATE OR REPLACE TABLE core.vie_frais (cod_aff_form VARCHAR, titre VARCHAR, rang INTEGER, rubrique VARCHAR,
         texte VARCHAR, montant INTEGER, cvec BOOLEAN)""")
@@ -159,7 +183,7 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
                 if nom and la is not None and lo is not None and -90 <= la <= 90 and -180 <= lo <= 180:
                     rows.append((code, nom.strip(), (dep or "").strip(), la, lo))
             if rows:
-                con.executemany("INSERT INTO core.vie_commune VALUES (?, ?, ?, ?, ?)", rows)
+                _write_communes(con, rows, textes)
             got["communes"] = len(rows)
     # rents
     p = raw_dir / "loyers_app12_2025.parquet"
@@ -378,11 +402,25 @@ def for_formation(con, cod: str) -> dict | None:
 
 def communes(con) -> list:
     """Every commune as [name, department, lat, lon] (3 decimals, ~100 m), sorted by name: the town box of the cost card
-    searches it in the browser and computes the distance there. No parameter: the student's town is never sent."""
-    if not _has(con, "vie_commune"):
+    searches it in the browser and computes the distance there. No parameter: the student's town is never sent. Read from the
+    warehouse (tests) or from the file beside it."""
+    import json
+    import zlib
+    if _has(con, "vie_communes"):
+        r = con.execute("SELECT data FROM core.vie_communes LIMIT 1").fetchone()
+    else:
+        from . import rapports as RP
+        db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()
+        f = RP.textes_path(Path(db[0])) if db and db[0] else None
+        if f is None or not f.exists():
+            return []
+        c = RP._texts_con(str(f), f.stat().st_mtime_ns).cursor()
+        if not c.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'vie_communes'").fetchone()[0]:
+            return []
+        r = c.execute("SELECT data FROM vie_communes LIMIT 1").fetchone()
+    if not r or r[0] is None:
         return []
-    return [[n, d, round(la, 3), round(lo, 3)] for n, d, la, lo in con.execute(
-        "SELECT nom, dep, lat, lon FROM core.vie_commune ORDER BY nom, dep").fetchall()]
+    return json.loads(zlib.decompress(bytes(r[0])).decode("utf-8"))
 
 
 def compact(con) -> dict:

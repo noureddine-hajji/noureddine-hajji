@@ -43,7 +43,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         semblables.build(con, rapports.textes_path(db_path))
         grilles.build(con, textes=rapports.textes_path(db_path))
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
-        vie.build(con, raw_dir)            # sprint V1: rents, Crous, national items, tuition fees (fiche, verbatim)
+        vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
         apprentissage.build(con)           # sprint V2: BTS insertion, apprentices vs voie scolaire (medians of establishments)
         referentiel.build_referentiel(con, raw_dir)

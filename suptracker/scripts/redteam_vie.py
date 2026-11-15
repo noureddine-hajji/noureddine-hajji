@@ -610,7 +610,7 @@ def v7(c: Ctx):
 def v8(c: Ctx):
     bad = []
     b = (ROOT / "suptracker" / "build.py").read_text()
-    if "reconnaissance.build(con)" not in b or "vie.build(con, raw_dir)" not in b:
+    if "reconnaissance.build(con)" not in b or "vie.build(con, raw_dir" not in b:
         bad.append("build.py")
     api = (ROOT / "suptracker" / "api.py").read_text()
     for w in ('"reconnaissance": RC.for_formation(', '"vie": VIE.for_formation(', '@app.get("/api/reconnaissance")'):

@@ -611,6 +611,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   - Apprenticeship: free tuition (L6211-1) and a salary in words with the official simulator, NEVER a computed amount; links on La
     bonne alternance only. The BTS route comparison is the MEDIAN OF ESTABLISHMENTS publishing (Inserjeunes has no headcount),
     >= 5 per route, labelled, on every BTS page. `propose` = an attached offer or a SIES apprenticeship formation.
+  - Size: `mart.tension` stores the classes only (ratio re-read from formation_year); the communes are ONE zlib JSON value in
+    `rapport_textes.duckdb` (as a warehouse table they pushed it to 95.96 MB).
   - Distance: `/api/communes` (API Géo, no parameter, public cache), searched and computed in the browser; the town lives in
     `store.villeDepart` (validated), never sent.
   - Grids harvest: a page titled "Fiche formation" is a fiche (never the closed-site words); failed fiches re-read next run;

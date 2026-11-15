@@ -3295,6 +3295,7 @@ they were, and what was missing is merged into the existing pages.
 
 **Demand per place** (`tension.py`):
 - vœux in the main phase / places, two PUBLISHED counts, so the page labels the ratio (estimTag) and shows both counts;
+- only the classes are stored (`mart.tension`); the ratio is re-read from the two published counts;
 - placed among the formations of the same type and campaign: the top 10 % "Forte demande", the top 25 % "Demande élevée",
   no position for a type of fewer than 20 formations or without places;
 - L'essentiel's admits tile says "pour N places · X vœux par place"; the folded "Plus de chiffres sur l'admission" opens on
@@ -3313,7 +3314,8 @@ they were, and what was missing is merged into the existing pages.
 - the lists show "aussi en apprentissage" (attached offers and SIES apprenticeship formations).
 
 **Distance from home**: in the cost tab, "Votre ville" searches the communes of the API Géo (DINUM, `/api/communes`, no
-parameter, shared-cached) in the browser; the distance between the communes' centres is computed there (labelled, "la route est
+parameter, shared-cached; one compressed value kept in `rapport_textes.duckdb` beside the warehouse, which stays under 95 MB)
+in the browser; the distance between the communes' centres is computed there (labelled, "la route est
 plus longue"), the town kept in this browser only and never sent.
 
 **After the main phase**: Mes vœux' next steps and the help page link the official Parcoursup page on the phase complémentaire

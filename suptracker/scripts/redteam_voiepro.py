@@ -129,17 +129,21 @@ def vp1(c: Ctx):
         for cod, r in xs:
             cl = None if len(xs) < 20 else "tres" if r >= p90 - 1e-9 else "forte" if r >= p75 - 1e-9 else None
             want[(cod, s)] = (round(r, 6), cl)
-    got = {(cod, s): (round(pp, 6), cl) for cod, s, pp, cl in con.execute(
-        "SELECT cod_aff_form, session, par_place, classe FROM mart.tension").fetchall()}
-    if got != want:
-        diff = sorted(set(got.items()) ^ set(want.items()))[:4]
-        bad.append(f"stored {len(got)} rows vs {len(want)} re-derived; first differences {diff}")
-    if any(k[0] in ("3000", "3001") for k in got):
+    # the build stores the classed formations only; every ratio served is re-read from the published counts
+    got = {(cod, int(s)): cl for cod, s, cl in con.execute("SELECT cod_aff_form, session, classe FROM mart.tension").fetchall()}
+    want_cl = {k: cl for k, (_r, cl) in want.items() if cl}
+    if got != want_cl:
+        diff = sorted(set(got.items()) ^ set(want_cl.items()))[:4]
+        bad.append(f"stored {len(got)} classes vs {len(want_cl)} re-derived; first differences {diff}")
+    served = {(r[0], r[1]): (round(r[5], 6), r[9]) for r in ts.ratios(con)}
+    if served != want:
+        bad.append(f"ratios(): {len(served)} rows vs {len(want)} re-derived")
+    if any(k[0] in ("3000", "3001") for k in served) or ts.for_formation(con, "3000", 2025) or ts.for_formation(con, "3001", 2025):
         bad.append("a formation without places got a ratio")
-    if any(cl for (cod, _s), (_r, cl) in got.items() if cod.startswith("2")):
+    if any(cl for (cod, _s), cl in got.items() if cod.startswith("2")):
         bad.append("a type of 5 formations got a position")
     f = ts.for_formation(con, "1029", 2025)
-    if not f or f["voeux"] != 307 or f["places"] != 12 or abs(f["par_place"] - round(307 / 12, 1)) > 1e-9 \
+    if not f or f["voeux"] != 307 or f["places"] != 12 or abs(f["par_place"] - round(307 / 12, 1)) > 1e-9 or f["n_type"] != 30 \
             or f["classe"] != want[("1029", 2025)][1] or (f["classe"] and not f["libelle"]):
         bad.append(f"for_formation {f}")
     if "pas dire peu de chances" not in (f or {}).get("prudence", ""):
@@ -339,6 +343,21 @@ def vp4(c: Ctx):
         pol = CA.policy(path) if hasattr(CA, "policy") else None
         if pol is None or "public" not in str(pol).lower():
             bad.append(f"cache policy of {path}: {pol}")
+    # the communes live beside the warehouse (its 95 MB budget): written there, read back whole, never in the warehouse
+    import duckdb
+    from suptracker import vie
+    with tempfile.TemporaryDirectory() as d:
+        db, side = Path(d) / "w.duckdb", Path(d) / "rapport_textes.duckdb"
+        duckdb.connect(str(side)).close()
+        con = duckdb.connect(str(db))
+        con.execute("CREATE SCHEMA core")
+        rows = [("62041", "Arras", "62", 50.2901, 2.7812), ("01001", "L'Abergement " + HOSTILE, "01", 46.1, 5.4)]
+        vie._write_communes(con, rows, side)
+        back = vie.communes(con)
+        in_wh = con.execute("SELECT count(*) FROM duckdb_tables() WHERE table_name = 'vie_communes'").fetchone()[0]
+        con.close()
+        if back != [["Arras", "62", 50.29, 2.781], ["L'Abergement " + HOSTILE, "01", 46.1, 5.4]] or in_wh:
+            bad.append(f"communes beside the warehouse: read back {back}, in the warehouse {in_wh}")
     ing = c.mod("ing")
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "c.json"
@@ -384,17 +403,20 @@ def vp6(c: Ctx):
     if not {"tension", "app_insertion"} <= have:
         return True, "tables not built yet in this warehouse (the data workflow builds them)"
     bad = []
-    n_bad = con.execute("""SELECT count(*) FROM mart.tension t JOIN core.formation_year f USING (cod_aff_form, session)
-        WHERE abs(t.par_place - f.nb_voe_pp * 1.0 / f.capa_fin) > 1e-9 OR f.capa_fin <= 0""").fetchone()[0]
-    if n_bad:
-        bad.append(f"{n_bad} ratios differ from vœux / places")
-    latest = con.execute("SELECT max(session) FROM mart.tension").fetchone()[0]
-    for fili, in con.execute("SELECT DISTINCT fili FROM mart.tension WHERE session = ? AND n_type >= 20 LIMIT 6", [latest]).fetchall():
-        xs = [r for (r,) in con.execute("SELECT par_place FROM mart.tension WHERE session = ? AND fili = ?", [latest, fili]).fetchall()]
-        p90 = quantile(xs, 0.90)
-        n_tres = con.execute("SELECT count(*) FROM mart.tension WHERE session = ? AND fili = ? AND classe = 'tres'", [latest, fili]).fetchone()[0]
-        if n_tres != sum(1 for x in xs if x >= p90 - 1e-9):
-            bad.append(f"{fili}: {n_tres} 'tres' vs {sum(1 for x in xs if x >= p90 - 1e-9)} re-derived")
+    latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+    stored = {(cod, int(s)): cl for cod, s, cl in con.execute("SELECT cod_aff_form, session, classe FROM mart.tension").fetchall()}
+    groups: dict = {}
+    for cod, s, f, v, p in con.execute("""SELECT cod_aff_form, session, fili, nb_voe_pp, capa_fin FROM core.formation_year
+            WHERE session = ? AND capa_fin > 0 AND nb_voe_pp IS NOT NULL""", [latest]).fetchall():
+        groups.setdefault(f, []).append((cod, v / p))
+    for fili, xs in groups.items():
+        rs = [r for _c, r in xs]
+        p75, p90 = quantile(rs, 0.75), quantile(rs, 0.90)
+        for cod, r in xs:
+            want = None if len(xs) < 20 else "tres" if r >= p90 - 1e-9 else "forte" if r >= p75 - 1e-9 else None
+            if stored.get((cod, latest)) != want:
+                bad.append(f"{cod} ({fili}): stored {stored.get((cod, latest))}, re-derived {want}")
+                break
     for cle, voie, n_e, med in con.execute("SELECT cle, voie, n_emploi, emploi_med FROM mart.app_insertion ORDER BY n_emploi DESC LIMIT 20").fetchall():
         xs = [x for (x,) in con.execute("SELECT taux_emploi_6 FROM core.inserjeunes_bts WHERE cle = ? AND source = ? AND taux_emploi_6 IS NOT NULL",
                                         [cle, voie]).fetchall()]
