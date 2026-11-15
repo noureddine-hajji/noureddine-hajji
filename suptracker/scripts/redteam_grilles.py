@@ -387,7 +387,27 @@ def gr5(c: Ctx):
         _r5, reads5 = _fake_harvest(c, out, pages, now_shift_days=76)
         if "31390" not in reads5:
             bad.append(f"an older reader's rejected fiche is not read again: {reads5[:6]}")
-    return not bad, f"closed, open, rerun, refresh, error page, older reader; {bad[:4]}"
+        # a fiche that did not answer is asked again at the next run, not after REFRESH_DAYS (2,379 fiches, 2026-11-15)
+        if "4100" not in reads5:
+            bad.append("a failed fiche is not read again at the next run")
+    # a real fiche printing "indisponible" (internat, places...) is a fiche; an error or maintenance page is not
+    fg = c.mod("fg")
+    page = next(iter(c.pages.values()))
+    if not fg.is_fiche(_R(200, page.replace("</h1>", " Internat indisponible</h1>", 1))) or fg.is_fiche(_R(200, c.cas["page_erreur"])) \
+            or fg.is_fiche(_R(200, "<html><title>Maintenance</title>Site indisponible</html>")) or fg.is_fiche(_R(404, page)) or fg.is_fiche(None):
+        bad.append("is_fiche: a fiche printing 'indisponible' refused, or an error / maintenance page / 404 accepted")
+    # a formation the current cartographie no longer offers, whose fiche is gone: "hors_campagne", never a failure
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "fiches"
+        fg = c.mod("fg")
+        pages = dict(c.pages, **{"888888": None, "777777": None})
+        fg.carto_codes = lambda db: set(c.pages) | {"777777"}
+        _fake_harvest(c, out, pages, fg=fg)
+        _fake_harvest(c, out, pages, fg=fg)
+        etat = {r["cod_aff_form"]: r for r in csv.DictReader(open(out / "etat.csv", encoding="utf-8"))}
+        if etat["888888"]["status"] != "hors_campagne" or etat["777777"]["status"] != "failed":
+            bad.append(f"no longer offered -> {etat['888888']['status']}, offered and gone -> {etat['777777']['status']}")
+    return not bad, f"closed, open, rerun, refresh, error page, older reader, retry, hors campagne; {bad[:4]}"
 
 
 def _built(c: Ctx, out: Path, gr=None):
@@ -653,14 +673,17 @@ SOURCE_MUTANTS = [
     ("fp", "several fields without 'Au total' accepted", " or (len(champs) > 1 and not total)", "", "GR4"),
     ("fp", "error page read as a fiche", 'if not t or not text(t.group(1)).startswith("Fiche formation"):', "if False:", "GR4"),
     ("fp", "notice not read", 'out["info"] = (mask(text(n.group(1))) or None) if n else None', 'out["info"] = None', "GR4"),
-    ("fg", "error page stored as no grid", 'if p["reason"] == "pas une fiche":', "if False:", "GR5"),
+    ("fg", "error page stored as no grid", 'if url is None or p["reason"] == "pas une fiche":', "if url is None:", "GR5"),
+    ("fg", "failed fiches wait for the refresh", 'first += [etat[c] for c in order if etat[c]["status"] == "failed" and etat[c]["lu_le"] < yesterday]', "pass", "GR5"),
+    ("fg", "a gone formation counted as failed", "if offered is not None and c not in offered:", "if False:", "GR5"),
+    ("fg", "closed words refuse a real fiche", 'return resp is not None and resp.status_code == 200 and bool(', 'return resp is not None and resp.status_code == 200 and "indisponible" not in resp.text.lower() and bool(', "GR5"),
     ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)]', "and False]", "GR5"),
     ("gr", "grid JSON kept in the warehouse", '    if textes is None or not textes.exists():\n        write(con, "core.")', '    if True:\n        write(con, "core.")', "GR6"),
     ("gr", "notice dropped at build", '"info": tx(a.get("info_id")), "champs"', '"info": None, "champs"', "GR6"),
     ("js", "notice not shown", '${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}', "", "GR7"),
     ("fg", "closed site writes", "if probe and all(fetch_fiche(http, c, pause)[0] is None for c in probe):", "if False:", "GR5"),
     ("fg", "texts stored again", "if i and i not in ids:", "if i:", "GR5"),
-    ("fg", "no refresh", 'and etat[c]["lu_le"] < old\n', 'and False\n', "GR5"),
+    ("fg", "no refresh", 'and etat[c]["lu_le"] < old and id(etat[c]) not in seen),', 'and False and id(etat[c]) not in seen),', "GR5"),
     ("fg", "a rejected fiche keeps an old grid", "        champs.pop(c, None)\n        crits.pop(c, None)\n", "", "GR5"),
     ("fg", "retry forever", 'r["status"] = "retry" if r["status"] == "todo" else "failed"', 'r["status"] = "retry"', "GR5"),
     ("gr", "weights not checked again", "sum(poids) != 100 or", "False or", "GR6"),

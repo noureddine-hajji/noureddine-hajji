@@ -3156,7 +3156,7 @@ Red team `scripts/redteam_grilles.py` (GR1-GR9):
 - GR6 runs the round trip from harvest to build to API, plus 5 tampered stores dropped whole.
 - GR7 renders the card in node: escaping, weights, labels and dots, campaign, "fait foi", no chance, vouvoiement.
 - GR8 checks the plumbing.
-- GR9 is the mutation test: 36 mutants, each caught.
+- GR9 is the mutation test: 39 mutants, each caught.
 
 ## From each job to its first formations on Parcoursup (owner, 2026-11-14)
 
@@ -3285,3 +3285,51 @@ Red team `scripts/redteam_vie.py` (V1-V9):
 - V7: the real tables re-derived.
 - V8: plumbing.
 - V9: 28 mutants.
+
+## Bac techno, bac pro and apprenticeship in the pages, demand per place, distance from home (owner, 2026-11-15)
+
+The owner asked for the "voie pro et apprentissage" and "formations en tension" sprints together, plus the distance from the
+student's town and the fiches that did not answer. The profile already knows the bac route, so nothing new is asked: the
+figures for a bac techno or bac pro (the route proposal rate in L'essentiel, the estimated access in the lists) stay where
+they were, and what was missing is merged into the existing pages.
+
+**Demand per place** (`tension.py`):
+- vœux in the main phase / places, two PUBLISHED counts, so the page labels the ratio (estimTag) and shows both counts;
+- placed among the formations of the same type and campaign: the top 10 % "Forte demande", the top 25 % "Demande élevée",
+  no position for a type of fewer than 20 formations or without places;
+- L'essentiel's admits tile says "pour N places · X vœux par place"; the folded "Plus de chiffres sur l'admission" opens on
+  "Combien de candidats pour une place ?"; the lists (search, map, Mes vœux, comparator) show "Forte demande";
+- always with the caveat: many vœux per place is not few chances, the official access rate says who received a proposal.
+  The badge uses the warning tokens, never a zone colour or the accent.
+
+**Apprenticeship** (`apprentissage.py`):
+- L'essentiel says when the formation can also be done as an apprentice, and its link opens the cost tab;
+- the cost tab's "Et en apprentissage ?" card: free tuition (Code du travail L6211-1), a salary set as a share of the Smic
+  (the official simulator, never a computed amount), an employer to find (La bonne alternance), the establishments that
+  offer it with their Parcoursup page;
+- on EVERY BTS page, "Après ce BTS : en apprentissage ou en lycée ?": per route, the median of the employment rate (6 months)
+  and of the share continuing, among the establishments that publish them (Inserjeunes publishes no headcount, so no national
+  rate exists; at least 5 establishments, the spread and their number shown; labelled as an estimation);
+- the lists show "aussi en apprentissage" (attached offers and SIES apprenticeship formations).
+
+**Distance from home**: in the cost tab, "Votre ville" searches the communes of the API Géo (DINUM, `/api/communes`, no
+parameter, shared-cached) in the browser; the distance between the communes' centres is computed there (labelled, "la route est
+plus longue"), the town kept in this browser only and never sent.
+
+**After the main phase**: Mes vœux' next steps and the help page link the official Parcoursup page on the phase complémentaire
+and the CAES (commission d'accès à l'enseignement supérieur).
+
+**The fiches that did not answer** (2,379 on 2026-11-15): 1,607 were real fiches the report harvest's closed-site test refused
+(a fiche may print "internat indisponible"); the grids harvest now accepts any page titled "Fiche formation", reads a failed
+fiche again at the next run, and marks "hors_campagne" a formation the current cartographie no longer offers (716 of them),
+never a failure. Red team `redteam_grilles.py` GR5 and GR9 (39 mutants).
+
+Red team `scripts/redteam_voiepro.py` (VP1-VP8):
+- VP1: demand per place re-derived on a fixture (ratio, percentiles by linear interpolation, the class rule, the lists' codes).
+- VP2: route medians re-derived, the 5-establishment threshold, when the block exists, the codes, official links only.
+- VP3: the cards and badges in node (escaping, estimation labels, no chance, no salary amount, https links, no zone colour).
+- VP4: the distance (independent haversine, a tampered stored town refused, nothing sent, API Géo flattened).
+- VP5: CAES and phase complémentaire on the help page and in Mes vœux.
+- VP6: the real tables re-derived once built.
+- VP7: plumbing.
+- VP8: the mutation test (23 mutants, each caught).

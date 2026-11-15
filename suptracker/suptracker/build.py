@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import bmo, config, cereq, reconnaissance, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import apprentissage, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -44,6 +44,8 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         grilles.build(con, textes=rapports.textes_path(db_path))
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
         vie.build(con, raw_dir)            # sprint V1: rents, Crous, national items, tuition fees (fiche, verbatim)
+        tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
+        apprentissage.build(con)           # sprint V2: BTS insertion, apprentices vs voie scolaire (medians of establishments)
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
         calibration.build_calibration(con)

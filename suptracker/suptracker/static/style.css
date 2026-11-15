@@ -667,3 +667,10 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .cout-total td { border-top: 2px solid var(--line); }
 .cout-frais li { margin-bottom: 4px; }
 @media (max-width: 640px) { .sum-grid.cout-tiles { grid-template-columns: minmax(0, 1fr); } }
+/* sprint V2: demand per place (a fact, never a zone colour or the accent), apprenticeship, distance from the student's town */
+.badge.tension { background: var(--warn-bg); border-color: var(--warn-ink); color: var(--warn-ink); }
+.badge.app { color: var(--ink); }
+.sum-app { margin: 4px 0 0; }
+.dist-box { margin: 12px 0; }
+.dist-box h3 { margin-bottom: 4px; }
+.dist-row input { width: 100%; max-width: 22rem; min-height: 44px; border: 1px solid var(--line-input); border-radius: var(--r-sm); padding: 0 10px; background: var(--surface); color: var(--ink); font: inherit; }

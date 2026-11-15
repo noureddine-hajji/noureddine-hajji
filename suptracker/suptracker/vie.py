@@ -88,7 +88,8 @@ def montant_annuel(texte: str | None) -> int | None:
     if "cvec" in f:
         return None
     t2 = re.sub(r"\(montant pour 20\d\d/20\d\d\)", "", t, flags=re.I)
-    t2 = re.sub(r"\b(par an|par année|annuels?|/ ?an)\b", "", t2, flags=re.I).strip(" .")
+    # "par an", "/an" (glued to the euro sign: no word boundary before the slash), "pour l'année" and its school year
+    t2 = re.sub(r"\bpar an(?:née)?\b|\bannuels?\b|/ ?an\b|\bpour l[’']année(?: 20\d\d ?[-/] ?20\d\d)?", "", t2, flags=re.I).strip(" .")
     # "1 415 € - Possibilité de régler en plusieurs fois sans frais": a comment without any figure after a dash
     m = re.fullmatch(r"(.*?\d.*?)\s+-\s+([^\d+]*)", t2)
     if m:
@@ -139,12 +140,26 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
     con.execute("""CREATE OR REPLACE TABLE core.vie_crous (nom VARCHAR, zone VARCHAR, lat DOUBLE, lon DOUBLE, loyer_min DOUBLE,
         loyer_max DOUBLE, loyer_date VARCHAR, url VARCHAR, extrait VARCHAR)""")
     con.execute("CREATE OR REPLACE TABLE core.vie_resto (nom VARCHAR, lat DOUBLE, lon DOUBLE)")
+    con.execute("CREATE OR REPLACE TABLE core.vie_commune (code VARCHAR, nom VARCHAR, dep VARCHAR, lat DOUBLE, lon DOUBLE)")
     con.execute("CREATE OR REPLACE TABLE core.vie_poste (poste VARCHAR, montant INTEGER, part INTEGER, inclus VARCHAR)")
     con.execute("""CREATE OR REPLACE TABLE core.vie_frais (cod_aff_form VARCHAR, titre VARCHAR, rang INTEGER, rubrique VARCHAR,
         texte VARCHAR, montant INTEGER, cvec BOOLEAN)""")
     con.execute("CREATE SCHEMA IF NOT EXISTS meta")
     con.execute("CREATE OR REPLACE TABLE meta.vie_audit (dataset VARCHAR, colonnes VARCHAR, lignes INTEGER, gardees INTEGER, champs VARCHAR)")
-    got = {"loyers": 0, "crous": 0, "resto": 0, "postes": 0, "frais": 0}
+    got = {"loyers": 0, "crous": 0, "resto": 0, "postes": 0, "frais": 0, "communes": 0}
+    # sprint V2: the communes and their centre (API Géo), for the distance the browser computes from the student's town
+    p = raw_dir / "communes_geo.parquet"
+    if p.exists():
+        cols = {c for (c,) in con.execute(f"SELECT name FROM parquet_schema('{p}')").fetchall()}
+        if {"nom", "code", "codeDepartement", "centre_lat", "centre_lon"} <= cols:
+            rows = []
+            for code, nom, dep, la, lo in con.execute(f"""SELECT code, nom, "codeDepartement", centre_lat, centre_lon
+                    FROM read_parquet('{p}')""").fetchall():
+                la, lo = _num(la), _num(lo)
+                if nom and la is not None and lo is not None and -90 <= la <= 90 and -180 <= lo <= 180:
+                    rows.append((code, nom.strip(), (dep or "").strip(), la, lo))
+            con.executemany("INSERT INTO core.vie_commune VALUES (?, ?, ?, ?, ?)", rows)
+            got["communes"] = len(rows)
     # rents
     p = raw_dir / "loyers_app12_2025.parquet"
     if p.exists():
@@ -305,7 +320,8 @@ def for_formation(con, cod: str) -> dict | None:
         return None
     ville, dep, lat, lon = f
     lat, lon = (float(lat), float(lon)) if lat is not None and lon is not None else (None, None)
-    out = {"commune": ville, "loyer": None, "crous": [], "crous_n": 0, "resto_n": None, "postes": [], "mensuel": None,
+    out = {"commune": ville, "lat": None if lat is None else round(lat, 4), "lon": None if lon is None else round(lon, 4),
+           "loyer": None, "crous": [], "crous_n": 0, "resto_n": None, "postes": [], "mensuel": None,
            "frais": None, "annuel": None, "crous_loyers": None, "studio_m2": STUDIO_M2, "mois": MOIS_PAR_AN, "repas_ru": REPAS_RU, "cvec": CVEC,
            "sources": {"loyers": LOYERS, "ove": OVE}}
     nom = re.sub(r"\s+", " ", ville or "")
@@ -357,6 +373,15 @@ def for_formation(con, cod: str) -> dict | None:
     if not (out["loyer"] or out["crous"] or out["frais"] or out["postes"]):
         return None
     return out
+
+
+def communes(con) -> list:
+    """Every commune as [name, department, lat, lon] (3 decimals, ~100 m), sorted by name: the town box of the cost card
+    searches it in the browser and computes the distance there. No parameter: the student's town is never sent."""
+    if not _has(con, "vie_commune"):
+        return []
+    return [[n, d, round(la, 3), round(lo, 3)] for n, d, la, lo in con.execute(
+        "SELECT nom, dep, lat, lon FROM core.vie_commune ORDER BY nom, dep").fetchall()]
 
 
 def compact(con) -> dict:

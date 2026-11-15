@@ -3,7 +3,8 @@
 Run by the `suptracker-rapports` workflow, mode "grilles" (by hand, and every day after the reports' "live" mode). Each fiche
 of the latest SIES campaign and cartographie session (rapports_live.codes) is read, its grid parsed by fiche_parse.parse,
 and stored in data/fiches/:
-  * etat.csv      one row per code: status (ok / sans_grille / rejetee / retry / failed), when it was read, the campaign the
+  * etat.csv      one row per code: status (ok / sans_grille / rejetee / retry / failed / hors_campagne: a formation of the
+                  last SIES campaign the current cartographie no longer offers, its fiche gone), when it was read, the campaign the
                   grid serves (the fiche's "analysent les candidatures en avril-mai 2026"), the reason of a rejection;
   * champs.csv    the global grid: one row per field (rank, field, weight %, the detailed table's caption as a text id);
   * criteres.csv  the detailed grid: one row per criterion (field rank, rank, criterion and elements as text ids, importance 1-4);
@@ -24,6 +25,7 @@ import gzip
 import hashlib
 import io
 import json
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -34,7 +36,8 @@ import httpx
 sys.path.insert(0, str(Path(__file__).parent))
 from fiche_parse import VERSION, parse  # noqa: E402
 from rapports_harvest import UA, write  # noqa: E402
-from rapports_live import codes, fetch_fiche  # noqa: E402
+from rapports_live import FICHE, FICHE_HOSTS, codes  # noqa: E402
+from rapports_harvest import call  # noqa: E402
 
 REFRESH_DAYS = 20
 ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "version"]
@@ -43,6 +46,41 @@ CRIT_COLS = ["cod_aff_form", "session", "champ_rang", "rang", "critere_id", "ele
 ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
 ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes"]
 FRAIS_COLS = ["cod_aff_form", "session", "rang", "titre", "rubrique", "texte_id"]
+
+
+def is_fiche(resp) -> bool:
+    """A real fiche: an answer 200 whose title is "Fiche formation". The report harvest's closed-site test (the words
+    "indisponible" / "maintenance" anywhere and no report link) took 1,607 real fiches for a closed site: a fiche may
+    print "internat indisponible" (harvest of 2026-11-15)."""
+    return resp is not None and resp.status_code == 200 and bool(
+        re.search(r"<title>\s*Fiche formation", resp.text[:5000] if resp.text else ""))
+
+
+def fetch_fiche(http, cod: str, pause: float):
+    """The fiche of a formation from the first host that serves one (url, response); (None, last response) if none does
+    (an error page, a maintenance page, a 404)."""
+    last = None
+    for h in FICHE_HOSTS:
+        url = FICHE.replace("dossier.parcoursup.fr", h).format(cod=cod)
+        resp = call(http, url, pause=pause)
+        if is_fiche(resp):
+            return url, resp
+        last = resp
+    return None, last
+
+
+def carto_codes(db: str) -> set[str] | None:
+    """The codes of the latest cartographie session (the formations Parcoursup offers now); None when unknown."""
+    try:
+        import duckdb
+        con = duckdb.connect(db, read_only=True)
+        try:
+            return {c for (c,) in con.execute("""SELECT cod_aff_form FROM core.cartographie
+                WHERE carto_session = (SELECT max(carto_session) FROM core.cartographie)""").fetchall()}
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001  (no warehouse: every code counts as offered)
+        return None
 
 
 def tid(t: str | None) -> str:
@@ -100,11 +138,16 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     old = (datetime.now(timezone.utc) - timedelta(days=refresh_days)).strftime("%Y%m%d%H%M%S")
     # first the fiches never read, then those an older reader read (a new reader may read them, and version 3 reads the
     # identity badges and the fees of EVERY fiche, grid or not)
+    offered = carto_codes(db)
+    yesterday = (datetime.now(timezone.utc) - timedelta(hours=12)).strftime("%Y%m%d%H%M%S")
     first = [etat[c] for c in order if etat[c]["status"] in ("todo", "retry")]
     first += [etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee") and etat[c].get("version") != str(VERSION)]
+    # a fiche that did not answer is asked again at every run (at most twice a day), right after the new ones: most were
+    # real fiches the old closed-site test refused (2026-11-15)
+    first += [etat[c] for c in order if etat[c]["status"] == "failed" and etat[c]["lu_le"] < yesterday]
     seen = {id(r) for r in first}
-    again = sorted((etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee", "failed") and etat[c]["lu_le"] < old
-                    and id(etat[c]) not in seen),
+    again = sorted((etat[c] for c in order if etat[c]["status"] in ("ok", "sans_grille", "rejetee", "failed", "hors_campagne")
+                    and etat[c]["lu_le"] < old and id(etat[c]) not in seen),
                    key=lambda r: r["lu_le"])
     queue = first + again
     # is the site open? three fiches first (no write at all when closed)
@@ -126,14 +169,14 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
         c = r["cod_aff_form"]
         url, resp = fetch_fiche(http, c, pause)
         r["lu_le"] = _now()
-        if url is None:
-            r["status"] = "retry" if r["status"] == "todo" else "failed"
-            r["raison"] = f"fiche {resp.status_code if resp is not None else 'none'}"
-            continue
-        p = parse(resp.text)
-        if p["reason"] == "pas une fiche":            # an error page: like a failed read, the stored grid is kept
-            r["status"] = "retry" if r["status"] == "todo" else "failed"
-            r["raison"] = "pas une fiche"
+        p = parse(resp.text) if url is not None else None
+        if url is None or p["reason"] == "pas une fiche":   # an error page: like a failed read, the stored grid is kept
+            r["raison"] = "pas une fiche" if url is not None else f"fiche {resp.status_code if resp is not None else 'none'}"
+            if offered is not None and c not in offered:
+                # a formation of the last SIES campaign that the current cartographie no longer offers: not a failure
+                r["status"] = "hors_campagne"
+            else:
+                r["status"] = "retry" if r["status"] == "todo" else "failed"
             continue
         r["version"] = str(VERSION)
         r["url"], r["session"] = url, p["session"] or ""

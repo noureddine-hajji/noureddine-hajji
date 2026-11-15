@@ -48,6 +48,8 @@ from . import semblables as SB
 from . import grilles as GR
 from . import reconnaissance as RC
 from . import vie as VIE
+from . import tension as TS
+from . import apprentissage as APP
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -731,6 +733,8 @@ def formation(cod: str, session: int | None = None):
             # (local rent and Crous, national items of the OVE survey, the fiche's tuition fees verbatim): ranges, sources
             "reconnaissance": RC.for_formation(_con().cursor(), rec["cod_aff_form"]),
             "vie": VIE.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "tension": TS.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            "apprenti": APP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
@@ -793,7 +797,9 @@ def compare(ids: str, session: int | None = None):
                                 *DECOMP, *OFFER)},
                     "admis": f["admis"], "peers": f["peers"], "history": f["history"], "warnings": f["warnings"],
                     # sprint V1: the State label and the cost lines the formation page shows (same answers)
-                    "reconnaissance": f.get("reconnaissance"), "vie": f.get("vie")})
+                    "reconnaissance": f.get("reconnaissance"), "vie": f.get("vie"),
+                    # sprint V2: the demand per place and the apprenticeship block (same answers as the formation page)
+                    "tension": f.get("tension"), "apprenti": f.get("apprenti")})
     return {"formations": out}
 
 
@@ -1150,12 +1156,20 @@ def voeux_completer(ids: str = Query("", max_length=200), mention: str | None = 
         raise HTTPException(422, str(exc)) from None
 
 
+@app.get("/api/communes")
+def communes_liste():
+    """Sprint V2: every commune and its centre, for the distance from the student's town (computed in the browser, the
+    town is never sent). No parameter, shared-cached."""
+    return {"source": "API Géo (geo.api.gouv.fr), centre de chaque commune", "communes": VIE.communes(_con().cursor())}
+
+
 @app.get("/api/reconnaissance")
 def reconnaissance_liste():
     """Sprint V1: the State-label badge and the tuition read on the fiche, for every formation whose fiche was read, sent
-    whole so the lists (search, map, Mes vœux, comparator) show them without one request per formation. No parameter."""
+    whole so the lists (search, map, Mes vœux, comparator) show them without one request per formation. No parameter.
+    Sprint V2: the same answer carries the formations of strong demand (tension.compact), one request for the lists."""
     con = _con().cursor()
-    return RC.compact(con, VIE.compact(con))
+    return {**RC.compact(con, VIE.compact(con)), "tension": TS.compact(con), "apprentissage": APP.codes(con)}
 
 
 @app.get("/api/metiers")
@@ -1319,7 +1333,7 @@ def legal_page(slug: str):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage"]
 
 
 @lru_cache(maxsize=1)

@@ -78,13 +78,33 @@ def _xml_records(path: Path):
     return pd.DataFrame(rows, columns=["file", "idx", "tag", "xml"])
 
 
+def _json_records(path: Path):
+    """A JSON list of records (API Géo: the communes with their centre), flattened; every value kept as text, a point as
+    its "lon lat" pair split into two columns."""
+    import json
+
+    import pandas as pd
+    rows = []
+    for r in json.loads(Path(path).read_text(encoding="utf-8")):
+        flat = {}
+        for k, v in r.items():
+            if isinstance(v, dict) and v.get("type") == "Point" and isinstance(v.get("coordinates"), list):
+                flat[f"{k}_lon"], flat[f"{k}_lat"] = (str(x) for x in v["coordinates"][:2])
+            elif isinstance(v, (list, dict)):
+                flat[k] = json.dumps(v, ensure_ascii=False)
+            else:
+                flat[k] = None if v is None else str(v)
+        rows.append(flat)
+    return pd.DataFrame(rows)
+
+
 def _ingest_file(ds, raw_dir: Path, dest: Path) -> dict:
     """Download a direct file and convert it to raw/<key>.parquet (text columns, as published)."""
-    ext = ds.url.rsplit(".", 1)[-1].lower()
+    ext = "json" if "format=json" in ds.url else ds.url.rsplit(".", 1)[-1].lower()
     src = raw_dir / f"{ds.key}.{ext}"
     print(f"[get ] {ds.key} <- {ds.url}")
     _download(ds.url, src)
-    df = _xml_records(src) if ext == "zip" else _read_csv(src)
+    df = _xml_records(src) if ext == "zip" else _json_records(src) if ext == "json" else _read_csv(src)
     df.to_parquet(dest, index=False)
     return {"url": ds.url, "kind": ds.kind, "year": ds.year, "bytes": src.stat().st_size, "sha256": _sha256(src),
             "rows": len(df), "columns": len(df.columns), "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}

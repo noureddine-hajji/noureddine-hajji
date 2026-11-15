@@ -45,6 +45,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     `#/accompagner`, `#/premiere`, `#/liste` (shared list) in `app.js`.
   - **Étudier là-bas (sprint V1):** `reconnaissance.py` (the State label printed on each live fiche, one badge), `vie.py` (local rent
     and Crous, national OVE items, the fiche's fees: what a year there costs).
+  - **Voie pro, demand, distance (sprint V2):** `tension.py` (vœux per place placed among its type), `apprentissage.py` (apprenticeship
+    card, BTS routes compared), API Géo communes in `vie.py` (distance computed in the browser).
   - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
@@ -602,6 +604,17 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
     Fees verbatim from the fiche; an amount only from a plain sum of euro amounts. Year = 10 months + fees + CVEC (when printed),
     only when every part is known. Always "estimation", never a budget or a promise; only the rent is local (said).
     Red team `redteam_vie.py` (V1-V9).
+- **Bac techno / pro, apprenticeship, demand, distance (sprint V2, owner 2026-11-15).** The profile already carries the bac route:
+  no new door, everything merged into the existing pages.
+  - Demand = `nb_voe_pp / capa_fin` (published counts, labelled), placed per (campaign, `fili`): >= p90 "Forte demande" (lists),
+    >= p75 "Demande élevée"; < 20 formations or no places = no position. Always "pas peu de chances", never a zone colour.
+  - Apprenticeship: free tuition (L6211-1) and a salary in words with the official simulator, NEVER a computed amount; links on La
+    bonne alternance only. The BTS route comparison is the MEDIAN OF ESTABLISHMENTS publishing (Inserjeunes has no headcount),
+    >= 5 per route, labelled, on every BTS page. `propose` = an attached offer or a SIES apprenticeship formation.
+  - Distance: `/api/communes` (API Géo, no parameter, public cache), searched and computed in the browser; the town lives in
+    `store.villeDepart` (validated), never sent.
+  - Grids harvest: a page titled "Fiche formation" is a fiche (never the closed-site words); failed fiches re-read next run;
+    gone from the cartographie = `hors_campagne`. Red team `redteam_voiepro.py` (VP1-VP8), grilles GR5.
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

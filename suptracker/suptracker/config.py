@@ -81,6 +81,9 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("crous_restauration", ("fr_crous_restauration_france_entiere",), "vie", optional=True),
     Dataset("loyers_app12_2025", (), "vie", optional=True,
             url="https://static.data.gouv.fr/resources/carte-des-loyers-indicateurs-de-loyers-dannonce-par-commune-en-2025/20251211-144934/pred-app12-mef-dhup.csv"),
+    # sprint V2: every commune and its centre (API Géo, DINUM), for the distance from the student's town, computed in the browser
+    Dataset("communes_geo", (), "vie", optional=True,
+            url="https://geo.api.gouv.fr/communes?fields=nom,code,codeDepartement,centre&format=json&geometry=centre"),
 )
 
 
