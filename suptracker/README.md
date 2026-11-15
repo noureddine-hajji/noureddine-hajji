@@ -3237,10 +3237,12 @@ contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénie
   fiche fait foi. A diploma of engineer controlled by the State confers the grade de master; a preparatory class is a
   controlled formation, not a diploma.
 - A label no rule knows keeps its text under "autre" and is listed in `meta.reconnaissance_audit`.
-- First harvest (2026-11-15, 15,580 fiches): BTS 6,829, licence 1,226, BUT 616, certificat de spécialisation (agriculture,
-  national) 513, diplôme d'État 430, prépa 386, ingénieur 242, DCG 147, DEUST 118, grade de licence 92, visé 48, DNMADE 46,
-  DTS (national) 22; still "autre": "Diplôme de spécialisation professionnelle" (8) and "Formation DU PAREO" (2). Fee
-  amounts read on 14,734 of the 15,580 "Par année" lines; the others are ranges or texts, shown alone.
+- Harvest of 2026-11-15 (two runs, 24,130 fiches; 13,425 of the 14,252 formations of the 2025 campaign): BTS, licence,
+  BUT, DCG, DEUST, DNMADE, DTS and the agriculture "certificat de spécialisation" (national) 15,819, diplôme d'État 1,152,
+  prépa 1,011, ingénieur 525, grade de licence 309, visé 144, grade de master 92, no label 5,041; still "autre" and shown
+  verbatim: "Formation DU PAREO" (19), "Diplôme de spécialisation professionnelle" (17), "Formation PPPE" (1). Fee amounts
+  read on 21,591 of the 24,130 "Par année" lines; the others are ranges or texts, shown alone. 2,379 fiches did not
+  answer (an error page or no fiche): read again by the next runs.
 - No label means "Aucun label de l'État sur la fiche", never "non reconnu". The only exception is a Parcoursup title that
   names a professional title (RNCP).
 - The badge appears on the formation page header, in a "Ce diplôme est-il reconnu par l'État ?" card (tab "Réussir et
