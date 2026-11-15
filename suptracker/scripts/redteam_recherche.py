@@ -545,15 +545,17 @@ def rs7(c: Ctx):
 
 
 # ------------------------------------------------------------------ RS8 mutation test
+# (name, old, new, witness): a mutant needing a witness ("dup": a code the engine answers for two campaigns, "many": a query with
+# more than 40 results) is counted only on a warehouse that has one (the real one does; the small synthetic one does not)
 KW_MUTANTS = [
-    ("engine order lost", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": sorted(set(r["cod_aff_form"] for r in res["results"]))'),
-    ("a code once per campaign", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": [r["cod_aff_form"] for r in res["results"]]'),
-    ("a code at its last rank", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"][::-1]))[::-1]'),
-    ("only the first page", "res = S.search(con, q, offset=0, limit=10 ** 6)", "res = S.search(con, q, offset=0, limit=40)"),
-    ("blank accepted", '    if not q:\n        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")\n', ""),
-    ("foreign URL searched", 'if q.lower().startswith(("http", "www.")) and not cod:', "if False:"),
-    ("a code searched as words", "if cod or (q.isdigit() and len(q) <= 9):", "if cod:"),
-    ("words not trimmed", "    q = q.strip()\n    if not q:", "    if not q.strip():"),
+    ("engine order lost", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": sorted(set(r["cod_aff_form"] for r in res["results"]))', None),
+    ("a code once per campaign", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": [r["cod_aff_form"] for r in res["results"]]', "dup"),
+    ("a code at its last rank", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"][::-1]))[::-1]', "dup"),
+    ("only the first page", "res = S.search(con, q, offset=0, limit=10 ** 6)", "res = S.search(con, q, offset=0, limit=40)", "many"),
+    ("blank accepted", '    if not q:\n        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")\n', "", None),
+    ("foreign URL searched", 'if q.lower().startswith(("http", "www.")) and not cod:', "if False:", None),
+    ("a code searched as words", "if cod or (q.isdigit() and len(q) <= 9):", "if cod:", None),
+    ("words not trimmed", "    q = q.strip()\n    if not q:", "    if not q.strip():", None),
 ]
 JS_MUTANTS = [
     ("places: accents kept", "if (foldText(label) === k || ", "if (label.toLowerCase() === k || ", "rs2"),
@@ -588,7 +590,14 @@ def rs8(c: Ctx):
         return False, f"the unmutated code fails {[k for k, v in base.items() if not v]}: mutants not counted"
     missed = []
     src = inspect.getsource(api.keyword_codes)
-    for name, old, new in KW_MUTANTS:
+    con = c.con.cursor()
+    answers = [[r["cod_aff_form"] for r in S.search(con, q, offset=0, limit=10 ** 6)["results"]] for q in QUERIES]
+    witness = {None: True, "dup": any(len(set(a)) < len(a) for a in answers), "many": any(len(set(a)) > 40 for a in answers)}
+    skipped = []
+    for name, old, new, need in KW_MUTANTS:
+        if not witness[need]:
+            skipped.append(name)
+            continue
         if src.count(old) != 1:
             missed.append(f"{name} (anchor gone)")
             continue
@@ -622,8 +631,9 @@ def rs8(c: Ctx):
         ok = {"html": lambda: shell_ok(m, c.js, c.css), "cache": lambda: docs_ok(c, cache=m), "privacy": lambda: privacy_ok(c.js, m)}[kind]()[0]
         if ok:
             missed.append(name)
-    n = len(KW_MUTANTS) + len(JS_MUTANTS) + len(OTHER_MUTANTS)
-    return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
+    n = len(KW_MUTANTS) + len(JS_MUTANTS) + len(OTHER_MUTANTS) - len(skipped)
+    return not missed, (f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
+                        + (f"; no witness in this warehouse for {skipped}" if skipped else ""))
 
 
 def run(db: Path, real: bool = False, browser: bool = False, checks: set | None = None) -> list[dict]:
