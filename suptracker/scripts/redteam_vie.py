@@ -426,8 +426,9 @@ def v5(c: Ctx):
         return False, "the brochure is missing"
     import logging
     logging.disable(logging.WARNING)
-    import pypdf
-    text = pypdf.PdfReader(str(pdf)).pages[26].extract_text() or ""
+    import pdfplumber                                   # the pipeline's PDF reader (requirements-pipeline.txt)
+    with pdfplumber.open(str(pdf)) as doc:
+        text = doc.pages[26].extract_text() or ""
     logging.disable(logging.NOTSET)
     flat = re.sub(r"\s+", " ", text).replace("\u2019", "'")
     for r in rows:
@@ -600,7 +601,7 @@ def v8(c: Ctx):
         bad.append("README")
     if "vie.py" not in (REPO / "CLAUDE.md").read_text(encoding="utf-8"):
         bad.append("CLAUDE.md")
-    for call in ("recoLoad()", "${recoBadge(r.cod_aff_form)}", "recoBadge(f.cod_aff_form)", "${recoBadge(v.cod_aff_form)}",
+    for call in ("const recoP = recoLoad();", "${recoBadge(r.cod_aff_form)}", "recoBadge(f.cod_aff_form)", "${recoBadge(v.cod_aff_form)}",
                  "${recoCard(d.reconnaissance)}", "coutCard(d.vie, r)"):
         if call not in c.js:
             bad.append(f"page: {call}")
