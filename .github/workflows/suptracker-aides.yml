@@ -1,0 +1,41 @@
+# Sprint F (financer ses études): the OFFICIAL texts that set student aids (bourse amounts per échelon, aide au mérite, aide à la
+# mobilité Parcoursup, CVEC and fee exemptions), fetched from official hosts only (blocked in the development sandbox) into
+# suptracker/data/aides/ as extracted text. The amounts the site shows are read from these files by fixed rules, never typed by hand.
+# Triggered by workflow_dispatch, a weekly schedule (default branch), or a push of data/aides/request.json on a claude/ branch.
+name: suptracker-aides
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 2"        # weekly: a new decree or a corrected page is read without waiting (default branch only)
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/aides/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-aides
+  cancel-in-progress: false
+jobs:
+  calendrier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Fetch the official aid texts
+        run: python scripts/aides_fetch.py data/aides
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/aides
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Official student-aid texts fetched ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push
