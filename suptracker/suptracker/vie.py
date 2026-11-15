@@ -202,8 +202,9 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
             ph = ", ".join("?" * len(rows[0]))
             con.executemany(f"INSERT INTO core.{table} VALUES ({ph})", rows)
         got["crous" if table == "vie_crous" else "resto"] = len(rows)
+        ex = next((repr(v)[:120] for v in (df[c_geo] if c_geo else []) if v is not None), None)
         con.execute("INSERT INTO meta.vie_audit VALUES (?, ?, ?, ?, ?)",
-                    [key, " | ".join(map(str, df.columns))[:2000], len(df), len(rows), f"nom={c_nom} geo={c_geo}"])
+                    [key, " | ".join(map(str, df.columns))[:2000], len(df), len(rows), f"nom={c_nom} geo={c_geo} exemple={ex}"])
     # national items
     for x in _postes(ove):
         inclus = "toujours" if x["poste"] in POSTES_COURANTS else "selon" if x["poste"] in POSTES_SELON else None
@@ -230,6 +231,19 @@ def _latlon(v) -> tuple[float | None, float | None]:
     """A geo point as the portals export it: "lat, lon" text, a [lat, lon] list or a {lat, lon} dict."""
     if v is None:
         return None, None
+    if isinstance(v, (bytes, bytearray, memoryview)):
+        # the SIES portal's parquet export writes geo points as WKB: byte order, type 1 (point), then x = lon, y = lat
+        import struct
+        b = bytes(v)
+        if len(b) >= 21 and b[0] in (0, 1):
+            e = "<" if b[0] == 1 else ">"
+            if struct.unpack(e + "I", b[1:5])[0] == 1:
+                lon, lat = struct.unpack(e + "dd", b[5:21])
+                return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else (None, None)
+        return None, None
+    m = re.match(r"\s*POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)", str(v), re.I)
+    if m:                                                                   # WKT: lon then lat
+        return float(m.group(2)), float(m.group(1))
     if isinstance(v, dict):
         return _num(v.get("lat")), _num(v.get("lon"))
     if not isinstance(v, (str, bytes)) and hasattr(v, "__len__") and len(v) == 2:     # a list, tuple or numpy array

@@ -316,7 +316,10 @@ def fixture(vie, rc, d: Path, fees: str = "178 euros + 800 euros de frais spéci
                    "bookingurl": "javascript:alert(1)"},
                   {"title": "Loin", "zone": "Paris", "infos": "250 €", "geocalisation": "48.95, 2.45", "bookingurl": "https://y"}]
                  ).to_parquet(raw / "crous_logement.parquet")
-    pd.DataFrame([{"title": "RU", "geolocalisation": "48.8395, 2.3370"}, {"title": "RU loin", "geolocalisation": "49.5, 2.3"}]
+    import struct
+    # the portal's parquet writes points as WKB (lon, lat): one restaurant that way, as on the real export (meta.vie_audit)
+    pd.DataFrame([{"title": "RU", "geolocalisation": struct.pack("<BIdd", 1, 1, 2.3370, 48.8395)},
+                  {"title": "RU loin", "geolocalisation": struct.pack("<BIdd", 1, 1, 2.3, 49.5)}]
                  ).to_parquet(raw / "crous_restauration.parquet")
     texts = {"t1": fees, "t2": "Aucun frais"}
     with gzip.open(fiches / "textes.csv.gz", "wt", encoding="utf-8", newline="") as f:
@@ -617,6 +620,7 @@ SOURCE_MUTANTS = [
     ("vie", "rent by name only", '    key = f"{fold(nom)}|{str(dep or \'\').strip()}"', '    key = f"{fold(nom)}|%"', "V4"),
     ("vie", "zone-predicted rent not flagged", "(typ or \"\").strip().lower() != \"commune\"", "False", "V4"),
     ("vie", "closed residences kept", 'if re.search(r"fermeture definitive|ferme definitivement|definitivement ferme", fold(text)):', "if False:", "V4"),
+    ("vie", "WKB points not read", "        if len(b) >= 21 and b[0] in (0, 1):", "        if False:", "V4"),
     ("vie", "Crous radius 20 km", "RAYON_CROUS_KM = 10", "RAYON_CROUS_KM = 20", "V4"),
     ("vie", "every item in the low bound", '"min": _arrondi(out["loyer"]["min"] + toujours)', '"min": _arrondi(out["loyer"]["min"] + toujours + selon)', "V4"),
     ("vie", "CVEC always added", '        cv = CVEC["montant"] if out["frais"]["cvec"] else 0', '        cv = CVEC["montant"]', "V4"),
