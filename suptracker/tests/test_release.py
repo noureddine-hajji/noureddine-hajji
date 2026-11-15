@@ -64,6 +64,7 @@ FEATURE_ENTRY_POINTS = {
     "accessibilite": ("app.js", "function a11yAfterRoute("),
     "carte_recherche": ("app.js", "function carteSelection("),
     "parcours_metier": ("app.js", "function parcoursCard("),
+    "reconnaissance_vie": ("app.js", "function coutCard("),
 }
 
 

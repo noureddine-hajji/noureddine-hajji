@@ -656,3 +656,14 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .pa-step { white-space: normal; }
 .pa-rules { padding-left: 1.1rem; }
 .pa-flist { max-height: 22rem; overflow-y: auto; padding-left: 1.1rem; }
+
+/* sprint V1 « Étudier là-bas »: the State-label badge (neutral: colour means zones, bac routes and the accent only) and
+   the cost card (the summary tiles' style, three of them) */
+.badge.reco { color: var(--ink); white-space: normal; }
+.badge.reco svg { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }
+.badge.reco-aucun, .badge.reco-autre { color: var(--muted); }
+.fhead-reco { margin-top: 6px; }
+.sum-grid.cout-tiles, .sum-grid.cout-tiles:has(> :nth-child(5)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cout-total td { border-top: 2px solid var(--line); }
+.cout-frais li { margin-bottom: 4px; }
+@media (max-width: 640px) { .sum-grid.cout-tiles { grid-template-columns: minmax(0, 1fr); } }

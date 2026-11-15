@@ -35,7 +35,17 @@ def main(page: str, pattern: str, out: str) -> None:
     dest = Path(out)
     dest.mkdir(parents=True, exist_ok=True)
     with httpx.Client(follow_redirects=True, timeout=60, headers={"User-Agent": "suptracker-probe"}) as http:
-        html = http.get(page).raise_for_status().text
+        resp = http.get(page).raise_for_status()
+        if "html" not in resp.headers.get("content-type", "html"):
+            # the "page" is itself a file (a PDF behind a site the runner cannot reach directly, read through the
+            # Internet Archive): kept as it is, with its index entry
+            name = dest_name(page, {"page.html", "index.json"})
+            (dest / name).write_bytes(resp.content)
+            (dest / "index.json").write_text(json.dumps([{"url": page, "file": name, "bytes": len(resp.content),
+                                                         "sha256": hashlib.sha256(resp.content).hexdigest()}], indent=2), encoding="utf-8")
+            print(f"{name}: {len(resp.content)} bytes")
+            return
+        html = resp.text
         (dest / "page.html").write_text(html, encoding="utf-8")
         hrefs = re.findall(r'href="([^"]+)"', html)
         rx = re.compile(pattern, re.I)

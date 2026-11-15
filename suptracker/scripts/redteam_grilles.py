@@ -586,7 +586,7 @@ def gr8(c: Ctx):
         if w not in wf:
             bad.append(f"rapports workflow: {w[:50]}")
     dw = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
-    content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/textes.csv.gz"
+    content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/textes.csv.gz"
     proj = "cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true;"
     if dw.count(content) != 3 or dw.count(proj) != 3 or dw.count("data/fiches/etat.csv") != 3 or re.search(r"data/fiches(?:/)?[ ;|]", dw):
         bad.append("data workflow fingerprint")

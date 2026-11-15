@@ -246,7 +246,11 @@ def ui(js: str) -> tuple[bool, str]:
     b = re.sub(r"(?m)^\s*//.*$", "", block(js))
     store_ = js[js.index("const voeux = {"): js.index("// ---- SVG primitives")]
     raw = [m for m in re.findall(r"\$\{((?:(?!\$\{)[^}])*)\}", b)
-           if re.search(r"\bv\.(?:etablissement|filiere|complement|ville|academie|cod_aff_form)\b", m) and not m.lstrip().startswith("esc(")]
+           if re.search(r"\bv\.(?:etablissement|filiere|complement|ville|academie|cod_aff_form)\b", m)
+           and not m.lstrip().startswith("esc(") and not re.fullmatch(r"\s*recoBadge\(v\.cod_aff_form\)\s*", m)]
+    # sprint V1: recoBadge only LOOKS UP the code (never prints it) and its pill escapes every string it prints
+    if 'return `<span class="badge reco reco-${esc(k)}" title="${esc(exp || "")}">${icon}${esc(lib)}</span>`;' not in js:
+        raw.append("recoPill unescaped")
     trusted = all(x in store_ for x in ("/^\\d{1,9}$/", ".slice(0, this.MAX)", "new Set("))
     race = "if ($view.dataset.rendered !== marker) return;" in b
     # R4: the zone is drawn by zoneBadge, which guards an unknown zone ("non situé")

@@ -3219,3 +3219,69 @@ Red team `scripts/redteam_parcours.py` (PA1-PA8). It builds on a copy of the war
 - PA6 renders the card in node.
 - PA7 checks the plumbing.
 - PA8 is the mutation test.
+
+## Étudier là-bas: is the diploma recognised, and what does a year there cost? (owner, 2026-11-15)
+
+The owner asked for two things in one sprint:
+- the monthly cost on site (housing, food, transport and the other running costs) and the annual cost of the formation;
+- one recognition badge: diplôme national, diplôme visé, grade de licence or de master, titre RNCP, or none.
+
+His choices: a monthly total given as a range, line by line, with each line's source; the rent of a 20 m² studio.
+
+**The badge** (`reconnaissance.py`) is the State label each live Parcoursup fiche prints in its identity card, next to an image
+`labellisation/DL_xx.svg` ("Diplôme national de licence contrôlé par l'Etat", "BTS contrôlé par l'Etat", "Diplôme d'Etat
+contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénieur contrôlé par l'Etat"…).
+- The fiche reader (`scripts/fiche_parse.py`, version 3) reads the label with the establishment and grants badges. The harvest
+  stores them in `data/fiches/identite.csv`, and every fiche an older reader read is read again first.
+- Fixed rules on the label's words (`RULES`, first match) give one category; the label is shown verbatim beside it, and the
+  fiche fait foi. A diploma of engineer controlled by the State confers the grade de master; a preparatory class is a
+  controlled formation, not a diploma.
+- A label no rule knows keeps its text under "autre" and is listed in `meta.reconnaissance_audit`.
+- Harvest of 2026-11-15 (two runs, 24,130 fiches; 13,425 of the 14,252 formations of the 2025 campaign): BTS, licence,
+  BUT, DCG, DEUST, DNMADE, DTS and the agriculture "certificat de spécialisation" (national) 15,819, diplôme d'État 1,152,
+  prépa 1,011, ingénieur 525, grade de licence 309, visé 144, grade de master 92, no label 5,041; still "autre" and shown
+  verbatim: "Formation DU PAREO" (19), "Diplôme de spécialisation professionnelle" (17), "Formation PPPE" (1). Fee amounts
+  read on 21,591 of the 24,130 "Par année" lines; the others are ranges or texts, shown alone. 2,379 fiches did not
+  answer (an error page or no fiche): read again by the next runs.
+- No label means "Aucun label de l'État sur la fiche", never "non reconnu". The only exception is a Parcoursup title that
+  names a professional title (RNCP).
+- The badge appears on the formation page header, in a "Ce diplôme est-il reconnu par l'État ?" card (tab "Réussir et
+  poursuivre"), on search results, map cards, Mes vœux and the comparator.
+- The lists read one no-parameter answer, `/api/reconnaissance` (codes grouped by category, shared-cached).
+
+**The cost** (`vie.py`, tab "Combien ça coûte" of the formation page; comparator rows):
+- **Rent, local.** "Carte des loyers" 2025 (Ministère de la Transition écologique): asking rents of 1-2 room flats per m²,
+  charges included, per commune, with the published prediction interval.
+  - Rent = 20 m² × the interval's bounds, rounded to 10 €, the average said beside it.
+  - Linked by the formation's town AND department; no match means no rent and no total.
+  - A commune predicted from its zone (few listings of its own) is flagged.
+- **Crous, local.** The Crous residences within 10 km (Crous register, SIES portal), nearest first.
+  - A rent is shown only when the residence's text prints euros in a sentence about a rent or a room, never a deposit, an advance or fees, quoted with the Crous' date; a range sharing one euro sign
+    ("351,57 à 404,24 €") keeps both ends.
+  - Closed residences are left out, and only https links are kept.
+  - The Crous restaurants within 2 km are counted, with the national meal price (1 € since 4 May 2026).
+- **Everything else, national.** The OVE survey "Conditions de vie des étudiants 2023" (brochure "Repères", p. 27), monthly
+  means among the students concerned. The brochure is kept in `data/sources/` (fetched through the Internet Archive:
+  the OVE site refuses automated downloads), and its amounts are transcribed into `ove_cdv2023_depenses.csv`.
+  - Running items, in both bounds: daily life 95 €, transport 76 €, university restaurant 50 €, phone and internet 40 €.
+  - Items "selon votre situation", in the upper bound only: other housing costs 115 €, health insurance 47 €, study costs
+    43 €, leisure 73 €.
+  - The survey's rent and child care items are never used. The page says that only the rent is local.
+- **The formation, annual.** The tuition-fee lines of the live fiche, verbatim (`data/fiches/frais.csv`).
+  - An amount is read only from a plain sum of euro amounts: "178 euros + 800 euros de frais spécifiques" = 978,
+    "Aucun frais" = 0; cents are kept and the sum rounded to the euro ("2329,79 €" = 2,330, never 2,329 or 232,979).
+  - A text mixing the CVEC or giving several figures shows the text only.
+  - The CVEC (105 € in 2026-2027) is added when the fiche prints its paragraph; grant holders are exempt.
+- **The year.** 10 months × the monthly bounds + the fees read + the CVEC, only when every part is known. Every computed
+  figure carries the "estimation" label, and links to the grant file and the CAF simulator close the card.
+
+Red team `scripts/redteam_vie.py` (V1-V9):
+- V1: the reader against an independent BeautifulSoup reading of the saved fiches.
+- V2: label ground truth and an independent keyword reading of every label.
+- V3: fee ground truth, hostile texts, and each real amount equal to the numbers its text prints.
+- V4: a fixture warehouse for rent, Crous (independent haversine), totals and the year.
+- V5: the transcribed CSV against the brochure's page 27.
+- V6: the page in node (escaping, estimation labels, wording, safe links).
+- V7: the real tables re-derived.
+- V8: plumbing.
+- V9: 28 mutants.
