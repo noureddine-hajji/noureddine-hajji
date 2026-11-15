@@ -3310,7 +3310,9 @@ they were, and what was missing is merged into the existing pages.
   offer it with their Parcoursup page;
 - on EVERY BTS page, "Après ce BTS : en apprentissage ou en lycée ?": per route, the median of the employment rate (6 months)
   and of the share continuing, among the establishments that publish them (Inserjeunes publishes no headcount, so no national
-  rate exists; at least 5 establishments, the spread and their number shown; labelled as an estimation);
+  rate exists; at least 5 establishments, the spread and their number shown; labelled as an estimation). An establishment counts
+  ONCE: Inserjeunes can publish several diploma codes of one title at the same UAI (a renewed BTS), reduced first to the median of
+  its own values (Codex); the comparison is built after Inserjeunes is loaded (244 title x route rows on 2026-11-15);
 - the lists show "aussi en apprentissage" (attached offers and SIES apprenticeship formations).
 
 **Distance from home**: in the cost tab, "Votre ville" searches the communes of the API Géo (DINUM, `/api/communes`, no
@@ -3331,7 +3333,8 @@ are the formations no longer offered). Fee amounts are read on 23,167 of the 25,
 
 Red team `scripts/redteam_voiepro.py` (VP1-VP8):
 - VP1: demand per place re-derived on a fixture (ratio, percentiles by linear interpolation, the class rule, the lists' codes).
-- VP2: route medians re-derived, the 5-establishment threshold, when the block exists, the codes, official links only.
+- VP2: route medians re-derived per establishment (multi-code establishments counted once), the 5-establishment threshold, when
+  the block exists, the codes, official links only. VP6 fails on an empty comparison; VP7 checks it is built after Inserjeunes.
 - VP3: the cards and badges in node (escaping, estimation labels, no chance, no salary amount, https links, no zone colour).
 - VP4: the distance (independent haversine, a tampered stored town refused, nothing sent, API Géo flattened).
 - VP5: CAES and phase complémentaire on the help page and in Mes vœux.
