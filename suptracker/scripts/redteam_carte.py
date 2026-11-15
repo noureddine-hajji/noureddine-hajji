@@ -346,7 +346,7 @@ def c6(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -490,7 +490,7 @@ def c9(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
@@ -546,7 +546,7 @@ def c10(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """

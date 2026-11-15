@@ -136,7 +136,9 @@ function mentionParams(qs, p) {
   return qs;
 }
 // the average the page reads with: the profile's own, else the top of 8-10 for a rattrapage (journey.RATTRAPAGE_TOP), else none
-function localAverage(p) { return p.moyenne !== null && p.moyenne !== undefined ? p.moyenne : p.mention === "rattrapage" ? 10 : null; }
+function localAverage(p) {
+  return p.moyenne !== null && p.moyenne !== undefined ? p.moyenne : p.mention === "rattrapage" ? 10 : null;
+}
 const moyenneText = (m) => `${fmt(m, 1)}/20`;
 // R5 (review): the band and the average in words, from the VALIDATED profile (a stale stored mention never shows)
 function mentionWords(p) {

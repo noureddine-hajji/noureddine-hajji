@@ -379,8 +379,7 @@ METHODOLOGY = {
         "moyenne, la lecture reste celle du haut de la mention. Les mentions ne sont pas publiées par série : la part est lue pour "
         "tous les bacs, puis ramenée dans l'encadrement exact du bac général quand il existe. Votre moyenne reste dans votre "
         "navigateur : le site n'envoie que votre mention, reçoit les effectifs publiés de cette mention et place lui-même votre "
-        "moyenne dedans, avec la même règle que le serveur. Seule la recherche filtrée par zone l'envoie, sans l'enregistrer ni la "
-        "compter. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
+        "moyenne dedans, avec la même règle que le serveur. Aucune page ne l'envoie, la recherche non plus. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
     "mentions": (
         "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "

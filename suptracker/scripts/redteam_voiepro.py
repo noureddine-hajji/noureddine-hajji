@@ -496,7 +496,7 @@ def vp7(c: Ctx):
     if "tests/test_voiepro.py" not in dur or not (ROOT / "tests" / "test_voiepro.py").exists():
         bad.append("tests/test_voiepro.py missing or absent from durations.json")
     for js in ("function tensionCard(", "function apprentiCard(", "function bindVille(", "bindVille(() => draw());", "${villeField()}",
-                "kmFromHome(v.lat, v.lon)", 'id="chome"', "tensionBadge(r.cod_aff_form)",
+                "kmFromHome(v.lat, v.lon)", 'id="chome"', "tensionBadge(f.cod_aff_form)",
                "tensionBadge(v.cod_aff_form)", "apprentiCard(d.apprenti)", "apprentiInsertionCard(d.apprenti)", "tensionCard(d.tension, r.session)"):
         if js not in c.js:
             bad.append(f"app.js: {js} missing")

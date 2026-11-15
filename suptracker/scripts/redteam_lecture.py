@@ -20,7 +20,7 @@ The page now sends the mention BAND only and reads the zones inside the band its
       server's suggestions, in order, per filière, with the hidden paid count
   LE6 the map and the API: the map's zones read here = the server's; the band answers (stage 2, Plan B pool, map lectures) stay
       shared-cached, an answer read for an average is still never cached, the pool answers are plain JSON
-  LE7 wiring and wording: no page query carries the average except the search (its own builder, used once); every page that
+  LE7 wiring and wording: no page query carries the average (sprint H: not even the search); every page that
       shows a zone goes through the twin; the privacy text, the method text, README and CLAUDE.md say it
   LE8 browser (--browser / --real): a profile with an average; Mes vœux, a formation page, "Où je me situe" and the map: no JS
       error and no request carrying the average (the search aside)
@@ -646,12 +646,9 @@ def wiring_ok(js: str, api_src: str, readme: str, claude: str) -> tuple[bool, st
         bad.append(("mentionParams sends the average or the raw mention", mp))
     if top(js, "bandParam").count('"sansmention"') != 1:
         bad.append("the rattrapage is not sent as its band")
-    sets = [m.start() for m in re.finditer(r'qs\.set\("moyenne"', js)]
-    ms = js.find("function mentionParamsSearch(")
-    if len(sets) != 1 or not (ms < sets[0] < js.find("\n}", ms)):
-        bad.append(("an average set outside the search's builder", len(sets)))
-    if js.count("mentionParamsSearch(") != 2 or "qs.set(\"serie\", v.serie); mentionParamsSearch(qs, v);" not in js:
-        bad.append("the search's builder used elsewhere")
+    # sprint H (owner, 2026-11-15): the search page reads its zones in the browser too; no page sends the average any more
+    if re.search(r'qs\.set\("moyenne"|\.set\("moyenne"', js) or "mentionParamsSearch" in js:
+        bad.append("an average set in a query")
     if re.search(r"moyenne=\$\{|&moyenne=|moyenne: (?:p|v|prof|VP)\.moyenne", js):
         bad.append(("a query string carries the average", re.findall(r".{30}moyenne=\$\{.{20}|.{30}&moyenne=.{20}", js)[:2]))
     for a in ANCHORS:
@@ -661,14 +658,14 @@ def wiring_ok(js: str, api_src: str, readme: str, claude: str) -> tuple[bool, st
         bad.append("the Mes vœux privacy text")
     from suptracker import api as API
     meth = API.METHODOLOGY.get("moyenne", "")
-    if "Votre moyenne reste dans votre navigateur" not in meth or "Seule la recherche filtrée par zone l'envoie" not in meth:
+    if "Votre moyenne reste dans votre navigateur" not in meth or "Aucune page ne l'envoie, la recherche non plus" not in meth:
         bad.append("the method text does not say where the average is read")
     if "Sprint R6" not in readme or "R6" not in claude or "redteam_lecture" not in claude:
         bad.append("README / CLAUDE.md")
     return not bad, f"{len(ANCHORS)} anchors; problems {bad[:4]}"
 
 
-@check("LE7 wiring and wording: no query carries the average but the search; every zone goes through the twin; the texts say it")
+@check("LE7 wiring and wording: no query carries the average; every zone goes through the twin; the texts say it")
 def le7(c: Ctx):
     return wiring_ok(c.js, c.api_src, c.readme, c.claude)
 

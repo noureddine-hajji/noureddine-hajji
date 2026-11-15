@@ -343,7 +343,7 @@ def vi4(c: Ctx):
 
 
 CARD_PROG = r"""
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
 const pct1 = (x) => String(x).replace(".", ",") + " %"; const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const H = "<img src=x onerror=alert(1)>";

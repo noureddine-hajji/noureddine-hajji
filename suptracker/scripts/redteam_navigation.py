@@ -547,7 +547,7 @@ def u6(c: Ctx):
         bad.append(("erase without asking, or not erased", o["notYet"], o["erased"]))
     if not (o["open"] and o["esc"] and o["outside"]):
         bad.append(("Comprendre menu", o["open"], o["esc"], o["outside"]))
-    if o["mapTab"] != "page" or o["viewsOn"] != "Carte" or not o["compMarked"]:
+    if o["mapTab"] != "page" or o["viewsOn"] != "Formations" or not o["compMarked"]:      # sprint H: the views are Formations | Métiers
         bad.append(("tabs", o["mapTab"], o["viewsOn"], o["compMarked"]))
     if o["chipStats"] != "none":
         bad.append(("chip shown on the stats", o["chipStats"]))
