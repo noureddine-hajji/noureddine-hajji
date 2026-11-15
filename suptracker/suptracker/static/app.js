@@ -1466,7 +1466,8 @@ async function viewCarte(dArg, mArg) {
   F.lieu = F.lieu && ["region", "dep", "acad"].includes(F.lieu.t) && typeof F.lieu.v === "string" ? { t: F.lieu.t, v: F.lieu.v } : null;
   F.autour = F.autour && Number.isFinite(F.autour.lat) && Number.isFinite(F.autour.lon) && Number.isFinite(F.autour.km) ? F.autour : null;
   F.lieuTxt = typeof F.lieuTxt === "string" ? F.lieuTxt.slice(0, 120) : (F.autour && F.autour.ville) || "";
-  if (carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null; F.lieuTxt = ""; carteUI.pendingQ = null; }
+  // an old "#/s/<words>" link: its words become the keyword, saved at once (a rebuild re-reads the stored filters: Codex)
+  if (carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null; F.lieuTxt = ""; carteUI.pendingQ = null; store.set("carteFiltres2", F); }
   // the keyword's codes, in the engine's relevance order (one answer per keyword, kept for the visit; a failure keeps the list whole)
   const kwLoad = (q) => cached(`kw|${q}`, () => api(`/api/search/codes?q=${encodeURIComponent(q)}`).then((d) => ({ q, codes: new Set(d.codes),
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
@@ -1662,8 +1663,12 @@ async function viewCarte(dArg, mArg) {
     F.lieu = L && L.t !== "ville" ? { t: L.t, v: L.v } : null;
     F.autour = L && L.t === "ville" ? { lat: L.lat, lon: L.lon, km: Number(kmEl.value) || 25, ville: lt } : null;
     carteUI.lieuBad = lt && !L ? lt : "";
-    try { carteUI.kw = q ? await kwLoad(q) : null; } catch (e) { carteUI.kw = null; carteUI.kwErr = apiErrorText(e); }
-    if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
+    // one token per submission: a slower answer to an earlier keyword never overwrites the latest one (Codex)
+    const mine = carteUI.kwTok = (carteUI.kwTok || 0) + 1;
+    let kw = null, err = "";
+    try { kw = q ? await kwLoad(q) : null; } catch (e) { err = apiErrorText(e); }
+    if (mine !== carteUI.kwTok || seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
+    carteUI.kw = kw; carteUI.kwErr = err;
     carteUI.fit = true;
     save();
     if (q) suggestLycee(q, "carte");

@@ -638,7 +638,14 @@ def keyword_codes(con, q: str) -> dict:
     if q.lower().startswith(("http", "www.")) and not cod:
         raise HTTPException(422, "URL non reconnue : attendu une fiche parcoursup.fr contenant g_ta_cod=…")
     if cod or (q.isdigit() and len(q) <= 9):
-        return {"query": q, "codes": [cod or q], "interpretation": [], "notes": [], "partial": False}
+        # an older campaign's code or fiche: its formation's latest code through the lineage (the page lists the latest
+        # campaign), then the code itself (an apprenticeship offer has no lineage) (Codex)
+        code = cod or q
+        latest = con.execute("""
+            SELECT fy.cod_aff_form FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
+            WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?)
+            ORDER BY fy.session DESC, fy.cod_aff_form LIMIT 1""", [code]).fetchone()
+        return {"query": q, "codes": list(dict.fromkeys([*(latest or []), code])), "interpretation": [], "notes": [], "partial": False}
     res = S.search(con, q, offset=0, limit=10 ** 6)
     # the engine answers per (formation, campaign): a code is kept once, at its best (first) rank
     return {"query": q, "codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"])), "interpretation": res.get("interpretation", []),

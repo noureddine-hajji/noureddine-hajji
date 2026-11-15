@@ -168,6 +168,16 @@ def keyword_ok(c: Ctx, fn=None) -> tuple[bool, str]:
                     (f"https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={any_code}", [str(any_code)])):
         if fn(con, q)["codes"] != want:
             bad.append((q[:40], "a code or a fiche URL"))
+    # an older campaign's code (or fiche) gives its formation's latest code first (the page lists the latest campaign; Codex)
+    old = c.con.execute("""
+        WITH l AS (SELECT l.lineage_id, fy.session, fy.cod_aff_form FROM core.lineage l JOIN core.formation_year fy USING (session, cod_aff_form)),
+             top AS (SELECT lineage_id, arg_max(cod_aff_form, session) AS latest, max(session) AS s FROM l GROUP BY lineage_id)
+        SELECT l.cod_aff_form, top.latest FROM l JOIN top USING (lineage_id)
+        WHERE l.session < top.s AND l.cod_aff_form <> top.latest ORDER BY l.cod_aff_form LIMIT 5""").fetchall()
+    for code, latest in old:
+        got = fn(con, str(code))["codes"]
+        if not got or got[0] != str(latest) or str(code) not in got:
+            bad.append((code, "an older code not resolved to its latest formation", got, latest))
     for q in ("", "   ", "https://example.org/x", "www.example.org"):
         try:
             fn(con, q)
@@ -360,8 +370,8 @@ def shell_ok(html: str, js: str, css: str) -> tuple[bool, str]:
     vs = top(js, "viewSearch")
     if 'if (!q) return viewHome();' not in vs or 'carteUI.pendingQ = q;\n  location.replace("#/carte");' not in vs:
         bad.append("an old search link")
-    if "carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null;" not in js:
-        bad.append("the old link's words are not the keyword (or keep a stale place)")
+    if 'carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null; F.lieuTxt = ""; carteUI.pendingQ = null; store.set("carteFiltres2", F); }' not in js:
+        bad.append("the old link's words are not the saved keyword (a rebuild loses them: Codex), or keep a stale place")
     if 'const EXPLORER_VIEWS = [["carte", "Formations", "map"], ["metiers", "Métiers", "job"]];' not in js:
         bad.append("the Explorer views")
     if 'if (a === "s") return await viewSearch(' not in js:
@@ -390,9 +400,13 @@ def order_ok(js: str) -> tuple[bool, str]:
         bad.append(("sort keys", pos))
     if re.search(r"taux|capa|zone|acc_|pct|tension", body):
         bad.append("sorted by a figure")
-    if "try { carteUI.kw = q ? await kwLoad(q) : null; } catch (e) { carteUI.kw = null; carteUI.kwErr = apiErrorText(e); }" not in vc \
+    if "try { kw = q ? await kwLoad(q) : null; } catch (e) { err = apiErrorText(e); }" not in vc or "carteUI.kw = kw; carteUI.kwErr = err;" not in vc \
             or "La liste montre toutes les formations." not in vc:
         bad.append("a failed keyword request")
+    # one token per submission: an earlier keyword's late answer is dropped (Codex)
+    if "const mine = carteUI.kwTok = (carteUI.kwTok || 0) + 1;" not in vc \
+            or "if (mine !== carteUI.kwTok || seq !== carteUI.seq" not in vc or vc.index("if (mine !== carteUI.kwTok") > vc.index("carteUI.kw = kw;"):
+        bad.append("a superseded keyword answer can overwrite the latest")
     if "carteUI.lieuBad = lt && !L ? lt : \"\";" not in vc or "Lieu non reconnu : « ${esc(carteUI.lieuBad)} »" not in vc:
         bad.append("an unknown place is not said (or not escaped)")
     if "${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}" not in vc or "kw.notes.map((n) => `<div class=\"info\">${esc(n)}</div>`)" not in vc:
@@ -418,6 +432,7 @@ const base = process.argv[2];
   const ready = () => p.waitForFunction(() => /formation/.test((document.getElementById("carte-count") || {}).textContent || ""), null, { timeout: 60000 });
   await p.goto(base + "/#/s/BTS%20NDRC"); await ready(); await p.waitForTimeout(1500);
   o.hash = await p.evaluate(() => location.hash); o.q = await p.$eval("#cs-q", (e) => e.value); o.kw = await count();
+  o.storedQ = await p.evaluate(() => (JSON.parse(localStorage.getItem("carteFiltres2") || "{}") || {}).q);
   await p.fill("#cs-lieu", "Nord (59)"); await p.click(".cs-go"); await p.waitForTimeout(2500); o.kwDep = await count();
   o.status = await p.$eval("#cs-status", (e) => e.textContent);
   o.dipCounts = await p.$$eval('details.dd[data-dd="dips"] .dd-panel label .muted', (xs) => xs.map((x) => Number(x.textContent.replace(/\D/g, ""))));
@@ -498,7 +513,7 @@ def rs6(c: Ctx):
     o, bad = d["o"], []
     want = {"kw": py_count(c, "BTS NDRC"), "kwDep": py_count(c, "BTS NDRC", ("dep", "59")),
             "kwDepPrive": py_count(c, "BTS NDRC", ("dep", "59"), ("public", "contrat", "prive_app", "prive"))}
-    if o["hash"] != "#/carte" or o["q"] != "BTS NDRC":
+    if o["hash"] != "#/carte" or o["q"] != "BTS NDRC" or o["storedQ"] != "BTS NDRC":
         bad.append(("the old link", o["hash"], o["q"]))
     for k, v in want.items():
         if o[k] != v:
@@ -555,6 +570,7 @@ KW_MUTANTS = [
     ("blank accepted", '    if not q:\n        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")\n', "", None),
     ("foreign URL searched", 'if q.lower().startswith(("http", "www.")) and not cod:', "if False:", None),
     ("a code searched as words", "if cod or (q.isdigit() and len(q) <= 9):", "if cod:", None),
+    ("an older code not resolved (Codex)", '"codes": list(dict.fromkeys([*(latest or []), code]))', '"codes": [code]', "old"),
     ("words not trimmed", "    q = q.strip()\n    if not q:", "    if not q.strip():", None),
 ]
 JS_MUTANTS = [
@@ -568,9 +584,11 @@ JS_MUTANTS = [
     ("home: the switch back", "  ${homeProfile()}\n", '  ${explorerViews("carte")}${homeProfile()}\n', "rs4"),
     ("old link: words lost", 'carteUI.pendingQ = q;\n  location.replace("#/carte");', 'location.replace("#/carte");', "rs4"),
     ("old link: a stale place kept", "F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null;", "F.q = carteUI.pendingQ.slice(0, 200);", "rs4"),
+    ("old link: words not saved (Codex)", 'carteUI.pendingQ = null; store.set("carteFiltres2", F); }', "carteUI.pendingQ = null; }", "rs4"),
     ("order: by the official rate", '|| carteSortName(a).localeCompare(carteSortName(b), "fr"));', '|| (b.taux_acces_ens ?? 0) - (a.taux_acces_ens ?? 0));', "rs5"),
     ("order: relevance ignored", "(kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)", "0", "rs5"),
-    ("failure: the list emptied", "catch (e) { carteUI.kw = null; carteUI.kwErr", "catch (e) { carteUI.kw = { codes: new Set(), rank: new Map(), words: [], interp: [], notes: [] }; carteUI.kwErr", "rs5"),
+    ("failure: the list emptied", "catch (e) { err = apiErrorText(e); }", "catch (e) { err = apiErrorText(e); kw = { codes: new Set(), rank: new Map(), words: [], interp: [], notes: [] }; }", "rs5"),
+    ("a superseded answer kept (Codex)", "if (mine !== carteUI.kwTok || seq !== carteUI.seq", "if (seq !== carteUI.seq", "rs5"),
     ("unknown place unescaped", "Lieu non reconnu : « ${esc(carteUI.lieuBad)} »", "Lieu non reconnu : « ${carteUI.lieuBad} »", "rs5"),
 ]
 OTHER_MUTANTS = [
@@ -592,7 +610,8 @@ def rs8(c: Ctx):
     src = inspect.getsource(api.keyword_codes)
     con = c.con.cursor()
     answers = [[r["cod_aff_form"] for r in S.search(con, q, offset=0, limit=10 ** 6)["results"]] for q in QUERIES]
-    witness = {None: True, "dup": any(len(set(a)) < len(a) for a in answers), "many": any(len(set(a)) > 40 for a in answers)}
+    witness = {None: True, "dup": any(len(set(a)) < len(a) for a in answers), "many": any(len(set(a)) > 40 for a in answers),
+               "old": c.con.execute("SELECT count(DISTINCT session) > 1 FROM core.lineage").fetchone()[0]}
     skipped = []
     for name, old, new, need in KW_MUTANTS:
         if not witness[need]:
