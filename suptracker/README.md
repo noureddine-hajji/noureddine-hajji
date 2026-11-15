@@ -3395,3 +3395,52 @@ that needs it reads it:
 - the map: "Autour de ma ville" fills the town-and-radius filter (50 km by default);
 - Mes vœux: each vœu says how far it is from home (the vœu rows now carry the formation's coordinates).
 Nothing is sent: red team VP4 checks the line, the field and the rows' distance; U4 checks the form.
+
+## Sprint H: one search page (owner, 2026-11-15)
+
+The owner asked for a home without the search bar at the top, the list search and the map search merged, a Parcoursup-like
+bar (keyword and/or town, département, région) and every map filter as a dropdown. There is now ONE search page,
+"Rechercher une formation" (`#/carte`):
+- **the bar**: "Formation, établissement, mot-clé" and "Ville, département, région" (a suggestion list: the profile's town
+  first, then the 18 régions, the départements with their code, the académies, the formations' towns), plus a radius when a
+  town is chosen (10 to 200 km). "Autour de ma ville" uses the town of Mon profil;
+- **the keyword** goes to the search engine through `GET /api/search/codes?q=` (no-store, one audience event as before): the
+  codes it matches, in the engine's relevance order, each code once at its best rank (the engine answers per formation AND
+  campaign: 188 of the 1,217 answers for "kiné" were older campaigns of a code already listed). The engine's reading (sigle,
+  place, corrected word) and its notes are shown above the list;
+- **the place, the radius and every filter stay in the browser**: the layer of the map already carries the région and the
+  département of every formation (`carte._layer`; apprenticeship offers take their académie's majority région and their
+  cartographie département). The privacy page now says that the search sends only the typed words;
+- **the filters** are dropdowns in one bar: Type de formation (BUT, Licence, Double licence...), Mention ou spécialité (with
+  its own search box when long), Type d'établissement (Public, Privé sous contrat, Privé hors contrat payant, CFA privé),
+  Votre zone (with a terminale profile), Internat, Apprentissage, Aménagements, Sélectivité, Capacité, Phase
+  complémentaire, Taux d'accès officiel. Each option has its count among what the other filters keep (the types and
+  mentions too: after "BTS NDRC" in the Nord, only the types that remain are offered, with their counts); one dropdown is open
+  at a time, Escape or a click elsewhere closes it, a ticked box keeps it open, the pill shows the ticked count when the
+  group differs from its default, and "Réinitialiser les filtres" resets them. On a phone the bar is folded under
+  "Filtrer (n actifs)" and the list comes before the map, 10 cards a page (the cards carry three figures);
+- **the order** is unchanged: published figures first, then distance around a town, then the engine's relevance, then the
+  name; never a figure;
+- **the home** has no search bar and no list/map switch: the "Je cherche une formation" door and the hero's link open the
+  search page; the search ideas and every old `#/s/<mots>` link open it with their words. Explorer has two views:
+  Formations and Métiers.
+
+The old list page (its result cards, its advanced filters and its `?avance=true` call) is gone from the page code; the
+API routes stay for older links. The result cards are the map list's cards (`carteCard`, sprint R4's rules: zone edge only
+with a profile, official rate labelled, estimated bac lines starred and said).
+
+Red team `scripts/redteam_recherche.py` (RS1-RS8):
+- RS1: the keyword route = the engine's answer re-derived for 13 queries (hostile included), codes and fiche URLs, 422 for a
+  blank, a foreign URL or > 200 characters, no-store, one audience event with the cleaned words only (a profile, a place, a
+  position or an average sent beside it is never recorded). It caught the duplicated codes.
+- RS2: the place list and its reading (accents and case off, with or without "(région)" or the code, a code alone, unknown =
+  nothing) in node against an independent Python reading, on crafted rows and on the 169 real places.
+- RS3: the page's requests: the keyword is the only thing sent; the privacy page says so.
+- RS4: no search bar in the shell, no switch on the home, the door and links open the search page, old links keep their words.
+- RS5: the order (never a figure), a failed keyword keeps the whole list and says so, an unknown place is said (escaped).
+- RS6 (`--browser` / `--real`): "BTS NDRC" then "Nord (59)" give the counts an independent Python filter gives (247, 13);
+  no request carries the place; the dropdowns open one at a time, close on Escape and outside, keep a ticked box; a town with
+  10 km keeps cards within 10 km; on a phone the filters are folded and the list comes first; no JS error, no scroll.
+- RS7: plumbing. RS8: the mutation test (each mutant caught).
+The red teams of the old page were moved to the new one: carte C3/C7, filtres FI3/FI5-FI8, visuel VI5/VI8-VI10, ux X5/X6/X14,
+mobile MB1, a11y A1/A2, navigation U1, langage LA2, lycée Y8.

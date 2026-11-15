@@ -417,7 +417,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
 # by the server at every call. `couche` serves the same formations, the same keys and values (red team VT1 decodes it and
 # compares it with every per-diploma answer), as rows of values under a few key templates, repeated strings sent once.
 TOUS = "*"                 # /api/carte/zones?diplome=* : the zones of every type of diploma at once
-DICT_KEYS = ("etablissement", "ville", "academie", "contrat_etab", "select_form", "internat", "distance", "formation", "mention",
+DICT_KEYS = ("region", "dep_lib", "etablissement", "ville", "academie", "contrat_etab", "select_form", "internat", "distance", "formation", "mention",
              "groupe", "statut", "diplome")
 _COUCHE: dict = {}
 
@@ -513,7 +513,8 @@ def _layer(con) -> tuple:
         WITH s AS (SELECT max(session) AS s FROM core.formation_year)
         SELECT f.cod_aff_form, f.g_ea_lib_vx, f.lib_for_voe_ins, f.ville_etab, f.acad_mies, f.lat, f.lon, f.contrat_etab,
                f.select_form, c.internat, c.distance, c.amenag_sport, c.amenag_art, f.taux_acces_ens, r.spe_type_key,
-               f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.apprentissage, f.capa_fin, f.acc_pc
+               f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.apprentissage, f.capa_fin, f.acc_pc,
+               f.region_etab_aff, f.dep, f.dep_lib
         FROM core.formation_year f JOIN s ON f.session = s.s
         LEFT JOIN core.cartographie c ON c.cod_aff_form = f.cod_aff_form
         LEFT JOIN core.taxonomy_link t ON t.cod_aff_form = f.cod_aff_form AND t.session = f.session
@@ -529,6 +530,7 @@ def _layer(con) -> tuple:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
         x["mention"], x["groupe"], x["statut"] = m, groupe_of(d, m), statut_of(x["contrat_etab"])
         x["capa_fin"], x["acc_pc"] = r[19], r[20]       # sprint R3: capacity and complementary-phase admits (the map's filters)
+        x["region"], x["dep"], x["dep_lib"] = r[21], r[22], r[23]   # owner, 2026-11-15: the search bar's "région / département"
         sies_app = bool(r[18])                # SIES's own "en apprentissage" formations (3 in 2025)
         x["stats"], x["fiche"] = True, None
         if sies_app and x["statut"] == "prive":
@@ -539,8 +541,22 @@ def _layer(con) -> tuple:
         x["bacs"], x["majo"] = ln.get("bacs"), ln.get("majo")
         x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
         by_dip.setdefault(d, []).append(x)
+    # an apprenticeship offer has its académie (UAI, else département), not the SIES region: the region most SIES formations of
+    # that académie carry (an académie lies in one academic region)
+    acad_region: dict = {}
+    for r in rows:
+        if r[4] and r[21]:
+            acad_region.setdefault(r[4], {}).setdefault(r[21], 0)
+            acad_region[r[4]][r[21]] += 1
+    acad_region = {a: max(c.items(), key=lambda kv: (kv[1], kv[0]))[0] for a, c in acad_region.items()}
+    # and its département: the cartographie's name, coded like the SIES formations of the same département name
+    dep_code = {_fold(r[23]): (r[22], r[23]) for r in rows if r[22] and r[23]}
+    carto_dep = dict(con.execute("""SELECT cod_aff_form, departement FROM core.cartographie
+        WHERE carto_session = (SELECT max(carto_session) FROM core.cartographie)""").fetchall())
     for a in apprentissage(con):
         if not a["rattachee"]:
+            dep, dep_lib = dep_code.get(_fold(carto_dep.get(a["cod_aff_form"]) or ""), (None, None))
+            a = {**a, "region": acad_region.get(a.get("academie")), "dep": dep, "dep_lib": dep_lib}
             by_dip.setdefault(a["diplome"], []).append({**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")},
                                                         "groupe": groupe_of(a["diplome"], a["mention"]), "initiale": False, "offres_app": []})
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]

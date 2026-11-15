@@ -74,8 +74,9 @@ def shell_ok(html: str) -> tuple[bool, str]:
     st = re.search(r'<div id="sr-status"[^>]*>', html)
     if not st or 'role="status"' not in st.group(0) or 'aria-live="polite"' not in st.group(0) or 'class="sr-only"' not in st.group(0):
         bad.append("the status line")
-    if not re.search(r'<form id="search"[^>]*role="search"', html):
-        bad.append("the search landmark")
+    # owner, 2026-11-15: no search bar in the shell; the search landmark is the search page's own form (A2)
+    if re.search(r'<form\b[^>]*role="search"', html):
+        bad.append("a search bar back in the shell")
     for nav in re.findall(r"<nav\b[^>]*>", html):
         if "aria-label=" not in nav:
             bad.append(("an unnamed navigation", nav))
@@ -94,6 +95,8 @@ def a1(c: Ctx):
 # ------------------------------------------------------------------ A2 the page code
 def code_ok(js: str) -> tuple[bool, str]:
     bad = []
+    if not re.search(r'<form id="cs-form"[^>]*role="search" aria-label="[^"]+"', js):
+        bad.append("the search page's form is not a named search landmark")
     tip = re.search(r"const tip = \(key\) => \{.*?\n\};", js, re.S)
     if not tip or 'aria-label="Méthodologie : ${esc(t)}"' not in tip.group(0):
         bad.append("the tooltip's text is not its accessible name")
@@ -351,7 +354,8 @@ MUTANTS = [
     ("html", "no skip link", '<a class="skip" href="#view">Aller au contenu</a>\n', ""),
     ("html", "<main> a live region again", '<main id="view" tabindex="-1"></main>', '<main id="view" tabindex="-1" aria-live="polite"></main>'),
     ("html", "no status line", '<div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>', ""),
-    ("html", "no search landmark", ' role="search"', ""),
+    ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
+    ("js", "no search landmark", ' role="search" aria-label="Rechercher une formation"', ' aria-label="Rechercher une formation"'),
     ("html", "the 'Plus' menu not a landmark", '<nav id="more-menu" class="more-menu" aria-label="Plus de pages" hidden>', '<div id="more-menu" class="more-menu" hidden>'),
     ("html", "no page language", '<html lang="fr">', "<html>"),
     ("js", "the tooltip's text hidden from screen readers", 'aria-label="Méthodologie : ${esc(t)}"', 'aria-label="Méthodologie"'),

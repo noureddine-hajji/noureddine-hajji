@@ -87,8 +87,8 @@ def mb1(c: Ctx):
         probs.append("another primary control on the home")
     if 'if (!hasStoredProfile(raw)) return "";' not in prof or "btnlink" in prof:
         probs.append("the profile line repeats the call or is a second button")
-    if "hero-search" not in cta or '"hero-search"' not in home:
-        probs.append("the hero's search link is not wired")
+    if '<a href="#/carte">Ou cherchez directement une formation</a>' not in cta:
+        probs.append("the hero's search link does not open the search page")
     return not probs, f"{probs[:3]}"
 
 

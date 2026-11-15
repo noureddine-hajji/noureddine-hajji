@@ -355,12 +355,17 @@ def fi3(c: Ctx):
         tc.get("/api/search", params={"q": "informatique", "avance": "true", "capacite": "20a49"})
         if not tc.events or tc.events[0][0] != "refine":
             bad.append("an advanced filter is not counted as a refined search")
-    fp = top(c.js, "fiProfileQuery")
-    if "const p = bacProfile();" not in fp or "if (!p) return false;" not in fp:
-        bad.append("the page may send a profile outside terminale")
-    vs = c.js[c.js.index("async function viewSearch("):c.js.index("function stageCard(")]
-    if 'if (!withProfile) { qs.delete("zone"); delete P.zone; }' not in vs or "track(" in vs:
-        bad.append("search page wiring")
+        # owner, 2026-11-15: the one search page asks the engine for its keyword's codes only (zones and filters read here)
+        tc.events.clear()
+        r = tc.get("/api/search/codes", params={"q": "informatique", **prof})
+        blob = json.dumps([e[1] for e in tc.events if e], default=str)
+        if r.status_code != 200 or "no-store" not in (r.headers.get("cache-control") or "") or not tc.events \
+                or any(k in blob for k in ("MATHS", "SES", '"tb"', "serie", "spe1", "mention")):
+            bad.append(("keyword route", r.status_code, r.headers.get("cache-control"), blob[:160]))
+    vc = top(c.js, "viewCarte")
+    calls = re.findall(r'api\(`(/api/search[^`]*)`', vc)
+    if calls != ["/api/search/codes?q=${encodeURIComponent(q)}"]:
+        bad.append(("the search page sends more than its keyword", calls))
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
@@ -411,38 +416,42 @@ process.stdout.write(JSON.stringify(out));
 
 
 def page_ok(c: Ctx):
+    """owner, 2026-11-15: the list search is the map page; its dropdowns carry the shared groups (META's bands, FI_TITLE),
+    each with its help text, the zone group only with a readable terminale profile, the pills escaped."""
     js = c.js
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const isReo = ", "const REO_LABEL = ")))
-    zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
-    bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_GROUPS", "FI_TITLE", "FI_HELP", "fiOptions", "filtreBand", "ESTIM_DEF", "estimTag", "zoneHelp", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "mentionParamsSearch", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "vxProfile", "fiProfileQuery", "searchAdvanced")]
-    prog = helpers + "\nconst JV = null;\n" + zones + "\n" + bac + "\n" + "\n".join(parts) + PAGE_PROG
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
+    zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
+    parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_R3", "carteGroups", "zoneHelp", "zoneShape",
+                                  "ZONE_FILLED", "zoneMark", "zonePillHtml", "ZONE_RULES")]
+    prog = helpers + "\n" + zones + "\n" + "\n".join(parts) + r"""
+const META = { filtres: JSON.parse(process.env.VOCAB) };
+const H = "<img src=x onerror=alert(1)>";
+process.stdout.write(JSON.stringify({ groups: carteGroups(), pill: zonePillHtml("cible", true) + zonePillHtml("hors_profil", false) + zonePillHtml(H, false) }));"""
     r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(c.FI.vocab())})
     if r.returncode:
         return False, "__error__ " + r.stderr[-600:]
     o = json.loads(r.stdout)
     bad = []
-    if not all(x in o["prof"] for x in ("Vœux de sécurité (3)", "Vœux cibles (5)", "Publics (7)", "Moins de 20 places (2)", "100 places et plus (1)",
-                                          "A admis des candidats en phase complémentaire (4)", "90 % et plus (6)")):
-        bad.append("a group or a count is missing")
-    if 'badge exact" href="#/s/q/capacite=">Moins de 20 places' not in o["prof"].replace("&amp;", "&"):
-        bad.append("a ticked option does not untick")
-    plain = o["prof"].replace("&#39;", "'").replace("&#x27;", "'")
-    if "pas une promesse" not in plain or "pas vos chances" not in plain or "rien n'est enregistré" not in plain:
-        bad.append("help texts")
-    if 'href="#/profil"' not in o["none"] or "Vœux de sécurité" in o["none"]:
-        bad.append("zone group without a profile")
-    if o["reoGroup"].strip():
-        bad.append("outside terminale the zone group invites to create a profile (no zone exists there)")
+    groups = {g: (title, [k for k, _ in opts]) for g, title, opts in o["groups"]}
+    voc = c.FI.vocab()
+    for g in ("capacite", "complementaire", "taux"):
+        if g not in groups or groups[g][1] != [x["key"] for x in voc[g]]:
+            bad.append(("a shared group or its options", g))
+    if "statut" not in groups:
+        bad.append("no establishment group")
     if "<img" in o["pill"] or "incertain" not in o["pill"] or "cible" not in o["pill"]:
         bad.append(("zone pill", o["pill"]))
-    if o["reo"] != "" or o["same"] != "" or "serie=bt" not in o["bt"] or "spe1" in o["bt"]:
-        bad.append(("profile sent", o["reo"], o["same"], o["bt"]))
-    words = re.sub(r"<[^>]+>", " ", " ".join(v for v in o.values() if isinstance(v, str)))
-    if CHANCE.search(words.replace("pas vos chances", "")) or FORMAL.search(words):
+    panel = top(js, "viewCarte")
+    if 'const zones = ok ? dd("zones"' not in panel or "FI_HELP[gr] ?" not in panel or "esc(FI_HELP.zone)" not in panel:
+        bad.append("the dropdowns: zone group without a profile, or the help texts missing")
+    help_ = top(js, "FI_HELP")
+    if "pas une promesse" not in help_ or "pas vos chances" not in help_ or "rien n'est enregistré" not in help_:
+        bad.append("help texts")
+    words = re.sub(r"<[^>]+>", " ", help_ + o["pill"])
+    if CHANCE.search(words.replace("pas vos chances", "").replace("pas des chances", "")) or FORMAL.search(words):
         bad.append("wording")
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
@@ -475,7 +484,7 @@ def map_ok(c: Ctx):
     rows = rows + [{"cod_aff_form": f"X{i}", "capa_fin": cap, "acc_pc": pc, "taux_acces_ens": t, "statut": "public", "initiale": True}
                    for i, (cap, pc, t) in enumerate([(19, 0, 29.9), (20, 2, 30), (50, None, 90), (100, 0, None), (None, 1, 60)])]
     js = c.js
-    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "carteHas", "carteFilter")]
+    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "carteHas", "carteFilter", "carteInLieu", "foldText")]
     prog = "const carteZone = () => 'autre'; const haversineKm = () => 0;\n" + "\n".join(parts) + MAP_PROG
     exe = shutil.which("node")
     if not exe:
@@ -513,14 +522,14 @@ const PROF = { serie: 'bg', spe1: 'MATHS', spe2: 'NSI', mention: 'b', statut: 't
   for (const [name, opts] of [['wide', { viewport: { width: 1280, height: 900 } }], ['phone', { ...devices['iPhone 13'] }]]) {
     const c = await b.newContext(opts); await c.addInitScript((p) => localStorage.setItem('profile', JSON.stringify(p)), PROF);
     const p = await c.newPage(); p.on('pageerror', (e) => errs.push(e.message));
-    await p.goto(base + '/#/s/informatique'); await p.waitForTimeout(3500);
-    const chipTxt = await p.$eval('.fi-group a.badge', (a) => a.textContent);
-    await p.$eval('.fi-group a.badge', (a) => a.click()); await p.waitForTimeout(3000);
-    o[name] = await p.evaluate(() => ({ hash: location.hash, total: (document.querySelector('#view h1') || document.querySelector('.card h2')).textContent,
-      pills: document.querySelectorAll('.result .zone-pill').length, hs: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+    await p.goto(base + '/#/s/informatique'); await p.waitForTimeout(9000);
+    await p.$eval('details.dd[data-dd="zones"] > summary', (s) => s.click()); await p.waitForTimeout(400);
+    const chipTxt = await p.$eval('details.dd[data-dd="zones"] input[data-o="securite"]', (i) => i.closest('label').textContent);
+    await p.$eval('details.dd[data-dd="zones"] input[data-o="securite"]', (i) => i.click()); await p.waitForTimeout(2500);
+    o[name] = await p.evaluate(() => ({ hash: location.hash, q: document.getElementById('cs-q').value, total: document.getElementById('carte-count').textContent,
+      pills: document.querySelectorAll('#carte-items .zone-pill, #carte-items .zbadge').length, hs: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
     o[name].chip = chipTxt;
-    await p.goto(base + '/#/carte'); await p.waitForTimeout(3500);
-    o[name].mapGroups = await p.evaluate(() => [...document.querySelectorAll('#cfilters legend')].map((l) => l.textContent));
+    o[name].mapGroups = await p.evaluate(() => [...document.querySelectorAll('#cfilters details.dd > summary')].map((l) => l.textContent));
     o[name].hsMap = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await c.close();
   }
@@ -557,12 +566,11 @@ def fi7(c: Ctx):
     if d["errs"]:
         bad.append(("JS errors", d["errs"][:2]))
     for k, v in d["o"].items():
-        n = re.search(r"\((\d[\d\s ]*)\)", v["chip"])
+        n = re.search(r"(\d[\d\s ]*)\s*$", v["chip"])
         tot = re.search(r"^(\d[\d\s ]*)", v["total"])
-        from urllib.parse import unquote
-        if "zone=securite" not in unquote(v["hash"]) or not n or not tot or re.sub(r"\D", "", n.group(1)) != re.sub(r"\D", "", tot.group(1)) or not v["pills"]:
-            bad.append((k, "zone chip", v))
-        if not all(g in v["mapGroups"] for g in ("Capacité", "Phase complémentaire", "Taux d'accès officiel")):
+        if v["hash"] != "#/carte" or v["q"] != "informatique" or not n or not tot or re.sub(r"\D", "", n.group(1)) != re.sub(r"\D", "", tot.group(1)) or not v["pills"]:
+            bad.append((k, "zone option", v))
+        if not all(any(g in x for x in v["mapGroups"]) for g in ("Capacité", "Phase complémentaire", "Taux d'accès officiel")):
             bad.append((k, "map groups", v["mapGroups"]))
         if v["hs"] or v["hsMap"]:
             bad.append((k, "horizontal scroll"))
@@ -594,15 +602,12 @@ JS_MUTANTS = [
     ("map complementary phase from candidates", '(o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0)', '(o === "oui" ? f.acc_pc >= 0 : f.acc_pc === 0)', ("fi6",)),
     ("map ignores the new groups", '  const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
      '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
-    ("profile sent outside terminale", "  const p = bacProfile();\n  if (!p) return false;", "  const p = store.get(\"profile\", null);\n  if (!p) return false;", ("fi3", "fi5")),
-    ("zone kept without a profile", '  if (!withProfile) { qs.delete("zone"); delete P.zone; }', "", ("fi3",)),
-    ("zone chip left for a filter not applied", '  if (!withProfile) { qs.delete("zone"); delete P.zone; }', '  if (!withProfile) { qs.delete("zone"); }', ("fi3",)),
-    ("profile invitation outside terminale", '      return isReo(store.get("profile", null)) ? ""', '      return false ? ""', ("fi5",)),
+    ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),
-    ("zone group shown without a profile", '        : !bacProfile() ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">',
-     '        : false ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">', ("fi5",)),
-    ("untick broken", "(a.includes(k) ? a.filter((x) => x !== k) : [...a, k])", "[...a, k]", ("fi5",)),
+    ("zone group shown without a profile", '    const zones = ok ? dd("zones"', '    const zones = true ? dd("zones"', ("fi5",)),
+    ("help texts not in the dropdowns", '${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}', "", ("fi5",)),
+    ("a shared group left out of the dropdowns", "const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.map(", "const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.slice(1).map(", ("fi5",)),
 ]
 
 

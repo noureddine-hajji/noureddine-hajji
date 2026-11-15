@@ -628,6 +628,33 @@ def search(request: Request, bg: BackgroundTasks,
     return res
 
 
+def keyword_codes(con, q: str) -> dict:
+    """Owner, 2026-11-15: the search page (list + map) asks the search engine only for the codes its keyword matches, in the
+    engine's relevance order (acronyms, places, typos, notes as before); the page applies its place and filters itself, in
+    the browser. A pasted fiche URL or a bare code gives that formation (red team RS1 re-derives every answer)."""
+    q = q.strip()
+    if not q:
+        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")
+    cod = extract_cod_aff_form(q)
+    if q.lower().startswith(("http", "www.")) and not cod:
+        raise HTTPException(422, "URL non reconnue : attendu une fiche parcoursup.fr contenant g_ta_cod=…")
+    if cod or (q.isdigit() and len(q) <= 9):
+        return {"query": q, "codes": [cod or q], "interpretation": [], "notes": [], "partial": False}
+    res = S.search(con, q, offset=0, limit=10 ** 6)
+    # the engine answers per (formation, campaign): a code is kept once, at its best (first) rank
+    return {"query": q, "codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"])), "interpretation": res.get("interpretation", []),
+            "notes": res.get("notes", []), "partial": bool(res.get("partial"))}
+
+
+@app.get("/api/search/codes")
+def search_codes(request: Request, bg: BackgroundTasks, q: str = Query(..., min_length=1, max_length=200)):
+    """The keyword of the search page; records the same audience event as /api/search (the typed words only)."""
+    d = keyword_codes(_con().cursor(), q)
+    d["total"] = len(d["codes"])
+    bg.add_task(A.record, "search", {"q": A.clean_query(d["query"]), "total": d["total"], "partial": d["partial"]}, _hdrs(request))
+    return d
+
+
 def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active, prof):
     """Sprint R3: every result of the search (its own option filters applied), tagged with the advanced groups, filtered here with
     the search's own filters, then paged. Facets: every group counted with the others applied. The zones are read with a profile
@@ -1337,7 +1364,7 @@ def legal_page(slug: str):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes", "recherche_unique"]
 
 
 @lru_cache(maxsize=1)
