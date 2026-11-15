@@ -3277,4 +3277,4 @@ Red team `scripts/redteam_vie.py` (V1-V9):
 - V6: the page in node (escaping, estimation labels, wording, safe links).
 - V7: the real tables re-derived.
 - V8: plumbing.
-- V9: 21 mutants.
+- V9: 22 mutants.

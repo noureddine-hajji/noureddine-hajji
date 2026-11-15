@@ -140,6 +140,8 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
     con.execute("CREATE OR REPLACE TABLE core.vie_poste (poste VARCHAR, montant INTEGER, part INTEGER, inclus VARCHAR)")
     con.execute("""CREATE OR REPLACE TABLE core.vie_frais (cod_aff_form VARCHAR, titre VARCHAR, rang INTEGER, rubrique VARCHAR,
         texte VARCHAR, montant INTEGER, cvec BOOLEAN)""")
+    con.execute("CREATE SCHEMA IF NOT EXISTS meta")
+    con.execute("CREATE OR REPLACE TABLE meta.vie_audit (dataset VARCHAR, colonnes VARCHAR, lignes INTEGER, gardees INTEGER, champs VARCHAR)")
     got = {"loyers": 0, "crous": 0, "resto": 0, "postes": 0, "frais": 0}
     # rents
     p = raw_dir / "loyers_app12_2025.parquet"
@@ -166,9 +168,15 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
             continue
         df = con.execute(f"SELECT * FROM read_parquet('{p}')").df()
         cols = {fold(c).replace(" ", "_"): c for c in df.columns}
-        pick = lambda *names: next((cols[n] for n in names if n in cols), None)  # noqa: E731
-        c_nom = pick("title", "nom", "name")
-        c_geo = pick("geolocalisation", "geocalisation", "geo_point", "geo", "localisation")
+
+        def pick(*names, contains: tuple = ()):
+            """An exact field name first, else the first field whose name contains one of `contains` (the portal's
+            parquet export names its fields itself: checked on the real file through meta.vie_audit)."""
+            hit = next((cols[n] for n in names if n in cols), None)
+            return hit or next((c for k, c in cols.items() for w in contains if w in k), None)
+        c_nom = pick("title", "nom", "name", contains=("title", "nom"))
+        c_geo = pick("geolocalisation", "geocalisation", "geo_point", "geo_point_2d", "geo", "localisation",
+                     contains=("geo", "locali", "coord"))
         c_txt = [c for c in (pick("infos", "adresse"), pick("short_desc", "description"), pick("zone")) if c]
         c_url = pick("bookingurl", "booking_url", "interneturl", "internet_url")
         rows = []
@@ -194,6 +202,8 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
             ph = ", ".join("?" * len(rows[0]))
             con.executemany(f"INSERT INTO core.{table} VALUES ({ph})", rows)
         got["crous" if table == "vie_crous" else "resto"] = len(rows)
+        con.execute("INSERT INTO meta.vie_audit VALUES (?, ?, ?, ?, ?)",
+                    [key, " | ".join(map(str, df.columns))[:2000], len(df), len(rows), f"nom={c_nom} geo={c_geo}"])
     # national items
     for x in _postes(ove):
         inclus = "toujours" if x["poste"] in POSTES_COURANTS else "selon" if x["poste"] in POSTES_SELON else None
@@ -222,7 +232,7 @@ def _latlon(v) -> tuple[float | None, float | None]:
         return None, None
     if isinstance(v, dict):
         return _num(v.get("lat")), _num(v.get("lon"))
-    if isinstance(v, (list, tuple)) and len(v) == 2:
+    if not isinstance(v, (str, bytes)) and hasattr(v, "__len__") and len(v) == 2:     # a list, tuple or numpy array
         return _num(v[0]), _num(v[1])
     m = re.match(r"\s*\[?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)", str(v))
     return (float(m.group(1)), float(m.group(2))) if m else (None, None)

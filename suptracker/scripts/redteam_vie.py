@@ -305,7 +305,9 @@ def fixture(vie, rc, d: Path, fees: str = "178 euros + 800 euros de frais spéci
                   {"INSEE_C": "31555", "LIBGEO": "Toulouse", "DEP": "31", "loypredm2": "15.2", "lwr.IPm2": "12.4", "upr.IPm2": "18.9",
                    "TYPPRED": "maille", "nbobs_com": "3"},
                   {"INSEE_C": "86194", "LIBGEO": "Toulouse", "DEP": "86", "loypredm2": "99", "lwr.IPm2": "98", "upr.IPm2": "100",
-                   "TYPPRED": "commune", "nbobs_com": "9"}]).to_parquet(raw / "loyers_app12_2025.parquet")
+                   "TYPPRED": "commune", "nbobs_com": "9"},
+                  {"INSEE_C": "54547", "LIBGEO": "Vandœuvre-lès-Nancy", "DEP": "54", "loypredm2": "11", "lwr.IPm2": "9", "upr.IPm2": "13",
+                   "TYPPRED": "commune", "nbobs_com": "900"}]).to_parquet(raw / "loyers_app12_2025.parquet")
     pd.DataFrame([{"title": "Résidence " + HOSTILE, "zone": "Paris", "infos": "(Loyer TCC hors ALS au 01/09/24) chambres 9m² : 269 € ; studios : 450,50 €",
                    "geocalisation": "48.8399, 2.3378", "bookingurl": "https://trouverunlogement.lescrous.fr/"},
                   {"title": "Fermée", "zone": "Paris", "infos": "Fermeture définitive au 31 août 2025 ; 300 €", "geocalisation": "48.84, 2.34",
@@ -339,7 +341,8 @@ def fixture(vie, rc, d: Path, fees: str = "178 euros + 800 euros de frais spéci
     con.execute("CREATE SCHEMA core")
     con.execute("""CREATE TABLE core.formation_year AS SELECT * FROM (VALUES
         ('1', 2025, 'Paris  5e  Arrondissement', '75', 48.8462, 2.3445), ('2', 2025, 'Toulouse', '31', 43.6, 1.44),
-        ('3', 2025, 'Nowhere', '99', NULL, NULL), ('2', 2024, 'Paris 5e Arrondissement', '75', 48.8, 2.3))
+        ('3', 2025, 'Nowhere', '99', NULL, NULL), ('2', 2024, 'Paris 5e Arrondissement', '75', 48.8, 2.3),
+        ('4', 2025, 'Vandoeuvre-lès-Nancy', '54', NULL, NULL))
         t(cod_aff_form, session, ville_etab, dep, lat, lon)""")
     vie.build(con, raw, fiches, ove)
     return con
@@ -360,6 +363,9 @@ def v4(c: Ctx):
             bad.append(f"Toulouse (31, zone-predicted) rent {t and t['loyer']}: the department must decide, the zone be flagged")
         if n and n["loyer"]:
             bad.append("a town without rent got one")
+        v4_ = vie.for_formation(con, "4")
+        if not v4_ or not v4_["loyer"] or v4_["loyer"]["min"] != 180:
+            bad.append("Vandoeuvre (SIES) does not find Vandœuvre (rents): the ligature is not folded")
         names = [x["nom"] for x in (p or {}).get("crous", [])]
         cand = (("Résidence " + HOSTILE, 48.8399, 2.3378), ("Sans prix", 48.85, 2.35), ("Loin", 48.95, 2.45))
         want = [nm for dist, nm in sorted((haversine(48.8462, 2.3445, la, lo2), nm) for nm, la, lo2 in cand) if dist <= 10]
@@ -602,6 +608,7 @@ SOURCE_MUTANTS = [
     ("fp", "grants never false", '            out["bourses"] = False', '            out["bourses"] = None', "V1"),
     ("rc", "visé before grade", '    ("grade_master", r"grade de master"),\n    ("grade_licence", r"grade de licence"),\n    ("ingenieur", r"\\bdiplome d ingenieur"),\n    ("vise", r"\\bvise\\b"),',
      '    ("vise", r"\\bvise\\b"),\n    ("grade_master", r"grade de master"),\n    ("grade_licence", r"grade de licence"),\n    ("ingenieur", r"\\bdiplome d ingenieur"),', "V2"),
+    ("rc", "ligature not folded", '    s = (s or "").replace("œ", "oe")', '    s = (s or "").replace("œ", "œ")', "V4"),
     ("rc", "unknown label as national", '    return "autre"', '    return "national"', "V2"),
     ("rc", "RNCP from any title", '        elif re.search(TITLE_RNCP, fold(titles.get(r["cod_aff_form"]))):', "        elif True:", "V2"),
     ("vie", "CVEC summed in the fees", '    if "cvec" in f:\n        return None', '    if False:\n        return None', "V3"),

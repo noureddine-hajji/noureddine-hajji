@@ -69,7 +69,8 @@ TITLE_RNCP = r"\btitre professionnel\b|\brncp\b"
 
 def fold(s: str | None) -> str:
     """Lower case, no accent, apostrophes and hyphens as spaces, spaces collapsed."""
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = (s or "").replace("œ", "oe").replace("Œ", "Oe").replace("æ", "ae").replace("Æ", "Ae")   # Schœlcher = Schoelcher
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
     return re.sub(r"\s+", " ", re.sub(r"[’'`\-]", " ", s)).strip()
 
 
