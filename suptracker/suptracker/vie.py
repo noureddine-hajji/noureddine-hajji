@@ -135,7 +135,7 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
     con.execute("""CREATE OR REPLACE TABLE core.vie_loyer (insee VARCHAR, commune VARCHAR, dep VARCHAR, cle VARCHAR, m2 DOUBLE,
         bas DOUBLE, haut DOUBLE, maille BOOLEAN, nbobs INTEGER)""")
     con.execute("""CREATE OR REPLACE TABLE core.vie_crous (nom VARCHAR, zone VARCHAR, lat DOUBLE, lon DOUBLE, loyer_min DOUBLE,
-        loyer_max DOUBLE, loyer_date VARCHAR, url VARCHAR)""")
+        loyer_max DOUBLE, loyer_date VARCHAR, url VARCHAR, extrait VARCHAR)""")
     con.execute("CREATE OR REPLACE TABLE core.vie_resto (nom VARCHAR, lat DOUBLE, lon DOUBLE)")
     con.execute("CREATE OR REPLACE TABLE core.vie_poste (poste VARCHAR, montant INTEGER, part INTEGER, inclus VARCHAR)")
     con.execute("""CREATE OR REPLACE TABLE core.vie_frais (cod_aff_form VARCHAR, titre VARCHAR, rang INTEGER, rubrique VARCHAR,
@@ -190,14 +190,13 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
             text = " ".join(str(r[c]) for c in c_txt if r[c] is not None)
             if re.search(r"fermeture definitive|ferme definitivement|definitivement ferme", fold(text)):
                 continue
-            amounts = [a for a in (_num(m.group(1).replace(" ", "").replace(" ", "").replace("\xa0", "").replace(".", "")
-                                        + ("." + m.group(2) if m.group(2) else ""))
-                                   for m in re.finditer(EURO, text, flags=re.I)) if a is not None and 80 <= a <= 1500]
+            amounts, extrait = crous_loyers(text)
             d = re.search(r"\bau (\d{2}/\d{2}/\d{2,4})", text)
             zone = str(r[pick("zone")]).strip() if pick("zone") else None
+            url = str(r[c_url]).strip() if c_url and r[c_url] is not None else ""
             rows.append((str(r[c_nom]).strip(), zone, lat, lon, min(amounts) if amounts else None,
                          max(amounts) if amounts else None, d.group(1) if (d and amounts) else None,
-                         str(r[c_url]).strip() if c_url and r[c_url] else None))
+                         url if url.startswith("https://") else None, extrait))
         if rows:
             ph = ", ".join("?" * len(rows[0]))
             con.executemany(f"INSERT INTO core.{table} VALUES ({ph})", rows)
@@ -225,6 +224,29 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
             con.executemany("INSERT INTO core.vie_frais VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
         got["frais"] = len(fees)
     return got
+
+
+LOYER_MOTS = r"loyer|redevance|chambre|studio|\bt ?[1-5]\b|\bt1 ?bis\b|logement|appartement|colocation|\bm2\b|\bm²|studette|duplex"
+# "hors ALS / APL" qualifies a rent (housing aid not deducted): it never excludes a segment
+HORS_LOYER = r"depot|caution|garantie|frais de dossier|frais d inscription|cvec|parking|garage|laverie|repas|ticket|internet|forfait"
+
+
+def crous_loyers(text: str) -> tuple[list[float], str | None]:
+    """The rents a residence's text prints: euro amounts (80 to 1,500 €) found only in a segment (a line or a sentence) that
+    speaks of a rent or a room AND not of a deposit, a guarantee, fees, parking, laundry or meals (a 100 € deposit
+    is not a rent). Returns the amounts and the first such segment (kept for the audit)."""
+    out, extrait = [], None
+    for seg in re.split(r"[\n;]|(?<=[.!?])\s+(?=[A-ZÉÈ(])", text or ""):
+        f = fold(seg)
+        if not re.search(LOYER_MOTS, f) or re.search(HORS_LOYER, f):
+            continue
+        vals = [a for a in (_num(m.group(1).replace(" ", "").replace("\u202f", "").replace("\xa0", "").replace(".", "")
+                                 + ("." + m.group(2) if m.group(2) else ""))
+                            for m in re.finditer(EURO, seg, flags=re.I)) if a is not None and 80 <= a <= 1500]
+        if vals:
+            out += vals
+            extrait = extrait or re.sub(r"\s+", " ", seg).strip()[:200]
+    return out, extrait
 
 
 def _latlon(v) -> tuple[float | None, float | None]:
@@ -289,11 +311,12 @@ def for_formation(con, cod: str) -> dict | None:
                         "maille": bool(maille), "nbobs": nb}
     if lat is not None and lon is not None:
         res = []
-        for nom, zone, la, lo2, lmin, lmax, ldate, url in con.execute("SELECT * FROM core.vie_crous").fetchall():
+        for nom, zone, la, lo2, lmin, lmax, ldate, url in con.execute(
+                "SELECT nom, zone, lat, lon, loyer_min, loyer_max, loyer_date, url FROM core.vie_crous").fetchall():
             d = km(lat, lon, la, lo2)
             if d <= RAYON_CROUS_KM:
                 res.append({"nom": nom, "zone": zone, "km": round(d, 1), "loyer_min": lmin, "loyer_max": lmax,
-                            "loyer_date": ldate, "url": url if (url or "").startswith("https://") else None})
+                            "loyer_date": ldate, "url": url})                   # https only, kept so at build
         res.sort(key=lambda x: (x["km"], x["nom"]))
         out["crous"], out["crous_n"] = res[:5], len(res)
         if _has(con, "vie_resto"):

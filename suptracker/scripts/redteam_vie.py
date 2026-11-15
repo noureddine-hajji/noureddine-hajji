@@ -11,7 +11,7 @@ of study (vie.py), with the fiche reader's version 3 (fiche_parse.badges / frais
      only on the "Par année" line.
   V4 cost card (a fixture warehouse built here): rent = 20 m² x the published bounds (rounded to 10 €), matched by town AND
      department only; Crous residences by an independent haversine within 10 km, closed ones out, a rent only when the text
-     prints euros, https links only; the monthly total = the fixed rule (rent low + running items; rent high + every item);
+     prints euros in a rent sentence (never a deposit or fees), https links only; the monthly total = the fixed rule (rent low + running items; rent high + every item);
      the year = 10 months + the fees read + the CVEC when the fiche prints it; no total when a part is missing.
   V5 OVE survey: the transcribed CSV against the brochure kept in data/sources (page 27 text: every label and amount, the
      781 € total, amounts in decreasing order as the chart prints them, the sentences quoting 413, 115 and 95 €).
@@ -308,7 +308,7 @@ def fixture(vie, rc, d: Path, fees: str = "178 euros + 800 euros de frais spéci
                    "TYPPRED": "commune", "nbobs_com": "9"},
                   {"INSEE_C": "54547", "LIBGEO": "Vandœuvre-lès-Nancy", "DEP": "54", "loypredm2": "11", "lwr.IPm2": "9", "upr.IPm2": "13",
                    "TYPPRED": "commune", "nbobs_com": "900"}]).to_parquet(raw / "loyers_app12_2025.parquet")
-    pd.DataFrame([{"title": "Résidence " + HOSTILE, "zone": "Paris", "infos": "(Loyer TCC hors ALS au 01/09/24) chambres 9m² : 269 € ; studios : 450,50 €",
+    pd.DataFrame([{"title": "Résidence " + HOSTILE, "zone": "Paris", "infos": "(Loyer TCC hors ALS au 01/09/24) chambres 9m² : 269 € ; studios : 450,50 € ; dépôt de garantie d'un mois de loyer : 100 € ; frais de dossier du logement 95 €",
                    "geocalisation": "48.8399, 2.3378", "bookingurl": "https://trouverunlogement.lescrous.fr/"},
                   {"title": "Fermée", "zone": "Paris", "infos": "Fermeture définitive au 31 août 2025 ; 300 €", "geocalisation": "48.84, 2.34",
                    "bookingurl": "https://x"},
@@ -621,10 +621,11 @@ SOURCE_MUTANTS = [
     ("vie", "zone-predicted rent not flagged", "(typ or \"\").strip().lower() != \"commune\"", "False", "V4"),
     ("vie", "closed residences kept", 'if re.search(r"fermeture definitive|ferme definitivement|definitivement ferme", fold(text)):', "if False:", "V4"),
     ("vie", "WKB points not read", "        if len(b) >= 21 and b[0] in (0, 1):", "        if False:", "V4"),
+    ("vie", "deposits read as rents", '        if not re.search(LOYER_MOTS, f) or re.search(HORS_LOYER, f):', '        if not re.search(LOYER_MOTS, f):', "V4"),
     ("vie", "Crous radius 20 km", "RAYON_CROUS_KM = 10", "RAYON_CROUS_KM = 20", "V4"),
     ("vie", "every item in the low bound", '"min": _arrondi(out["loyer"]["min"] + toujours)', '"min": _arrondi(out["loyer"]["min"] + toujours + selon)', "V4"),
     ("vie", "CVEC always added", '        cv = CVEC["montant"] if out["frais"]["cvec"] else 0', '        cv = CVEC["montant"]', "V4"),
-    ("vie", "unsafe link kept", 'url if (url or "").startswith("https://") else None', "url", "V4"),
+    ("vie", "unsafe link kept", 'url if url.startswith("https://") else None', "url or None", "V4"),
     ("vie", "survey rent used", 'POSTES_COURANTS = ("Frais de vie quotidienne",', 'POSTES_COURANTS = ("Dépense de loyer", "Frais de vie quotidienne",', "V4"),
     ("js", "label unescaped", '`« ${esc(t)} »`', '`« ${t} »`', "V6"),
     ("js", "monthly without estimation", '`logement, courses, transports… ${estimTag("loyer local + moyennes nationales")}`', '`logement, courses, transports…`', "V6"),
