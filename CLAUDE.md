@@ -43,6 +43,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Je me réoriente (sprint 21):** `reorientation.py` (candidates outside terminale from published counts, estimated access, `#/reorientation`).
   - **Accompaniment (sprint 22):** `calendrier.py` (official Parcoursup calendar read from the PDFs fetched by `suptracker-calendrier`, .ics);
     `#/accompagner`, `#/premiere`, `#/liste` (shared list) in `app.js`.
+  - **Étudier là-bas (sprint V1):** `reconnaissance.py` (the State label printed on each live fiche, one badge), `vie.py` (local rent
+    and Crous, national OVE items, the fiche's fees: what a year there costs).
   - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
@@ -586,6 +588,20 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   its label; the architecture rule excludes computing labels (Codex). Coverage of the jobs needing higher studies measured at build (`core.parcours_mesure`, >= 80 %,
   87.1 % on 2026-11-14), printed; a job at the bac or below says "pas d'études après le bac" with its Onisep diploma links. Never a
   chance. Red team `redteam_parcours.py` (PA1-PA8, built on a copy of the warehouse).
+- **Étudier là-bas (sprint V1, owner 2026-11-15).**
+  - Badge = the State label the LIVE fiche prints (`fiche_parse.badges`, version 3, `data/fiches/identite.csv`), sorted by fixed rules
+    on its words (`reconnaissance.RULES`), the label verbatim beside it, "la fiche fait foi". Engineer (CTI) = grade de master; a prépa
+    is controlled, not a diploma; an unknown label stays "autre" and is listed in `meta.reconnaissance_audit`. No label = "Aucun label
+    de l'État sur la fiche", NEVER "non reconnu"; RNCP without a label only from a Parcoursup title naming a professional title.
+    Lists read `/api/reconnaissance` (no parameter, shared-cached).
+  - Cost (owner's choices: a monthly TOTAL as a range, line by line with its source; a 20 m² studio): rent = 20 m² x the Carte des
+    loyers 2025 interval (1-2 rooms, charges included) of the formation's town AND department, zone-predicted communes flagged, no
+    match = no rent and no total; Crous residences <= 10 km (rent only when the text prints euros, closed ones out, https links);
+    every other item is a NATIONAL mean of the OVE 2023 survey (brochure kept in data/sources/ove, amounts transcribed, red team V5
+    checks the PDF), POSTES_COURANTS in both bounds, POSTES_SELON in the upper one only, the survey's rent and child care never.
+    Fees verbatim from the fiche; an amount only from a plain sum of euro amounts. Year = 10 months + fees + CVEC (when printed),
+    only when every part is known. Always "estimation", never a budget or a promise; only the rent is local (said).
+    Red team `redteam_vie.py` (V1-V9).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

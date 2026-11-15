@@ -33,6 +33,7 @@
  "tests/test_nomenclatures.py": 342,
  "tests/test_offer.py": 146,
  "tests/test_onisep.py": 65,
+ "tests/test_parcours.py": 60.0,
  "tests/test_passerelles.py": 291,
  "tests/test_pipeline.py": 564,
  "tests/test_poursuite.py": 560,
@@ -51,9 +52,9 @@
  "tests/test_success.py": 340,
  "tests/test_tauxprofil.py": 70.0,
  "tests/test_ux.py": 2,
+ "tests/test_vie.py": 8.0,
  "tests/test_visuel.py": 230.0,
  "tests/test_vitesse.py": 170,
  "tests/test_voeux.py": 540,
- "tests/test_voies.py": 100.0,
- "tests/test_parcours.py": 60.0
+ "tests/test_voies.py": 100.0
 }

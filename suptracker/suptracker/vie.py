@@ -251,6 +251,7 @@ def for_formation(con, cod: str) -> dict | None:
     if not f:
         return None
     ville, dep, lat, lon = f
+    lat, lon = (float(lat), float(lon)) if lat is not None and lon is not None else (None, None)
     out = {"commune": ville, "loyer": None, "crous": [], "crous_n": 0, "resto_n": None, "postes": [], "mensuel": None,
            "frais": None, "annuel": None, "studio_m2": STUDIO_M2, "mois": MOIS_PAR_AN, "repas_ru": REPAS_RU, "cvec": CVEC,
            "sources": {"loyers": LOYERS, "ove": OVE}}
