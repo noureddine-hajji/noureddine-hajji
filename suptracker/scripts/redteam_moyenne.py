@@ -461,7 +461,7 @@ def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
     names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "MENTION_TXT", "vxProfile", "bandParam", "mentionParamsSearch",
              "MENTION_SHORT", "chipLine", "profileLine", "PF_SAVE", "spe2Of", "profileForm", "voieFromForm", "readForm", "erf",
              "withinBand", "LADDER", "positionMoyenne", "COLORS", "DASHES", "seriesDash", "lineLegend", "moyenneChart", "moyenneCard",
-             "bacProfile")
+             "bacProfile", "villeLabel", "villeDepart", "villeField")
     prog = helpers + "\n" + "\n".join(top(js, n) for n in names) + PAGE_PROG
     r = node(prog, {"mentions": mentions})
     if r is None:

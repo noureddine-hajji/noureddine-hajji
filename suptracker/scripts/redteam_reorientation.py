@@ -610,7 +610,8 @@ def e6(c: Ctx):
     zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
     draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
     harness = r2 + jstext.q4_defs(js, present=pre) + zones + draw \
-        + top(js, "admisBar") + top(js, "summaryBand")
+        + top(js, "admisBar") + top(js, "summaryBand") \
+        + "".join(top(js, n) for n in ("villeLabel", "villeDepart", "haversineKm") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
     vf = top(js, "viewFormation")
     more = vf[vf.find("Plus de chiffres sur l'admission"):]
     more = more[:more.find("</details>")]
