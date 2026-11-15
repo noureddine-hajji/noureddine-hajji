@@ -45,6 +45,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     `#/accompagner`, `#/premiere`, `#/liste` (shared list) in `app.js`.
   - **Étudier là-bas (sprint V1):** `reconnaissance.py` (the State label printed on each live fiche, one badge), `vie.py` (local rent
     and Crous, national OVE items, the fiche's fees: what a year there costs).
+  - **Financer ses études (sprint F):** `aides.py` (student aids read from the official pages fetched by `suptracker-aides`).
   - **Voie pro, demand, distance (sprint V2):** `tension.py` (vœux per place placed among its type), `apprentissage.py` (apprenticeship
     card, BTS routes compared), API Géo communes in `vie.py` (distance computed in the browser).
   - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
@@ -615,9 +616,20 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   - Size: `mart.tension` stores the classes only (ratio re-read from formation_year); the communes are ONE zlib JSON value in
     `rapport_textes.duckdb` (as a warehouse table they pushed it to 95.96 MB).
   - Distance: `/api/communes` (API Géo, no parameter, public cache), searched and computed in the browser; the town lives in
-    `store.villeDepart` (validated), never sent.
+    `store.villeDepart` (validated), never sent. Owner, 2026-11-15: the town is ENTERED ONLY in "Mon profil" (`villeField`,
+    `bindVille`, erased with the profile); the formation page only READS it (L'essentiel line + cost tab, no input there), the map
+    offers "Autour de ma ville", Mes vœux prints each vœu's distance (`kmFromHome`, the rows' lat/lon). Red team VP4, U4.
   - Grids harvest: a page titled "Fiche formation" is a fiche (never the closed-site words); failed fiches re-read next run;
     gone from the cartographie = `hors_campagne`. Red team `redteam_voiepro.py` (VP1-VP8), grilles GR5.
+- **Financer vos études (sprint F, owner 2026-11-15).** Every amount, condition and link is READ from the official pages
+  (`suptracker-aides` workflow, official hosts only, into data/aides; service-public, etudiant.gouv.fr, CVEC; Légifrance refuses
+  robots) by ONE fixed rule per item in `aides.py`; a rule that stops matching drops its item and names it in the audit, never a
+  typed fallback; data/aides is in the warehouse fingerprint. Never the student's échelon (the official simulator), never a promise,
+  the bourse never subtracted. The boursier's year drops the CVEC, and the fee ONLY for a public establishment whose fiche fee is 0
+  or a national tariff of the year (the official table, every row up to "Transfert d'inscription"); IFSI/EFTS = the Region's
+  sentence, no Crous table; overseas = +majoration on every échelon. Mention, bac route and académie are compared in the browser
+  (`aidesHint`), never sent. vie.py's CVEC and meal must equal the official pages. Page links: `.gouv.fr` https only.
+  Red team `redteam_aides.py` (AI1-AI8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

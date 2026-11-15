@@ -336,29 +336,38 @@ def haversine(a, b, c, d):
 @check("VP4 distance: computed in the browser = an independent haversine, stored town never trusted, nothing sent, communes flattened")
 def vp4(c: Ctx):
     bad = []
-    names = ("haversineKm", "villeLabel", "villeDepart", "distanceText", "distanceBlock", "foldTxt")
+    names = ("haversineKm", "villeLabel", "villeDepart", "distanceText", "distanceBlock", "foldTxt", "villeField", "kmFromHome")
     defs = "\n".join(top(c.js, n) for n in names)
     pairs = [(50.29, 2.78, 43.61, 3.88), (48.86, 2.35, 48.86, 2.35), (-21.1, 55.5, 16.24, -61.53), (49.49, 0.11, 49.48, 0.12)]
     prog = STUB + defs + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       const tampered = [null, { nom: 1 }, { nom: "A", dep: "1", lat: "x", lon: 2 }, { nom: "A", dep: "1", lat: 91, lon: 2 }, { nom: D.h, dep: "62", lat: 50, lon: 2 }];
       const trust = tampered.map((v) => { store.v = v; return villeDepart(); });
+      store.v = null;
+      const noTown = [distanceBlock({ lat: 43.61, lon: 3.88 }), villeField(), kmFromHome(43.61, 3.88)];
       store.v = { nom: "Arras " + D.h, dep: "62", lat: 50.29, lon: 2.78 };
       process.stdout.write(JSON.stringify([D.p.map((x) => haversineKm(...x)), trust, distanceBlock({ lat: 43.61, lon: 3.88 }), distanceBlock({ lat: null, lon: null }),
-        foldTxt("Saint-Étienne-du-Rouvray")]));"""
+        foldTxt("Saint-Étienne-du-Rouvray"), noTown, villeField(), kmFromHome(43.61, 3.88), kmFromHome(null, 3)]));"""
     out = node(prog, {"p": pairs, "h": HOSTILE})
     if out is not None:
-        kms, trust, block, none_block, folded = out
+        kms, trust, block, none_block, folded, no_town, field, km_row, km_none = out
         for (a, b, cc, d), k in zip(pairs, kms):
             if abs(k - haversine(a, b, cc, d)) > 0.5:
                 bad.append(f"haversine {a},{b} -> {cc},{d}: {k} vs {haversine(a, b, cc, d):.1f}")
         if any(trust[:4]) or not trust[4]:
             bad.append(f"stored town trusted when tampered, or a valid one refused: {trust}")
-        if "<img" in block or "km</strong>" not in block or "rien n'est envoyé" not in block or none_block:
-            bad.append("distance block: unescaped, no distance, no privacy sentence, or shown without coordinates")
+        # owner, 2026-11-15: the town is entered once, in "Mon profil"; the formation page only READS it (no input there)
+        if "<img" in block or "km</strong>" not in block or "<input" in block or none_block:
+            bad.append("distance line: unescaped, no distance, an input on the formation page, or shown without coordinates")
+        if 'href="#/profil"' not in no_town[0] or "<input" in no_town[0] or no_town[2]:
+            bad.append("without a town: no link to Mon profil, an input, or a distance in a row")
+        if "<img" in field or 'id="pf-ville"' not in field or "jamais envoyée" not in field or 'id="pf-ville"' not in no_town[1]:
+            bad.append("the profile's town field: unescaped, missing, or without its privacy sentence")
+        if km_row != f"{round(haversine(50.29, 2.78, 43.61, 3.88)):,} km de chez vous".replace(",", "\u202f") or km_none:
+            bad.append(f"a vœu's distance from home {km_row!r} / {km_none!r}")
         if folded != "saint etienne du rouvray":
             bad.append(f"foldTxt {folded!r}")
-    bind = top(c.js, "bindDistance")
+    bind = top(c.js, "bindVille")
     calls = re.findall(r'api\(\s*[`"]([^`"]+)[`"]', bind + top(c.js, "communesLoad"))
     if calls != ["/api/communes"] or re.search(r"fetch\(|navigator\.sendBeacon|track\(", bind):
         bad.append(f"the town box calls {calls} or sends something")
@@ -486,7 +495,8 @@ def vp7(c: Ctx):
     dur = json.loads((ROOT / "tests" / "durations.json").read_text())
     if "tests/test_voiepro.py" not in dur or not (ROOT / "tests" / "test_voiepro.py").exists():
         bad.append("tests/test_voiepro.py missing or absent from durations.json")
-    for js in ("function tensionCard(", "function apprentiCard(", "function bindDistance(", "bindDistance();", "tensionBadge(r.cod_aff_form)",
+    for js in ("function tensionCard(", "function apprentiCard(", "function bindVille(", "bindVille(() => draw());", "${villeField()}",
+                "kmFromHome(v.lat, v.lon)", 'id="chome"', "tensionBadge(r.cod_aff_form)",
                "tensionBadge(v.cod_aff_form)", "apprentiCard(d.apprenti)", "apprentiInsertionCard(d.apprenti)", "tensionCard(d.tension, r.session)"):
         if js not in c.js:
             bad.append(f"app.js: {js} missing")
@@ -520,6 +530,8 @@ SOURCE_MUTANTS = [
     ("js", "badge for every code", "return RECO && RECO.tres && RECO.tres.has(cod) ?", "return RECO && RECO.tres ?", "VP3"),
     ("js", "haversine radius", "return 12742 * Math.asin(Math.sqrt(x));", "return 12000 * Math.asin(Math.sqrt(x));", "VP4"),
     ("js", "stored town trusted", 'Number.isFinite(v.lat) && Number.isFinite(v.lon)\n    && Math.abs(v.lat) <= 90 && Math.abs(v.lon) <= 180 ?', "true ?", "VP4"),
+    ("js", "town input back on the formation page", '  return `<p class="small dist-line">${from ? distanceText', '  return `<input id="dist-ville"><p class="small dist-line">${from ? distanceText', "VP4"),
+    ("js", "profile town field without its privacy sentence", "Les communes sont cherchées dans ce navigateur : votre ville n'est jamais envoyée au site.", "", "VP4"),
     ("js", "town sent to the site", 'COMMUNES_P = api("/api/communes")', 'COMMUNES_P = api("/api/communes?ville=" + encodeURIComponent((store.get("villeDepart") || {}).nom || ""))', "VP4"),
     ("ing", "JSON point read as lat lon", 'flat[f"{k}_lon"], flat[f"{k}_lat"] = (str(x) for x in v["coordinates"][:2])',
      'flat[f"{k}_lat"], flat[f"{k}_lon"] = (str(x) for x in v["coordinates"][:2])', "VP4"),

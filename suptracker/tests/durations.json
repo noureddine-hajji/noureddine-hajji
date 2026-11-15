@@ -2,6 +2,7 @@
  "tests/test_a11y.py": 10,
  "tests/test_accompagnement.py": 55.0,
  "tests/test_admis.py": 15.0,
+ "tests/test_aides.py": 4.0,
  "tests/test_appel.py": 184,
  "tests/test_bmo.py": 307,
  "tests/test_calibration.py": 154,

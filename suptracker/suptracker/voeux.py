@@ -24,7 +24,8 @@ CODE = re.compile(r"^\d{1,9}$")
 SITUATED = ("securite", "cible", "ambitieux", "hors_profil")
 ROW_KEYS = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain",
             "taux_acces_ens", "taux_acces_all", "serie", "select_form", "rate_fragile", "rare_for_serie",
-            "small_cohort", "home_academie", "internat", "apprentissage", "distance", "fiche_url")
+            "small_cohort", "home_academie", "internat", "apprentissage", "distance", "fiche_url",
+            "lat", "lon")                      # owner, 2026-11-15: the distance from the profile's town, computed in the browser
 
 
 def clean_ids(ids: list[str]) -> list[str]:

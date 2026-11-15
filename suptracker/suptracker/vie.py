@@ -56,7 +56,7 @@ NOMS = {"Frais de vie quotidienne": "Courses et vie quotidienne", "Frais de tran
         "Frais liés aux études (hors frais d'inscription)": "Fournitures et matériel d'études",
         "Frais liés aux activités sociales et de loisirs": "Sorties et loisirs"}
 REPAS_RU = {"prix": 1.0, "depuis": "4 mai 2026", "texte": "Repas au restaurant universitaire du Crous : 1 € pour tous les étudiants depuis le 4 mai 2026.",
-            "url": "https://www.etudiant.gouv.fr/fr/se-restaurer"}
+            "url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123"}   # sprint F: the old page is gone (404); red team checks it against the official page
 CVEC = {"montant": 105, "annee": "2026-2027", "url": "https://cvec.etudiant.gouv.fr/",
         "texte": "La CVEC (contribution vie étudiante et de campus) : 105 € en 2026-2027, une fois par an ; les boursiers en sont exonérés."}
 OVE = {"titre": "Observatoire national de la vie étudiante, enquête Conditions de vie des étudiants 2023 (Repères, p. 27)",

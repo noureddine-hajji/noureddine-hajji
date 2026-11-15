@@ -1585,14 +1585,15 @@ async function viewCarte(dArg, mArg) {
   const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
   function panel() {
-    const base = shown();
+    const base = shown(), home = villeDepart();          // the town of "Mon profil" (this browser only, never sent)
     const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr).filter((f) => carteHas(f, gr, o)).length;
       return `<label class="small"><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
     const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
     document.getElementById("cfilters").innerHTML = `
       <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
       <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
-      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${home ? `<option value="${esc(villeLabel(home))}">` : ""}${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      ${home ? `<button type="button" class="linkish small" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button>` : '<p class="muted small"><a href="#/profil">Indiquez votre ville dans Mon profil</a> pour chercher autour de chez vous.</p>'}
       <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
       ${carteGroups().map(([gr, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${(F[gr] || []).length ? `<button type="button" class="linkish" data-clear="${gr}">Tout décocher (tout afficher)</button>` : ""}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
@@ -1600,11 +1601,14 @@ async function viewCarte(dArg, mArg) {
       <p class="muted small">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
     document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
     document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
-    const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
+    const setTown = () => { const v = document.getElementById("ctown").value, km = Number(document.getElementById("ckm").value);
+      const t = town(v) || (home && v === villeLabel(home) ? { lat: home.lat, lon: home.lon } : null);      // the profile's town
       F.autour = t ? { ...t, km, ville: v } : null;
       if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
       save(); };
     document.getElementById("ctown").onchange = setTown;
+    const ch = document.getElementById("chome");
+    if (ch) ch.onclick = () => { document.getElementById("ctown").value = villeLabel(home); if (!F.autour) document.getElementById("ckm").value = "50"; setTown(); };
     document.getElementById("ckm").onchange = setTown;
     document.querySelectorAll("[data-clear]").forEach((b) => { b.onclick = () => { F[b.dataset.clear] = []; save(); }; });
     document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
@@ -1804,6 +1808,7 @@ function summaryBand(r, d) {
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
+    ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
 // sprint V2: how many vœux the formation received for each place, placed among its type (tension.py): demand, never a chance
@@ -1937,14 +1942,87 @@ function coutCard(v, r) {
     <ul class="small">${v.crous.map((c) => `<li><strong>${esc(c.nom)}</strong> · ${esc(Number(c.km).toLocaleString("fr-FR", { maximumFractionDigits: 1 }))} km${c.loyer_min ? ` · ${eurosRange(c.loyer_min, c.loyer_max)} par mois${c.loyer_date ? ` (prix écrits par le Crous au ${esc(c.loyer_date)})` : " (prix écrits par le Crous)"}` : " · loyer non indiqué"}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">Demander un logement ↗</a>` : ""}</li>`).join("")}</ul>`
     : `<h3>Se loger au Crous</h3><p class="small muted">Aucune résidence Crous recensée à moins de 10 km.</p>`;
   const repas = `<p class="small">${esc(v.repas_ru.texte)}${v.resto_n ? ` ${fmt(v.resto_n)} lieu${v.resto_n > 1 ? "x" : ""} de restauration du Crous à moins de 2 km.` : ""}</p>`;
-  const aides = `<h3>Ce qui peut baisser la facture</h3><ul class="small">
-    <li>La bourse sur critères sociaux et le logement Crous : <a href="https://messervices.etudiant.gouv.fr/" target="_blank" rel="noopener">dossier social étudiant ↗</a></li>
-    <li>L'aide au logement de la CAF : <a href="https://www.caf.fr/allocataires/aides-et-demarches/mes-demarches/faire-une-simulation" target="_blank" rel="noopener">faire une simulation ↗</a></li>
-    <li>Les boursiers ne paient ni la CVEC ni les droits d'inscription nationaux.</li></ul>`;
+  const aides = `<p class="small">Bourse, aides, exonérations : voir « Financer vos études » ci-dessous.</p>`;   // sprint F
   return `<div class="card cout-card"><h2>Combien coûte une année ici ?</h2>
     <p class="muted small">Des ordres de grandeur pour préparer votre budget, pas un devis. Chaque ligne dit d'où vient son chiffre.</p>
     ${tiles}${distanceBlock(v)}${fraisHtml}${table}${crous}${repas}${aides}
     <p class="muted small">Sources : <a href="${esc(v.sources.loyers.url)}" target="_blank" rel="noopener">${esc(v.sources.loyers.titre)} ↗</a> ; <a href="${esc(v.sources.ove.url)}" target="_blank" rel="noopener">${esc(v.sources.ove.titre)} ↗</a> ; Crous (résidences et restaurants) ; fiche Parcoursup.</p></div>`;
+}
+
+// sprint F: financing one's studies (aides.py): every amount, condition and link read from the official pages (service-public,
+// etudiant.gouv.fr, CVEC), with their "vérifié le" date; the student's mention and académie are compared HERE, never sent; never
+// the student's échelon (the official simulator needs the family's income), never a promise
+const euroMois = (x) => `${Number(x).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
+function aidesHint(a) {
+  const p = bacProfile(), hints = [];
+  if (p && (p.mention === "tb" || p.mention === "tbf") && a.merite) hints.push(`Votre profil indique une mention très bien : c'est l'une des conditions de l'aide au mérite.`);
+  if (p && p.academie && a.academie && a.mobilite) {
+    hints.push(p.academie === a.academie ? `Cette formation est dans votre académie (${esc(a.academie)}) : l'aide à la mobilité Parcoursup ne s'applique pas à ce vœu.`
+      : `Cette formation est dans l'académie de ${esc(a.academie)}, pas la vôtre (${esc(p.academie)}) : si vous avez une bourse de lycée, l'aide à la mobilité Parcoursup peut vous concerner.`);
+  }
+  const m = a.mobilite, idf = (m && m.academies_idf) || [];
+  if (p && m && m.complement_bp_idf && p.serie === "bp" && idf.includes(p.academie) && a.academie && !idf.includes(a.academie))
+    hints.push(`Bac pro, académie d'Île-de-France, formation hors d'Île-de-France : avec une bourse de lycée, un complément de ${euros(m.complement_bp_idf)} peut s'ajouter à l'aide à la mobilité.`);
+  return hints.length ? `<ul class="small aides-hints">${hints.map((h) => `<li>${h}</li>`).join("")}</ul><p class="muted small">Comparé dans ce navigateur avec votre profil : rien n'est envoyé au site.</p>` : "";
+}
+function aidesCard(a, v) {
+  if (!a) return "";
+  const b = a.bourse, ab = a.annuel_boursier, fr = v && v.frais, src = [];
+  const verif = (x) => x && x.verifie ? ` (vérifié le ${esc(x.verifie)})` : "";
+  const lien = (url, texte) => /^https:\/\/[a-z0-9.-]+\.gouv\.fr\//.test(url || "") ? `<a href="${esc(url)}" target="_blank" rel="noopener">${texte} ↗</a>` : "";   // official hosts only
+  const tiles = `<div class="sum-grid cout-tiles">
+    <div class="sum-tile"><span class="sum-label">Une année ici avec une bourse</span><span class="sum-value">${ab ? eurosRange(ab.min, ab.max) : "—"}</span><span class="sum-note">${ab ? `sans la CVEC${ab.frais_gardes ? "" : " ni les frais d'inscription"} ${estimTag("même calcul que ci-dessus, sans ce dont les boursiers sont exonérés ; la bourse n'est pas déduite")}` : "il manque une partie du calcul"}</span></div>
+    <div class="sum-tile"><span class="sum-label">Bourse sur critères sociaux</span><span class="sum-value">${b ? `${euroMois(b.echelons[0].mensuel)} à ${euroMois(b.echelons[b.echelons.length - 1].mensuel)}` : "—"}</span><span class="sum-note">${b ? `par mois sur ${esc(b.mensualites)} mois, selon l'échelon` : a.sanitaire_social ? "gérée par la Région pour cette formation" : "non lue"}</span></div>
+    ${a.merite ? `<div class="sum-tile"><span class="sum-label">Aide au mérite</span><span class="sum-value">+ ${euros(a.merite.par_mois)} par mois</span><span class="sum-note">boursiers avec la mention très bien</span></div>` : ""}
+    ${a.mobilite ? `<div class="sum-tile"><span class="sum-label">Aide à la mobilité Parcoursup</span><span class="sum-value">${euros(a.mobilite.montant)}</span><span class="sum-note">une fois, pour une formation hors de votre académie</span></div>` : ""}
+  </div>`;
+  let bourse = "";
+  if (a.sanitaire_social) {
+    bourse = `<h3>La bourse pour cette formation</h3><p class="small">${esc(a.sanitaire_social.texte)} ${lien(a.sanitaire_social.source, "Trouver l'aide de votre Région")}</p>`;
+    src.push(lien(a.sanitaire_social.source, "Étudiant.gouv : aides des régions"));
+  } else if (b) {
+    bourse = `<h3>La bourse sur critères sociaux</h3>
+      <p class="small">Elle compte ${esc(b.echelons.length)} échelons. Votre échelon dépend des revenus de votre famille : le simulateur officiel le calcule, pas ce site.${b.majoree ? ` Cette formation est en outre-mer : chaque montant compte les ${euros(b.majoree)} de plus par an prévus pour l'outre-mer.` : ""}</p>
+      <details class="dip"><summary>Voir les montants des ${esc(b.echelons.length)} échelons</summary>
+      <div class="scroll"><table class="stack aides-table"><tr class="stack-head"><th>Échelon</th><th class="num">Par an</th><th class="num">Par mois</th></tr>
+      ${b.echelons.map((e) => `<tr><td>Échelon ${esc(e.echelon)}</td><td class="num" data-label="Par an">${euros(e.annuel)}</td><td class="num" data-label="Par mois">${euroMois(e.mensuel)}</td></tr>`).join("")}</table></div></details>
+      ${a.statut !== "public" && b.condition_etab ? `<p class="small">Établissement privé : la bourse est versée seulement si l'établissement est habilité à recevoir des boursiers. Demandez-le-lui.</p>` : ""}
+      <p class="small">${lien(b.liens.simulateur, "Calculer votre droit à la bourse")} · ${lien(b.liens.dse, "Faire la demande (dossier social étudiant)")}</p>
+      ${b.demande ? `<p class="muted small">Pour l'année ${esc(b.annee)}, la demande se faisait entre ${esc(b.demande)}.</p>` : ""}`;
+    src.push(lien(b.source, "Service-public : bourse sur critères sociaux") + verif(b));
+  }
+  let frais = "";
+  if (a.droits || a.cvec) {
+    const items = [];
+    if (fr && fr.montant !== null && fr.montant !== undefined) {
+      if (a.droits_exoneres) items.push(fr.montant ? `Les frais d'inscription de la fiche (${euros(fr.montant)}) sont un tarif national ${esc(a.droits.annee)} d'un établissement public : les boursiers ne les paient pas.` : "Cette formation ne demande pas de frais d'inscription.");
+      else if (a.statut === "public") items.push(`Les frais de la fiche (${euros(fr.montant)}) ne sont pas un tarif national ${a.droits ? esc(a.droits.annee) : ""} : demandez à l'établissement s'ils sont supprimés pour les boursiers.`);
+      else items.push(`Les frais de cet établissement privé (${euros(fr.montant)} par an) sont les siens : demandez-lui s'il les réduit pour les boursiers.`);
+    }
+    if (a.droits) items.push(`${esc(a.droits.exoneration)}`);
+    if (a.cvec) items.push(`La CVEC (${euros(a.cvec.montant)} en ${esc(a.cvec.annee)}) : les boursiers ne la paient pas, mais doivent demander leur attestation. ${lien(a.cvec.lien, "Demander l'exonération")}`);
+    frais = `<h3>Les frais quand on est boursier</h3><ul class="small">${items.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+    if (a.droits) src.push(lien(a.droits.source, "Service-public : frais d'inscription") + verif(a.droits));
+    if (a.cvec) src.push(lien(a.cvec.source, "CVEC"));
+  }
+  const merite = a.merite ? `<h3>L'aide au mérite : ${euros(a.merite.montant)} par an</h3>
+    <p class="small">Versée en ${esc(a.merite.mensualites)} fois ${euros(a.merite.par_mois)}, en plus de la bourse. Les conditions officielles :</p>
+    <ul class="small">${a.merite.conditions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : "";
+  if (a.merite) src.push(lien(a.merite.source, "Service-public : aide au mérite") + verif(a.merite));
+  const mobilite = a.mobilite ? `<h3>L'aide à la mobilité Parcoursup : ${euros(a.mobilite.montant)}</h3>
+    <p class="small">Versée une fois. Les conditions officielles :</p>
+    <ul class="small">${a.mobilite.conditions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+    ${a.mobilite.complement_texte ? `<p class="small">${esc(a.mobilite.complement_texte)}</p>` : ""}
+    <p class="small">${lien(a.mobilite.lien, "Faire la demande")}${a.mobilite.periode ? ` <span class="muted">(pour la rentrée 2026 : ${esc(a.mobilite.periode)})</span>` : ""}</p>` : "";
+  if (a.mobilite) src.push(lien(a.mobilite.source, "Service-public : aide à la mobilité Parcoursup") + verif(a.mobilite));
+  if (a.mobilite && a.mobilite.complement_source) src.push(lien(a.mobilite.complement_source, "Étudiant.gouv : aide à la mobilité Parcoursup"));
+  const logement = a.logement ? `<h3>Se loger</h3><p class="small">L'aide au logement de la CAF (APL) dépend de votre loyer et de vos ressources : ${lien(a.logement.simulateur, "calculer votre droit")}.</p>` : "";
+  if (a.logement) src.push(lien(a.logement.source, "Service-public : aide au logement étudiant") + verif(a.logement));
+  const annee = (b && b.annee) || (a.cvec && a.cvec.annee) || "";
+  return `<div class="card aides-card"><h2>Financer vos études</h2>
+    <p class="muted small">Montants et conditions de l'année ${esc(annee)}, les derniers fixés par l'État. Ceux de votre rentrée seront publiés au printemps. Rien n'est garanti : chaque aide se demande.</p>
+    ${tiles}${aidesHint(a)}${bourse}${frais}${merite}${mobilite}${logement}
+    <p class="muted small">Sources officielles${a.lu_le ? `, lues le ${esc(new Date(`${a.lu_le}T12:00:00Z`).toLocaleDateString("fr-FR"))}` : ""} : ${src.filter(Boolean).join(" ; ")}. Les textes officiels font foi.</p></div>`;
 }
 
 // sprint V2: the distance from the student's town, computed HERE (the town is never sent): the commune list (API Géo) is
@@ -1969,19 +2047,27 @@ function distanceText(from, lat, lon) {
   return `<strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau depuis le centre de ${esc(villeLabel(from))} ${estimTag("distance en ligne droite entre les centres des communes ; la route est plus longue")}.${km > 50 ? " À cette distance, la plupart des étudiants se logent sur place : le loyer ci-dessous compte." : " À cette distance, des allers-retours sont souvent possibles : regardez les transports."}`;
 }
 function distanceBlock(v) {
+  // owner, 2026-11-15: the town is entered ONCE, in "Mon profil"; here it is only read (no input on the formation page)
   if (!v || v.lat == null || v.lon == null) return "";
   const from = villeDepart();
-  return `<div class="dist-box" data-lat="${esc(v.lat)}" data-lon="${esc(v.lon)}"><h3>Depuis chez vous</h3>
-    <label class="small" for="dist-ville">Votre ville</label>
-    <div class="dist-row"><input id="dist-ville" list="dist-communes" autocomplete="off" placeholder="ex. Arras (62)" value="${from ? esc(villeLabel(from)) : ""}"><datalist id="dist-communes"></datalist></div>
-    <p class="small" id="dist-out" aria-live="polite">${from ? distanceText(from, v.lat, v.lon) : "Tapez le nom de votre commune pour voir la distance."}</p>
-    <p class="muted small">Votre ville reste dans ce navigateur : la distance est calculée ici, rien n'est envoyé au site.</p></div>`;
+  return `<p class="small dist-line">${from ? distanceText(from, v.lat, v.lon) : 'Indiquez votre ville dans <a href="#/profil">Mon profil</a> : la distance jusqu\'ici s\'affichera sur chaque fiche, sur la carte et dans Mes vœux.'}</p>`;
 }
-function bindDistance() {
-  const box = document.querySelector(".dist-box"), input = document.getElementById("dist-ville");
-  if (!box || !input) return;
-  const lat = Number(box.dataset.lat), lon = Number(box.dataset.lon), out = document.getElementById("dist-out"), list = document.getElementById("dist-communes");
+// the town field of "Mon profil": the communes (API Géo) are searched HERE; the town is kept in this browser only, never sent
+function villeField() {
+  const from = villeDepart();
+  return `<div class="pf-field"><div class="pf-ctl"><label for="pf-ville">Votre ville (facultatif)</label>
+    <div class="dist-row"><input id="pf-ville" list="pf-communes" autocomplete="off" placeholder="ex. Arras (62)" value="${from ? esc(villeLabel(from)) : ""}">${from ? '<button type="button" id="pf-ville-clear" class="small">Retirer</button>' : ""}</div><datalist id="pf-communes"></datalist>
+    <p class="small" id="pf-ville-out" aria-live="polite">${from ? `Ville enregistrée : ${esc(villeLabel(from))}.` : ""}</p></div>
+    <p class="pf-why">Sert à calculer la distance jusqu'à chaque formation : sur sa fiche, sur la carte et dans Mes vœux. Les communes sont cherchées dans ce navigateur : votre ville n'est jamais envoyée au site.</p></div>`;
+}
+function bindVille(redraw) {
+  const input = document.getElementById("pf-ville");
+  if (!input) return;
+  const out = document.getElementById("pf-ville-out"), list = document.getElementById("pf-communes");
+  const clear = document.getElementById("pf-ville-clear");
+  if (clear) clear.onclick = () => { store.set("villeDepart", null); redraw(); };
   input.addEventListener("focus", () => { communesLoad(); }, { once: true });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });   // never submits the profile form
   input.addEventListener("input", async () => {
     const C = await communesLoad();
     if (!C || !input.isConnected) return;
@@ -1989,7 +2075,7 @@ function bindDistance() {
     const exact = C.find((c) => villeLabel(c) === input.value.trim());
     if (exact) {
       store.set("villeDepart", { nom: exact.nom, dep: exact.dep, lat: exact.lat, lon: exact.lon });
-      out.innerHTML = distanceText(exact, lat, lon);
+      out.textContent = `Ville enregistrée : ${villeLabel(exact)}.`;
       return;
     }
     if (q.length < 2) { list.innerHTML = ""; return; }
@@ -1997,6 +2083,12 @@ function bindDistance() {
     list.innerHTML = hits.map((c) => `<option value="${esc(villeLabel(c))}">`).join("");
     out.textContent = hits.length ? "Choisissez votre commune dans la liste." : "Aucune commune de ce nom.";
   });
+}
+// the distance from the student's town to a formation, for a list row (Mes vœux): "" without a town or coordinates
+function kmFromHome(lat, lon) {
+  const from = villeDepart();
+  if (!from || lat == null || lon == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return "";
+  return `${fmt(Math.round(haversineKm(from.lat, from.lon, Number(lat), Number(lon))))} km de chez vous`;
 }
 // sprint V2: doing the formation as an apprentice (apprentissage.py): free tuition and a salary, the CFA that teach it here,
 // where to find a company; official links only, never a computed salary
@@ -2091,7 +2183,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", coutCard(d.vie, r) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -2112,7 +2204,6 @@ async function viewFormation(cod, session) {
   </table></div></div>`],
   ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
-  bindDistance();
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
@@ -2774,7 +2865,7 @@ function profileForm(p, saved) {
   const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
     "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
   if (reo) {
-    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}</section>${saved ? "" : PF_SAVE}</form>`;
+    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}${villeField()}</section>${saved ? "" : PF_SAVE}</form>`;
   }
   const bac = `<section class="card"><h2>2 · Votre bac</h2>
     ${field(`<label>Votre bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>`,
@@ -2798,6 +2889,7 @@ function profileForm(p, saved) {
   </section>`;
   const where = `<section class="card"><h2>4 · Où vous êtes</h2>
     ${acad}
+    ${villeField()}
     ${field(`<div class="pf-ctl lyc-pick"><label for="lyc-q">Votre lycée (facultatif)</label>
       <div class="lyc-row"><input id="lyc-q" type="search" autocomplete="off" placeholder="Nom, ville ou code UAI du lycée" value="${p.lycee ? esc(p.lycee.nom) : ""}" aria-describedby="lyc-help">
       ${p.lycee ? '<button type="button" id="lyc-clear" class="small">Retirer</button>' : ""}</div>
@@ -3238,6 +3330,7 @@ async function viewProfil() {
         <li>Il reste dans ce navigateur : pas de compte, pas d'adresse e-mail.</li>
         <li>Pour lire vos zones, la page envoie votre bac, vos spécialités, votre mention et votre académie. Le serveur ne les enregistre pas et aucune mesure d'audience ne les contient.</li>
         <li>Votre lycée n'est jamais envoyé : la liste des lycées est cherchée dans ce navigateur.</li>
+        <li>Votre ville n'est jamais envoyée : les distances sont calculées dans ce navigateur.</li>
         <li>Une liste partagée avec un adulte n'inclut votre profil que si vous cochez la case prévue (jamais votre académie ni votre lycée).</li>
       </ul>
       ${has ? (confirmErase ? `<p class="toolbar"><span class="small">Effacer votre profil de ce navigateur ? Votre liste de vœux est gardée.</span><button type="button" id="pf-erase-yes">Oui, effacer</button><button type="button" id="pf-erase-no">Annuler</button></p>`
@@ -3245,6 +3338,7 @@ async function viewProfil() {
     </div>`;
     $view.dataset.rendered = "profil";
     bind(p, serie, has, raw);
+    bindVille(() => draw());
     if (focusName) { const el = document.querySelector(`#pf [name="${focusName}"]${focusName === "statut" ? ":checked" : ""}`); if (el) el.focus(); }
   };
   const bind = (p, serie, has, raw) => {
@@ -3308,7 +3402,7 @@ async function viewProfil() {
     const er = document.getElementById("pf-erase");
     if (er) er.onclick = () => { confirmErase = true; draw(); document.getElementById("pf-erase-no")?.focus(); };
     const ey = document.getElementById("pf-erase-yes");
-    if (ey) ey.onclick = () => { confirmErase = false; justSaved = false; store.set("profile", null); store.set("drill", null); draw(); };
+    if (ey) ey.onclick = () => { confirmErase = false; justSaved = false; store.set("profile", null); store.set("drill", null); store.set("villeDepart", null); draw(); };
     const en = document.getElementById("pf-erase-no");
     if (en) en.onclick = () => { confirmErase = false; draw(); };
   };
@@ -3494,7 +3588,7 @@ async function viewVoeux() {
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>
