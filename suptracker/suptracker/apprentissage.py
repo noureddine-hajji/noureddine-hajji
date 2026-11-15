@@ -27,9 +27,24 @@ GUIDE_URL = LBA_HOST + "guide-alternant/comprendre-la-remuneration"
 ROUTES = {"apprentissage": "En apprentissage (CFA)", "lycee": "En voie scolaire (lycée)"}
 
 
+# One value per ESTABLISHMENT first (Codex): Inserjeunes can publish several diploma codes of the same BTS title at one UAI
+# (a renewed diploma, 42 establishments x route on the 2023-2024 file); their published values are reduced to their median,
+# so an establishment counts once, in the threshold, in the count shown and in the median.
+ETAB_SQL = """INSERT INTO mart.app_insertion
+        WITH e AS (
+            SELECT cle, source, uai, any_value(annee) AS annee,
+                   median(taux_emploi_6) AS emploi, median(taux_poursuite) AS poursuite
+            FROM core.inserjeunes_bts WHERE cle IS NOT NULL AND uai IS NOT NULL GROUP BY cle, source, uai)
+        SELECT cle, source, any_value(annee), count(*),
+               count(emploi), median(emploi), quantile_cont(emploi, 0.25), quantile_cont(emploi, 0.75),
+               count(poursuite), median(poursuite)
+        FROM e GROUP BY cle, source"""
+
+
 def build(con) -> int:
-    """mart.app_insertion: per BTS key and route, the number of establishments and the median (and quartiles) of the
-    published employment rate at 6 months and share continuing, among the establishments that publish each."""
+    """mart.app_insertion: per BTS key and route, the number of DISTINCT establishments and the median (and quartiles) of
+    the published employment rate at 6 months and share continuing, among the establishments that publish each (one value
+    per establishment, `ETAB_SQL`). Built after insertion.build (core.inserjeunes_bts)."""
     con.execute("CREATE SCHEMA IF NOT EXISTS mart")
     con.execute("""CREATE OR REPLACE TABLE mart.app_insertion (cle VARCHAR, voie VARCHAR, annee VARCHAR, n_etab INTEGER,
         n_emploi INTEGER, emploi_med DOUBLE, emploi_q1 DOUBLE, emploi_q3 DOUBLE, n_poursuite INTEGER, poursuite_med DOUBLE)""")
@@ -39,11 +54,7 @@ def build(con) -> int:
         return 0
     if not n:
         return 0
-    con.execute("""INSERT INTO mart.app_insertion
-        SELECT cle, source, any_value(annee), count(DISTINCT uai),
-               count(taux_emploi_6), median(taux_emploi_6), quantile_cont(taux_emploi_6, 0.25), quantile_cont(taux_emploi_6, 0.75),
-               count(taux_poursuite), median(taux_poursuite)
-        FROM core.inserjeunes_bts WHERE cle IS NOT NULL GROUP BY cle, source""")
+    con.execute(ETAB_SQL)
     return con.execute("SELECT count(*) FROM mart.app_insertion").fetchone()[0]
 
 

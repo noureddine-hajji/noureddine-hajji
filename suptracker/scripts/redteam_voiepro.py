@@ -63,7 +63,8 @@ class Ctx:
         self.db = db if db and db.exists() else None
         self.real = real
         self.src = {k: (ROOT / "suptracker" / f"{f}.py").read_text() for k, f in
-                    (("ts", "tension"), ("ap", "apprentissage"), ("ing", "ingest"), ("aide", "aide"))}
+                    (("ts", "tension"), ("ap", "apprentissage"), ("ing", "ingest"), ("aide", "aide"),
+                     ("build", "build"))}
         self.js = (ROOT / "suptracker" / "static" / "app.js").read_text()
         self.css = (ROOT / "suptracker" / "static" / "style.css").read_text()
 
@@ -79,6 +80,19 @@ def quantile(xs: list[float], q: float) -> float:
     pos = (len(s) - 1) * q
     lo, hi = math.floor(pos), math.ceil(pos)
     return s[lo] + (s[hi] - s[lo]) * (pos - lo)
+
+
+def per_etab(rows) -> dict:
+    """{uai: (median of its published employment rates or None, median of its continuing shares or None)}: one value per
+    establishment, written here (statistics.median), whatever the number of diploma codes it publishes."""
+    by: dict = {}
+    for uai, e, p in rows:
+        by.setdefault(uai, ([], []))
+        if e is not None:
+            by[uai][0].append(e)
+        if p is not None:
+            by[uai][1].append(p)
+    return {u: (statistics.median(es) if es else None, statistics.median(ps) if ps else None) for u, (es, ps) in by.items()}
 
 
 def fixture():
@@ -105,6 +119,10 @@ def fixture():
     for i in range(4):
         ij.append(("lycee", "cumul 2023-2024", f"LY{i}", "comptabilite gestion", 60.0 + i, 55.0))
     ij.append(("lycee", "cumul 2023-2024", "LYX", "comptabilite gestion", None, None))
+    # Codex: several diploma codes of the same title at ONE establishment. CFA0 publishes 50 and 30 (one value, 40); LY0
+    # publishes twice (counted once: the lycées stay under the threshold of 5 establishments publishing).
+    ij.append(("apprentissage", "cumul 2023-2024", "CFA0", "comptabilite gestion", 30.0, 40.0))
+    ij.append(("lycee", "cumul 2023-2024", "LY0", "comptabilite gestion", 64.0, 55.0))
     con.executemany("INSERT INTO core.inserjeunes_bts VALUES (?, ?, ?, ?, ?, ?)", ij)
     return con
 
@@ -166,17 +184,23 @@ def vp2(c: Ctx):
     ap.build(con)
     bad = []
     rows = con.execute("SELECT source, uai, cle, taux_emploi_6, taux_poursuite FROM core.inserjeunes_bts").fetchall()
+    want_med = {}
     for voie in ("apprentissage", "lycee"):
-        e = [r[3] for r in rows if r[0] == voie and r[3] is not None]
-        got = con.execute("SELECT n_etab, n_emploi, emploi_med FROM mart.app_insertion WHERE voie = ?", [voie]).fetchone()
-        n_etab = len({r[1] for r in rows if r[0] == voie})
-        if not got or got[0] != n_etab or got[1] != len(e) or abs(got[2] - statistics.median(e)) > 1e-9:
-            bad.append(f"{voie}: stored {got}, re-derived {n_etab} establishments, {len(e)} rates, median {statistics.median(e)}")
+        et = per_etab([(r[1], r[3], r[4]) for r in rows if r[0] == voie])
+        e = [v[0] for v in et.values() if v[0] is not None]
+        p = [v[1] for v in et.values() if v[1] is not None]
+        want_med[voie] = statistics.median(e)
+        got = con.execute("SELECT n_etab, n_emploi, emploi_med, n_poursuite, poursuite_med FROM mart.app_insertion WHERE voie = ?",
+                          [voie]).fetchone()
+        if (not got or got[0] != len(et) or got[1] != len(e) or abs(got[2] - statistics.median(e)) > 1e-9
+                or got[3] != len(p) or abs(got[4] - statistics.median(p)) > 1e-9):
+            bad.append(f"{voie}: stored {got}, re-derived {len(et)} establishments, {len(e)} rates, median {statistics.median(e)}, "
+                       f"{len(p)} shares, median {statistics.median(p)}")
     nat = ap.national(con, "Comptabilité et gestion")
     voies = [v["voie"] for v in (nat or {}).get("voies", [])]
     if voies != ["apprentissage"]:                  # the lycées: 4 rates only, under the threshold of 5
         bad.append(f"routes kept {voies} (lycée has 4 establishments publishing: must be dropped)")
-    if nat and nat["voies"][0]["emploi_med"] != round(statistics.median([50.0, 52.0, 55.0, 70.0, 71.0, 90.0, 95.0])):
+    if nat and nat["voies"][0]["emploi_med"] != round(want_med["apprentissage"]):
         bad.append("the median shown is not the re-derived one")
     # the block: a BTS with a comparison and no offer has propose = false; a licence with no offer has no block
     import suptracker.carte as carte_mod
@@ -417,11 +441,21 @@ def vp6(c: Ctx):
             if stored.get((cod, latest)) != want:
                 bad.append(f"{cod} ({fili}): stored {stored.get((cod, latest))}, re-derived {want}")
                 break
-    for cle, voie, n_e, med in con.execute("SELECT cle, voie, n_emploi, emploi_med FROM mart.app_insertion ORDER BY n_emploi DESC LIMIT 20").fetchall():
-        xs = [x for (x,) in con.execute("SELECT taux_emploi_6 FROM core.inserjeunes_bts WHERE cle = ? AND source = ? AND taux_emploi_6 IS NOT NULL",
-                                        [cle, voie]).fetchall()]
-        if len(xs) != n_e or (xs and abs(statistics.median(xs) - med) > 1e-9):
-            bad.append(f"{cle} / {voie}: {n_e} rates median {med}, re-derived {len(xs)} / {statistics.median(xs) if xs else None}")
+    n_ij = con.execute("SELECT count(*) FROM core.inserjeunes_bts WHERE cle IS NOT NULL").fetchone()[0]
+    n_app = con.execute("SELECT count(*) FROM mart.app_insertion").fetchone()[0]
+    if n_ij and not n_app:                      # Codex: built before Inserjeunes, the comparison was empty
+        bad.append(f"mart.app_insertion is empty although core.inserjeunes_bts has {n_ij} rows")
+    keys = [r[0:2] for r in con.execute("SELECT cle, voie FROM mart.app_insertion ORDER BY n_emploi DESC LIMIT 20").fetchall()]
+    keys += [r[0:2] for r in con.execute("""SELECT cle, source FROM core.inserjeunes_bts WHERE cle IS NOT NULL
+        GROUP BY cle, source, uai HAVING count(taux_emploi_6) > 1 LIMIT 20""").fetchall()]   # the multi-code establishments
+    for cle, voie in dict.fromkeys(keys):
+        got = con.execute("SELECT n_etab, n_emploi, emploi_med FROM mart.app_insertion WHERE cle = ? AND voie = ?", [cle, voie]).fetchone()
+        et = per_etab(con.execute("SELECT uai, taux_emploi_6, taux_poursuite FROM core.inserjeunes_bts WHERE cle = ? AND source = ? AND uai IS NOT NULL",
+                                  [cle, voie]).fetchall())
+        xs = [v[0] for v in et.values() if v[0] is not None]
+        if not got or got[0] != len(et) or got[1] != len(xs) or (xs and abs(statistics.median(xs) - got[2]) > 1e-9):
+            bad.append(f"{cle} / {voie}: stored {got}, re-derived {len(et)} establishments, {len(xs)} rates, "
+                       f"median {statistics.median(xs) if xs else None}")
     return not bad, f"campaign {latest}; {bad[:4]}"
 
 
@@ -430,8 +464,11 @@ def vp6(c: Ctx):
 @check("VP7 plumbing: build, API answers, cache, sources, docs, tests and durations")
 def vp7(c: Ctx):
     bad = []
-    build = (ROOT / "suptracker" / "build.py").read_text()
+    build = c.src["build"]
     api = (ROOT / "suptracker" / "api.py").read_text()
+    if "apprentissage.build(con)" in build and "insertion.build(con" in build and \
+            build.index("apprentissage.build(con)") < build.index("insertion.build(con"):
+        bad.append("build: apprentissage.build runs before insertion.build (core.inserjeunes_bts does not exist yet: Codex)")
     for need, where, text in (("tension.build(con)", "build", build), ("apprentissage.build(con)", "build", build),
                               ('"tension": TS.for_formation(', "api", api), ('"apprenti": APP.for_formation(', "api", api),
                               ('"tension": f.get("tension"), "apprenti": f.get("apprenti")', "api (compare)", api),
@@ -466,7 +503,10 @@ SOURCE_MUTANTS = [
     ("ts", "p75 as the top class", "    if par_place >= p90:\n        return \"tres\"", "    if par_place >= p75:\n        return \"tres\"", "VP1"),
     ("ts", "lists from every class", "AND classe = 'tres' ORDER BY", "AND classe IS NOT NULL ORDER BY", "VP1"),
     ("ts", "caveat dropped", 'PRUDENCE = ("Beaucoup de vœux par place ne veut pas dire peu de chances', 'PRUDENCE = ("Beaucoup de vœux par place', "VP1"),
-    ("ap", "mean for median", "median(taux_emploi_6), quantile_cont", "avg(taux_emploi_6), quantile_cont", "VP2"),
+    ("ap", "mean for median", "median(emploi), quantile_cont", "avg(emploi), quantile_cont", "VP2"),
+    ("ap", "rows counted as establishments", "GROUP BY cle, source, uai)", "GROUP BY cle, source, uai, taux_emploi_6, taux_poursuite)", "VP2"),
+    ("build", "built before Inserjeunes", "        insertion.build(con, raw_dir)\n        apprentissage.build(con)",
+     "        apprentissage.build(con)\n        insertion.build(con, raw_dir)", "VP7"),
     ("ap", "no threshold", "        if n_e >= MIN_ETAB:", "        if n_e >= 1:", "VP2"),
     ("ap", "block for every formation", "    if not offres and not sies_app and not nat:\n        return None", "", "VP2"),
     ("ap", "propose from the comparison", '"propose": bool(offres or sies_app)', '"propose": bool(offres or sies_app or nat)', "VP2"),
