@@ -308,7 +308,7 @@ def fixture(vie, rc, d: Path, fees: str = "178 euros + 800 euros de frais spéci
                    "TYPPRED": "commune", "nbobs_com": "9"},
                   {"INSEE_C": "54547", "LIBGEO": "Vandœuvre-lès-Nancy", "DEP": "54", "loypredm2": "11", "lwr.IPm2": "9", "upr.IPm2": "13",
                    "TYPPRED": "commune", "nbobs_com": "900"}]).to_parquet(raw / "loyers_app12_2025.parquet")
-    pd.DataFrame([{"title": "Résidence " + HOSTILE, "zone": "Paris", "infos": "(Loyer TCC hors ALS au 01/09/24) chambres 9m² : 269 € ; studios : 450,50 € ; dépôt de garantie d'un mois de loyer : 100 € ; frais de dossier du logement 95 €",
+    pd.DataFrame([{"title": "Résidence " + HOSTILE, "zone": "Paris", "infos": "(Loyer TCC hors ALS au 01/09/24) chambres 9m² : 269 € ; studios : 450,50 € ; dépôt de garantie d'un mois de loyer : 100 € ; frais de dossier du logement 95 € ; avance déductible du premier mois de loyer : 120 € ; loyer T1 : 422,14 € = T1468,86 €",
                    "geocalisation": "48.8399, 2.3378", "bookingurl": "https://trouverunlogement.lescrous.fr/"},
                   {"title": "Fermée", "zone": "Paris", "infos": "Fermeture définitive au 31 août 2025 ; 300 €", "geocalisation": "48.84, 2.34",
                    "bookingurl": "https://x"},
@@ -376,7 +376,7 @@ def v4(c: Ctx):
             bad.append(f"Crous {names} != {want}")
         res = {x["nom"]: x for x in (p or {}).get("crous", [])}
         r1 = res.get("Résidence " + HOSTILE) or {}
-        if (r1.get("loyer_min"), r1.get("loyer_max"), r1.get("loyer_date")) != (269, 450.5, "01/09/24"):
+        if (r1.get("loyer_min"), r1.get("loyer_max"), r1.get("loyer_date")) != (269, 450.5, "01/09/24"):  # never 100, 120 or 1468.86
             bad.append(f"Crous rent {r1}")
         if (res.get("Sans prix") or {}).get("loyer_min") is not None or (res.get("Sans prix") or {}).get("url"):
             bad.append("a residence without euros got a rent, or a javascript: link kept")
@@ -622,6 +622,7 @@ SOURCE_MUTANTS = [
     ("vie", "closed residences kept", 'if re.search(r"fermeture definitive|ferme definitivement|definitivement ferme", fold(text)):', "if False:", "V4"),
     ("vie", "WKB points not read", "        if len(b) >= 21 and b[0] in (0, 1):", "        if False:", "V4"),
     ("vie", "deposits read as rents", '        if not re.search(LOYER_MOTS, f) or re.search(HORS_LOYER, f):', '        if not re.search(LOYER_MOTS, f):', "V4"),
+    ("vie", "glued amounts read", 'r"(?<![\\w,.])" + EURO', "EURO", "V4"),
     ("vie", "Crous radius 20 km", "RAYON_CROUS_KM = 10", "RAYON_CROUS_KM = 20", "V4"),
     ("vie", "every item in the low bound", '"min": _arrondi(out["loyer"]["min"] + toujours)', '"min": _arrondi(out["loyer"]["min"] + toujours + selon)', "V4"),
     ("vie", "CVEC always added", '        cv = CVEC["montant"] if out["frais"]["cvec"] else 0', '        cv = CVEC["montant"]', "V4"),

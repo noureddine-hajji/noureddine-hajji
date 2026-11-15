@@ -228,7 +228,7 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV)
 
 LOYER_MOTS = r"loyer|redevance|chambre|studio|\bt ?[1-5]\b|\bt1 ?bis\b|logement|appartement|colocation|\bm2\b|\bm²|studette|duplex"
 # "hors ALS / APL" qualifies a rent (housing aid not deducted): it never excludes a segment
-HORS_LOYER = r"depot|caution|garantie|frais de dossier|frais d inscription|cvec|parking|garage|laverie|repas|ticket|internet|forfait"
+HORS_LOYER = r"depot|caution|garantie|avance|frais de dossier|frais d inscription|cvec|parking|garage|laverie|repas|ticket|internet|forfait"
 
 
 def crous_loyers(text: str) -> tuple[list[float], str | None]:
@@ -242,7 +242,8 @@ def crous_loyers(text: str) -> tuple[list[float], str | None]:
             continue
         vals = [a for a in (_num(m.group(1).replace(" ", "").replace("\u202f", "").replace("\xa0", "").replace(".", "")
                                  + ("." + m.group(2) if m.group(2) else ""))
-                            for m in re.finditer(EURO, seg, flags=re.I)) if a is not None and 80 <= a <= 1500]
+                            # an amount glued to a letter ("= T1468,86 €" is "T1" then "468,86 €") is not read
+                            for m in re.finditer(r"(?<![\w,.])" + EURO, seg, flags=re.I)) if a is not None and 80 <= a <= 1500]
         if vals:
             out += vals
             extrait = extrait or re.sub(r"\s+", " ", seg).strip()[:200]

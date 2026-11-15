@@ -3250,7 +3250,7 @@ contrôlé", "Classe préparatoire contrôlée par l'Etat", "Diplôme d'ingénie
   - Linked by the formation's town AND department; no match means no rent and no total.
   - A commune predicted from its zone (few listings of its own) is flagged.
 - **Crous, local.** The Crous residences within 10 km (Crous register, SIES portal), nearest first.
-  - A rent is shown only when the residence's text prints euros in a sentence about a rent or a room, never a deposit or fees, quoted with the Crous' date.
+  - A rent is shown only when the residence's text prints euros in a sentence about a rent or a room, never a deposit, an advance or fees, quoted with the Crous' date.
   - Closed residences are left out, and only https links are kept.
   - The Crous restaurants within 2 km are counted, with the national meal price (1 € since 4 May 2026).
 - **Everything else, national.** The OVE survey "Conditions de vie des étudiants 2023" (brochure "Repères", p. 27), monthly
@@ -3277,4 +3277,4 @@ Red team `scripts/redteam_vie.py` (V1-V9):
 - V6: the page in node (escaping, estimation labels, wording, safe links).
 - V7: the real tables re-derived.
 - V8: plumbing.
-- V9: 24 mutants.
+- V9: 25 mutants.
