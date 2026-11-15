@@ -293,7 +293,9 @@ def form_run(js: str):
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
     r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf")) + "\n" + next(
         ln for ln in js.splitlines() if ln.startswith("const fmt = "))           # R5: the average field of the form
-    prog = helpers + "\n" + r5 + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "spe2Of") + "\n" + top(js, "profileForm") + FORM_PROG
+    # owner, 2026-11-15: the town field of "Mon profil" (kept in this browser, never sent)
+    town = "let store = { get: () => null, set() {} };\n" + "\n".join(top(js, n) for n in ("villeLabel", "villeDepart", "villeField"))
+    prog = helpers + "\n" + r5 + "\n" + town + "\n" + const(js, "PF_SAVE") + "\n" + top(js, "spe2Of") + "\n" + top(js, "profileForm") + FORM_PROG
     hostile = {"nom": "<img src=x onerror=alert(1)>", "uai": "1", "commune": "x"}
     cases = [[{"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b", "academie": "Lyon", "lycee": hostile}, True],
              [{"serie": "bt", "voie": "sti2d", "mention": "ab"}, True],
@@ -642,7 +644,7 @@ MUTANTS = [
     ("js", "stored identical pair silently replaced", ': (p.spe2 || "SES"),   // distinct', ': spe2Of(fd.get("spe1") || p.spe1 || "MATHS", p.spe2, null),   // distinct', "u5"),
     ("js", "a field without its explanation", '"Chaque formation publie la part de ses admis venant du bac général, technologique ou professionnel."', '""', "u4"),
     ("js", "first save no longer explicit", '${mention}${where}${saved ? "" : PF_SAVE}', '${mention}${where}${true ? "" : PF_SAVE}', "u4"),
-    ("js", "no save button outside terminale", '${acad}</section>${saved ? "" : PF_SAVE}', '${acad}</section>', "u4"),
+    ("js", "no save button outside terminale", '${acad}${villeField()}</section>${saved ? "" : PF_SAVE}', '${acad}${villeField()}</section>', "u4"),
     ("js", "bac fields invented outside terminale", '  if (reo) return { ...(raw || {}), academie', '  if (reo) return { ...p, academie', "u5"),
     ("js", "status not validated", 'lycee: lyc, statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale" };',
      'lycee: lyc, statut: fd.get("statut") };', "u5"),

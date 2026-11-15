@@ -1585,14 +1585,15 @@ async function viewCarte(dArg, mArg) {
   const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
   function panel() {
-    const base = shown();
+    const base = shown(), home = villeDepart();          // the town of "Mon profil" (this browser only, never sent)
     const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr).filter((f) => carteHas(f, gr, o)).length;
       return `<label class="small"><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
     const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
     document.getElementById("cfilters").innerHTML = `
       <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
       <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
-      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${home ? `<option value="${esc(villeLabel(home))}">` : ""}${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      ${home ? `<button type="button" class="linkish small" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button>` : '<p class="muted small"><a href="#/profil">Indiquez votre ville dans Mon profil</a> pour chercher autour de chez vous.</p>'}
       <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
       ${carteGroups().map(([gr, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${(F[gr] || []).length ? `<button type="button" class="linkish" data-clear="${gr}">Tout décocher (tout afficher)</button>` : ""}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
@@ -1600,11 +1601,14 @@ async function viewCarte(dArg, mArg) {
       <p class="muted small">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
     document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
     document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
-    const setTown = () => { const v = document.getElementById("ctown").value, t = town(v), km = Number(document.getElementById("ckm").value);
+    const setTown = () => { const v = document.getElementById("ctown").value, km = Number(document.getElementById("ckm").value);
+      const t = town(v) || (home && v === villeLabel(home) ? { lat: home.lat, lon: home.lon } : null);      // the profile's town
       F.autour = t ? { ...t, km, ville: v } : null;
       if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
       save(); };
     document.getElementById("ctown").onchange = setTown;
+    const ch = document.getElementById("chome");
+    if (ch) ch.onclick = () => { document.getElementById("ctown").value = villeLabel(home); if (!F.autour) document.getElementById("ckm").value = "50"; setTown(); };
     document.getElementById("ckm").onchange = setTown;
     document.querySelectorAll("[data-clear]").forEach((b) => { b.onclick = () => { F[b.dataset.clear] = []; save(); }; });
     document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
@@ -1804,6 +1808,7 @@ function summaryBand(r, d) {
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
+    ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
 // sprint V2: how many vœux the formation received for each place, placed among its type (tension.py): demand, never a chance
@@ -2042,19 +2047,27 @@ function distanceText(from, lat, lon) {
   return `<strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau depuis le centre de ${esc(villeLabel(from))} ${estimTag("distance en ligne droite entre les centres des communes ; la route est plus longue")}.${km > 50 ? " À cette distance, la plupart des étudiants se logent sur place : le loyer ci-dessous compte." : " À cette distance, des allers-retours sont souvent possibles : regardez les transports."}`;
 }
 function distanceBlock(v) {
+  // owner, 2026-11-15: the town is entered ONCE, in "Mon profil"; here it is only read (no input on the formation page)
   if (!v || v.lat == null || v.lon == null) return "";
   const from = villeDepart();
-  return `<div class="dist-box" data-lat="${esc(v.lat)}" data-lon="${esc(v.lon)}"><h3>Depuis chez vous</h3>
-    <label class="small" for="dist-ville">Votre ville</label>
-    <div class="dist-row"><input id="dist-ville" list="dist-communes" autocomplete="off" placeholder="ex. Arras (62)" value="${from ? esc(villeLabel(from)) : ""}"><datalist id="dist-communes"></datalist></div>
-    <p class="small" id="dist-out" aria-live="polite">${from ? distanceText(from, v.lat, v.lon) : "Tapez le nom de votre commune pour voir la distance."}</p>
-    <p class="muted small">Votre ville reste dans ce navigateur : la distance est calculée ici, rien n'est envoyé au site.</p></div>`;
+  return `<p class="small dist-line">${from ? distanceText(from, v.lat, v.lon) : 'Indiquez votre ville dans <a href="#/profil">Mon profil</a> : la distance jusqu\'ici s\'affichera sur chaque fiche, sur la carte et dans Mes vœux.'}</p>`;
 }
-function bindDistance() {
-  const box = document.querySelector(".dist-box"), input = document.getElementById("dist-ville");
-  if (!box || !input) return;
-  const lat = Number(box.dataset.lat), lon = Number(box.dataset.lon), out = document.getElementById("dist-out"), list = document.getElementById("dist-communes");
+// the town field of "Mon profil": the communes (API Géo) are searched HERE; the town is kept in this browser only, never sent
+function villeField() {
+  const from = villeDepart();
+  return `<div class="pf-field"><div class="pf-ctl"><label for="pf-ville">Votre ville (facultatif)</label>
+    <div class="dist-row"><input id="pf-ville" list="pf-communes" autocomplete="off" placeholder="ex. Arras (62)" value="${from ? esc(villeLabel(from)) : ""}">${from ? '<button type="button" id="pf-ville-clear" class="small">Retirer</button>' : ""}</div><datalist id="pf-communes"></datalist>
+    <p class="small" id="pf-ville-out" aria-live="polite">${from ? `Ville enregistrée : ${esc(villeLabel(from))}.` : ""}</p></div>
+    <p class="pf-why">Sert à calculer la distance jusqu'à chaque formation : sur sa fiche, sur la carte et dans Mes vœux. Les communes sont cherchées dans ce navigateur : votre ville n'est jamais envoyée au site.</p></div>`;
+}
+function bindVille(redraw) {
+  const input = document.getElementById("pf-ville");
+  if (!input) return;
+  const out = document.getElementById("pf-ville-out"), list = document.getElementById("pf-communes");
+  const clear = document.getElementById("pf-ville-clear");
+  if (clear) clear.onclick = () => { store.set("villeDepart", null); redraw(); };
   input.addEventListener("focus", () => { communesLoad(); }, { once: true });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });   // never submits the profile form
   input.addEventListener("input", async () => {
     const C = await communesLoad();
     if (!C || !input.isConnected) return;
@@ -2062,7 +2075,7 @@ function bindDistance() {
     const exact = C.find((c) => villeLabel(c) === input.value.trim());
     if (exact) {
       store.set("villeDepart", { nom: exact.nom, dep: exact.dep, lat: exact.lat, lon: exact.lon });
-      out.innerHTML = distanceText(exact, lat, lon);
+      out.textContent = `Ville enregistrée : ${villeLabel(exact)}.`;
       return;
     }
     if (q.length < 2) { list.innerHTML = ""; return; }
@@ -2070,6 +2083,12 @@ function bindDistance() {
     list.innerHTML = hits.map((c) => `<option value="${esc(villeLabel(c))}">`).join("");
     out.textContent = hits.length ? "Choisissez votre commune dans la liste." : "Aucune commune de ce nom.";
   });
+}
+// the distance from the student's town to a formation, for a list row (Mes vœux): "" without a town or coordinates
+function kmFromHome(lat, lon) {
+  const from = villeDepart();
+  if (!from || lat == null || lon == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return "";
+  return `${fmt(Math.round(haversineKm(from.lat, from.lon, Number(lat), Number(lon))))} km de chez vous`;
 }
 // sprint V2: doing the formation as an apprentice (apprentissage.py): free tuition and a salary, the CFA that teach it here,
 // where to find a company; official links only, never a computed salary
@@ -2185,7 +2204,6 @@ async function viewFormation(cod, session) {
   </table></div></div>`],
   ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
-  bindDistance();
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
@@ -2847,7 +2865,7 @@ function profileForm(p, saved) {
   const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
     "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
   if (reo) {
-    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}</section>${saved ? "" : PF_SAVE}</form>`;
+    return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}${villeField()}</section>${saved ? "" : PF_SAVE}</form>`;
   }
   const bac = `<section class="card"><h2>2 · Votre bac</h2>
     ${field(`<label>Votre bac <select name="serie">${opt(JV.series || [{ code: "bg", label: "bac général" }], serie)}</select></label>`,
@@ -2871,6 +2889,7 @@ function profileForm(p, saved) {
   </section>`;
   const where = `<section class="card"><h2>4 · Où vous êtes</h2>
     ${acad}
+    ${villeField()}
     ${field(`<div class="pf-ctl lyc-pick"><label for="lyc-q">Votre lycée (facultatif)</label>
       <div class="lyc-row"><input id="lyc-q" type="search" autocomplete="off" placeholder="Nom, ville ou code UAI du lycée" value="${p.lycee ? esc(p.lycee.nom) : ""}" aria-describedby="lyc-help">
       ${p.lycee ? '<button type="button" id="lyc-clear" class="small">Retirer</button>' : ""}</div>
@@ -3311,6 +3330,7 @@ async function viewProfil() {
         <li>Il reste dans ce navigateur : pas de compte, pas d'adresse e-mail.</li>
         <li>Pour lire vos zones, la page envoie votre bac, vos spécialités, votre mention et votre académie. Le serveur ne les enregistre pas et aucune mesure d'audience ne les contient.</li>
         <li>Votre lycée n'est jamais envoyé : la liste des lycées est cherchée dans ce navigateur.</li>
+        <li>Votre ville n'est jamais envoyée : les distances sont calculées dans ce navigateur.</li>
         <li>Une liste partagée avec un adulte n'inclut votre profil que si vous cochez la case prévue (jamais votre académie ni votre lycée).</li>
       </ul>
       ${has ? (confirmErase ? `<p class="toolbar"><span class="small">Effacer votre profil de ce navigateur ? Votre liste de vœux est gardée.</span><button type="button" id="pf-erase-yes">Oui, effacer</button><button type="button" id="pf-erase-no">Annuler</button></p>`
@@ -3318,6 +3338,7 @@ async function viewProfil() {
     </div>`;
     $view.dataset.rendered = "profil";
     bind(p, serie, has, raw);
+    bindVille(() => draw());
     if (focusName) { const el = document.querySelector(`#pf [name="${focusName}"]${focusName === "statut" ? ":checked" : ""}`); if (el) el.focus(); }
   };
   const bind = (p, serie, has, raw) => {
@@ -3381,7 +3402,7 @@ async function viewProfil() {
     const er = document.getElementById("pf-erase");
     if (er) er.onclick = () => { confirmErase = true; draw(); document.getElementById("pf-erase-no")?.focus(); };
     const ey = document.getElementById("pf-erase-yes");
-    if (ey) ey.onclick = () => { confirmErase = false; justSaved = false; store.set("profile", null); store.set("drill", null); draw(); };
+    if (ey) ey.onclick = () => { confirmErase = false; justSaved = false; store.set("profile", null); store.set("drill", null); store.set("villeDepart", null); draw(); };
     const en = document.getElementById("pf-erase-no");
     if (en) en.onclick = () => { confirmErase = false; draw(); };
   };
@@ -3567,7 +3588,7 @@ async function viewVoeux() {
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain)}${flags}</td>

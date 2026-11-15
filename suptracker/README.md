@@ -3384,3 +3384,14 @@ Red team `scripts/redteam_aides.py` (AI1-AI8):
 - AI5: vie.py's CVEC and meal equal the official pages; no gone link.
 - AI6 (`--real`): the warehouse's aids equal `data/aides`, and the rules hold on 400 real formations.
 - AI7: plumbing. AI8: the mutation test (each mutant caught).
+
+### Your town is entered once, in "Mon profil" (owner, 2026-11-15)
+
+The town box of the cost tab ("Depuis chez vous") is gone. The town is now a field of "Mon profil" ("Où vous êtes", in both
+situations), searched in the commune list in the browser and kept in this browser only (erased with the profile). Every page
+that needs it reads it:
+- the formation page: a line in L'essentiel ("À 88 km de Arras (62) à vol d'oiseau : loyer et transports →") and the distance
+  in the cost tab; without a town, a link to Mon profil;
+- the map: "Autour de ma ville" fills the town-and-radius filter (50 km by default);
+- Mes vœux: each vœu says how far it is from home (the vœu rows now carry the formation's coordinates).
+Nothing is sent: red team VP4 checks the line, the field and the rows' distance; U4 checks the form.

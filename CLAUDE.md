@@ -616,7 +616,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   - Size: `mart.tension` stores the classes only (ratio re-read from formation_year); the communes are ONE zlib JSON value in
     `rapport_textes.duckdb` (as a warehouse table they pushed it to 95.96 MB).
   - Distance: `/api/communes` (API Géo, no parameter, public cache), searched and computed in the browser; the town lives in
-    `store.villeDepart` (validated), never sent.
+    `store.villeDepart` (validated), never sent. Owner, 2026-11-15: the town is ENTERED ONLY in "Mon profil" (`villeField`,
+    `bindVille`, erased with the profile); the formation page only READS it (L'essentiel line + cost tab, no input there), the map
+    offers "Autour de ma ville", Mes vœux prints each vœu's distance (`kmFromHome`, the rows' lat/lon). Red team VP4, U4.
   - Grids harvest: a page titled "Fiche formation" is a fiche (never the closed-site words); failed fiches re-read next run;
     gone from the cartographie = `hors_campagne`. Red team `redteam_voiepro.py` (VP1-VP8), grilles GR5.
 - **Financer vos études (sprint F, owner 2026-11-15).** Every amount, condition and link is READ from the official pages
