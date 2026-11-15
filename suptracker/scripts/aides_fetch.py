@@ -68,11 +68,12 @@ def main(out: str) -> int:
             if not str(r.url).startswith(ALLOWED):
                 log.append({"url": url, "status": f"refused: redirected to {r.url.host}"})
                 continue
-            row = {"url": url, "status": r.status_code, "final_url": str(r.url), "bytes": len(r.content),
-                   "sha256": hashlib.sha256(r.content).hexdigest(),
+            text = page_text(r.text) if r.status_code == 200 else ""
+            row = {"url": url, "status": r.status_code, "final_url": str(r.url),
+                   "sha256": hashlib.sha256(text.encode()).hexdigest(),          # of the text read: a page's tokens change daily
                    "fetched": datetime.now(timezone.utc).isoformat(timespec="seconds")}
             if r.status_code == 200:
-                (d / name_of(url)).write_text(page_text(r.text))
+                (d / name_of(url)).write_text(text)
                 (d / name_of(url).replace(".txt", ".links.json")).write_text(
                     json.dumps(page_links(r.text, str(r.url)), ensure_ascii=False, indent=0) + "\n")
                 row["file"] = name_of(url)
@@ -81,7 +82,11 @@ def main(out: str) -> int:
         print("no official page could be read: the previous log is kept", file=sys.stderr)
         print(json.dumps(log, ensure_ascii=False, indent=1), file=sys.stderr)
         return 1
-    (d / "fetch_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1) + "\n")
+    old = d / "fetch_log.json"
+    strip = lambda rows: [{k: v for k, v in r.items() if k != "fetched"} for r in rows]       # noqa: E731
+    if old.exists() and strip(json.loads(old.read_text())) == strip(log):
+        return 0                                # same pages: no new commit, no warehouse rebuild for a date
+    old.write_text(json.dumps(log, ensure_ascii=False, indent=1) + "\n")
     return 0
 
 

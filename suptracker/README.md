@@ -3341,3 +3341,46 @@ Red team `scripts/redteam_voiepro.py` (VP1-VP8):
 - VP6: the real tables re-derived once built.
 - VP7: plumbing.
 - VP8: the mutation test (23 mutants, each caught).
+
+## Financer vos études: bourse, aids and exemptions in the cost tab (owner, 2026-11-15)
+
+The cost tab ("Combien ça coûte") now has a "Financer vos études" card. Every amount, condition and link is read from the
+official pages, never typed by hand:
+- the pages are fetched by the `suptracker-aides` workflow (official hosts only: service-public.gouv.fr, etudiant.gouv.fr,
+  cvec.etudiant.gouv.fr; Légifrance refuses robots, service-public cites its decree) into `data/aides/` as text plus the
+  page's links; it runs weekly on the default branch, or on a push of `data/aides/request.json` on a claude/ branch, and
+  commits only when a page's text changed;
+- `aides.py` reads each item with ONE fixed rule anchored on the page's wording. A rule that no longer matches leaves its
+  item out and names it in the audit (`core.aides`, built with the warehouse; `data/aides` is in the warehouse fingerprint).
+
+What the card shows (2026-11-15 reading, year 2026-2027, "vérifié le" dates printed):
+- the bourse sur critères sociaux: the 8 échelons, 1,454 € (0 bis) to 6,335 € (7) a year, paid in 10 instalments, +300 € a
+  year when the formation is overseas; the official simulator and the DSE. The site never computes the student's échelon
+  (it needs the family's income);
+- the boursier's year here: the cost card's year without the CVEC (boursiers are exempt) and without the fee only when the
+  establishment is PUBLIC and the fiche's fee is a national tariff of the year (the official table: 178 € licence, 255 €
+  master, 630 / 2,620 € engineering, the health tariffs...). Any other fee is kept and said to be the establishment's own.
+  The bourse itself is never subtracted (the card is not a budget);
+- the aide au mérite (900 € a year, 10 × 90 €; bourse + mention très bien) and the aide à la mobilité Parcoursup (500 €,
+  lycée scholarship + a vœu accepted outside the académie of residence; 1,500 € more for a bac pro boursier of
+  Île-de-France going outside the region), with their official conditions verbatim. The student's mention, bac route and
+  académie are compared in the browser (`aidesHint`), never sent;
+- IFSI and social-work schools (EFTS): their bourses are managed by the Regions (official sentence), so the Crous table is
+  replaced by that sentence and the regions' page; a private establishment: the bourse needs an establishment "habilité
+  à recevoir des boursiers" (said);
+- the housing aid: the CAF simulator as linked by service-public.
+
+The V1 cost card linked a Crous meal page that is gone (404) and a CAF address nobody had checked: both now come from the
+official pages, and vie.py's CVEC amount and meal are checked against them.
+
+Red team `scripts/redteam_aides.py` (AI1-AI8):
+- AI1: every item read and equal to an independent re-reading (own patterns); service-public and etudiant.gouv.fr agree on
+  the mérite and mobility amounts; official links only. It caught a first rule that stopped the tariff table too early.
+- AI2: tampered pages (a lost row, non-increasing amounts, a broken product, two mobility amounts, a foreign simulator link,
+  a missing page) leave only their item out and say so; the fetcher keeps official hosts.
+- AI3: the per-formation rules on a fixture (exemption, Region, overseas majoration, boursier year, CVEC never counted).
+- AI4: the card in node (escaping, estimation label, `.gouv.fr` links only, no échelon or promise, no request, the three
+  profile hints).
+- AI5: vie.py's CVEC and meal equal the official pages; no gone link.
+- AI6 (`--real`): the warehouse's aids equal `data/aides`, and the rules hold on 400 real formations.
+- AI7: plumbing. AI8: the mutation test (each mutant caught).

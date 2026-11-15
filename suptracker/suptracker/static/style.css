@@ -674,3 +674,7 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .dist-box { margin: 12px 0; }
 .dist-box h3 { margin-bottom: 4px; }
 .dist-row input { width: 100%; max-width: 22rem; min-height: 44px; border: 1px solid var(--line-input); border-radius: var(--r-sm); padding: 0 10px; background: var(--surface); color: var(--ink); font: inherit; }
+
+/* sprint F: financing one's studies (aides.py) */
+.aides-hints { border-left: 3px solid var(--accent); padding-left: 12px; margin-left: 0; list-style: none; }
+.aides-table td:first-child { white-space: nowrap; }
