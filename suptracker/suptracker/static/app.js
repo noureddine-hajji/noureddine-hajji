@@ -1240,8 +1240,9 @@ function carteShareRead(raw, FAC) {
   let qs;
   try { qs = new URLSearchParams(String(raw || "")); } catch (_) { return null; }
   const lieuTxt = (qs.get("lieu") || "").slice(0, 120);
-  const m = {};
-  qs.getAll("m").forEach((x) => { const i = x.indexOf("::"); if (i > 0) (m[x.slice(0, i)] = m[x.slice(0, i)] || []).push(x.slice(i + 2)); });
+  // no prototype: a type named "__proto__", "constructor" or "toString" is an ordinary unknown key, dropped by carteSelection (Codex)
+  const m = Object.create(null);
+  qs.getAll("m").forEach((x) => { const i = x.indexOf("::"); if (i > 0) { const d = x.slice(0, i); (m[d] = Array.isArray(m[d]) ? m[d] : []).push(x.slice(i + 2)); } });
   const F = {};
   for (const [gr, , opts] of carteGroups()) {
     if (!qs.has(`f_${gr}`)) continue;

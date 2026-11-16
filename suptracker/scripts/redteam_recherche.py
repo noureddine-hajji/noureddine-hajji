@@ -507,6 +507,9 @@ hostile.set("f_statut", "public," + H); hostile.set("f_acad", "Lyon,Atlantide");
 hostile.set("serie", "bg"); hostile.set("spe1", "MATHS"); hostile.set("moyenne", "14");
 out.hostile = carteShareRead(hostile.toString(), FAC);
 out.garbage = carteShareRead("%%%==&&&", FAC);
+// Codex: inherited object keys as types or mentions never throw, never reach the selection
+out.proto = ["__proto__", "constructor", "toString", "hasOwnProperty"].map((k) => { try {
+  const r = carteShareRead(`d=${k}&d=BUT&m=${k}::x&m=BUT::GEA&f_${k}=x`, FAC); return { ok: true, sel: r.sel, F: r.F }; } catch (e) { return { ok: false, e: String(e) }; } });
 process.stdout.write(JSON.stringify(out));"""
 
 
@@ -541,6 +544,9 @@ def share_ok(js: str) -> tuple[bool, str]:
     if len(h["q"]) > 200 or h["lieuTxt"] != "" or h["km"] != 25 or h["sel"] != {"d": ["BUT"], "m": {"BUT": ["GEA"]}} \
             or h["F"] != {"statut": ["public"], "acad": ["Lyon"], "capacite": ["20a49"]}:
         bad.append(("hostile parameters kept", h))
+    for x in o["proto"]:
+        if not x["ok"] or x["sel"] != {"d": ["BUT"], "m": {"BUT": ["GEA"]}} or x["F"] != {}:
+            bad.append(("an inherited key as a type or mention (Codex)", x))
     if o["garbage"] is None or o["garbage"]["sel"] != {"d": [], "m": {}}:
         bad.append(("garbage", o["garbage"]))
     vs = js[js.index("function viewRecherche(raw) {"):js.index("\n}", js.index("function viewRecherche(raw) {"))]
@@ -771,6 +777,9 @@ JS_MUTANTS = [
     ("share: the zones shared", "  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "  qs.set(\"f_zones\", (F.zones || []).join(\",\"));\n  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "rs10"),
     ("share: any radius accepted", "km: CARTE_KMS.includes(Number(qs.get(\"km\"))) ? Number(qs.get(\"km\")) : 25", "km: Number(qs.get(\"km\")) || 25", "rs10"),
     ("share: unknown options kept", "F[gr] = [...new Set(qs.get(`f_${gr}`).split(\",\").filter((k) => keys.includes(k)))];", "F[gr] = [...new Set(qs.get(`f_${gr}`).split(\",\"))];", "rs10"),
+    ("share: an inherited key breaks the page (Codex)",
+     "  const m = Object.create(null);\n  qs.getAll(\"m\").forEach((x) => { const i = x.indexOf(\"::\"); if (i > 0) { const d = x.slice(0, i); (m[d] = Array.isArray(m[d]) ? m[d] : []).push(x.slice(i + 2)); } });",
+     "  const m = {};\n  qs.getAll(\"m\").forEach((x) => { const i = x.indexOf(\"::\"); if (i > 0) (m[x.slice(0, i)] = m[x.slice(0, i)] || []).push(x.slice(i + 2)); });", "rs10"),
     ("share: types not checked", 'sel: carteSelection(FAC, "", "", { d: qs.getAll("d"), m }), F };', 'sel: { d: qs.getAll("d"), m }, F };', "rs10"),
     ("share: a stale zone filter kept", "Object.assign(F, { zones: [], q: share.q,", "Object.assign(F, { q: share.q,", "rs10"),
 ]
