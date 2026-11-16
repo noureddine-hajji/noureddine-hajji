@@ -263,7 +263,11 @@ def c3(c: Ctx):
                                          re.search(r"const carteInLieu = .*?;", js), re.search(r"const foldText = .*?;\n", js),
                                          # sprint R3: the shared bands (META absent here: no band, the R3 groups stay empty)
                                          re.search(r"const CARTE_R3 = .*?;", js), re.search(r"const fiOptions = .*?;", js),
-                                         re.search(r"function filtreBand\(v, bands\) \{.*?\n\}", js, re.S)) if m)
+                                         re.search(r"function filtreBand\(v, bands\) \{.*?\n\}", js, re.S),
+                                         # sprint Vitesse: the shared part of every group and the folded-name cache
+                                         re.search(r"const CARTE_FGROUPS = .*?;", js), re.search(r"const carteFolded = .*?;", js),
+                                         re.search(r"function carteText\(f\) \{.*?\n\}", js, re.S),
+                                         re.search(r"const carteCommon = .*?\n  && \(!F\.autour.*?;\n", js, re.S)) if m)
     d = c.sample[0]
     real = [{**f, "zone": z} for f, z in zip(M["CA"].public(M["CA"].formations(c.con, d))["formations"], ["securite", "cible", "ambitieux", None] * 99999)]
     acad = next((f["academie"] for f in real if f["academie"]), "")

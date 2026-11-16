@@ -17,3 +17,5 @@ pdfplumber>=0.11
 pikepdf>=9
 # Independent re-reading of the Parcoursup fiches' evaluation grids (scripts/redteam_grilles.py GR1)
 beautifulsoup4>=4.12
+# Brotli bodies of the map layer and the lists' badges, compressed once at build (suptracker/precomp.py, red team VT10)
+brotli>=1.2   # httpx 0.28 decodes br with the 1.2 API (TestClient)

@@ -629,8 +629,8 @@ def le6(c: Ctx):
 
 # ------------------------------------------------------------------ LE7 wiring and wording
 ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;",
-           "api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })",
-           "try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); }",
+           "api(`/api/voeux?${k}`)).then((d) => { if (this.key === k) { this.data = d; this.render(); } })",
+           "try { d = voeuxLocal(await req, prof); }",
            "d = zoned ? voeuxLocal(await api(`/api/voeux?${vxQuery(ids, prof)}`), prof)",
            "stage2Local(await api(`/api/journey/stage2?",
            "if (local) d = planBLocal(d, pbProf, prof.academie || null);",
@@ -763,7 +763,7 @@ def js_mutants():
         ("the map asks the server with the average", '&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true`', '&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true&moyenne=${VP.moyenne}`', "wire"),
         ("the profile bar shows a reading of an older average (review)", "const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;",
          "const d = this.data;", "wire"),
-        ("Mes vœux shown as the server read the band", "try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); }", "try { d = await api(`/api/voeux?${qs}`); }", "wire"),
+        ("Mes vœux shown as the server read the band", "try { d = voeuxLocal(await req, prof); }", "try { d = await req; }", "wire"),
     ]
 
 

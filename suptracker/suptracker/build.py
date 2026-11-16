@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -66,6 +66,8 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         search.persist(con)            # the search index, stored once: the first search of an instance no longer builds it
+        # sprint Vitesse: the map layer and the lists' badges compressed once (brotli), beside the warehouse, keyed by digest
+        precomp.build(con, rapports.textes_path(db_path), precomp.bodies(con))
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
         con.execute("INSERT INTO meta.build VALUES ('built_at', ?), ('manifest', ?), ('years', ?), ('success_source', ?), ('poursuite_sources', ?)", [
             datetime.now(timezone.utc).isoformat(timespec="seconds"),

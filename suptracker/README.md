@@ -2952,6 +2952,67 @@ Red team `scripts/redteam_vitesse.py` (VT1-VT8):
 - VT6 runs the emulated phone budget in the browser (`--browser`).
 - VT8 is the mutation test.
 
+## Sprint Vitesse sur téléphone: the search page on a slow phone (owner, 2026-11-16)
+
+The one search page (sprint H) was measured on a phone emulated in Chromium: Pixel 5, CPU 4x slower, slow 4G (1.6 Mbit/s,
+150 ms). The measures below are for a student with a profile.
+
+| Step | Before | After |
+|---|---|---|
+| Heading shown | 4.0 s | 2.5 s |
+| List shown | 8.8 s | 6.9 s |
+| Zones shown | 16.2 s | 7.5 s |
+| Keyword search ("droit") | 5.3 s | 0.8 s |
+| Place ("Lyon") | 5.4 s | 0.3 s |
+| A ticked filter | 2.3 s | 0.2 s |
+| Total time the page was frozen (long tasks) | 18.2 s | 3.2 s |
+| Longest freeze | 5.3 s | 1.2 s |
+
+What made it slow, and what changed. No figure changes: the red team checks every one.
+- **The counts beside the filters.** Each option's count re-filtered every formation, once per option (about 40 times). Each
+  pass also re-folded the accents of the apprenticeship offers' names. Now `carteFacets` counts everything in ONE pass:
+  - a formation every ticked group keeps counts in every group;
+  - one that a single group leaves out counts in that group only;
+  - the folded names are kept per formation (`carteText`).
+- **The sort by name.** It now uses one French collator, and each name's rank is computed once per layer
+  (`carteNameRank`): the same order as before.
+- **The bytes.** The map layer and the lists' badges (`/api/reconnaissance`) are the same for everyone. Brotli at its highest
+  quality makes them about a third smaller than gzip:
+  - layer: 630 KB → 430 KB;
+  - details: 387 KB → 263 KB;
+  - badges: 158 KB → 77 KB.
+
+  Brotli at that quality takes seconds, so it is done ONCE at build (`precomp.py`). The compressed bodies are stored beside
+  the warehouse (`rapport_textes.duckdb`), each under the SHA-256 of the exact JSON it encodes. The server builds its JSON as
+  before and looks its digest up:
+  - found: the brotli body goes to a browser that accepts it, with its own ETag;
+  - not found (another warehouse, a code change since the build): gzip, as before.
+
+  The build checks every body by decompressing it. `/api/reconnaissance` is now written with sorted keys: its rows come
+  from SQL without an order, so its bytes, its digest and its ETag changed from one process to the next.
+- **The order of the requests.**
+  - The zones are asked at once, beside the layer: the server reads them (2 s for a new profile) while the layer downloads.
+  - With a profile, the cards' details wait for the zones: on a slow line they share the bandwidth.
+  - The badges no longer delay the page's heading.
+- **Mes vœux.** The page and the guide read the profile bar's own request: one `/api/voeux` request instead of two. A failed
+  request is asked again.
+
+Red team `scripts/redteam_vitesse.py`, new checks:
+- **VT9** runs the page's code in Node, on the real layer and on crafted rows:
+  - the one-pass counts equal the option-by-option filtering (7 filter states, every group, keyword codes and words, place,
+    radius);
+  - the rank sort equals the French collator, names it calls equal included;
+  - the folded-name cache follows a changed name;
+  - the request order.
+- **VT10** checks the serving:
+  - the brotli bodies decode to exactly the JSON served;
+  - brotli goes only to a browser that accepts it (`br;q=0` refused), with its own ETag;
+  - gzip and plain JSON otherwise, and a 304 for every ETag;
+  - `/api/reconnaissance` gives the same bytes under two hash seeds.
+- **VT11** checks that Mes vœux and the guide never send the profile bar's query twice.
+- **VT6** (browser) adds budgets: keyword < 2.5 s, filter < 1 s, zones < 11 s, and one `/api/voeux` request on Mes vœux.
+- **VT8** adds 13 mutants.
+
 ## Sprint Q4: plain language and human help (owner, 2026-11-13)
 
 The fourth sprint of the plan to reach 90/100. The orientation expert (Psy-EN) scored 11/15. Their reasons:

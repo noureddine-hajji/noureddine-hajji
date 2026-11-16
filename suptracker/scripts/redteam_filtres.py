@@ -331,7 +331,8 @@ def map_ok(c: Ctx):
     rows = rows + [{"cod_aff_form": f"X{i}", "capa_fin": cap, "acc_pc": pc, "taux_acces_ens": t, "statut": "public", "initiale": True}
                    for i, (cap, pc, t) in enumerate([(19, 0, 29.9), (20, 2, 30), (50, None, 90), (100, 0, None), (None, 1, 60)])]
     js = c.js
-    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "carteHas", "carteFilter", "carteInLieu", "foldText")]
+    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteCommon",
+                                 "carteFilter", "carteInLieu", "foldText")]
     prog = "const carteZone = () => 'autre'; const haversineKm = () => 0;\n" + "\n".join(parts) + MAP_PROG
     exe = shutil.which("node")
     if not exe:
@@ -442,7 +443,7 @@ JS_MUTANTS = [
     ("map ignores the new groups", '  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
      '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
     ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
-    ("the list sorted by capacity", '|| carteSortName(a).localeCompare(carteSortName(b), "fr"));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),
+    ("the list sorted by capacity", '|| byName(a, b));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),
     ("zone group shown without a profile", '    const zones = ok ? dd("zones"', '    const zones = true ? dd("zones"', ("fi5",)),
