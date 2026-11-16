@@ -1,3 +1,5 @@
 file,kind,as_of,source,url,sha256,rows
 sec_20261116_onisep.csv.gz,sec,2026-11-16,onisep,https://data.onisep.fr/api/v1/downloads/5fa5816ac6a6e/5fa5816ac6a6e.csv,f499974a9669dbe8e581c7ee106b6a799f6fbcb86ba1ce73bb3d1cc95181f6de,313
+sec_20261116_onisep.csv.gz,sec,2026-11-16,onisep,https://data.onisep.fr/api/v1/downloads/5fa5816ac6a6e/5fa5816ac6a6e.csv,f26e9deb0c43577535379e7abfcfb750ee56a9c0e4519310aea3175abbd89818,345
 sup_20261116_onisep.csv.gz,sup,2026-11-16,onisep,https://data.onisep.fr/api/v1/downloads/5fa586da5c4b6/5fa586da5c4b6.csv,209e3271b41022f0d6861ab4d6e12037b3cbc76c9bf8f82c47c2ea98fc3ca9c4,871
+sup_20261116_onisep.csv.gz,sup,2026-11-16,onisep,https://data.onisep.fr/api/v1/downloads/5fa586da5c4b6/5fa586da5c4b6.csv,64257739b282e145d55377087841363c3b6ba7af074665e5d9ce1adeeb93daed,2095
