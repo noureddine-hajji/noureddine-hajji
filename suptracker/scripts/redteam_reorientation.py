@@ -611,7 +611,8 @@ def e6(c: Ctx):
     draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
     harness = r2 + jstext.q4_defs(js, present=pre) + zones + draw \
         + top(js, "admisBar") + top(js, "summaryBand") \
-        + "".join(top(js, n) for n in ("villeLabel", "villeDepart", "haversineKm") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
+        + "".join(top(js, n) for n in ("villeLabel", "villeDepart", "haversineKm", "localIso", "frDate", "jpoUrl", "jpoNext", "jpoWhen", "jpoLine")
+                  if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
     vf = top(js, "viewFormation")
     more = vf[vf.find("Plus de chiffres sur l'admission"):]
     more = more[:more.find("</details>")]
