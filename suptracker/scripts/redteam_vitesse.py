@@ -18,7 +18,8 @@
   VT5 the memoised calling-group reading equals the unmemoised one for every published label x series x doublette, and the
       memoised fold equals the plain fold
   VT6 browser (--browser / --real), a mid-range phone (Pixel 5, CPU x4 slower, slow 4G): the map's list and its zones within
-      the budget, at most 5 map requests, no JS error; the home and a formation page show their heading within budget
+      the budget, at most 5 map requests, no JS error; the home and a formation page show their heading within budget;
+      « Où je me situe » shows its filières, the jobs search its results and a job page its diplomas within budget
   VT7 docs: README section and CLAUDE.md rule
   VT8 mutation test of VT1-VT5, VT7 and VT9-VT11 (mutants built in memory)
   Sprint "Vitesse sur téléphone" (owner, 2026-11-16): the one search page on a slow phone, without changing one figure
@@ -61,7 +62,9 @@ from suptracker import journey as J  # noqa: E402
 
 DETAIL = ("bacs", "majo", "offres_app", "fiche")          # written here: the keys only the cards read
 BUDGET_KB = {"base": 700, "details": 500}                 # compressed bytes of the two layer answers (real warehouse)
-PHONE_BUDGET_MS = {"list": 9000, "zones": 11000, "home": 4000, "formation": 5000, "keyword": 2500, "filter": 1000}
+PHONE_BUDGET_MS = {"list": 9000, "zones": 11000, "home": 4000, "formation": 5000, "keyword": 2500, "filter": 1000,
+                   # owner, 2026-11-16: « Où je me situe » and the jobs pages, measured at 2.7 s, 0.2 s and 2.2 s
+                   "parcours": 5000, "metiers_results": 1000, "metier": 5000}
 PROFILES = [("MATHS+SES", "ab", "bg", None), ("PC+SVT", "tb", "bg", 16.4), (None, "b", "bt", None), (None, "sansmention", "bp", None)]
 
 
@@ -334,7 +337,10 @@ def vt6(c: Ctx):
         script = Path(tmp, "vt6.js")
         with duckdb.connect(str(c.db), read_only=True) as con:
             ids = [r[0] for r in con.execute("SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year) ORDER BY cod_aff_form LIMIT 4").fetchall()]
-        script.write_text(PHONE_JS.replace("__PORT__", str(port)).replace("__COD__", str(cod)).replace("__IDS__", json.dumps(ids)))
+        job = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/metiers", timeout=120).read())["rows"]
+        job = next((r[0] for r in job if r[1].lower().startswith("infirmier")), job[0][0])        # a job with diplomas
+        script.write_text(PHONE_JS.replace("__PORT__", str(port)).replace("__COD__", str(cod)).replace("__IDS__", json.dumps(ids))
+                          .replace("__JOB__", str(job)))
         r = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=600)
         out = (r.stdout or "").strip().splitlines()
         res = json.loads(out[-1]) if out and out[-1].startswith("{") else {"errors": [r.stderr[-300:]]}
@@ -390,6 +396,28 @@ const { chromium, devices } = require('playwright');
   await p.waitForSelector('#view h1', { timeout: 60000 }).catch(() => {});
   await p.waitForTimeout(4000);
   out.voeux_requests = vx;
+  await ctx.close();
+  // « Où je me situe » with a profile: the table of filières
+  ({ ctx, p } = await page(true));
+  t0 = Date.now();
+  await p.goto('http://127.0.0.1:__PORT__/#/parcours');
+  await p.waitForSelector('#view [data-type]', { timeout: 60000 }).catch(() => {});
+  out.parcours = Date.now() - t0;
+  await ctx.close();
+  // the jobs: the catalogue searched in the browser, then a job page opened from a link
+  ({ ctx, p } = await page(false));
+  await p.goto('http://127.0.0.1:__PORT__/#/metiers');
+  await p.waitForSelector('#mq', { timeout: 60000 }).catch(() => {});
+  t0 = Date.now();
+  await p.fill('#mq', 'infirm');
+  await p.waitForFunction(() => document.querySelectorAll('#mres a').length > 0, null, { timeout: 60000 }).catch(() => {});
+  out.metiers_results = Date.now() - t0;
+  await ctx.close();
+  ({ ctx, p } = await page(false));
+  t0 = Date.now();
+  await p.goto('http://127.0.0.1:__PORT__/metier/__JOB__');
+  await p.waitForSelector('#view details.dip', { timeout: 60000 }).catch(() => {});
+  out.metier = Date.now() - t0;
   await ctx.close();
   for (const [k, u] of [['home', '/'], ['formation', '/formation/__COD__']]) {
     ({ ctx, p } = await page(false));

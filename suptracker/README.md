@@ -3030,6 +3030,20 @@ Red team `scripts/redteam_vitesse.py`, new checks:
 - **VT6** (browser) adds budgets: keyword < 2.5 s, filter < 1 s, zones < 11 s, and one `/api/voeux` request on Mes vœux.
 - **VT8** adds 13 mutants.
 
+« Où je me situe » and the jobs pages were measured the same way (owner, 2026-11-16). They were already fast, so nothing was
+changed in them:
+
+| Page | Step | Measured |
+|---|---|---|
+| Où je me situe | filières shown | 2.4-2.7 s |
+| Où je me situe | a filière opened | 0.9 s |
+| Métiers | results after typing | 0.1-0.2 s |
+| Métiers | a job opened from the list | 0.5 s |
+| A job page opened from a link | diplomas shown | 2.2-3.1 s |
+
+Long tasks stay at 0.2 s or less, and the answers are small (51 KB for the whole job catalogue). The rest of the time is the
+page code, the same on every page. VT6 now also holds these pages to a budget: 5 s, 1 s and 5 s.
+
 ## Sprint Q4: plain language and human help (owner, 2026-11-13)
 
 The fourth sprint of the plan to reach 90/100. The orientation expert (Psy-EN) scored 11/15. Their reasons:
