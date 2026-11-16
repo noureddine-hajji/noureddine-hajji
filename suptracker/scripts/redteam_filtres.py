@@ -4,20 +4,18 @@
 
   FI1 bands: capacity and official-rate bands are contiguous, never overlap, lower limit in / upper limit out; the page's
       filtreBand gives the same band as filtres.band on every boundary and a grid of values; the map cuts with the same bands
-  FI2 the filtered search, re-derived: for queries of every size and filter combinations, the kept list (same relevance order),
-      the total and every facet (each group counted with the other groups applied) equal an independent computation from the
-      search's full results and the warehouse's own rows (capacity, complementary-phase admits, status, official rate, zones
-      from the FULL type's stage-2 rows, not the `only=` call)
-  FI3 privacy and validation: the audience event never carries the profile; /api/search stays no-store; a zone filter without a
-      profile, an unknown key, two identical specialties are refused (422); the page sends a profile only in terminale
-  FI4 never sorted by a figure: the filtered list is a subsequence of the plain search order; the module sorts nothing
+  FI2 the server filters nothing any more (owner, 2026-11-16): /api/search has no advanced or profile parameter, the module keeps
+      the bands only (no zone reader, no filtering, no sort)
+  FI3 privacy: a profile or filters sent with /api/search change nothing and are never recorded; no-store; the search page sends
+      its keyword only
+  FI4 never sorted by a figure: the module sorts nothing; the search page's list keeps figures first, relevance, name
   FI5 the page (Node): every group with its counts, labels escaped, the zone group asks for a profile (link to Mon profil) or for a
       narrower search above the limit; the help texts say "pas une promesse" / "pas vos chances"; zone pills escaped
   FI6 the map: the payload's capacity and complementary-phase admits equal the warehouse; the map's filter (Node, the page's own
       carteFilter) keeps, for each new option, the formations an independent Python filter keeps
   FI7 browser (--browser / --real): a profile, the zone chip filters the list to its own count; the map shows the new groups; 0 JS
       error; no horizontal scroll on a phone
-  FI8 mutation test of FI1-FI6 (mutants built in memory: the module re-loaded from a mutated source, the page's script mutated)
+  FI8 mutation test of FI1-FI6 (mutants built in memory: the module re-loaded from a mutated source, api.py and the page's script mutated)
 """
 from __future__ import annotations
 
@@ -77,6 +75,7 @@ class Ctx:
         self.readme = (ROOT / "README.md").read_text() if (ROOT / "README.md").exists() else ""
         self.claude = (ROOT.parent / "CLAUDE.md").read_text() if (ROOT.parent / "CLAUDE.md").exists() else ""
         self.FI = FI0
+        self.src = SRC
         self.latest = self.con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
 
 
@@ -170,225 +169,73 @@ def fi1(c: Ctx):
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
-# ------------------------------------------------------------------ FI2 the filtered search, re-derived
-QUERIES = ["informatique", "licence droit", "BTS commerce", "kiné", "IUT informatique Toulouse", "paris"]
-COMBOS = [{}, {"capacite": "20a49"}, {"capacite": "moins20,100plus", "statut": "public"}, {"complementaire": "oui"},
-          {"complementaire": "non", "taux": "90plus"}, {"statut": "prive"}, {"taux": "moins30,30a59", "capacite": "50a99"},
-          {"zone": "securite"}, {"zone": "cible,ambitieux", "complementaire": "oui"}, {"zone": "autre"}]
-PROFILES = [{"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b"}, {"serie": "bt", "mention": "ab"},
-            {"serie": "bg", "spe1": "SVT", "spe2": "PC", "mention": "tb"}]
+# ------------------------------------------------------------------ FI2 the server filters nothing any more
+# owner, 2026-11-16: the advanced search of sprint R3 (`/api/search?avance=true`, filters and zones read on the server for a profile
+# sent with the search) is removed. The one search page (sprint H) asks the engine for its keyword's codes and filters in the
+# browser with the bands below (FI5-FI7, red team redteam_recherche.py).
+ADVANCED = ("capacite", "complementaire", "statut", "taux", "zone", "serie", "spe1", "spe2", "mention", "moyenne", "avance")
 
 
-def reference(c: Ctx, q: str, combo: dict, prof: dict | None, base: dict):
-    """Independent: the search's full results; the warehouse's own rows; zones from the FULL type's stage-2 rows."""
-    cur = c.con.cursor()
-    full = S.search(cur, q, offset=0, limit=10 ** 6)["results"]
-    if not hasattr(c, "_att"):
-        c._att = {(a, s): (cap, pc, ct) for a, s, cap, pc, ct in cur.execute(
-            "SELECT cod_aff_form, session, capa_fin, acc_pc, contrat_etab FROM core.formation_year").fetchall()}
-        c._types = dict(cur.execute("""SELECT t.cod_aff_form, r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
-                                       WHERE t.session = ?""", [c.latest]).fetchall())
-        c._stage2 = {}
-    att, types = c._att, c._types
-    zone = None
-    if prof:
-        dkey = J.doublette_key(prof["spe1"], prof["spe2"]) if prof["serie"] == "bg" else None
-        codes = {r["cod_aff_form"] for r in full if r["session"] == c.latest}
-        zone = {}
-        for tk in {types.get(x) or J.SANS_TYPE for x in codes}:
-            key = (tk, dkey, prof["mention"], prof["serie"])
-            if key not in c._stage2:          # the FULL type (no `only`, no row limit): an independent reading of every zone
-                # R9: formations with no SIES type are read under SANS_TYPE, with EVERY untyped formation of the campaign
-                only = J.untyped_codes(cur) if tk == J.SANS_TYPE else None
-                c._stage2[key] = J.stage2(cur, dkey, prof["mention"], tk, None, limit=10 ** 6, serie=prof["serie"], only=only)["formations"]
-            for f in c._stage2[key]:
-                if f["cod_aff_form"] in codes:
-                    zone[f["cod_aff_form"]] = f["zone"]
-
-    def tag(r):
-        cap, pc, ct = att.get((r["cod_aff_form"], r["session"]), (None, None, None))
-        t = r.get("taux_acces_ens")
-        st = None if not ct else ("public" if ct == "Public" else "prive" if ct in ("Privé enseignement supérieur", "Privé hors contrat") else "contrat")
-        z = None
-        if zone is not None:
-            zz = zone.get(r["cod_aff_form"]) if r["session"] == c.latest else None
-            z = zz if zz in ("securite", "cible", "ambitieux") else "autre"
-        return {"capacite": None if cap is None else ("moins20" if cap < 20 else "20a49" if cap < 50 else "50a99" if cap < 100 else "100plus"),
-                "taux": None if t is None else ("moins30" if t < 30 else "30a59" if t < 60 else "60a89" if t < 90 else "90plus"),
-                "complementaire": None if pc is None else ("oui" if pc > 0 else "non"), "statut": st, "zone": z,
-                "fili": r.get("fili"), "academie": r.get("acad_mies"), "selectivite": r.get("select_form")}
-    rows = [(r, tag(r)) for r in full]
-    act = {g: [x for x in combo.get(g, "").split(",") if x] for g in ("capacite", "complementaire", "statut", "taux", "zone")}
-    act.update({g: [v] for g, v in base.items() if v})
-
-    def ok(t, skip=None):
-        return all(not v or t[g] in v for g, v in act.items() if g != skip)
-    kept = [r["cod_aff_form"] + ":" + str(r["session"]) for r, t in rows if ok(t)]
-    facets = {}
-    for g in ("capacite", "complementaire", "statut", "taux", "zone", "fili", "academie", "selectivite"):
-        cnt = {}
-        for _, t in rows:
-            if ok(t, skip=g) and t[g] is not None:
-                cnt[t[g]] = cnt.get(t[g], 0) + 1
-        facets[g] = cnt
-    if zone is None:
-        facets["zone"] = {}
-    return kept, facets
-
-
-def crafted(FI) -> list:
-    """Cases every warehouse may lack: an older result sharing a code with a zoned one; a search filter; facets of each group."""
+def module_ok(src: str, FI) -> tuple[bool, str]:
     bad = []
-    zoned = {("A", 2025): ("securite", False, None, False)}
-    if FI.tags({"cod_aff_form": "A", "session": 2023}, {}, zoned)["zone"] != "autre" or FI.tags({"cod_aff_form": "A", "session": 2025}, {}, zoned)["zone"] != "securite":
-        bad.append("an older result takes the latest campaign's zone")
-    r = lambda cod, sel, fili: {"cod_aff_form": cod, "session": 2025, "select_form": sel, "fili": fili, "acad_mies": "Lyon", "taux_acces_ens": 50}  # noqa: E731
-    att = {("A", 2025): (10, 0, "Public"), ("B", 2025): (60, 3, "Public"), ("C", 2025): (60, 0, "Privé hors contrat")}
-    rows = [{"r": r(k, sel, fi), "t": FI.tags(r(k, sel, fi), att, None)} for k, sel, fi in
-            (("A", "formation sélective", "BTS"), ("B", "formation non sélective", "BTS"), ("C", "formation sélective", "BUT"))]
-    kept, fac = FI.apply(rows, {"capacite": ("50a99",)}, {"fili": None, "academie": None, "selectivite": "formation sélective"})
-    if [x["r"]["cod_aff_form"] for x in kept] != ["C"]:
-        bad.append(("a search filter ignored", [x["r"]["cod_aff_form"] for x in kept]))
-    if fac["capacite"] != {"moins20": 1, "50a99": 1} or fac["selectivite"] != {"formation sélective": 1, "formation non sélective": 1} \
-            or fac["statut"] != {"prive": 1} or fac["complementaire"] != {"non": 1}:
-        bad.append(("crafted facets", fac))
-    return bad
+    left = [n for n in ("parse", "attributes", "zones", "tags", "apply", "GROUPS", "_CACHE") if hasattr(FI, n)]
+    if left:
+        bad.append(("the server-side filtering is back in the module", left))
+    if re.search(r"\bsort(?:ed)?\(", src):
+        bad.append("the module sorts")
+    if set(FI.vocab()) != {"capacite", "taux", "complementaire", "statut", "zone"}:
+        bad.append(("the vocabulary", sorted(FI.vocab())))
+    return not bad, f"problems {bad[:3]}"
 
 
-def cache_by_average(c: Ctx) -> list:
-    """R5: the zones read for an average are never the cached zones of the band's top (the cache key carries the average)."""
-    cur = c.con.cursor()
-    res = S.search(cur, "bts", limit=10 ** 6)["results"]
-    top = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab")               # the band's top, cached first
-    low = c.FI.zones(cur, res, "bg", "MATHS+SES", "ab", 12.1)         # then the bottom of the same band
-    return [] if low != top else ["the cache answers the band's zones for an average"]
+def route_ok(api_src: str) -> tuple[bool, str]:
+    sig = api_src[api_src.index('@app.get("/api/search")'):api_src.index("\n    q = q.strip()", api_src.index('@app.get("/api/search")'))]
+    back = [p for p in ADVANCED if re.search(rf"\b{p}\s*:", sig)]
+    gone = "_search_advanced" not in api_src and "FI.parse(" not in api_src and "FI.zones(" not in api_src
+    return not back and gone, f"advanced parameters back {back}; server filtering gone {gone}"
 
 
-def fi2_run(c: Ctx, quick: bool = False):
-    bad, n = crafted(c.FI), 0
-    bad += cache_by_average(c)
-    with client(c) as tc:
-        for qi, q in enumerate(QUERIES[: 3 if quick else None]):
-            for ci, combo in enumerate(COMBOS):
-                prof = PROFILES[(qi + ci) % len(PROFILES)] if "zone" in combo or ci % 3 == 0 else None
-                if "zone" in combo and prof is None:
-                    continue
-                base = {"academie": None, "fili": None, "selectivite": None}
-                params = {"q": q, "avance": "true", "limit": 200, **combo}
-                if prof:
-                    params.update(prof)
-                if ci == 2:
-                    base["selectivite"] = "formation sélective"
-                    params["selective"] = "true"
-                d = tc.get("/api/search", params=params).json()
-                if "results" not in d:
-                    bad.append(("error", q, combo, d)); continue
-                kept, facets = reference(c, q, combo, prof, base)
-                got = []
-                off = 0
-                while True:
-                    got += [r["cod_aff_form"] + ":" + str(r["session"]) for r in d["results"]]
-                    off += 200
-                    if off >= d["total"] or quick:
-                        break
-                    d2 = tc.get("/api/search", params={**params, "offset": off}).json()
-                    d = {**d, "results": d2["results"]}
-                n += 1
-                if d["total"] != len(kept) or got != kept[:len(got)]:
-                    bad.append(("kept list", q, combo, prof and prof["serie"], d["total"], len(kept)))
-                fac = d["facets"]
-                for g in ("capacite", "complementaire", "statut", "taux", "zone"):
-                    if dict(fac.get(g) or {}) != facets[g]:
-                        bad.append(("facet", g, q, combo, fac.get(g), facets[g])); break
-                for g in ("fili", "academie", "selectivite"):
-                    if {x["value"]: x["count"] for x in fac.get(g) or []} != facets[g]:
-                        bad.append(("facet", g, q, combo)); break
-    return bad, n
-
-
-def broad(c: Ctx) -> list:
-    """Review: a broad search (thousands of results) with a zone filter keeps its formations; the cache answers the same zones."""
-    bad = []
-    q = "lycee" if c.real else "informatique"
-    prof = PROFILES[0]
-    with client(c) as tc:
-        d = tc.get("/api/search", params={"q": q, "avance": "true", "zone": "securite", **prof}).json()
-    kept, fac = reference(c, q, {"zone": "securite"}, prof, {"academie": None, "fili": None, "selectivite": None})
-    if d.get("total") != len(kept) or (fac["zone"].get("securite") and not d.get("total")):
-        bad.append(("broad search with a zone filter", q, d.get("total"), len(kept)))
-    cur = c.con.cursor()
-    res = S.search(cur, q, limit=10 ** 6)["results"]
-    if c.FI.zones(cur, res, "bg", "MATHS+SES", "b") != c.FI.zones(cur, res, "bg", "MATHS+SES", "b"):
-        bad.append("the cache answers other zones")
-    src = SRC if c.FI is FI0 else getattr(c.FI, "__src__", "")
-    if "duckdb_databases()" not in src or "key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))" not in src or "limit=10 ** 6" not in src:
-        bad.append("the cache key misses the warehouse or the profile, or a row limit cuts a type")
-    return bad
-
-
-@check("FI2 the filtered search re-derived: kept list, total and every facet (other groups applied), zones from the full type")
+@check("FI2 the server filters nothing any more: no advanced parameter on /api/search, the module keeps the bands only, sorts nothing")
 def fi2(c: Ctx):
-    bad, n = fi2_run(c)
-    bad += broad(c)
-    return not bad and n >= 30, f"{n} searches; {len(bad)} problems {bad[:2]}"
+    ok1, d1 = module_ok(c.src, c.FI)
+    ok2, d2 = route_ok(c.api)
+    return ok1 and ok2, f"module: {d1}; route: {d2}"
 
 
-# ------------------------------------------------------------------ FI3 privacy and validation
-@check("FI3 privacy: no profile in the audience event, no-store, refused inputs, a profile sent only in terminale")
+@check("FI3 privacy: a profile or filters sent with /api/search are not read (same answer, no zone), never recorded; no-store")
 def fi3(c: Ctx):
     bad = []
+    prof = {"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "b", "moyenne": "14.2", "zone": "securite", "capacite": "20a49", "avance": "true"}
     with client(c) as tc:
-        prof = {"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": "tb"}
-        r = tc.get("/api/search", params={"q": "informatique", "avance": "true", "zone": "securite", **prof})
-        ev = [e for e in tc.events if e and e[0] in ("search", "refine")]
-        blob = json.dumps([e[1] for e in ev], default=str)
-        if r.status_code != 200 or not ev or any(k in blob for k in ("MATHS", "SES", '"tb"', "serie", "spe1", "mention", "securite")):
-            bad.append(("audience event carries the profile or the zone", blob[:200]))
-        if "no-store" not in (r.headers.get("cache-control") or ""):
-            bad.append(("search shared-cached", r.headers.get("cache-control")))
-        for p, why in (({"q": "x", "zone": "securite"}, "zone without a profile"), ({"q": "x", "taux": "nope"}, "unknown key"),
-                       ({"q": "x", "serie": "bg", "spe1": "ART", "spe2": "ART", "mention": "b"}, "identical specialties"),
-                       ({"q": "x", "serie": "zz", "mention": "b"}, "unknown series")):
-            if tc.get("/api/search", params=p).status_code != 422:
-                bad.append(("accepted", why))
-        tc.events.clear()
-        tc.get("/api/search", params={"q": "informatique", "avance": "true", "capacite": "20a49"})
-        if not tc.events or tc.events[0][0] != "refine":
-            bad.append("an advanced filter is not counted as a refined search")
-        # owner, 2026-11-15: the one search page asks the engine for its keyword's codes only (zones and filters read here)
-        tc.events.clear()
-        r = tc.get("/api/search/codes", params={"q": "informatique", **prof})
-        blob = json.dumps([e[1] for e in tc.events if e], default=str)
-        if r.status_code != 200 or "no-store" not in (r.headers.get("cache-control") or "") or not tc.events \
-                or any(k in blob for k in ("MATHS", "SES", '"tb"', "serie", "spe1", "mention")):
-            bad.append(("keyword route", r.status_code, r.headers.get("cache-control"), blob[:160]))
+        for q in ("informatique", "BTS commerce"):
+            tc.events.clear()
+            r, plain = tc.get("/api/search", params={"q": q, **prof}), tc.get("/api/search", params={"q": q})
+            blob = json.dumps([e[1] for e in tc.events if e], default=str)
+            if r.status_code != 200 or "no-store" not in (r.headers.get("cache-control") or ""):
+                bad.append((q, r.status_code, r.headers.get("cache-control")))
+                continue
+            if [x["cod_aff_form"] for x in r.json()["results"]] != [x["cod_aff_form"] for x in plain.json()["results"]] or r.json()["total"] != plain.json()["total"]:
+                bad.append((q, "a profile or a filter changed the answer"))
+            if any(k in x for x in r.json()["results"] for k in ("zone", "uncertain", "estime_serie")) or "filtres" in r.json():
+                bad.append((q, "a zone or a filter read on the server"))
+            if any(k in blob for k in ("MATHS", "SES", "14.2", "securite", "20a49")):
+                bad.append((q, "the profile or a filter recorded", blob[:120]))
     vc = top(c.js, "viewCarte")
     calls = re.findall(r'api\(`(/api/search[^`]*)`', vc)
     if calls != ["/api/search/codes?q=${encodeURIComponent(q)}"]:
         bad.append(("the search page sends more than its keyword", calls))
-    return not bad, f"{len(bad)} problems {bad[:3]}"
+    return not bad, f"problems {bad[:3]}"
 
 
-# ------------------------------------------------------------------ FI4 order
-@check("FI4 never sorted by a figure: the filtered list keeps the search's relevance order; the module sorts nothing")
+@check("FI4 never sorted by a figure: the module sorts nothing; the search page's list keeps figures first, relevance, name")
 def fi4(c: Ctx):
-    bad = []
-    with client(c) as tc:
-        for q in ("informatique", "licence droit"):
-            key = lambda r: f'{r["cod_aff_form"]}:{r["session"]}'  # noqa: E731
-            plain = [key(r) for r in tc.get("/api/search", params={"q": q, "limit": 200}).json()["results"]]
-            adv = [key(r) for r in tc.get("/api/search", params={"q": q, "limit": 200, "avance": "true", "complementaire": "oui"}).json()["results"]]
-            it = iter(plain)
-            if not all(x in it for x in adv if x in set(plain)):
-                bad.append(("order changed", q))
-    src = SRC if c.FI is FI0 else getattr(c.FI, "__src__", "")
-    adv_src = c.api[c.api.index("def _search_advanced("):c.api.index("def _record(")]
-    if re.search(r"\bsort(ed)?\(", src.split("def apply(")[1]) or re.search(r"sorted\(kept|\.sort\(", adv_src):
-        bad.append("a sort in the filtering")
-    return not bad, f"{len(bad)} problems {bad[:3]}"
+    vc = top(c.js, "viewCarte")
+    srt = re.search(r"const listed = kept\.filter\(\(f\) => inView\(f\) \|\| f\.lat == null\)(.*?)\);\n", vc, re.S)
+    body = re.sub(r"//[^\n]*", "", srt.group(1)) if srt else ""
+    ok = bool(srt) and not re.search(r"capa|taux|acc_pc|zone", body) and not re.search(r"\bsort(?:ed)?\(", c.src)
+    return ok, f"list sort found {bool(srt)}; sorted by a figure {bool(re.search(r'capa|taux|acc_pc|zone', body))}"
 
 
-# ------------------------------------------------------------------ FI5 the page (Node)
 PAGE_PROG = r"""
 const META = { filtres: JSON.parse(process.env.VOCAB), low_n_threshold: 5 };
 const H = "<img src=x onerror=alert(1)>";
@@ -580,22 +427,14 @@ def fi7(c: Ctx):
 # ------------------------------------------------------------------ FI8 mutation test
 PY_MUTANTS = [
     ("capacity upper limit included", "        if (lo is None or value >= lo) and (hi is None or value < hi):",
-     "        if (lo is None or value >= lo) and (hi is None or value <= hi):", ("fi1", "fi2")),
-    ("complementary phase read from candidates", '"complementaire": None if pc is None else ("oui" if pc > 0 else "non")',
-     '"complementaire": None if pc is None else ("oui" if pc >= 0 else "non")', ("fi2",)),
-    ("facets counted with every group applied", "            if ok(x, skip=g) and x[\"t\"][g] is not None:",
-     "            if ok(x) and x[\"t\"][g] is not None:", ("fi2",)),
-    ("zones of an older campaign", "    z = zoned.get((r[\"cod_aff_form\"], r[\"session\"])) if zoned is not None else None",
-     "    z = zoned.get((r[\"cod_aff_form\"], max(k[1] for k in zoned) if zoned else 0)) if zoned is not None else None", ("fi2",)),
-    ("non-zone results dropped from 'autre'", '    zone = None if zoned is None else (z[0] if z and z[0] in ZONE_KEYS else "autre")',
-     '    zone = None if zoned is None else (z[0] if z and z[0] in ZONE_KEYS else None)', ("fi2",)),
-    ("a search filter ignored", '            if g != skip and v is not None and x["r"].get(src[g]) != v:',
-     '            if False:', ("fi2",)),
-    ("cache shared across profiles", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
-     "        key = (db, latest, tk, tuple(sorted(cods)))", ("fi2",)),
-    ("cache shared across averages (R5)", "        key = (db, latest, serie, dkey, mention, moyenne, tk, tuple(sorted(cods)))",
-     "        key = (db, latest, serie, dkey, mention, tk, tuple(sorted(cods)))", ("fi2",)),
-    ("sorted by capacity", "    kept = [x for x in rows if ok(x)]", "    kept = sorted([x for x in rows if ok(x)], key=lambda x: -(x['t']['_capa'] or 0))", ("fi2", "fi4")),
+     "        if (lo is None or value >= lo) and (hi is None or value <= hi):", ("fi1",)),
+    ("a zone reader back in the module", "def band(value, bands) -> str | None:",
+     "def zones(con, results):\n    return {}\n\n\ndef band(value, bands) -> str | None:", ("fi2",)),
+    ("the module sorts the bands", "    for key, _, lo, hi in bands:", "    for key, _, lo, hi in sorted(bands, key=lambda b: b[0]):", ("fi1", "fi2")),
+]
+API_MUTANTS = [
+    ("a profile parameter back on /api/search", "           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):",
+     "           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200), zone: str | None = None):", ("fi2",)),
 ]
 JS_MUTANTS = [
     ("page band upper limit included", "(x.max === null || x.max === undefined || v < x.max)", "(x.max === null || x.max === undefined || v <= x.max)", ("fi1", "fi6")),
@@ -603,6 +442,7 @@ JS_MUTANTS = [
     ("map ignores the new groups", '  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
      '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
     ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
+    ("the list sorted by capacity", '|| carteSortName(a).localeCompare(carteSortName(b), "fr"));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),
     ("zone group shown without a profile", '    const zones = ok ? dd("zones"', '    const zones = true ? dd("zones"', ("fi5",)),
@@ -613,7 +453,7 @@ JS_MUTANTS = [
 
 @check("FI8 mutation test: bands, facets, zones, status, order, privacy and page bugs are each caught")
 def fi8(c: Ctx):
-    fns = {"fi1": fi1, "fi2": lambda m: (lambda b, n: (not b and n > 0, ""))(*fi2_run(m, quick=True)), "fi3": fi3, "fi4": fi4,
+    fns = {"fi1": fi1, "fi2": fi2, "fi3": fi3, "fi4": fi4,
            "fi5": fi5, "fi6": fi6}
     base = {k: f(c)[0] for k, f in fns.items()}
     if not all(base.values()):
@@ -625,7 +465,15 @@ def fi8(c: Ctx):
         if old not in SRC:
             missed.append(f"{name} (anchor gone)"); continue
         m = Ctx.__new__(Ctx); m.__dict__.update(c.__dict__)
-        m.FI = load_module(SRC.replace(old, new, 1)); m.FI.__src__ = SRC.replace(old, new, 1)
+        m.FI = load_module(SRC.replace(old, new, 1)); m.src = SRC.replace(old, new, 1)
+        n += 1
+        if all(fns[w](m)[0] for w in which):
+            missed.append(name)
+    for name, old, new, which in API_MUTANTS:
+        if old not in c.api:
+            missed.append(f"{name} (anchor gone)"); continue
+        m = Ctx.__new__(Ctx); m.__dict__.update(c.__dict__)
+        m.api = c.api.replace(old, new, 1)
         n += 1
         if all(fns[w](m)[0] for w in which):
             missed.append(name)

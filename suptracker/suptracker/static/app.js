@@ -786,6 +786,11 @@ function zoneBadge(z, uncertain) {
 }
 
 
+// owner, 2026-11-16: a shared search opens the search page with its parameters (checked there)
+function viewRecherche(raw) {
+  carteUI.pendingShare = raw || "";
+  location.replace("#/carte");
+}
 // owner, 2026-11-15: the list search and the map are ONE page ("Rechercher une formation"); an old "#/s/<mots>" link (search ideas,
 // a shared link) opens it with its keyword
 async function viewSearch(q) {
@@ -1212,6 +1217,40 @@ function carteLieu(lieux, txt) {
   }
   return null;
 }
+// owner, 2026-11-16: a search shared as a link (#/recherche/<parameters>). Everything travels after "#" (never sent to a server,
+// nothing stored by the site): the words, the place TYPED (never the profile's town), the radius, the types, the mentions and the
+// filter groups that differ from their default (never the zones: they belong to the reader's own profile). Every value is checked
+// when the link is opened (unknown or malformed = dropped, never a default invented).
+const CARTE_KMS = [10, 25, 50, 100, 200];
+const MA_VILLE = "Ma ville : ";
+function carteShareLink(F, sel) {
+  const qs = new URLSearchParams();
+  if (F.q) qs.set("q", F.q);
+  const lt = F.lieuTxt || "";
+  if ((F.lieu || F.autour) && lt && !lt.startsWith(MA_VILLE)) { qs.set("lieu", lt); if (F.autour) qs.set("km", String(F.autour.km)); }
+  sel.d.forEach((d) => { qs.append("d", d); (sel.m[d] || []).forEach((m) => qs.append("m", `${d}::${m}`)); });
+  for (const [gr] of carteGroups()) {
+    if (JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || [])) qs.set(`f_${gr}`, (F[gr] || []).join(","));
+  }
+  return `#/recherche/${encodeURIComponent(qs.toString())}`;
+}
+// the shared parameters, checked: words and place cut to their fields' sizes, the radius one of the offered values, types and
+// mentions through carteSelection (published labels only), each group's options among its own keys
+function carteShareRead(raw, FAC) {
+  let qs;
+  try { qs = new URLSearchParams(String(raw || "")); } catch (_) { return null; }
+  const lieuTxt = (qs.get("lieu") || "").slice(0, 120);
+  const m = {};
+  qs.getAll("m").forEach((x) => { const i = x.indexOf("::"); if (i > 0) (m[x.slice(0, i)] = m[x.slice(0, i)] || []).push(x.slice(i + 2)); });
+  const F = {};
+  for (const [gr, , opts] of carteGroups()) {
+    if (!qs.has(`f_${gr}`)) continue;
+    const keys = opts.map(([k]) => k);
+    F[gr] = [...new Set(qs.get(`f_${gr}`).split(",").filter((k) => keys.includes(k)))];
+  }
+  return { q: (qs.get("q") || "").trim().slice(0, 200), lieuTxt: lieuTxt.startsWith(MA_VILLE) ? "" : lieuTxt,
+    km: CARTE_KMS.includes(Number(qs.get("km"))) ? Number(qs.get("km")) : 25, sel: carteSelection(FAC, "", "", { d: qs.getAll("d"), m }), F };
+}
 const carteInLieu = (f, L) => !L || (L.t === "region" ? f.region === L.v : L.t === "dep" ? f.dep === L.v : L.t === "acad" ? f.academie === L.v : true);
 // an apprenticeship offer is not in the search engine's index (no SIES statistics): it is kept when its own name has every word
 const kwWords = (q) => foldText(q).split(/[^a-z0-9]+/).filter((w) => w.length > 1);
@@ -1281,13 +1320,6 @@ const CARTE_APP_NOTE = "Aucune statistique d'admission n'est publiée pour les f
 // the two routes a formation offers (owner, 2026-11-09): both labels when initial training and apprenticeship coexist
 const voieBadges = (f) => (f.initiale && f.apprentissage ? '<span class="badge">formation initiale</span> <span class="badge">apprentissage</span>' : f.apprentissage ? '<span class="badge">en apprentissage</span>' : "");
 const carteFiche = (f) => (f.fiche && /^https:\/\/dossierappel\.parcoursup\.fr\//.test(f.fiche) ? f.fiche : null);
-function carteAppDetail(f) {
-  const url = carteFiche(f);
-  return `<div class="card carte-sel"><h3>${esc(f.etablissement)}</h3>
-    <p class="small">${esc(f.formation)}${carteMentionTail(f)} <span class="badge">en apprentissage</span><br><span class="muted">${esc(f.ville)}${f.academie ? ` · académie de ${esc(f.academie)}` : ""} · ${esc(f.contrat_etab || "")}</span></p>
-    <p class="small muted">${CARTE_APP_NOTE}</p>
-    <div class="toolbar">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Voir la fiche Parcoursup ↗</a>` : ""}</div></div>`;
-}
 // the apprenticeship offers attached to an initial formation (same establishment, same diploma): the CFA and its page
 function appOffers(list) {
   if (!list || !list.length) return "";
@@ -1414,7 +1446,10 @@ async function viewCarte(dArg, mArg) {
   await recoP;
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
-  const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
+  // a shared search (#/recherche/...): its types and mentions now, its words, place and groups once the layer is read
+  const shareRaw = carteUI.pendingShare;
+  carteUI.pendingShare = null;
+  const sel = shareRaw != null ? carteShareRead(shareRaw, FAC).sel : carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
   store.set("carteSel", sel);
   // R10: the page's heading and a loading line at once (every diploma takes a few seconds the first time)
   if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
@@ -1473,6 +1508,11 @@ async function viewCarte(dArg, mArg) {
   F.lieuTxt = typeof F.lieuTxt === "string" ? F.lieuTxt.slice(0, 120) : (F.autour && F.autour.ville) || "";
   // an old "#/s/<words>" link: its words become the keyword, saved at once (a rebuild re-reads the stored filters: Codex)
   if (carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null; F.lieuTxt = ""; carteUI.pendingQ = null; store.set("carteFiltres2", F); }
+  const share = shareRaw != null ? carteShareRead(shareRaw, FAC) : null;   // CARTE_ACADS is filled: the académies are checked too
+  if (share) {
+    for (const [gr] of carteGroups()) F[gr] = gr in share.F ? share.F[gr] : [...(CARTE_DEFAULT[gr] || [])];
+    Object.assign(F, { zones: [], q: share.q, lieu: null, autour: null, lieuTxt: share.lieuTxt });
+  }
   // the keyword's codes, in the engine's relevance order (one answer per keyword, kept for the visit; a failure keeps the list whole)
   const kwLoad = (q) => cached(`kw|${q}`, () => api(`/api/search/codes?q=${encodeURIComponent(q)}`).then((d) => ({ q, codes: new Set(d.codes),
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
@@ -1482,6 +1522,15 @@ async function viewCarte(dArg, mArg) {
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
   const home = villeDepart(), lieux = carteLieux(C.rows, home);          // the place list: every formation, whatever the type ticked
+  if (share) {                                     // the shared place, read in this browser like a typed one; unknown = said
+    const L = share.lieuTxt ? carteLieu(lieux, share.lieuTxt) : null;
+    if (L && L.t === "ville") F.autour = { lat: L.lat, lon: L.lon, km: share.km, ville: share.lieuTxt };
+    else if (L) F.lieu = { t: L.t, v: L.v };
+    carteUI.lieuBad = share.lieuTxt && !L ? share.lieuTxt : "";
+    if (!L) F.lieuTxt = "";
+    carteUI.fit = true;
+    store.set("carteFiltres2", F);
+  }
   $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1>
     <form id="cs-form" class="cs-bar" role="search" aria-label="Rechercher une formation">
       <label class="cs-field cs-q"><span>Formation, établissement, mot-clé</span><input id="cs-q" type="search" autocomplete="off" value="${esc(F.q || "")}" placeholder="ex. BTS NDRC, IUT informatique, kiné"></label>
@@ -1490,7 +1539,9 @@ async function viewCarte(dArg, mArg) {
       <label class="cs-field cs-km"${F.autour ? "" : " hidden"}><span>Rayon</span><select id="cs-km">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour ? F.autour.km : 25) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       <button type="submit" class="cs-go">${ICONS.search}Rechercher</button>
     </form>
-    <p class="small cs-help">${home ? `<button type="button" class="linkish" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button> · ` : '<a href="#/profil">Votre ville dans Mon profil</a> : chercher autour de chez vous. '}Le lieu reste dans votre navigateur.</p>
+    <p class="small cs-help">${home ? `<button type="button" class="linkish" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button> · ` : '<a href="#/profil">Votre ville dans Mon profil</a> : chercher autour de chez vous. '}Le lieu reste dans votre navigateur.
+      <button type="button" class="linkish" id="cs-share">Partager cette recherche</button></p>
+    <div id="cs-share-out" class="cs-share" hidden></div>
     <div id="cs-status" class="cs-status" role="status"></div>
     <details class="dd-fold" id="dd-fold"${!narrow() || carteUI.fold ? " open" : ""}><summary>${ICONS.filter}Filtrer <span id="dd-fold-n"></span></summary><div class="dd-bar" id="cfilters"></div></details>
     <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p></div>
@@ -1680,6 +1731,17 @@ async function viewCarte(dArg, mArg) {
   form.onsubmit = (e) => { e.preventDefault(); carteUI.kwErr = ""; doSearch(); };
   lieuEl.oninput = () => { const L = carteLieu(lieux, lieuEl.value); kmBox.hidden = !(L && L.t === "ville"); };
   kmEl.onchange = () => { if (F.autour) { F.autour = { ...F.autour, km: Number(kmEl.value) || 25 }; carteUI.fit = true; save(false); } };
+  // the shared link: copied when the browser allows it, else shown selected (never sent anywhere by the site)
+  document.getElementById("cs-share").onclick = async () => {
+    const link = `${location.origin}/${carteShareLink(F, sel)}`, out = document.getElementById("cs-share-out");
+    const said = `Le lien contient vos mots, le lieu tapé et vos filtres${(F.lieuTxt || "").startsWith(MA_VILLE) ? " (pas « Ma ville », qui reste dans votre profil)" : ""} : jamais votre profil ni vos zones. Il ouvre cette recherche sans rien envoyer au site.`;
+    let copied = false;
+    try { await navigator.clipboard.writeText(link); copied = true; } catch (_) { copied = false; }
+    out.hidden = false;
+    out.innerHTML = `<p class="small" role="status">${copied ? "Lien copié." : "Copiez ce lien :"} ${esc(said)}</p>
+      <input type="text" readonly class="cs-share-link" aria-label="Lien de cette recherche" value="${esc(link)}">`;
+    const inp = out.querySelector("input"); inp.focus(); inp.select();
+  };
   const ch = document.getElementById("chome");
   if (ch) ch.onclick = () => { lieuEl.value = `Ma ville : ${villeLabel(home)}`; kmBox.hidden = false; doSearch(); };
   if (!carteUI.ddBound) {                         // one dropdown open at a time: a click elsewhere or Escape closes it
@@ -4588,7 +4650,7 @@ function contactForm(code) {
 // ---- lot 1 UI: the current tab is marked (aria-current) in both menus; "Plus" opens the other pages ----
 // R1 (owner, 2026-11-11): the tabs follow the student's journey. Explorer ("home") holds the list, the map, the jobs and every
 // formation page; "Mon profil" holds the profile, "Où je me situe", "Je me réoriente" and the seconde/première page.
-const TAB_OF = { info: "info", s: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
+const TAB_OF = { info: "info", s: "home", recherche: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
@@ -4614,7 +4676,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 }
 
 // ---- router ----------------------------------------------------------------
-const ROUTE_NAME = { info: "info", s: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
+const ROUTE_NAME = { info: "info", s: "search", recherche: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
@@ -4703,6 +4765,7 @@ async function routeView(a, b, c) {
   {
     if (a === "stats") return await viewStats(b);
     if (a === "s") return await viewSearch(b || "", c || "");
+    if (a === "recherche") return viewRecherche(b || "");
     if (a === "f") return await viewFormation(b, c);
     if (a === "evolution") return await viewEvolution(b);
     if (a === "compare") return await viewCompare();

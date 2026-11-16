@@ -27,7 +27,7 @@ from . import sources as S
 SITE = "SupCompass"
 TAGLINE = "Les chiffres officiels de l'orientation post-bac, expliqués"
 PUBLISHER = "M. N. HAJJI"
-UPDATED = "15 novembre 2026"
+UPDATED = "16 novembre 2026"
 HOST = {"name": "Vercel Inc.", "address": "440 N Barranca Ave #4133, Covina, CA 91723, États-Unis", "url": "https://vercel.com"}
 STORE = {"name": "Upstash, Inc.", "country": "États-Unis", "url": "https://upstash.com"}
 TILES = {"name": "OpenStreetMap Foundation", "country": "Royaume-Uni", "host": "tile.openstreetmap.org",
@@ -153,7 +153,9 @@ présenter d'abord les formations de votre académie (pour « Je me réoriente �
 <li>les codes des formations de votre liste de vœux, pour la lire.</li>
 </ul>
 <p>La recherche de formations envoie seulement les mots que vous tapez. Le lieu choisi (ville, département, région ou
-académie), votre moyenne et les filtres restent dans votre navigateur. Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
+académie), votre moyenne et les filtres restent dans votre navigateur. Un lien de recherche partagé porte, après le
+« # », vos mots, le lieu tapé et vos filtres : votre navigateur ne l'envoie pas au site, et il ne contient ni votre profil,
+ni « Ma ville », ni vos zones. Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
 <h2>2. Mesure d'audience, sans cookie</h2>
 <p>{SITE} compte ses visites pour s'améliorer, sans cookie et sans rien lire sur votre appareil. Aucune adresse IP et aucun
 identifiant de navigateur n'est enregistré : un visiteur est un pseudonyme calculé pour la journée, qui change chaque jour

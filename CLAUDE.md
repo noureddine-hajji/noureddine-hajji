@@ -451,12 +451,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `redteam_tauxprofil.py` (Z1-Z6).
 - **Advanced filters (sprint R3, owner 2026-11-12).** One definition (`filtres.py`, served as META.filtres): capacité (< 20, 20-49,
   50-99, ≥ 100 places, `capa_fin` of the row's campaign), phase complémentaire (`acc_pc` > 0 of the row's campaign: past ADMITS, never
-  places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (`/api/search?avance=true`, kept for older links; since sprint H the page filters zones in the browser: the
-  profile sent with `/api/search?avance=true`, zones of the LATEST campaign keyed by (code, campaign), `journey.stage2` per own type
-  `only=`, every result set, in-process cache keyed by warehouse + campaign + profile + type + codes; never a partial set). Lower limit in, upper out, twin `filtreBand`. The search's own filters are applied in the same
-  pass; every group counted with the others applied; the relevance order is kept (never a sort by a figure). Profile only from a
-  terminale profile, never in the audience event, search no-store. The map adds the same three bands. Red team
-  `redteam_filtres.py` (FI1-FI9).
+  places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (read in the browser for the stored profile). Lower limit in, upper out, twin `filtreBand`. Owner, 2026-11-16: the
+  server-side filtering (`/api/search?avance=true`, a profile read with the search) is REMOVED: `/api/search` takes no R3 or profile
+  parameter (sent anyway: nothing changes, nothing recorded), `filtres.py` keeps `vocab`/`band` only; every group is counted in the
+  browser with the others applied, never a sort by a figure. Red team `redteam_filtres.py` (FI1-FI9; FI2-FI4 check the removal).
 - **Visual improvements (sprint R4, owner 2026-11-12).** A zone = its token + its shape + its name, through ONE helper (`zoneShape`,
   `zoneMark`, `zonePillHtml`, `zoneBadge`: rond sécurité, carré cible, triangle ambitieux, an empty ring otherwise, `--zone-autre`);
   never a zone drawn by hand, never the colour alone. Search results are the map list's `carteCard` (sprint H; `resultCard` is gone): zone token
@@ -525,8 +523,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   folded under "Filtrer (n actifs)" on a phone, list before the map there. NO filter field of the earlier pages may be lost
   (owner, 2026-11-16): type, mention, statut, académie (its own dropdown, `CARTE_ACADS`), apprentissage, internat,
   aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order unchanged (figures first, distance, the engine's
-  relevance, name; never a figure). The home has no switch and no search field (door + hero link). Red team `redteam_recherche.py`
-  (RS1-RS9).
+  relevance, name; never a figure). The home has no switch and no search field (door + hero link). Shared link (owner,
+  2026-11-16): `#/recherche/<parameters>` (`carteShareLink` / `carteShareRead`, after "#", never sent): words, TYPED place + radius,
+  types, mentions, groups differing from their default; NEVER "Ma ville", the zones or a profile key; every value checked on opening
+  (unknown = dropped), the reader's zone filter cleared. Red team `redteam_recherche.py` (RS1-RS10).
 - **Trust and compliance (sprint Q1, owner 2026-11-13).** Five pages from ONE source (`legal.py`): À propos, Contact, Mentions
   légales, Confidentialité, Accessibilité, served at `/<slug>` (indexable, sitemap, readable without JS) and to the app by
   `/api/page/<slug>` (`#/info/<slug>`); the footer links them on every page. Publisher = "M. N. HAJJI, à titre personnel", also

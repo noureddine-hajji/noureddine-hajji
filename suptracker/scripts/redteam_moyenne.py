@@ -387,16 +387,11 @@ def api_ok(c: Ctx) -> tuple[bool, str]:
         r_sans = tc.get("/api/carte/zones?diplome=BUT&mention_bac=sansmention&spe1=MATHS&spe2=SES")
         if r_sm.status_code != 200 or r_sm.json() != r_sans.json():
             bad.append(("map 'sm'", r_sm.status_code))
-        # the search zones carry the average too
+        # owner, 2026-11-16: the search no longer reads zones on the server (the page reads them in the browser): an average sent
+        # with it is not read, and the answer carries no zone
         rs = tc.get(f"/api/search?q=bts&avance=true&{prof}&moyenne=9.5&limit=30")
-        rb = tc.get(f"/api/search?q=bts&avance=true&{prof}&mention=sansmention&limit=30")
-        if rs.status_code != 200 or rb.status_code != 200:
-            bad.append(("search", rs.status_code, rb.status_code))
-        else:
-            zs = [x.get("zone") for x in rs.json()["results"]]
-            zb = [x.get("zone") for x in rb.json()["results"]]
-            if zs == zb:
-                bad.append("the search ignores the average")
+        if rs.status_code != 200 or any("zone" in x for x in rs.json()["results"]):
+            bad.append(("the search still reads a profile", rs.status_code))
         # review: the answers echo the student's OWN average (a rattrapage without one is not "sous votre moyenne")
         cod0, tk0, _ = picks[0]
         echo = [tc.get(f"/api/journey/stage2?mention=rattrapage&type={tk0}&{prof}").json().get("moyenne"),

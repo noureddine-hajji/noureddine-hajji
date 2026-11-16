@@ -394,7 +394,7 @@ const base = process.argv[2];
   await p.goto(base + "/#/carte"); await p.waitForTimeout(5000);
   o.layout = await p.evaluate(() => { const x = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().left : null; };
     const m = document.getElementById("carte-osm").getBoundingClientRect();
-    return { mapSeen: Math.round(innerHeight - m.top), side: x(".carte-side"), map: x("#carte-osm"), list: x(".carte-results"), mapcol: x(".carte-mapcol"),
+    return { mapSeen: Math.round(innerHeight - m.top), side: x("#cfilters"), map: x("#carte-osm"), list: x(".carte-results"), mapcol: x(".carte-mapcol"),
       cpes: [...document.querySelectorAll('.carte-rc[data-rdip="CPES"]')].map((e) => e.classList.contains("rc-z")),
       dips: [...document.querySelectorAll("[data-dip]:checked")].map((e) => e.dataset.dip),
       figs: [...document.querySelectorAll(".carte-results .carte-rc")].filter((e) => !/apprentissage/.test(e.querySelector(".rc-badges").innerText)).every((e) => e.querySelector(".cofficiel") && e.querySelectorAll(".cbacs li").length === 3 && e.querySelectorAll(".cfigs .cf").length === 2 && e.querySelector("[data-cmp]")) }; });
@@ -440,7 +440,7 @@ def cr8(c: Ctx):
     o = json.loads(r.stdout)
     L = o["layout"] or {}
     # R10 (owner): filters on the left, the list in the middle, the map on the right
-    order = None not in (L.get("side"), L.get("list"), L.get("mapcol")) and L["side"] < L["list"] < L["mapcol"] and L.get("map") is not None and L["map"] >= L["mapcol"] - 1
+    order = None not in (L.get("side"), L.get("list"), L.get("mapcol")) and L["side"] <= L["list"] < L["mapcol"] and L.get("map") is not None and L["map"] >= L["mapcol"] - 1
     phone = all(w2 <= w for w, w2 in o["phone"])
     m = o.get("multi") or {}
     multi = L.get("dips") == ["CPES", "Double licence"] and (not c.real or (bool(m) and m.get("off") == 0 and "CPES" in (m.get("dips") or [])))

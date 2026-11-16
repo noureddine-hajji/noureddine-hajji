@@ -571,17 +571,11 @@ def search(request: Request, bg: BackgroundTasks,
            q: str = Query(..., min_length=1, max_length=2000), fili: str | None = None,
            academie: str | None = None, selective: bool | None = None, near: str | None = None,
            options: str | None = Query(None, max_length=200, description="comma-separated: " + ",".join(S.OPTIONS)),
-           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200),
-           # sprint R3 (owner, 2026-11-12): advanced filters (comma-separated keys of filtres.vocab) and, for the zones only, the
-           # profile; the profile is never recorded (the audience event keeps the query, the total and the refined flag)
-           capacite: str | None = Query(None, max_length=100), complementaire: str | None = Query(None, max_length=20),
-           statut: str | None = Query(None, max_length=60), taux: str | None = Query(None, max_length=60),
-           zone: str | None = Query(None, max_length=60),
-           serie: str | None = Query(None, pattern="^(bg|bt|bp)$"), spe1: str | None = Query(None, max_length=12),
-           spe2: str | None = Query(None, max_length=12), mention: str | None = Query(None, pattern=MENTION_PATTERN),
-           moyenne: float | None = MOYENNE, avance: bool = False):
+           offset: int = Query(0, ge=0, le=20_000), limit: int = Query(40, ge=1, le=200)):
     """Student search: acronyms, places, typos, notes and facets (see suptracker/search.py).
-    A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation."""
+    A pasted parcoursup.fr fiche URL or a bare formation code goes straight to that formation.
+    Owner, 2026-11-16: the advanced mode of sprint R3 (filters and a profile read on the server, `avance=true`) is gone: the
+    search page reads its keyword from /api/search/codes and filters in the browser. This route takes no profile any more."""
     q = q.strip()
     cod = extract_cod_aff_form(q)
     if q.lower().startswith(("http", "www.")) and not cod:
@@ -599,28 +593,13 @@ def search(request: Request, bg: BackgroundTasks,
                 "partial": False, "facets": {}}
     opts = tuple(o for o in (options or "").split(",") if o)
     try:
-        active = {g: FI.parse(v, g) for g, v in (("capacite", capacite), ("complementaire", complementaire), ("statut", statut),
-                                                  ("taux", taux), ("zone", zone))}
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from None
-    profile = serie is not None and (mention is not None or moyenne is not None)
-    if profile:
-        mention, moyenne = _mention(mention, moyenne)
-    if active["zone"] and not profile:
-        raise HTTPException(422, "Le filtre par zone demande un profil (bac et mention)")
-    dkey = _dkey(spe1 or "", spe2 or "") if profile and serie == "bg" else None
-    try:
-        if avance or any(active.values()) or profile:
-            res = _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active,
-                                   (serie, dkey, mention, moyenne) if profile else None)
-        else:
-            res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
-                           options=opts, offset=offset, limit=limit)
+        res = S.search(_con().cursor(), q, fili=fili, academie=academie, selective=selective, near=near,
+                       options=opts, offset=offset, limit=limit)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     res = {**res, "results": ADM.mark(_con().cursor(), res["results"])}   # new dicts: the index documents stay untouched
     if offset == 0:   # pagination is not a new search
-        refined = any(v is not None and v != "" for v in (fili, academie, selective, options)) or any(active.values())  # near = profile
+        refined = any(v is not None and v != "" for v in (fili, academie, selective, options))  # near = profile
         bg.add_task(A.record, "refine" if refined else "search",
                     {"q": A.clean_query(q), "total": res["total"], "partial": bool(res.get("partial"))},
                     _hdrs(request))
@@ -659,35 +638,6 @@ def search_codes(request: Request, bg: BackgroundTasks, q: str = Query(..., min_
     d["total"] = len(d["codes"])
     bg.add_task(A.record, "search", {"q": A.clean_query(d["query"]), "total": d["total"], "partial": d["partial"]}, _hdrs(request))
     return d
-
-
-def _search_advanced(q, fili, academie, selective, near, opts, offset, limit, active, prof):
-    """Sprint R3: every result of the search (its own option filters applied), tagged with the advanced groups, filtered here with
-    the search's own filters, then paged. Facets: every group counted with the others applied. The zones are read with a profile
-    for every result (never a partial set: a zone filter must never empty a list silently); the order is the search's relevance
-    order, never a figure."""
-    con = _con().cursor()
-    full = S.search(con, q, fili=None, academie=None, selective=None, near=near, options=opts, offset=0, limit=10 ** 6)
-    results = full["results"]
-    attrs = FI.attributes(con, results)
-    zoned = FI.zones(con, results, prof[0], prof[1], prof[2], prof[3]) if prof is not None else None
-    rows = [{"r": r, "t": FI.tags(r, attrs, zoned)} for r in results]
-    base = {"fili": fili or None, "academie": academie or None,
-            "selectivite": None if selective is None else ("formation sélective" if selective else "formation non sélective")}
-    kept, facets = FI.apply(rows, active, base)
-    # options are conjunctive: the count of an option is what adding it to the current filters returns
-    opt_facet = [{"value": f["value"], "count": sum(1 for x in kept if S.OPTIONS[f["value"]](x["r"])), "active": f["active"]}
-                 for f in full["facets"]["options"]]
-    page = [{**x["r"], "capa_fin": x["t"]["_capa"], "acc_pc": x["t"]["_acc_pc"], "statut": x["t"]["statut"],
-             "zone": x["t"]["_zone"], "uncertain": x["t"]["_uncertain"],
-             **({"estime_serie": x["t"]["_estime"], "estime_fragile": x["t"]["_fragile"]} if x["t"]["_estime"] is not None else {})}
-            for x in kept[offset: offset + limit]]
-    order = lambda cnt: [{"value": v, "count": c} for v, c in sorted(cnt.items(), key=lambda kv: -kv[1])]  # noqa: E731
-    return {**{k: v for k, v in full.items() if k not in ("results", "total", "offset", "limit", "facets")},
-            "total": len(kept), "offset": offset, "limit": limit, "results": page,
-            "facets": {"fili": order(facets["fili"]), "academie": order(facets["academie"]), "selectivite": order(facets["selectivite"]),
-                       "options": opt_facet, **{g: facets[g] for g in FI.GROUPS}},
-            "filtres": {g: list(v) for g, v in active.items()}, "zones_lues": zoned is not None}
 
 
 def _record(cod: str, session: int | None) -> dict:

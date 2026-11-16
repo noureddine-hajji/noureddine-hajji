@@ -3452,3 +3452,27 @@ Red team `scripts/redteam_recherche.py` (RS1-RS8):
 - RS9: every field and option of the earlier list and map pages is a dropdown or a field of the bar (owner, 2026-11-16).
 The red teams of the old page were moved to the new one: carte C3/C7, filtres FI3/FI5-FI8, visuel VI5/VI8-VI10, ux X5/X6/X14,
 mobile MB1, a11y A1/A2, navigation U1, langage LA2, lycée Y8.
+
+## Search links to share, and the old advanced search removed (owner, 2026-11-16)
+
+**"Partager cette recherche".** The search page has a button that copies a link (`#/recherche/<parameters>`, everything after
+"#": the browser never sends it to the site, the site stores nothing). The link carries the words, the place as typed with its
+radius, the ticked types and mentions, and every filter group that differs from its default. It never carries "Ma ville" (the
+profile's town), the zones (they belong to the reader's own profile) or any profile key. When the link is opened, every value is
+checked: words and place cut to their fields' sizes, the radius one of the offered values, types and mentions through
+`carteSelection` (published labels only), each group's options among its own keys; anything else is dropped, never replaced by a
+default. The reader's own zone filter is cleared and the place is read in the reader's browser like a typed one (an unknown place
+is said). The privacy page says what the link contains.
+
+**The old advanced search is gone.** Since sprint H the search page asks the engine for its keyword's codes and filters in the
+browser. `/api/search` keeps the plain engine search (old links, the engine's own red teams) but no longer takes the R3
+parameters (`avance`, `capacite`, `complementaire`, `statut`, `taux`, `zone`) or a profile (`serie`, `spe1`, `spe2`, `mention`,
+`moyenne`): sent anyway, they change nothing and are never recorded. `filtres.py` keeps the shared bands only (`vocab`, `band`);
+its server-side filtering and zone reading are removed, with the dead CSS and page code of the old list page (`.rc-est`,
+`.rc-fig`, `details.filters`, the old map side panel, `carteAppDetail`).
+
+Red teams: `redteam_recherche.py` RS10 (round trip, hostile and personal keys, 6 mutants) and RS6 (the shared link opened in a
+blank browser gives the same 13 formations); `redteam_filtres.py` FI2-FI4 now check that the server filters nothing (no advanced
+parameter, a profile sent changes nothing and is not recorded, nothing sorted by a figure; 13 mutants);
+`redteam_visuel.py` VI6 and `redteam_moyenne.py` check that the search reads no profile.
+
