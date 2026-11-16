@@ -210,12 +210,14 @@ FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"lieu"
            {"lieu": {"t": "region", "v": "Ile-de-France"}}, {"lieu": {"t": "dep", "v": "69"}}, {"lieu": {"t": "region", "v": "Bretagne"}},
            {"autour": {"lat": 45.76, "lon": 4.84, "km": 10}}, {"autour": {"lat": 45.76, "lon": 4.84, "km": 1}, "statut": ["public", "contrat", "prive"]},
            {"app": ["oui"]}, {"app": ["non"]}, {"app": ["oui", "non"]}, {"select": ["oui"]}, {"statut": ["prive_app"], "app": ["oui"]},
-           {"statut": ["public", "contrat", "prive_app"]}]
+           {"statut": ["public", "contrat", "prive_app"]},
+           # owner, 2026-11-16: the académie dropdown of the earlier pages (several at once, with the place field)
+           {"acad": ["Lyon"]}, {"acad": ["Lyon", "Paris"]}, {"acad": ["Paris"], "lieu": {"t": "region", "v": "Ile-de-France"}}, {"acad": ["Lyon"], "statut": ["public"]}]
 
 
 def has(f, g, o):
     z = f["zone"] if f["zone"] in ("securite", "cible", "ambitieux") else "autre"
-    return {"statut": lambda: f["statut"] == o, "internat": lambda: f["internat"] == o, "zones": lambda: z == o,
+    return {"statut": lambda: f["statut"] == o, "acad": lambda: f["academie"] == o, "internat": lambda: f["internat"] == o, "zones": lambda: z == o,
             "app": lambda: bool(f.get("apprentissage")) if o == "oui" else bool(f.get("initiale")),
             "select": lambda: f["select_form"] == ("formation sélective" if o == "oui" else "formation non sélective"),
             "amenag": lambda: (f["distance"] in (None, "aucune")) if o == "presentiel" else bool(f["amenag_sport"]) if o == "sport"
@@ -235,7 +237,7 @@ def py_filter(rows, F, skip=None, kw=None):
     out = []
     lieu = F.get("lieu")
     for f in rows:
-        if any(F.get(g) and not any(has(f, g, o) for o in F[g]) for g in ("statut", "app", "internat", "amenag", "select", "zones") if g != skip):
+        if any(F.get(g) and not any(has(f, g, o) for o in F[g]) for g in ("statut", "acad", "app", "internat", "amenag", "select", "zones") if g != skip):
             continue
         # owner, 2026-11-15: the place of the search bar (région, département or académie), read here
         if lieu and f.get({"region": "region", "dep": "dep", "acad": "academie"}[lieu["t"]]) != lieu["v"]:
