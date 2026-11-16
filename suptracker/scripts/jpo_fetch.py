@@ -200,6 +200,15 @@ def keyword_lines(text: str) -> str:
     return out[:4000]
 
 
+def good_url(url: str) -> bool:
+    """An http(s) URL with a real host (the cartographie holds a few malformed site addresses)."""
+    try:
+        p = urlparse(url)
+    except ValueError:
+        return False
+    return p.scheme in ("http", "https") and "." in (p.hostname or "") and not re.search(r"[\s\"'<>]", url)
+
+
 def site_of(url: str) -> str:
     h = (urlparse(url).hostname or "").lower()
     return ".".join(h.split(".")[-2:])
@@ -210,7 +219,7 @@ def jpo_links(html: str, base: str) -> list[str]:
     for href, inner in re.findall(r'<a\b[^>]*?href="([^"#]+)[^"]*"[^>]*>(.*?)</a>', html, flags=re.S | re.I):
         url = urljoin(base, htmlmod.unescape(href))
         text = J.fold(htmlmod.unescape(re.sub(r"<[^>]+>", " ", inner)))
-        if url.startswith(("https://", "http://")) and site_of(url) == site_of(base) and (
+        if good_url(url) and site_of(url) == site_of(base) and (
                 LINK_WORDS.search(text) or LINK_WORDS.search(J.fold(url))):
             if url not in out:
                 out.append(url)
@@ -235,7 +244,7 @@ class Crawler:
             try:
                 r = self.client.get(key + "/robots.txt", timeout=20)
                 rp.parse(r.text.splitlines() if r.status_code == 200 else [])
-            except httpx.HTTPError:
+            except Exception:  # noqa: BLE001  (any failure: no rule known, the page itself is tried)
                 rp.parse([])
             with self.lock:
                 self.robots[key] = rp
@@ -247,7 +256,9 @@ class Crawler:
             if url in self.pages:
                 return self.pages[url]
             hl = self.host_locks.setdefault(urlparse(url).netloc, threading.Lock())
-        if not self.allowed(url):
+        if not good_url(url):
+            res = ("adresse invalide", None)
+        elif not self.allowed(url):
             res = ("robots", None)
         else:
             with hl:
@@ -255,7 +266,7 @@ class Crawler:
                     r = self.client.get(url, timeout=25)
                     ok = r.status_code == 200 and "html" in r.headers.get("content-type", "html")
                     res = ("ok", r.text[:3_000_000]) if ok else (f"http {r.status_code}", None)
-                except httpx.HTTPError as e:
+                except Exception as e:  # noqa: BLE001  (one bad site never stops the run)
                     res = (f"error {type(e).__name__}", None)
                 time.sleep(1.0)
         with self.lock:
@@ -310,8 +321,9 @@ def targets(d: Path, warehouse: str | None, client, log: list) -> dict:
                     u, s = row[iu].strip().upper(), row[isite].strip()
                     if u in uais and s:
                         s = s if s.startswith(("http://", "https://")) else "https://" + s.lstrip("/")
-                        starts.setdefault(u, []).append(s)
-    return {u: list(dict.fromkeys(ss))[:3] for u, ss in starts.items()}
+                        if good_url(s):
+                            starts.setdefault(u, []).append(s)
+    return {u: [x for x in dict.fromkeys(ss) if good_url(x)][:3] for u, ss in starts.items() if any(good_url(x) for x in ss)}
 
 
 def visit(cr: Crawler, uai: str, starts: list[str]) -> tuple[list[dict], dict]:

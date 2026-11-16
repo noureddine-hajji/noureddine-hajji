@@ -501,6 +501,18 @@ def j7(c: Ctx):
     cr = F.Crawler(cl)
     if cr.get("https://s.fr/prive/jpo")[0] != "robots" or "https://s.fr/prive/jpo" in cl.calls:
         bad.append("robots.txt not honoured")
+    for bad_url in ("https://", "https:///robots.txt", "/robots.txt", "https://a b.fr/x"):
+        try:
+            if cr.get(bad_url)[0] != "adresse invalide" or bad_url in cl.calls:
+                bad.append(f"a malformed address fetched: {bad_url}")
+        except Exception as e:  # noqa: BLE001
+            bad.append(f"a malformed address stops the run: {bad_url} ({type(e).__name__})")
+
+    class Boom(_Client):
+        def get(self, url, **kw):
+            raise ValueError("unknown url type")
+    if F.Crawler(Boom({})).get("https://boom.fr/x")[1] is not None:
+        bad.append("an unexpected client error is not caught")
     ext, st = F.visit(cr, "0590001A", ["https://s.fr/ok"])
     if st["status"] != "ok" or [e["text"] for e in ext] != ["Portes ouvertes le 12/03/2027"]:
         bad.append(f"visit {ext} {st}")
@@ -618,6 +630,9 @@ SOURCE_MUTANTS = [
     ("fetch", "robots ignored", "return rp.can_fetch(UA, url)", "return True", "J7"),
     ("fetch", "other sites followed", "site_of(url) == site_of(base) and (", "(", "J7"),
     ("fetch", "unchanged content stored again", 'if any(v["sha256"] == sha for v in same_kind):', "if False:", "J7"),
+    ("fetch", "malformed address fetched", """        if not good_url(url):
+            res = ("adresse invalide", None)
+        elif not self.allowed(url):""", """        if not self.allowed(url):""", "J7"),
     ("fetch", "whole page kept", "keep.update(range(i, min(i + 3, len(lines))))", "keep.update(range(len(lines)))", "J7"),
     ("fetch", "captures downloaded again", 'if f"{ts} {orig}" in seen:', "if False:", "J7"),
     ("fetch", "rows without open days kept", 'if r["jpo"] and re.fullmatch', "if re.fullmatch", "J7"),
