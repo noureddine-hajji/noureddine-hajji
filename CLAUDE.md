@@ -572,7 +572,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   stored in rapport_textes.duckdb under the SHA-256 of the exact JSON, served only when that digest matches and the browser
   accepts br (own ETag, `-br`), else gzip. An answer built from SQL rows without ORDER BY is written with sorted keys
   (digest stable across processes). Mes vœux and the guide reuse the profile bar's request (`profileBar.req`). Red team
-  `redteam_vitesse.py` VT9-VT11 (+ VT6 phone budgets: keyword < 2.5 s, filter < 1 s, zones < 11 s).
+  `redteam_vitesse.py` VT9-VT11 (+ VT6 phone budgets: keyword < 2.5 s, filter < 1 s, zones < 11 s; « Où je me situe » < 5 s,
+  jobs search results < 1 s, a job page's diplomas < 5 s: measured 2.4-2.7 s, 0.1-0.2 s, 2.2-3.1 s, no bottleneck found).
 - **Plain language and human help (sprint Q4, owner 2026-11-13).** No "doublette" (say « paire de spécialités » / « vos deux
   spécialités »; the official word only as « on dit aussi « doublette » » and in the glossary title), no « en position de recevoir »
   (« classés assez haut pour recevoir une proposition »), no « votre ligne » (« votre bac ») in anything a student reads (page strings,
