@@ -190,14 +190,14 @@ def page_text(html: str) -> str:
 
 
 def keyword_lines(text: str) -> str:
-    """The lines around « portes ouvertes » / « JPO »: the keyword's line and the next two, masked, at most 1,500 characters."""
+    """The lines around « portes ouvertes » / « JPO »: the keyword's line and the next two, masked, at most 4,000 characters."""
     lines = J.mask(text).splitlines()           # masked first: an address like jpo@… is not a keyword
     keep = set()
     for i, ln in enumerate(lines):
         if J.KEYWORD.search(ln):
             keep.update(range(i, min(i + 3, len(lines))))
-    out = "\n".join(lines[i][:300] for i in sorted(keep))
-    return out[:1500]
+    out = "\n".join(lines[i][:600] for i in sorted(keep))
+    return out[:4000]
 
 
 def site_of(url: str) -> str:
@@ -294,8 +294,13 @@ def targets(d: Path, warehouse: str | None, client, log: list) -> dict:
         log.append({"cartographie": f"error {type(e).__name__}"})
     if rows:
         head = [J.fold(h) for h in rows[0]]
-        iu = next((i for i, h in enumerate(head) if "uai" in h and "etab" in h), None) or next(
-            (i for i, h in enumerate(head) if "uai" in h), None)
+        iu = next((i for i, h in enumerate(head) if "uai" in h and "etab" in h), None)
+        if iu is None:
+            iu = next((i for i, h in enumerate(head) if "uai" in h), None)
+        if iu is None:                          # no header names it: the column whose values are UAI codes
+            sample = rows[1:2001]
+            score = [sum(1 for r in sample if i < len(r) and re.fullmatch(r"\d{7}[A-Za-z]", r[i].strip())) for i in range(len(rows[0]))]
+            iu = max(range(len(score)), key=score.__getitem__) if score and max(score) > len(sample) // 2 else None
         isite = next((i for i, h in enumerate(head) if "site internet" in h), None)
         log.append({"cartographie": "read", "uai_col": rows[0][iu] if iu is not None else None,
                     "site_col": rows[0][isite] if isite is not None else None})

@@ -3608,9 +3608,17 @@ card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
   it is the next one: on 16 November 2026, from 1 September 2026 to 1 May 2027. A date of 22 May 2027 is never shown.
 - A future date must be in the **latest** Onisep version (or on the site): a date Onisep removed is never announced. A passed date of
   the season from an older version is shown as « passée » (Onisep drops passed open days).
-- A date read on Onisep and on the site says « date retrouvée sur le site de l'établissement »; a site-only date says where and when it
-  was read. A site date counts only with its year printed, or with its weekday printed and true for the season (« samedi 31 janvier »
-  is refused in 2027: a Sunday, so another year's page).
+- A date read on Onisep and on the site says « date retrouvée sur le site de l'établissement ». A site date counts only on the line of
+  the words « portes ouvertes » (or under a short heading), never right after « publié le », never on a line naming a collège or a
+  primary school, with its year printed or its weekday printed and true for the season (« samedi 31 janvier » is refused in 2027: a
+  Sunday, so another year's page).
+- The first real run (16 November 2026) showed why the site is only a check: university and network sites list the open days of OTHER
+  campuses or components on the same page. So a site date only CONFIRMS a date Onisep lists for an establishment that has Onisep dates
+  this season; it is added (« à vérifier », with the page and the day it was read) only where Onisep has none; a page printing more
+  than 4 dates in a season is an agenda: its dates only confirm, never add, never feed the past-season period.
+- Virtual open days (« , en virtuel » in the Onisep field) are said « en ligne ». No copy of the Onisep files exists in the Internet
+  Archive (checked on the first run): the past-season periods come from the versions this workflow keeps from now on and from the
+  past dates the establishments' pages still print.
 - **No date this season**: the dates of at most 3 past seasons give a period by thirds of the month (1-9 « début », 10-20 « mi- »,
   21-31 « fin »): « aux alentours de mi-janvier », with the years read, « c'est une période, pas une date : à confirmer ». Never a day.
 - Formations are linked by **exact UAI** (the SIES UAI of the latest campaign, then the cartographie UAI), never by name. The open days

@@ -662,7 +662,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   sup + secondaire (ODbL credit on the card), every changed version kept, older ones from the Internet Archive; the establishments'
   sites (Onisep « voir » link, cartographie site; robots.txt, masked lines around « portes ouvertes » only). Season = 1 September Y-1 to
   1 May Y included (owner); the season shown contains today else the next. A future date must be in the LATEST Onisep version (or on
-  the site); a passed date of the season is shown « passée ». A site date needs its year or a TRUE weekday. No date = a PERIOD by
+  the site); a passed date of the season is shown « passée ». A site date needs its year or a TRUE weekday, the keyword's own
+  line (or a short heading above it), no « publié le », no collège line; it only CONFIRMS Onisep's dates where the establishment
+  has some (sites show other campuses: first real run), is added « à vérifier » only where Onisep has none, never from an agenda
+  page (> 4 dates a season). No date = a PERIOD by
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
   « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
   `redteam_jpo.py` (J1-J10).

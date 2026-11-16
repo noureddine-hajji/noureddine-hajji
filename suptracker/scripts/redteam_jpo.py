@@ -96,7 +96,7 @@ def csvtext(rows, cols):
     return buf.getvalue()
 
 
-A, B, C, D = "0590001A", "0590002B", "0590003C", "0590004D"
+A, B, C, D, E = "0590001A", "0590002B", "0590003C", "0590004D", "0590005E"
 VERSIONS = [
     # the latest version: A's season (one date in May, outside), C only outside the season
     ("sup_20261110_onisep.csv.gz", "sup", "2026-11-10", "onisep", [
@@ -118,7 +118,19 @@ VERSIONS = [
 SITE_TEXT = {
     (A, "https://a.fr/jpo"): ("2026-11-12", "Portes ouvertes\nSamedi 28 novembre 2026 de 9h à 17h\nJPO aussi le samedi 13 mars\n"
                                             "contact jpo@a.fr 03 20 00 00 00"),
-    (A, "http://a.fr/other"): ("2026-11-12", "Journée portes ouvertes le samedi 6 mars 2027"),     # an http page: no link shown
+    # A has Onisep dates: a date only its site shows (often another campus) is not added
+    (A, "https://a.fr/autre"): ("2026-11-12", "Journée portes ouvertes le samedi 6 mars 2027"),
+    # E has no Onisep date: its site's dates are added, « à vérifier »; an http page gives no link; a collège's line is refused
+    (E, "http://e.fr/jpo"): ("2026-11-12", "Journée portes ouvertes le samedi 6 mars 2027"),
+    (E, "https://e.fr/jpo2"): ("2026-11-12", "JPO le samedi 13 mars 2027"),
+    (E, "https://e.fr/agenda"): ("2026-11-12", "JPO Lyon samedi 5 décembre 2026 · JPO Annecy samedi 12 décembre 2026 · JPO Genève "
+                                               "samedi 9 janvier 2027 · JPO Paris samedi 16 janvier 2027 · JPO Aix samedi 23 janvier 2027"),
+    (E, "https://e.fr/college"): ("2026-11-12", "Portes ouvertes du collège : samedi 9 janvier 2027"),
+    # an agenda of several campuses: it confirms Onisep's 28 November, adds none of its other dates
+    (A, "https://a.fr/agenda"): ("2026-11-12", "JPO Lyon samedi 5 décembre 2026 · JPO Annecy samedi 12 décembre 2026 · JPO Genève "
+                                               "samedi 9 janvier 2027 · JPO Paris samedi 16 janvier 2027 · JPO Aix samedi 28 novembre 2026"),
+    # an agenda of past campaigns: never the past-season period
+    (B, "https://b.fr/agenda"): ("2026-11-12", "Portes ouvertes 2025 : 1er mars 2025, 8 mars 2025, 15 mars 2025, 22 mars 2025, 29 mars 2025"),
 }
 
 
@@ -146,7 +158,8 @@ def fixture(J, base: Path):
     con.execute("CREATE SCHEMA core")
     con.execute("CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session BIGINT, cod_uai VARCHAR)")
     con.execute(f"""INSERT INTO core.formation_year VALUES ('1', 2025, '{A}'), ('2', 2025, '9999999Z'), ('3', 2025, '{D}'),
-                    ('4', 2025, '{C}'), ('5', 2024, '{D}'), ('5', 2025, '{B}')""")
+                    ('4', 2025, '{C}'), ('5', 2024, '{D}'), ('5', 2025, '{B}'),
+                    ('6', 2025, '{E}')""")
     con.execute("CREATE TABLE core.cartographie (cod_aff_form VARCHAR, etab_uai VARCHAR)")
     con.execute(f"INSERT INTO core.cartographie VALUES ('2', '{B}'), ('3', '{D}')")
     J.build(con, make_dir(base))
@@ -154,7 +167,7 @@ def fixture(J, base: Path):
 
 
 # ----------------------------------------------------------------------------------------------------------------------- J1
-ORACLE_PART = re.compile(r"(le|du) (\d\d)/(\d\d)/(\d{4})( au (\d\d)/(\d\d)/(\d{4}))?( de (\d+)h(\d\d) à (\d+)h(\d\d))?"
+ORACLE_PART = re.compile(r"(le|du) (\d\d)/(\d\d)/(\d{4})( au (\d\d)/(\d\d)/(\d{4}))?( de (\d+)h(\d\d) à (\d+)h(\d\d))?(, en virtuel)?"
                          r"( \((.*?)\))?( voir (\S+))?")
 
 
@@ -173,8 +186,8 @@ def oracle_parts(field: str):
         if d1 is None or (d2 is not None and d2 < d1):
             bad += 1
             continue
-        good.append((d1, d2, f"{int(m[10])}h{m[11]} à {int(m[12])}h{m[13]}" if m[9] else None, m[15] or None,
-                     m[17] if m[17] and m[17].startswith(("http://", "https://")) else None))
+        good.append((d1, d2, f"{int(m[10])}h{m[11]} à {int(m[12])}h{m[13]}" if m[9] else None, m[16] or None, bool(m[14]),
+                     m[18] if m[18] and m[18].startswith(("http://", "https://")) else None))
     return good, bad
 
 
@@ -192,11 +205,12 @@ def j1(c: Ctx):
     J = c.J()
     fields = [j for *_, rows in VERSIONS for *_, j in rows] + [
         "le 31/02/2027", "du 14/01/2027 au 12/01/2027", "samedi 3 mars", "le 05/12/2026 voir https://x.fr/a | le 09/01/2027 voir https://…",
-        "le 07/11/2026 de 9h00 à 13h00 (sur inscription) voir https://www.croix-rouge.fr/a", "  |  "] + committed_fields()
+        "le 07/11/2026 de 9h00 à 13h00 (sur inscription) voir https://www.croix-rouge.fr/a", "  |  ",
+        "le 19/12/2026 de 10h00 à 17h00, en virtuel (session présentation live) voir https://x.fr/a | le 12/12/2026, en virtuel"] + committed_fields()
     bad = []
     for f in fields:
         got, gbad = J.parse_onisep(f)
-        got = [(p["debut"], p["fin"], p["heures"], p["remarque"], p["voir"]) for p in got]
+        got = [(p["debut"], p["fin"], p["heures"], p["remarque"], p["virtuel"], p["voir"]) for p in got]
         exp, ebad = oracle_parts(f)
         if got != exp or len(gbad) != ebad:
             bad.append(f"{f[:60]!r}: {got} / {len(gbad)} != {exp} / {ebad}")
@@ -270,6 +284,10 @@ def j4(c: Ctx):
         ("Rentrée le 2 septembre 2026\nInscriptions le 15 mars 2027", []),           # no keyword
         ("nos portes-ouvertes : dimanche 15 novembre 2026", [date(2026, 11, 15)]),
         ("JPO : 7 février", []),                                                     # neither a year nor a weekday
+        ("Nous vous attendons à nos journées portes ouvertes pour découvrir toutes nos formations et nos campus\n"
+         "Mardi 17 novembre 2026", []),                                              # a long sentence is not a heading
+        ("Portes ouvertes - Campus\nPublié le 8 octobre 2025", []),                  # the page's own date
+        ("JPO 2027 (mis à jour le 03/11/2026) : samedi 6 février 2027", [date(2027, 2, 6)]),
     ]
     bad = [f"{t!r}: {J.site_dates(t, f)} != {e}" for t, e in cases if J.site_dates(t, f) != e]
     m = J.mask("écrire à jpo@ecole-a.fr ou appeler le 03 20 54 32 32 ou +33 6 12 34 56 78 ; le 06/02/2027")
@@ -290,20 +308,24 @@ def j5(c: Ctx):
         f3 = J.for_formation(con, "3", TODAY)
         f4 = J.for_formation(con, "4", TODAY)
         f5 = J.for_formation(con, "5", TODAY)
+        f6 = J.for_formation(con, "6", TODAY)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     bad = []
+    g6 = {e["date"]: e for e in (f6 or {}).get("dates", [])}
+    if {k: v["source"] for k, v in g6.items()} != {"2027-03-06": "site", "2027-03-13": "site"}:
+        bad.append(f"formation 6 (site only): {list(g6)}")
+    elif g6["2027-03-06"]["site"] is not None or g6["2027-03-13"]["site"] != "https://e.fr/jpo2" or g6["2027-03-13"]["lu_le"] != "2026-11-12":
+        bad.append("a site-only date without a safe link, or without when it was read")
     got = {e["date"]: e for e in (f1 or {}).get("dates", [])}
-    exp = {"2026-10-10": "onisep", "2026-11-28": "onisep_site", "2027-02-06": "onisep", "2027-03-06": "site", "2027-03-13": "site"}
+    exp = {"2026-10-10": "onisep", "2026-11-28": "onisep_site", "2027-02-06": "onisep"}
     if {k: v["source"] for k, v in got.items()} != exp:
         bad.append(f"formation 1 dates {[(k, v['source']) for k, v in got.items()]} != {exp}")
     else:
         if got["2026-11-28"]["heures"] != "9h00 à 17h00" or got["2026-11-28"].get("voir") != "https://a.fr/jpo":
             bad.append("Onisep hours or link lost")
-        if got["2027-02-06"].get("voir") is not None or got["2027-03-06"]["site"] is not None:
+        if got["2027-02-06"].get("voir") is not None:
             bad.append("a non-https link kept")
-        if got["2027-03-13"]["lu_le"] != "2026-11-12" or got["2027-03-13"]["site"] != "https://a.fr/jpo":
-            bad.append("a site date without where and when it was read")
         if f1["environ"] is not None:
             bad.append("a period beside this season's dates")
     if f1 and f1["saison"] != {"debut": "2026-09-01", "fin": "2027-05-01", "annees": "2026-2027"}:
@@ -364,22 +386,22 @@ def j6(c: Ctx):
     tmp = Path(tempfile.mkdtemp())
     try:
         con = fixture(J, tmp)
-        f1, f2, f4 = (J.for_formation(con, k, TODAY) for k in ("1", "2", "4"))
+        f1, f2, f4, f6 = (J.for_formation(con, k, TODAY) for k in ("1", "2", "4", "6"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     f1 = json.loads(json.dumps(f1))
-    f1["dates"][-1]["site"] = "javascript:alert(1)"
-    f1["dates"][-1]["lu_le"] = "2026-11-12"
+    f6 = json.loads(json.dumps(f6))
+    f6["dates"][0]["site"] = "javascript:alert(1)"
     prog = STUB + "\n".join(top(c.js, n) for n in names) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-      const out = [jpoCard(D.f1), jpoLine(D.f1), jpoCard(D.f2), jpoLine(D.f2), jpoCard(D.f4), jpoLine(D.f4), jpoCard(null), jpoLine(null), String(CALLS)];
+      const out = [jpoCard(D.f1), jpoLine(D.f1), jpoCard(D.f2), jpoLine(D.f2), jpoCard(D.f4), jpoLine(D.f4), jpoCard(D.f6), jpoLine(D.f6), jpoCard(null), jpoLine(null), String(CALLS)];
       process.stdout.write(JSON.stringify(out));"""
-    out = node(prog, {"f1": f1, "f2": f2, "f4": f4})
+    out = node(prog, {"f1": f1, "f2": f2, "f4": f4, "f6": f6})
     if out is None:
         return True, "node absent: not run"
-    c1, l1, c2, l2, c4, l4, cn, ln, calls = out
+    c1, l1, c2, l2, c4, l4, c6, l6, cn, ln, calls = out
     bad = []
-    for i, h in enumerate((c1, l1, c2, l2, c4, l4)):
+    for i, h in enumerate((c1, l1, c2, l2, c4, l4, c6, l6)):
         if "<img" in h:
             bad.append(f"output {i}: unescaped")
         txt = re.sub(r"<[^>]+>", " ", h)
@@ -393,7 +415,8 @@ def j6(c: Ctx):
         bad.append("the passed date of the season is not marked once")
     if "samedi 28 novembre 2026" not in l1:
         bad.append("the summary line is not the next date")
-    if "retrouvée sur le site" not in c1 or "lue sur le site de l'établissement le jeudi 12 novembre 2026" not in c1:
+    if "retrouvée sur le site" not in c1 or "lue sur le site de l'établissement le jeudi 12 novembre 2026, à vérifier" not in c6 \
+            or "site de l'établissement, à vérifier" not in l6:
         bad.append("the source of a date is not said")
     if "Onisep, Idéo-Structures (licence ODbL)" not in c1 or "avant de vous déplacer" not in c1:
         bad.append("no ODbL credit or no advice to check")
@@ -575,7 +598,16 @@ SOURCE_MUTANTS = [
     ("jpo", "false weekday accepted", "if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:", "if False:", "J4"),
     ("jpo", "date without year nor weekday accepted", "            else:\n                d = None\n            if d is not None:\n                found.add(d)",
      "            else:\n                d = _mkdate(dd, mo, s)\n            if d is not None:\n                found.add(d)", "J4"),
-    ("jpo", "far lines read", 'zone = fold(" ".join(lines[i:i + 3]))', 'zone = fold(" ".join(lines[i:i + 5]))', "J4"),
+    ("jpo", "far lines read", 'zone = fold(" ".join(lines[i:i + 2]) if len(ln) <= HEADING else ln)', 'zone = fold(" ".join(lines[i:i + 3]))', "J4"),
+    ("jpo", "agenda page adds dates", 'if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),',
+     'if e["onisep"] or e["uai"] not in with_onisep),', "J5"),
+    ("jpo", "site adds dates beside Onisep's", 'if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),',
+     'if e["onisep"] or e.pop("_own")),', "J5"),
+    ("jpo", "collège line read", "if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):", "if not KEYWORD.search(ln):", "J5"),
+    ("jpo", "agenda page feeds the period", ' and source != "site_agenda":', ":", "J5"),
+    ("jpo", "publication date read", "            if _published(zone, mt.start()):\n                continue                                           # « Publié",
+     "            if False:\n                continue                                           # « Publié", "J4"),
+    ("jpo", "virtual flag lost", '"virtuel": bool(m.group(11)),', '"virtuel": False,', "J1"),
     ("jpo", "no masking", 'return _PHONE.sub("[téléphone masqué]", _EMAIL.sub("[adresse masquée]", text))', "return text", "J4"),
     ("jpo", "http links kept", 'url.startswith("https://") and not', 'url.startswith("http") and not', "J5"),
     ("jpo", "older past seasons", "MAX_PAST_SEASONS = 3", "MAX_PAST_SEASONS = 9", "J5"),

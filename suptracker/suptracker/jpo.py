@@ -17,8 +17,11 @@ Rules (owner's words):
     a past date of the season from an older version is shown as passed (Onisep drops passed open days);
   - no date this season: the dates of the previous seasons (at most 3) give a PERIOD by thirds of the month (1-9 « début »,
     10-20 « mi- », 21-31 « fin »): « aux alentours de mi-janvier », with the years read and « à confirmer ». Never a day;
-  - a date read on Onisep AND on the site is « confirmée sur le site de l'établissement »; a site-only date says where it was
-    read and when. The open days are the ESTABLISHMENT's, said with the establishment's name.
+  - a date read on Onisep AND on the site is « retrouvée sur le site de l'établissement »; a site-only date says where it was
+    read and when, « à vérifier ». A site date must be on the keyword's own line (or under a short heading), never right after
+    « publié le », never on a line naming a collège or a primary school; it only CONFIRMS Onisep's dates for an establishment
+    Onisep dates this season, and is added (« à vérifier ») only where Onisep has none; a page printing more than AGENDA dates in
+    a season is an agenda (several campuses or events): its dates only confirm and never feed the past-season period. The open days are the ESTABLISHMENT's, said with its name.
 """
 from __future__ import annotations
 
@@ -103,6 +106,7 @@ _ONISEP_PART = re.compile(
     r"^(?:le|du)\s+(\d{2})/(\d{2})/(\d{4})"
     r"(?:\s+au\s+(\d{2})/(\d{2})/(\d{4}))?"
     r"(?:\s+de\s+(\d{1,2})h(\d{2})\s+(?:à|a)\s+(\d{1,2})h(\d{2}))?"
+    r"(,\s*en virtuel)?"
     r"\s*(?:\((.*?)\))?"
     r"\s*(?:voir\s+(\S+))?\s*$", re.I)
 
@@ -132,8 +136,9 @@ def parse_onisep(field: str) -> tuple[list[dict], list[str]]:
             bad.append(part)
             continue
         heures = (f"{int(m.group(7))}h{m.group(8)} à {int(m.group(9))}h{m.group(10)}" if m.group(7) else None)
-        voir = m.group(12)
-        out.append({"debut": d1, "fin": d2, "heures": heures, "remarque": (m.group(11) or "").strip() or None,
+        voir = m.group(13)
+        out.append({"debut": d1, "fin": d2, "heures": heures, "remarque": (m.group(12) or "").strip() or None,
+                    "virtuel": bool(m.group(11)),
                     "voir": voir if voir and voir.startswith(("https://", "http://")) else None})
     return out, bad
 
@@ -160,18 +165,33 @@ _SITE_TEXTUAL = re.compile(
 _SITE_NUMERIC = re.compile(r"(?<![\d/])([0-3]?\d)[/.]([01]?\d)[/.](20\d\d|\d\d)(?![\d/])")
 
 
+HEADING = 80
+_OTHER_SCHOOL = re.compile(r"\bcolleges?\b|\becoles? (?:primaires?|maternelles?|elementaires?)\b")   # another school on the same site
+AGENDA = 4          # a page printing more open days than this in one season is an agenda (several campuses or events)
+_PUBLISHED = re.compile(r"(?:publie|mis a jour|mise a jour|modifie|actualise|poste|redige)e?s?\s*(?:le\s*|:\s*|en date du\s*)*$")
+
+
+def _published(zone: str, start: int) -> bool:
+    """A date right after « publié le », « mis à jour le »… is the page's own date."""
+    return bool(_PUBLISHED.search(zone[max(0, start - 40):start]))
+
+
 def site_dates(text: str, fetched: date) -> list[date]:
-    """The dates a site prints near « portes ouvertes » / « JPO »: the keyword's line and the next two (a heading then its
-    date). A date counts with its year printed, or with a weekday printed that is TRUE for the season of the reading day
-    (September-December = the reading season's first year, January-May its second)."""
+    """The dates a site prints with « portes ouvertes » / « JPO »: on the keyword's own line, or on the next line when the
+    keyword's line is a short heading (at most HEADING characters). A date counts with its year printed, or with a weekday
+    printed that is TRUE for the season of the reading day (September-December = the reading season's first year,
+    January-May its second); a date right after « publié le », « mis à jour le »… is the page's own date."""
     lines = [ln.strip() for ln in (text or "").splitlines()]
     s = current_season(fetched)
     found = set()
     for i, ln in enumerate(lines):
-        if not KEYWORD.search(ln):
+        if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):
             continue
-        zone = fold(" ".join(lines[i:i + 3]))
-        for wd, day, mon, year in _SITE_TEXTUAL.findall(zone):
+        zone = fold(" ".join(lines[i:i + 2]) if len(ln) <= HEADING else ln)
+        for mt in _SITE_TEXTUAL.finditer(zone):
+            if _published(zone, mt.start()):
+                continue                                           # « Publié le 8 octobre 2025 »: the page's date, not an event
+            wd, day, mon, year = mt.groups()
             mo = _FOLD_MONTHS[mon]
             dd = 1 if day == "1er" else int(day)
             if year:
@@ -184,7 +204,10 @@ def site_dates(text: str, fetched: date) -> list[date]:
                 d = None
             if d is not None:
                 found.add(d)
-        for dd, mo, yy in _SITE_NUMERIC.findall(zone):
+        for mt in _SITE_NUMERIC.finditer(zone):
+            if _published(zone, mt.start()):
+                continue
+            dd, mo, yy = mt.groups()
             y = int(yy) + 2000 if len(yy) == 2 else int(yy)
             d = _mkdate(dd, mo, y)
             if d is not None:
@@ -226,7 +249,7 @@ def read(d: Path = DIR) -> dict:
             bad_parts += len(bad)
             for p in parts:
                 dates.append({"uai": uai, "debut": p["debut"], "fin": p["fin"], "heures": p["heures"],
-                              "remarque": p["remarque"], "ref_url": p["voir"], "source": "onisep",
+                              "remarque": p["remarque"], "virtuel": p["virtuel"], "ref_url": p["voir"], "source": "onisep",
                               "as_of": v["as_of"], "latest": is_latest})
     if bad_parts:
         audit.append(f"{bad_parts} Onisep parts match no rule (not shown)")
@@ -248,9 +271,14 @@ def read(d: Path = DIR) -> dict:
                 fetched = date.fromisoformat(r["fetched"][:10])
             except ValueError:
                 continue
-            for dd in site_dates(r["text"], fetched):
-                dates.append({"uai": r["uai"], "debut": dd, "fin": None, "heures": None, "remarque": None,
-                              "ref_url": r["url"], "source": "site", "as_of": r["fetched"][:10],
+            found = site_dates(r["text"], fetched)
+            per_season = {}
+            for dd in found:
+                per_season[season_of(dd)] = per_season.get(season_of(dd), 0) + 1
+            agenda = any(n > AGENDA for n in per_season.values())     # its dates only confirm Onisep's, never add one
+            for dd in found:
+                dates.append({"uai": r["uai"], "debut": dd, "fin": None, "heures": None, "remarque": None, "virtuel": False,
+                              "ref_url": r["url"], "source": "site_agenda" if agenda else "site", "as_of": r["fetched"][:10],
                               "latest": r["fetched"] == newest[(r["uai"], r["url"])]})
     return {"dates": dates, "etabs": etabs, "sites": sites, "audit": audit,
             "versions": [{k: v[k] for k in ("file", "kind", "as_of", "source")} for v in versions]}
@@ -261,11 +289,11 @@ def build(con, d: Path = DIR) -> dict:
     checked), core.jpo_meta (versions and audit)."""
     data = read(d) if d.exists() else {"dates": [], "etabs": {}, "sites": {}, "audit": ["data/jpo missing"], "versions": []}
     con.execute("""CREATE OR REPLACE TABLE core.jpo_date (uai VARCHAR, debut DATE, fin DATE, heures VARCHAR, remarque VARCHAR,
-                   ref_url VARCHAR, source VARCHAR, as_of VARCHAR, latest BOOLEAN)""")
-    rows = sorted({(r["uai"], r["debut"], r["fin"], r["heures"], r["remarque"], r["ref_url"], r["source"], r["as_of"],
+                   virtuel BOOLEAN, ref_url VARCHAR, source VARCHAR, as_of VARCHAR, latest BOOLEAN)""")
+    rows = sorted({(r["uai"], r["debut"], r["fin"], r["heures"], r["remarque"], r["virtuel"], r["ref_url"], r["source"], r["as_of"],
                     r["latest"]) for r in data["dates"]}, key=lambda t: tuple("" if x is None else str(x) for x in t))
     if rows:
-        con.executemany("INSERT INTO core.jpo_date VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(r) for r in rows])
+        con.executemany("INSERT INTO core.jpo_date VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(r) for r in rows])
     con.execute("CREATE OR REPLACE TABLE core.jpo_etab (uai VARCHAR, nom VARCHAR, onisep_url VARCHAR, modif VARCHAR, kind VARCHAR)")
     if data["etabs"]:
         con.executemany("INSERT INTO core.jpo_etab VALUES (?, ?, ?, ?, ?)",
@@ -316,7 +344,7 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
     s = current_season(today)
     w0, w1 = window(s)
     ph = ", ".join("?" * len(uais))
-    rows = con.execute(f"""SELECT uai, debut, fin, heures, remarque, ref_url, source, as_of, latest FROM core.jpo_date
+    rows = con.execute(f"""SELECT uai, debut, fin, heures, remarque, virtuel, ref_url, source, as_of, latest FROM core.jpo_date
                            WHERE uai IN ({ph})""", uais).fetchall()
     etabs = {r[0]: {"nom": r[1], "onisep_url": https(r[2]), "modif": r[3]}
              for r in con.execute(f"SELECT uai, nom, onisep_url, modif FROM core.jpo_etab WHERE uai IN ({ph})", uais).fetchall()}
@@ -326,7 +354,7 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
         if status == "ok" and (u not in checked or when > checked[u]["checked"]):
             checked[u] = {"url": https(url), "checked": when}
     cur, past = {}, []
-    for uai, debut, fin, heures, remarque, ref_url, source, as_of, latest in rows:
+    for uai, debut, fin, heures, remarque, virtuel, ref_url, source, as_of, latest in rows:
         ses = season_of(debut)
         if ses is None:
             continue
@@ -335,19 +363,27 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
                 continue                              # a future date the newest version no longer lists: never announced
             k = (uai, debut)
             e = cur.setdefault(k, {"uai": uai, "date": debut.isoformat(), "fin": None, "heures": None, "remarque": None,
-                                   "onisep": False, "site": None, "lu_le": None})
+                                   "virtuel": False, "onisep": False, "site": None, "lu_le": None, "_own": False})
             if source == "onisep":
                 e["onisep"] = True
                 e["fin"] = e["fin"] or (fin.isoformat() if fin else None)
                 e["heures"] = e["heures"] or heures
                 e["remarque"] = e["remarque"] or remarque
+                e["virtuel"] = e["virtuel"] or bool(virtuel)
                 e["voir"] = e.get("voir") or https(ref_url)
             else:
+                e["_own"] = e["_own"] or source == "site"
                 if e["site"] is None or as_of > (e["lu_le"] or ""):
                     e["site"], e["lu_le"] = https(ref_url), as_of
-        elif ses < s and ses >= s - MAX_PAST_SEASONS:
+        elif ses < s and ses >= s - MAX_PAST_SEASONS and source != "site_agenda":
             past.append(debut)
-    dates = sorted(cur.values(), key=lambda e: (e["date"], e["uai"]))
+    # a site date only CONFIRMS a date Onisep lists for an establishment that has Onisep dates this season (a site often
+    # shows another campus or component); it is added only where Onisep has none, and never from an agenda page
+    with_onisep = {e["uai"] for e in cur.values() if e["onisep"]}
+    dates = sorted((e for e in cur.values() if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),
+                   key=lambda e: (e["date"], e["uai"]))
+    for e in dates:
+        e.pop("_own", None)
     for e in dates:
         e["source"] = "onisep_site" if e["onisep"] and e["site"] else "onisep" if e["onisep"] else "site"
         e["nom"] = (etabs.get(e["uai"]) or {}).get("nom")

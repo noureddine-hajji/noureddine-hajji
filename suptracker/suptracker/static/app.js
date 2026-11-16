@@ -2054,7 +2054,7 @@ function jpoWhen(e) {
 function jpoLine(j) {
   if (!j) return "";
   const n = jpoNext(j), dates = j.dates || [];
-  const txt = n ? `Portes ouvertes : ${esc(jpoWhen(n))}`
+  const txt = n ? `Portes ouvertes : ${esc(jpoWhen(n))}${n.source === "site" ? " (site de l'établissement, à vérifier)" : ""}`
     : dates.length ? `Portes ouvertes ${esc(j.saison.annees)} : déjà passées`
     : j.environ ? `Portes ouvertes : ${esc(j.environ.texte)}, d'après les années passées`
     : "";
@@ -2066,10 +2066,10 @@ function jpoCard(j) {
   const noms = [...new Set((j.etablissements || []).map((e) => e.nom).filter(Boolean))];
   const src = (e) => e.source === "onisep_site" ? "Onisep, date retrouvée sur le site de l'établissement"
     : e.source === "onisep" ? "Onisep"
-    : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
+    : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
   const li = (e) => {
     const past = (e.fin || e.date) < today;
-    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
+    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.virtuel ? ", en ligne" : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
       <span class="small muted"> · ${src(e)}${e.source !== "site" && jpoUrl(e.voir) ? ` · <a href="${esc(jpoUrl(e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
   };
   const body = dates.length ? `<ul class="jpo-list">${dates.map(li).join("")}</ul>`
