@@ -494,6 +494,10 @@ def j7(c: Ctx):
     links = F.jpo_links('<a href="/actus/portes-ouvertes">Agenda</a><a href="https://evil.com/jpo">JPO</a>'
                         '<a href="https://www.univ-a.fr/x">Journées portes ouvertes</a><a href="/contact">Contact</a>',
                         "https://univ-a.fr/")
+    try:
+        F.jpo_links('<a href="http://[broken/jpo">JPO</a><a href="/jpo">JPO</a>', "https://univ-a.fr/")
+    except Exception as e:  # noqa: BLE001
+        bad.append(f"a malformed link stops the run ({type(e).__name__})")
     if links != ["https://univ-a.fr/actus/portes-ouvertes", "https://www.univ-a.fr/x"]:
         bad.append(f"links followed {links}")
     cl = _Client({"https://s.fr/robots.txt": ("User-agent: *\nDisallow: /prive/",), "https://s.fr/ok": ("<p>Portes ouvertes le 12/03/2027</p>",)})
@@ -633,6 +637,7 @@ SOURCE_MUTANTS = [
     ("fetch", "malformed address fetched", """        if not good_url(url):
             res = ("adresse invalide", None)
         elif not self.allowed(url):""", """        if not self.allowed(url):""", "J7"),
+    ("fetch", "malformed link stops the run", """        except ValueError:                      # a malformed link""", """        except KeyError:                      # a malformed link""", "J7"),
     ("fetch", "whole page kept", "keep.update(range(i, min(i + 3, len(lines))))", "keep.update(range(len(lines)))", "J7"),
     ("fetch", "captures downloaded again", 'if f"{ts} {orig}" in seen:', "if False:", "J7"),
     ("fetch", "rows without open days kept", 'if r["jpo"] and re.fullmatch', "if re.fullmatch", "J7"),

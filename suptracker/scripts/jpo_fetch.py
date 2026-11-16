@@ -217,7 +217,10 @@ def site_of(url: str) -> str:
 def jpo_links(html: str, base: str) -> list[str]:
     out = []
     for href, inner in re.findall(r'<a\b[^>]*?href="([^"#]+)[^"]*"[^>]*>(.*?)</a>', html, flags=re.S | re.I):
-        url = urljoin(base, htmlmod.unescape(href))
+        try:
+            url = urljoin(base, htmlmod.unescape(href))
+        except ValueError:                      # a malformed link (« Invalid IPv6 URL »…): skipped
+            continue
         text = J.fold(htmlmod.unescape(re.sub(r"<[^>]+>", " ", inner)))
         if good_url(url) and site_of(url) == site_of(base) and (
                 LINK_WORDS.search(text) or LINK_WORDS.search(J.fold(url))):
@@ -370,7 +373,10 @@ def fetch_sites(client, d: Path, warehouse: str | None, req: dict, log: list) ->
     def job(u):
         if time.time() - t0 > budget:
             return None
-        return visit(cr, u, start[u])
+        try:
+            return visit(cr, u, start[u])
+        except Exception as e:  # noqa: BLE001  (one establishment never stops the run: its error is its status)
+            return [], {"uai": u, "url": start[u][0], "status": f"error {type(e).__name__}", "checked": today()}
     with ThreadPoolExecutor(8) as ex:
         for res in ex.map(job, order):
             if res is None:
