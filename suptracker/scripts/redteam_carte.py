@@ -596,7 +596,7 @@ JS_MUTANTS = [
     ("zone shown without a profile", "zone: ok ? (zones.get(f.cod_aff_form) || null) : null", "zone: zones.get(f.cod_aff_form) || null"),
     ("paid ticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };', 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app", "prive"] };'),
     ("presentiel misread", 'o === "presentiel" ? (!f.distance || f.distance === "aucune")', 'o === "presentiel" ? f.distance === "aucune"'),
-    ("facet counts ignore other groups", '.filter((g) => g !== skip);', ';'),
+    ("facet counts ignore other groups", '(g) => g !== skip && (F[g] || []).length', '(g) => (F[g] || []).length'),
     ("radius ignored", "haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km", "true"),
     ("statut inverted", 'if (g === "statut") return f.statut === o;', 'if (g === "statut") return f.statut !== o;'),
     ("groups lose points", "grid.get(k).push(p);", "if (grid.get(k).length < 3) grid.get(k).push(p);"),

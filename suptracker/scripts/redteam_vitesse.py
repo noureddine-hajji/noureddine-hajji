@@ -739,7 +739,7 @@ def vt8(c: Ctx):
     for name, apply, restore, expect in mutants():
         if name.startswith("zones: the untyped") and not untyped:
             continue                                     # equivalent here: nothing untyped to forget
-        if name == "a stored body served for other bytes" and not stored:
+        if name in ("a stored body served for other bytes", "br sent to a browser that refuses it") and not stored:
             continue                                     # equivalent until the build stored bodies (the data workflow)
         n += 1
         try:

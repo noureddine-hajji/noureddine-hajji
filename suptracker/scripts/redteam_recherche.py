@@ -283,7 +283,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 def place_defs(js: str) -> str:
     villes = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const foldText = ",)))
-    return villes + "\n" + "\n".join(top(js, n) for n in ("REGION_NOM", "regionNom", "villeLabel", "carteLieux", "carteLieu", "carteInLieu"))
+    return villes + "\n" + "\n".join(top(js, n) for n in ("REGION_NOM", "regionNom", "villeLabel", "FR_COLL", "carteLieux", "carteLieu", "carteInLieu"))
 
 
 def places_ok(c: Ctx, js: str) -> tuple[bool, str]:

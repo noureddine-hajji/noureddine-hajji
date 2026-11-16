@@ -440,8 +440,8 @@ API_MUTANTS = [
 JS_MUTANTS = [
     ("page band upper limit included", "(x.max === null || x.max === undefined || v < x.max)", "(x.max === null || x.max === undefined || v <= x.max)", ("fi1", "fi6")),
     ("map complementary phase from candidates", '(o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0)', '(o === "oui" ? f.acc_pc >= 0 : f.acc_pc === 0)', ("fi6",)),
-    ("map ignores the new groups", '  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
-     '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
+    ("map ignores the new groups", 'const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3];',
+     'const CARTE_FGROUPS = ["statut", "app", "internat", "amenag", "select", "zones"];', ("fi6",)),
     ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
     ("the list sorted by capacity", '|| byName(a, b));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
