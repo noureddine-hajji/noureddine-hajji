@@ -96,7 +96,6 @@ svg.chart text { fill: var(--muted); font-size: var(--fs-xs); }
 svg.chart .grid { stroke: var(--line); }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 720px) { .charts { grid-template-columns: minmax(0, 1fr); } }
-.heat td.cell { text-align: right; min-width: 70px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 /* audience dashboard */
 .st-good { color: var(--good); } .st-bad { color: var(--bad); } .st-warn { color: var(--warn); }
@@ -190,12 +189,6 @@ input.wide { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1p
 .door strong { font-size: var(--fs-md); }
 .door span:not(.door-ico) { color: var(--muted); font-size: var(--fs-sm); }
 .door-ico { font-size: var(--fs-xl); line-height: 1; }
-details.filters { margin: 6px 0 10px; }
-details.filters > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line);
-  border-radius: var(--r-pill); cursor: pointer; font-weight: 600; list-style: none; }
-details.filters > summary::-webkit-details-marker { display: none; }
-details.filters > summary .ico { width: 18px; height: 18px; margin-right: 8px; }
-details.filters[open] > summary { margin-bottom: 8px; }
 .tabbar, .more-menu { display: none; }
 a[aria-current="page"] { font-weight: 700; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -279,15 +272,8 @@ h1 { font-size: var(--fs-xl); line-height: 1.15; }
 .rc-meta .ico { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
 .rc-badges { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .rc-badges .badge { margin: 0; }
-.rc-fig { text-align: right; min-width: 7.5em; font-variant-numeric: tabular-nums; }
-.rc-fig .big { font-family: var(--font-display); }
-.rc-est { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-xs); color: var(--muted);
-  white-space: normal; text-align: right; }   /* Codex: the sentence wraps (the figure column is nowrap) */
-.rc-est strong { font-size: var(--fs-md); color: var(--ink); }
 @media (max-width: 560px) {
   .result.rc { grid-template-columns: 1fr; }
-  .rc-fig { text-align: left; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
-  .rc-est { align-items: flex-start; margin-top: 0; text-align: left; }
 }
 .tabs { display: flex; gap: 4px; overflow-x: auto; margin: 4px 0 0; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
 .tabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; color: var(--muted);
@@ -387,15 +373,12 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 /* sprint "Carte": filters left, map and list right on wide screens; map first on a phone */
 /* R10 (owner, 2026-11-13), as on Parcoursup: filters on the left, the list in the middle, the map on the right (sticky) */
 .carte-layout { display: grid; grid-template-columns: minmax(240px, 290px) minmax(0, 1fr) minmax(300px, 40%); gap: 16px; align-items: start; }
-.carte-side { min-width: 0; }
-.carte-scroll { display: grid; gap: 10px; padding: 2px 4px 2px 0; }
 .carte-results { min-width: 0; margin: 0; }
 .carte-mapcol { position: sticky; top: 8px; min-width: 0; }
 .carte-mapcol .carte-osm { height: calc(100vh - 140px); min-height: 360px; }
 .carte-head { margin-bottom: 12px; padding-top: 10px; padding-bottom: 10px; }
 .carte-head h1 { margin: 0 0 4px; }
 .carte-head p { margin: 0; }
-.carte-mens input[type=search] { width: 100%; min-height: 44px; box-sizing: border-box; }
 .linkish { background: none; border: 0; padding: 4px 0; min-height: 44px; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
 /* the compact card: badges, name, place; the official rate and the three bac routes; the line most admits come from; profile; actions */
 .result.rc.carte-rc { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 10px 0 10px 12px; cursor: pointer; }
@@ -424,34 +407,27 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
   .carte-mapcol { grid-column: 2; grid-row: 1; position: static; }
   .carte-mapcol .carte-osm { height: 46vh; }
   .carte-results { grid-column: 2; grid-row: 2; }
-  .carte-side { grid-row: 1 / span 2; }
 }
-.carte-filters .filter-grid { display: grid; gap: 10px; }
-.carte-filters input[type=search], .carte-filters input[list], .carte-filters select { width: 100%; min-height: 44px; box-sizing: border-box; }
-.carte-filters fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); display: grid; gap: 6px; }
 .carte-box { position: relative; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
 .carte-osm { height: 40vh; min-height: 260px; }
 .carte-pin { background: none; border: 0; }
 .carte-pin svg { display: block; overflow: visible; }
 .carte-osm .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
-.carte-filters fieldset i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
-.legend i.lg-securite, .legend i.lg-autre, .carte-filters i.lg-securite, .carte-filters i.lg-autre { border-radius: 50%; }
-.legend i.lg-autre, .carte-filters i.lg-autre { background: transparent !important; box-shadow: inset 0 0 0 2px var(--zone-autre); }   /* a ring */
-.legend i.lg-cible, .carte-filters i.lg-cible { border-radius: 2px; }
-.legend i.lg-ambitieux, .carte-filters i.lg-ambitieux { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
+.legend i.lg-securite, .legend i.lg-autre { border-radius: 50%; }
+.legend i.lg-autre { background: transparent !important; box-shadow: inset 0 0 0 2px var(--zone-autre); }   /* a ring */
+.legend i.lg-cible { border-radius: 2px; }
+.legend i.lg-ambitieux { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
 .carte-sel h3 { margin-top: 0; }
 @media (max-width: 860px) {
   .carte-layout { grid-template-columns: minmax(0, 1fr); }
-  .carte-side, .carte-mapcol, .carte-results { grid-column: auto; grid-row: auto; position: static; }
-  .carte-side { order: 1; } .carte-mapcol { order: 2; } .carte-results { order: 3; }
+  .carte-mapcol, .carte-results { grid-column: auto; grid-row: auto; position: static; }
+  .carte-mapcol { order: 2; } .carte-results { order: 3; }
   .carte-mapcol .carte-osm { height: 50vh; }
 }
 @media (max-width: 520px) { .cfigs { grid-template-columns: minmax(0, 1fr); } }
 .carte-pick { display: flex; flex-wrap: wrap; gap: 12px; }
 .carte-pick label { flex: 1 1 260px; min-width: 0; }
 .carte-pick select { width: 100%; max-width: 100%; min-height: 44px; }
-.carte-filters fieldset label { display: flex; align-items: center; gap: 8px; }
-.carte-filters fieldset label > .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
 
 /* vraie sélectivité: tokens only; the dots are ink, never a zone colour or the accent */
 .sel-plot { width: 100%; max-width: 640px; height: auto; display: block; }
@@ -669,8 +645,6 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .badge.tension { background: var(--warn-bg); border-color: var(--warn-ink); color: var(--warn-ink); }
 .badge.app { color: var(--ink); }
 .sum-app { margin: 4px 0 0; }
-.dist-box { margin: 12px 0; }
-.dist-box h3 { margin-bottom: 4px; }
 .dist-row input { width: 100%; max-width: 22rem; min-height: 44px; border: 1px solid var(--line-input); border-radius: var(--r-sm); padding: 0 10px; background: var(--surface); color: var(--ink); font: inherit; }
 
 /* sprint F: financing one's studies (aides.py) */
@@ -695,6 +669,11 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .cs-go .ico { width: 18px; height: 18px; }
 .cs-help { margin: 6px 0 0; }
 .cs-status:empty { display: none; }
+.cs-share { margin-top: 8px; display: grid; gap: 6px; }
+.cs-share-card { margin-top: 16px; }
+.cs-share-card h2 { margin: 0 0 4px; }
+.cs-share-link { min-height: 44px; width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line-input);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--fs-sm); }
 .cs-status { margin-top: 8px; display: grid; gap: 6px; }
 .dd-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 .dd { position: relative; }

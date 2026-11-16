@@ -174,8 +174,6 @@ def tokens_ok(css: str, js: str) -> tuple[bool, str]:
     js_lit = [m for m in re.findall(r"(?<![&\w/])#[0-9a-fA-F]{6}\b|rgba?\(\s*\d", js)]
     if js_lit:
         bad.append(("colour literal in app.js", js_lit[:3]))
-    if not re.search(r"\.rc-est \{[^}]*white-space: normal", css):
-        bad.append("the estimate's sentence cannot wrap in the nowrap figure column (Codex)")
     glyph = re.findall(r'content:\s*"([^"]*[\u2600-\u27bf\U0001f000-\U0001faff][^"]*)"', css)   # a drawn icon, never an emoji as a CSS marker
     if glyph:
         bad.append(("a glyph used as a CSS marker", glyph[:3]))
@@ -437,55 +435,27 @@ def client(c: Ctx, fi):
 
 
 def api_ok(c: Ctx, fi) -> tuple[bool, str]:
-    cur = c.con.cursor()
-    latest = cur.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
-    types = dict(cur.execute("""SELECT t.cod_aff_form, r.spe_type_key FROM core.taxonomy_link t JOIN core.taxonomy_rule r USING (rule_id)
-                                WHERE t.session = ?""", [latest]).fetchall())
-    queries = ["bts", "licence", "but", "sti2d", "cpge ect"]          # the last two also return older campaigns (review)
-    bad, n_est, n_frag, n_zoned, n_old, full = [], 0, 0, 0, 0, {}
+    """Owner, 2026-11-16: the advanced search of sprint R3 is gone. The result cards are the search page's (`carteCard`), whose bac
+    lines are read by carte.bac_lines (red team CR11-CR13); /api/search reads no profile and puts no zone or estimate on a result,
+    whatever is sent beside the words."""
+    bad, n = [], 0
     with client(c, fi) as tc:
         for serie, mention in (("bt", "ab"), ("bp", "sansmention"), ("bg", "b")):
-            for q in queries:
-                params = {"q": q, "avance": "true", "limit": 60, "serie": serie, "mention": mention}
-                if serie == "bg":
-                    params.update({"spe1": "MATHS", "spe2": "SES"})
-                r = tc.get("/api/search", params=params)
-                if r.status_code != 200:
+            for q in ("bts", "licence", "but"):
+                params = {"q": q, "avance": "true", "limit": 60, "serie": serie, "mention": mention, "zone": "securite", "spe1": "MATHS", "spe2": "SES"}
+                r, plain = tc.get("/api/search", params=params), tc.get("/api/search", params={"q": q, "limit": 60})
+                if r.status_code != 200 or plain.status_code != 200:
                     bad.append((q, serie, r.status_code))
                     continue
-                for x in r.json()["results"]:
-                    has = "estime_serie" in x
-                    if serie == "bg" or x["session"] != latest:
-                        n_old += x["session"] != latest
-                        if has:
-                            bad.append((x["cod_aff_form"], x["session"], serie, "an estimate where none exists"))
-                        continue
-                    tk = types.get(x["cod_aff_form"])
-                    if not tk:
-                        if has:
-                            bad.append((x["cod_aff_form"], "an estimate without a type"))
-                        continue
-                    key = (tk, serie, mention)
-                    if key not in full:                         # the FULL type: no `only`, no row limit
-                        full[key] = {f["cod_aff_form"]: f for f in J.stage2(cur, None, mention, tk, None, limit=10 ** 6, serie=serie)["formations"]}
-                    row = full[key].get(x["cod_aff_form"])
-                    if row is None:
-                        continue
-                    n_zoned += 1
-                    want = row["taux_acces_ens"]
-                    if want is None:
-                        if has:
-                            bad.append((x["cod_aff_form"], "an estimate the row lacks"))
-                        continue
-                    if not has or x["estime_serie"] != want or bool(x.get("estime_fragile")) != bool(row.get("rate_fragile")):
-                        bad.append((x["cod_aff_form"], serie, x.get("estime_serie"), want, x.get("estime_fragile"), row.get("rate_fragile")))
-                    n_est += 1
-                    n_frag += bool(row.get("rate_fragile"))
-    ok = not bad and n_est > 0
-    return ok, f"{n_zoned} zoned techno/pro results, {n_est} estimates ({n_frag} fragile), {n_old} results of an older campaign; problems {bad[:4]}"
+                n += len(r.json()["results"])
+                if [x["cod_aff_form"] for x in r.json()["results"]] != [x["cod_aff_form"] for x in plain.json()["results"]]:
+                    bad.append((q, serie, "a profile changed the answer"))
+                if any(k in x for x in r.json()["results"] for k in ("zone", "estime_serie", "estime_fragile", "uncertain")):
+                    bad.append((q, serie, "a zone or an estimate on a result"))
+    return not bad and n > 0, f"{n} results read with a profile sent: none carries a zone or an estimate; problems {bad[:4]}"
 
 
-@check("VI6 the API: bac techno / pro results carry the full type's estimate and fragile flag; bac général and older campaigns carry none")
+@check("VI6 the API: the search reads no profile (no zone, no estimate on a result); the cards' bac lines are the map's (CR11-CR13)")
 def vi6(c: Ctx):
     return api_ok(c, c.FI)
 
@@ -647,9 +617,8 @@ MUTANTS = [
     ("css", "the old ambitieux (pill text below 4.5)", "--zone-ambitieux: #b9460f; --voie-bg", "--zone-ambitieux: #c4581f; --voie-bg", (vi3,)),
     ("css", "a pale 'autre' zone", "--zone-autre: #6f6977;", "--zone-autre: #b8b2bf;", (vi3,)),
     ("css", "zone-autre missing from a dark block", "--zone-autre: #a39dab; --shadow-tip", "--shadow-tip", (vi1,)),
-    ("css", "the estimate cannot wrap (Codex)", "  white-space: normal; text-align: right; }", "  text-align: right; }", (vi1,)),
-    ("css", "a gear glyph as the filter marker", "details.filters > summary .ico { width: 18px; height: 18px; margin-right: 8px; }",
-     'details.filters > summary::before { content: "\u2699"; margin-right: 8px; }', (vi1,)),
+    ("css", "a gear glyph as the filter marker", ".dd-fold > summary .ico { width: 18px; height: 18px; }",
+     '.dd-fold > summary::before { content: "\u2699"; margin-right: 8px; }', (vi1,)),
     ("js", "a route colour for the national doublette line", 'groupe national`, color: "var(--c2)", dash: "6 4", values', 'groupe national`, color: "var(--voie-bt)", values', (vi1,)),
     ("css", "a pale ramp step as badge text", ".fiab-B { border-color: var(--c3); color: var(--ink); }", ".fiab-B { border-color: var(--c3); color: var(--c5); }", (vi3,)),
     ("css", "printing keeps the dark ramp", "--c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats",
@@ -657,8 +626,7 @@ MUTANTS = [
     ("js", "the chart fills the other readings", 'fill="${filled ? c : "var(--surface)"}"', 'fill="${c}"', (vi4,)),
     ("js", "the map's 'autre' a disc", 'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="var(--surface)" stroke="${col}" stroke-width="2.5"`)',
      'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="${col}" stroke="var(--surface)" stroke-width="2.5"`)', (vi4,)),
-    ("css", "a colour literal in a rule", ".rc-est strong { font-size: var(--fs-md); color: var(--ink); }",
-     ".rc-est strong { font-size: var(--fs-md); color: #333333; }", (vi1,)),
+    ("css", "a colour literal in a rule", ".cbacs sup.est { color: var(--muted); }", ".cbacs sup.est { color: #333333; }", (vi1,)),
     ("js", "every zone a circle", 'return z === "cible" ? `<rect', 'return z === "nope" ? `<rect', (vi4,)),
     ("js", "the pill without its mark", '` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label.replace(', '` title="${esc(h)}"` : ""}>${esc(zz.label.replace(', (vi4,)),
     ("js", "the badge without its name", '${zoneMark(z)}${esc(zz.label)}</span>', "${zoneMark(z)}</span>", (vi4,)),
@@ -677,10 +645,6 @@ MUTANTS = [
      '<line x1="1" y1="4" x2="21" y2="4" stroke="${k.color || COLORS[i]}" stroke-width="2.5"/>', (vi7,)),
     ("js", "the emoji marker back", 'text-anchor="middle">n&lt;${META.low_n_threshold}</text>', 'text-anchor="middle">⚠ n&lt;${META.low_n_threshold}</text>', (vi7,)),
     ("js", "a colour-only legend on the comparator", "<h3>Taux d'accès 2022–2025</h3>${lineLegend(series)}", "<h3>Taux d'accès 2022–2025</h3>${legend(series)}", (vi7,)),
-    ("py", "an estimate for bac général", '                                               f.get("taux_acces_ens") if serie != "bg" else None,',
-     '                                               f.get("taux_acces_ens"),', (vi6,)),
-    ("py", "the official rate as the estimate", 'f.get("taux_acces_ens") if serie != "bg" else None,', 'f.get("taux_acces_all") if serie != "bg" else None,', (vi6,)),
-    ("py", "fragile never said", 'bool(f.get("rate_fragile")))', "False)", (vi6,)),
 ]
 
 

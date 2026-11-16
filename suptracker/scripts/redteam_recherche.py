@@ -24,6 +24,9 @@
   RS9 no filter field lost (owner, 2026-11-16): every field and option of the earlier list and map pages (type, mention, statut,
       académie, apprentissage, internat, aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place
       and radius) is a dropdown of the bar or a field of the search bar
+  RS10 the shared search link (owner, 2026-11-16): #/recherche/<parameters> round-trips the words, the typed place, the radius,
+      types, mentions and the groups that differ from their default; never "Ma ville", the zones or a profile key; hostile or
+      unknown values dropped on opening; the reader's zone filter cleared; the message and the link escaped
 """
 from __future__ import annotations
 
@@ -479,6 +482,96 @@ def rs9(c: Ctx):
     return fields_ok(c, c.js)
 
 
+# ------------------------------------------------------------------ RS10 the shared search link
+# owner, 2026-11-16: "lien de recherche partageable". Everything after "#": the words, the place TYPED (never "Ma ville"), the radius,
+# types, mentions and the groups that differ from their default (never the zones); every value checked on opening.
+SHARE_PROG = r"""
+const META = { filtres: JSON.parse(process.env.VOCAB) };
+CARTE_ACADS.push("Lyon", "Lille");
+const FAC = { diplomes: [{ label: "BUT", n: 3, mentions: [{ label: "Informatique", n: 2 }, { label: "GEA", n: 1 }] }, { label: "BTS - BTSA - BTSM", n: 2, mentions: [{ label: "NDRC", n: 2 }] }] };
+const H = "<img src=x onerror=alert(1)>";
+const base = { ...CARTE_DEFAULT, zones: ["securite"], q: "BTS NDRC", lieu: { t: "dep", v: "59" }, autour: null, lieuTxt: "Nord (59)",
+  statut: ["public", "contrat", "prive_app", "prive"], acad: ["Lille"], capacite: ["20a49"], app: [], internat: ["mixte"] };
+const sel = { d: ["BUT"], m: { BUT: ["Informatique"] } };
+const out = {};
+out.link = carteShareLink(base, sel);
+const raw = decodeURIComponent(out.link.replace("#/recherche/", ""));
+out.read = carteShareRead(raw, FAC);
+out.town = carteShareLink({ ...base, lieu: null, autour: { lat: 50.6, lon: 3.06, km: 50, ville: "Lille" }, lieuTxt: "Lille" }, sel);
+out.mine = carteShareLink({ ...base, lieu: null, autour: { lat: 50.6, lon: 3.06, km: 50, ville: "x" }, lieuTxt: "Ma ville : Arras (62)" }, sel);
+out.plain = carteShareLink({ ...CARTE_DEFAULT, q: "", lieu: null, autour: null, lieuTxt: "" }, { d: [], m: {} });
+const hostile = new URLSearchParams();
+hostile.set("q", H + "x".repeat(400)); hostile.set("lieu", "Ma ville : Arras (62)"); hostile.set("km", "9999");
+hostile.append("d", "BUT"); hostile.append("d", H); hostile.append("m", "BUT::" + H); hostile.append("m", "BUT::GEA"); hostile.append("m", H);
+hostile.set("f_statut", "public," + H); hostile.set("f_acad", "Lyon,Atlantide"); hostile.set("f_zones", "securite"); hostile.set("f_capacite", "20a49,9999");
+hostile.set("serie", "bg"); hostile.set("spe1", "MATHS"); hostile.set("moyenne", "14");
+out.hostile = carteShareRead(hostile.toString(), FAC);
+out.garbage = carteShareRead("%%%==&&&", FAC);
+// Codex: inherited object keys as types or mentions never throw, never reach the selection
+out.proto = ["__proto__", "constructor", "toString", "hasOwnProperty"].map((k) => { try {
+  const r = carteShareRead(`d=${k}&d=BUT&m=${k}::x&m=BUT::GEA&f_${k}=x`, FAC); return { ok: true, sel: r.sel, F: r.F }; } catch (e) { return { ok: false, e: String(e) }; } });
+process.stdout.write(JSON.stringify(out));"""
+
+
+def share_ok(js: str) -> tuple[bool, str]:
+    from suptracker import filtres as FI
+    names = ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
+             "carteSelection", "carteShareLink", "carteShareRead")
+    exe = shutil.which("node")
+    if not exe:
+        return True, "node not installed"
+    r = subprocess.run([exe, "-e", "\n".join(top(js, n) for n in names) + SHARE_PROG], capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "VOCAB": json.dumps(FI.vocab())})
+    if r.returncode:
+        return False, r.stderr[-500:]
+    o = json.loads(r.stdout)
+    bad = []
+    rd = o["read"]
+    if rd["q"] != "BTS NDRC" or rd["lieuTxt"] != "Nord (59)" or rd["sel"] != {"d": ["BUT"], "m": {"BUT": ["Informatique"]}}:
+        bad.append(("round trip", rd))
+    if rd["F"] != {"statut": ["public", "contrat", "prive_app", "prive"], "acad": ["Lille"], "internat": ["mixte"], "capacite": ["20a49"]}:   # app [] = its default: not shared
+        bad.append(("groups", rd["F"]))
+    for k in ("zones", "securite", "serie", "spe1", "mention", "moyenne", "profil"):
+        if k in o["link"]:
+            bad.append(("a personal key in the link", k))
+    if "km%3D50" not in o["town"] or "Lille" not in o["town"]:
+        bad.append(("a typed town loses its radius", o["town"]))
+    if "Arras" in o["mine"] or "lieu" in o["mine"] or "km" in o["mine"]:
+        bad.append(("the profile's town in the link", o["mine"]))
+    if o["plain"] != "#/recherche/":
+        bad.append(("an empty search carries values", o["plain"]))
+    h = o["hostile"]
+    if len(h["q"]) > 200 or h["lieuTxt"] != "" or h["km"] != 25 or h["sel"] != {"d": ["BUT"], "m": {"BUT": ["GEA"]}} \
+            or h["F"] != {"statut": ["public"], "acad": ["Lyon"], "capacite": ["20a49"]}:
+        bad.append(("hostile parameters kept", h))
+    for x in o["proto"]:
+        if not x["ok"] or x["sel"] != {"d": ["BUT"], "m": {"BUT": ["GEA"]}} or x["F"] != {}:
+            bad.append(("an inherited key as a type or mention (Codex)", x))
+    if o["garbage"] is None or o["garbage"]["sel"] != {"d": [], "m": {}}:
+        bad.append(("garbage", o["garbage"]))
+    vs = js[js.index("function viewRecherche(raw) {"):js.index("\n}", js.index("function viewRecherche(raw) {"))]
+    if 'carteUI.pendingShare = raw || "";' not in vs or 'location.replace("#/carte");' not in vs or 'if (a === "recherche") return viewRecherche(b || "");' not in js:
+        bad.append("the route")
+    if 'recherche: "home"' not in js or 'recherche: "search"' not in js:
+        bad.append("the tab and the audience route of the shared link")
+    vc = js[js.index("async function viewCarte("):js.index("\n// ---- ", js.index("async function viewCarte("))]
+    if "for (const [gr] of carteGroups()) F[gr] = gr in share.F ? share.F[gr] : [...(CARTE_DEFAULT[gr] || [])];" not in vc \
+            or "Object.assign(F, { zones: [], q: share.q, lieu: null, autour: null, lieuTxt: share.lieuTxt });" not in vc:
+        bad.append("a shared search does not replace the reader's filters (zones cleared)")
+    # owner, 2026-11-16: the share block sits at the bottom of the page (after the list and the map), never in the search bar
+    sh, bar_end = vc.find('<section class="card cs-share-card"'), vc.find("</form>")
+    if sh < 0 or sh < vc.find('<div class="carte-mapcol">') or 'id="cs-share"' in vc[:max(bar_end, 0) + 400]:
+        bad.append("the share block is not at the bottom of the page")
+    if '${esc(said)}' not in vc or 'value="${esc(link)}"' not in vc:
+        bad.append("the share message or link unescaped")
+    return not bad, f"round trip, hostile and personal keys checked; problems {bad[:3]}"
+
+
+@check("RS10 the shared search link: words, typed place, radius, types, mentions and groups round-trip; never Ma ville, zones or profile")
+def rs10(c: Ctx):
+    return share_ok(c.js)
+
+
 # ------------------------------------------------------------------ RS6 browser
 BROWSER = r"""
 const { chromium, devices } = require('playwright');
@@ -519,6 +612,17 @@ const base = process.argv[2];
   o.km = await p.$eval(".cs-km", (e) => !e.hidden); await p.selectOption("#cs-km", "10"); await p.$eval(".cs-go", (b) => b.click()); await p.waitForTimeout(3000);
   o.dists = await p.$$eval("#carte-items .rc-meta span", (s) => s.map((x) => x.textContent).filter((t) => / km$/.test(t)).map((t) => Number(t.replace(/\D/g, ""))));
   o.hs = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  // the shared link (owner, 2026-11-16): the same search opened in a blank browser gives the same list
+  await p.fill("#cs-q", "BTS NDRC"); await p.fill("#cs-lieu", "Nord (59)"); await p.$eval(".cs-go", (b) => b.click()); await p.waitForTimeout(2500);
+  await p.$eval("#cs-share", (b) => b.click()); await p.waitForTimeout(500);
+  const link = await p.$eval(".cs-share-link", (i) => i.value);
+  const sc = await b.newContext({ viewport: { width: 1366, height: 900 } }); const sp = await sc.newPage(); sp.on("pageerror", (e) => errs.push("shared: " + e.message));
+  await sp.goto(link); await sp.waitForFunction(() => /formation/.test((document.getElementById("carte-count") || {}).textContent || ""), null, { timeout: 60000 });
+  await sp.waitForTimeout(1500);
+  o.shared = await sp.evaluate(() => ({ hash: location.hash, q: document.getElementById("cs-q").value, lieu: document.getElementById("cs-lieu").value,
+    n: Number((document.getElementById("carte-count").textContent.match(/^([\d\s\u202f\u00a0]+)/) || ["", "-1"])[1].replace(/\D/g, "")) }));
+  o.shareLink = link;
+  await sc.close();
   o.leak = reqs.filter((u) => /Nord|\(59\)|Lyon|lieu=|lat=|lon=|km=/.test(u.replace(/^https?:\/\/[^/]+/, "")) && !/tile\.openstreetmap/.test(u));
   await ctx.close();
   // a phone
@@ -587,6 +691,10 @@ def rs6(c: Ctx):
     # the types offered are counted among what the keyword and the place keep (owner's screenshot: national totals before)
     if not o["dipCounts"] or sum(o["dipCounts"]) != want["kwDep"] or min(o["dipCounts"]) <= 0:
         bad.append(("type counts", o["dipCounts"], want["kwDep"]))
+    sh = o.get("shared") or {}
+    if sh.get("hash") != "#/carte" or sh.get("q") != "BTS NDRC" or sh.get("lieu") != "Nord (59)" or sh.get("n") != want["kwDep"] \
+            or "/#/recherche/" not in (o.get("shareLink") or ""):
+        bad.append(("the shared link", sh, o.get("shareLink")))
     titles = ("Type de formation", "Types d'établissement", "Académie", "Apprentissage", "Internat", "Aménagements", "Sélectivité",
               "Capacité", "Phase complémentaire", "Taux d'accès officiel")
     if not all(any(s.startswith(t) for s in o["summaries"]) for t in titles):
@@ -665,6 +773,15 @@ JS_MUTANTS = [
     ("an aménagement option dropped", '["sport", "Aménagements pour sportifs de haut niveau"], ', "", "rs9"),
     ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];", "];", "rs9"),
     ("the mention dropdown dropped", 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"', 'const mens = false ? dd("mens", "Mention ou spécialité"', "rs9"),
+    ("share: the profile's town kept", "if ((F.lieu || F.autour) && lt && !lt.startsWith(MA_VILLE))", "if ((F.lieu || F.autour) && lt)", "rs10"),
+    ("share: the zones shared", "  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "  qs.set(\"f_zones\", (F.zones || []).join(\",\"));\n  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "rs10"),
+    ("share: any radius accepted", "km: CARTE_KMS.includes(Number(qs.get(\"km\"))) ? Number(qs.get(\"km\")) : 25", "km: Number(qs.get(\"km\")) || 25", "rs10"),
+    ("share: unknown options kept", "F[gr] = [...new Set(qs.get(`f_${gr}`).split(\",\").filter((k) => keys.includes(k)))];", "F[gr] = [...new Set(qs.get(`f_${gr}`).split(\",\"))];", "rs10"),
+    ("share: an inherited key breaks the page (Codex)",
+     "  const m = Object.create(null);\n  qs.getAll(\"m\").forEach((x) => { const i = x.indexOf(\"::\"); if (i > 0) { const d = x.slice(0, i); (m[d] = Array.isArray(m[d]) ? m[d] : []).push(x.slice(i + 2)); } });",
+     "  const m = {};\n  qs.getAll(\"m\").forEach((x) => { const i = x.indexOf(\"::\"); if (i > 0) (m[x.slice(0, i)] = m[x.slice(0, i)] || []).push(x.slice(i + 2)); });", "rs10"),
+    ("share: types not checked", 'sel: carteSelection(FAC, "", "", { d: qs.getAll("d"), m }), F };', 'sel: { d: qs.getAll("d"), m }, F };', "rs10"),
+    ("share: a stale zone filter kept", "Object.assign(F, { zones: [], q: share.q,", "Object.assign(F, { q: share.q,", "rs10"),
 ]
 OTHER_MUTANTS = [
     ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
@@ -678,7 +795,7 @@ def rs8(c: Ctx):
     from suptracker import api
     from suptracker import legal as LG
     base = {"rs1": keyword_ok(c)[0], "rs2": places_ok(c, c.js)[0], "rs3": privacy_ok(c.js, LG.confidentialite())[0],
-            "rs4": shell_ok(c.html, c.js, c.css)[0], "rs5": order_ok(c.js)[0], "rs7": docs_ok(c)[0], "rs9": fields_ok(c, c.js)[0]}
+            "rs4": shell_ok(c.html, c.js, c.css)[0], "rs5": order_ok(c.js)[0], "rs7": docs_ok(c)[0], "rs9": fields_ok(c, c.js)[0], "rs10": share_ok(c.js)[0]}
     if not all(base.values()):
         return False, f"the unmutated code fails {[k for k, v in base.items() if not v]}: mutants not counted"
     missed = []
@@ -708,7 +825,7 @@ def rs8(c: Ctx):
             missed.append(f"{name} (anchor gone)")
             continue
         m = c.js.replace(old, new)
-        run = {"rs9": lambda: fields_ok(c, m), "rs2": lambda: places_ok(c, m), "rs3": lambda: privacy_ok(m, LG.confidentialite()), "rs4": lambda: shell_ok(c.html, m, c.css),
+        run = {"rs10": lambda: share_ok(m), "rs9": lambda: fields_ok(c, m), "rs2": lambda: places_ok(c, m), "rs3": lambda: privacy_ok(m, LG.confidentialite()), "rs4": lambda: shell_ok(c.html, m, c.css),
                "rs5": lambda: order_ok(m)}[chk]
         try:
             caught = not run()[0]

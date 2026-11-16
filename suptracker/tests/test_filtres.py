@@ -1,4 +1,4 @@
-"""Sprint R3 (owner, 2026-11-12): the advanced filters shared by the search and the map, through their red team."""
+"""Sprint R3 (owner, 2026-11-12): the filter bands shared by the search page and the map, through their red team."""
 import sys
 from pathlib import Path
 
@@ -18,8 +18,8 @@ def test_bands():
     from suptracker import filtres as FI
     assert [FI.band(x, FI.CAPACITE) for x in (None, 0, 19, 20, 49, 50, 99, 100)] == [None, "moins20", "moins20", "20a49", "20a49", "50a99", "50a99", "100plus"]
     assert [FI.band(x, FI.TAUX) for x in (29.9, 30, 59.9, 60, 89.9, 90, 100)] == ["moins30", "30a59", "30a59", "60a89", "60a89", "90plus", "90plus"]
-    with pytest.raises(ValueError):
-        FI.parse("nope", "taux")
+    # owner, 2026-11-16: the server-side filtering of the old advanced search is gone; the module keeps the bands only
+    assert not any(hasattr(FI, n) for n in ("parse", "zones", "tags", "apply"))
 
 
 @pytest.fixture(scope="module")
