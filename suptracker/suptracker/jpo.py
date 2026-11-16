@@ -184,10 +184,8 @@ def site_dates(text: str, fetched: date) -> list[date]:
     lines = [ln.strip() for ln in (text or "").splitlines()]
     s = current_season(fetched)
     found = set()
-    for i, ln in enumerate(lines):
-        if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):
-            continue
-        zone = fold(" ".join(lines[i:i + 2]) if len(ln) <= HEADING else ln)
+    def dates_in(zone: str) -> set:
+        out = set()
         for mt in _SITE_TEXTUAL.finditer(zone):
             if _published(zone, mt.start()):
                 continue                                           # « Publié le 8 octobre 2025 »: the page's date, not an event
@@ -203,7 +201,7 @@ def site_dates(text: str, fetched: date) -> list[date]:
             else:
                 d = None
             if d is not None:
-                found.add(d)
+                out.add(d)
         for mt in _SITE_NUMERIC.finditer(zone):
             if _published(zone, mt.start()):
                 continue
@@ -211,7 +209,17 @@ def site_dates(text: str, fetched: date) -> list[date]:
             y = int(yy) + 2000 if len(yy) == 2 else int(yy)
             d = _mkdate(dd, mo, y)
             if d is not None:
-                found.add(d)
+                out.add(d)
+        return out
+
+    for i, ln in enumerate(lines):
+        if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):
+            continue
+        own = dates_in(fold(ln))
+        if own:
+            found |= own                                           # the keyword's own line has its dates: the next line is other
+        elif len(ln) <= HEADING and i + 1 < len(lines):
+            found |= dates_in(fold(ln + " " + lines[i + 1]))       # a short heading, its date on the next line
     return sorted(d for d in found if season_of(d) is not None)
 
 
@@ -243,8 +251,9 @@ def read(d: Path = DIR) -> dict:
             if not re.fullmatch(r"\d{7}[A-Z]", uai):
                 continue
             if is_latest:
+                un, uu = univ_of(r.get("univ") or "")
                 etabs[uai] = {"nom": r.get("nom") or None, "onisep_url": r.get("onisep_url") or None,
-                              "modif": r.get("modif") or None, "kind": v["kind"]}
+                              "modif": r.get("modif") or None, "kind": v["kind"], "univ_uai": uu, "univ_nom": un}
             parts, bad = parse_onisep(r.get("jpo") or "")
             bad_parts += len(bad)
             for p in parts:
@@ -280,8 +289,83 @@ def read(d: Path = DIR) -> dict:
                 dates.append({"uai": r["uai"], "debut": dd, "fin": None, "heures": None, "remarque": None, "virtuel": False,
                               "ref_url": r["url"], "source": "site_agenda" if agenda else "site", "as_of": r["fetched"][:10],
                               "latest": r["fetched"] == newest[(r["uai"], r["url"])]})
+    dates += fiche_dates(d.parent / "fiches", audit)
     return {"dates": dates, "etabs": etabs, "sites": sites, "audit": audit,
             "versions": [{k: v[k] for k in ("file", "kind", "as_of", "source")} for v in versions]}
+
+
+def fiche_key(cod) -> str:
+    return f"formation:{cod}"
+
+
+FICHE_TEXT_COLS = ("complementaires_id", "conseils_id", "info_id")
+
+
+def fiche_dates(fd: Path, audit: list) -> list[dict]:
+    """The open days a formation's OWN Parcoursup fiche prints in its free texts (attendus complémentaires, conseils,
+    informations), read by the site rules sentence by sentence (year printed or a weekday true for the fiche's campaign; no
+    « publié le »; no collège line); a text printing more than AGENDA dates in a season is an agenda (salons, several
+    campuses): never used. Keyed by formation (fiche_key), the reading day = the fiche's campaign (its January)."""
+    af, tf = fd / "attendus.csv", fd / "textes.csv.gz"
+    if not af.exists() or not tf.exists():
+        audit.append("data/fiches: no attendus or texts (fiche open days not read)")
+        return []
+    with open(af, encoding="utf-8", newline="") as f:
+        refs = [r for r in csv.DictReader(f)]
+    need = {r[c] for r in refs for c in FICHE_TEXT_COLS if r.get(c)}
+    texts = {}
+    csv.field_size_limit(1 << 30)
+    with gzip.open(tf, "rt", encoding="utf-8", newline="") as f:
+        for row in csv.reader(f):
+            if len(row) == 2 and row[0] in need:
+                texts[row[0]] = row[1]
+    lus = {}
+    ef = fd / "etat.csv"
+    if ef.exists():
+        with open(ef, encoding="utf-8", newline="") as f:
+            for r in csv.DictReader(f):
+                if r.get("status") == "ok" and r.get("lu_le"):
+                    lus[(r["cod_aff_form"], r.get("session"))] = f"{r['lu_le'][:4]}-{r['lu_le'][4:6]}-{r['lu_le'][6:8]}"
+    newest = {}
+    for r in refs:
+        newest[r["cod_aff_form"]] = max(newest.get(r["cod_aff_form"], ""), r["session"])
+    cache, out = {}, []
+    for r in refs:
+        try:
+            ses = int(r["session"])
+        except ValueError:
+            continue
+        found = set()
+        for c in FICHE_TEXT_COLS:
+            tid = r.get(c)
+            if not tid or tid not in texts:
+                continue
+            if (tid, ses) not in cache:
+                t = texts[tid].replace(". ", ".\n").replace("; ", ";\n")
+                ds = site_dates(t, date(ses, 1, 15))
+                per = {}
+                for dd in ds:
+                    per[season_of(dd)] = per.get(season_of(dd), 0) + 1
+                cache[(tid, ses)] = [] if any(n > AGENDA for n in per.values()) else ds
+            found.update(cache[(tid, ses)])
+        for dd in sorted(found):
+            out.append({"uai": fiche_key(r["cod_aff_form"]), "debut": dd, "fin": None, "heures": None, "remarque": None,
+                        "virtuel": False, "ref_url": None, "source": "fiche",
+                        "as_of": lus.get((r["cod_aff_form"], r["session"]), f"{ses}-01-15"),
+                        "latest": r["session"] == newest[r["cod_aff_form"]]})
+    return out
+
+
+_UNIV = re.compile(r"^(.*\S)\s*\((\d{7}[A-Z])\)\s*$")
+
+
+def univ_of(label: str) -> tuple[str | None, str | None]:
+    """« Université du Littoral Côte d'Opale (0595964M) » -> (name, UAI), only for a UNIVERSITY (the word in its name):
+    another attachment (an institute, a group) is not a university."""
+    m = _UNIV.match((label or "").strip())
+    if not m or "universit" not in fold(m.group(1)):
+        return None, None
+    return m.group(1), m.group(2)
 
 
 def build(con, d: Path = DIR) -> dict:
@@ -294,10 +378,12 @@ def build(con, d: Path = DIR) -> dict:
                     r["latest"]) for r in data["dates"]}, key=lambda t: tuple("" if x is None else str(x) for x in t))
     if rows:
         con.executemany("INSERT INTO core.jpo_date VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(r) for r in rows])
-    con.execute("CREATE OR REPLACE TABLE core.jpo_etab (uai VARCHAR, nom VARCHAR, onisep_url VARCHAR, modif VARCHAR, kind VARCHAR)")
+    con.execute("""CREATE OR REPLACE TABLE core.jpo_etab (uai VARCHAR, nom VARCHAR, onisep_url VARCHAR, modif VARCHAR, kind VARCHAR,
+                   univ_uai VARCHAR, univ_nom VARCHAR)""")
     if data["etabs"]:
-        con.executemany("INSERT INTO core.jpo_etab VALUES (?, ?, ?, ?, ?)",
-                        [[u, e["nom"], e["onisep_url"], e["modif"], e["kind"]] for u, e in sorted(data["etabs"].items())])
+        con.executemany("INSERT INTO core.jpo_etab VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        [[u, e["nom"], e["onisep_url"], e["modif"], e["kind"], e.get("univ_uai"), e.get("univ_nom")]
+                         for u, e in sorted(data["etabs"].items())])
     con.execute("CREATE OR REPLACE TABLE core.jpo_site (uai VARCHAR, url VARCHAR, status VARCHAR, checked VARCHAR)")
     srows = [[u, s["url"], s["status"], s["checked"]] for u, ss in sorted(data["sites"].items()) for s in ss]
     if srows:
@@ -363,8 +449,10 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
                 continue                              # a future date the newest version no longer lists: never announced
             k = (uai, debut)
             e = cur.setdefault(k, {"uai": uai, "date": debut.isoformat(), "fin": None, "heures": None, "remarque": None,
-                                   "virtuel": False, "onisep": False, "site": None, "lu_le": None, "_own": False})
-            if source == "onisep":
+                                   "virtuel": False, "onisep": False, "fiche": None, "site": None, "lu_le": None, "_own": False})
+            if source == "fiche":
+                e["fiche"] = as_of
+            elif source == "onisep":
                 e["onisep"] = True
                 e["fin"] = e["fin"] or (fin.isoformat() if fin else None)
                 e["heures"] = e["heures"] or heures
@@ -379,13 +467,22 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
             past.append(debut)
     # a site date only CONFIRMS a date Onisep lists for an establishment that has Onisep dates this season (a site often
     # shows another campus or component); it is added only where Onisep has none, and never from an agenda page
+    # (the formation's own fiche counts like Onisep: a formation whose fiche gives a date takes no site-only date)
     with_onisep = {e["uai"] for e in cur.values() if e["onisep"]}
-    dates = sorted((e for e in cur.values() if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),
-                   key=lambda e: (e["date"], e["uai"]))
+    own_fiche = any(e["fiche"] for e in cur.values())
+    dates = [e for e in cur.values()
+             if e["onisep"] or e["fiche"] or (e.pop("_own") and e["uai"] not in with_onisep and not own_fiche)]
+    # the fiche's date and the establishment's same date are one open day
+    fiche_days = {e["date"]: e["fiche"] for e in dates if e["fiche"] and e["uai"].startswith("formation:")}
+    dates = [e for e in dates if not (e["uai"].startswith("formation:") and any(
+        x["date"] == e["date"] and not x["uai"].startswith("formation:") for x in dates))]
     for e in dates:
         e.pop("_own", None)
+        e["fiche"] = e["fiche"] or fiche_days.get(e["date"])
+    dates.sort(key=lambda e: (e["date"], e["uai"]))
     for e in dates:
-        e["source"] = "onisep_site" if e["onisep"] and e["site"] else "onisep" if e["onisep"] else "site"
+        e["source"] = ("onisep_site" if e["onisep"] and e["site"] else "onisep" if e["onisep"]
+                       else "fiche" if e["fiche"] and not e["site"] else "fiche_site" if e["fiche"] else "site")
         e["nom"] = (etabs.get(e["uai"]) or {}).get("nom")
     out = {"saison": {"debut": w0.isoformat(), "fin": w1.isoformat(), "annees": f"{s - 1}-{s}"},
            "dates": dates, "etablissements": [{"uai": u, **etabs[u]} for u in uais if u in etabs],
@@ -396,8 +493,40 @@ def for_uais(con, uais: list[str], today: date) -> dict | None:
     return out
 
 
+def university(con, uais: list[str]) -> tuple[str, str] | None:
+    """The university the formation's establishment belongs to, as Onisep links it (« université de rattachement »), or the
+    establishment itself when Onisep names a university attachment for it; None otherwise."""
+    if not uais:
+        return None
+    try:
+        ph = ", ".join("?" * len(uais))
+        rows = con.execute(f"SELECT uai, univ_uai, univ_nom FROM core.jpo_etab WHERE uai IN ({ph})", uais).fetchall()
+    except Exception:  # noqa: BLE001  (a warehouse before the university link)
+        return None
+    by = {u: (uu, un) for u, uu, un in rows}
+    for u in uais:
+        uu, un = by.get(u, (None, None))
+        if uu and un and uu not in uais:
+            return uu, un
+    return None
+
+
 def for_formation(con, cod: str, today: date | None = None) -> dict | None:
-    return for_uais(con, _uais(con, cod), today or datetime.now().date())
+    """The formation's block: its establishment(s) and its own fiche. No date this season: the open days of the UNIVERSITY it
+    belongs to (owner, 2026-11-16), named; then the period of past seasons (own first, else the university's)."""
+    today = today or datetime.now().date()
+    uais = _uais(con, cod)
+    own = for_uais(con, uais + [fiche_key(cod)], today)
+    if own and own["dates"]:
+        return own
+    u = university(con, uais)
+    ub = for_uais(con, [u[0]], today) if u else None
+    if ub and (ub["dates"] or (ub["environ"] and not (own and own["environ"]))):
+        ub["universite"] = {"uai": u[0], "nom": u[1]}
+        if not ub["dates"] and own and own["environ"]:
+            ub["environ"] = own["environ"]
+        return ub
+    return own
 
 
 def meta(con) -> dict:

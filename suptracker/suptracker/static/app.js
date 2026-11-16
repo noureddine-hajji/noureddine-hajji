@@ -2054,9 +2054,10 @@ function jpoWhen(e) {
 function jpoLine(j) {
   if (!j) return "";
   const n = jpoNext(j), dates = j.dates || [];
-  const txt = n ? `Portes ouvertes : ${esc(jpoWhen(n))}${n.source === "site" ? " (site de l'établissement, à vérifier)" : ""}`
-    : dates.length ? `Portes ouvertes ${esc(j.saison.annees)} : déjà passées`
-    : j.environ ? `Portes ouvertes : ${esc(j.environ.texte)}, d'après les années passées`
+  const who = j.universite ? ` (${esc(j.universite.nom)})` : "";
+  const txt = n ? `Portes ouvertes${who} : ${esc(jpoWhen(n))}${n.source === "site" ? " (site de l'établissement, à vérifier)" : ""}`
+    : dates.length ? `Portes ouvertes${who} ${esc(j.saison.annees)} : déjà passées`
+    : j.environ ? `Portes ouvertes${who} : ${esc(j.environ.texte)}, d'après les années passées`
     : "";
   return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="cout">${txt} →</button></p>` : "";
 }
@@ -2064,8 +2065,11 @@ function jpoCard(j) {
   if (!j) return "";
   const today = localIso(), dates = j.dates || [];
   const noms = [...new Set((j.etablissements || []).map((e) => e.nom).filter(Boolean))];
-  const src = (e) => e.source === "onisep_site" ? "Onisep, date retrouvée sur le site de l'établissement"
-    : e.source === "onisep" ? "Onisep"
+  const fiche = (e) => (e.fiche && e.source !== "fiche" && e.source !== "fiche_site" ? ", aussi sur la fiche Parcoursup de la formation" : "");
+  const src = (e) => e.source === "onisep_site" ? `Onisep, date retrouvée sur le site de l'établissement${fiche(e)}`
+    : e.source === "onisep" ? `Onisep${fiche(e)}`
+    : e.source === "fiche" ? "fiche Parcoursup de la formation"
+    : e.source === "fiche_site" ? "fiche Parcoursup de la formation, date retrouvée sur le site de l'établissement"
     : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
   const li = (e) => {
     const past = (e.fin || e.date) < today;
@@ -2080,9 +2084,10 @@ function jpoCard(j) {
     .map((e) => `<a href="${esc(jpoUrl(e.onisep_url))}" target="_blank" rel="noopener">fiche Onisep${noms.length > 1 && e.nom ? ` (${esc(e.nom)})` : ""} ↗</a>`);
   const sites = (j.sites_verifies || []).filter((x) => jpoUrl(x.url));
   return `<div class="card" id="jpo"><h2>Les portes ouvertes</h2>
-    ${noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
+    ${j.universite ? `<p>Aucune date propre à cette formation n'est publiée. Voici les portes ouvertes de son université : <strong>${esc(j.universite.nom)}</strong>.</p>`
+      : noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
     ${body}
-    <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
+    <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}${dates.some((e) => e.fiche) ? ", et la fiche Parcoursup de la formation" : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);

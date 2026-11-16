@@ -42,9 +42,11 @@ ARCHIVE_PREFIXES = {"sup": ("data.onisep.fr/api/v1/downloads/5fa586da5c4b6/", "a
                     "sec": ("data.onisep.fr/api/v1/downloads/5fa5816ac6a6e/", "api.opendata.onisep.fr/downloads/5fa5816ac6a6e/")}
 CARTO = ("https://data.enseignementsup-recherche.gouv.fr/api/explore/v2.1/catalog/datasets/"
          "fr-esr-cartographie_formations_parcoursup/exports/csv?use_labels=true&delimiter=%3B")
-COLS = ["uai", "nom", "onisep_url", "jpo", "modif"]
+COLS = ["uai", "nom", "onisep_url", "jpo", "modif", "univ"]
 HEADERS = {"uai": ("code uai",), "nom": ("nom",), "onisep_url": ("url et id onisep",),
            "jpo": ("journees portes ouvertes",), "modif": ("date de modification",)}
+# optional (owner, 2026-11-16): the university an establishment belongs to, « Université X (UAI) »; older files may lack it
+OPTIONAL = {"univ": ("universite de rattachement libelle et uai",)}
 LINK_WORDS = re.compile(r"portes?[\s_-]*ouvertes?|\bjpo\b|journees?[\s_-]+portes", re.I)
 
 
@@ -61,8 +63,8 @@ def gz(text: str) -> bytes:
 
 # -------------------------------------------------------------------------------------------------------------------- Onisep
 def onisep_rows(raw: bytes, fmt: str) -> list[dict] | None:
-    """The rows with open days of an Onisep Idéo-Structures file (csv, json or xlsx), with our column names; None when the
-    file is not one (its columns are not found)."""
+    """The rows with open days or a university of attachment of an Onisep Idéo-Structures file (csv, json or xlsx), with our
+    column names; None when the file is not one (its columns are not found)."""
     if fmt == "json":
         try:
             data = json.loads(raw.decode("utf-8-sig"))
@@ -90,10 +92,16 @@ def onisep_rows(raw: bytes, fmt: str) -> list[dict] | None:
         if not hit:
             return None
         idx[k] = hit[0]
+    for k, names in OPTIONAL.items():
+        hit = [i for i, h in enumerate(head) if h in names]
+        if hit:
+            idx[k] = hit[0]
     out = []
     for row in table[1:]:
         r = {k: (str(row[i]).strip() if i < len(row) and row[i] is not None else "") for k, i in idx.items()}
-        if r["jpo"] and re.fullmatch(r"\d{7}[A-Za-z]", r["uai"]):
+        r.setdefault("univ", "")
+        # kept: the rows with open days, and the rows naming their university (a component borrows its university's day)
+        if (r["jpo"] or r["univ"]) and re.fullmatch(r"\d{7}[A-Za-z]", r["uai"]):
             r["uai"] = r["uai"].upper()
             out.append(r)
     return sorted(out, key=lambda r: (r["uai"], r["jpo"]))

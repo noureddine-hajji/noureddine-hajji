@@ -97,6 +97,7 @@ def csvtext(rows, cols):
 
 
 A, B, C, D, E = "0590001A", "0590002B", "0590003C", "0590004D", "0590005E"
+F, G, H, K, L = "0590006F", "0590007G", "0590008H", "0590010K", "0590011L"
 VERSIONS = [
     # the latest version: A's season (one date in May, outside), C only outside the season
     ("sup_20261110_onisep.csv.gz", "sup", "2026-11-10", "onisep", [
@@ -104,6 +105,13 @@ VERSIONS = [
          "le 28/11/2026 de 09h00 à 17h00 (sur inscription " + HOSTILE + ") voir https://a.fr/jpo | le 22/05/2027 | "
          "le 06/02/2027 voir http://a.fr/x | samedi 3 mars"),
         (C, "Lycée C", "javascript:alert(1)", "le 22/05/2027 | le 31/02/2027"),
+        # owner, 2026-11-16: a component without a date takes its UNIVERSITY's (named); one with its own keeps its own; an
+        # attachment that is not a university lends nothing
+        (F, "UFR F", "", "", "Université G " + HOSTILE + " (0590007G)"),
+        (G, "Université G", "https://www.onisep.fr/ENS.7", "le 30/01/2027", ""),
+        (K, "IUT K", "", "le 03/02/2027", "Université G (0590007G)"),
+        (L, "École L", "", "", "Institut catholique M (0590009M)"),
+        ("0590009M", "Institut catholique M", "", "le 13/02/2027", ""),
     ]),
     # an older version: a passed date of the season (shown) and a future one the latest no longer lists (never announced)
     ("sup_20261001_onisep.csv.gz", "sup", "2026-10-01", "onisep", [
@@ -140,8 +148,9 @@ def make_dir(base: Path) -> Path:
     (d / "sites").mkdir(parents=True)
     vrows = []
     for name, kind, as_of, source, rows in VERSIONS:
-        text = csvtext([{"uai": u, "nom": n, "onisep_url": o, "jpo": j, "modif": "2026-10-15"} for u, n, o, j in rows],
-                       ["uai", "nom", "onisep_url", "jpo", "modif"])
+        text = csvtext([{"uai": r[0], "nom": r[1], "onisep_url": r[2], "jpo": r[3], "modif": "2026-10-15",
+                         "univ": r[4] if len(r) > 4 else ""} for r in rows],
+                       ["uai", "nom", "onisep_url", "jpo", "modif", "univ"])
         (d / "onisep" / name).write_bytes(gz(text))
         vrows.append({"file": name, "kind": kind, "as_of": as_of, "source": source, "url": "x", "sha256": name, "rows": len(rows)})
     (d / "onisep" / "versions.csv").write_text(csvtext(vrows, ["file", "kind", "as_of", "source", "url", "sha256", "rows"]))
@@ -149,6 +158,21 @@ def make_dir(base: Path) -> Path:
     (d / "sites" / "extraits.csv.gz").write_bytes(gz(csvtext(ext, ["uai", "url", "fetched", "text"])))
     (d / "sites" / "etat.csv").write_text(csvtext([{"uai": A, "url": "https://a.fr/jpo", "status": "ok", "checked": "2026-11-12"}],
                                                   ["uai", "url", "status", "checked"]))
+    # the formations' own Parcoursup fiches: a past open day (history), Onisep's date again (one day), an agenda (never)
+    fd = base / "fiches"
+    fd.mkdir()
+    texts = {"t8": "Nous recommandons nos journées portes ouvertes le samedi 24 janvier 2026. Date limite le 12 mars 2026.",
+             "t1": "Journées portes ouvertes le samedi 6 février 2027.",
+             "t10": "Salons et JPO : samedi 9 janvier 2027, samedi 16 janvier 2027, samedi 23 janvier 2027, samedi 30 janvier 2027, "
+                    "samedi 6 février 2027."}
+    (fd / "textes.csv.gz").write_bytes(gz(csvtext([{"id": k, "texte": v} for k, v in texts.items()], ["id", "texte"])))
+    cols = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
+    (fd / "attendus.csv").write_text(csvtext([
+        {"cod_aff_form": "8", "session": "2026", "conseils_id": "t8"},
+        {"cod_aff_form": "1", "session": "2027", "info_id": "t1"},
+        {"cod_aff_form": "10", "session": "2027", "complementaires_id": "t10"}], cols))
+    (fd / "etat.csv").write_text(csvtext([{"cod_aff_form": "8", "status": "ok", "lu_le": "20260110120000", "session": "2026"}],
+                                         ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "version"]))
     return d
 
 
@@ -159,7 +183,7 @@ def fixture(J, base: Path):
     con.execute("CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session BIGINT, cod_uai VARCHAR)")
     con.execute(f"""INSERT INTO core.formation_year VALUES ('1', 2025, '{A}'), ('2', 2025, '9999999Z'), ('3', 2025, '{D}'),
                     ('4', 2025, '{C}'), ('5', 2024, '{D}'), ('5', 2025, '{B}'),
-                    ('6', 2025, '{E}')""")
+                    ('6', 2025, '{E}'), ('7', 2025, '{F}'), ('8', 2025, '{H}'), ('9', 2025, '{K}'), ('10', 2025, '{L}')""")
     con.execute("CREATE TABLE core.cartographie (cod_aff_form VARCHAR, etab_uai VARCHAR)")
     con.execute(f"INSERT INTO core.cartographie VALUES ('2', '{B}'), ('3', '{D}')")
     J.build(con, make_dir(base))
@@ -309,9 +333,23 @@ def j5(c: Ctx):
         f4 = J.for_formation(con, "4", TODAY)
         f5 = J.for_formation(con, "5", TODAY)
         f6 = J.for_formation(con, "6", TODAY)
+        f7, f8, f9, f10 = (J.for_formation(con, k, TODAY) for k in ("7", "8", "9", "10"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     bad = []
+    if not f7 or f7.get("universite") != {"uai": G, "nom": "Université G " + HOSTILE} or [e["date"] for e in f7["dates"]] != ["2027-01-30"]:
+        bad.append(f"a component without a date does not get its university's, named: {f7 and (f7.get('universite'), f7['dates'])}")
+    if not f9 or f9.get("universite") or [e["date"] for e in f9["dates"]] != ["2027-02-03"]:
+        bad.append("a component with its own date takes its university's")
+    if not f10 or f10.get("universite") or f10["dates"]:
+        bad.append("an attachment that is not a university (or an agenda fiche) lends dates")
+    if not f8 or f8["dates"] or not f8["environ"] or f8["environ"]["texte"] != "aux alentours de fin janvier" \
+            or f8["environ"]["annees"] != ["2025-2026"]:
+        bad.append(f"the fiche's past open day does not give the period: {f8}")
+    if f1 and len(f1["dates"]) != 3:
+        bad.append(f"the fiche's date and Onisep's same date are not one open day: {[e['date'] for e in f1['dates']]}")
+    elif f1 and not next((e for e in f1["dates"] if e["date"] == "2027-02-06"), {}).get("fiche"):
+        bad.append("the fiche's confirmation of an Onisep date is lost")
     g6 = {e["date"]: e for e in (f6 or {}).get("dates", [])}
     if {k: v["source"] for k, v in g6.items()} != {"2027-03-06": "site", "2027-03-13": "site"}:
         bad.append(f"formation 6 (site only): {list(g6)}")
@@ -386,7 +424,7 @@ def j6(c: Ctx):
     tmp = Path(tempfile.mkdtemp())
     try:
         con = fixture(J, tmp)
-        f1, f2, f4, f6 = (J.for_formation(con, k, TODAY) for k in ("1", "2", "4", "6"))
+        f1, f2, f4, f6, f7 = (J.for_formation(con, k, TODAY) for k in ("1", "2", "4", "6", "7"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     f1 = json.loads(json.dumps(f1))
@@ -394,14 +432,14 @@ def j6(c: Ctx):
     f6["dates"][0]["site"] = "javascript:alert(1)"
     prog = STUB + "\n".join(top(c.js, n) for n in names) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-      const out = [jpoCard(D.f1), jpoLine(D.f1), jpoCard(D.f2), jpoLine(D.f2), jpoCard(D.f4), jpoLine(D.f4), jpoCard(D.f6), jpoLine(D.f6), jpoCard(null), jpoLine(null), String(CALLS)];
+      const out = [jpoCard(D.f1), jpoLine(D.f1), jpoCard(D.f2), jpoLine(D.f2), jpoCard(D.f4), jpoLine(D.f4), jpoCard(D.f6), jpoLine(D.f6), jpoCard(D.f7), jpoLine(D.f7), jpoCard(null), jpoLine(null), String(CALLS)];
       process.stdout.write(JSON.stringify(out));"""
-    out = node(prog, {"f1": f1, "f2": f2, "f4": f4, "f6": f6})
+    out = node(prog, {"f1": f1, "f2": f2, "f4": f4, "f6": f6, "f7": f7})
     if out is None:
         return True, "node absent: not run"
-    c1, l1, c2, l2, c4, l4, c6, l6, cn, ln, calls = out
+    c1, l1, c2, l2, c4, l4, c6, l6, c7, l7, cn, ln, calls = out
     bad = []
-    for i, h in enumerate((c1, l1, c2, l2, c4, l4, c6, l6)):
+    for i, h in enumerate((c1, l1, c2, l2, c4, l4, c6, l6, c7, l7)):
         if "<img" in h:
             bad.append(f"output {i}: unescaped")
         txt = re.sub(r"<[^>]+>", " ", h)
@@ -426,6 +464,10 @@ def j6(c: Ctx):
         bad.append("a day number in a period")
     if "Aucune date" not in c4 or l4:
         bad.append("no date: the card must say so and the summary stay silent")
+    if "Voici les portes ouvertes de son université : <strong>Université G &lt;img" not in c7 or "(Université G &lt;img" not in l7:
+        bad.append("the university's open days are not named as such")
+    if "aussi sur la fiche Parcoursup de la formation" not in c1 or "et la fiche Parcoursup de la formation" not in c1:
+        bad.append("the fiche's confirmation is not said")
     if cn or ln or calls != "0":
         bad.append("output without data, or an API call")
     return not bad, f"differences {bad[:4]}"
@@ -453,12 +495,14 @@ class _Client:
 def j7(c: Ctx):
     F = c.F()
     bad = []
-    raw = ("code UAI;nom;URL et ID Onisep;journées portes ouvertes;date de modification;autre\n"
-           "0590001a;Univ A;https://www.onisep.fr/E1;\"le 28/11/2026 | le 06/02/2027\";2026-10-15;x\n"
-           "0590002B;École B;;;2026-10-15;x\n").encode("utf-8-sig")
+    raw = ("code UAI;nom;URL et ID Onisep;journées portes ouvertes;date de modification;autre;université de rattachement libellé et UAI\n"
+           "0590001a;Univ A;https://www.onisep.fr/E1;\"le 28/11/2026 | le 06/02/2027\";2026-10-15;x;\n"
+           "0590002B;École B;;;2026-10-15;x;\n"
+           "0590003C;UFR C;;;2026-10-15;x;Université X (0590004D)\n").encode("utf-8-sig")
     rows = F.onisep_rows(raw, "csv")
     if rows != [{"uai": "0590001A", "nom": "Univ A", "onisep_url": "https://www.onisep.fr/E1", "jpo": "le 28/11/2026 | le 06/02/2027",
-                 "modif": "2026-10-15"}]:
+                 "modif": "2026-10-15", "univ": ""},
+                {"uai": "0590003C", "nom": "UFR C", "onisep_url": "", "jpo": "", "modif": "2026-10-15", "univ": "Université X (0590004D)"}]:
         bad.append(f"csv rows {rows}")
     js = json.dumps([{"code UAI": "0590001A", "nom": "A", "URL et ID Onisep": "", "journées portes ouvertes": "le 01/12/2026",
                       "date de modification": ""}]).encode()
@@ -612,13 +656,14 @@ SOURCE_MUTANTS = [
     ("jpo", "a day in the period", 'return f"mi-{m}" if t == "mi" else f"{t} {m}"', 'return f"mi-{m}" if t == "mi" else f"le 1er {m}"', "J3"),
     ("jpo", "removed future date announced", "if not latest and debut >= today:", "if False:", "J5"),
     ("jpo", "false weekday accepted", "if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:", "if False:", "J4"),
-    ("jpo", "date without year nor weekday accepted", "            else:\n                d = None\n            if d is not None:\n                found.add(d)",
-     "            else:\n                d = _mkdate(dd, mo, s)\n            if d is not None:\n                found.add(d)", "J4"),
-    ("jpo", "far lines read", 'zone = fold(" ".join(lines[i:i + 2]) if len(ln) <= HEADING else ln)', 'zone = fold(" ".join(lines[i:i + 3]))', "J4"),
-    ("jpo", "agenda page adds dates", 'if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),',
-     'if e["onisep"] or e["uai"] not in with_onisep),', "J5"),
-    ("jpo", "site adds dates beside Onisep's", 'if e["onisep"] or (e.pop("_own") and e["uai"] not in with_onisep)),',
-     'if e["onisep"] or e.pop("_own")),', "J5"),
+    ("jpo", "date without year nor weekday accepted", "            else:\n                d = None\n            if d is not None:\n                out.add(d)",
+     "            else:\n                d = _mkdate(dd, mo, s)\n            if d is not None:\n                out.add(d)", "J4"),
+    ("jpo", "long line takes the next one", "        elif len(ln) <= HEADING and i + 1 < len(lines):", "        elif i + 1 < len(lines):", "J4"),
+    ("jpo", "dated line takes the next one", "        if own:\n            found |= own", "        if False:\n            found |= own", "J5"),
+    ("jpo", "agenda page adds dates", 'if e["onisep"] or e["fiche"] or (e.pop("_own") and e["uai"] not in with_onisep and not own_fiche)]',
+     'if e["onisep"] or e["fiche"] or (e["uai"] not in with_onisep and not own_fiche)]', "J5"),
+    ("jpo", "site adds dates beside Onisep's", 'if e["onisep"] or e["fiche"] or (e.pop("_own") and e["uai"] not in with_onisep and not own_fiche)]',
+     'if e["onisep"] or e["fiche"] or e.pop("_own")]', "J5"),
     ("jpo", "collège line read", "if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):", "if not KEYWORD.search(ln):", "J5"),
     ("jpo", "agenda page feeds the period", ' and source != "site_agenda":', ":", "J5"),
     ("jpo", "publication date read", "            if _published(zone, mt.start()):\n                continue                                           # « Publié",
@@ -631,6 +676,12 @@ SOURCE_MUTANTS = [
     ("jpo", "reversed range accepted", "if m.group(4) and (d2 is None or d2 < d1):", "if m.group(4) and d2 is None:", "J1"),
     ("jpo", "cartographie UAI ignored", "    if c and c[0] and str(c[0]).strip().upper() not in out:", "    if False:", "J5"),
     ("jpo", "oldest campaign's UAI", "ORDER BY session DESC LIMIT 1", "ORDER BY session LIMIT 1", "J5"),
+    ("jpo", "non-university attachment lends", 'if not m or "universit" not in fold(m.group(1)):', "if not m:", "J5"),
+    ("jpo", "university beside own dates", '    if own and own["dates"]:\n        return own', '    if False:\n        return own', "J5"),
+    ("jpo", "fiche agenda read", "cache[(tid, ses)] = [] if any(n > AGENDA for n in per.values()) else ds", "cache[(tid, ses)] = ds", "J5"),
+    ("jpo", "fiche date shown twice", 'dates = [e for e in dates if not (e["uai"].startswith("formation:") and any(',
+     'dates = [e for e in dates if True or not (e["uai"].startswith("formation:") and any(', "J5"),
+    ("js", "university not named", "son université : <strong>${esc(j.universite.nom)}</strong>", "son université : <strong></strong>", "J6"),
     ("fetch", "robots ignored", "return rp.can_fetch(UA, url)", "return True", "J7"),
     ("fetch", "other sites followed", "site_of(url) == site_of(base) and (", "(", "J7"),
     ("fetch", "unchanged content stored again", 'if any(v["sha256"] == sha for v in same_kind):', "if False:", "J7"),
@@ -640,7 +691,8 @@ SOURCE_MUTANTS = [
     ("fetch", "malformed link stops the run", """        except ValueError:                      # a malformed link""", """        except KeyError:                      # a malformed link""", "J7"),
     ("fetch", "whole page kept", "keep.update(range(i, min(i + 3, len(lines))))", "keep.update(range(len(lines)))", "J7"),
     ("fetch", "captures downloaded again", 'if f"{ts} {orig}" in seen:', "if False:", "J7"),
-    ("fetch", "rows without open days kept", 'if r["jpo"] and re.fullmatch', "if re.fullmatch", "J7"),
+    ("fetch", "rows without open days kept", 'if (r["jpo"] or r["univ"]) and re.fullmatch', "if re.fullmatch", "J7"),
+    ("fetch", "university column dropped", 'r.setdefault("univ", "")', 'r["univ"] = ""', "J7"),
     ("js", "remark unescaped", '${e.remarque ? ` (${esc(e.remarque)})` : ""}', '${e.remarque ? ` (${e.remarque})` : ""}', "J6"),
     ("js", "establishment unescaped", "noms.map(esc).join", "noms.join", "J6"),
     ("js", "passed date not marked", '${past ? " · passée" : ""}', "", "J6"),

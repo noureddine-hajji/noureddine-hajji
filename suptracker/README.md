@@ -3616,6 +3616,17 @@ card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
   campuses or components on the same page. So a site date only CONFIRMS a date Onisep lists for an establishment that has Onisep dates
   this season; it is added (« à vérifier », with the page and the day it was read) only where Onisep has none; a page printing more
   than 4 dates in a season is an agenda: its dates only confirm, never add, never feed the past-season period.
+- **The formation's own Parcoursup fiche** (owner, 2026-11-16, for a view as complete as possible): its free texts (attendus
+  complémentaires, conseils, informations, already harvested in `data/fiches/`) are read sentence by sentence with the site rules (the
+  reading day is the fiche's campaign). A dated sentence never takes the next one; a text printing more than 4 dates in a season (salons)
+  is never used. These are mostly LAST year's dates: they feed the past-season period (275 formations with a period instead of 99 on
+  the first real build). A fiche date of the season counts like Onisep's; with Onisep's same date it is one open day, said « aussi sur
+  la fiche Parcoursup ».
+- **The university** (owner, 2026-11-16): Onisep names the university each component belongs to (« université de rattachement »,
+  kept by the fetch with the rows that name one). A formation with no date of its own this season shows its university's open days,
+  named (« Voici les portes ouvertes de son université : Université X »); a component with its own date keeps its own; an attachment
+  that is not a university (an institute, a group) lends nothing. With no date anywhere, the formation's own past period comes first,
+  else the university's.
 - Virtual open days (« , en virtuel » in the Onisep field) are said « en ligne ». No copy of the Onisep files exists in the Internet
   Archive (checked on the first run): the past-season periods come from the versions this workflow keeps from now on and from the
   past dates the establishments' pages still print.

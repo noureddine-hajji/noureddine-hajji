@@ -665,7 +665,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the site); a passed date of the season is shown « passée ». A site date needs its year or a TRUE weekday, the keyword's own
   line (or a short heading above it), no « publié le », no collège line; it only CONFIRMS Onisep's dates where the establishment
   has some (sites show other campuses: first real run), is added « à vérifier » only where Onisep has none, never from an agenda
-  page (> 4 dates a season). No date = a PERIOD by
+  page (> 4 dates a season). The formation's own fiche texts (data/fiches, attendus complémentaires / conseils / info) are read the
+  same way (mostly last year's dates: the period); no date of its own = its UNIVERSITY's (Onisep « université de rattachement »,
+  a university only), named « Université X » (owner, 2026-11-16). No date = a PERIOD by
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
   « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
   `redteam_jpo.py` (J1-J10).
