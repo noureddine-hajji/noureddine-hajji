@@ -222,8 +222,10 @@ def fi3(c: Ctx):
                 bad.append((q, "the profile or a filter recorded", blob[:120]))
     vc = top(c.js, "viewCarte")
     calls = re.findall(r'api\(`(/api/search[^`]*)`', vc)
-    if calls != ["/api/search/codes?q=${encodeURIComponent(q)}"]:
-        bad.append(("the search page sends more than its keyword", calls))
+    # owner, 2026-11-16: the keyword and the stored profile's académie (equal-relevance ties only), never a filter or the bac profile
+    if calls != ["/api/search/codes?${kwQuery(q)}"] \
+            or 'const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };' not in vc:
+        bad.append(("the search page sends more than its keyword and the académie", calls))
     return not bad, f"problems {bad[:3]}"
 
 
@@ -442,7 +444,7 @@ JS_MUTANTS = [
     ("map complementary phase from candidates", '(o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0)', '(o === "oui" ? f.acc_pc >= 0 : f.acc_pc === 0)', ("fi6",)),
     ("map ignores the new groups", 'const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3];',
      'const CARTE_FGROUPS = ["statut", "app", "internat", "amenag", "select", "zones"];', ("fi6",)),
-    ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
+    ("profile sent with the keyword", 'if (near) qs.set("near", near); return qs; };', 'if (near) qs.set("near", near); new URLSearchParams(sq).forEach((v, k) => qs.set(k, v)); return qs; };', ("fi3",)),
     ("the list sorted by capacity", '|| byName(a, b));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),

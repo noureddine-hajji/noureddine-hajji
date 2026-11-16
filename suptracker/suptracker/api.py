@@ -607,10 +607,12 @@ def search(request: Request, bg: BackgroundTasks,
     return res
 
 
-def keyword_codes(con, q: str) -> dict:
+def keyword_codes(con, q: str, near: str | None = None) -> dict:
     """Owner, 2026-11-15: the search page (list + map) asks the search engine only for the codes its keyword matches, in the
     engine's relevance order (acronyms, places, typos, notes as before); the page applies its place and filters itself, in
-    the browser. A pasted fiche URL or a bare code gives that formation (red team RS1 re-derives every answer)."""
+    the browser. A pasted fiche URL or a bare code gives that formation (red team RS1 re-derives every answer).
+    near (owner, 2026-11-16): the académie of the student's profile; the engine's own rule uses it ONLY between equally
+    relevant results (never a filter, never above a better match: red team RS1)."""
     q = q.strip()
     if not q:
         raise HTTPException(422, "Recherche vide : tapez au moins un mot.")
@@ -626,16 +628,18 @@ def keyword_codes(con, q: str) -> dict:
             WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?)
             ORDER BY fy.session DESC, fy.cod_aff_form LIMIT 1""", [code]).fetchone()
         return {"query": q, "codes": list(dict.fromkeys([*(latest or []), code])), "interpretation": [], "notes": [], "partial": False}
-    res = S.search(con, q, offset=0, limit=10 ** 6)
+    res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)
     # the engine answers per (formation, campaign): a code is kept once, at its best (first) rank
     return {"query": q, "codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"])), "interpretation": res.get("interpretation", []),
             "notes": res.get("notes", []), "partial": bool(res.get("partial"))}
 
 
 @app.get("/api/search/codes")
-def search_codes(request: Request, bg: BackgroundTasks, q: str = Query(..., min_length=1, max_length=200)):
-    """The keyword of the search page; records the same audience event as /api/search (the typed words only)."""
-    d = keyword_codes(_con().cursor(), q)
+def search_codes(request: Request, bg: BackgroundTasks, q: str = Query(..., min_length=1, max_length=200),
+                 near: str | None = Query(None, max_length=60)):
+    """The keyword of the search page; records the same audience event as /api/search (the typed words only: never `near`,
+    the profile's académie that breaks ties between equally relevant results)."""
+    d = keyword_codes(_con().cursor(), q, near)
     d["total"] = len(d["codes"])
     bg.add_task(A.record, "search", {"q": A.clean_query(d["query"]), "total": d["total"], "partial": d["partial"]}, _hdrs(request))
     return d

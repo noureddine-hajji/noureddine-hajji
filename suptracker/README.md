@@ -2952,6 +2952,23 @@ Red team `scripts/redteam_vitesse.py` (VT1-VT8):
 - VT6 runs the emulated phone budget in the browser (`--browser`).
 - VT8 is the mutation test.
 
+## The student's académie first among equally relevant results (owner, 2026-11-16)
+
+The owner agreed to send the profile's académie with the search words. With it, the search engine's own rule (`search.search`,
+`near`) puts the formations of that académie first among results that are EQUALLY relevant to the words. It never filters a
+result out and never places one above a better match: it only reorders ties.
+- **The page.** It sends the académie stored in "Mon profil" (`carteNear`), and only when the map layer knows it. It never
+  sends the place typed in the bar, a filter or the académie kept apart for « Je me réoriente ». The request is
+  `/api/search/codes?q=…&near=…`.
+- **The server.** `api.keyword_codes(con, q, near)` passes it to the engine. The audience event still records the cleaned words
+  only, never the académie. The answer stays `no-store`.
+- **The privacy page** says that the search sends the words and, if indicated, the académie, and what the académie does.
+- **Red team** `redteam_recherche.py`:
+  - RS1: with `near`, the codes are the engine's own answer with `near` (3 académies × 8 queries), the same set as without it;
+    the route passes it, and the event never contains it;
+  - RS3: the one query of the page (`kwQuery`) and the source of `near`;
+  - RS8: 4 new mutants (the académie ignored, used as a filter, the typed place sent instead, a stored académie not checked).
+
 ## Sprint Vitesse sur téléphone: the search page on a slow phone (owner, 2026-11-16)
 
 The one search page (sprint H) was measured on a phone emulated in Chromium: Pixel 5, CPU 4x slower, slow 4G (1.6 Mbit/s,
