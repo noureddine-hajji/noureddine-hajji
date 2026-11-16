@@ -562,6 +562,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   is read from its own lineage, VT2); `/api/carte/zones?diplome=*` = every diploma at once (the page when nothing is ticked).
   `journey.group_applies` and `_fold` are memoised (pure: never make them depend on mutable state). Budget on an emulated phone
   (Pixel 5, CPU x4, slow 4G): list < 9 s, zones < 15 s (VT6, `--browser`). Red team `redteam_vitesse.py` (VT1-VT8).
+- **Speed on a phone (sprint Vitesse, owner 2026-11-16).** Search page counts: `carteFacets`, ONE pass (equal to `carteFilter`
+  option by option; never a filter per option again); folded names cached (`carteText`); the sort by name = the per-layer rank
+  of one `FR_COLL` (`carteNameRank`, equal names share a rank). Zones asked beside the layer; with a profile the details wait
+  for the zones; the badges never delay the heading. Brotli bodies of the parameter-less heavy answers (layer base/details,
+  `/api/reconnaissance`) are built ONCE at build (`precomp.py`, brotli in requirements-pipeline only, never at serve time),
+  stored in rapport_textes.duckdb under the SHA-256 of the exact JSON, served only when that digest matches and the browser
+  accepts br (own ETag, `-br`), else gzip. An answer built from SQL rows without ORDER BY is written with sorted keys
+  (digest stable across processes). Mes vœux and the guide reuse the profile bar's request (`profileBar.req`). Red team
+  `redteam_vitesse.py` VT9-VT11 (+ VT6 phone budgets: keyword < 2.5 s, filter < 1 s, zones < 11 s).
 - **Plain language and human help (sprint Q4, owner 2026-11-13).** No "doublette" (say « paire de spécialités » / « vos deux
   spécialités »; the official word only as « on dit aussi « doublette » » and in the glossary title), no « en position de recevoir »
   (« classés assez haut pour recevoir une proposition »), no « votre ligne » (« votre bac ») in anything a student reads (page strings,

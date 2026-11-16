@@ -409,8 +409,9 @@ const profileBar = {
         this.key = k; this.data = null;
         // R6 (review): the band-only answer is kept RAW and read for the CURRENT profile at every render: an average edited
         // inside its band, or rattrapage <-> sans mention, sends the same query but must change the zones counted here
-        api(`/api/voeux?${k}`).then((d) => { if (this.key === k) { this.data = d; this.render(); } })
-          .catch(() => { if (this.key === k) { this.data = { error: true }; this.render(); } });
+        // sprint Vitesse: the request itself is kept, so Mes vœux and the guide read the SAME answer instead of asking again
+        (this.req = api(`/api/voeux?${k}`)).then((d) => { if (this.key === k) { this.data = d; this.render(); } })
+          .catch(() => { if (this.key === k) { this.req = null; this.data = { error: true }; this.render(); } });   // a failure is asked again
       }
       const d = this.data && !this.data.error ? voeuxLocal(this.data, prof) : this.data;
       if (!d) list = `<span class="pb-list muted">Mes vœux : lecture…</span>`;
@@ -655,7 +656,7 @@ async function viewGuide() {
   const k = vxQuery(ids, prof).toString();                               // the profile bar's own query
   // the bar's raw answer (same query), read here for this profile: never its reading of another average
   let d = profileBar.key === k && profileBar.data && profileBar.data.lecture ? voeuxLocal(profileBar.data, prof) : null;
-  if (!d) { try { d = voeuxLocal(await api(`/api/voeux?${k}`), prof); } catch (_) { d = null; } }
+  if (!d) { try { d = voeuxLocal(await (profileBar.key === k && profileBar.req ? profileBar.req : api(`/api/voeux?${k}`)), prof); } catch (_) { d = null; } }
   if ($view.dataset.rendered !== gmk) return;
   draw(d && d.lecture ? d.lecture : undefined);
 }
@@ -1200,10 +1201,10 @@ function carteLieux(rows, home) {
     if (f.academie) acads.add(f.academie);
     if (f.ville && f.lat != null && !towns.has(f.ville)) towns.set(f.ville, { lat: f.lat, lon: f.lon });
   });
-  [...regions].sort((a, b) => regionNom(a).localeCompare(regionNom(b), "fr")).forEach((r) => out.set(`${regionNom(r)} (région)`, { t: "region", v: r }));
+  [...regions].sort((a, b) => FR_COLL.compare(regionNom(a), regionNom(b))).forEach((r) => out.set(`${regionNom(r)} (région)`, { t: "region", v: r }));
   [...deps].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).forEach(([c, n]) => out.set(`${n} (${c})`, { t: "dep", v: c }));
-  [...acads].sort((a, b) => a.localeCompare(b, "fr")).forEach((a) => out.set(`Académie de ${a}`, { t: "acad", v: a }));
-  [...towns].sort((a, b) => a[0].localeCompare(b[0], "fr")).forEach(([t, x]) => { if (!out.has(t)) out.set(t, { t: "ville", v: t, lat: x.lat, lon: x.lon }); });
+  [...acads].sort(FR_COLL.compare).forEach((a) => out.set(`Académie de ${a}`, { t: "acad", v: a }));
+  [...towns].sort((a, b) => FR_COLL.compare(a[0], b[0])).forEach(([t, x]) => { if (!out.has(t)) out.set(t, { t: "ville", v: t, lat: x.lat, lon: x.lon }); });
   return out;
 }
 // a typed place: its exact label, else the same words without accents or case, with or without "(région)" / the code; a code alone
@@ -1276,13 +1277,40 @@ function carteHas(f, g, o) {
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
+const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3];
+// sprint Vitesse (owner, 2026-11-16): an apprenticeship offer's folded name is computed once per name, not at every count
+const carteFolded = new Map();
+function carteText(f) {
+  const raw = `${f.etablissement} ${f.formation} ${f.ville}`, x = carteFolded.get(f.cod_aff_form);
+  if (x && x[0] === raw) return x[1];
+  const t = foldText(raw);
+  carteFolded.set(f.cod_aff_form, [raw, t]);
+  return t;
+}
+// what every group shares: the place, the keyword and the radius
+const carteCommon = (f, F, kw) => carteInLieu(f, F.lieu)
+  && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && kw.words.length > 0 && kw.words.every((w) => carteText(f).includes(w))))
+  && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km));
 function carteFilter(rows, F, skip, kw) {
-  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter((g) => g !== skip);
-  return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
-    && carteInLieu(f, F.lieu)
-    && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && kw.words.length > 0
-      && kw.words.every((w) => foldText(`${f.etablissement} ${f.formation} ${f.ville}`).includes(w))))
-    && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km)));
+  const groups = CARTE_FGROUPS.filter((g) => g !== skip && (F[g] || []).length);
+  return rows.filter((f) => groups.every((g) => F[g].some((o) => carteHas(f, g, o))) && carteCommon(f, F, kw));
+}
+// sprint Vitesse: every option's count in ONE pass, equal to carteFilter(rows, F, g, kw) counted option by option (red team VT9):
+// a formation every ticked group keeps counts in every group; one that a single group leaves out counts in that group only
+function carteFacets(rows, F, kw, opts) {
+  const n = {}, active = CARTE_FGROUPS.filter((g) => (F[g] || []).length);
+  Object.keys(opts).forEach((g) => { n[g] = new Map(opts[g].map((o) => [o, 0])); });
+  for (const f of rows) {
+    let miss = null, k = 0;
+    for (const g of active) if (!F[g].some((o) => carteHas(f, g, o))) { miss = g; if (++k > 1) break; }
+    if (k > 1 || !carteCommon(f, F, kw)) continue;
+    for (const g in opts) {
+      if (k === 1 && g !== miss) continue;
+      const m = n[g];
+      for (const o of opts[g]) if (carteHas(f, g, o)) m.set(o, m.get(o) + 1);
+    }
+  }
+  return n;
 }
 // one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
 function carteMarker(f) {
@@ -1423,6 +1451,19 @@ function carteSelection(FAC, dArg, mArg, stored) {
   return { d, m };
 }
 const carteSortName = (f) => String(f.etablissement || "").replace(/^[^\p{L}\p{N}]+/u, "");
+// sprint Vitesse: one collator for every French sort of the search page (the same order as localeCompare(…, "fr"))
+const FR_COLL = new Intl.Collator("fr");
+// the rank of every name in that order, computed once per layer: equal names (for the collator) share their rank, so sorting
+// by rank gives exactly the collator's order (red team VT9)
+function carteNameRank(C) {
+  if (!C.nameRank) {
+    const names = [...new Set(C.rows.map(carteSortName))].sort(FR_COLL.compare), r = new Map();
+    let k = -1;
+    names.forEach((n, i) => { if (i === 0 || FR_COLL.compare(names[i - 1], n) !== 0) k++; r.set(n, k); });
+    C.nameRank = r;
+  }
+  return C.nameRank;
+}
 const foldText = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const carteHash = (sel) => (sel.d.length === 1 && (sel.m[sel.d[0]] || []).length <= 1
   ? `#/carte/${encodeURIComponent(sel.d[0])}${(sel.m[sel.d[0]] || []).length ? `/${encodeURIComponent(sel.m[sel.d[0]][0])}` : ""}` : "#/carte");
@@ -1444,7 +1485,6 @@ async function viewCarte(dArg, mArg) {
   loadCouche().catch(() => {});
   const recoP = recoLoad();                                          // V1: the State-label badges of the cards, beside the layer
   const FAC = await api("/api/carte");
-  await recoP;
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
   // a shared search (#/recherche/...): its types and mentions now, its words, place and groups once the layer is read
@@ -1476,8 +1516,11 @@ async function viewCarte(dArg, mArg) {
   const tous = !sel.d.length;
   const dips = tous ? FAC.diplomes.map((d) => d.label) : sel.d;
   const coucheP = loadCouche();
-  const zonesP = coucheP.then(() => Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ)), () => []);   // the list comes first
-  const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null)]);
+  // sprint Vitesse: the zones are asked at once, beside the layer: the server's reading (seconds for a new profile) runs while
+  // the layer downloads; the cards' details wait for the zones instead (below)
+  const zonesP = Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ));
+  // sprint Vitesse: the badges are awaited with the layer (the cards need them), no longer before the page's heading
+  const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;        // the visitor left while the map loaded
   const lec = {};
   let zonesReady = false;
@@ -1497,7 +1540,7 @@ async function viewCarte(dArg, mArg) {
   };
   const session = C.session, offre = C.offre_apprentissage;
   const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session };
-  CARTE_ACADS.splice(0, CARTE_ACADS.length, ...[...new Set(C.rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr")));
+  CARTE_ACADS.splice(0, CARTE_ACADS.length, ...[...new Set(C.rows.map((f) => f.academie).filter(Boolean))].sort(FR_COLL.compare));
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
@@ -1519,8 +1562,6 @@ async function viewCarte(dArg, mArg) {
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
-  const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
-  const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
   const home = villeDepart(), lieux = carteLieux(C.rows, home);          // the place list: every formation, whatever the type ticked
   if (share) {                                     // the shared place, read in this browser like a typed one; unknown = said
@@ -1576,14 +1617,16 @@ async function viewCarte(dArg, mArg) {
     carteUI.type = type;
     carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
   }
-  const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
   const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
   // the filters, one dropdown per group (owner, 2026-11-15), each option with its count among the formations the OTHER filters
   // keep; one dropdown open at a time, kept open while its boxes are ticked
   function panel() {
     const base = shown(), kw = carteUI.kw, bar = document.getElementById("cfilters");
-    const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr, kw).filter((f) => carteHas(f, gr, o)).length;
+    const facetOpts = Object.fromEntries(carteGroups().map(([gr, , opts]) => [gr, opts.map(([o]) => o)]));
+    if (ok) facetOpts.zones = [...CARTE_ZONES, "autre"];
+    const facets = carteFacets(base, F, kw, facetOpts);
+    const box2 = (gr, o, label) => { const n = facets[gr].get(o);
       return `<label><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> <span>${label}</span> <span class="muted">${fmt(n)}</span></label>`; };
     const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
     const dd = (key, title, n, body, on = n > 0) => `<details class="dd${on ? " on" : ""}" data-dd="${key}"${carteUI.open === key ? " open" : ""}><summary>${esc(title)}${n ? ` <span class="dd-n">${fmt(n)}</span>` : ""}</summary><div class="dd-panel">${body}</div></details>`;
@@ -1649,14 +1692,18 @@ async function viewCarte(dArg, mArg) {
     }).catch(() => want.forEach((c) => ctx.chiffres.delete(c)));
   }
   function draw(fetch = true) {
-    const kw = carteUI.kw, kept = carteFilter(shown(), F, undefined, kw);
+    const kw = carteUI.kw, kept = carteFilter(shown(), F, undefined, kw), vb = carteUI.map && carteUI.map.getBounds();
+    const inView = (f) => !vb || (f.lat != null && vb.contains([f.lat, f.lon]));
+    const rank = carteNameRank(C), sortName = new Map(kept.map((f) => [f, carteSortName(f)]));
+    const byName = (a, b) => { const x = rank.get(sortName.get(a)), y = rank.get(sortName.get(b));
+      return x !== undefined && y !== undefined ? x - y : FR_COLL.compare(sortName.get(a), sortName.get(b)); };
     kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
     const listed = kept.filter((f) => inView(f) || f.lat == null)
       // R10: formations with published figures first, then the apprenticeship offers; then distance (around a town), then the
       // name without its leading punctuation ("(CFA …)" sorted with C). Never by a figure.
       .sort((a, b) => (a.stats === false) - (b.stats === false) || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)
         || (kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)
-        || carteSortName(a).localeCompare(carteSortName(b), "fr"));
+        || byName(a, b));
     document.getElementById("cs-status").innerHTML = [
       kw && kw.interp.length ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${kw.interp.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : "",
       kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
@@ -1764,7 +1811,8 @@ async function viewCarte(dArg, mArg) {
   panel();
   draw();
   // sprint Q3: the cards' keys after the list (one cached answer); a failure leaves the rates out, never "chargement…" forever
-  if (!C.details) loadDetails(C).then(() => {
+  // sprint Vitesse: with a profile, after the zones (a slow phone line shares its bandwidth: the zones come first)
+  if (!C.details) (ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C)).then(() => {
     if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
     const by = new Map(C.rows.map((f) => [f.cod_aff_form, f]));
     rows.forEach((f) => { const g = by.get(f.cod_aff_form); if (g) CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; }); });
@@ -3651,7 +3699,9 @@ async function viewVoeux() {
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
   const recoP = recoLoad();                                          // V1: the State-label badge of each vœu
-  try { d = voeuxLocal(await api(`/api/voeux?${qs}`), prof); } catch (e) {
+  // sprint Vitesse: the profile bar sent this very query a moment ago: its answer is read here, never asked twice
+  const req = profileBar.key === qs.toString() && profileBar.req ? profileBar.req : api(`/api/voeux?${qs}`);
+  try { d = voeuxLocal(await req, prof); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }

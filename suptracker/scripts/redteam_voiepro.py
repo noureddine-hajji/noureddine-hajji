@@ -475,13 +475,16 @@ def vp7(c: Ctx):
     bad = []
     build = c.src["build"]
     api = (ROOT / "suptracker" / "api.py").read_text()
+    # sprint Vitesse: /api/reconnaissance's payload is defined once in precomp.py (the route and the build share it)
+    pc = (ROOT / "suptracker" / "precomp.py").read_text()
     if "apprentissage.build(con)" in build and "insertion.build(con" in build and \
             build.index("apprentissage.build(con)") < build.index("insertion.build(con"):
         bad.append("build: apprentissage.build runs before insertion.build (core.inserjeunes_bts does not exist yet: Codex)")
     for need, where, text in (("tension.build(con)", "build", build), ("apprentissage.build(con)", "build", build),
                               ('"tension": TS.for_formation(', "api", api), ('"apprenti": APP.for_formation(', "api", api),
                               ('"tension": f.get("tension"), "apprenti": f.get("apprenti")', "api (compare)", api),
-                              ('"tension": TS.compact(con), "apprentissage": APP.codes(con)', "api (lists)", api),
+                              ('"tension": TS.compact(con), "apprentissage": APP.codes(con)', "precomp (lists)", pc),
+                              ("PC.reconnaissance_payload(con)", "api (lists)", api),
                               ('@app.get("/api/communes")', "api", api)):
         if need not in text:
             bad.append(f"{where}: {need} missing")

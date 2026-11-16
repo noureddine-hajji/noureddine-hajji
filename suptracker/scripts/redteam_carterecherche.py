@@ -577,8 +577,12 @@ def cr13(c: Ctx):
         "unticking every diploma allowed": "at least one type of diploma" not in view and "data-clear-dips" in view,
         "a group's clear button": "data-clear=" in view and "F[b.dataset.clear] = [];" in view,
         "selectivity group named": '["select", "Sélectivité",' in c.js,
-        "zones after the list": "const zonesP = coucheP.then(" in view and "zonesReady" in view,
-        "sort: stats first then name": "(a.stats === false) - (b.stats === false)" in view and "carteSortName(a).localeCompare(carteSortName(b), \"fr\")" in view,
+        # sprint Vitesse: the zones are asked beside the layer (the server reads them while the layer downloads); with a profile
+        # the cards' details wait for them
+        "zones beside the layer, details after them": "const zonesP = Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ));" in view
+                                                      and "(ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C))" in view
+                                                      and "zonesReady" in view,
+        "sort: stats first then name": "(a.stats === false) - (b.stats === false)" in view and "|| byName(a, b));" in view and "FR_COLL.compare(sortName.get(a), sortName.get(b))" in view,
         "no figure in the sort": not re.search(r"\.sort\(\(a, b\) => [^\n]*(taux|zone|position)", view),
         "keep all with nothing ticked": "!sel.d.length ||" in sec,
         # cards a saved zone filter reveals only once the zones arrive need their figures (Codex): that redraw fetches, the
@@ -670,7 +674,7 @@ JS_MUTANTS = [
     ("one diploma when none ticked", "carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok)", "carteMerge(C.rows.filter((f) => f.diplome === dips[0]), null, ok)", "CR13"),
     ("cards revealed by the zones never get their figures", "panel(); draw();          // a saved zone filter", "panel(); draw(false);          // a saved zone filter", "CR13"),
     ("figures asked again for every redraw", "!ctx.chiffres.has(f.cod_aff_form)", "true", "CR13"),
-    ("sorted by the access rate", "|| carteSortName(a).localeCompare(carteSortName(b), \"fr\"));", "|| (b.taux_acces_ens || 0) - (a.taux_acces_ens || 0));", "CR13"),
+    ("sorted by the access rate", "|| byName(a, b));", "|| (b.taux_acces_ens || 0) - (a.taux_acces_ens || 0));", "CR13"),
 ]
 
 

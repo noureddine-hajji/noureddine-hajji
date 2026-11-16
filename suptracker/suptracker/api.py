@@ -30,6 +30,7 @@ from . import voeux as VX
 from . import voies as VO
 from . import reorientation as RO
 from . import cache as CACHE
+from . import precomp as PC
 from . import metiers as MT
 from . import search as S
 from . import success as SU
@@ -897,14 +898,41 @@ def carte_couche(request: Request, partie: str = Query("base", pattern="^(base|d
     """Sprint Q3: the whole neutral layer of the map in one compact answer (carte.couche), built and compressed once per
     warehouse: "base" (the list, the map, the filters) then "details" (the cards); base + details = the same formations and
     values as /api/carte/formations for every type of diploma (red team VT1)."""
-    c = CA.couche(_con().cursor(), ADM.mark, partie)
-    if request.headers.get("if-none-match") == c["etag"]:
-        return Response(status_code=304, headers={"ETag": c["etag"]})
-    gz = "gzip" in (request.headers.get("accept-encoding") or "").lower()
-    headers = {"ETag": c["etag"], "Vary": "Accept-Encoding"}
-    if gz:
+    con = _con().cursor()
+    return _body(request, con, CA.couche(con, ADM.mark, partie))
+
+
+def _body(request: Request, con, c: dict) -> Response:
+    """An answer built and compressed once per warehouse ({"json", "gzip", "etag"}): a matching If-None-Match is a 304;
+    sprint Vitesse: the brotli body stored at build for exactly these JSON bytes (precomp) goes to a browser that accepts
+    it, with its own ETag; else gzip, else plain JSON. Every variant decodes to the same bytes."""
+    br = PC.lookup(con, c["json"]) if PC.accepts_br(request) else None
+    etag = c["etag"][:-1] + '-br"' if br is not None else c["etag"]
+    if request.headers.get("if-none-match") in (etag, c["etag"]):
+        return Response(status_code=304, headers={"ETag": etag, "Vary": "Accept-Encoding"})
+    headers = {"ETag": etag, "Vary": "Accept-Encoding"}
+    if br is not None:
+        headers["Content-Encoding"] = "br"
+        return Response(br, media_type="application/json", headers=headers)
+    if "gzip" in (request.headers.get("accept-encoding") or "").lower():
         headers["Content-Encoding"] = "gzip"
-    return Response(c["gzip"] if gz else c["json"], media_type="application/json", headers=headers)
+        return Response(c["gzip"], media_type="application/json", headers=headers)
+    return Response(c["json"], media_type="application/json", headers=headers)
+
+
+_RECO: dict = {}
+
+
+def _reco_body(con) -> dict:
+    """/api/reconnaissance as bytes, built and compressed once per warehouse (no parameter: the same for every visitor)."""
+    import gzip
+    import hashlib
+    key = CA._fingerprint(con)
+    if key not in _RECO:
+        raw = PC.json_bytes(PC.reconnaissance_payload(con), sort_keys=True)
+        _RECO.clear()
+        _RECO[key] = {"json": raw, "gzip": gzip.compress(raw, 6, mtime=0), "etag": '"' + hashlib.sha256(raw).hexdigest()[:20] + '"'}
+    return _RECO[key]
 
 
 @app.get("/api/carte/zones")
@@ -1151,12 +1179,13 @@ def communes_liste():
 
 
 @app.get("/api/reconnaissance")
-def reconnaissance_liste():
+def reconnaissance_liste(request: Request):
     """Sprint V1: the State-label badge and the tuition read on the fiche, for every formation whose fiche was read, sent
     whole so the lists (search, map, Mes vœux, comparator) show them without one request per formation. No parameter.
-    Sprint V2: the same answer carries the formations of strong demand (tension.compact), one request for the lists."""
+    Sprint V2: the same answer carries the formations of strong demand (tension.compact), one request for the lists.
+    Sprint Vitesse: built once per warehouse, brotli when stored at build (precomp), else gzip."""
     con = _con().cursor()
-    return {**RC.compact(con, VIE.compact(con)), "tension": TS.compact(con), "apprentissage": APP.codes(con)}
+    return _body(request, con, _reco_body(con))
 
 
 @app.get("/api/metiers")

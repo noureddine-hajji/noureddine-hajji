@@ -20,7 +20,17 @@
   VT6 browser (--browser / --real), a mid-range phone (Pixel 5, CPU x4 slower, slow 4G): the map's list and its zones within
       the budget, at most 5 map requests, no JS error; the home and a formation page show their heading within budget
   VT7 docs: README section and CLAUDE.md rule
-  VT8 mutation test of VT1-VT5 and VT7 (mutants built in memory)
+  VT8 mutation test of VT1-VT5, VT7 and VT9-VT11 (mutants built in memory)
+  Sprint "Vitesse sur téléphone" (owner, 2026-11-16): the one search page on a slow phone, without changing one figure
+  VT9 the page (Node): every option's count from ONE pass (carteFacets) = carteFilter counted option by option (crafted and
+      real rows: statut, académie, internat, zones, the R3 bands, keyword codes and words, place, radius); the list sorted by
+      the per-layer name rank = sorted by the French collator (names the collator calls equal included); the folded-name cache
+      follows a changed name; wiring: the panel counts with carteFacets, the zones are asked beside the layer, with a profile
+      the cards' details wait for the zones, the badges no longer delay the heading, the map's bounds are read once per draw
+  VT10 the server: the brotli bodies stored at build (precomp) decode to EXACTLY the JSON served (layer base and details,
+      /api/reconnaissance); br only to a browser that accepts it (q=0 refused), with its own ETag; gzip and plain JSON
+      otherwise; every ETag gives a 304 with Vary; /api/reconnaissance gives the same bytes in every process (sorted keys)
+  VT11 Mes vœux and the guide read the profile bar's own request (never the same query twice); a failed one is asked again
 """
 from __future__ import annotations
 
@@ -51,7 +61,7 @@ from suptracker import journey as J  # noqa: E402
 
 DETAIL = ("bacs", "majo", "offres_app", "fiche")          # written here: the keys only the cards read
 BUDGET_KB = {"base": 700, "details": 500}                 # compressed bytes of the two layer answers (real warehouse)
-PHONE_BUDGET_MS = {"list": 9000, "zones": 15000, "home": 4000, "formation": 5000}
+PHONE_BUDGET_MS = {"list": 9000, "zones": 11000, "home": 4000, "formation": 5000, "keyword": 2500, "filter": 1000}
 PROFILES = [("MATHS+SES", "ab", "bg", None), ("PC+SVT", "tb", "bg", 16.4), (None, "b", "bt", None), (None, "sansmention", "bp", None)]
 
 
@@ -322,15 +332,18 @@ def vt6(c: Ctx):
         with duckdb.connect(str(c.db), read_only=True) as con:
             cod = con.execute("SELECT cod_aff_form FROM core.formation_year ORDER BY session DESC, cod_aff_form LIMIT 1").fetchone()[0]
         script = Path(tmp, "vt6.js")
-        script.write_text(PHONE_JS.replace("__PORT__", str(port)).replace("__COD__", str(cod)))
+        with duckdb.connect(str(c.db), read_only=True) as con:
+            ids = [r[0] for r in con.execute("SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year) ORDER BY cod_aff_form LIMIT 4").fetchall()]
+        script.write_text(PHONE_JS.replace("__PORT__", str(port)).replace("__COD__", str(cod)).replace("__IDS__", json.dumps(ids)))
         r = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=600)
         out = (r.stdout or "").strip().splitlines()
         res = json.loads(out[-1]) if out and out[-1].startswith("{") else {"errors": [r.stderr[-300:]]}
     finally:
         srv.terminate()
     over = [k for k, v in PHONE_BUDGET_MS.items() if res.get(k) is None or res[k] > v]
-    ok = not over and not res.get("errors") and res.get("map_requests", 99) <= 5
-    return ok, f"phone ms {({k: res.get(k) for k in PHONE_BUDGET_MS})} (budget {PHONE_BUDGET_MS}); map requests {res.get('map_requests')}; errors {res.get('errors')}"
+    ok = not over and not res.get("errors") and res.get("map_requests", 99) <= 5 and res.get("voeux_requests") == 1
+    return ok, (f"phone ms {({k: res.get(k) for k in PHONE_BUDGET_MS})} (budget {PHONE_BUDGET_MS}); map requests {res.get('map_requests')}; "
+                f"Mes vœux requests {res.get('voeux_requests')}; errors {res.get('errors')}")
 
 
 PHONE_JS = r"""
@@ -357,6 +370,26 @@ const { chromium, devices } = require('playwright');
   out.zones = Date.now() - t0;
   await p.waitForTimeout(3000);
   out.map_requests = mapReq;
+  // sprint Vitesse: a keyword, then a ticked filter, each until the list has changed (the page must answer at once)
+  const first = () => p.$eval('#carte-items [data-pick]', (e) => e.getAttribute('data-pick')).catch(() => null);
+  let f0 = await first(); t0 = Date.now();
+  await p.fill('#cs-q', 'droit'); await p.$eval('#cs-form', (f) => f.requestSubmit());
+  await p.waitForFunction((f) => { const e = document.querySelector('#carte-items [data-pick]'); return e && e.getAttribute('data-pick') !== f; }, f0, { timeout: 60000 }).catch(() => {});
+  out.keyword = Date.now() - t0;
+  await p.waitForTimeout(1500);
+  t0 = Date.now();
+  await p.evaluate(() => { const b = document.querySelectorAll('#cfilters details.dd input[data-g]'); b[b.length - 1].click(); });
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  out.filter = Date.now() - t0;
+  await ctx.close();
+  // Mes vœux reads the profile bar's own answer: one request for the list
+  ({ ctx, p } = await page(true));
+  await ctx.addInitScript((ids) => localStorage.setItem("voeux", JSON.stringify(ids)), __IDS__);
+  let vx = 0; p.on('request', (r) => { if (/\/api\/voeux\?/.test(r.url())) vx++; });
+  await p.goto('http://127.0.0.1:__PORT__/#/voeux');
+  await p.waitForSelector('#view h1', { timeout: 60000 }).catch(() => {});
+  await p.waitForTimeout(4000);
+  out.voeux_requests = vx;
   await ctx.close();
   for (const [k, u] of [['home', '/'], ['formation', '/formation/__COD__']]) {
     ({ ctx, p } = await page(false));
@@ -372,11 +405,202 @@ const { chromium, devices } = require('playwright');
 """
 
 
+# ------------------------------------------------------------------ VT9
+def js_top(js: str, name: str) -> str:
+    from redteam_filtres import top
+    return top(js, name)
+
+
+FACET_PARTS = ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteCommon",
+               "carteFilter", "carteFacets", "carteInLieu", "foldText", "haversineKm", "carteZone", "carteSortName", "FR_COLL",
+               "carteNameRank")
+FACET_PROG = r"""
+const CARTE_ZONES = ['securite', 'cible', 'ambitieux'];
+const META = { filtres: JSON.parse(process.env.VOCAB) };
+__PARTS__
+const { rows, cases, names, kept } = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const out = { facets: [], sorted: null, collator: null, text: null };
+for (const [F, kw, opts] of cases) {
+  const k = kw ? { codes: new Set(kw.codes), words: kw.words } : null;
+  const fac = carteFacets(rows, F, k, opts), one = {}, ref = {};
+  for (const g in opts) for (const o of opts[g]) {
+    one[g + ':' + o] = fac[g].get(o);
+    ref[g + ':' + o] = carteFilter(rows, F, g, k).filter((f) => carteHas(f, g, o)).length;
+  }
+  out.facets.push([one, ref]);
+}
+// the name rank: C.rows in one order, the list in another (equal names keep the LIST's order, as the collator's sort does)
+const C = { rows: names.map((n) => ({ etablissement: n })) }, rank = carteNameRank(C);
+const list = kept.map((n, i) => ({ etablissement: n, i }));
+out.sorted = list.slice().sort((a, b) => rank.get(carteSortName(a)) - rank.get(carteSortName(b))).map((x) => x.i);
+out.collator = list.slice().sort((a, b) => carteSortName(a).localeCompare(carteSortName(b), "fr")).map((x) => x.i);
+// the folded-name cache follows a changed name
+const f = { cod_aff_form: "T1", etablissement: "Lycée Été", formation: "BTS", ville: "Évry" };
+const t1 = carteText(f); f.ville = "Saint-Étienne"; const t2 = carteText(f);
+out.text = [t1 === foldText("Lycée Été BTS Évry"), t2 === foldText("Lycée Été BTS Saint-Étienne")];
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@check("VT9 the page: one-pass counts = per-option filtering, name rank = French collator, folded names follow changes, requests in parallel")
+def vt9(c: Ctx):
+    from suptracker import filtres as FI0
+    bad = []
+    view = c.js[c.js.index("async function viewCarte("): c.js.index("\n// ---- lot 2 (Claude design guidelines)")]
+    panel = view[view.index("function panel() {"): view.index("function figures(list)")]
+    wiring = {
+        "the panel counts in one pass": "const facets = carteFacets(base, F, kw, facetOpts);" in panel and "facets[gr].get(o)" in panel
+                                        and "carteFilter(base, F, gr" not in panel,
+        "zones beside the layer": "const zonesP = Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ));" in view
+                                  and "coucheP.then(() => Promise.all(" not in view,
+        "details after the zones with a profile": "(ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C))" in view,
+        "badges with the layer, not before the heading": "await recoP" not in view
+                                                         and "Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null)])" in view,
+        "bounds read once per draw": "vb = carteUI.map && carteUI.map.getBounds();" in view and "getBounds().contains" not in view,
+        "the sort by rank": "|| byName(a, b));" in view and "const rank = carteNameRank(C)" in view,
+    }
+    bad += [k for k, v in wiring.items() if not v]
+    # rows: the real layer (base) with crafted zones, plus crafted rows every warehouse may lack
+    with client(c.db) as (cl, _):
+        base = cl.get("/api/carte/couche").json()
+    rows = [CA.dec(r, base["kinds"], base["strings"], top=True) for r in base["rows"]]
+    rows = rows[:4000] if not c.real else rows
+    for i, f in enumerate(rows):
+        f["zone"] = ["securite", "cible", "ambitieux", None, "hors_profil"][i % 5]
+    rows += [{"cod_aff_form": f"X{i}", "etablissement": e, "formation": "BTS Bâtiment", "ville": "Évry", "stats": False, "apprentissage": True,
+              "initiale": False, "statut": "prive_app", "academie": "Versailles", "lat": 48.63, "lon": 2.44, "capa_fin": None, "acc_pc": None,
+              "taux_acces_ens": None} for i, e in enumerate(["CFA du Bâtiment", "Lycée Été"])]
+    acad = next((f["academie"] for f in rows if f.get("academie")), "")
+    region = next((f["region"] for f in rows if f.get("region")), "")
+    town = next((f for f in rows if f.get("lat") is not None), None)
+    vocab = FI0.vocab()
+    opts = {"statut": ["public", "contrat", "prive_app", "prive"], "acad": sorted({f["academie"] for f in rows if f.get("academie")}),
+            "app": ["non", "oui"], "internat": ["mixte", "filles", "garcons"], "amenag": ["presentiel", "partielle", "totale", "sport", "art"],
+            "select": ["oui", "non"], "zones": ["securite", "cible", "ambitieux", "autre"],
+            **{g: [o["key"] for o in vocab[g]] for g in ("capacite", "complementaire", "taux")}}
+    cod = [f["cod_aff_form"] for f in rows[:300:7]]
+    cases = [({"statut": ["public", "contrat", "prive_app"]}, None),
+             ({"statut": ["public"], "internat": ["mixte"], "zones": ["securite", "cible"]}, None),
+             ({"statut": ["public", "contrat"], "acad": [acad], "capacite": [vocab["capacite"][1]["key"]], "taux": [vocab["taux"][0]["key"]]}, None),
+             ({"select": ["oui"], "complementaire": ["oui"], "app": ["non"], "lieu": {"t": "region", "v": region}}, None),
+             ({"statut": ["public", "contrat", "prive_app", "prive"], "amenag": ["sport", "partielle"]}, {"codes": cod, "words": ["batiment"]}),
+             ({"zones": ["ambitieux"], "autour": {"lat": town["lat"], "lon": town["lon"], "km": 60}} if town else {}, {"codes": cod, "words": []}),
+             ({"statut": ["prive_app"]}, {"codes": [], "words": ["lycee", "ete"]})]
+    cases = [[F, kw, opts] for F, kw in cases]
+    names = ["Été", "Ete", "(CFA b)", "Alpha", "alpha", "éte", "éte", "« Zeta »", "Œuvre", "oeuvre", "Zeta"] \
+        + sorted({str(f.get("etablissement") or "") for f in rows})[:3000]
+    kept = list(reversed(names))                        # another order than the layer's: equal names keep the list's order
+    exe = shutil.which("node")
+    if not exe:
+        return not bad, f"node not installed; wiring problems {bad}"
+    prog = FACET_PROG.replace("__PARTS__", "\n".join(js_top(c.js, n) for n in FACET_PARTS))
+    r = subprocess.run([exe, "-e", prog], input=json.dumps({"rows": rows, "cases": cases, "names": names, "kept": kept}, default=str),
+                       capture_output=True, text=True, timeout=300, env={**os.environ, "VOCAB": json.dumps(vocab)})
+    if r.returncode:
+        return False, "node: " + r.stderr[-400:]
+    out = json.loads(r.stdout)
+    diff = [(i, [k for k in one if one[k] != ref[k]][:3]) for i, (one, ref) in enumerate(out["facets"]) if one != ref]
+    if diff:
+        bad.append(("counts differ", diff[:3]))
+    if not any(any(v for v in one.values()) for one, _ in out["facets"]):
+        bad.append("no count at all (vacuous)")
+    if out["sorted"] != out["collator"]:
+        bad.append("name rank order differs from the collator")
+    if out["text"] != [True, True]:
+        bad.append(("folded-name cache", out["text"]))
+    n = sum(len(one) for one, _ in out["facets"])
+    return not bad, f"{len(cases)} filter states x {len(opts)} groups ({n} counts) on {len(rows)} rows; {len(names)} names sorted; problems {bad[:4]}"
+
+
+# ------------------------------------------------------------------ VT10
+@check("VT10 server: brotli bodies stored at build = the JSON served; br only when accepted, own ETag, 304s; gzip and plain otherwise; reconnaissance deterministic")
+def vt10(c: Ctx):
+    from suptracker import precomp as PC
+    bad, seen = [], {}
+    try:
+        import brotli
+    except ImportError:
+        brotli = None
+    with client(c.db) as (cl, api):
+        PC._LOOKUP.clear()
+        api._RECO.clear()
+        for u in ("/api/carte/couche", "/api/carte/couche?partie=details", "/api/reconnaissance"):
+            plain = cl.get(u, headers={"Accept-Encoding": "identity"})
+            g = cl.get(u, headers={"Accept-Encoding": "gzip"})
+            b = cl.get(u, headers={"Accept-Encoding": "gzip, deflate, br"})
+            nob = cl.get(u, headers={"Accept-Encoding": "gzip, br;q=0"})
+            if plain.headers.get("content-encoding") or "accept-encoding" not in (plain.headers.get("vary") or "").lower():
+                bad.append((u, "plain answer encoded or no Vary"))
+            if g.headers.get("content-encoding") != "gzip" or g.content != plain.content:      # httpx gunzips
+                bad.append((u, "gzip variant"))
+            if nob.headers.get("content-encoding") == "br":
+                bad.append((u, "br sent although refused (q=0)"))
+            enc = b.headers.get("content-encoding")
+            seen[u] = enc
+            if enc == "br":
+                if b.content != plain.content:               # httpx decodes br (brotli installed: it was, to build the body)
+                    bad.append((u, "the br body is not the served JSON"))
+                if not b.headers.get("etag", "").endswith('-br"') or b.headers.get("etag") == g.headers.get("etag"):
+                    bad.append((u, "br shares the gzip ETag"))
+            elif enc != "gzip":
+                bad.append((u, f"br request answered with {enc}"))
+            for r in (g, b):
+                e = r.headers.get("etag")
+                n = cl.get(u, headers={"Accept-Encoding": r.request.headers.get("accept-encoding", ""), "If-None-Match": e or "x"})
+                if n.status_code != 304 or "accept-encoding" not in (n.headers.get("vary") or "").lower():
+                    bad.append((u, "no 304 for its own ETag", e))
+        # what the build stored: every body decodes to the JSON the server builds today
+        con = c.con()
+        try:
+            stored = PC.bodies(con)
+            found = {k: PC.lookup(con, v) for k, v in stored.items()}
+        finally:
+            con.close()
+    if brotli is not None:
+        for k, br in found.items():
+            if br is not None and brotli.decompress(br) != stored[k]:
+                bad.append((k, "stored body decodes to other bytes"))
+        if not c.real and not all(v is not None for v in found.values()):
+            bad.append(("the synthetic build stored no brotli body", {k: v is not None for k, v in found.items()}))
+        if not c.real and any(v != "br" for v in seen.values()):
+            bad.append(("br not served on the synthetic warehouse", seen))
+    # sorted keys: the same bytes whatever the order the SQL rows came in
+    if PC.json_bytes({"b": {"y": 1, "x": 2}, "a": 0}, sort_keys=True) != b'{"a":0,"b":{"x":2,"y":1}}':
+        bad.append("reconnaissance keys not sorted")
+    # and in two processes with different hash seeds
+    prog = ("import sys,duckdb,hashlib; sys.path.insert(0, %r); from suptracker import precomp as PC; "
+            "con=duckdb.connect(%r, read_only=True); print(hashlib.sha256(PC.json_bytes(PC.reconnaissance_payload(con), sort_keys=True)).hexdigest())") % (str(ROOT), str(c.db))
+    dig = {subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True, timeout=300,
+                          env={**os.environ, "PYTHONHASHSEED": seed}).stdout.strip() for seed in ("1", "2")}
+    if len(dig) != 1 or "" in dig:
+        bad.append(("reconnaissance bytes differ between processes", len(dig)))
+    stored_n = sum(v is not None for v in found.values())
+    return not bad, f"encodings served to a br browser {seen}; stored bodies {stored_n}/3{'' if brotli else ' (brotli not installed)'}; problems {bad[:4]}"
+
+
+# ------------------------------------------------------------------ VT11
+@check("VT11 Mes vœux and the guide read the profile bar's request (one query, never twice); a failed one is asked again")
+def vt11(c: Ctx):
+    js = c.js
+    need = {
+        "the bar keeps its request": "(this.req = api(`/api/voeux?${k}`)).then(" in js,
+        "a failure is asked again": ".catch(() => { if (this.key === k) { this.req = null; this.data = { error: true }; this.render(); } });" in js,
+        "Mes vœux reads it": "const req = profileBar.key === qs.toString() && profileBar.req ? profileBar.req : api(`/api/voeux?${qs}`);" in js
+                             and "try { d = voeuxLocal(await req, prof); }" in js,
+        "the guide reads it": "await (profileBar.key === k && profileBar.req ? profileBar.req : api(`/api/voeux?${k}`))" in js,
+        "the bar's query is Mes vœux's query": js.count("vxQuery(ids, prof)") >= 3,
+    }
+    bad = [k for k, v in need.items() if not v]
+    return not bad, f"problems {bad}"
+
+
 # ------------------------------------------------------------------ VT7
 @check("VT7 docs: README section and CLAUDE.md rule")
 def vt7(c: Ctx):
     ok = "## Sprint Q3" in c.readme and "/api/carte/couche" in c.readme and "Speed (sprint Q3" in c.claude
-    return ok, f"README {'## Sprint Q3' in c.readme}, CLAUDE.md {'Speed (sprint Q3' in c.claude}"
+    ok2 = "## Sprint Vitesse sur téléphone" in c.readme and "precomp" in c.readme and "Speed on a phone (sprint Vitesse" in c.claude
+    return ok and ok2, (f"README {'## Sprint Q3' in c.readme}/{'## Sprint Vitesse sur téléphone' in c.readme}, "
+                        f"CLAUDE.md {'Speed (sprint Q3' in c.claude}/{'Speed on a phone (sprint Vitesse' in c.claude}")
 
 
 # ------------------------------------------------------------------ VT8 mutation test
@@ -431,10 +655,57 @@ def mutants():
              "", {"VT1"})
     page_mut("the layer waits for the types", "  loadCouche().catch(() => {});\n", "\n", {"VT4"})
 
+    # sprint Vitesse
+    page_mut("a formation left out by one group counted in every group", "      if (k === 1 && g !== miss) continue;\n", "", {"VT9"})
+    page_mut("the counts ignore the place and the keyword", "if (k > 1 || !carteCommon(f, F, kw)) continue;", "if (k > 1) continue;", {"VT9"})
+    page_mut("the name rank splits names the collator calls equal", "if (i === 0 || FR_COLL.compare(names[i - 1], n) !== 0) k++;", "k++;", {"VT9"})
+    page_mut("the folded-name cache never refreshed", "if (x && x[0] === raw) return x[1];", "if (x) return x[1];", {"VT9"})
+    page_mut("the zones wait for the layer again", "const zonesP = Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ));",
+             "const zonesP = coucheP.then(() => Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ)), () => []);", {"VT9"})
+    page_mut("the details race the zones", "(ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C))", "loadDetails(C)", {"VT9"})
+    page_mut("the badges delay the heading again", '  const FAC = await api("/api/carte");\n', '  const FAC = await api("/api/carte");\n  await recoP;\n', {"VT9"})
+    page_mut("the panel filters once per option again", "const n = facets[gr].get(o);",
+             "const n = carteFilter(base, F, gr, kw).filter((f) => carteHas(f, gr, o)).length;", {"VT9"})
+    page_mut("Mes vœux asks the same query again", "const req = profileBar.key === qs.toString() && profileBar.req ? profileBar.req : api(`/api/voeux?${qs}`);",
+             "const req = api(`/api/voeux?${qs}`);", {"VT11"})
+    page_mut("a failed bar request reused forever", "if (this.key === k) { this.req = null; this.data = { error: true };",
+             "if (this.key === k) { this.data = { error: true };", {"VT11"})
+    from suptracker import precomp as PC
+
+    def srv(name, attr, value):
+        state = {}
+
+        def apply(_c):
+            from suptracker import api as API
+            state["v"] = getattr(PC, attr)
+            setattr(PC, attr, value(state["v"]))
+            PC._LOOKUP.clear()
+            API._RECO.clear()
+
+        def restore(_c):
+            from suptracker import api as API
+            setattr(PC, attr, state["v"])
+            PC._LOOKUP.clear()
+            API._RECO.clear()
+        out.append((name, apply, restore, {"VT10"}))
+    srv("br sent to a browser that refuses it", "accepts_br", lambda f: (lambda request: True))
+    srv("a stored body served for other bytes", "lookup", lambda f: (lambda con, raw: _any_body(con, f)))
+    srv("reconnaissance keys left in SQL order", "json_bytes", lambda f: (lambda payload, sort_keys=False: f(payload, False)))
+
     def docs(c):
         c.claude = c.claude.replace("Speed (sprint Q3", "Speed (sprint")
     out.append(("rule dropped from CLAUDE.md", docs, lambda c: c.reload(), {"VT7"}))
     return out
+
+
+def _any_body(con, lookup):
+    """A wrong lookup: the first stored body, whatever bytes were asked."""
+    from suptracker import precomp as PC
+    for raw in PC.bodies(con).values():
+        b = lookup(con, raw)
+        if b is not None:
+            return b
+    return None
 
 
 def _drop_majo(details: dict) -> dict:
@@ -461,11 +732,15 @@ def vt8(c: Ctx):
     con = c.con()
     try:
         untyped = bool(J.untyped_codes(con))
+        from suptracker import precomp as PC
+        stored = sum(PC.lookup(con, v) is not None for v in PC.bodies(con).values()) >= 2
     finally:
         con.close()
     for name, apply, restore, expect in mutants():
         if name.startswith("zones: the untyped") and not untyped:
             continue                                     # equivalent here: nothing untyped to forget
+        if name in ("a stored body served for other bytes", "br sent to a browser that refuses it") and not stored:
+            continue                                     # equivalent until the build stored bodies (the data workflow)
         n += 1
         try:
             apply(c)

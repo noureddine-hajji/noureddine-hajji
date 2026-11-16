@@ -283,7 +283,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 def place_defs(js: str) -> str:
     villes = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const foldText = ",)))
-    return villes + "\n" + "\n".join(top(js, n) for n in ("REGION_NOM", "regionNom", "villeLabel", "carteLieux", "carteLieu", "carteInLieu"))
+    return villes + "\n" + "\n".join(top(js, n) for n in ("REGION_NOM", "regionNom", "villeLabel", "FR_COLL", "carteLieux", "carteLieu", "carteInLieu"))
 
 
 def places_ok(c: Ctx, js: str) -> tuple[bool, str]:
@@ -400,7 +400,7 @@ def order_ok(js: str) -> tuple[bool, str]:
     body = re.sub(r"//[^\n]*", "", srt.group(1))
     want = ['(a.stats === false) - (b.stats === false)', '(F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)',
             '(kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)',
-            'carteSortName(a).localeCompare(carteSortName(b), "fr")']
+            'byName(a, b)']
     pos = [body.find(w) for w in want]
     if -1 in pos or pos != sorted(pos):
         bad.append(("sort keys", pos))
@@ -763,7 +763,7 @@ JS_MUTANTS = [
     ("old link: words lost", 'carteUI.pendingQ = q;\n  location.replace("#/carte");', 'location.replace("#/carte");', "rs4"),
     ("old link: a stale place kept", "F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null;", "F.q = carteUI.pendingQ.slice(0, 200);", "rs4"),
     ("old link: words not saved (Codex)", 'carteUI.pendingQ = null; store.set("carteFiltres2", F); }', "carteUI.pendingQ = null; }", "rs4"),
-    ("order: by the official rate", '|| carteSortName(a).localeCompare(carteSortName(b), "fr"));', '|| (b.taux_acces_ens ?? 0) - (a.taux_acces_ens ?? 0));', "rs5"),
+    ("order: by the official rate", '|| byName(a, b));', '|| (b.taux_acces_ens ?? 0) - (a.taux_acces_ens ?? 0));', "rs5"),
     ("order: relevance ignored", "(kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)", "0", "rs5"),
     ("failure: the list emptied", "catch (e) { err = apiErrorText(e); }", "catch (e) { err = apiErrorText(e); kw = { codes: new Set(), rank: new Map(), words: [], interp: [], notes: [] }; }", "rs5"),
     ("a superseded answer kept (Codex)", "if (mine !== carteUI.kwTok || seq !== carteUI.seq", "if (seq !== carteUI.seq", "rs5"),
