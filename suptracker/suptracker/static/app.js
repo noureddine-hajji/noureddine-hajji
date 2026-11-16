@@ -1539,9 +1539,7 @@ async function viewCarte(dArg, mArg) {
       <label class="cs-field cs-km"${F.autour ? "" : " hidden"}><span>Rayon</span><select id="cs-km">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour ? F.autour.km : 25) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       <button type="submit" class="cs-go">${ICONS.search}Rechercher</button>
     </form>
-    <p class="small cs-help">${home ? `<button type="button" class="linkish" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button> · ` : '<a href="#/profil">Votre ville dans Mon profil</a> : chercher autour de chez vous. '}Le lieu reste dans votre navigateur.
-      <button type="button" class="linkish" id="cs-share">Partager cette recherche</button></p>
-    <div id="cs-share-out" class="cs-share" hidden></div>
+    <p class="small cs-help">${home ? `<button type="button" class="linkish" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button> · ` : '<a href="#/profil">Votre ville dans Mon profil</a> : chercher autour de chez vous. '}Le lieu reste dans votre navigateur.</p>
     <div id="cs-status" class="cs-status" role="status"></div>
     <details class="dd-fold" id="dd-fold"${!narrow() || carteUI.fold ? " open" : ""}><summary>${ICONS.filter}Filtrer <span id="dd-fold-n"></span></summary><div class="dd-bar" id="cfilters"></div></details>
     <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p></div>
@@ -1557,7 +1555,13 @@ async function viewCarte(dArg, mArg) {
       <div class="carte-box"><div id="carte-osm" class="carte-osm"></div></div>
       <p class="muted small">Fond de carte OpenStreetMap : votre navigateur demande les images de la carte aux serveurs d'OpenStreetMap, qui voient votre adresse IP. Votre profil et vos filtres ne leur sont pas envoyés.</p>
     </div>
-  </div>`;
+  </div>
+  <section class="card cs-share-card" aria-labelledby="cs-share-h">
+    <h2 id="cs-share-h">Partager cette recherche</h2>
+    <p class="small muted">Un lien vers ces résultats, pour un parent, un professeur ou un ami : vos mots, le lieu tapé et vos filtres.</p>
+    <button type="button" class="btn-sec" id="cs-share">Copier le lien de cette recherche</button>
+    <div id="cs-share-out" class="cs-share" hidden></div>
+  </section>`;
   $view.dataset.rendered = "carte";
   const box = document.getElementById("carte-osm");
   if (!window.L) { box.innerHTML = `<div class="warn">La carte n'a pas pu être chargée ; la liste reste disponible.</div>`; }

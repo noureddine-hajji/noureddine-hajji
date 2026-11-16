@@ -552,6 +552,10 @@ def share_ok(js: str) -> tuple[bool, str]:
     if "for (const [gr] of carteGroups()) F[gr] = gr in share.F ? share.F[gr] : [...(CARTE_DEFAULT[gr] || [])];" not in vc \
             or "Object.assign(F, { zones: [], q: share.q, lieu: null, autour: null, lieuTxt: share.lieuTxt });" not in vc:
         bad.append("a shared search does not replace the reader's filters (zones cleared)")
+    # owner, 2026-11-16: the share block sits at the bottom of the page (after the list and the map), never in the search bar
+    sh, bar_end = vc.find('<section class="card cs-share-card"'), vc.find("</form>")
+    if sh < 0 or sh < vc.find('<div class="carte-mapcol">') or 'id="cs-share"' in vc[:max(bar_end, 0) + 400]:
+        bad.append("the share block is not at the bottom of the page")
     if '${esc(said)}' not in vc or 'value="${esc(link)}"' not in vc:
         bad.append("the share message or link unescaped")
     return not bad, f"round trip, hostile and personal keys checked; problems {bad[:3]}"

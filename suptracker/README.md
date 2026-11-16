@@ -3455,7 +3455,8 @@ mobile MB1, a11y A1/A2, navigation U1, langage LA2, lycée Y8.
 
 ## Search links to share, and the old advanced search removed (owner, 2026-11-16)
 
-**"Partager cette recherche".** The search page has a button that copies a link (`#/recherche/<parameters>`, everything after
+**"Partager cette recherche".** At the bottom of the search page (owner, 2026-11-16: not in the search bar), a block with a
+button copies a link (`#/recherche/<parameters>`, everything after
 "#": the browser never sends it to the site, the site stores nothing). The link carries the words, the place as typed with its
 radius, the ticked types and mentions, and every filter group that differs from its default. It never carries "Ma ville" (the
 profile's town), the zones (they belong to the reader's own profile) or any profile key. When the link is opened, every value is

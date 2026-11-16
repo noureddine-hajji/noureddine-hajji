@@ -669,7 +669,9 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .cs-go .ico { width: 18px; height: 18px; }
 .cs-help { margin: 6px 0 0; }
 .cs-status:empty { display: none; }
-.cs-share { margin-top: 6px; display: grid; gap: 6px; }
+.cs-share { margin-top: 8px; display: grid; gap: 6px; }
+.cs-share-card { margin-top: 16px; }
+.cs-share-card h2 { margin: 0 0 4px; }
 .cs-share-link { min-height: 44px; width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line-input);
   border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--fs-sm); }
 .cs-status { margin-top: 8px; display: grid; gap: 6px; }
