@@ -517,7 +517,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   (`#/carte`, "Rechercher une formation"; `#/s/<mots>` opens it with its words, `carteUI.pendingQ`). Bar: keyword + place (town
   with a radius, département, région, académie: `carteLieux` / `carteLieu`, accents and case off, a code alone). The keyword goes to
   `GET /api/search/codes` (`api.keyword_codes`: the engine's codes, each ONCE at its first rank since the engine answers per
-  campaign; no-store; one audience event, the cleaned words only); the place, the radius, every filter and the average stay in the
+  campaign; no-store; one audience event, the cleaned words only) with, as `near`, the STORED profile's académie when the layer
+  knows it (owner, 2026-11-16: the engine's own tie rule, equally relevant results only, never a filter; never the typed place, a
+  filter or `reoAcademie`; never recorded); the place, the radius, every filter and the average stay in the
   browser (the layer carries `region`, `dep`, `dep_lib`). Filters = `<details class="dd">` dropdowns, one open at a time (Escape,
   outside click), a group marked only when it differs from its default, options counted with the other groups applied, one reset;
   folded under "Filtrer (n actifs)" on a phone, list before the map there. NO filter field of the earlier pages may be lost
@@ -535,7 +537,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   OSM tile host today; a new external host needs its operator in the page and in red team QC2's OPERATOR table), retentions
   read from the code's constants. Accessibility: "non conforme" until an RGAA audit exists, never "partiellement/totalement
   conforme". The privacy page says every PERSONAL parameter a page sends (série, spécialités, mention band, voie, the
-  académie with Plan B/stage 2/Mes vœux, the list's codes; the search sends its typed words only; never the lycée):
+  académie with Plan B/stage 2/Mes vœux and the search's equal-relevance ties, the list's codes; the search sends its typed words and that académie only; never the lycée):
   red team QC2's PERSONAL table fails on a parameter sent and not said (Codex). Contact form (`contact.py`): closed subjects,
   10-1,000 characters, optional reply address, hidden field, 5 per visitor-day then 300 a day (the visitor's cap checked FIRST:
   a blocked visitor never consumes the global quota; one atomic Lua script in Redis), ONLY the form's fields + day stored (no IP,

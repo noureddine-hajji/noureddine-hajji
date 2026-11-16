@@ -5,12 +5,15 @@
 
   RS1 the keyword route: /api/search/codes = the engine's own answer (S.search, all results, relevance order) re-derived for
       every query; a bare code or a fiche URL gives that code; a blank, a foreign URL or > 200 characters is a 422; no-store;
-      one audience event with the cleaned words only (a profile, a place or a position sent beside it is never recorded)
+      one audience event with the cleaned words only (a profile, a place or a position sent beside it is never recorded);
+      with `near` (owner, 2026-11-16: the profile's académie) = the engine's answer with `near`: the same codes, reordered only
+      between equally relevant results by the engine's own rule
   RS2 places (Node vs Python): the place list (carteLieux) and its reading (carteLieu: exact label, accents and case off, with or
       without "(région)" / the code, a code alone, unknown = nothing) and carteInLieu, against an independent Python reading, on
       crafted rows (hostile strings included) and on every région, département and académie of the warehouse's layer
-  RS3 privacy: the page sends its keyword only (one search request, the words encoded); the place, the town's position, the
-      radius, the filters and the average never leave the browser; the privacy page says so
+  RS3 privacy: the page sends its keyword and the stored profile's académie only (one search request, both encoded; the
+      académie only when the layer knows it, never the place typed or « Je me réoriente »'s own académie); the place, the town's
+      position, the radius, the filters and the average never leave the browser; the privacy page says so
   RS4 the shell and the home: no search bar in the shell, no list/map switch on the home, the door and the hero link open the
       search page, an old "#/s/<words>" link opens it with its words; two Explorer views (Formations, Métiers)
   RS5 the order and the failures: the list is sorted by published figures first, then distance (around a town), the engine's
@@ -56,6 +59,8 @@ from suptracker import search as S  # noqa: E402
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
 HOSTILE = '<img src=x onerror=alert(1)>'
+# the search page's one query: the words and the stored profile's académie, nothing else (owner, 2026-11-16)
+KW_QUERY = 'const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };'
 QUERIES = ["BTS NDRC", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné", "prépa HEC Lyon", "informatique", "droit",
            "licence psycho", "mpsi", "bts", HOSTILE, "Lycée", "zzzzqqq"]
 
@@ -169,6 +174,22 @@ def keyword_ok(c: Ctx, fn=None) -> tuple[bool, str]:
         n += 1
         if got["codes"] != want or len(set(got["codes"])) != len(got["codes"]) or got["query"] != q.strip():
             bad.append((q, "codes", len(got["codes"]), len(want)))
+    # near (owner, 2026-11-16): the engine's own tie rule, the same codes; witness: an order it really changes
+    acads = [r[0] for r in c.con.execute("""SELECT acad_mies FROM core.formation_year WHERE acad_mies IS NOT NULL
+                                             GROUP BY 1 ORDER BY count(*) DESC, 1 LIMIT 3""").fetchall()]
+    moved = 0
+    for q in QUERIES[:8]:
+        plain = fn(con, q)["codes"]
+        for a in acads:
+            want = []
+            for r in S.search(con, q.strip(), near=a, offset=0, limit=10 ** 6)["results"]:
+                if r["cod_aff_form"] not in want:
+                    want.append(r["cod_aff_form"])
+            got = fn(con, q, a)["codes"]
+            if got != want or set(got) != set(plain):
+                bad.append((q, a, "near: not the engine's tie rule, or codes added or dropped"))
+            moved += got != plain
+    c.near_moved = moved
     any_code = c.con.execute("SELECT max(cod_aff_form) FROM core.formation_year").fetchone()[0]
     for q, want in ((str(any_code), [str(any_code)]),
                     (f"https://dossierappel.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod={any_code}", [str(any_code)])):
@@ -194,6 +215,16 @@ def keyword_ok(c: Ctx, fn=None) -> tuple[bool, str]:
     return not bad, f"{n} queries = the engine's answer; problems {bad[:4]}"
 
 
+def api_keyword(q, near):
+    from fastapi import HTTPException
+
+    from suptracker import api
+    try:
+        return api.keyword_codes(api._con().cursor(), q, near)["codes"]
+    except HTTPException:
+        return None
+
+
 @check("RS1 the keyword route: the engine's own answer and order, codes and URLs, 422s, no-store, one cleaned audience event")
 def rs1(c: Ctx):
     ok, detail = keyword_ok(c)
@@ -202,12 +233,14 @@ def rs1(c: Ctx):
     with client(c) as tc:
         for q in ("BTS NDRC", HOSTILE):
             tc.events.clear()
-            r = tc.get("/api/search/codes", params={"q": q, "spe1": "MATHS", "academie": "Lyon", "lieu": "Nord (59)", "lat": "45.7", "moyenne": "14.2"})
+            r = tc.get("/api/search/codes", params={"q": q, "spe1": "MATHS", "academie": "Lyon", "near": "Lyon", "lieu": "Nord (59)", "lat": "45.7", "moyenne": "14.2"})
             d = r.json()
             ev = [e for e in tc.events if e]
             blob = json.dumps([e[1] for e in ev], default=str)
             if r.status_code != 200 or "no-store" not in (r.headers.get("cache-control") or "") or d["total"] != len(d["codes"]):
                 bad.append((q, "answer", r.status_code, r.headers.get("cache-control")))
+            if r.status_code == 200 and d["codes"] != api_keyword(q, "Lyon"):
+                bad.append((q, "the route does not pass near to the engine"))
             if len(ev) != 1 or ev[0][0] != "search" or set(ev[0][1]) != {"q", "total", "partial"} or ev[0][1]["q"] != A.clean_query(q) \
                     or any(k in blob for k in ("MATHS", "Lyon", "Nord", "45.7", "14.2")):
                 bad.append((q, "event", blob[:200]))
@@ -340,8 +373,13 @@ def privacy_ok(js: str, privacy: str) -> tuple[bool, str]:
     calls = re.findall(r"api\(`([^`]*)`", vc) + re.findall(r'api\("([^"]*)"', vc)
     bad = []
     search = [u for u in calls if u.startswith("/api/search")]
-    if search != ["/api/search/codes?q=${encodeURIComponent(q)}"]:
+    if search != ["/api/search/codes?${kwQuery(q)}"] or vc.count(KW_QUERY) != 1:
         bad.append(("search requests", search))
+    # near = the stored profile's académie, only one the layer knows; never the place typed, a filter or reoAcademie
+    nf = js[js.index("function carteNear("):js.index("\n}", js.index("function carteNear(")) + 2] if "function carteNear(" in js else ""
+    if "const near = carteNear(CARTE_ACADS);" not in vc or 'store.get("profile", null)' not in nf or "acads.includes(a)" not in nf \
+            or re.search(r"lieu|reoAcademie|F\.|carteUI", nf):
+        bad.append("near is not the stored profile's checked académie")
     for u in calls:
         if re.search(r"lieu|autour|lat\b|lon\b|ville|km|moyenne|F\.", u, re.I):
             bad.append(("a place or a filter in a request", u))
@@ -349,13 +387,15 @@ def privacy_ok(js: str, privacy: str) -> tuple[bool, str]:
         bad.append("another channel")
     t = re.sub(r"<[^>]+>", " ", privacy)
     t = re.sub(r"\s+", " ", t)
-    if "La recherche de formations envoie seulement les mots que vous tapez" not in t or "ce lieu n'est jamais envoyé" not in t \
+    if "La recherche de formations envoie les mots que vous tapez et, si vous l'avez indiquée dans votre profil, votre académie" not in t \
+            or "elle ne retire aucune formation" not in t or "votre liste de vœux et la recherche de formations" not in t \
+            or "ce lieu n'est jamais envoyé" not in t \
             or "votre moyenne et les filtres restent dans votre navigateur" not in t or "avec la recherche, le plan B" in t:
         bad.append("the privacy page")
     return not bad, f"{len(calls)} requests of the page; problems {bad[:3]}"
 
 
-@check("RS3 privacy: the keyword only is sent; the place, the position, the radius, the filters and the average stay in the browser")
+@check("RS3 privacy: the keyword and the profile's académie only are sent; the place, the position, the radius, the filters and the average stay in the browser")
 def rs3(c: Ctx):
     from suptracker import legal as LG
     return privacy_ok(c.js, LG.confidentialite())
@@ -744,7 +784,9 @@ KW_MUTANTS = [
     ("engine order lost", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": sorted(set(r["cod_aff_form"] for r in res["results"]))', None),
     ("a code once per campaign", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": [r["cod_aff_form"] for r in res["results"]]', "dup"),
     ("a code at its last rank", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"][::-1]))[::-1]', "dup"),
-    ("only the first page", "res = S.search(con, q, offset=0, limit=10 ** 6)", "res = S.search(con, q, offset=0, limit=40)", "many"),
+    ("only the first page", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, near=near or None, offset=0, limit=40)", "many"),
+    ("the profile's académie ignored", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, offset=0, limit=10 ** 6)", "near"),
+    ("the académie used as a filter", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, academie=near or None, near=near or None, offset=0, limit=10 ** 6)", "near"),
     ("blank accepted", '    if not q:\n        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")\n', "", None),
     ("foreign URL searched", 'if q.lower().startswith(("http", "www.")) and not cod:', "if False:", None),
     ("a code searched as words", "if cod or (q.isdigit() and len(q) <= 9):", "if cod:", None),
@@ -758,7 +800,9 @@ JS_MUTANTS = [
     ("places: région read as académie", 'L.t === "region" ? f.region === L.v', 'L.t === "region" ? f.academie === L.v', "rs2"),
     ("places: académies left out", '.forEach((a) => out.set(`Académie de ${a}`, { t: "acad", v: a }));', ";", "rs2"),
     ("places: a town hides a département", 'forEach(([t, x]) => { if (!out.has(t)) out.set(t,', "forEach(([t, x]) => { if (true) out.set(t,", "rs2"),
-    ("privacy: the place sent", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&lieu=${encodeURIComponent(F.lieuTxt)}`)", "rs3"),
+    ("privacy: the place sent", 'if (near) qs.set("near", near); return qs; };', 'if (near) qs.set("near", near); if (F.lieuTxt) qs.set("lieu", F.lieuTxt); return qs; };', "rs3"),
+    ("privacy: the typed place sent as the académie", "const near = carteNear(CARTE_ACADS);", "const near = F.lieu ? F.lieu.v : carteNear(CARTE_ACADS);", "rs3"),
+    ("privacy: a stored académie not checked", 'return a && acads.includes(a) ? a : "";', "return a;", "rs3"),
     ("home: the switch back", "  ${homeProfile()}\n", '  ${explorerViews("carte")}${homeProfile()}\n', "rs4"),
     ("old link: words lost", 'carteUI.pendingQ = q;\n  location.replace("#/carte");', 'location.replace("#/carte");', "rs4"),
     ("old link: a stale place kept", "F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null;", "F.q = carteUI.pendingQ.slice(0, 200);", "rs4"),
@@ -786,7 +830,7 @@ JS_MUTANTS = [
 OTHER_MUTANTS = [
     ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
     ("cache", "the keyword cached", '(r"/api/search/codes", NO_STORE,', '(r"/api/search/codes", PUBLIC,'),
-    ("privacy", "the privacy page silent", "La recherche de formations envoie seulement les mots que vous tapez", "La recherche"),
+    ("privacy", "the privacy page silent", "La recherche de formations envoie les mots que vous tapez et, si vous l'avez indiquée dans votre profil, votre académie", "La recherche de formations envoie les mots que vous tapez"),
 ]
 
 
@@ -803,7 +847,8 @@ def rs8(c: Ctx):
     con = c.con.cursor()
     answers = [[r["cod_aff_form"] for r in S.search(con, q, offset=0, limit=10 ** 6)["results"]] for q in QUERIES]
     witness = {None: True, "dup": any(len(set(a)) < len(a) for a in answers), "many": any(len(set(a)) > 40 for a in answers),
-               "old": c.con.execute("SELECT count(DISTINCT session) > 1 FROM core.lineage").fetchone()[0]}
+               "old": c.con.execute("SELECT count(DISTINCT session) > 1 FROM core.lineage").fetchone()[0],
+               "near": bool(getattr(c, "near_moved", 0))}
     skipped = []
     for name, old, new, need in KW_MUTANTS:
         if not witness[need]:

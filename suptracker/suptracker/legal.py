@@ -148,11 +148,12 @@ identifiant, ce dont le calcul a besoin :</p>
 <ul class="legal-list">
 <li>la série, les spécialités et la tranche de mention, pour situer chaque formation ;</li>
 <li>la ligne de votre bac technologique ou professionnel (série et spécialités, ou spécialité), seulement pour lire votre liste de vœux ;</li>
-<li>votre académie, si vous l'avez indiquée, avec le plan B, « Où je me situe » et votre liste de vœux, pour
-présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
+<li>votre académie, si vous l'avez indiquée, avec le plan B, « Où je me situe », votre liste de vœux et la recherche de
+formations, pour présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
 <li>les codes des formations de votre liste de vœux, pour la lire.</li>
 </ul>
-<p>La recherche de formations envoie seulement les mots que vous tapez. Le lieu choisi (ville, département, région ou
+<p>La recherche de formations envoie les mots que vous tapez et, si vous l'avez indiquée dans votre profil, votre académie :
+entre deux formations aussi proches de vos mots, celle de votre académie passe en premier ; elle ne retire aucune formation. Le lieu choisi (ville, département, région ou
 académie), votre moyenne et les filtres restent dans votre navigateur. Un lien de recherche partagé porte, après le
 « # », vos mots, le lieu tapé et vos filtres : votre navigateur ne l'envoie pas au site, et il ne contient ni votre profil,
 ni « Ma ville », ni vos zones. Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>

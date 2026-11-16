@@ -1450,6 +1450,11 @@ function carteSelection(FAC, dArg, mArg, stored) {
   for (const x of d) { const ok = known(x).mentions.map((g) => g.label); m[x] = [...new Set((((stored && stored.m) || {})[x] || []).filter((g) => ok.includes(g)))]; }
   return { d, m };
 }
+// the stored profile's académie, only when the layer knows it (a stored profile is never trusted), else "" (nothing sent)
+function carteNear(acads) {
+  const p = store.get("profile", null), a = p && typeof p === "object" && typeof p.academie === "string" ? p.academie : "";
+  return a && acads.includes(a) ? a : "";
+}
 const carteSortName = (f) => String(f.etablissement || "").replace(/^[^\p{L}\p{N}]+/u, "");
 // sprint Vitesse: one collator for every French sort of the search page (the same order as localeCompare(…, "fr"))
 const FR_COLL = new Intl.Collator("fr");
@@ -1558,7 +1563,11 @@ async function viewCarte(dArg, mArg) {
     Object.assign(F, { zones: [], q: share.q, lieu: null, autour: null, lieuTxt: share.lieuTxt });
   }
   // the keyword's codes, in the engine's relevance order (one answer per keyword, kept for the visit; a failure keeps the list whole)
-  const kwLoad = (q) => cached(`kw|${q}`, () => api(`/api/search/codes?q=${encodeURIComponent(q)}`).then((d) => ({ q, codes: new Set(d.codes),
+  // owner, 2026-11-16: the académie of the stored profile (one the layer knows) goes with the keyword: the engine puts its
+  // formations first among EQUALLY relevant ones only. Never the place typed, a filter or « Je me réoriente »'s own académie.
+  const near = carteNear(CARTE_ACADS);
+  const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };
+  const kwLoad = (q) => cached(`kw|${q}|${near}`, () => api(`/api/search/codes?${kwQuery(q)}`).then((d) => ({ q, codes: new Set(d.codes),
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
