@@ -522,9 +522,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   campaign; no-store; one audience event, the cleaned words only); the place, the radius, every filter and the average stay in the
   browser (the layer carries `region`, `dep`, `dep_lib`). Filters = `<details class="dd">` dropdowns, one open at a time (Escape,
   outside click), a group marked only when it differs from its default, options counted with the other groups applied, one reset;
-  folded under "Filtrer (n actifs)" on a phone, list before the map there. Order unchanged (figures first, distance, the engine's
+  folded under "Filtrer (n actifs)" on a phone, list before the map there. NO filter field of the earlier pages may be lost
+  (owner, 2026-11-16): type, mention, statut, académie (its own dropdown, `CARTE_ACADS`), apprentissage, internat,
+  aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order unchanged (figures first, distance, the engine's
   relevance, name; never a figure). The home has no switch and no search field (door + hero link). Red team `redteam_recherche.py`
-  (RS1-RS8).
+  (RS1-RS9).
 - **Trust and compliance (sprint Q1, owner 2026-11-13).** Five pages from ONE source (`legal.py`): À propos, Contact, Mentions
   légales, Confidentialité, Accessibilité, served at `/<slug>` (indexable, sitemap, readable without JS) and to the app by
   `/api/page/<slug>` (`#/info/<slug>`); the footer links them on every page. Publisher = "M. N. HAJJI, à titre personnel", also

@@ -1217,10 +1217,14 @@ const carteInLieu = (f, L) => !L || (L.t === "region" ? f.region === L.v : L.t =
 const kwWords = (q) => foldText(q).split(/[^a-z0-9]+/).filter((w) => w.length > 1);
 // R3 (owner, 2026-11-12): the search's capacity, complementary phase and official-rate bands, the same limits (META.filtres)
 const CARTE_R3 = ["capacite", "complementaire", "taux"];
-const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];
+// owner, 2026-11-16: the académie list of the two earlier search pages stays a filter of its own (the place field reads it too)
+const CARTE_ACADS = [];                    // filled from the layer by the search page
+const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ...CARTE_GROUPS.slice(1),
+  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
+  if (g === "acad") return f.academie === o;
   if (g === "app") return o === "oui" ? !!f.apprentissage : !!f.initiale;   // a formation offering both has both labels
   if (g === "internat") return f.internat === o;
   if (g === "amenag") return o === "presentiel" ? (!f.distance || f.distance === "aucune") : o === "sport" ? !!f.amenag_sport : o === "art" ? !!f.amenag_art : f.distance === o;
@@ -1233,7 +1237,7 @@ function carteHas(f, g, o) {
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
 function carteFilter(rows, F, skip, kw) {
-  const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter((g) => g !== skip);
+  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter((g) => g !== skip);
   return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
     && carteInLieu(f, F.lieu)
     && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && kw.words.length > 0
@@ -1457,6 +1461,7 @@ async function viewCarte(dArg, mArg) {
   };
   const session = C.session, offre = C.offre_apprentissage;
   const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session };
+  CARTE_ACADS.splice(0, CARTE_ACADS.length, ...[...new Set(C.rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr")));
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
@@ -1474,7 +1479,6 @@ async function viewCarte(dArg, mArg) {
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
-  const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
   const home = villeDepart(), lieux = carteLieux(C.rows, home);          // the place list: every formation, whatever the type ticked

@@ -20,7 +20,10 @@
       shows on the pill; a town with a radius keeps cards within it; on a phone the dropdowns are folded under "Filtrer" and the list
       comes before the map; no JS error, no horizontal scroll
   RS7 wiring and docs: cache policy, release guard, README section, CLAUDE.md rule, test file and its CI duration
-  RS8 mutation test of RS1-RS5 and RS7 (mutants built in memory)
+  RS8 mutation test of RS1-RS5, RS7 and RS9 (mutants built in memory)
+  RS9 no filter field lost (owner, 2026-11-16): every field and option of the earlier list and map pages (type, mention, statut,
+      académie, apprentissage, internat, aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place
+      and radius) is a dropdown of the bar or a field of the search bar
 """
 from __future__ import annotations
 
@@ -419,6 +422,63 @@ def rs5(c: Ctx):
     return order_ok(c.js)
 
 
+# ------------------------------------------------------------------ RS9 no filter field lost
+# owner, 2026-11-16: "des drop down list sans pour autant supprimer des champs de filtrage". Every field of the two earlier
+# search pages (the list search up to sprint R3 and the map up to sprint R10) and its options, as they were shipped.
+EARLIER_FIELDS = {
+    "statut": ["public", "contrat", "prive_app", "prive"],                     # map R10 + list R3 "Type d'établissement"
+    "acad": None,                                                              # list "Académie" select + map "Académie" select
+    "app": ["non", "oui"],                                                     # list option "Apprentissage" + map group
+    "internat": ["mixte", "filles", "garcons"],                                # list option "Internat" + map group
+    "amenag": ["presentiel", "partielle", "totale", "sport", "art"],           # list options distance / sportifs / artistes + map
+    "select": ["oui", "non"],                                                  # list "Sélectivité" select + map group
+    "capacite": "vocab", "complementaire": "vocab", "taux": "vocab",           # sprint R3, list and map
+}
+FIELD_PROG = r"""
+const META = { filtres: JSON.parse(process.env.VOCAB) };
+CARTE_ACADS.push("Lyon", "<b>Paris</b>");
+process.stdout.write(JSON.stringify(carteGroups().map(([g, t, o]) => [g, t, o.map(([k]) => k)])));"""
+
+
+def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
+    from suptracker import filtres as FI
+    voc = FI.vocab()
+    prog = "\n".join(top(js, n) for n in ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "carteGroups")) + FIELD_PROG
+    exe = shutil.which("node")
+    if not exe:
+        return True, "node not installed"
+    r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(voc)})
+    if r.returncode:
+        return False, r.stderr[-400:]
+    groups = {g: (t, o) for g, t, o in json.loads(r.stdout)}
+    bad = []
+    for g, want in EARLIER_FIELDS.items():
+        if g not in groups:
+            bad.append(("a field of the earlier pages is gone", g))
+            continue
+        exp = ["Lyon", "<b>Paris</b>"] if want is None else [x["key"] for x in voc[g]] if want == "vocab" else want
+        if groups[g][1] != exp:
+            bad.append(("options", g, groups[g][1], exp))
+    vc = js[js.index("async function viewCarte("):js.index("\n// ---- ", js.index("async function viewCarte("))]
+    # the dropdowns themselves: every group above, the types, the mentions and the zones (with a profile)
+    if 'const groups = carteGroups().map(([gr, title, opts]) => dd(gr, title,' not in vc or 'dd("dips", "Type de formation"' not in vc \
+            or 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"' not in vc or 'const zones = ok ? dd("zones"' not in vc:
+        bad.append("a dropdown of the bar")
+    if "${groups[0]}${zones}${groups.slice(1).join(\"\")}" not in vc:
+        bad.append("a group left out of the bar")
+    # the bar's fields: keyword (map "Nom, ville" and the list search), place (map "Autour de", académie, région...), radius
+    if 'id="cs-q"' not in vc or 'id="cs-lieu"' not in vc or 'id="cs-km"' not in vc:
+        bad.append("a field of the search bar")
+    if "<b>Paris</b>" in vc or "box2(gr, o, esc(label))" not in vc:
+        bad.append("an option label unescaped")
+    return not bad, f"{len(EARLIER_FIELDS)} earlier fields kept as dropdowns + types, mentions, zones and the bar; problems {bad[:3]}"
+
+
+@check("RS9 no filter field lost: every field and option of the earlier list and map pages is a dropdown (or the bar's fields)")
+def rs9(c: Ctx):
+    return fields_ok(c, c.js)
+
+
 # ------------------------------------------------------------------ RS6 browser
 BROWSER = r"""
 const { chromium, devices } = require('playwright');
@@ -433,7 +493,7 @@ const base = process.argv[2];
   await p.goto(base + "/#/s/BTS%20NDRC"); await ready(); await p.waitForTimeout(1500);
   o.hash = await p.evaluate(() => location.hash); o.q = await p.$eval("#cs-q", (e) => e.value); o.kw = await count();
   o.storedQ = await p.evaluate(() => (JSON.parse(localStorage.getItem("carteFiltres2") || "{}") || {}).q);
-  await p.fill("#cs-lieu", "Nord (59)"); await p.click(".cs-go"); await p.waitForTimeout(2500); o.kwDep = await count();
+  await p.fill("#cs-lieu", "Nord (59)"); await p.$eval(".cs-go", (b) => b.click()); await p.waitForTimeout(2500); o.kwDep = await count();
   o.status = await p.$eval("#cs-status", (e) => e.textContent);
   o.dipCounts = await p.$$eval('details.dd[data-dd="dips"] .dd-panel label .muted', (xs) => xs.map((x) => Number(x.textContent.replace(/\D/g, ""))));
   // the dropdowns
@@ -447,10 +507,16 @@ const base = process.argv[2];
   o.kwDepPrive = await count();
   await p.click("h1"); const s5 = await isOpen("statut");
   o.dd = { s0, s1, s2, s3, s4, s5 };
-  await p.click("#dd-reset"); await p.waitForTimeout(3000); await ready();
+  await p.$eval("#dd-reset", (b) => b.click()); await p.waitForTimeout(3000); await ready();
+  // every dropdown on the bar (owner, 2026-11-16: no field of the earlier pages lost), then the académie one filters
+  o.summaries = await p.$$eval("#cfilters details.dd > summary", (xs) => xs.map((x) => x.textContent.trim()));
+  await p.fill("#cs-lieu", ""); await p.$eval(".cs-go", (b) => b.click()); await p.waitForTimeout(2500);
+  await p.click('details.dd[data-dd="acad"] > summary'); await p.$eval('details.dd[data-dd="acad"] input[data-o="Lille"]', (i) => i.click()); await p.waitForTimeout(1500);
+  o.kwLille = await count();
+  await p.$eval("#dd-reset", (b) => b.click()); await p.waitForTimeout(3000); await ready();
   // a town and its radius
   await p.fill("#cs-q", ""); await p.fill("#cs-lieu", "Lyon"); await p.dispatchEvent("#cs-lieu", "input");
-  o.km = await p.$eval(".cs-km", (e) => !e.hidden); await p.selectOption("#cs-km", "10"); await p.click(".cs-go"); await p.waitForTimeout(3000);
+  o.km = await p.$eval(".cs-km", (e) => !e.hidden); await p.selectOption("#cs-km", "10"); await p.$eval(".cs-go", (b) => b.click()); await p.waitForTimeout(3000);
   o.dists = await p.$$eval("#carte-items .rc-meta span", (s) => s.map((x) => x.textContent).filter((t) => / km$/.test(t)).map((t) => Number(t.replace(/\D/g, ""))));
   o.hs = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   o.leak = reqs.filter((u) => /Nord|\(59\)|Lyon|lieu=|lat=|lon=|km=/.test(u.replace(/^https?:\/\/[^/]+/, "")) && !/tile\.openstreetmap/.test(u));
@@ -511,7 +577,7 @@ def rs6(c: Ctx):
         return False, r.stderr[-800:]
     d = json.loads(r.stdout)
     o, bad = d["o"], []
-    want = {"kw": py_count(c, "BTS NDRC"), "kwDep": py_count(c, "BTS NDRC", ("dep", "59")),
+    want = {"kw": py_count(c, "BTS NDRC"), "kwDep": py_count(c, "BTS NDRC", ("dep", "59")), "kwLille": py_count(c, "BTS NDRC", ("academie", "Lille")),
             "kwDepPrive": py_count(c, "BTS NDRC", ("dep", "59"), ("public", "contrat", "prive_app", "prive"))}
     if o["hash"] != "#/carte" or o["q"] != "BTS NDRC" or o["storedQ"] != "BTS NDRC":
         bad.append(("the old link", o["hash"], o["q"]))
@@ -521,6 +587,10 @@ def rs6(c: Ctx):
     # the types offered are counted among what the keyword and the place keep (owner's screenshot: national totals before)
     if not o["dipCounts"] or sum(o["dipCounts"]) != want["kwDep"] or min(o["dipCounts"]) <= 0:
         bad.append(("type counts", o["dipCounts"], want["kwDep"]))
+    titles = ("Type de formation", "Types d'établissement", "Académie", "Apprentissage", "Internat", "Aménagements", "Sélectivité",
+              "Capacité", "Phase complémentaire", "Taux d'accès officiel")
+    if not all(any(s.startswith(t) for s in o["summaries"]) for t in titles):
+        bad.append(("a dropdown missing on the page", o["summaries"]))
     dd = o["dd"]
     # statut: three boxes ticked by default (no mark); ticking the paid one marks the group with its 4 ticked boxes
     if not (dd["s1"] and dd["s2"] == [False, True] and not dd["s3"] and dd["s4"][0] and dd["s4"][1].strip() == "4" and not dd["s5"] and dd["s0"] == ""):
@@ -590,6 +660,11 @@ JS_MUTANTS = [
     ("failure: the list emptied", "catch (e) { err = apiErrorText(e); }", "catch (e) { err = apiErrorText(e); kw = { codes: new Set(), rank: new Map(), words: [], interp: [], notes: [] }; }", "rs5"),
     ("a superseded answer kept (Codex)", "if (mine !== carteUI.kwTok || seq !== carteUI.seq", "if (seq !== carteUI.seq", "rs5"),
     ("unknown place unescaped", "Lieu non reconnu : « ${esc(carteUI.lieuBad)} »", "Lieu non reconnu : « ${carteUI.lieuBad} »", "rs5"),
+    ("the académie dropdown dropped (owner, 2026-11-16)", '["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ', "", "rs9"),
+    ("the apprenticeship group dropped", '  ["app", "Apprentissage", [["non", "Formations hors apprentissage"], ["oui", "Formations en apprentissage"]]],\n', "", "rs9"),
+    ("an aménagement option dropped", '["sport", "Aménagements pour sportifs de haut niveau"], ', "", "rs9"),
+    ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];", "];", "rs9"),
+    ("the mention dropdown dropped", 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"', 'const mens = false ? dd("mens", "Mention ou spécialité"', "rs9"),
 ]
 OTHER_MUTANTS = [
     ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
@@ -603,7 +678,7 @@ def rs8(c: Ctx):
     from suptracker import api
     from suptracker import legal as LG
     base = {"rs1": keyword_ok(c)[0], "rs2": places_ok(c, c.js)[0], "rs3": privacy_ok(c.js, LG.confidentialite())[0],
-            "rs4": shell_ok(c.html, c.js, c.css)[0], "rs5": order_ok(c.js)[0], "rs7": docs_ok(c)[0]}
+            "rs4": shell_ok(c.html, c.js, c.css)[0], "rs5": order_ok(c.js)[0], "rs7": docs_ok(c)[0], "rs9": fields_ok(c, c.js)[0]}
     if not all(base.values()):
         return False, f"the unmutated code fails {[k for k, v in base.items() if not v]}: mutants not counted"
     missed = []
@@ -633,7 +708,7 @@ def rs8(c: Ctx):
             missed.append(f"{name} (anchor gone)")
             continue
         m = c.js.replace(old, new)
-        run = {"rs2": lambda: places_ok(c, m), "rs3": lambda: privacy_ok(m, LG.confidentialite()), "rs4": lambda: shell_ok(c.html, m, c.css),
+        run = {"rs9": lambda: fields_ok(c, m), "rs2": lambda: places_ok(c, m), "rs3": lambda: privacy_ok(m, LG.confidentialite()), "rs4": lambda: shell_ok(c.html, m, c.css),
                "rs5": lambda: order_ok(m)}[chk]
         try:
             caught = not run()[0]

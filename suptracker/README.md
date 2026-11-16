@@ -3419,6 +3419,13 @@ bar (keyword and/or town, département, région) and every map filter as a dropd
   at a time, Escape or a click elsewhere closes it, a ticked box keeps it open, the pill shows the ticked count when the
   group differs from its default, and "Réinitialiser les filtres" resets them. On a phone the bar is folded under
   "Filtrer (n actifs)" and the list comes before the map, 10 cards a page (the cards carry three figures);
+- **no filter field lost** (owner, 2026-11-16: "des drop down list sans pour autant supprimer des champs de filtrage"): every
+  field of the two earlier pages is a dropdown or a field of the bar. List search (up to R3): Type, Académie, Sélectivité,
+  options Internat / Apprentissage / À distance / Sportifs / Artistes, Type d'établissement, Capacité, Phase complémentaire,
+  Taux d'accès officiel, Zone. Map (up to R10): Type de diplôme, Mention, Nom ou ville (now the keyword), Académie, Autour de +
+  Rayon (now the place field), Votre zone, Types d'établissement, Apprentissage, Internat, Aménagements, Sélectivité and the R3
+  bands. The académie, at first only typed in the place field, is again a dropdown of its own (several at once, counted like
+  the others). Red team RS9 checks every field and option, RS6 checks the dropdowns on the page and the académie count;
 - **the order** is unchanged: published figures first, then distance around a town, then the engine's relevance, then the
   name; never a figure;
 - **the home** has no search bar and no list/map switch: the "Je cherche une formation" door and the hero's link open the
@@ -3442,5 +3449,6 @@ Red team `scripts/redteam_recherche.py` (RS1-RS8):
   no request carries the place; the dropdowns open one at a time, close on Escape and outside, keep a ticked box; a town with
   10 km keeps cards within 10 km; on a phone the filters are folded and the list comes first; no JS error, no scroll.
 - RS7: plumbing. RS8: the mutation test (each mutant caught).
+- RS9: every field and option of the earlier list and map pages is a dropdown or a field of the bar (owner, 2026-11-16).
 The red teams of the old page were moved to the new one: carte C3/C7, filtres FI3/FI5-FI8, visuel VI5/VI8-VI10, ux X5/X6/X14,
 mobile MB1, a11y A1/A2, navigation U1, langage LA2, lycée Y8.

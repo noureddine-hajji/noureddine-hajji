@@ -424,7 +424,7 @@ def page_ok(c: Ctx):
         return True, "node not installed"
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_R3", "carteGroups", "zoneHelp", "zoneShape",
+    parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "carteGroups", "zoneHelp", "zoneShape",
                                   "ZONE_FILLED", "zoneMark", "zonePillHtml", "ZONE_RULES")]
     prog = helpers + "\n" + zones + "\n" + "\n".join(parts) + r"""
 const META = { filtres: JSON.parse(process.env.VOCAB) };
@@ -600,14 +600,14 @@ PY_MUTANTS = [
 JS_MUTANTS = [
     ("page band upper limit included", "(x.max === null || x.max === undefined || v < x.max)", "(x.max === null || x.max === undefined || v <= x.max)", ("fi1", "fi6")),
     ("map complementary phase from candidates", '(o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0)', '(o === "oui" ? f.acc_pc >= 0 : f.acc_pc === 0)', ("fi6",)),
-    ("map ignores the new groups", '  const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
+    ("map ignores the new groups", '  const groups = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter',
      '  const groups = ["statut", "app", "internat", "amenag", "select", "zones"].filter', ("fi6",)),
     ("profile sent with the keyword", "api(`/api/search/codes?q=${encodeURIComponent(q)}`)", "api(`/api/search/codes?q=${encodeURIComponent(q)}&${sq}`)", ("fi3",)),
     ("no help text", '  complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",',
      '  complementaire: "Des places en phase complémentaire.",', ("fi5",)),
     ("zone group shown without a profile", '    const zones = ok ? dd("zones"', '    const zones = true ? dd("zones"', ("fi5",)),
     ("help texts not in the dropdowns", '${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}', "", ("fi5",)),
-    ("a shared group left out of the dropdowns", "const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.map(", "const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.slice(1).map(", ("fi5",)),
+    ("a shared group left out of the dropdowns", "...CARTE_GROUPS.slice(1),\n  ...CARTE_R3.map(", "...CARTE_GROUPS.slice(1),\n  ...CARTE_R3.slice(1).map(", ("fi5",)),
 ]
 
 
