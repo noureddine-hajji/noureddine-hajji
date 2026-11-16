@@ -52,6 +52,7 @@ from . import vie as VIE
 from . import tension as TS
 from . import apprentissage as APP
 from . import aides as AID
+from . import jpo as JPO
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -730,7 +731,9 @@ def formation(cod: str, session: int | None = None):
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
-            "appel": AP.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "appel": AP.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # the establishment's open days of the season (Onisep, checked on its own site), else a period from past seasons
+            "jpo": JPO.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:

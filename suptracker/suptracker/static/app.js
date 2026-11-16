@@ -639,7 +639,7 @@ function guideHtml(G, c) {
   <ol class="guide">${G.steps.map((x, i) => `<li class="card guide-step${x.key === G.next ? " next" : ""}">
     <div class="guide-head"><span class="guide-num" aria-hidden="true">${x.statut === "fait" ? ICONS.check : i + 1}</span><h2>${esc(x.titre)}</h2><span class="badge">${GUIDE_STATUT[x.statut]}</span></div>
     ${body[x.key]}</li>`).join("")}</ol>
-  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi.</p>`;
+  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi. <a href="#/info/nos-chiffres">Nos chiffres et ceux de Parcoursup</a></p>`;
 }
 let guideSeq = 0;
 async function viewGuide() {
@@ -1937,6 +1937,7 @@ function summaryBand(r, d) {
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
+    ${jpoLine(d.jpo)}
     ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
@@ -2039,6 +2040,49 @@ function recoCard(rc) {
     <p>${recoPill(rc.categorie, rc.libelle, rc.explication)}</p>
     <p>${esc(rc.explication)}</p>${lab}${brs ? `<p class="small">${esc(brs)}</p>` : ""}
     <p class="muted small">Lu sur la fiche Parcoursup${rc.session ? ` de la campagne ${esc(rc.session)}` : ""}. La fiche fait foi.</p></div>`;
+}
+// owner, 2026-11-16: the establishment's open days (jpo.py). Dates of the season as Onisep lists them, checked on the establishment's
+// own site; none this season = a PERIOD from the past seasons (« aux alentours de mi-janvier »), never a day; passed dates said
+const jpoUrl = (u) => (typeof u === "string" && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : null);
+function jpoNext(j) {
+  const today = localIso();
+  return ((j && j.dates) || []).find((e) => (e.fin || e.date) >= today) || null;
+}
+function jpoWhen(e) {
+  return e.fin ? `du ${frDate(e.date)} au ${frDate(e.fin)}` : frDate(e.date);
+}
+function jpoLine(j) {
+  if (!j) return "";
+  const n = jpoNext(j), dates = j.dates || [];
+  const txt = n ? `Portes ouvertes : ${esc(jpoWhen(n))}`
+    : dates.length ? `Portes ouvertes ${esc(j.saison.annees)} : déjà passées`
+    : j.environ ? `Portes ouvertes : ${esc(j.environ.texte)}, d'après les années passées`
+    : "";
+  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="cout">${txt} →</button></p>` : "";
+}
+function jpoCard(j) {
+  if (!j) return "";
+  const today = localIso(), dates = j.dates || [];
+  const noms = [...new Set((j.etablissements || []).map((e) => e.nom).filter(Boolean))];
+  const src = (e) => e.source === "onisep_site" ? "Onisep, date retrouvée sur le site de l'établissement"
+    : e.source === "onisep" ? "Onisep"
+    : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
+  const li = (e) => {
+    const past = (e.fin || e.date) < today;
+    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
+      <span class="small muted"> · ${src(e)}${e.source !== "site" && jpoUrl(e.voir) ? ` · <a href="${esc(jpoUrl(e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
+  };
+  const body = dates.length ? `<ul class="jpo-list">${dates.map(li).join("")}</ul>`
+    : j.environ ? `<p>Aucune date n'est encore annoncée pour ${esc(j.saison.annees)}. Les années passées (${esc(j.environ.annees.join(", "))}), elles ont eu lieu <strong>${esc(j.environ.texte)}</strong>.</p>
+      <p class="small">C'est une période, pas une date : à confirmer sur le site de l'établissement.</p>`
+    : `<p class="muted">Aucune date n'est publiée pour l'instant, ni par l'Onisep ni sur le site de l'établissement.</p>`;
+  const links = (j.etablissements || []).filter((e) => jpoUrl(e.onisep_url))
+    .map((e) => `<a href="${esc(jpoUrl(e.onisep_url))}" target="_blank" rel="noopener">fiche Onisep${noms.length > 1 && e.nom ? ` (${esc(e.nom)})` : ""} ↗</a>`);
+  const sites = (j.sites_verifies || []).filter((x) => jpoUrl(x.url));
+  return `<div class="card" id="jpo"><h2>Les portes ouvertes</h2>
+    ${noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
+    ${body}
+    <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
@@ -2312,7 +2356,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -4646,7 +4690,7 @@ async function viewListe(rawCodes, rawProfile) {
 // ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages and the contact form ----
 // The five pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité) come from legal.py, the same HTML as their
 // server page (/a-propos…). The contact form sends only what it shows; a message that was not stored is said, never a fake success.
-const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide"];   // "aide": sprint Q4
+const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres"];   // "aide": sprint Q4; "nos-chiffres": owner, 2026-11-16
 const CONTACT_TYPES = [["erreur", "Une erreur dans un chiffre ou un texte"], ["question", "Une question sur le site"],
   ["suggestion", "Une suggestion"], ["autre", "Autre chose"]];
 const CONTACT_MAX = 1000, CONTACT_MIN = 10;
@@ -4752,7 +4796,7 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
-  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide)\/?$/.exec(pathname);   // sprint Q1, Q4
+  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres)\/?$/.exec(pathname);   // sprint Q1, Q4
   if (i) return `/info/${i[1]}`;
   return null;
 }

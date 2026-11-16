@@ -655,6 +655,17 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   sentence, no Crous table; overseas = +majoration on every échelon. Mention, bac route and académie are compared in the browser
   (`aidesHint`), never sent. vie.py's CVEC and meal must equal the official pages. Page links: `.gouv.fr` https only.
   Red team `redteam_aides.py` (AI1-AI8).
+- **Nos chiffres et ceux de Parcoursup (owner, 2026-11-16).** `chiffres.py`, a `legal.SLUGS` page (`/nos-chiffres`, `#/info/nos-chiffres`):
+  what the fiche shows (global figures; « selon mon profil » = terminale only, by bac type, not comparable, as the fiche says), why no
+  probability, what the site adds, why two figures may differ; the fiche prevails. Every red team listing the trust pages lists it.
+- **Journées portes ouvertes (owner, 2026-11-16).** `jpo.py`, workflow `suptracker-jpo` (daily; `jpo_fetch.py`): Onisep Idéo-Structures
+  sup + secondaire (ODbL credit on the card), every changed version kept, older ones from the Internet Archive; the establishments'
+  sites (Onisep « voir » link, cartographie site; robots.txt, masked lines around « portes ouvertes » only). Season = 1 September Y-1 to
+  1 May Y included (owner); the season shown contains today else the next. A future date must be in the LATEST Onisep version (or on
+  the site); a passed date of the season is shown « passée ». A site date needs its year or a TRUE weekday. No date = a PERIOD by
+  thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
+  « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
+  `redteam_jpo.py` (J1-J10).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

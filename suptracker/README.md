@@ -3569,3 +3569,51 @@ blank browser gives the same 13 formations); `redteam_filtres.py` FI2-FI4 now ch
 parameter, a profile sent changes nothing and is not recorded, nothing sorted by a figure; 13 mutants);
 `redteam_visuel.py` VI6 and `redteam_moyenne.py` check that the search reads no profile.
 
+
+## Nos chiffres et ceux de Parcoursup (owner, 2026-11-16)
+
+A page that explains, in plain words, how the site's figures relate to those of the Parcoursup fiche, and why the site never gives a
+probability of admission. One source (`suptracker/chiffres.py`), served like the trust pages of `legal.py`: `/nos-chiffres`
+(indexable, readable without JavaScript, in the sitemap) and `/api/page/nos-chiffres` (`#/info/nos-chiffres`), linked from the footer
+and from the guide "Construire ma liste".
+
+- **What the fiche shows**, as read on the live fiches kept in `data/rapports/live/fiches_live/` (checked on 16 November 2026): the
+  global figures of the last campaign for every candidate, and the block « accès à la formation selon mon profil », which counts only
+  lycéens de terminale by type of bac and which the fiche itself says is not comparable with the first block.
+- **Why no probability**: the public data describe past admits, never a candidate's file; the site shows shares of admits and zones,
+  every figure with its source, every computed figure labelled « estimation ».
+- **What the site adds**: four campaigns side by side with a range for the next one, the jury's public report by pair of specialties,
+  the fiche's evaluation grid, Plan B, the list read at once, the cost of living and the aids.
+- **When two figures differ**: they may not count the same people (all candidates or terminale only) or the same year; the official
+  rate is shown as published. The Parcoursup fiche prevails.
+
+Red teams: the page is one of `legal.SLUGS` (conformité QC1-QC11, langage LA1-LA8, SEO sitemap, navigation, scale S1, security SE1).
+
+## Journées portes ouvertes (owner, 2026-11-16)
+
+Each formation page shows the open days of its establishment: a line in « L'essentiel » (the next date, or the usual period) and a
+card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
+
+**Sources** (`suptracker/jpo.py`, fetched by the `suptracker-jpo` workflow, blocked in the development sandbox):
+- Onisep, *Idéo-Structures d'enseignement supérieur* and *d'enseignement secondaire* (the lycées that host BTS and CPGE), ODbL. The
+  field « journées portes ouvertes » reads « le 06/02/2027 de 09h00 à 16h00 (sur inscription) voir https://… | le … ». Every version
+  whose content changed is kept in `data/jpo/onisep/` (`versions.csv`); older versions are read from the Internet Archive (CDX, one
+  capture a day, each capture read once: `archive_lues.txt`).
+- The establishment's own site: the Onisep « voir » link and the cartographie's « site internet », visited oldest check first
+  (robots.txt honoured, one request per host a second apart, at most 4 pages on the same site). Only the lines around « portes
+  ouvertes » / « JPO » are kept (e-mail addresses and phone numbers masked) in `data/jpo/sites/extraits.csv.gz`.
+
+**Rules** (owner's words, fixed in code, red team `scripts/redteam_jpo.py` J1-J10):
+- A date is shown only if it falls in the season **1 September Y-1 - 1 May Y** (both included). The season shown contains today, else
+  it is the next one: on 16 November 2026, from 1 September 2026 to 1 May 2027. A date of 22 May 2027 is never shown.
+- A future date must be in the **latest** Onisep version (or on the site): a date Onisep removed is never announced. A passed date of
+  the season from an older version is shown as « passée » (Onisep drops passed open days).
+- A date read on Onisep and on the site says « date retrouvée sur le site de l'établissement »; a site-only date says where and when it
+  was read. A site date counts only with its year printed, or with its weekday printed and true for the season (« samedi 31 janvier »
+  is refused in 2027: a Sunday, so another year's page).
+- **No date this season**: the dates of at most 3 past seasons give a period by thirds of the month (1-9 « début », 10-20 « mi- »,
+  21-31 « fin »): « aux alentours de mi-janvier », with the years read, « c'est une période, pas une date : à confirmer ». Never a day.
+- Formations are linked by **exact UAI** (the SIES UAI of the latest campaign, then the cartographie UAI), never by name. The open days
+  are the establishment's: the card names it.
+
+The warehouse fingerprint takes the Onisep versions, the site extracts and each site's status, never a check date alone.

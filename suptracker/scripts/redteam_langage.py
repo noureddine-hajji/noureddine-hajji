@@ -361,7 +361,7 @@ def la5(c: Ctx):
         probs.append("help page not registered in legal.py (slug, footer)")
     if c.html.count('href="#/info/aide"') < 2:
         probs.append("help page not in both menus of index.html")
-    if '"aide"' not in defn(c.js, "INFO_SLUGS") or "|aide)" not in defn(c.js, "pathRoute"):
+    if '"aide"' not in defn(c.js, "INFO_SLUGS") or not re.search(r"\|aide[|)]", defn(c.js, "pathRoute")):
         probs.append("help page not opened by the app (INFO_SLUGS, pathRoute)")
     pol = CA.policy("/aide") if hasattr(CA, "policy") else None
     if pol is not None and "PAGE" not in str(pol).upper() and "public" not in str(pol).lower():

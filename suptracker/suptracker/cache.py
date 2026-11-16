@@ -74,7 +74,7 @@ POLICY = [
     (r"/api/contact/messages", NO_STORE, "sprint Q1: the messages received (owner only, token)"),
     (r"/api/contact/messages/[^/]+", NO_STORE, "sprint Q1: deleting one message (owner only, token)"),
     (r"/api/page/[^/]+", PUBLIC, "sprint Q1: a trust and compliance page (legal.py, no parameter)"),
-    (r"/a-propos|/contact|/mentions-legales|/confidentialite|/accessibilite|/aide", PAGE, "sprint Q1: trust and compliance pages; Q4: help page"),
+    (r"/a-propos|/contact|/mentions-legales|/confidentialite|/accessibilite|/aide|/nos-chiffres", PAGE, "sprint Q1: trust and compliance pages; Q4: help page; nos-chiffres (owner, 2026-11-16)"),
     (r"/static/.+", "asset", "front-end files"),
 ]
 _COMPILED = [(re.compile(f"^{p}$"), pol, why) for p, pol, why in POLICY]
