@@ -368,30 +368,71 @@ def univ_of(label: str) -> tuple[str | None, str | None]:
     return m.group(1), m.group(2)
 
 
-def build(con, d: Path = DIR) -> dict:
-    """core.jpo_date (every date read, with provenance), core.jpo_etab (latest Onisep establishments), core.jpo_site (sites
-    checked), core.jpo_meta (versions and audit)."""
+TABLES = ("jpo_date", "jpo_etab", "jpo_site", "jpo_meta")
+
+
+def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
+    """jpo_date (every date read, with provenance), jpo_etab (latest Onisep establishments and their university), jpo_site
+    (sites checked), jpo_meta (versions and audit). Written in the file BESIDE the warehouse (rapport_textes.duckdb, like the
+    communes): in the warehouse they pushed it over its 95 MB budget (2026-11-16). Tests without that file keep them in core."""
     data = read(d) if d.exists() else {"dates": [], "etabs": {}, "sites": {}, "audit": ["data/jpo missing"], "versions": []}
-    con.execute("""CREATE OR REPLACE TABLE core.jpo_date (uai VARCHAR, debut DATE, fin DATE, heures VARCHAR, remarque VARCHAR,
-                   virtuel BOOLEAN, ref_url VARCHAR, source VARCHAR, as_of VARCHAR, latest BOOLEAN)""")
     rows = sorted({(r["uai"], r["debut"], r["fin"], r["heures"], r["remarque"], r["virtuel"], r["ref_url"], r["source"], r["as_of"],
                     r["latest"]) for r in data["dates"]}, key=lambda t: tuple("" if x is None else str(x) for x in t))
-    if rows:
-        con.executemany("INSERT INTO core.jpo_date VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(r) for r in rows])
-    con.execute("""CREATE OR REPLACE TABLE core.jpo_etab (uai VARCHAR, nom VARCHAR, onisep_url VARCHAR, modif VARCHAR, kind VARCHAR,
-                   univ_uai VARCHAR, univ_nom VARCHAR)""")
-    if data["etabs"]:
-        con.executemany("INSERT INTO core.jpo_etab VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        [[u, e["nom"], e["onisep_url"], e["modif"], e["kind"], e.get("univ_uai"), e.get("univ_nom")]
-                         for u, e in sorted(data["etabs"].items())])
-    con.execute("CREATE OR REPLACE TABLE core.jpo_site (uai VARCHAR, url VARCHAR, status VARCHAR, checked VARCHAR)")
+    erows = [[u, e["nom"], e["onisep_url"], e["modif"], e["kind"], e.get("univ_uai"), e.get("univ_nom")]
+             for u, e in sorted(data["etabs"].items())]
     srows = [[u, s["url"], s["status"], s["checked"]] for u, ss in sorted(data["sites"].items()) for s in ss]
-    if srows:
-        con.executemany("INSERT INTO core.jpo_site VALUES (?, ?, ?, ?)", srows)
-    con.execute("CREATE OR REPLACE TABLE core.jpo_meta (data VARCHAR)")
-    con.execute("INSERT INTO core.jpo_meta VALUES (?)",
-                [json.dumps({"versions": data["versions"], "audit": data["audit"]}, ensure_ascii=False)])
-    return {"dates": len(rows), "etablissements": len(data["etabs"]), "audit": data["audit"]}
+
+    def write(c, p):
+        c.execute(f"""CREATE OR REPLACE TABLE {p}jpo_date (uai VARCHAR, debut DATE, fin DATE, heures VARCHAR, remarque VARCHAR,
+                      virtuel BOOLEAN, ref_url VARCHAR, source VARCHAR, as_of VARCHAR, latest BOOLEAN)""")
+        if rows:
+            c.executemany(f"INSERT INTO {p}jpo_date VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(r) for r in rows])
+        c.execute(f"""CREATE OR REPLACE TABLE {p}jpo_etab (uai VARCHAR, nom VARCHAR, onisep_url VARCHAR, modif VARCHAR, kind VARCHAR,
+                      univ_uai VARCHAR, univ_nom VARCHAR)""")
+        if erows:
+            c.executemany(f"INSERT INTO {p}jpo_etab VALUES (?, ?, ?, ?, ?, ?, ?)", erows)
+        c.execute(f"CREATE OR REPLACE TABLE {p}jpo_site (uai VARCHAR, url VARCHAR, status VARCHAR, checked VARCHAR)")
+        if srows:
+            c.executemany(f"INSERT INTO {p}jpo_site VALUES (?, ?, ?, ?)", srows)
+        c.execute(f"CREATE OR REPLACE TABLE {p}jpo_meta (data VARCHAR)")
+        c.execute(f"INSERT INTO {p}jpo_meta VALUES (?)",
+                  [json.dumps({"versions": data["versions"], "audit": data["audit"]}, ensure_ascii=False)])
+
+    if textes is None or not Path(textes).exists():
+        write(con, "core.")
+    else:
+        import duckdb
+        from . import rapports as RP
+        for t in TABLES:
+            con.execute(f"DROP TABLE IF EXISTS core.{t}")         # never a stale copy in the warehouse beside the file's
+        RP._texts_con.cache_clear()                                # no read-only handle on the file while it is written
+        tc = duckdb.connect(str(textes))
+        try:
+            write(tc, "")
+            tc.execute("CHECKPOINT")
+        finally:
+            tc.close()
+    return {"dates": len(rows), "etablissements": len(erows), "audit": data["audit"]}
+
+
+def _src(con):
+    """(cursor, table prefix) where the open days live: the warehouse (tests) or the file beside it; (None, None) before."""
+    try:
+        con.execute("SELECT 1 FROM core.jpo_date LIMIT 0")
+        return con, "core."
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from . import rapports as RP
+        db = con.execute("SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()
+        f = RP.textes_path(Path(db[0])) if db and db[0] else None
+        if f is None or not f.exists():
+            return None, None
+        c = RP._texts_con(str(f), f.stat().st_mtime_ns).cursor()
+        c.execute("SELECT 1 FROM jpo_date LIMIT 0")
+        return c, ""
+    except Exception:  # noqa: BLE001  (a file built before the open days)
+        return None, None
 
 
 # ------------------------------------------------------------------------------------------------------------------- serving
@@ -416,27 +457,24 @@ def _uais(con, cod: str) -> list[str]:
 
 
 def _has(con) -> bool:
-    try:
-        con.execute("SELECT 1 FROM core.jpo_date LIMIT 0")
-        return True
-    except Exception:  # noqa: BLE001  (a warehouse built before the open days)
-        return False
+    return _src(con)[0] is not None
 
 
 def for_uais(con, uais: list[str], today: date) -> dict | None:
     """The block of a list of establishments for the season of `today` (see the module's rules)."""
-    if not uais or not _has(con):
+    c, p = _src(con)
+    if not uais or c is None:
         return None
     s = current_season(today)
     w0, w1 = window(s)
     ph = ", ".join("?" * len(uais))
-    rows = con.execute(f"""SELECT uai, debut, fin, heures, remarque, virtuel, ref_url, source, as_of, latest FROM core.jpo_date
-                           WHERE uai IN ({ph})""", uais).fetchall()
+    rows = c.execute(f"""SELECT uai, debut, fin, heures, remarque, virtuel, ref_url, source, as_of, latest FROM {p}jpo_date
+                         WHERE uai IN ({ph})""", uais).fetchall()
     etabs = {r[0]: {"nom": r[1], "onisep_url": https(r[2]), "modif": r[3]}
-             for r in con.execute(f"SELECT uai, nom, onisep_url, modif FROM core.jpo_etab WHERE uai IN ({ph})", uais).fetchall()}
+             for r in c.execute(f"SELECT uai, nom, onisep_url, modif FROM {p}jpo_etab WHERE uai IN ({ph})", uais).fetchall()}
     checked = {}
-    for u, url, status, when in con.execute(f"SELECT uai, url, status, checked FROM core.jpo_site WHERE uai IN ({ph})",
-                                            uais).fetchall():
+    for u, url, status, when in c.execute(f"SELECT uai, url, status, checked FROM {p}jpo_site WHERE uai IN ({ph})",
+                                          uais).fetchall():
         if status == "ok" and (u not in checked or when > checked[u]["checked"]):
             checked[u] = {"url": https(url), "checked": when}
     cur, past = {}, []
@@ -498,10 +536,13 @@ def university(con, uais: list[str]) -> tuple[str, str] | None:
     establishment itself when Onisep names a university attachment for it; None otherwise."""
     if not uais:
         return None
+    c, p = _src(con)
+    if c is None:
+        return None
     try:
         ph = ", ".join("?" * len(uais))
-        rows = con.execute(f"SELECT uai, univ_uai, univ_nom FROM core.jpo_etab WHERE uai IN ({ph})", uais).fetchall()
-    except Exception:  # noqa: BLE001  (a warehouse before the university link)
+        rows = c.execute(f"SELECT uai, univ_uai, univ_nom FROM {p}jpo_etab WHERE uai IN ({ph})", uais).fetchall()
+    except Exception:  # noqa: BLE001  (a file before the university link)
         return None
     by = {u: (uu, un) for u, uu, un in rows}
     for u in uais:
@@ -530,8 +571,9 @@ def for_formation(con, cod: str, today: date | None = None) -> dict | None:
 
 
 def meta(con) -> dict:
+    c, p = _src(con)
     try:
-        r = con.execute("SELECT data FROM core.jpo_meta").fetchone()
+        r = c.execute(f"SELECT data FROM {p}jpo_meta").fetchone() if c is not None else None
     except Exception:  # noqa: BLE001
         return {}
     return json.loads(r[0]) if r else {}

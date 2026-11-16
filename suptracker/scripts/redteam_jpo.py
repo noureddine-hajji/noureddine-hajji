@@ -579,8 +579,8 @@ def j8(c: Ctx):
     data = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
     if "data/jpo/onisep data/jpo/sites/extraits.csv.gz" not in data or "cut -d, -f1,3 data/jpo/sites/etat.csv" not in data:
         bad.append("the warehouse fingerprint ignores data/jpo (or counts a check date)")
-    if "jpo.build(con)" not in (ROOT / "suptracker" / "build.py").read_text():
-        bad.append("build")
+    if "jpo.build(con, textes=rapports.textes_path(db_path))" not in (ROOT / "suptracker" / "build.py").read_text():
+        bad.append("build (beside the warehouse: its 95 MB budget)")
     if '"jpo": JPO.for_formation(' not in (ROOT / "suptracker" / "api.py").read_text():
         bad.append("API")
     if "**/data/jpo/" not in (ROOT / ".vercelignore").read_text():
@@ -614,16 +614,17 @@ def j9(c: Ctx):
         return True, "data/jpo has no Onisep version yet (run the suptracker-jpo workflow)"
     import duckdb
     con = duckdb.connect(str(c.db), read_only=True)
-    try:
-        n = con.execute("SELECT count(*) FROM core.jpo_date").fetchone()[0]
-    except Exception:  # noqa: BLE001
-        return False, "the warehouse has no core.jpo_date: rebuild it"
+    src, p = J._src(con)
+    if src is None:
+        return False, "neither the warehouse nor the file beside it has the open days: rebuild it"
+    if p == "core.":
+        return False, "the open days are in the warehouse, not in the file beside it (95 MB budget)"
+    n = src.execute("SELECT count(*) FROM jpo_date").fetchone()[0]
     mem = duckdb.connect()
     mem.execute("CREATE SCHEMA core")
     J.build(mem, ROOT / "data" / "jpo")
-    q = "SELECT * FROM core.jpo_date ORDER BY ALL"
-    if con.execute(q).fetchall() != mem.execute(q).fetchall():
-        return False, "the warehouse's open days differ from data/jpo: rebuild the warehouse"
+    if src.execute("SELECT * FROM jpo_date ORDER BY ALL").fetchall() != mem.execute("SELECT * FROM core.jpo_date ORDER BY ALL").fetchall():
+        return False, "the open days built differ from data/jpo and data/fiches: rebuild the warehouse"
     today = date.today()
     s = J.current_season(today)
     w0, w1 = J.window(s)

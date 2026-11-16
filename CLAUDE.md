@@ -667,7 +667,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   has some (sites show other campuses: first real run), is added « à vérifier » only where Onisep has none, never from an agenda
   page (> 4 dates a season). The formation's own fiche texts (data/fiches, attendus complémentaires / conseils / info) are read the
   same way (mostly last year's dates: the period); no date of its own = its UNIVERSITY's (Onisep « université de rattachement »,
-  a university only), named « Université X » (owner, 2026-11-16). No date = a PERIOD by
+  a university only), named « Université X » (owner, 2026-11-16). The jpo_* tables live in rapport_textes.duckdb (`jpo._src`), never in the
+  warehouse (it went to 95.7 MB with them). No date = a PERIOD by
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
   « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
   `redteam_jpo.py` (J1-J10).

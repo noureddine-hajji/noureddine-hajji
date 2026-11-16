@@ -3635,4 +3635,6 @@ card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
 - Formations are linked by **exact UAI** (the SIES UAI of the latest campaign, then the cartographie UAI), never by name. The open days
   are the establishment's: the card names it.
 
-The warehouse fingerprint takes the Onisep versions, the site extracts and each site's status, never a check date alone.
+The warehouse fingerprint takes the Onisep versions, the site extracts and each site's status, never a check date alone. The tables (`jpo_date`, `jpo_etab`,
+`jpo_site`, `jpo_meta`) are written in `rapport_textes.duckdb` beside the warehouse: in the warehouse they pushed it to 95.7 MB, over
+its 95 MB budget (first data build, 2026-11-16).

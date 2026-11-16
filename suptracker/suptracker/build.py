@@ -45,7 +45,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
         vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         aides.build(con)                   # sprint F: student aids read from the official pages (data/aides)
-        jpo.build(con)                     # open days: Onisep versions and the establishments' sites (data/jpo)
+        jpo.build(con, textes=rapports.textes_path(db_path))   # open days (data/jpo, data/fiches): beside the warehouse
         tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
