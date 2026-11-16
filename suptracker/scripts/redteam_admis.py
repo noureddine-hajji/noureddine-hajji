@@ -255,9 +255,8 @@ def h4(c: Ctx):
 @check("H5 wiring and design: every list renders the label, the summary renders the bar, own tokens in both themes")
 def h5(c: Ctx):
     js = c.js
-    # R4: the search result is drawn by resultCard, used by the search page
-    search = "${offerBadges(r, true)}${autresBadge(r)}" in block(js, "function resultCard(", "async function viewSearch") \
-        and "${d.results.map(resultCard).join(\"\")}" in block(js, "async function viewSearch", "function suggestLycee") if "function resultCard(" in js else False
+    # sprint H: the search results ARE the map list's cards (carteCard, below); the old list page is gone
+    search = "function resultCard(" not in js and "carteList(listed, ctx)" in js
     # R10: one card for the map's list and the pinned formation (carteCard)
     carte = block(js, "function carteCard(", "function carteList(")
     carte_ok = carte.count("${autresBadge(f)}") == 1 and "carteCard(f, ctx, false)" in js and "carteCard(f, ctx, true)" in js
@@ -297,7 +296,7 @@ JS_MUTANTS = [
     ("session unescaped", "Qui sont les admis ${esc(a.session)} ?", "Qui sont les admis ${a.session} ?"),
     ("scope of the mentions dropped", "Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.", ""),
     ("bar dropped from the summary", "    ${admisBar(d.admis)}\n", "\n"),
-    ("label dropped from the search", "${offerBadges(r, true)}${autresBadge(r)}", "${offerBadges(r, true)}"),
+    ("label dropped from the search cards", "${voieBadges(f)}${autresBadge(f)}", "${voieBadges(f)}"),
     ("label dropped from Mes vœux", "${autresBadge(v)}`;", "`;"),
     ("comparator row dropped", '    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],\n', ""),
     ("chance wording", "Néo-bacheliers : ils passaient le bac", "Vous serez admis : ils passaient le bac"),

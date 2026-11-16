@@ -26,6 +26,7 @@ PAGE = "public, max-age=0, must-revalidate, s-maxage=86400"
 
 # (path pattern, policy, why); the first match wins. `None` keeps what the route sets itself.
 POLICY = [
+    (r"/api/search/codes", NO_STORE, "owner, 2026-11-15: the keyword of the search page; records a search event"),
     (r"/api/search", NO_STORE, "records a search event"),
     (r"/api/e", NO_STORE, "audience beacon"),
     (r"/api/voeux", NO_STORE, "the student's personal list: never kept by a shared cache"),

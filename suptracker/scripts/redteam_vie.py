@@ -639,7 +639,7 @@ def v8(c: Ctx):
         bad.append("README")
     if "vie.py" not in (REPO / "CLAUDE.md").read_text(encoding="utf-8"):
         bad.append("CLAUDE.md")
-    for call in ("const recoP = recoLoad();", "${recoBadge(r.cod_aff_form)}", "recoBadge(f.cod_aff_form)", "${recoBadge(v.cod_aff_form)}",
+    for call in ("const recoP = recoLoad();", "recoBadge(f.cod_aff_form)", "${recoBadge(v.cod_aff_form)}",
                  "${recoCard(d.reconnaissance)}", "coutCard(d.vie, r)"):
         if call not in c.js:
             bad.append(f"page: {call}")

@@ -406,7 +406,7 @@ process.stdout.write(JSON.stringify(cases.map(([p, h]) => pathRoute(p, h))));"""
         return False, r.stderr[-300:]
     got = json.loads(r.stdout)
     want = ["/f/2882", "/f/2882", "/metiers/MET.798", None, None, None, None, None, "/f/2882", None]
-    rt = js[js.index("async function route()"):js.index("document.getElementById(\"search\").onsubmit")]
+    rt = js[js.index("async function route()"):js.index("window.addEventListener(\"hashchange\", route);")]   # owner, 2026-11-15: no top bar
     wired = ("(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")" in rt
              and 'history.replaceState(null, "", "/" + location.hash)' in rt and "document.title = " in rt)
     boot = js[js.index("window.addEventListener(\"hashchange\", route);"):]

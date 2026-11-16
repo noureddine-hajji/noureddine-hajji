@@ -260,7 +260,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     keeps = ("requestSubmit()" in wiring and 'store.set("profile"' not in wiring and re.search(r"lycee: lyc(?:\s*\}|, statut: )", js) is not None)
     # a search naming a lycée offers to set it as the profile's lycée: escaped, local, race-guarded
     sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in _fn(js, "async function suggestLycee(")
-            and "suggestLycee(q, $view.dataset.rendered);" in js
+            and 'if (q) suggestLycee(q, "carte");' in js and '$view.querySelectorAll(".lyc-suggest").forEach((x) => x.remove());' in js
             # the marker is cleared on every navigation, so a late suggestion never lands on another page
             and re.search(r"async function route\(\) \{[\s\S]{0,900}delete \$view\.dataset\.rendered;", js) is not None)
     ok = not raw and words and not promise and me and badge and here and pick and keeps and sugg

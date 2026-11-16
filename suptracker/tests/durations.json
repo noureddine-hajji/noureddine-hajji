@@ -41,6 +41,7 @@
  "tests/test_prevision.py": 278,
  "tests/test_probe.py": 0,
  "tests/test_rapports.py": 256,
+ "tests/test_recherche.py": 60.0,
  "tests/test_referentiel.py": 191,
  "tests/test_release.py": 0,
  "tests/test_reorientation.py": 135.0,

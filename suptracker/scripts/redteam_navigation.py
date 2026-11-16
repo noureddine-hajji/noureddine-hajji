@@ -133,17 +133,20 @@ def u1(c: Ctx):
         views = top(c.js, "explorerViews") + top(c.js, "EXPLORER_VIEWS")
     except KeyError:
         views = ""
-    if not all(h in views for h in ('"#/carte"', '"#/metiers"', '"#/"')):
-        bad.append("Explorer views do not reach the map and the jobs")
-    for fn in ("viewHome", "viewCarte", "viewMetiers"):
+    # owner, 2026-11-15: two views, the one search page (list + map) and the jobs; the home has no switch (its door opens the search)
+    if not all(h in views for h in ('"#/carte"', '"#/metiers"')) or '"#/"' in views:
+        bad.append("Explorer views do not reach the search page and the jobs")
+    if "explorerViews(" in top(c.js, "viewHome") or '<a class="door" href="#/carte">' not in top(c.js, "viewHome"):
+        bad.append("the home: a views switch back, or no door to the search page")
+    for fn in ("viewCarte", "viewMetiers"):
         try:
             if "explorerViews(" not in top(c.js, fn):
                 bad.append(("no Explorer views", fn))
         except KeyError:
             bad.append(("page gone", fn))
     vs = c.js[c.js.index("async function viewSearch("):c.js.index("function stageCard(")]
-    if 'explorerViews("liste", q)' not in vs:
-        bad.append("search results without the Explorer views")
+    if 'carteUI.pendingQ = q;\n  location.replace("#/carte");' not in vs:
+        bad.append("an old search link does not open the search page with its keyword")
     try:
         prof = top(c.js, "viewProfil") + top(c.js, "profileForm")
     except KeyError:
@@ -544,7 +547,7 @@ def u6(c: Ctx):
         bad.append(("erase without asking, or not erased", o["notYet"], o["erased"]))
     if not (o["open"] and o["esc"] and o["outside"]):
         bad.append(("Comprendre menu", o["open"], o["esc"], o["outside"]))
-    if o["mapTab"] != "page" or o["viewsOn"] != "Carte" or not o["compMarked"]:
+    if o["mapTab"] != "page" or o["viewsOn"] != "Formations" or not o["compMarked"]:      # sprint H: the views are Formations | Métiers
         bad.append(("tabs", o["mapTab"], o["viewsOn"], o["compMarked"]))
     if o["chipStats"] != "none":
         bad.append(("chip shown on the stats", o["chipStats"]))
@@ -619,7 +622,8 @@ MUTANTS = [
     ("html", "glossary missing from Comprendre", '        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n      </div>', "      </div>", "u1"),
     ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n  <a href="#/info/aide"', '  <a href="#/info/aide"', "u1"),
     ("js", "map unreachable from Explorer", 'carte: "#/carte", metiers', 'carte: "#/", metiers', "u1"),
-    ("js", "search results lose the views", '${explorerViews("liste", q)}', "", "u1"),
+    ("js", "an old search link loses its keyword", 'carteUI.pendingQ = q;\n  location.replace("#/carte");', 'location.replace("#/carte");', "u1"),
+    ("js", "the views switch back on the home", '  ${homeProfile()}\n', '  ${explorerViews("carte")}${homeProfile()}\n', "u1"),
     ("css", "chip kept on a phone", "  .profile-chip { display: none; }\n", "", "u1"),
     ("js", "map back under its own tab", 'carte: "home", compare', 'carte: "carte", compare', "u2"),
     ("js", "Où je me situe under no tab", 'parcours: "profil", profil', 'parcours: "parcours", profil', "u2"),

@@ -27,7 +27,7 @@ from . import sources as S
 SITE = "SupCompass"
 TAGLINE = "Les chiffres officiels de l'orientation post-bac, expliqués"
 PUBLISHER = "M. N. HAJJI"
-UPDATED = "13 novembre 2026"
+UPDATED = "15 novembre 2026"
 HOST = {"name": "Vercel Inc.", "address": "440 N Barranca Ave #4133, Covina, CA 91723, États-Unis", "url": "https://vercel.com"}
 STORE = {"name": "Upstash, Inc.", "country": "États-Unis", "url": "https://upstash.com"}
 TILES = {"name": "OpenStreetMap Foundation", "country": "Royaume-Uni", "host": "tile.openstreetmap.org",
@@ -148,12 +148,12 @@ identifiant, ce dont le calcul a besoin :</p>
 <ul class="legal-list">
 <li>la série, les spécialités et la tranche de mention, pour situer chaque formation ;</li>
 <li>la ligne de votre bac technologique ou professionnel (série et spécialités, ou spécialité), seulement pour lire votre liste de vœux ;</li>
-<li>votre académie, si vous l'avez indiquée, avec la recherche, le plan B, « Où je me situe » et votre liste de vœux, pour
+<li>votre académie, si vous l'avez indiquée, avec le plan B, « Où je me situe » et votre liste de vœux, pour
 présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
-<li>votre moyenne exacte, seulement avec la recherche avancée, pour son filtre de zone ;</li>
 <li>les codes des formations de votre liste de vœux, pour la lire.</li>
 </ul>
-<p>Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
+<p>La recherche de formations envoie seulement les mots que vous tapez. Le lieu choisi (ville, département, région ou
+académie), votre moyenne et les filtres restent dans votre navigateur. Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
 <h2>2. Mesure d'audience, sans cookie</h2>
 <p>{SITE} compte ses visites pour s'améliorer, sans cookie et sans rien lire sur votre appareil. Aucune adresse IP et aucun
 identifiant de navigateur n'est enregistré : un visiteur est un pseudonyme calculé pour la journée, qui change chaque jour
@@ -174,7 +174,7 @@ abus, un compteur anonyme du nombre de messages envoyés dans la journée est ga
 <p>Quand vous ouvrez la carte, votre navigateur télécharge le fond de carte auprès des serveurs de
 {esc(TILES['name'])} ({esc(TILES['country'])}), qui voient alors votre adresse IP, selon
 {_link(TILES['policy'], 'leur politique de confidentialité')}. La liste des formations fonctionne sans la carte. La
-recherche autour d'une ville se fait dans votre navigateur : votre position n'est jamais envoyée.</p>
+recherche par lieu (ville, département, région) se fait dans votre navigateur : ce lieu n'est jamais envoyé.</p>
 <h2>5. Hébergement et prestataires</h2>
 <ul class="legal-list">
 <li><strong>{esc(HOST['name'])}</strong> ({_link(HOST['url'], 'vercel.com')}), hébergeur : comme tout hébergeur, il

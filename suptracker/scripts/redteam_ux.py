@@ -11,7 +11,7 @@
   X5 search: filters folded under "Filtrer" on a phone (open on wide screens), active filters visible and removable, escaped
   X6 home: four doors (formation, job, where I stand, not in terminale), example searches escaped, no technical note
   X7 browser (--browser, needs node + playwright and a running warehouse): phone screens measured: 0 JS errors, no horizontal
-     scroll, every control >= 44 px, the first search result on the first screen, no column name in the visible text
+     scroll, every control >= 44 px, the first search result within 1.5 screens (the search form first), no column name in the visible text
   X8 mutation test
   Lot 2 (Claude design guidelines):
   X9 design tokens: five font sizes and three radii, every size and radius in the stylesheet goes through them (chart marks
@@ -197,41 +197,32 @@ def r2_defs(js: str) -> str:
     return "\n".join(one + fns) + "\n"
 
 
-def filters_ui(js: str) -> tuple[bool, str]:
-    blk = block(js, "// ---- lot 1 UI: search filters are folded")
-    # sprint R3: the advanced groups the active-filter chips read (the page's own definitions)
-    r3 = "\n".join(re.search(rf"^const {n} = .*?;$", js, re.M | re.S).group(0) for n in ("FI_GROUPS", "FI_TITLE", "fiOptions"))
-    prog = helpers(js) + r3 + """
-const FILI_LABEL = {bts: "BTS"}, OPT_LABEL = {distance: "À distance"};
-const ICONS = new Proxy({}, { get: () => "<svg></svg>" });   // R4: the drawn filter icon
-const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-const go = (patch) => "#/s/q?" + new URLSearchParams(patch).toString();
-const out = {};
-for (const wide of [false, true]) {
-  globalThis.matchMedia = () => ({ matches: wide });
-""" + blk + """
-  out[wide ? "wide" : "narrow"] = searchFilters(P, go, {}, ["distance"], "<div class='toolbar'>x</div>");
-}
-out.empty = searchFilters(P, go, {}, [], "   ");
-process.stdout.write(JSON.stringify(out));"""
-    r = node_run(prog, {"fili": "bts", "academie": "<img src=x onerror=alert(1)>", "selective": "true"})
-    if r is None:
-        return True, "node not installed"
-    if r.startswith("__error__"):
-        return False, r
-    o = json.loads(r)
-    narrow_closed = '<details class="filters">' in o["narrow"]
-    wide_open = '<details class="filters" open>' in o["wide"]
-    chips = len(re.findall(r'class="badge exact"[^>]*>[^<]*✕</a>', o["narrow"]))
-    leak = "<img" in o["narrow"]
-    count = "Filtrer (4 actifs)" in o["narrow"]
-    ok = narrow_closed and wide_open and chips == 4 and not leak and count and o["empty"] == "" and "searchFilters(P, go, facets, activeOpts" in js
-    return ok, f"closed on a phone {narrow_closed}; open on a wide screen {wide_open}; removable chips {chips}/4; count {count}; raw tag {leak}"
+def filters_ui(js: str, css: str = "") -> tuple[bool, str]:
+    """owner, 2026-11-15: the one search page folds every filter group into a dropdown (closed until opened, one open at a time),
+    its active count on the closed pill, a "Tout décocher" per group and one reset; every label escaped."""
+    vc = js[js.index("async function viewCarte("):js.index("\n// ---- ", js.index("async function viewCarte("))]
+    dd = re.search(r"const dd = \(key, title, n, body, on = n > 0\) => `(.*?)`;\n", vc)
+    closed = bool(dd) and '${carteUI.open === key ? " open" : ""}' in dd.group(1) and re.search(r'class="dd\$\{[^}]*\}"[^>]*>', dd.group(1)) is not None \
+        and dd.group(1).count(" open") == 1
+    count = bool(dd) and '${n ? ` <span class="dd-n">${fmt(n)}</span>` : ""}' in dd.group(1) and "<summary>${esc(title)}" in dd.group(1)
+    one = 'bar.querySelectorAll("details.dd[open]").forEach((o) => { if (o !== d) o.open = false; })' in vc
+    remove = 'data-clear="${gr}">Tout décocher' in vc and 'id="dd-reset">Réinitialiser les filtres</button>' in vc and "data-clear-dips" in vc
+    escaped = "box2(gr, o, esc(label))" in vc and 'data-dip="${esc(d.label)}"' in vc and "<span>${esc(d.label)}</span>" in vc \
+        and "<span>${esc(m.label)}</span>" in vc and "${esc(carteLabel(z))}" in vc
+    shut = "Escape" in vc and "carteUI.ddBound" in vc
+    css_ok = ".dd-panel" in css and re.search(r"\.dd\s*>\s*summary", css) is not None \
+        and "@media (min-width: 721px) { .dd-fold > summary { display: none; }" in css
+    # on a phone the dropdowns are folded under "Filtrer (n actifs)", open on a wide screen
+    fold = '<details class="dd-fold" id="dd-fold"${!narrow() || carteUI.fold ? " open" : ""}><summary>${ICONS.filter}Filtrer <span id="dd-fold-n"></span>' in vc \
+        and '`(${active} actif${active > 1 ? "s" : ""})`' in vc
+    ok = closed and count and one and remove and escaped and shut and css_ok and fold
+    return ok, (f"closed until opened {closed}; count on the pill {count}; one open at a time {one}; untick and reset {remove}; escaped {escaped}; "
+                f"Escape / outside click {shut}; CSS {css_ok}; folded under Filtrer on a phone {fold}")
 
 
-@check("X5 search: filters folded under 'Filtrer' on a phone, active filters visible and removable, escaped")
+@check("X5 search: every filter group a closed dropdown (one open at a time), active count on the pill, removable, escaped")
 def x5(c: Ctx):
-    return filters_ui(c.js)
+    return filters_ui(c.js, c.css)
 
 
 def home_ui(js: str) -> tuple[bool, str]:
@@ -251,10 +242,10 @@ viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.
         return False, r
     html, rendered = json.loads(r)
     doors = len(re.findall(r'class="door"', html))
-    links = all(h in html for h in ('href="#/metiers"', 'href="#/parcours"', 'id="door-search"', 'href="#/reorientation"'))
-    # R1: the Explorer views (list current) and, with no stored profile, one call to create it
-    links = links and '<nav class="views"' in html and re.search(r'<a href="#/" aria-current="true">', html) is not None \
-        and 'href="#/profil">Créer mon profil</a>' in html
+    links = all(h in html for h in ('class="door" href="#/carte"', 'href="#/metiers"', 'href="#/parcours"', 'href="#/reorientation"'))
+    # owner, 2026-11-15: no search bar and no Explorer switch on the home (the door opens the one search page); with no stored
+    # profile, one call to create it
+    links = links and '<nav class="views"' not in html and "<form" not in html and 'href="#/profil">Créer mon profil</a>' in html
     leak = "<b>x</b>" in html
     words = all(w in html for w in ("Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
                                      "Je me réoriente ou je reprends mes études",
@@ -278,12 +269,12 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
     const ctx = await b.newContext(opts); const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(e.message));
     for (const h of ["#/", "#/s/informatique", "#/parcours", "#/metiers", "#/voeux", "#/compare", "#/parcours", "#/glossaire"]) {
       if (h === "#/voeux") {     // lot 3: a stored profile, a list and a comparator basket (codes from a search)
-        await p.goto(base + "/#/s/informatique"); await p.waitForTimeout(2000);
+        await p.goto(base + "/#/s/informatique"); await p.waitForTimeout(8000);
         await p.evaluate(() => { const c = [...document.querySelectorAll(".result a[href^='#/f/']")].map((a) => a.getAttribute("href").slice(4)).slice(0, 3);
           localStorage.setItem("profile", JSON.stringify({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", academie: "" }));
           localStorage.setItem("voeux", JSON.stringify(c)); localStorage.setItem("basket", JSON.stringify(c)); });
       }
-      await p.goto(base + "/" + h); await p.waitForTimeout(2000);
+      await p.goto(base + "/" + h); await p.waitForTimeout(h.startsWith("#/s/") ? 9000 : 2000);     // the search page loads the map layer
       out[mode + " " + h] = await p.evaluate((fields) => {
         const ctl = [...document.querySelectorAll("button, select, summary, a.badge, .toolbar a, .tabbar a, .more-menu a, .door, input[type=search]")]
           .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !e.classList.contains("tip"); });
@@ -292,10 +283,10 @@ const base = process.argv[2], fields = JSON.parse(process.argv[3]);
         const shown = fields.filter((f) => new RegExp("\\b" + f + "\\b").test(text));
         const first = document.querySelector(".result");
         return { hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth, small, shown,
-                 first: first ? first.getBoundingClientRect().top < innerHeight : null,
+                 first: first ? first.getBoundingClientRect().top < innerHeight * 1.5 : null,      // the search form comes first
                  bar: getComputedStyle(document.querySelector(".tabbar")).display,
                  screens: document.documentElement.scrollHeight / innerHeight, vxsum: !!document.querySelector(".summary .sum-tile .zone-pill"),
-                 folded: !!document.querySelector("details.profile:not([open])"), stacked: document.querySelectorAll("tr.stack-head").length,
+                 folded: !!document.querySelector(".home-profile a[href='#/profil']"), stacked: document.querySelectorAll("tr.stack-head").length,
                  headShown: [...document.querySelectorAll("tr.stack-head")].some((r) => getComputedStyle(r).display !== "none") };
       }, fields);
     }
@@ -349,7 +340,7 @@ def x7(c: Ctx):
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
     limit = {"formation": 13, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72; sprint 19: 17.6 -> 11.7)
-    lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 8)        # 20 results (before: ~11 screens)
+    lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 12)      # 10 cards + the map (owner, 2026-11-15)
             or (k.endswith("#/voeux") and not v["vxsum"]) or (k.endswith("#/parcours") and not v["folded"])
             or v.get("headShown")}
     bad = {k: v for k, v in d["out"].items() if v.get("missing") or v["hscroll"] or v["small"] or v["shown"] or v["bar"] != "flex"
@@ -370,8 +361,11 @@ UI_MUTANTS = [
     ("touch targets back to 32 px", "a.badge, .toolbar a, input[type=\"search\"], input[type=\"text\"] { min-height: 44px; }",
      "a.badge, .toolbar a, input[type=\"search\"], input[type=\"text\"] { min-height: 32px; }", ("css", (x4,))),
     ("'i' zone too small", ".tip::before { content: \"\"; position: absolute; inset: -14px; }", ".tip::before { content: \"\"; position: absolute; inset: -4px; }", ("css", (x4,))),
-    ("filters always open", '<details class="filters"${wide ? " open" : ""}>', '<details class="filters" open>', ("js", (x5,))),
-    ("active filter unescaped", "${esc(l)} ✕</a>", "${l} ✕</a>", ("js", (x5,))),
+    ("filters always open", '${carteUI.open === key ? " open" : ""}', '" open"', ("js", (x5,))),
+    ("a filter option unescaped", "box2(gr, o, esc(label))", "box2(gr, o, label)", ("js", (x5,))),
+    ("filters unfolded on a phone", '${!narrow() || carteUI.fold ? " open" : ""}><summary>${ICONS.filter}Filtrer', '" open"><summary>${ICONS.filter}Filtrer', ("js", (x5,))),
+    ("several dropdowns open at once", 'bar.querySelectorAll("details.dd[open]").forEach((o) => { if (o !== d) o.open = false; })', "0", ("js", (x5,))),
+    ("a search bar back on the home", '  ${homeProfile()}\n', '  <form role="search"><input type="search"></form>${homeProfile()}\n', ("js", (x6,))),
     ("home example unescaped", '>${esc(e)}</a>`).join("")', '>${e}</a>`).join("")', ("js", (x6,))),
     ("home technical note back", '    ${n ? `<p><a href="#/voeux">', '    <div class="info">${esc(META.methodology.funnel)}</div>${n ? `<p><a href="#/voeux">', ("js", (x6,))),
 ]
@@ -689,7 +683,7 @@ process.stdout.write(JSON.stringify(out));"""
     pages = o["narrow"] == 20 and o["wide"] == 40
     vx = js[js.index("async function viewVoeux("):js.index("// ---- Sprint 12")]
     pc = js[js.index("async function viewParcours("):js.index("// ---- A5 glossary")]
-    vs = js[js.index("async function viewSearch("):js.index("function stageCard(")]
+    vs = js[js.index("function carteList("):js.index("function carteSelection(")]
     cmp = js[js.index("async function viewCompare("):js.index("async function viewSpecialites(")]
 
     def labelled(src: str, rows_re: str = r'<table class="stack"><tr class="stack-head">.*?</table>') -> bool:
@@ -701,7 +695,8 @@ process.stdout.write(JSON.stringify(out));"""
     vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}" in vx
     pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(vp, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
              and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
-    vs_ok = "limit: PAGE" in vs and "offset: off + PAGE" in vs and "off - PAGE" in vs and "40" not in re.sub(r"<[^>]*>", "", vs.split("const qs")[1].split("const d =")[0])
+    vs_ok = ("const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);" in vs and 'data-cpage="1"' in vs
+             and 'data-cpage="-1"' in vs and "const cartePage = () => (narrow() ? 10 : 40);" in js)
     cmp_ok = '<table class="cmp">' in cmp
     mob = mobile_css(css)
     css_ok = ("table.stack tr.stack-head { display: none; }" in mob and "table.stack td[data-label]::before { content: attr(data-label);" in mob
@@ -724,6 +719,7 @@ LOT3_MUTANTS = [
     ("stored profile never read back on Où je me situe", "${hasProfile ? `<p class=\"home-profile\">", "${false ? `<p class=\"home-profile\">", ("js", (x14,))),
     ("every positioning row at once", ".slice(0, allPos ? 80 : 20)", ".slice(0, 80)", ("js", (x14,))),
     ("40 results on a phone", "const searchPage = () => (narrow() ? 20 : 40);", "const searchPage = () => 40;", ("js", (x14,))),
+    ("40 search cards on a phone", "const cartePage = () => (narrow() ? 10 : 40);", "const cartePage = () => 40;", ("js", (x14,))),
     ("header row shown on a phone", "  table.stack tr.stack-head { display: none; }\n", "", ("css", (x14,))),
     ("comparator column not pinned", "position: sticky; left: 0; z-index: 1;", "position: static; left: 0; z-index: 1;", ("css", (x14,))),
 ]

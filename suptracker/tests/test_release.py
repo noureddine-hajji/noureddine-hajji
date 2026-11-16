@@ -56,8 +56,8 @@ FEATURE_ENTRY_POINTS = {
     "mon_profil": ("app.js", "async function viewProfil("),
     "navigation_parcours": ("app.js", "function explorerViews("),
     "taux_profil": ("app.js", "function profileRate("),
-    "filtres_avances": ("app.js", "function searchAdvanced("),
-    "cartes_resultats": ("app.js", "function resultCard("),
+    "filtres_avances": ("app.js", 'const CARTE_R3 = ["capacite", "complementaire", "taux"];'),     # sprint H: the search page's dropdowns
+    "cartes_resultats": ("app.js", "function carteCard("),
     "moyenne_continue": ("app.js", "function moyenneCard("),
     "moyenne_locale": ("app.js", "function relire("),
     "construire_ma_liste": ("app.js", "async function viewGuide("),
@@ -67,6 +67,7 @@ FEATURE_ENTRY_POINTS = {
     "reconnaissance_vie": ("app.js", "function coutCard("),
     "voie_pro_apprentissage": ("app.js", "function apprentiCard("),
     "financer_etudes": ("app.js", "function aidesCard("),
+    "recherche_unique": ("app.js", "async function doSearch("),
 }
 
 

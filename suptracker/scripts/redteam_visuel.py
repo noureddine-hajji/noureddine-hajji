@@ -343,33 +343,32 @@ def vi4(c: Ctx):
 
 
 CARD_PROG = r"""
-const META = { low_n_threshold: 20 };
-const FI_HELP = { complementaire: "Des admis en phase complémentaire" };
-const FILI_LABEL = { BTS: "BTS" };
-const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
-const lineageBadge = () => '<span class="badge exact">exact</span>';
-const offerBadges = (r) => (r.internat === "oui" ? '<span class="badge offer">Internat</span>' : "");
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
+const pct1 = (x) => String(x).replace(".", ",") + " %"; const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const H = "<img src=x onerror=alert(1)>";
-const base = { cod_aff_form: "123", g_ea_lib_vx: H, ville_etab: "<b>Lyon</b>", acad_mies: "<i>Lyon</i>", fil_lib_voe_acc: "<u>BTS</u>",
-  lib_comp_voe_ins: "<s>MCO</s>", fili: "BTS", session: 2025, lineage_years: 4, lineage_confidence: "exact", taux_acces_ens: 63.5,
-  capa_fin: 24, acc_pc: 3, internat: "oui" };
+const base = { cod_aff_form: "123", etablissement: H, formation: "<u>BTS</u>", ville: "<b>Lyon</b>", academie: "<i>Lyon</i>", statut: "public",
+  contrat_etab: "Public", select_form: "formation sélective", stats: true, taux_acces_ens: 63.5, capa_fin: 24, lat: 45.7, lon: 4.8, offres_app: [],
+  bacs: { bg: { taux: 70.2, source: "rapport" }, bt: { taux: 12, source: "estimation", fragile: false }, bp: { taux: 0, source: "estimation", fragile: true } } };
+const ctx = (ok) => ({ ok, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 });
 const out = {
-  plain: resultCard({ ...base }),
-  zoned: resultCard({ ...base, zone: "cible", uncertain: true }),
-  est: resultCard({ ...base, zone: "ambitieux", estime_serie: 12, estime_fragile: false }),
-  est0: resultCard({ ...base, zone: "ambitieux", estime_serie: 0, estime_fragile: true }),
-  estNull: resultCard({ ...base, zone: "securite", estime_serie: null }),
-  other: resultCard({ ...base, zone: "hors_profil" }),
-  noRate: resultCard({ ...base, taux_acces_ens: null, capa_fin: null, acc_pc: 0 }),
+  plain: carteCard({ ...base, zone: "cible" }, ctx(false), false),
+  zoned: carteCard({ ...base, zone: "cible" }, ctx(true), false),
+  other: carteCard({ ...base, zone: "hors_profil" }, ctx(true), false),
+  noRate: carteCard({ ...base, taux_acces_ens: null, capa_fin: null, bacs: null }, ctx(false), false),
 };
 process.stdout.write(JSON.stringify(out));
 """
 
 
 def card_ok(js: str) -> tuple[bool, str]:
-    # sprint V1: the card shows the State-label badge from the lists' answer (none loaded here: no badge)
-    r = node(base_defs(js) + "\nlet RECO = null;\n" + top(js, "recoPill") + "\n" + top(js, "recoBadge") + "\n" + top(js, "tensionBadge") + "\n"
-             + top(js, "appBadge") + "\n" + top(js, "resultCard") + CARD_PROG)
+    """owner, 2026-11-15: the search results ARE the map list's cards (carteCard): zone token as the left edge only with a
+    readable profile and one of the three zones, never the accent; the OFFICIAL rate labelled; an estimated bac route line starred
+    and said (screen readers); escaped; never a chance."""
+    sec = js[js.index('// ---- Sprint "Carte"'):js.index("// ---- lot 2 (Claude design guidelines)")]
+    extra = js[js.index("function voeuButton(cod, primary) {"):js.index("\nfunction bindVoeuButton(")] + "\n" \
+        + js[js.index("function dblFigure(v) {"):js.index("\nfunction vxVoieCell(")]
+    r = node(base_defs(js) + "\n" + extra + "\n" + sec + CARD_PROG)
     if r is None:
         return True, "node not installed"
     if r.startswith("__error__"):
@@ -379,35 +378,37 @@ def card_ok(js: str) -> tuple[bool, str]:
     for k, h in o.items():
         if re.search(r"<(?:img|b|i|u|s)>|<img ", h):
             bad.append((k, "unescaped"))
-        if CHANCE.search(h):
+        if CHANCE.search(re.sub(r"<[^>]+>", " ", h)):
             bad.append((k, "chance wording"))
-        if "taux d'accès officiel" not in h.replace("&#39;", "'"):
+        if not re.search(r"Taux d(?:'|&#39;)accès 2025</span> <strong class=\"cf-big\">[^<]*</strong> <span class=\"muted small\">officiel", h):
             bad.append((k, "official rate not labelled"))
-    if "rc-z" in o["plain"] or "--zc" in o["plain"] or "zone-pill" in o["plain"]:
-        bad.append("a card without a zone reading draws one")
-    if 'class="result rc rc-z" style="--zc:var(--zone-cible)"' not in o["zoned"] or "zone-pill" not in o["zoned"] or "incertain" not in o["zoned"]:
-        bad.append("the zoned card's edge or pill")
+    if "rc-z" in o["plain"] or "--zc:var(--zone" in o["plain"].split("rc-badges")[0]:
+        bad.append("a card without a readable profile draws a zone edge")
+    if 'class="result rc carte-rc rc-z" style="--zc:var(--zone-cible)"' not in o["zoned"] or "zbadge" not in o["zoned"]:
+        bad.append("the zoned card's edge or badge")
+    if "rc-z" in o["other"] or "zbadge" not in o["other"]:
+        bad.append("another reading drawn as a zone edge, or not named")
     if "var(--accent)" in "".join(o.values()):
         bad.append("the accent used for a zone")
-    if 'style="--zc:var(--zone-autre)"' not in o["other"] or "Hors-profil" not in o["other"]:
-        bad.append("another reading is not drawn with its own token and name")
-    est = lambda h: re.search(r'<div class="rc-est">(.*?)</div>', h, re.S)  # noqa: E731
-    if not est(o["est"]) or "12 %" not in est(o["est"]).group(1) or "estimation" not in est(o["est"]).group(1) or "peu de candidats" in est(o["est"]).group(1):
-        bad.append(("series estimate", est(o["est"]) and est(o["est"]).group(1)))
-    if not est(o["est0"]) or "0 %" not in est(o["est0"]).group(1) or "peu de candidats" not in est(o["est0"]).group(1):
+    bt = re.search(r'<li class="cb cb-bt">(.*?)</li>', o["plain"], re.S)
+    bp = re.search(r'<li class="cb cb-bp">(.*?)</li>', o["plain"], re.S)
+    bg = re.search(r'<li class="cb cb-bg">(.*?)</li>', o["plain"], re.S)
+    if not bt or "12" not in bt.group(1) or 'class="est"' not in bt.group(1) or "(estimation)" not in bt.group(1):
+        bad.append(("series estimate not starred and said", bt and bt.group(1)))
+    if not bp or "0" not in bp.group(1) or "peu de candidats" not in bp.group(1):
         bad.append("a 0 % estimate hidden, or fragile not said")
-    if est(o["plain"]) or est(o["estNull"]) or est(o["zoned"]):
-        bad.append("an estimate drawn without one")
-    if "24 places" not in o["plain"] or "admis en phase complémentaire 2025" not in o["plain"] or "places" in o["noRate"] or "phase complémentaire" in o["noRate"]:
-        bad.append("capacity or complementary admits")
-    if "63,5 %" not in o["plain"].replace(" ", " ").replace("\xa0", " ") or "—" not in o["noRate"]:
+    if not bg or "estimation" in bg.group(1) or 'class="est"' in bg.group(1):
+        bad.append("a published line marked as an estimate")
+    if "24 places" not in o["plain"] or "places" in o["noRate"]:
+        bad.append("capacity")
+    if "63,5" not in o["plain"] or "—" not in o["noRate"]:
         bad.append("the official rate figure")
     if 'href="#/f/123"' not in o["plain"]:
         bad.append("the card does not link its formation")
     return not bad, f"{len(o)} cards; problems {bad[:4]}"
 
 
-@check("VI5 result card (Node): escaped, zone edge and pill, OFFICIAL rate labelled, series estimate only when given (0 % too), never a chance")
+@check("VI5 result card = the map list card (Node): escaped, zone edge only with a profile, OFFICIAL rate labelled, estimates starred and said, never a chance")
 def vi5(c: Ctx):
     return card_ok(c.js)
 
@@ -558,20 +559,21 @@ const PROFILES = { bg: { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b", 
       const ctx = await b.newContext(opts);
       await ctx.addInitScript((p) => localStorage.setItem("profile", JSON.stringify(p)), PROFILES[prof]);
       const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(`${name}/${prof}: ${e.message}`));
+      // owner, 2026-11-15: the list search is the map page; its cards are the search results
       await p.goto(base + "/#/s/bts");
-      await p.waitForFunction(() => (document.getElementById("view").dataset.rendered || "").startsWith("s:"), null, { timeout: 30000 });
+      await p.waitForFunction(() => document.querySelectorAll("#carte-items .result.rc.rc-z").length > 0, null, { timeout: 60000 });
       o[`${name}/${prof}`] = await p.evaluate(() => {
-        const cards = [...document.querySelectorAll("article.result.rc")];
+        const cards = [...document.querySelectorAll("#carte-items .result.rc")];
         const zoned = cards.filter((c) => c.classList.contains("rc-z"));
         const edgeOk = zoned.every((c) => {
-          const pill = c.querySelector(".zone-pill");
-          return pill && getComputedStyle(c).borderLeftColor === getComputedStyle(pill).backgroundColor;
+          const badge = c.querySelector(".zbadge");
+          return badge && getComputedStyle(c).borderLeftColor === getComputedStyle(badge).borderTopColor;
         });
-        // Codex: no card content wider than its card (the estimate's sentence must wrap)
-        const spill = cards.filter((c) => [...c.querySelectorAll(".rc-est, .rc-fig, .rc-main")].some((e) => e.scrollWidth > c.clientWidth + 1
+        // Codex: no card content wider than its card
+        const spill = cards.filter((c) => [...c.querySelectorAll(".crates, .rc-main, .rc-badges")].some((e) => e.scrollWidth > c.clientWidth + 1
           || e.getBoundingClientRect().right > c.getBoundingClientRect().right + 1)).length;
-        return { spill, cards: cards.length, zoned: zoned.length, marks: document.querySelectorAll("article.result .zone-pill svg.zmark").length,
-          est: document.querySelectorAll("article.result .rc-est").length, edgeOk,
+        return { spill, cards: cards.length, zoned: zoned.length, marks: document.querySelectorAll("#carte-items .rc-z .zbadge svg.zmark").length,
+          est: document.querySelectorAll("#carte-items .cb sup.est").length, edgeOk,
           hs: document.documentElement.scrollWidth > document.documentElement.clientWidth };
       });
       await ctx.close();
@@ -579,8 +581,9 @@ const PROFILES = { bg: { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b", 
   }
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } }); const p = await ctx.newPage();
   p.on("pageerror", (e) => errs.push(`formation: ${e.message}`));
-  await p.goto(base + "/#/s/bts"); await p.waitForTimeout(1500);
-  const href = await p.$eval("article.result a.rc-title", (a) => a.getAttribute("href"));
+  await p.goto(base + "/#/s/bts");
+  await p.waitForFunction(() => document.querySelector("#carte-items .result.rc a.rc-title"), null, { timeout: 60000 });
+  const href = await p.$eval("#carte-items .result.rc a.rc-title[href^='#/f/']", (a) => a.getAttribute("href"));
   await p.goto(base + "/" + href.replace("#/f/", "#/evolution/")); await p.waitForTimeout(3000);
   o.named = await p.$$eval("svg.chart", (s) => s.map((x) => !!x.getAttribute("aria-label")));
   await ctx.close();
@@ -621,18 +624,16 @@ def vi8(c: Ctx):
             continue
         if not v["cards"] or v["hs"] or v["spill"] or not v["edgeOk"] or v["marks"] < v["zoned"]:
             bad.append((k, v))
-        if k.endswith("/bg") and v["est"]:
-            bad.append((k, "a bac général card shows a series estimate"))
     if not o.get("named") or not all(o["named"]):
         bad.append(("unnamed charts", o.get("named")))
-    if not any(v["est"] for k, v in o.items() if k.endswith("/bt")):
-        bad.append("no bac techno estimate drawn")
+    if not any(v["est"] for k, v in o.items() if k != "named"):
+        bad.append("no estimated bac line starred")
     return not bad, f"{ {k: v for k, v in o.items() if k != 'named'} }; charts named {o.get('named')}; problems {bad[:3]}"
 
 
 @check("VI9 wiring and docs: feature, release guard, README section, CLAUDE.md rule")
 def vi9(c: Ctx):
-    feat = '"cartes_resultats"' in c.api and '"cartes_resultats": ("app.js", "function resultCard(")' in c.release
+    feat = '"cartes_resultats"' in c.api and '"cartes_resultats": ("app.js", "function carteCard(")' in c.release
     readme = "Sprint R4" in c.readme and "zoneShape" in c.readme and "neutral" in c.readme
     claude = "Visual improvements (sprint R4" in c.claude and "redteam_visuel.py" in c.claude
     return feat and readme and claude, f"feature + release guard {feat}; README {readme}; CLAUDE.md {claude}"
@@ -662,12 +663,13 @@ MUTANTS = [
     ("js", "the pill without its mark", '` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label.replace(', '` title="${esc(h)}"` : ""}>${esc(zz.label.replace(', (vi4,)),
     ("js", "the badge without its name", '${zoneMark(z)}${esc(zz.label)}</span>', "${zoneMark(z)}</span>", (vi4,)),
     ("js", "the scatter in circles only", "g += zoneShape(f.zone, x(f.taux_acces_ens)", 'g += zoneShape("securite", x(f.taux_acces_ens)', (vi4,)),
-    ("js", "a card title unescaped", '<a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>',
-     '<a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${r.g_ea_lib_vx}</a>', (vi5,)),
-    ("js", "the official rate unlabelled", '<div class="muted small">taux d\'accès officiel</div>', '<div class="muted small">taux d\'accès</div>', (vi5,)),
-    ("js", "the estimate not said as one", "accès estimé pour votre bac ${estimTag(", "accès pour votre bac ${(() => \"\")(", (vi5,)),
-    ("js", "a 0 % estimate hidden", "const est = r.estime_serie !== undefined && r.estime_serie !== null", "const est = r.estime_serie", (vi5,)),
-    ("js", "the zone edge in the accent", '${z ? ` style="--zc:${ZONES[z].color}"` : ""}', '${z ? ` style="--zc:var(--accent)"` : ""}', (vi5,)),
+    ("js", "a card title unescaped", '<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>',
+     '<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a>', (vi5,)),
+    ("js", "the official rate unlabelled", '<span class="muted small">officiel</span>', "", (vi5,)),
+    ("js", "the estimate not said as one", "'<span class=\"sr-only\"> (estimation)</span>' : \"\";", "\"\" : \"\";", (vi5,)),
+    ("js", "a 0 % estimate hidden", "x.taux === null || x.taux === undefined ? '<span class=\"muted\">—</span>'", "!x.taux ? '<span class=\"muted\">—</span>'", (vi5,)),
+    ("js", "the zone edge in the accent", '${zc ? ` style="--zc:${zc}"` : ""} role="listitem"', '${zc ? ` style="--zc:var(--accent)"` : ""} role="listitem"', (vi5,)),
+    ("js", "a zone edge without a profile", 'zc = ctx.ok && z !== "autre" ? ZONES[z].color : null', 'zc = z !== "autre" ? ZONES[z].color : null', (vi5,)),
     ("js", "an unnamed line chart", 'role="img" aria-label="${esc(chartName(series.map((x) => x.name), years))}"', 'role="img"', (vi7,)),
     ("js", "own-colour series dashed", 'const seriesDash = (s, i) => (s.dash !== undefined ? s.dash : s.color ? "" : DASHES[i % DASHES.length]);',
      "const seriesDash = (s, i) => DASHES[i % DASHES.length];", (vi7,)),

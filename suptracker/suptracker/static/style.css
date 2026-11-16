@@ -54,8 +54,6 @@ a { color: var(--accent); }
 nav { display: flex; flex-wrap: wrap; gap: 14px; }
 nav a { text-decoration: none; }
 .pill { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: var(--r-sm); background: var(--accent); color: var(--surface); font-size: var(--fs-xs); text-align: center; }
-.search { display: flex; gap: 8px; max-width: 980px; margin: 16px auto 0; padding: 0 16px; }
-.search input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; }
 button, select { font: inherit; padding: 8px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 button.primary, .search button { background: var(--accent); color: var(--surface); border-color: var(--accent); }
 main { max-width: 980px; margin: 0 auto; padding: 16px; }
@@ -568,7 +566,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
     --warn-bg: #ffffff; --warn-ink: #000000; --info-bg: #ffffff; --zone-securite: #1e7a46; --zone-cible: #2b5fd9;
     --zone-ambitieux: #b9460f; --zone-autre: #6f6977; color-scheme: light;
     --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats the dark theme's tokens (review) */
-  header, nav, .tabbar, .more-menu, #search, #profile-bar, footer, .feedback, .no-print, button { display: none !important; }
+  header, nav, .tabbar, .more-menu, #profile-bar, footer, .feedback, .no-print, button { display: none !important; }
   .print-only { display: block; }
   body, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; }
   .card { border: 1px solid #999; break-inside: avoid; }
@@ -678,3 +676,65 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 /* sprint F: financing one's studies (aides.py) */
 .aides-hints { border-left: 3px solid var(--accent); padding-left: 12px; margin-left: 0; list-style: none; }
 .aides-table td:first-child { white-space: nowrap; }
+
+/* owner, 2026-11-15: ONE search page (list + map): a Parcoursup-like bar (keyword + place) and the filters as dropdowns */
+.carte-layout2 { grid-template-columns: minmax(0, 1fr) minmax(300px, 45%); }
+@media (max-width: 1100px) {
+  .carte-layout2 { grid-template-columns: minmax(0, 1fr); }
+  .carte-layout2 .carte-mapcol, .carte-layout2 .carte-results { grid-column: auto; grid-row: auto; position: static; }
+  .carte-layout2 .carte-mapcol { order: 1; } .carte-layout2 .carte-results { order: 2; }
+  .carte-layout2 .carte-mapcol .carte-osm { height: 46vh; }
+}
+.cs-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.cs-field { display: grid; gap: 4px; flex: 1 1 240px; min-width: 0; font-size: var(--fs-sm); font-weight: 600; }
+.cs-field input, .cs-field select { min-height: 44px; width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line-input);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-weight: 400; }
+.cs-km { flex: 0 0 120px; }
+.cs-km[hidden] { display: none; }
+.cs-go { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+.cs-go .ico { width: 18px; height: 18px; }
+.cs-help { margin: 6px 0 0; }
+.cs-status:empty { display: none; }
+.cs-status { margin-top: 8px; display: grid; gap: 6px; }
+.dd-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.dd { position: relative; }
+.dd > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--line-input); border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font-size: var(--fs-sm); font-weight: 600; }
+.dd > summary::-webkit-details-marker { display: none; }
+.dd > summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); margin-left: 2px; }
+.dd[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+.dd.on > summary, .dd[open] > summary { border-color: var(--accent); color: var(--accent); }
+.dd-n { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent); font-size: var(--fs-xs); }
+.dd-panel { position: absolute; z-index: 1100; top: calc(100% + 6px); left: 0; width: max-content; min-width: 260px; max-width: min(440px, 90vw);
+  max-height: 60vh; overflow: auto; display: grid; gap: 4px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); box-shadow: var(--shadow-pop); font-size: var(--fs-sm); }
+.dd-panel label { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.dd-panel label > .muted { margin-left: auto; padding-left: 12px; font-variant-numeric: tabular-nums; }
+.dd-panel input[type=search] { min-height: 40px; width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid var(--line-input);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; }
+.dd-group { border: 0; border-top: 1px solid var(--line); margin: 4px 0 0; padding: 6px 0 0; display: grid; gap: 4px; }
+.dd-group legend { font-weight: 600; padding: 0; }
+.dd-panel i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
+.dd-panel i.lg-securite, .dd-panel i.lg-autre { border-radius: 50%; }
+.dd-panel i.lg-autre { background: transparent !important; box-shadow: inset 0 0 0 2px var(--zone-autre); }
+.dd-panel i.lg-cible { border-radius: 2px; }
+.dd-panel i.lg-ambitieux { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
+.dd-note { flex-basis: 100%; margin: 4px 0 0; }
+/* the dropdowns sit under a "Filtrer" fold on a phone (the list comes first there); always open on a wide screen */
+.dd-fold { margin-top: 12px; }
+.dd-fold > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; cursor: pointer;
+  border: 1px solid var(--line-input); border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font-weight: 600; }
+.dd-fold > summary::-webkit-details-marker { display: none; }
+.dd-fold > summary .ico { width: 18px; height: 18px; }
+.dd-fold[open] > summary { border-color: var(--accent); color: var(--accent); }
+@media (min-width: 721px) { .dd-fold > summary { display: none; } .dd-fold > .dd-bar { margin-top: 0; } }
+@media (max-width: 720px) {
+  .carte-layout2 .carte-results { order: 1; } .carte-layout2 .carte-mapcol { order: 2; }
+  .carte-layout2 .carte-mapcol .carte-osm { height: 40vh; }
+  .carte-head h1 { font-size: var(--fs-lg); }
+  .dd[open] { flex-basis: 100%; }                   /* on a phone the open dropdown takes the row and unfolds in the page */
+  .dd-panel { position: static; width: auto; max-width: none; min-width: 0; margin-top: 6px; box-shadow: none; max-height: 55vh; }
+  .cs-km { flex: 1 1 120px; }
+}

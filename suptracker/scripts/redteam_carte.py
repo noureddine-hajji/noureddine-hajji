@@ -192,21 +192,22 @@ process.stdout.write(JSON.stringify(carteClusters(pts, cell).map((g) => g.map((p
 
 
 def craft(i, **kw):
-    base = {"cod_aff_form": str(i), "etablissement": f"Lycée {i}", "formation": "BTS X", "ville": "Lyon", "academie": "Lyon", "lat": 45.76,
+    base = {"cod_aff_form": str(i), "etablissement": f"Lycée {i}", "formation": "BTS X", "ville": "Lyon", "academie": "Lyon", "region": "Auvergne-Rhône-Alpes", "dep": "69", "lat": 45.76,
             "lon": 4.84, "statut": "public", "select_form": "formation sélective", "internat": "non", "distance": "aucune",
             "amenag_sport": False, "amenag_art": False, "zone": "cible", "apprentissage": False, "initiale": True, "stats": True, "offres_app": []}
     return {**base, **kw}
 
 
 CRAFT = [craft(1, internat="mixte"), craft(2, statut="prive", zone="securite", ville="Villeurbanne", lat=45.77, lon=4.88),
-         craft(3, statut="contrat", select_form="formation non sélective", internat=None, zone=None, ville="Paris", academie="Paris", lat=48.85, lon=2.35),
-         craft(4, lat=None, lon=None, zone="ambitieux", academie="Polynésie", distance="totale"),
+         craft(3, statut="contrat", select_form="formation non sélective", internat=None, zone=None, ville="Paris", academie="Paris", region="Ile-de-France", dep="75", lat=48.85, lon=2.35),
+         craft(4, lat=None, lon=None, zone="ambitieux", academie="Polynésie", region=None, dep=None, distance="totale"),
          craft(5, internat="filles", distance="partielle", amenag_sport=True), craft(6, internat="garcons", amenag_art=True, distance=None),
          craft(7, statut="prive_app", apprentissage=True, initiale=False, stats=False, select_form=None, zone=None, internat="mixte"),
          craft(8, statut="public", apprentissage=True, initiale=False, stats=False, select_form=None, zone=None, lat=None, lon=None),
          craft(9, apprentissage=True, offres_app=[{"cod_aff_form": "99", "etablissement": "CFA", "formation": "BTS X", "ville": "Lyon", "fiche": None}])]
-FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"academie": "Lyon"}, {"select": ["non"]}, {"internat": ["mixte", "filles"]},
-           {"amenag": ["presentiel"]}, {"amenag": ["totale", "sport"]}, {"amenag": ["art"]}, {"zones": ["cible", "autre"]}, {"q": "lycée 1"},
+FILTERS = [{}, {"statut": ["public", "contrat"]}, {"statut": ["prive"]}, {"lieu": {"t": "acad", "v": "Lyon"}}, {"select": ["non"]}, {"internat": ["mixte", "filles"]},
+           {"amenag": ["presentiel"]}, {"amenag": ["totale", "sport"]}, {"amenag": ["art"]}, {"zones": ["cible", "autre"]},
+           {"lieu": {"t": "region", "v": "Ile-de-France"}}, {"lieu": {"t": "dep", "v": "69"}}, {"lieu": {"t": "region", "v": "Bretagne"}},
            {"autour": {"lat": 45.76, "lon": 4.84, "km": 10}}, {"autour": {"lat": 45.76, "lon": 4.84, "km": 1}, "statut": ["public", "contrat", "prive"]},
            {"app": ["oui"]}, {"app": ["non"]}, {"app": ["oui", "non"]}, {"select": ["oui"]}, {"statut": ["prive_app"], "app": ["oui"]},
            {"statut": ["public", "contrat", "prive_app"]}]
@@ -221,19 +222,27 @@ def has(f, g, o):
             else bool(f["amenag_art"]) if o == "art" else f["distance"] == o}[g]()
 
 
-def py_filter(rows, F, skip=None):
+def fold(x: str) -> str:
+    import unicodedata
+    return "".join(ch for ch in unicodedata.normalize("NFD", str(x or "")) if not ("\u0300" <= ch <= "\u036f")).lower()   # = the page's foldText
+
+
+def py_filter(rows, F, skip=None, kw=None):
     def km(a, b, c, d):
         r = math.pi / 180
         x = math.sin((c - a) * r / 2) ** 2 + math.cos(a * r) * math.cos(c * r) * math.sin((d - b) * r / 2) ** 2
         return 12742 * math.asin(math.sqrt(x))
-    q = (F.get("q") or "").strip().lower()
     out = []
+    lieu = F.get("lieu")
     for f in rows:
         if any(F.get(g) and not any(has(f, g, o) for o in F[g]) for g in ("statut", "app", "internat", "amenag", "select", "zones") if g != skip):
             continue
-        if F.get("academie") and f["academie"] != F["academie"]:
+        # owner, 2026-11-15: the place of the search bar (région, département or académie), read here
+        if lieu and f.get({"region": "region", "dep": "dep", "acad": "academie"}[lieu["t"]]) != lieu["v"]:
             continue
-        if q and q not in f"{f['etablissement']} {f['formation']} {f['ville']}".lower():
+        # the keyword: the engine's codes; an apprenticeship offer (not in the engine) only when its own name has every word
+        if kw is not None and f["cod_aff_form"] not in kw["codes"] and not (
+                f.get("stats") is False and kw["words"] and all(w in fold(f"{f['etablissement']} {f['formation']} {f['ville']}") for w in kw["words"])):
             continue
         a = F.get("autour")
         if a and (f["lat"] is None or km(a["lat"], a["lon"], f["lat"], f["lon"]) > a["km"]):
@@ -248,7 +257,8 @@ def c3(c: Ctx):
     fns = "\n".join(m.group(0) for m in (re.search(r"function haversineKm\(a, b, c, d\) \{.*?\n\}", js, re.S),
                                          re.search(r"const carteZone = .*?;", js),
                                          re.search(r"function carteHas\(f, g, o\) \{.*?\n\}", js, re.S),
-                                         re.search(r"function carteFilter\(rows, F, skip\) \{.*?\n\}", js, re.S),
+                                         re.search(r"function carteFilter\(rows, F, skip, kw\) \{.*?\n\}", js, re.S),
+                                         re.search(r"const carteInLieu = .*?;", js), re.search(r"const foldText = .*?;\n", js),
                                          # sprint R3: the shared bands (META absent here: no band, the R3 groups stay empty)
                                          re.search(r"const CARTE_R3 = .*?;", js), re.search(r"const fiOptions = .*?;", js),
                                          re.search(r"function filtreBand\(v, bands\) \{.*?\n\}", js, re.S)) if m)
@@ -256,17 +266,22 @@ def c3(c: Ctx):
     real = [{**f, "zone": z} for f, z in zip(M["CA"].public(M["CA"].formations(c.con, d))["formations"], ["securite", "cible", "ambitieux", None] * 99999)]
     acad = next((f["academie"] for f in real if f["academie"]), "")
     town = next((f for f in real if f["lat"] is not None), None)
-    real_f = [{}, {"academie": acad}, {"statut": ["public"]}, {"internat": ["mixte"], "statut": ["public", "contrat", "prive"]}, {"zones": ["securite"]},
+    region = next((f["region"] for f in real if f.get("region")), "")
+    real_f = [{}, {"lieu": {"t": "acad", "v": acad}}, {"lieu": {"t": "region", "v": region}}, {"statut": ["public"]}, {"internat": ["mixte"], "statut": ["public", "contrat", "prive"]}, {"zones": ["securite"]},
               {"amenag": ["sport", "partielle"]}, {"autour": {"lat": town["lat"], "lon": town["lon"], "km": 50}} if town else {}]
-    cases = [[CRAFT, F, None] for F in FILTERS] + [[real, F, None] for F in real_f] + [[CRAFT, {"statut": ["contrat"], "internat": ["mixte"]}, "statut"]]
+    cfa = craft(9, etablissement="CFA du Bâtiment", formation="BTS Bâtiment", stats=False, apprentissage=True, initiale=False)
+    kws = [{"codes": ["1", "3"], "words": ["lycee"]}, {"codes": [], "words": ["batiment", "cfa"]}, {"codes": ["2"], "words": []},
+           {"codes": [real[0]["cod_aff_form"], real[-1]["cod_aff_form"]], "words": ["zzz"]}]
+    cases = [[CRAFT, F, None, None] for F in FILTERS] + [[real, F, None, None] for F in real_f] + [[CRAFT, {"statut": ["contrat"], "internat": ["mixte"]}, "statut", None]] \
+        + [[CRAFT + [cfa], {"statut": ["public", "contrat", "prive_app", "prive"]}, None, kw] for kw in kws[:3]] + [[real, {}, None, kws[3]]]
     page = node("const CARTE_ZONES = ['securite', 'cible', 'ambitieux'];\n" + fns + """
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(cases.map(([rows, F, skip]) => carteFilter(rows, F, skip || undefined).map((f) => f.cod_aff_form))));""", cases)
+process.stdout.write(JSON.stringify(cases.map(([rows, F, skip, kw]) => carteFilter(rows, F, skip || undefined, kw ? { codes: new Set(kw.codes), words: kw.words } : null).map((f) => f.cod_aff_form))));""", cases)
     if page is None:
         return True, "node not installed"
     if isinstance(page, dict):
         return False, page["error"]
-    want = [py_filter(rows, F, skip) for rows, F, skip in cases]
+    want = [py_filter(rows, F, skip, kw) for rows, F, skip, kw in cases]
     diff = [i for i, (a, b) in enumerate(zip(page, want)) if a != b]
     m = re.search(r"const CARTE_DEFAULT = (\{.*?\});", js)
     default = bool(m) and json.loads(re.sub(r"(\w+):", r'"\1":', m.group(1))) == {"statut": ["public", "contrat", "prive_app"]}
@@ -331,7 +346,7 @@ def c6(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -371,7 +386,8 @@ def c7(c: Ctx):
     route = 'if (a === "carte") return await viewCarte(b || "", c || "");' in c.js and 'carte: "carte"' in c.js
     # R1 (owner, 2026-11-11): the map is one of the Explorer views (list, map, jobs), shown on the home, search and map pages
     menus = 'carte: "#/carte", metiers' in c.js and all("explorerViews(" in c.js[c.js.index(f"function {fn}("):][:6000]
-                                                        for fn in ("viewHome", "viewCarte"))   # noqa
+                                                        for fn in ("viewCarte", "viewMetiers")) \
+        and '<a class="door" href="#/carte">' in c.js[c.js.index("function viewHome("):][:4000]   # owner, 2026-11-15: one search page
     an = "carte" in analytics.ROUTES
     pol = cache.policy("/api/carte") and cache.policy("/api/carte/formations") and cache.policy("/api/carte/zones")
     rel = '"carte": ("app.js", "function viewCarte(")' in (ROOT / "tests" / "test_release.py").read_text()
@@ -474,7 +490,7 @@ def c9(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
@@ -530,7 +546,7 @@ def c10(c: Ctx):
     helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
-const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40;
+const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => "";
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """

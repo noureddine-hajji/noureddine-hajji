@@ -136,13 +136,8 @@ function mentionParams(qs, p) {
   return qs;
 }
 // the average the page reads with: the profile's own, else the top of 8-10 for a rattrapage (journey.RATTRAPAGE_TOP), else none
-function localAverage(p) { return p.moyenne !== null && p.moyenne !== undefined ? p.moyenne : p.mention === "rattrapage" ? 10 : null; }
-// the one exception: the search's zone filter is applied by the server on every result (the search is never cached and never
-// records the profile), so it still sends the average (R6, said in the method text)
-function mentionParamsSearch(qs, p) {
-  qs.set("mention", p.mention);
-  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));
-  return qs;
+function localAverage(p) {
+  return p.moyenne !== null && p.moyenne !== undefined ? p.moyenne : p.mention === "rattrapage" ? 10 : null;
 }
 const moyenneText = (m) => `${fmt(m, 1)}/20`;
 // R5 (review): the band and the average in words, from the VALIDATED profile (a stale stored mention never shows)
@@ -575,12 +570,7 @@ function offerList(r) {
 // compact (search results): sport / art arrangements are declared by ~40 % of formations, so they
 // would be noise in a result list; they stay on the fiche
 const offerBadges = (r, compact = false) => offerList(r).filter(([k]) => !compact || !["sport", "art"].includes(k)).map(([k, t]) => `<span class="badge offer" title="${esc(t)}"><span aria-hidden="true">${OPT_ICON[k]}</span> ${esc(k === "distance" ? t.replace("Enseignement ", "") : OPT_LABEL[k])}</span>`).join("");
-const FILI_LABEL = { Licence_Las: "Licence L.AS", "Ecole d'Ingénieur": "École d'ingénieurs", "Ecole de Commerce": "École de commerce", "Autre formation": "Autres formations" };
 
-function searchHash(q, params) {
-  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== "" && v != null && v !== 0)).toString();
-  return `#/s/${encodeURIComponent(q)}${qs ? `/${encodeURIComponent(qs)}` : ""}`;
-}
 
 // ---- Sprint R7 (owner, 2026-11-12): "Construire ma liste", the five steps of the site in one place ----
 // Everything it reads stays in this browser: the profile, the list and two flags (a formation page opened, the list shared).
@@ -679,9 +669,10 @@ function guideCard() {
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
 const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
 // R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
-const EXPLORER_VIEWS = [["liste", "Liste", "list"], ["carte", "Carte", "map"], ["metiers", "Métiers", "job"]];
-function explorerViews(cur, q = "") {
-  const href = { liste: q ? `#/s/${encodeURIComponent(q)}` : "#/", carte: "#/carte", metiers: "#/metiers" };
+// owner, 2026-11-15: the list and the map are one view ("Formations": search bar, list and map); jobs are the other view
+const EXPLORER_VIEWS = [["carte", "Formations", "map"], ["metiers", "Métiers", "job"]];
+function explorerViews(cur) {
+  const href = { carte: "#/carte", metiers: "#/metiers" };
   return `<nav class="views" aria-label="Explorer : choisir la vue">${EXPLORER_VIEWS.map(([k, label, ico]) =>
     `<a href="${esc(href[k])}"${k === cur ? ' aria-current="true"' : ""}>${ICONS[ico]}${label}</a>`).join("")}</nav>`;
 }
@@ -692,7 +683,7 @@ function homeCta() {
   const has = hasStoredProfile(store.get("profile", null));
   const [href, label, note] = has ? ["#/parcours", "Voir où je me situe", "Les formations lues pour votre profil, d'après les admis des années passées."]
     : ["#/profil", "Créer mon profil", "1 minute, sans compte : votre bac, vos spécialités et votre mention. Il reste dans ce navigateur."];
-  return `<div class="hero-cta"><a class="btnlink primary" href="${href}">${label}</a><p class="small">${note} <button type="button" class="linkish" id="hero-search">Ou cherchez directement une formation</button></p></div>`;
+  return `<div class="hero-cta"><a class="btnlink primary" href="${href}">${label}</a><p class="small">${note} <a href="#/carte">Ou cherchez directement une formation</a></p></div>`;
 }
 // the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: the hero carries the call
 function homeProfile() {
@@ -706,12 +697,11 @@ function viewHome() {
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
     <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p>
     ${homeCta()}</section>
-  ${explorerViews("liste")}
   ${homeProfile()}
   ${guideCard()}
   <div class="doors">
-    <button type="button" class="door" id="door-search"><span class="door-ico" aria-hidden="true">${ICONS.search}</span><strong>Je cherche une formation</strong>
-      <span>Un nom, une ville, un sigle : même avec des fautes de frappe.</span></button>
+    <a class="door" href="#/carte"><span class="door-ico" aria-hidden="true">${ICONS.search}</span><strong>Je cherche une formation</strong>
+      <span>Un mot-clé, une ville, une région : la liste et la carte, avec des filtres.</span></a>
     <a class="door" href="#/metiers"><span class="door-ico" aria-hidden="true">${ICONS.job}</span><strong>Je pars d'un métier</strong>
       <span>Développeur, infirmière, juriste… voyez les formations qui y mènent.</span></a>
     <a class="door" href="#/parcours"><span class="door-ico" aria-hidden="true">${ICONS.compass}</span><strong>Je veux savoir où je me situe</strong>
@@ -723,32 +713,15 @@ function viewHome() {
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
     ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
-  const toSearch = () => { const q = document.getElementById("q"); q.scrollIntoView({ block: "center" }); q.focus(); };
-  for (const id of ["door-search", "hero-search"]) { const b = document.getElementById(id); if (b) b.onclick = toSearch; }
   $view.dataset.rendered = "home";
 }
 
-// ---- lot 1 UI: search filters are folded under "Filtrer" (open on wide screens); active ones stay visible ----
-function searchFilters(P, go, facets, activeOpts, inner) {
-  if (!inner.trim()) return "";
-  const on = [];
-  if (P.fili) on.push([`Type : ${FILI_LABEL[P.fili] || P.fili}`, go({ fili: "" })]);
-  if (P.academie) on.push([`Académie : ${P.academie}`, go({ academie: "" })]);
-  if (P.selective) on.push([P.selective === "true" ? "Sélectives" : "Non sélectives", go({ selective: "" })]);
-  for (const o of activeOpts) on.push([OPT_LABEL[o], go({ options: activeOpts.filter((x) => x !== o).join(",") })]);
-  for (const g of FI_GROUPS) {                                        // R3: every ticked advanced option is a removable chip
-    const a = (P[g] || "").split(",").filter(Boolean);
-    for (const k of a) { const o = fiOptions(g).find((x) => x.key === k); if (o) on.push([`${FI_TITLE[g]} : ${o.label}`, go({ [g]: a.filter((x) => x !== k).join(",") })]); }
-  }
-  const wide = typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches;
-  const chips = on.length ? `<div class="toolbar active-filters" aria-label="Filtres actifs">${on.map(([l, h]) =>
-    `<a class="badge exact" href="${esc(h)}" aria-label="Retirer le filtre ${esc(l)}">${esc(l)} ✕</a>`).join("")}</div>` : "";
-  return `${chips}<details class="filters"${wide ? " open" : ""}><summary>${ICONS.filter}Filtrer${on.length ? ` (${on.length} actif${on.length > 1 ? "s" : ""})` : ""}</summary>${inner}</details>`;
-}
 
 // ---- lot 3 (Claude design guidelines): the same summary-first, folded-detail format on the four working pages ----
 const narrow = () => typeof matchMedia === "function" && matchMedia("(max-width: 720px)").matches;
 const searchPage = () => (narrow() ? 20 : 40);
+// owner, 2026-11-15: the search list's cards carry three figures, the bac lines and the actions: 10 per page on a phone
+const cartePage = () => (narrow() ? 10 : 40);
 // zoneTiles: the zone counts of a list read as a summary (one tile per zone, the zone's own colour, never a chance)
 function zoneTiles(counts, other) {
   const tile = (k, n) => `<div class="sum-tile">${zonePillHtml(k)}
@@ -770,7 +743,6 @@ function profileLine(p, serie) {
 // The bands come from /api/meta (filtres.vocab): the search is filtered on the server, the map in the browser, with the SAME limits.
 // The zone filter sends the profile with the search (bac, specialties, mention), never stored, never in the audience figures. The
 // complementary phase is a fact of a past campaign (admits), never places left this year. Nothing is ever sorted by these values.
-const FI_GROUPS = ["zone", "statut", "capacite", "complementaire", "taux"];
 const FI_TITLE = { zone: "Zone pour votre profil", statut: "Type d'établissement", capacite: "Capacité", complementaire: "Phase complémentaire", taux: "Taux d'accès officiel" };
 const FI_HELP = {
   zone: "Lue pour votre profil (bac, spécialités, mention), comme dans « Mes vœux » : rien n'est enregistré. Des repères, pas des chances.",
@@ -812,98 +784,14 @@ function zoneBadge(z, uncertain) {
   const h = zoneHelp(z);
   return `<span class="badge zbadge" style="--zc:${zz.color}"${h ? ` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label)}</span>${uncertain ? ' <span class="badge">incertain</span>' : ""}`;
 }
-// the search query of the profile (terminale only: no zone exists outside terminale, sprint 21)
-function fiProfileQuery(qs) {
-  const p = bacProfile();
-  if (!p) return false;
-  const v = vxProfile(p);
-  if (v.serie === "bg" && (!v.spe1 || !v.spe2 || v.spe1 === v.spe2)) return false;
-  qs.set("serie", v.serie); mentionParamsSearch(qs, v);
-  if (v.serie === "bg") { qs.set("spe1", v.spe1); qs.set("spe2", v.spe2); }
-  return true;
-}
-function searchAdvanced(P, go, d, chip) {
-  const f = d.facets || {};
-  const sel = (g) => (P[g] || "").split(",").filter(Boolean);
-  const toggle = (g, k) => { const a = sel(g); return go({ [g]: (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]).join(",") }); };
-  return FI_GROUPS.map((g) => {
-    if (g === "zone" && !d.zones_lues) {                               // review: no invitation outside terminale (no zone exists there)
-      return isReo(store.get("profile", null)) ? ""
-        : !bacProfile() ? `<p class="small"><span class="muted">${FI_TITLE.zone} :</span> <a href="#/profil">créez votre profil pour filtrer par vœux de sécurité, cibles ou ambitieux</a></p>` : "";
-    }
-    const counts = f[g] || {};
-    const opts = fiOptions(g).filter((o) => counts[o.key] || sel(g).includes(o.key));
-    if (!opts.length) return "";
-    return `<div class="toolbar fi-group" aria-label="${esc(FI_TITLE[g])}"><span class="small muted">${esc(FI_TITLE[g])} :</span>${opts.map((o) =>
-      chip(`${o.label} (${fmt(counts[o.key] || 0)})`, toggle(g, o.key), sel(g).includes(o.key))).join("")}</div>${FI_HELP[g] ? `<p class="muted small">${esc(FI_HELP[g])}</p>` : ""}`;
-  }).join("");
-}
 
-// R4 (owner, 2026-11-12): a search result as a card. When the zones were read for the profile, the zone gives the card its left edge
-// and its pill (token + shape + name, never the colour alone). The figure column holds the OFFICIAL access rate of the result's
-// campaign; for a bac techno or pro profile, the same stage-2 row's ESTIMATED access for the series follows it (Mon parcours' "Accès
-// estimé", said as an estimation, "peu de candidats" below 20 candidates of the series); bac général has no second figure here (the
-// doublette figure needs the formation page: R2). Never a chance; every stored string escaped.
-function resultCard(r) {
-  const z = r.zone && ZONES[r.zone] ? r.zone : null;
-  const est = r.estime_serie !== undefined && r.estime_serie !== null
-    ? `<div class="rc-est"><strong>${fmt(r.estime_serie)} %</strong><span>accès estimé pour votre bac ${estimTag(r.estime_fragile ? "peu de candidats" : "")}</span></div>` : "";
-  return `<article class="result rc${z ? " rc-z" : ""}"${z ? ` style="--zc:${ZONES[z].color}"` : ""}>
-    <div class="rc-main">
-      <a class="rc-title" href="#/f/${esc(r.cod_aff_form)}">${esc(r.g_ea_lib_vx)}</a>
-      <div class="rc-sub">${esc(r.fil_lib_voe_acc)}${r.lib_comp_voe_ins ? ` <span class="muted">${esc(r.lib_comp_voe_ins)}</span>` : ""}</div>
-      <div class="rc-meta muted small"><span>${esc(r.ville_etab)}${r.acad_mies ? ` (${esc(r.acad_mies)})` : ""}</span>${r.capa_fin !== undefined && r.capa_fin !== null ? `<span>${ICONS.places}${fmt(r.capa_fin)} places</span>` : ""}<span>campagne ${esc(r.session)} · ${esc(r.lineage_years)} campagne(s)</span></div>
-      <div class="rc-badges">${z ? zonePillHtml(z, r.uncertain) : ""}<span class="badge">${esc(FILI_LABEL[r.fili] || r.fili)}</span>${recoBadge(r.cod_aff_form)}${tensionBadge(r.cod_aff_form)}${r.apprentissage === true ? "" : appBadge(r.cod_aff_form)}${lineageBadge(r.lineage_confidence)}${offerBadges(r, true)}${autresBadge(r)}${r.acc_pc > 0 ? `<span class="badge" title="${esc(FI_HELP.complementaire)}">admis en phase complémentaire ${esc(r.session)}</span>` : ""}${r.subwish_flag ? `<span class="badge warnb">sous-vœu</span>` : ""}${r.low_n_flag ? `<span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : ""}</div>
-    </div>
-    <div class="rc-fig num"><div class="big">${pct(r.taux_acces_ens)}</div><div class="muted small">taux d'accès officiel</div>${est}</div>
-  </article>`;
-}
 
-async function viewSearch(q, rawParams) {
+// owner, 2026-11-15: the list search and the map are ONE page ("Rechercher une formation"); an old "#/s/<mots>" link (search ideas,
+// a shared link) opens it with its keyword
+async function viewSearch(q) {
   if (!q) return viewHome();
-  const P = Object.fromEntries(new URLSearchParams(rawParams || ""));
-  const near = store.get("profile", {}).academie || "";
-  const PAGE = searchPage();                                          // lot 3: 20 results per page on a phone, 40 on a wide screen
-  const qs = new URLSearchParams({ q, offset: P.offset || 0, limit: PAGE, avance: "true" });
-  for (const k of ["fili", "academie", "selective", "options", ...FI_GROUPS]) if (P[k]) qs.set(k, P[k]);
-  if (near) qs.set("near", near);
-  const withProfile = fiProfileQuery(qs);                             // R3: the zones of every result, read for this answer only
-  if (!withProfile) { qs.delete("zone"); delete P.zone; }            // review: no zone chip left for a filter not applied
-  const [d] = await Promise.all([api(`/api/search?${qs}`), recoLoad()]);   // V1: the State-label badges of the results
-  if (d.mode === "cod_aff_form" && d.results.length === 1) { location.hash = `#/f/${d.results[0].cod_aff_form}`; return; }
-  const keep = Object.fromEntries(["fili", "academie", "selective", "options", ...FI_GROUPS].map((k) => [k, P[k]]));
-  const go = (patch) => searchHash(q, { ...keep, ...patch, offset: patch.offset || 0 });
-  const activeOpts = (P.options || "").split(",").filter((o) => OPT_LABEL[o]);
-  const fromQuery = d.interpretation.filter((i) => i.type === "option").map((i) => i.value);
-  const toggleOpt = (o) => { const a = activeOpts.includes(o) ? activeOpts.filter((x) => x !== o) : [...activeOpts, o]; return go({ options: a.join(",") }); };
-  const chip = (label, href, active) => `<a class="badge${active ? " exact" : ""}" href="${esc(href)}">${esc(label)}</a>`;
-  const facets = d.facets || {};
-  const off = +(P.offset || 0);
-  $view.innerHTML = `${explorerViews("liste", q)}<div class="card">
-    <h1>${fmt(d.total)} formation(s)${d.partial ? ` <span class="badge warnb">résultats partiels</span>` : ""}</h1>
-    ${d.interpretation.length ? `<div class="legend" aria-label="Interprétation de la recherche">${d.interpretation.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : ""}
-    ${d.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("")}
-    ${d.total === 0 ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou une ville.</p>` : ""}
-    ${searchFilters(P, go, facets, activeOpts, `
-    ${searchAdvanced(P, go, d, chip)}
-    ${(facets.fili || []).length > 1 || P.fili ? `<div class="toolbar"><span class="small muted">Type :</span>${chip("Tous", go({ fili: "" }), !P.fili)}${(facets.fili || []).map((f) => chip(`${FILI_LABEL[f.value] || f.value} (${f.count})`, go({ fili: f.value }), P.fili === f.value)).join("")}</div>` : ""}
-    ${(facets.options || []).some((o) => o.count || o.active) ? `<div class="toolbar" aria-label="Options de la formation"><span class="small muted">Options :</span>${facets.options.filter((o) => o.count || o.active).map((o) => fromQuery.includes(o.value) && !activeOpts.includes(o.value)
-      ? `<span class="badge exact" title="Déduit de votre recherche : retirez le mot pour l'enlever">${esc(OPT_LABEL[o.value])} (${o.count})</span>`
-      : chip(`${OPT_LABEL[o.value]} (${o.count})`, toggleOpt(o.value), o.active)).join("")}</div>` : ""}
-    ${(facets.academie || []).length > 1 || P.academie || (facets.selectivite || []).length > 1 || P.selective ? `<div class="toolbar">
-      ${(facets.academie || []).length > 1 || P.academie ? `<label class="small">Académie <select id="facad"><option value="">Toutes</option>${(facets.academie || []).slice().sort((a, b) => a.value.localeCompare(b.value, "fr")).map((a) => `<option value="${esc(a.value)}" ${P.academie === a.value ? "selected" : ""}>${esc(a.value)} (${a.count})</option>`).join("")}</select></label>` : ""}
-      ${(facets.selectivite || []).length > 1 || P.selective ? `<label class="small">Sélectivité <select id="fsel"><option value="">Toutes</option>${(facets.selectivite || []).map((f) => { const v = f.value === "formation sélective" ? "true" : "false"; return `<option value="${v}" ${P.selective === v ? "selected" : ""}>${f.value === "formation sélective" ? "Sélectives" : "Non sélectives"} (${f.count})</option>`; }).join("")}</select></label>` : ""}
-    </div>` : ""}
-    `)}
-    ${d.results.map(resultCard).join("")}
-    ${d.total > off + d.results.length ? `<p><a class="badge exact" href="${esc(go({ offset: off + PAGE }))}">Résultats suivants (${fmt(off + d.results.length + 1)}–${fmt(Math.min(d.total, off + d.results.length + PAGE))}) →</a></p>` : ""}
-    ${off ? `<p><a href="${esc(go({ offset: Math.max(0, off - PAGE) }))}">← Résultats précédents</a></p>` : ""}
-    ${near ? `<p class="muted small">À pertinence égale, les formations de l'académie de ${esc(near)} (votre profil) passent en premier.</p>` : ""}
-  </div>${feedbackBox("search")}`;
-  $view.dataset.rendered = `s:${q}:${rawParams || ""}`;   // render marker (UI tests wait on it)
-  suggestLycee(q, $view.dataset.rendered);
-  const fa = document.getElementById("facad"); if (fa) fa.onchange = () => { location.hash = go({ academie: fa.value }); };
-  const fs = document.getElementById("fsel"); if (fs) fs.onchange = () => { location.hash = go({ selective: fs.value }); };
+  carteUI.pendingQ = q;
+  location.replace("#/carte");
 }
 
 function stageCard(title, keys, rec, note) {
@@ -1291,6 +1179,42 @@ const CARTE_GROUPS = [
   ["select", "Sélectivité", [["oui", "Formations sélectives"], ["non", "Formations non sélectives"]]],
 ];
 const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };
+// owner, 2026-11-15: ONE search page (list + map), the Parcoursup way. The keyword goes to the search engine (/api/search/codes:
+// acronyms, places, typos, in its relevance order); the place (région, département, académie, a town and a radius) and every
+// filter are matched HERE, in the browser: the place is never sent.
+const REGION_NOM = { "Ile-de-France": "Île-de-France", "Centre": "Centre-Val de Loire", "Grand-Est": "Grand Est", "Nouvelle Aquitaine": "Nouvelle-Aquitaine",
+  "Pays-de-la-Loire": "Pays de la Loire", "Réunion": "La Réunion" };
+const regionNom = (r) => REGION_NOM[r] || r;
+// the places the bar offers, one label each: the profile's town first, then regions, départements, académies, the formations' towns
+function carteLieux(rows, home) {
+  const out = new Map(), regions = new Set(), deps = new Map(), acads = new Set(), towns = new Map();
+  if (home) out.set(`Ma ville : ${villeLabel(home)}`, { t: "ville", v: villeLabel(home), lat: home.lat, lon: home.lon });
+  rows.forEach((f) => {
+    if (f.region) regions.add(f.region);
+    if (f.dep && f.dep_lib) deps.set(f.dep, f.dep_lib);
+    if (f.academie) acads.add(f.academie);
+    if (f.ville && f.lat != null && !towns.has(f.ville)) towns.set(f.ville, { lat: f.lat, lon: f.lon });
+  });
+  [...regions].sort((a, b) => regionNom(a).localeCompare(regionNom(b), "fr")).forEach((r) => out.set(`${regionNom(r)} (région)`, { t: "region", v: r }));
+  [...deps].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).forEach(([c, n]) => out.set(`${n} (${c})`, { t: "dep", v: c }));
+  [...acads].sort((a, b) => a.localeCompare(b, "fr")).forEach((a) => out.set(`Académie de ${a}`, { t: "acad", v: a }));
+  [...towns].sort((a, b) => a[0].localeCompare(b[0], "fr")).forEach(([t, x]) => { if (!out.has(t)) out.set(t, { t: "ville", v: t, lat: x.lat, lon: x.lon }); });
+  return out;
+}
+// a typed place: its exact label, else the same words without accents or case, with or without "(région)" / the code; a code alone
+function carteLieu(lieux, txt) {
+  const s = String(txt || "").trim();
+  if (!s) return null;
+  if (lieux.has(s)) return lieux.get(s);
+  const k = foldText(s);
+  for (const [label, x] of lieux) {
+    if (foldText(label) === k || foldText(label.replace(/ \((?:région|[0-9][0-9AB]?[0-9]?)\)$/, "")) === k || (x.t === "dep" && x.v === s.toUpperCase())) return x;
+  }
+  return null;
+}
+const carteInLieu = (f, L) => !L || (L.t === "region" ? f.region === L.v : L.t === "dep" ? f.dep === L.v : L.t === "acad" ? f.academie === L.v : true);
+// an apprenticeship offer is not in the search engine's index (no SIES statistics): it is kept when its own name has every word
+const kwWords = (q) => foldText(q).split(/[^a-z0-9]+/).filter((w) => w.length > 1);
 // R3 (owner, 2026-11-12): the search's capacity, complementary phase and official-rate bands, the same limits (META.filtres)
 const CARTE_R3 = ["capacite", "complementaire", "taux"];
 const carteGroups = () => [...CARTE_GROUPS, ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];
@@ -1308,12 +1232,12 @@ function carteHas(f, g, o) {
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
-function carteFilter(rows, F, skip) {
-  const q = (F.q || "").trim().toLowerCase();
+function carteFilter(rows, F, skip, kw) {
   const groups = ["statut", "app", "internat", "amenag", "select", "zones", ...CARTE_R3].filter((g) => g !== skip);
   return rows.filter((f) => groups.every((g) => !(F[g] || []).length || F[g].some((o) => carteHas(f, g, o)))
-    && (!F.academie || f.academie === F.academie)
-    && (!q || `${f.etablissement} ${f.formation} ${f.ville}`.toLowerCase().includes(q))
+    && carteInLieu(f, F.lieu)
+    && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && kw.words.length > 0
+      && kw.words.every((w) => foldText(`${f.etablissement} ${f.formation} ${f.ville}`).includes(w))))
     && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km)));
 }
 // one formation: its zone's colour AND shape, its name and zone in the label (an SVG icon, so it scales with the page)
@@ -1443,7 +1367,7 @@ function carteCard(f, ctx, pinned) {
   </div>`;
 }
 function carteList(rows, ctx) {
-  const PAGE = searchPage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
+  const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
   return `<div class="carte-list" role="list">${part.map((f) => carteCard(f, ctx, false)).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
@@ -1489,8 +1413,8 @@ async function viewCarte(dArg, mArg) {
   const sel = carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
   store.set("carteSel", sel);
   // R10: the page's heading and a loading line at once (every diploma takes a few seconds the first time)
-  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Carte des formations</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
-  document.title = "Carte des formations — SupCompass";       // the tab already names the page while it loads (R8 rule)
+  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const P = bacProfile();                                                // sprint 21: no zone outside terminale
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   // R5: the profile's own codes ("sm" was never a profile value: a sans-mention student got no zone on the map)
@@ -1536,31 +1460,42 @@ async function viewCarte(dArg, mArg) {
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
   F.zones = ok && Array.isArray(F.zones) ? F.zones.filter((z) => [...CARTE_ZONES, "autre"].includes(z)) : [];
+  if (F.academie && !F.lieu) { F.lieu = { t: "acad", v: String(F.academie) }; F.lieuTxt = `Académie de ${F.academie}`; }
+  delete F.academie;
+  F.q = typeof F.q === "string" ? F.q.slice(0, 200) : "";
+  F.lieu = F.lieu && ["region", "dep", "acad"].includes(F.lieu.t) && typeof F.lieu.v === "string" ? { t: F.lieu.t, v: F.lieu.v } : null;
+  F.autour = F.autour && Number.isFinite(F.autour.lat) && Number.isFinite(F.autour.lon) && Number.isFinite(F.autour.km) ? F.autour : null;
+  F.lieuTxt = typeof F.lieuTxt === "string" ? F.lieuTxt.slice(0, 120) : (F.autour && F.autour.ville) || "";
+  // an old "#/s/<words>" link: its words become the keyword, saved at once (a rebuild re-reads the stored filters: Codex)
+  if (carteUI.pendingQ != null) { F.q = carteUI.pendingQ.slice(0, 200); F.lieu = null; F.autour = null; F.lieuTxt = ""; carteUI.pendingQ = null; store.set("carteFiltres2", F); }
+  // the keyword's codes, in the engine's relevance order (one answer per keyword, kept for the visit; a failure keeps the list whole)
+  const kwLoad = (q) => cached(`kw|${q}`, () => api(`/api/search/codes?q=${encodeURIComponent(q)}`).then((d) => ({ q, codes: new Set(d.codes),
+    rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
+  carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
+  if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
   const towns = [...new Set(rows.filter((f) => f.lat != null).map((f) => f.ville))].sort((a, b) => a.localeCompare(b, "fr"));
   const acads = [...new Set(rows.map((f) => f.academie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const town = (name) => { const xs = rows.filter((f) => f.ville === name && f.lat != null); return xs.length ? { lat: xs[0].lat, lon: xs[0].lon } : null; };
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
-  $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Carte des formations</h1>
+  const home = villeDepart(), lieux = carteLieux(C.rows, home);          // the place list: every formation, whatever the type ticked
+  $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1>
+    <form id="cs-form" class="cs-bar" role="search" aria-label="Rechercher une formation">
+      <label class="cs-field cs-q"><span>Formation, établissement, mot-clé</span><input id="cs-q" type="search" autocomplete="off" value="${esc(F.q || "")}" placeholder="ex. BTS NDRC, IUT informatique, kiné"></label>
+      <label class="cs-field cs-lieu"><span>Ville, département, région</span><input id="cs-lieu" type="search" list="cs-lieux" autocomplete="off" value="${esc(F.lieuTxt || "")}" placeholder="ex. Lyon, Nord (59), Bretagne"></label>
+      <datalist id="cs-lieux">${[...lieux.keys()].map((l) => `<option value="${esc(l)}">`).join("")}</datalist>
+      <label class="cs-field cs-km"${F.autour ? "" : " hidden"}><span>Rayon</span><select id="cs-km">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour ? F.autour.km : 25) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
+      <button type="submit" class="cs-go">${ICONS.search}Rechercher</button>
+    </form>
+    <p class="small cs-help">${home ? `<button type="button" class="linkish" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button> · ` : '<a href="#/profil">Votre ville dans Mon profil</a> : chercher autour de chez vous. '}Le lieu reste dans votre navigateur.</p>
+    <div id="cs-status" class="cs-status" role="status"></div>
+    <details class="dd-fold" id="dd-fold"${!narrow() || carteUI.fold ? " open" : ""}><summary>${ICONS.filter}Filtrer <span id="dd-fold-n"></span></summary><div class="dd-bar" id="cfilters"></div></details>
     <p class="small">${!ok && isReo(store.get("profile", null)) ? `Les formations sont placées sans zone. ${REO_NO_ZONE} <a href="#/reorientation">Voir l'accès estimé hors terminale</a>.` : ok ? "Chaque formation est placée et colorée selon votre zone, calculée comme dans « Où je me situe » à partir des admis des campagnes passées : ce ne sont pas des chances d'admission." : `Les formations sont placées sans zone. <a href="#/profil">Indiquez votre bac, vos spécialités et votre mention</a> pour les colorer selon votre zone.`}</p></div>
-  <div class="carte-layout">
-    <div class="carte-side">
-      <details class="filters carte-filters"${narrow() ? "" : " open"}><summary>${ICONS.filter}Filtrer</summary>
-        <div class="carte-scroll">
-          <fieldset class="small carte-dips"><legend>Type de diplôme <span class="muted">(aucun coché : tous)</span></legend>
-            ${sel.d.length ? '<button type="button" class="linkish" data-clear-dips>Tout décocher (tous les diplômes)</button>' : ""}
-            ${FAC.diplomes.map((d) => `<label><input type="checkbox" data-dip="${esc(d.label)}" ${sel.d.includes(d.label) ? "checked" : ""}> ${esc(d.label)} <span class="muted">${fmt(d.n)}</span></label>`).join("")}</fieldset>
-          ${sel.d.map((d) => { const D = FAC.diplomes.find((x) => x.label === d); return D.mentions.length < 2 ? "" : `<fieldset class="small carte-mens"><legend>Mention : ${esc(d)}</legend>
-            ${D.mentions.length > 12 ? `<input type="search" class="cmen-q" data-for="${esc(d)}" placeholder="Chercher une mention" aria-label="Chercher une mention de ${esc(d)}">` : ""}
-            ${D.mentions.map((m) => `<label data-men-label="${esc(foldText(m.label))}"><input type="checkbox" data-men="${esc(m.label)}" data-mdip="${esc(d)}" ${(sel.m[d] || []).includes(m.label) ? "checked" : ""}> ${esc(m.label)} <span class="muted">${fmt(m.n)}</span></label>`).join("")}</fieldset>`; }).join("")}
-          <div class="filter-grid" id="cfilters"></div>
-        </div>
-      </details>
-    </div>
-    <section class="carte-results card" aria-labelledby="carte-h2"><h2 id="carte-h2">Formations de la carte</h2>
+  <div class="carte-layout carte-layout2">
+    <section class="carte-results card" aria-labelledby="carte-h2"><h2 id="carte-h2">Formations trouvées</h2>
       <p class="muted small" id="carte-count"></p>
       <div id="carte-sel" aria-live="off"></div>
       <div id="carte-items"></div>
-      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance et" : ""} par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (paire de spécialités, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Vos deux spécialités : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
+      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance," : ""} par pertinence de votre recherche s'il y a un mot-clé, puis par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (paire de spécialités, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Vos deux spécialités : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
     </section>
     <div class="carte-mapcol">
       <div class="legend" id="carte-legend"></div>
@@ -1584,35 +1519,63 @@ async function viewCarte(dArg, mArg) {
   const inView = (f) => !carteUI.map || (f.lat != null && carteUI.map.getBounds().contains([f.lat, f.lon]));
   const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
+  // the filters, one dropdown per group (owner, 2026-11-15), each option with its count among the formations the OTHER filters
+  // keep; one dropdown open at a time, kept open while its boxes are ticked
   function panel() {
-    const base = shown(), home = villeDepart();          // the town of "Mon profil" (this browser only, never sent)
-    const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr).filter((f) => carteHas(f, gr, o)).length;
-      return `<label class="small"><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> ${label} <span class="muted">${fmt(n)}</span></label>`; };
+    const base = shown(), kw = carteUI.kw, bar = document.getElementById("cfilters");
+    const box2 = (gr, o, label) => { const n = carteFilter(base, F, gr, kw).filter((f) => carteHas(f, gr, o)).length;
+      return `<label><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> <span>${label}</span> <span class="muted">${fmt(n)}</span></label>`; };
     const zoneLabel = (z) => `<i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}`;
-    document.getElementById("cfilters").innerHTML = `
-      <label class="small">Nom, ville <input id="cq" type="search" value="${esc(F.q || "")}" placeholder="ex. Lyon, IUT"></label>
-      <label class="small">Académie <select id="cacad"><option value="">Toutes</option>${acads.map((a) => `<option ${F.academie === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
-      <label class="small">Autour de <input id="ctown" list="ctowns" value="${esc((F.autour && F.autour.ville) || "")}" placeholder="une ville"></label><datalist id="ctowns">${home ? `<option value="${esc(villeLabel(home))}">` : ""}${towns.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
-      ${home ? `<button type="button" class="linkish small" id="chome">Autour de ma ville : ${esc(villeLabel(home))}</button>` : '<p class="muted small"><a href="#/profil">Indiquez votre ville dans Mon profil</a> pour chercher autour de chez vous.</p>'}
-      <label class="small">Rayon <select id="ckm">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour && F.autour.km) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
-      ${ok ? `<fieldset class="small"><legend>Votre zone</legend>${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}</fieldset>` : ""}
-      ${carteGroups().map(([gr, title, opts]) => `<fieldset class="small"><legend>${esc(title)}</legend>${(F[gr] || []).length ? `<button type="button" class="linkish" data-clear="${gr}">Tout décocher (tout afficher)</button>` : ""}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
-        ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}</fieldset>`).join("")}
-      <p class="muted small">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès. Votre ville n'est jamais envoyée au site : le rayon est calculé dans votre navigateur.</p>`;
-    document.getElementById("cq").oninput = (e) => { F.q = e.target.value; save(false); };
-    document.getElementById("cacad").onchange = (e) => { F.academie = e.target.value || ""; save(); };
-    const setTown = () => { const v = document.getElementById("ctown").value, km = Number(document.getElementById("ckm").value);
-      const t = town(v) || (home && v === villeLabel(home) ? { lat: home.lat, lon: home.lon } : null);      // the profile's town
-      F.autour = t ? { ...t, km, ville: v } : null;
-      if (t && carteUI.map) carteUI.map.setView([t.lat, t.lon], km <= 10 ? 11 : km <= 25 ? 10 : km <= 50 ? 9 : km <= 100 ? 8 : 7);
-      save(); };
-    document.getElementById("ctown").onchange = setTown;
-    const ch = document.getElementById("chome");
-    if (ch) ch.onclick = () => { document.getElementById("ctown").value = villeLabel(home); if (!F.autour) document.getElementById("ckm").value = "50"; setTown(); };
-    document.getElementById("ckm").onchange = setTown;
-    document.querySelectorAll("[data-clear]").forEach((b) => { b.onclick = () => { F[b.dataset.clear] = []; save(); }; });
-    document.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
-      const gr = el.dataset.g; F[gr] = [...document.querySelectorAll(`[data-g="${gr}"]:checked`)].map((x) => x.dataset.o); save(); }; });
+    const dd = (key, title, n, body, on = n > 0) => `<details class="dd${on ? " on" : ""}" data-dd="${key}"${carteUI.open === key ? " open" : ""}><summary>${esc(title)}${n ? ` <span class="dd-n">${fmt(n)}</span>` : ""}</summary><div class="dd-panel">${body}</div></details>`;
+    const clear = (gr) => ((F[gr] || []).length ? `<button type="button" class="linkish" data-clear="${gr}">Tout décocher (tout afficher)</button>` : "");
+    // types and mentions counted like the other groups: among every formation the keyword, the place and the other filters keep
+    // (the zone filter aside: the zones are read for the ticked types only); with a keyword or a place, an empty type is not offered
+    const pool = carteFilter(C.rows, F, "zones", kw), narrowed = !!(kw || F.lieu || F.autour);
+    const nDip = new Map(), nMen = new Map();
+    pool.forEach((f) => { nDip.set(f.diplome, (nDip.get(f.diplome) || 0) + 1); const k = `${f.diplome}\u0000${f.groupe}`; nMen.set(k, (nMen.get(k) || 0) + 1); });
+    const offered = (n, ticked) => !narrowed || n > 0 || ticked;
+    const dips = dd("dips", "Type de formation", sel.d.length, `${sel.d.length ? '<button type="button" class="linkish" data-clear-dips>Tout décocher (tous les types)</button>' : '<p class="muted small">Aucun coché : tous les types.</p>'}
+      ${FAC.diplomes.filter((d) => offered(nDip.get(d.label) || 0, sel.d.includes(d.label))).map((d) => `<label><input type="checkbox" data-dip="${esc(d.label)}" ${sel.d.includes(d.label) ? "checked" : ""}> <span>${esc(d.label)}</span> <span class="muted">${fmt(nDip.get(d.label) || 0)}</span></label>`).join("") || '<p class="muted small">Aucun type ne correspond à la recherche.</p>'}`);
+    const menDips = sel.d.map((d) => FAC.diplomes.find((x) => x.label === d)).filter((D) => D && D.mentions.length > 1);
+    const mens = menDips.length ? dd("mens", "Mention ou spécialité", sel.d.reduce((a, d) => a + (sel.m[d] || []).length, 0), menDips.map((D) => `<fieldset class="dd-group"><legend>${esc(D.label)}</legend>
+      ${D.mentions.length > 12 ? `<input type="search" class="cmen-q" data-for="${esc(D.label)}" placeholder="Chercher une mention" aria-label="Chercher une mention de ${esc(D.label)}">` : ""}
+      ${D.mentions.filter((m) => offered(nMen.get(`${D.label}\u0000${m.label}`) || 0, (sel.m[D.label] || []).includes(m.label))).map((m) => `<label data-men-label="${esc(foldText(m.label))}"><input type="checkbox" data-men="${esc(m.label)}" data-mdip="${esc(D.label)}" ${(sel.m[D.label] || []).includes(m.label) ? "checked" : ""}> <span>${esc(m.label)}</span> <span class="muted">${fmt(nMen.get(`${D.label}\u0000${m.label}`) || 0)}</span></label>`).join("")}</fieldset>`).join("")) : "";
+    // a group is marked (and its ticked count shown) only when it differs from its default (statut: paid unticked)
+    const moved = (gr) => JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || []);
+    const groups = carteGroups().map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
+      ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}`, moved(gr)));
+    const zones = ok ? dd("zones", "Votre zone", (F.zones || []).length, `${clear("zones")}${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}<p class="muted small">${esc(FI_HELP.zone)}</p>`) : "";
+    // the count of active groups, said on the "Filtrer" fold that hides the dropdowns on a phone
+    const active = [sel.d.length, menDips.length && sel.d.some((d) => (sel.m[d] || []).length), (F.zones || []).length,
+      ...carteGroups().map(([gr]) => moved(gr))].filter(Boolean).length;
+    const changed = active > 0;
+    document.getElementById("dd-fold-n").textContent = active ? `(${active} actif${active > 1 ? "s" : ""})` : "";
+    bar.innerHTML = `${dips}${mens}${groups[0]}${zones}${groups.slice(1).join("")}${changed ? '<button type="button" class="linkish dd-reset" id="dd-reset">Réinitialiser les filtres</button>' : ""}
+      <p class="muted small dd-note">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès.</p>`;
+    bar.querySelectorAll("details.dd").forEach((d) => d.addEventListener("toggle", () => {
+      if (d.open) { carteUI.open = d.dataset.dd; bar.querySelectorAll("details.dd[open]").forEach((o) => { if (o !== d) o.open = false; }); }
+      else if (carteUI.open === d.dataset.dd) carteUI.open = null;
+    }));
+    bar.querySelectorAll("[data-clear]").forEach((b) => { b.onclick = () => { F[b.dataset.clear] = []; save(); }; });
+    bar.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
+      const gr = el.dataset.g; F[gr] = [...bar.querySelectorAll(`[data-g="${gr}"]:checked`)].map((x) => x.dataset.o);
+      carteUI.focus = `[data-g="${gr}"][data-o="${el.dataset.o}"]`; save(); }; });
+    bar.querySelectorAll("[data-clear-dips]").forEach((b) => { b.onclick = () => { sel.d = []; sel.m = {}; reselect(); }; });
+    bar.querySelectorAll("[data-dip]").forEach((el) => { el.onchange = () => {
+      const picked = [...bar.querySelectorAll("[data-dip]:checked")].map((x) => x.dataset.dip);
+      sel.d = FAC.diplomes.map((d) => d.label).filter((d) => picked.includes(d));
+      sel.m = Object.fromEntries(sel.d.map((d) => [d, sel.m[d] || []]));
+      reselect(); }; });
+    bar.querySelectorAll("[data-men]").forEach((el) => { el.onchange = () => {
+      const d = el.dataset.mdip;
+      sel.m[d] = [...bar.querySelectorAll("[data-men]:checked")].filter((x) => x.dataset.mdip === d).map((x) => x.dataset.men);
+      carteUI.focus = null; store.set("carteSel", sel); history.replaceState(null, "", carteHash(sel)); carteUI.page = 0; panel(); draw(); }; });
+    bar.querySelectorAll(".cmen-q").forEach((el) => { el.oninput = () => {
+      const q = foldText(el.value.trim());
+      el.closest("fieldset").querySelectorAll("[data-men-label]").forEach((lab) => { lab.hidden = !!q && !lab.dataset.menLabel.includes(q); }); }; });
+    const rs = document.getElementById("dd-reset");
+    if (rs) rs.onclick = () => { for (const [gr] of carteGroups()) F[gr] = [...(CARTE_DEFAULT[gr] || [])]; F.zones = []; carteUI.open = null; store.set("carteFiltres2", F); sel.d = []; sel.m = {}; reselect(); };
+    if (carteUI.focus) { const el = bar.querySelector(carteUI.focus); if (el) el.focus(); carteUI.focus = null; }
   }
   // the figures for the student's doublette or line: one request per page of the list, kept for the profile
   function figures(list) {
@@ -1626,13 +1589,27 @@ async function viewCarte(dArg, mArg) {
     }).catch(() => want.forEach((c) => ctx.chiffres.delete(c)));
   }
   function draw(fetch = true) {
-    const kept = carteFilter(shown(), F);
+    const kw = carteUI.kw, kept = carteFilter(shown(), F, undefined, kw);
     kept.forEach((f) => { f.dist = F.autour && f.lat != null ? Math.round(haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon)) : null; });
     const listed = kept.filter((f) => inView(f) || f.lat == null)
       // R10: formations with published figures first, then the apprenticeship offers; then distance (around a town), then the
       // name without its leading punctuation ("(CFA …)" sorted with C). Never by a figure.
       .sort((a, b) => (a.stats === false) - (b.stats === false) || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)
+        || (kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)
         || carteSortName(a).localeCompare(carteSortName(b), "fr"));
+    document.getElementById("cs-status").innerHTML = [
+      kw && kw.interp.length ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${kw.interp.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : "",
+      kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
+      carteUI.kwErr ? `<p class="warn small">La recherche par mot-clé n'a pas abouti : ${esc(carteUI.kwErr)}. La liste montre toutes les formations.</p>` : "",
+      carteUI.lieuBad ? `<p class="warn small">Lieu non reconnu : « ${esc(carteUI.lieuBad)} ». Choisissez une ville, un département, une académie ou une région dans la liste.</p>` : "",
+      (kw || F.lieu || F.autour) && !kept.length ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…), un autre lieu, ou retirez un filtre.</p>` : "",
+    ].join("");
+    if (carteUI.fit && carteUI.map) {
+      carteUI.fit = false;
+      const pts = kept.filter((f) => f.lat != null).map((f) => [f.lat, f.lon]);
+      if (F.autour) { carteUI.map.setView([F.autour.lat, F.autour.lon], F.autour.km <= 10 ? 11 : F.autour.km <= 25 ? 10 : F.autour.km <= 50 ? 9 : F.autour.km <= 100 ? 8 : 7); return; }
+      if ((kw || F.lieu) && pts.length) { carteUI.map.fitBounds(pts, { maxZoom: 12, padding: [24, 24] }); return; }   // moveend draws again
+    }
     const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
     document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte`;
     document.getElementById("carte-legend").innerHTML = ok && !zonesReady ? '<span class="muted">Zones en cours de chargement…</span>' : ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
@@ -1657,7 +1634,7 @@ async function viewCarte(dArg, mArg) {
     bindCarte();
     document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
     document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; showSel(false); }; });
-    if (fetch) figures(listed.slice(carteUI.page * searchPage(), (carteUI.page + 1) * searchPage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
+    if (fetch) figures(listed.slice(carteUI.page * cartePage(), (carteUI.page + 1) * cartePage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
   }
   // R10: a formation chosen on the MAP is pinned at the top of the list (its card, with a close button); one chosen in the
   // list is only marked there. Its figures are asked whatever chose it (Codex, R9).
@@ -1676,19 +1653,43 @@ async function viewCarte(dArg, mArg) {
     $view.querySelectorAll("[data-unpin]").forEach((b) => { b.onclick = () => { carteUI.sel = null; carteUI.pin = false; showSel(); }; });
   }
   function save(repanel = true) { store.set("carteFiltres2", F); carteUI.page = 0; if (repanel) panel(); draw(); }
-  document.querySelectorAll("[data-clear-dips]").forEach((b) => { b.onclick = () => { sel.d = []; sel.m = {}; reselect(); }; });
-  document.querySelectorAll("[data-dip]").forEach((el) => { el.onchange = () => {
-    const picked = [...document.querySelectorAll("[data-dip]:checked")].map((x) => x.dataset.dip);
-    sel.d = FAC.diplomes.map((d) => d.label).filter((d) => picked.includes(d));
-    sel.m = Object.fromEntries(sel.d.map((d) => [d, sel.m[d] || []]));
-    reselect(); }; });
-  document.querySelectorAll("[data-men]").forEach((el) => { el.onchange = () => {
-    const d = el.dataset.mdip;
-    sel.m[d] = [...document.querySelectorAll("[data-men]:checked")].filter((x) => x.dataset.mdip === d).map((x) => x.dataset.men);
-    store.set("carteSel", sel); history.replaceState(null, "", carteHash(sel)); carteUI.page = 0; panel(); draw(); }; });
-  document.querySelectorAll(".cmen-q").forEach((el) => { el.oninput = () => {
-    const q = foldText(el.value.trim());
-    el.closest("fieldset").querySelectorAll("[data-men-label]").forEach((lab) => { lab.hidden = !!q && !lab.dataset.menLabel.includes(q); }); }; });
+  const form = document.getElementById("cs-form"), qEl = document.getElementById("cs-q"), lieuEl = document.getElementById("cs-lieu");
+  document.getElementById("dd-fold").addEventListener("toggle", (e) => { if (narrow()) carteUI.fold = e.target.open; });
+  const kmEl = document.getElementById("cs-km"), kmBox = form.querySelector(".cs-km");
+  async function doSearch() {
+    const q = qEl.value.trim().slice(0, 200), lt = lieuEl.value.trim(), L = carteLieu(lieux, lt);
+    F.q = q;
+    F.lieuTxt = L ? lt : "";
+    F.lieu = L && L.t !== "ville" ? { t: L.t, v: L.v } : null;
+    F.autour = L && L.t === "ville" ? { lat: L.lat, lon: L.lon, km: Number(kmEl.value) || 25, ville: lt } : null;
+    carteUI.lieuBad = lt && !L ? lt : "";
+    // one token per submission: a slower answer to an earlier keyword never overwrites the latest one (Codex)
+    const mine = carteUI.kwTok = (carteUI.kwTok || 0) + 1;
+    let kw = null, err = "";
+    try { kw = q ? await kwLoad(q) : null; } catch (e) { err = apiErrorText(e); }
+    if (mine !== carteUI.kwTok || seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
+    carteUI.kw = kw; carteUI.kwErr = err;
+    carteUI.fit = true;
+    save();
+    if (q) suggestLycee(q, "carte");
+  }
+  form.onsubmit = (e) => { e.preventDefault(); carteUI.kwErr = ""; doSearch(); };
+  lieuEl.oninput = () => { const L = carteLieu(lieux, lieuEl.value); kmBox.hidden = !(L && L.t === "ville"); };
+  kmEl.onchange = () => { if (F.autour) { F.autour = { ...F.autour, km: Number(kmEl.value) || 25 }; carteUI.fit = true; save(false); } };
+  const ch = document.getElementById("chome");
+  if (ch) ch.onclick = () => { lieuEl.value = `Ma ville : ${villeLabel(home)}`; kmBox.hidden = false; doSearch(); };
+  if (!carteUI.ddBound) {                         // one dropdown open at a time: a click elsewhere or Escape closes it
+    carteUI.ddBound = true;
+    document.addEventListener("click", (e) => {
+      if (!e.target.isConnected) return;          // a ticked box re-drew its own dropdown: it stays open
+      document.querySelectorAll("details.dd[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const d = document.querySelector("details.dd[open]");
+      if (d) { d.open = false; d.querySelector("summary").focus(); }
+    });
+  }
   panel();
   draw();
   // sprint Q3: the cards' keys after the list (one cached answer); a failure leaves the rates out, never "chargement…" forever
@@ -2964,6 +2965,7 @@ async function suggestLycee(q, marker) {
   box.className = "card lyc-suggest";
   box.innerHTML = `<h2>C'est votre lycée ?</h2><p class="small muted">Choisissez-le pour votre profil : il s'affichera en contexte dans « Mon profil » (il reste dans votre navigateur). Les formations post-bac de ce lycée sont listées plus bas.</p>
     <div class="lyc-res">${hits.map((l) => `<button type="button" data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie ? ` (${esc(l.academie)})` : ""}</span> → Le choisir comme mon lycée</button>`).join("")}</div>`;
+  $view.querySelectorAll(".lyc-suggest").forEach((x) => x.remove());   // the search page stays: one suggestion at a time
   $view.prepend(box);
   box.querySelectorAll("[data-suggest]").forEach((b) => {
     b.onclick = () => {
@@ -4721,11 +4723,6 @@ async function routeView(a, b, c) {
   }
 }
 
-document.getElementById("search").onsubmit = (e) => {
-  e.preventDefault();
-  const q = document.getElementById("q").value.trim();
-  if (q) location.hash = `#/s/${encodeURIComponent(q)}`;
-};
 window.addEventListener("hashchange", route);
 (async () => {
   try { META = await api("/api/meta"); } catch (e) { showError(e); return; }

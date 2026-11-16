@@ -297,8 +297,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   distinct visitors, NEVER with the formation concerned; Mes vœux has a feedback box and says what is counted. Red team R23-R26.
 - **UI for 16-20 year olds (lot 1).** Phone first: bottom tab bar (since R1: Explorer, Mon profil, Mes vœux, Calendrier, Plus), the
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
-  name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters folded under
-  "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
+  name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters (the
+  dropdown bar, sprint H) folded under "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
 - **Design (lot 2, Claude design guidelines).** Accent = prune (`#8e2a6b`, dark `#e590c4`), owner-confirmed 2026-11-07. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
   colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
@@ -308,7 +308,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   tab from the same render; two-row header. Keep a new admission card folded unless it replaces one of the five. Red team X16-X17.
 - **Working pages (lot 3).** Mes vœux opens on `zoneTiles` (zone tokens, counts, never a chance); Mon parcours folds a stored
   profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
-  (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide);
+  (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide;
+  the one search page's heavier cards `cartePage()`, 10 / 40);
   the comparator is `table.cmp` (sticky label column). Red team X14-X15.
 - **Indexable pages (sprint 17).** Page figures are the PUBLISHED ones (same as `/api/formation`), with the "pas des chances" caveat;
   every stored string escaped in HTML, attributes and JSON-LD (`json_ld` escapes `<`, `>`, `&`). Sitemap = latest campaign's
@@ -431,7 +432,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
 - **Journey menus and "Mon profil" (sprint R1, owner 2026-11-11).** Phone bar: Explorer, Mon profil, Mes vœux, Calendrier + Plus
   (the six reading aids + Parents et professeurs); wide screen: the same four, "Comprendre ▾" (comparator, appel, sélectivité,
   spécialités, qualité, glossaire), Parents et professeurs and the profile chip (escaped, `vxProfile`, hidden on stats and a shared
-  list). Explorer = Liste | Carte | Métiers (`explorerViews`) + every formation page; Mon profil = `#/profil`, `#/parcours` (shown as
+  list). Explorer = Formations (the one search page, sprint H) | Métiers (`explorerViews`) + every formation page; Mon profil = `#/profil`, `#/parcours` (shown as
   "Où je me situe"), `#/reorientation`, `#/premiere`. `#/profil` is the ONE place the profile is edited (`profileForm`, `readForm`):
   situation first, only its fields, each with what it is used for; first save explicit, later changes saved at once; outside
   terminale the stored fields are kept and no bac field is invented; erase asks first. Profile prompts link `#/profil`. A new page
@@ -450,7 +451,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `redteam_tauxprofil.py` (Z1-Z6).
 - **Advanced filters (sprint R3, owner 2026-11-12).** One definition (`filtres.py`, served as META.filtres): capacité (< 20, 20-49,
   50-99, ≥ 100 places, `capa_fin` of the row's campaign), phase complémentaire (`acc_pc` > 0 of the row's campaign: past ADMITS, never
-  places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (search only: the
+  places this year, said), statut (`carte.statut_of`), taux d'accès officiel (4 bands; no rate = no band), zone (`/api/search?avance=true`, kept for older links; since sprint H the page filters zones in the browser: the
   profile sent with `/api/search?avance=true`, zones of the LATEST campaign keyed by (code, campaign), `journey.stage2` per own type
   `only=`, every result set, in-process cache keyed by warehouse + campaign + profile + type + codes; never a partial set). Lower limit in, upper out, twin `filtreBand`. The search's own filters are applied in the same
   pass; every group counted with the others applied; the relevance order is kept (never a sort by a figure). Profile only from a
@@ -458,9 +459,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `redteam_filtres.py` (FI1-FI9).
 - **Visual improvements (sprint R4, owner 2026-11-12).** A zone = its token + its shape + its name, through ONE helper (`zoneShape`,
   `zoneMark`, `zonePillHtml`, `zoneBadge`: rond sécurité, carré cible, triangle ambitieux, an empty ring otherwise, `--zone-autre`);
-  never a zone drawn by hand, never the colour alone. Search results are `resultCard`: zone token as the left edge (never the accent),
-  the OFFICIAL rate labelled, for bac techno/pro the same stage-2 row's estimated access (`filtres.zones`, said as an estimation,
-  "peu de candidats" below 20), none for bac général. Colour means something only for zones, bac routes and the accent: other chart
+  never a zone drawn by hand, never the colour alone. Search results are the map list's `carteCard` (sprint H; `resultCard` is gone): zone token
+  as the left edge only with a readable profile (never the accent), the OFFICIAL rate labelled, the bac lines (report, else an
+  estimation starred and said, "peu de candidats" below 20). Colour means something only for zones, bac routes and the accent: other chart
   series use the neutral ramp `--c1..--c6` (ordered, far from every semantic colour) plus a dash (`seriesDash`, `lineLegend`); every
   chart has an accessible name; no emoji marker (drawn `ICONS`). Pill text >= 4.5:1 on every zone fill. Red team
   `redteam_visuel.py` (VI1-VI10).
@@ -478,8 +479,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   sansmention) and reads the zone itself from each row's `lec` (counts + per-campaign series bounds of the band and the band below +
   `ferme`/`fragile`): twins `lire`/`relire`/`relireVue` of stage 2 with `moyenne`, `planBLocal` / `completerLocal` over `pool=true`
   answers (every candidate the average-independent rules keep, with `dist` and `tb`), `voeuxLocal` + `readList`, `carteZonesLocal`
-  (`lecture=true`). No average = the answers as served (no pool). Only the search still sends the average (its zone filter runs on
-  the server; `mentionParamsSearch`, said in the method text). The server's `moyenne` reading stays the ORACLE: any change to
+  (`lecture=true`). No average = the answers as served (no pool). Since sprint H no page sends the average (the search page reads
+  its zones in the browser like the map). The server's `moyenne` reading stays the ORACLE: any change to
   stage 2, Plan B, Mes vœux or Compléter must keep its twin equal. JS `erf` is a ~1e-15 series (never Abramowitz-Stegun again).
   Red team `redteam_lecture.py` (LE1-LE9).
 - **"Construire ma liste" (sprint R7, owner 2026-11-12).** `#/guide` (tab "Mes vœux"): five steps (profil, explorer, vœux, a SURE
@@ -514,6 +515,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   admits (route with the most SIES admits, tie = none; that route's report line with the most `acceptes`, never "Autres"; tie =
   "ex æquo"), profile figures, Mes vœux / Comparer (basket, 6) / Fiche. Sorted stats first then name (punctuation off), never by a
   figure. Red team CR11-CR13 in `redteam_carterecherche.py`.
+- **One search page (sprint H, owner 2026-11-15).** No search bar in the shell; the list search and the map are ONE page
+  (`#/carte`, "Rechercher une formation"; `#/s/<mots>` opens it with its words, `carteUI.pendingQ`). Bar: keyword + place (town
+  with a radius, département, région, académie: `carteLieux` / `carteLieu`, accents and case off, a code alone). The keyword goes to
+  `GET /api/search/codes` (`api.keyword_codes`: the engine's codes, each ONCE at its first rank since the engine answers per
+  campaign; no-store; one audience event, the cleaned words only); the place, the radius, every filter and the average stay in the
+  browser (the layer carries `region`, `dep`, `dep_lib`). Filters = `<details class="dd">` dropdowns, one open at a time (Escape,
+  outside click), a group marked only when it differs from its default, options counted with the other groups applied, one reset;
+  folded under "Filtrer (n actifs)" on a phone, list before the map there. Order unchanged (figures first, distance, the engine's
+  relevance, name; never a figure). The home has no switch and no search field (door + hero link). Red team `redteam_recherche.py`
+  (RS1-RS8).
 - **Trust and compliance (sprint Q1, owner 2026-11-13).** Five pages from ONE source (`legal.py`): À propos, Contact, Mentions
   légales, Confidentialité, Accessibilité, served at `/<slug>` (indexable, sitemap, readable without JS) and to the app by
   `/api/page/<slug>` (`#/info/<slug>`); the footer links them on every page. Publisher = "M. N. HAJJI, à titre personnel", also
@@ -522,7 +533,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   OSM tile host today; a new external host needs its operator in the page and in red team QC2's OPERATOR table), retentions
   read from the code's constants. Accessibility: "non conforme" until an RGAA audit exists, never "partiellement/totalement
   conforme". The privacy page says every PERSONAL parameter a page sends (série, spécialités, mention band, voie, the
-  académie with search/Plan B/stage 2/Mes vœux, the average with the advanced search only, the list's codes; never the lycée):
+  académie with Plan B/stage 2/Mes vœux, the list's codes; the search sends its typed words only; never the lycée):
   red team QC2's PERSONAL table fails on a parameter sent and not said (Codex). Contact form (`contact.py`): closed subjects,
   10-1,000 characters, optional reply address, hidden field, 5 per visitor-day then 300 a day (the visitor's cap checked FIRST:
   a blocked visitor never consumes the global quota; one atomic Lua script in Redis), ONLY the form's fields + day stored (no IP,
