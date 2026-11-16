@@ -4,7 +4,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
   "sha256": "38261df54befba540fc98316cd293c9142cafdd13bc8f45357da0e5b65dbc517",
-  "fetched": "2026-11-16T07:02:01+00:00",
+  "fetched": "2026-11-16T18:05:39+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12214.txt"
  },
  {
@@ -12,7 +12,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
   "sha256": "b91aaeaf50db43b561b1e1d9cdbab3a16d2a5a3d3cf5a2e4b48aa157c0550599",
-  "fetched": "2026-11-16T07:02:01+00:00",
+  "fetched": "2026-11-16T18:05:39+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1010.txt"
  },
  {
@@ -20,7 +20,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34643",
   "sha256": "e1b0aa4df0ba268601c8bd47165f0f891da2789e1dd6ac90bf904677058458f8",
-  "fetched": "2026-11-16T07:02:01+00:00",
+  "fetched": "2026-11-16T18:05:39+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F34643.txt"
  },
  {
@@ -28,23 +28,23 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2865",
   "sha256": "e5a861175d4a766194ebc6d9ef6c5b2a4a063666682a0633032a212a12938211",
-  "fetched": "2026-11-16T07:02:01+00:00",
+  "fetched": "2026-11-16T18:05:39+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2865.txt"
  },
  {
   "url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
-  "sha256": "91fd43b489ab3e104cf42bcf4b92b84176e6c258d870fc7da5625b43bd98a90f",
-  "fetched": "2026-11-16T07:02:02+00:00",
+  "sha256": "c5d4f7f28448d9296e7cfddab42baf084f31bc5e41db92918459b63ba7bcbcc3",
+  "fetched": "2026-11-16T18:05:40+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-au-merite-1291.txt"
  },
  {
   "url": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
-  "sha256": "0c44f0b18b6b62e769476d39954fb97e16f533817371ccb39a770036f1125338",
-  "fetched": "2026-11-16T07:02:02+00:00",
+  "sha256": "a790422c3f3babf313551225bb686e7fc2c7c33e04b88ed884a14907f80005df",
+  "fetched": "2026-11-16T18:05:40+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-la-mobilite-parcoursup-1447.txt"
  },
  {
@@ -52,23 +52,23 @@
   "status": 200,
   "final_url": "https://cvec.etudiant.gouv.fr/",
   "sha256": "b38a1bd44ac644ec6c5a7cf58fa93b1fe0ee995c447da91700feece091b97de0",
-  "fetched": "2026-11-16T07:02:03+00:00",
+  "fetched": "2026-11-16T18:05:42+00:00",
   "file": "cvec.etudiant.gouv.fr_.txt"
  },
  {
   "url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123",
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123",
-  "sha256": "12f37cae1a1948a2814729fa712344d2dd6ac7aae83ee24d7878d763b021a93a",
-  "fetched": "2026-11-16T07:02:03+00:00",
+  "sha256": "7d3f8cb2c095428dd7b2aea5dfd4985256345b562bfda5d6ae4cdd5dbbdef0ce",
+  "fetched": "2026-11-16T18:05:42+00:00",
   "file": "www.etudiant.gouv.fr_fr_comment-beneficier-du-repas-crous-1-eu-3123.txt"
  },
  {
   "url": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
-  "sha256": "4a32214ca973829b2a29d99b038d53e31cb5dd5f306bfa585218e01b879ea24c",
-  "fetched": "2026-11-16T07:02:03+00:00",
+  "sha256": "8908b5bab2b41de57a924e31606d926429448aa29214e82856e851cdea8a37f2",
+  "fetched": "2026-11-16T18:05:42+00:00",
   "file": "www.etudiant.gouv.fr_fr_aides-des-regions-et-des-outre-mer-2006.txt"
  },
  {
@@ -76,7 +76,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
   "sha256": "696852d3cb598432733223698af7881e50d98ebf0960d48d7a23bc195270882b",
-  "fetched": "2026-11-16T07:02:04+00:00",
+  "fetched": "2026-11-16T18:05:42+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1563.txt"
  }
 ]
