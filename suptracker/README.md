@@ -3685,7 +3685,8 @@ CROSS-CHECK, never part of the exposure:
 « green » skills of its occupations (`greenShareOcc`, the mean of the occupations' shares: re-derived exactly by the red team; the
 occupations' own shares equal green skills / skills for 2,982 of 3,039 occupations, a diagnostic printed by RB10). The card prints the
 job's title-weighted share beside the national median and says it does not enter the score: S3 stays the official low-carbon variant
-of Métiers 2030, and neither the score, the scenarios nor the confidence change with ESCO.
+of Métiers 2030, and neither the score, the scenarios nor the confidence change with ESCO. On the 2026-11-17 build, 956 jobs carry
+the share (426 ISCO groups published, national median 1.5 %).
 
 First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 and 73); confidence high for 612, medium 264,
 insufficient 248 (with the OECD cross-check: high 427, medium 449, insufficient 248). Red team `scripts/redteam_robustesse.py`
