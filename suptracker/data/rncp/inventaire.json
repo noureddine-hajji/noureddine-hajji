@@ -1,0 +1,135 @@
+{
+ "date": "2026-11-17",
+ "title": "export-fiches-csv-2026-11-17.zip",
+ "url": "https://static.data.gouv.fr/resources/repertoire-national-des-certifications-professionnelles-et-repertoire-specifique/20261117-020001/export-fiches-csv-2026-11-17.zip",
+ "sha256": "34708b40b5e5a4c2cd16af034a923c9ae08ad04abd25daac712c14c1b8ee9d3f",
+ "membres": [
+  {
+   "membre": "export_fiches_CSV_Ancienne_Nouvelle_Certification_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Ancienne_Certification",
+    "Nouvelle_Certification"
+   ],
+   "lignes": 18125
+  },
+  {
+   "membre": "export_fiches_CSV_Blocs_De_Compétences_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Bloc_Competences_Code",
+    "Bloc_Competences_Libelle"
+   ],
+   "lignes": 56555
+  },
+  {
+   "membre": "export_fiches_CSV_CCN_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Ccn_1_Numero",
+    "Ccn_1_Libelle",
+    "Ccn_2_Numero",
+    "Ccn_2_Libelle",
+    "Ccn_3_Numero",
+    "Ccn_3_Libelle"
+   ],
+   "lignes": 1171
+  },
+  {
+   "membre": "export_fiches_CSV_Certificateurs_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Siret_Certificateur",
+    "Nom_Certificateur"
+   ],
+   "lignes": 43101
+  },
+  {
+   "membre": "export_fiches_CSV_Formacode_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Formacode_Code",
+    "Formacode_Libelle"
+   ],
+   "lignes": 36612
+  },
+  {
+   "membre": "export_fiches_CSV_Nsf_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Nsf_Code",
+    "Nsf_Intitule"
+   ],
+   "lignes": 47655
+  },
+  {
+   "membre": "export_fiches_CSV_Partenaires_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Nom_Partenaire",
+    "Siret_Partenaire",
+    "Habilitation_Partenaire"
+   ],
+   "lignes": 405848
+  },
+  {
+   "membre": "export_fiches_CSV_Rome_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Codes_Rome_Code",
+    "Codes_Rome_Libelle"
+   ],
+   "lignes": 68185
+  },
+  {
+   "membre": "export_fiches_CSV_Standard_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Id_Fiche",
+    "Numero_Fiche",
+    "Intitule",
+    "Abrege_Libelle",
+    "Abrege_Intitule",
+    "Nomenclature_Europe_Niveau",
+    "Nomenclature_Europe_Intitule",
+    "Accessible_Nouvelle_Caledonie",
+    "Accessible_Polynesie_Francaise",
+    "Date_dernier_jo",
+    "Date_Decision",
+    "Date_Fin_Enregistrement",
+    "Date_Effet",
+    "Type_Enregistrement",
+    "Validation_Partielle",
+    "Actif"
+   ],
+   "lignes": 30801
+  },
+  {
+   "membre": "export_fiches_CSV_VoixdAccès_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Si_Jury"
+   ],
+   "lignes": 113744
+  }
+ ]
+}
