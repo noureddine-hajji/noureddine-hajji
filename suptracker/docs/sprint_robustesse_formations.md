@@ -45,7 +45,8 @@ L'objectif du PRD est un score publié pour au moins 95 % des formations. Il fau
    aucune correction du public n'est publiée, donc poids réduit et limite affichée.
 3. **Diversité des débouchés (Opt)** : entropie de Shannon normalisée des ω sur les grands groupes ISCO (1 chiffre). C'est une
    mesure calculée, pas une note.
-4. **Score** : R(f,s) = Σ ω (0,35 IA + 0,25 Dem) + 0,20 Ins + 0,20 Opt, dans les 3 scénarios. Un terme manquant est renormalisé
+4. **Score** (recommandé, décisions 3 et 5) : R(f,s) = Σ ω (0,35 IA + 0,25 Dem) + 0,10 Ins + 0,15 Div + 0,15 Comp, dans les
+   3 scénarios (Div = diversité des débouchés, Comp = transférabilité des compétences ; PRD : 0,20 Ins + 0,20 Opt). Un terme manquant est renormalisé
    et fait baisser la couverture. Médiane affichée, avec le moins et le plus favorable (comme pour les métiers).
 5. **Confiance** (PRD 6.6) : le plus faible de 4 indicateurs, à savoir fraîcheur, part des ω observée (direct > poursuite >
    famille), accord des sources, couverture. En dessous de 0,4 : « données insuffisantes ».
@@ -62,6 +63,35 @@ L'objectif du PRD est un score publié pour au moins 95 % des formations. Il fau
    stabilité de Spearman à ±10 points ; test de mutation.
 9. **Stockage** : un JSON compact par formation dans `rapport_textes.duckdb`, jamais dans l'entrepôt (budget de 95 Mo).
    Les détails métiers déjà calculés sont réutilisés, sans relire `metiers.detail`, pour le temps de CI.
+
+## PR 1 ter : les compétences que la formation développe (demande du propriétaire, 17/11)
+
+Les débouchés disent « vers quels métiers on va ». Les compétences disent « avec quoi on repart », ce qui reste utile si le
+métier visé change. On l'ajoute pour mieux juger la formation.
+
+- **Source officielle** : la fiche RNCP de chaque diplôme national (France Compétences, open data sur data.gouv.fr, licence
+  ouverte, export quotidien). Elle donne les **blocs de compétences** (texte), les codes ROME et le code NSF. Les BTS, BUT,
+  licences, DE infirmier et DE du travail social en ont une. Les CPGE, PASS et LAS n'en ont pas : pas de carte compétences
+  pour elles, et c'est dit.
+- **Lecture des compétences** : on rattache chaque compétence du bloc aux compétences ESCO (13 960 compétences, v1.2.1 déjà
+  déposée). ESCO classe chacune par portée (`reuseLevel` : transversale 453, intersectorielle 3 788, propre à un secteur 6 667,
+  propre à un métier 3 047) et la marque numérique ou verte. Le lien texte → ESCO n'est pas officiel : il est fait par règles
+  fixes sur les mots, marqué « apparié », relu à la main sur un échantillon de 200 liens, et il compte dans la confiance.
+  Aucune IA ne fournit un chiffre.
+- **Trois indicateurs simples** (faits, pas de note) :
+  1. *Compétences utiles ailleurs* : part des compétences transversales ou intersectorielles (« 6 compétences sur 10 servent
+     dans de nombreux métiers »).
+  2. *Métiers voisins* : nombre de métiers ESCO qui mobilisent au moins la moitié de ces compétences (« 35 métiers utilisent
+     au moins la moitié de ce que vous apprendrez »). C'est la mesure de la reconversion possible.
+  3. *Numérique et transition écologique* : part des compétences des collections ESCO numérique et verte.
+- **Dans le score** : la transférabilité (indicateur 1, et 2 ramené sur 100 avec des bornes fixes) entre dans le terme
+  « options », à côté de la diversité des débouchés (voir la décision n° 5).
+- **Limite à dire** : les compétences viennent du référentiel NATIONAL du diplôme. Deux BTS de même nom ont les mêmes
+  compétences. Ce qui distingue deux établissements reste l'insertion, les options et les chiffres d'admission. C'est une
+  mesure du diplôme, pas de la qualité de l'enseignement.
+- **Vérifier d'abord** (avant de coder) : la part des formations Parcoursup reliées à une fiche RNCP active, et la qualité du
+  rattachement texte → ESCO sur 200 compétences. Si le rattachement n'est pas fiable, la carte montre les blocs RNCP tels
+  qu'ils sont publiés, sans indicateur ni score.
 
 ## PR 1 bis : l'usage observé de l'IA comme contrôle des métiers (accord du propriétaire, 17/11)
 
@@ -95,6 +125,11 @@ L'objectif du PRD est un score publié pour au moins 95 % des formations. Il fau
 4. **Licence** : prendre les débouchés seulement par la poursuite en master (PRD), ou faire la moitié poursuite et la moitié
    métiers de la licence elle-même ? Recommandation : la poursuite seule, comme le PRD, avec les métiers de la licence montrés
    à part.
+
+5. **Compétences** : les faire entrer dans le score ? Recommandation : oui, à 0,15, en partageant avec la diversité des
+   débouchés le poids « options » du PRD (0,15 + 0,15 au lieu de 0,20), plus les 0,10 libérés par l'insertion. Les deux
+   répondent à la même question : « si le métier visé ne tient pas, peut-on rebondir ? ». Seulement si la vérification du
+   rattachement ESCO est bonne ; sinon, les compétences sont affichées sans entrer dans le score.
 
 ## Fait : la PR #81 a été fusionnée le 17/11
 
