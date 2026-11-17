@@ -42,7 +42,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.1-f"
+MODEL_VERSION = "2027.2-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -490,6 +490,29 @@ def _src(con):
         return c, ""
     except Exception:  # noqa: BLE001
         return None, None
+
+
+def compact(con) -> dict:
+    """Both repères of every formation, for the lists (sent inside /api/reconnaissance, no parameter, shared-cached):
+    {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
+    Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
+    c, p = _src(con)
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}}
+    if c is None:
+        return out
+    acc = {k: {} for k in out}
+    for cod, data in c.execute(f"SELECT cod_aff_form, data FROM {p}r35_formation").fetchall():
+        d = json.loads(data)
+        q, n = d.get("repere") or {}, d.get("repere_national") or {}
+        if q.get("niveau"):
+            acc["filiere"].setdefault(q["niveau"], []).append(cod)
+        elif q.get("raison"):
+            acc["raison"].setdefault(q["raison"], []).append(cod)
+        if n.get("niveau"):
+            acc["national"].setdefault(n["niveau"], []).append(cod)
+            if n.get("apres_etudes"):
+                acc["apres"].setdefault(n["apres_etudes"], []).append(cod)
+    return {k: {lv: ",".join(sorted(v)) for lv, v in sorted(m.items())} for k, m in acc.items()}
 
 
 def for_formation(con, cod: str) -> dict | None:

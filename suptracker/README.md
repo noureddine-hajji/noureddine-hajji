@@ -3754,3 +3754,25 @@ poursuite 3,044, famille 2,689; skills for 9,117 (144 RNCP fiches). Repère: BTS
 `r35_formation` and `r35_rncp` in `rapport_textes.duckdb` (the warehouse stays at 93.9 MB). Red team
 `scripts/redteam_robustesse_formations.py` (RF1-RF8); on the data workflow's warehouse of 2026-11-17, RF7 re-derives every
 repère, 150 direct blocks, the skills of 400 sampled formations and 40 API answers with no difference.
+
+## Robustesse 2035: observed AI use as a second cross-check, the vœux comparator and the method page (owner, 2026-11-17)
+
+**Observed AI use (model 2027.2 / 2027.2-f).** The Anthropic Economic Index also publishes, per detailed O*NET occupation, the
+share of all Claude.ai conversations of the month (`pct`, global, May 2026, 718 occupations, 209 of them rounded to 0.00 %). Per
+ISCO-08 code it is the MEAN over the occupations linked by the official tables (a sum would make a code linked to many occupations
+look « more used »); major groups are not read (their share is a sum, another scale). Like the OECD measure, it is a CROSS-CHECK of
+the OIT exposure by RANK only (ties averaged, among the codes with both): a gap above 15 points lowers the agreement, never under
+0.5; it never enters the exposure, the score or the scenarios. On the 2026-11-17 build: 378 ISCO codes ranked, Spearman OIT /
+usage 0.61 (the OECD one is 0.02), 176 codes more than 15 points apart; 15 jobs move from « haute » to « moyenne » confidence, no
+score moves. The job card prints both places in « Détail du calcul ». Red team RB12 (`redteam_robustesse.py`, 46/46 mutants).
+
+**Mes vœux: admission and the jobs after it, side by side.** `/api/reconnaissance` (no parameter, shared-cached, brotli at build)
+now also carries both robustesse repères of every formation (`robustesse_formation.compact`: levels → codes). Mes vœux (and its
+version outside terminale) shows a card « Admission et avenir des métiers, côte à côte »: one row per vœu in the list's own order,
+the zone for the profile in its own cell, the repère within the filière and the repère among all formations in two other cells,
+with the later-studies caveat; never one combined mark, never a sort by either. No new request and nothing personal sent.
+
+**Method page and changelog.** `methode_robustesse.py`, a `legal.SLUGS` page (`/robustesse`, `#/info/robustesse`, footer « Méthode
+de la robustesse 2035 », sitemap): what the score weighs (every weight and threshold READ from the modules' constants), the
+repères, the confidence and the two controls, Mes vœux, and `CHANGELOG`, every model version (the modules' `MODEL_VERSION` must
+be listed). Both robustesse cards and the comparator link it. Red team RF9-RF10 (`redteam_robustesse_formations.py`, 36/36 mutants).

@@ -39,7 +39,7 @@ import statistics
 import zipfile
 from pathlib import Path
 
-MODEL_VERSION = "2027.1"
+MODEL_VERSION = "2027.2"
 DIR = Path(__file__).resolve().parent.parent / "data" / "sources"
 CEDEFOP_ZIP = "cedefopskillsforecast2026.zip"
 OECD_XLSX = "OECD AI Capability Gap Index_public data.xlsx"
@@ -74,7 +74,7 @@ SOURCE_YEAR = {"oit": 2025, "aei": 2026, "cedefop": 2026, "m2030": 2022, "bmo": 
 MODEL_YEAR = 2026
 SOURCES = {
     "oit": "OIT, Working Paper 140 (2025) : exposition des tâches à l'IA générative",
-    "aei": "Anthropic Economic Index (mai 2026) : usage observé, augmentation ou automatisation",
+    "aei": "Anthropic Economic Index (mai 2026) : usage observé, augmentation ou automatisation, et part des conversations (contrôle)",
     "cedefop": "Cedefop, Skills Forecast 2026 (France, ISCO à 2 chiffres)",
     "m2030": "Dares / France Stratégie, Les métiers en 2030 (2022)",
     "bmo": "France Travail, Besoins en main-d'œuvre 2026",
@@ -165,6 +165,55 @@ def read_aei(path: Path) -> dict:
     return out
 
 
+def read_aei_usage(path: Path) -> dict:
+    """{O*NET occupation: share of all Claude.ai conversations of the month, in %} (metric « pct », detailed occupations only:
+    a major group's share is a sum over its occupations, another scale). Owner, 2026-11-17: a CROSS-CHECK of the OIT exposure
+    by rank, never in the exposure, the score or the scenarios."""
+    import csv
+    out = {}
+    with zipfile.ZipFile(path) as z, z.open(AEI_FILE) as f:
+        for r in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8")):
+            if (r["geo_id"] == "GLOBAL" and r["category_name"] == "soc_occupation" and r["date_start"] == AEI_MONTH
+                    and r["hierarchy_level"] == "0" and r["metric_id"] == "pct"):
+                out[r["node_external_id"]] = float(r["value"])
+    return out
+
+
+def _ranks(keys: list, values: dict) -> dict:
+    """Ranks 0-1 of `keys` by `values`, ties averaged."""
+    order = sorted(keys, key=lambda k: values[k])
+    n = len(order)
+    r, i = {}, 0
+    while i < n:
+        j = i
+        while j + 1 < n and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        for k in order[i:j + 1]:
+            r[k] = ((i + j) / 2) / (n - 1) if n > 1 else 0.5
+        i = j + 1
+    return r
+
+
+def isco_usage(con, usage: dict) -> dict:
+    """{isco4: {usage, n_onet, rang_oit, rang_usage}}: the mean conversation share of the O*NET occupations linked to the code by
+    the official tables (a mean, not a sum: a code linked to many occupations is not « more used »), and both ranks among the
+    codes that have the OIT score and a share."""
+    links: dict = {}
+    for onet, isco in con.execute("SELECT DISTINCT onet, isco FROM core.ia_theta_lien").fetchall():
+        links.setdefault(isco, set()).add(onet)
+    ilo = dict(con.execute("SELECT isco, moyenne FROM core.ia_oit_isco WHERE moyenne IS NOT NULL").fetchall())
+    out = {}
+    for isco, onets in links.items():
+        vals = [usage[o] for o in sorted(onets) if o in usage]
+        if vals:
+            out[isco] = {"usage": statistics.fmean(vals), "n_onet": len(vals)}
+    scored = sorted(k for k in out if k in ilo)
+    r_ilo, r_use = _ranks(scored, ilo), _ranks(scored, {k: out[k]["usage"] for k in scored})
+    for k in scored:
+        out[k]["rang_oit"], out[k]["rang_usage"] = r_ilo[k], r_use[k]
+    return out
+
+
 def isco_aug(con, aei: dict) -> dict:
     """{isco4: (aug, n_onet_read, 'detail' | 'grand_groupe')} through the official O*NET -> ISCO-08 links (sprint 15)."""
     links: dict = {}
@@ -232,20 +281,7 @@ def isco_oecd(con, oecd: dict) -> dict:
         s1 = statistics.fmean(sc) if len(sc) == len(vals) else None
         out[isco] = {"oecd": base, "oecd_s1": s1, "ratio": (s1 / base) if s1 is not None and base > 0 else None}
     both = sorted(k for k in out if k in ilo)
-
-    def ranks(values: dict) -> dict:
-        order = sorted(both, key=lambda k: values[k])
-        n = len(order)
-        r, i = {}, 0
-        while i < n:
-            j = i
-            while j + 1 < n and values[order[j + 1]] == values[order[i]]:
-                j += 1
-            for k in order[i:j + 1]:
-                r[k] = ((i + j) / 2) / (n - 1) if n > 1 else 0.5
-            i = j + 1
-        return r
-    r_ilo, r_oecd = ranks(ilo), ranks({k: out[k]["oecd"] for k in both})
+    r_ilo, r_oecd = _ranks(both, ilo), _ranks(both, {k: out[k]["oecd"] for k in both})
     for k in both:
         out[k]["rang_oit"], out[k]["rang_oecd"] = r_ilo[k], r_oecd[k]
     return out
@@ -264,9 +300,10 @@ def _wmean(pairs: list[tuple[float, float]]) -> float | None:
     return sum(v * w for v, w in pairs) / tot if tot else None
 
 
-def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | None = None) -> dict:
-    """One job's block from metiers.detail's answer `d`, the ISCO augmentation, Cedefop, OECD and ESCO tables."""
-    oecd, esco = oecd or {}, esco or {}
+def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | None = None, usage: dict | None = None) -> dict:
+    """One job's block from metiers.detail's answer `d`, the ISCO augmentation, Cedefop, OECD, ESCO and AEI usage tables."""
+    oecd, esco, usage = oecd or {}, esco or {}, usage or {}
+    rk_oit_u, rk_use, use_p = [], [], []
     esco_p = []
     codes = (d.get("ia") or {}).get("isco") or []
     weights = {c["code"]: (c.get("n_intitules") or 1) for c in codes if len(c.get("code") or "") == 4 and c["code"].isdigit()}
@@ -284,6 +321,12 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | No
         oe = oecd.get(code)
         if code in esco:
             esco_p.append((esco[code], w))
+        us = usage.get(code)
+        if us:
+            use_p.append((us["usage"], w))
+            if us.get("rang_oit") is not None:
+                rk_oit_u.append((us["rang_oit"], w))
+                rk_use.append((us["rang_usage"], w))
         if oe:
             oecd_p.append((oe["oecd"], w))
             if oe.get("ratio") is not None:
@@ -309,6 +352,8 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | No
     ratio, oecd_v, vert = _wmean(ratio_p), _wmean(oecd_p), _wmean(esco_p)
     r_oit, r_oecd = _wmean(rk_oit), _wmean(rk_oecd)
     rank_gap = abs(r_oit - r_oecd) if r_oit is not None and r_oecd is not None else None
+    r_oit_u, r_use, use_v = _wmean(rk_oit_u), _wmean(rk_use), _wmean(use_p)
+    use_gap = abs(r_oit_u - r_use) if r_oit_u is not None and r_use is not None else None
     fams = [f for f in (d.get("emploi2030") or []) if not f.get("absent") and (f.get("milliers") or {}).get("emploi_2019")]
     m_central, m_low = [], []
     for f in fams:
@@ -348,8 +393,10 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | No
     accord_dem = (max(0.0, 1 - abs(terms["ced"] - terms["m2030"]) / 50) if terms["ced"] is not None and terms["m2030"] is not None
                   else 0.5)
     accord_ia = rank_agreement(rank_gap)
-    # agreement of the sources: the two demand sources, and the OIT and OECD ranks (owner, 2026-11-17); the lower one is kept
-    accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem
+    accord_use = rank_agreement(use_gap)
+    # agreement of the sources: the two demand sources, the OIT and OECD ranks, the OIT exposure and the observed AEI usage ranks
+    # (owner, 2026-11-17); the lowest one is kept
+    accord = min([accord_dem] + [a for a in (accord_ia, accord_use) if a is not None])
     cover = ((W_IA if exp is not None and augm is not None else 0)
              + W_DEM * sum(w for k, w in (("ced", W_CED), ("m2030", W_M2030), ("bmo", W_BMO)) if terms[k] is not None)) / (W_IA + W_DEM)
     comps = {"fraicheur": round(fresh, 3), "donnees_observees": round(observed, 3) if lignes else 0.0,
@@ -378,6 +425,11 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | No
                  "ecart_rang": round(rank_gap, 3) if rank_gap is not None else None,
                  "accord": round(accord_ia, 3) if accord_ia is not None else None,
                  "ratio_s1": round(ratio, 4) if ratio is not None else None},
+        "usage": {"part": round(use_v, 4) if use_v is not None else None,
+                  "rang_oit": round(r_oit_u, 3) if r_oit_u is not None else None,
+                  "rang_usage": round(r_use, 3) if r_use is not None else None,
+                  "ecart_rang": round(use_gap, 3) if use_gap is not None else None,
+                  "accord": round(accord_use, 3) if accord_use is not None else None},
         "esco": {"part_verte": round(vert, 4) if vert is not None else None,
                  "mediane": round(statistics.median(esco.values()), 4) if esco else None,
                  "n_codes": len(esco_p)},
@@ -428,15 +480,18 @@ def build(con, d: Path = DIR, textes: Path | None = None, details: dict | None =
     oe = read_oecd(d / OECD_XLSX) if (d / OECD_XLSX).exists() else {}
     oecd = isco_oecd(con, oe) if oe and {"ia_theta_lien", "ia_oit_isco"} <= have else {}
     esco = read_esco(d / ESCO_ZIP) if (d / ESCO_ZIP).exists() else {}
+    use = read_aei_usage(d / AEI_ZIP) if (d / AEI_ZIP).exists() else {}
+    usage = isco_usage(con, use) if use and {"ia_theta_lien", "ia_oit_isco"} <= have else {}
     jobs = []
     if "onisep_metier" in have:
         for (mid,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall():
-            jobs.append((mid, json.dumps(job(details[mid] if details and mid in details else MT.detail(con, mid), aug, ced, oecd, esco), ensure_ascii=False, sort_keys=True)))
+            jobs.append((mid, json.dumps(job(details[mid] if details and mid in details else MT.detail(con, mid), aug, ced, oecd, esco, usage), ensure_ascii=False, sort_keys=True)))
     jobs, cuts = with_repere(jobs)
     crows = [[k, v["croissance_fr"], v["croissance_ue"], v["saut_2021"], v["croissance"], v["source_croissance"],
               v["remplacement"], v["postes"]] for k, v in sorted(ced.items())]
     irows = [[k, *(aug[k] if k in aug else (None, None, None)), *((oecd[k].get(x) for x in ("oecd", "oecd_s1", "ratio", "rang_oit", "rang_oecd"))
-              if k in oecd else (None,) * 5), esco.get(k)] for k in sorted(set(aug) | set(oecd) | set(esco))]
+              if k in oecd else (None,) * 5), esco.get(k), *((usage[k].get(x) for x in ("usage", "rang_oit", "rang_usage")) if k in usage else (None,) * 3)]
+             for k in sorted(set(aug) | set(oecd) | set(esco) | set(usage))]
 
     def write(c, p):
         c.execute(f"""CREATE OR REPLACE TABLE {p}r35_cedefop (isco2 VARCHAR, croissance_fr DOUBLE, croissance_ue DOUBLE,
@@ -444,9 +499,10 @@ def build(con, d: Path = DIR, textes: Path | None = None, details: dict | None =
         if crows:
             c.executemany(f"INSERT INTO {p}r35_cedefop VALUES (?, ?, ?, ?, ?, ?, ?, ?)", crows)
         c.execute(f"""CREATE OR REPLACE TABLE {p}r35_isco (isco VARCHAR, augmentation DOUBLE, n_onet INTEGER, niveau VARCHAR,
-                      ocde DOUBLE, ocde_s1 DOUBLE, ratio_s1 DOUBLE, rang_oit DOUBLE, rang_ocde DOUBLE, esco_vert DOUBLE)""")
+                      ocde DOUBLE, ocde_s1 DOUBLE, ratio_s1 DOUBLE, rang_oit DOUBLE, rang_ocde DOUBLE, esco_vert DOUBLE,
+                      usage DOUBLE, rang_oit_usage DOUBLE, rang_usage DOUBLE)""")
         if irows:
-            c.executemany(f"INSERT INTO {p}r35_isco VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", irows)
+            c.executemany(f"INSERT INTO {p}r35_isco VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", irows)
         c.execute(f"CREATE OR REPLACE TABLE {p}r35_metier (met_id VARCHAR, data VARCHAR)")
         if jobs:
             c.executemany(f"INSERT INTO {p}r35_metier VALUES (?, ?)", jobs)
@@ -467,7 +523,7 @@ def build(con, d: Path = DIR, textes: Path | None = None, details: dict | None =
             tc.close()
     shown = sum(1 for _, j in jobs if json.loads(j)["score"])
     return {"cedefop_groupes": len(crows), "cedefop_ue": sum(1 for r in crows if r[5] == "UE27"),
-            "isco_aug": len(aug), "isco_ocde": len(oecd), "isco_esco": len(esco),
+            "isco_aug": len(aug), "isco_ocde": len(oecd), "isco_esco": len(esco), "isco_usage": len(usage),
             "metiers": len(jobs), "metiers_score": shown, "repere": cuts}
 
 

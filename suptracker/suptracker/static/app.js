@@ -2006,11 +2006,45 @@ function recoLoad() {
       const t = d.tension || {};
       RECO = { cat, sans: ens(d.sans_bourse), frais: d.frais || {}, lib: d.categories || {}, exp: d.explications || {},
         // sprint V2: the formations of strong demand (tension.py) and those that can be done as an apprentice (apprentissage.py)
-        tres: ens(t.tres), tresLib: t.libelle || "Forte demande", tresExp: t.explication || "", app: ens(d.apprentissage) };
+        tres: ens(t.tres), tresLib: t.libelle || "Forte demande", tresExp: t.explication || "", app: ens(d.apprentissage),
+        // owner, 2026-11-17: both robustesse repères of every formation (robustesse_formation.compact), for Mes vœux
+        rob: robDecode(d.robustesse) };
       return RECO;
     }).catch(() => { RECO_P = null; return null; });
   }
   return RECO_P;
+}
+function robDecode(r) {
+  const out = { filiere: {}, national: {}, raison: {}, apres: {} };
+  for (const k of Object.keys(out)) {
+    for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
+  }
+  return out;
+}
+// Mes vœux (owner, 2026-11-17): each vœu's zone for the profile and its two robustesse repères SIDE BY SIDE, never merged into
+// one mark: the zone speaks of admission, the repères of the jobs after it. Nothing is sorted by either.
+const ROB_WORD = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
+const ROB_RAISON = { memes_debouches: "non classée : mêmes métiers que sa filière", trop_peu: "trop peu de formations comparables" };
+function robVoeuxCard(rows, zoneOf) {
+  const R = RECO && RECO.rob;
+  if (!R || !rows.length) return "";
+  const cell = (cod, k) => {
+    const lv = R[k][cod];
+    if (lv) return `<span class="rob-lv rob-${esc(lv)}">${esc(ROB_WORD[lv] || "")}</span>${k === "national" && R.apres[cod] ? `<div class="muted small">${R.apres[cod] === "master" ? "métiers après un master" : "métiers après d'autres études"}</div>` : ""}`;
+    if (k === "filiere" && R.raison[cod]) return `<span class="muted small">${esc(ROB_RAISON[R.raison[cod]] || "")}</span>`;
+    return '<span class="muted small">pas d\'estimation</span>';
+  };
+  const any = rows.some((v) => R.filiere[v.cod_aff_form] || R.national[v.cod_aff_form] || R.raison[v.cod_aff_form]);
+  if (!any) return "";
+  const zcol = typeof zoneOf === "function";
+  const body = rows.map((v) => `<tr><td data-label="Formation">${v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)}</span>` : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement || v.cod_aff_form)}</a><div class="muted small">${esc(v.filiere || "")}</div>`}</td>
+      ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}
+      <td data-label="Robustesse dans sa filière">${cell(v.cod_aff_form, "filiere")}</td>
+      <td data-label="Toutes filières confondues">${cell(v.cod_aff_form, "national")}</td></tr>`).join("");
+  return `<section class="card" id="vx-robustesse"><h2>Admission et avenir des métiers, côte à côte</h2>
+    <p class="small">${zcol ? "Pour chaque vœu, la zone dit où se situe votre profil parmi les admis. " : ""}Les repères de robustesse 2035 disent si les métiers auxquels mène la formation devraient garder de la valeur entre 2030 et 2035. ${zcol ? "Les deux ne sont jamais réunis en une seule note." : ""} ${estimTag("modèle de SupCompass")}</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th>${zcol ? "<th>Zone pour votre profil</th>" : ""}<th>Robustesse dans sa filière</th><th>Toutes filières confondues</th></tr>${body}</table></div>
+    <p class="muted small">Ce ne sont ni des chances d'admission, ni des promesses d'emploi. L'ordre de la liste ne dépend d'aucun de ces repères. <a href="#/info/robustesse">Comment on calcule la robustesse</a></p></section>`;
 }
 function recoPill(k, lib, exp) {
   if (!k || !lib) return "";
@@ -3790,7 +3824,7 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition pour vos deux spécialités (cette formation, estimation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.querySelector(".next-steps").insertAdjacentHTML("beforebegin", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false, prof);
@@ -4080,16 +4114,20 @@ function robustesseCard(r) {
   const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
   const o = r.ocde || {};
   const ocde = o.rang_oit != null && o.rang_ocde != null ? `<p class="small">Contrôle avec une autre mesure, celle de l'OCDE (2026). Selon l'OIT, ce métier est plus exposé à l'IA que ${robNum(o.rang_oit * 100)} % des métiers mesurés. Selon l'OCDE, plus exposé que ${robNum(o.rang_ocde * 100)} %. Les deux mesures ne comptent pas la même chose : seul l'écart entre ces deux places est lu. Au-delà de 15 points, la confiance baisse.</p>` : "";
+  // owner, 2026-11-17: the observed use of AI (Anthropic Economic Index, share of the conversations) is a second cross-check of
+  // the OIT exposure, by rank only; it never enters the score
+  const u = r.usage || {};
+  const usage = u.rang_oit != null && u.rang_usage != null ? `<p class="small">Contrôle avec l'usage réel de l'IA (Anthropic Economic Index, mai 2026). Selon l'OIT, ce métier est plus exposé que ${robNum(u.rang_oit * 100)} % des métiers mesurés. Ses tâches reviennent dans plus de conversations avec l'IA que celles de ${robNum(u.rang_usage * 100)} % des métiers. Seul l'écart entre ces deux places est lu : au-delà de 15 points, la confiance baisse. Ce chiffre n'entre pas dans le score.</p>` : "";
   const v = r.esco || {}, pc = (x) => (x * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
   const esco = v.part_verte != null ? `<p class="small">Contrôle « transition écologique » : selon ESCO (Commission européenne), ${pc(v.part_verte)} % des compétences de ce métier sont « vertes »${v.mediane != null ? ` (médiane de tous les métiers : ${pc(v.mediane)} %)` : ""}. Ce chiffre n'entre pas dans le score. Le scénario bas-carbone vient de « Les métiers en 2030 ».</p>` : "";
   const eu = (r.isco || []).some((i) => i.cedefop_croissance_source === "UE27");
   const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
       <ul class="small">${(r.sources_detail || []).map((x) => `<li>${esc(x.libelle)}</li>`).join("")}</ul>
       ${eu ? `<p class="small">Pour un ou plusieurs groupes de ce métier, la croissance est la moyenne européenne : les chiffres français du Cedefop sont faussés par un changement de méthode de l'enquête Emploi en 2021.</p>` : ""}
-      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
+      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}. <a href="#/info/robustesse">Comment on calcule la robustesse</a></p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
-    ${head}${phrase}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}${ocde}${esco}</details>${src}</div>`;
+    ${head}${phrase}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}${ocde}${usage}${esco}</details>${src}</div>`;
 }
 
 // ---- Robustesse 2035 per FORMATION (owner, 2026-11-17): built on the per-job model (robustesse_formation.py), an ESTIMATION
@@ -4155,7 +4193,7 @@ function formationRobustesseCard(r) {
       <p class="small">Une ligne « — » n'est pas publiée pour cette formation : le score se calcule sur les autres lignes, et la couverture baisse.</p>`;
   const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
   const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
-      <p class="small">Chaque métier visé a sa robustesse 2035 (voir sa page : résistance à l'IA générative et demande d'ici 2035). Pour la formation, on pèse ces métiers (60 %), l'insertion publiée après le diplôme de sortie (10 % ; le BTS, mesuré à 6 mois, reste à part), la diversité des débouchés entre les grands groupes de métiers (15 %) et la part de compétences transférables (15 %). Les compétences viennent de la fiche RNCP du diplôme (France Compétences : codes ROME visés) et du référentiel ROME 4.0 de France Travail : une compétence est transférable quand France Travail la classe « transverse » ou qu'au moins 20 fiches métiers la partagent. Le premier repère compare la formation aux formations de la même filière calculées avec les mêmes éléments. Le second la compare à toutes les formations, sur les seuls éléments que toutes ont : les métiers visés et leur diversité. Version du modèle ${esc(r.model_version)}.</p>
+      <p class="small">Chaque métier visé a sa robustesse 2035 (voir sa page : résistance à l'IA générative et demande d'ici 2035). Pour la formation, on pèse ces métiers (60 %), l'insertion publiée après le diplôme de sortie (10 % ; le BTS, mesuré à 6 mois, reste à part), la diversité des débouchés entre les grands groupes de métiers (15 %) et la part de compétences transférables (15 %). Les compétences viennent de la fiche RNCP du diplôme (France Compétences : codes ROME visés) et du référentiel ROME 4.0 de France Travail : une compétence est transférable quand France Travail la classe « transverse » ou qu'au moins 20 fiches métiers la partagent. Le premier repère compare la formation aux formations de la même filière calculées avec les mêmes éléments. Le second la compare à toutes les formations, sur les seuls éléments que toutes ont : les métiers visés et leur diversité. Version du modèle ${esc(r.model_version)}. <a href="#/info/robustesse">Comment on calcule la robustesse</a></p>
       <p class="muted small">Sources : Onisep, Idéo (licence ODbL) ; France Compétences, RNCP (Licence Ouverte) ; France Travail, ROME 4.0 (Licence Ouverte) ; MonMaster et InserSup (MESR) ; et les sources de la robustesse des métiers (OIT, Anthropic Economic Index, Cedefop, Dares, France Travail).</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : les métiers auxquels mène cette formation et les compétences qu'elle développe garderont-ils de la valeur entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse d'emploi.</p>
@@ -4545,10 +4583,12 @@ async function viewVoeuxReo(ids, prof) {
   $view.dataset.rendered = marker;
   $view.innerHTML = `${head}<div class="card"><p class="muted small">Lecture de votre liste…</p></div>`;
   let d;
+  const recoP = recoLoad();                                          // the robustesse repères of each vœu (owner, 2026-11-17)
   try { d = await api(`/api/reorientation/voeux?${qs}`); } catch (e) {
     if ($view.dataset.rendered === marker) $view.innerHTML = `${head}<div class="warn">${esc(e.message)}</div>`;
     return;
   }
+  await recoP;
   if ($view.dataset.rendered !== marker) return;
   const ok = d.voeux.filter((v) => v.status === "ok"), nEst = ok.filter((v) => v.reorientation && v.reorientation.acces_estime != null).length;
   const rows = d.voeux.map((v) => {
@@ -4569,7 +4609,7 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
 }
@@ -4833,7 +4873,7 @@ async function viewListe(rawCodes, rawProfile) {
 // ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages and the contact form ----
 // The five pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité) come from legal.py, the same HTML as their
 // server page (/a-propos…). The contact form sends only what it shows; a message that was not stored is said, never a fake success.
-const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres"];   // "aide": sprint Q4; "nos-chiffres": owner, 2026-11-16
+const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres", "robustesse"];   // "aide": sprint Q4; "nos-chiffres": owner, 2026-11-16; "robustesse": owner, 2026-11-17
 const CONTACT_TYPES = [["erreur", "Une erreur dans un chiffre ou un texte"], ["question", "Une question sur le site"],
   ["suggestion", "Une suggestion"], ["autre", "Autre chose"]];
 const CONTACT_MAX = 1000, CONTACT_MIN = 10;
@@ -4939,7 +4979,7 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
-  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres)\/?$/.exec(pathname);   // sprint Q1, Q4
+  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres|robustesse)\/?$/.exec(pathname);   // sprint Q1, Q4
   if (i) return `/info/${i[1]}`;
   return null;
 }

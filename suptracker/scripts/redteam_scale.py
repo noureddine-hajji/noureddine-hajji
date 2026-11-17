@@ -104,6 +104,7 @@ class Ctx:
             "/confidentialite": "/confidentialite", "/accessibilite": "/accessibilite",
             "/aide": "/aide",                                                       # sprint Q4: the help page
             "/nos-chiffres": "/nos-chiffres",                                       # owner, 2026-11-16: our figures and Parcoursup's
+            "/robustesse": "/robustesse",                                           # owner, 2026-11-17: the robustesse method page
         }
 
 

@@ -26,6 +26,10 @@
   RB11 repère (owner, 2026-11-17): the scores form a tight bell, so the page leads with the job's place among the SCORED jobs
       (top / bottom 20 % of the medians, cut points re-derived independently) and three plain facts; the score is only in
       « Détail du calcul »; no repère without a score.
+  RB12 AEI usage (owner, 2026-11-17): the share of the Claude.ai conversations per detailed O*NET occupation (« pct », global, May
+      2026, level 0 only), the MEAN over the occupations linked to each ISCO code, ranks (ties averaged) among the codes with the OIT
+      score; the rank gap lowers the agreement like the OECD one (> 15 points, floor 0.5); never in the exposure, the score or the
+      scenarios; the card line in « Détail du calcul »; the real Spearman OIT / usage printed.
   RB10 ESCO (owner, 2026-11-17): the green-skill share per ISCO-08 4-digit group is re-derived as the mean of ESCO's own
       occupation rows (fixture and real zip; the occupations' shares re-counted from their skills are printed as a diagnostic);
       per job the title-weighted mean, beside the national median; a CONTROL only: score, scenarios and confidence are the same
@@ -135,6 +139,16 @@ FIX_AEI = [  # geo, category, level, month, metric, value, node id
     ("GLOBAL", "soc_occupation", "1", "2026-05-01", "collaboration_bucket_automation_pct", "55", "43"),
     ("FRA", "soc_occupation", "0", "2026-05-01", "collaboration_bucket_augmentation_pct", "99", "43-9061.00"),   # not global
     ("GLOBAL", "soc_occupation", "0", "2026-04-01", "collaboration_bucket_augmentation_pct", "99", "43-9061.00"),  # April
+    # observed usage (owner, 2026-11-17): share of the conversations, detailed occupations only
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.40", "15-1252.00"),
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.20", "15-1253.00"),
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.10", "43-9061.00"),
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.00", "11-1011.00"),
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.00", "29-1141.00"),
+    ("GLOBAL", "soc_occupation", "0", "2026-05-01", "pct", "0.05", "99-9999.00"),  # 9999: a share, no OIT score, no rank
+    ("GLOBAL", "soc_occupation", "1", "2026-05-01", "pct", "9.0", "43"),           # a major group's share: another scale
+    ("FRA", "soc_occupation", "0", "2026-05-01", "pct", "5.0", "11-1011.00"),      # not global
+    ("GLOBAL", "soc_occupation", "0", "2026-04-01", "pct", "5.0", "29-1141.00"),  # April
 ]
 FIX_LINKS = [("15-1252.00", "2512"), ("15-1253.00", "2512"), ("43-9061.00", "4110"), ("99-9999.00", "9999")]
 
@@ -193,9 +207,27 @@ def oracle_aug(aei_rows: list, links: list) -> dict:
     return out
 
 
-def oracle_job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
-    """The PRD's formulas, written again (with the owner's OECD rules, 2026-11-17)."""
-    oecd = oecd or {}
+def oracle_usage(aei_rows: list, links: list, ilo: dict) -> dict:
+    share = {node: float(v) for g, c, lv, m, k, v, node in aei_rows
+             if g == "GLOBAL" and c == "soc_occupation" and lv == "0" and m == "2026-05-01" and k == "pct"}
+    by = {}
+    for onet, isco in links:
+        by.setdefault(isco, set()).add(onet)
+    out = {i: {"usage": statistics.fmean([share[o] for o in os if o in share])} for i, os in by.items() if any(o in share for o in os)}
+    both = [i for i in out if ilo.get(i) is not None]
+
+    def rk(vals):
+        return {i: (sum(vals[j] < vals[i] for j in both) + (sum(vals[j] == vals[i] for j in both) - 1) / 2) / (len(both) - 1)
+                for i in both}
+    a, b = rk(ilo), rk({i: out[i]["usage"] for i in both})
+    for i in both:
+        out[i]["rang_oit"], out[i]["rang_usage"] = a[i], b[i]
+    return out
+
+
+def oracle_job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, usage: dict | None = None) -> dict:
+    """The PRD's formulas, written again (with the owner's OECD and AEI usage rules, 2026-11-17)."""
+    oecd, usage = oecd or {}, usage or {}
     codes = [c for c in ((d.get("ia") or {}).get("isco") or []) if re.fullmatch(r"\d{4}", c.get("code") or "")]
     W = sum(c.get("n_intitules") or 1 for c in codes)
     def mean(pairs):
@@ -208,6 +240,8 @@ def oracle_job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
                   if c["code"] in oecd and oecd[c["code"]].get("ratio") is not None])
     rk = [(oecd[c["code"]], (c.get("n_intitules") or 1) / W) for c in codes if oecd.get(c["code"], {}).get("rang_oit") is not None]
     gap = abs(mean([(o["rang_oit"], w) for o, w in rk]) - mean([(o["rang_oecd"], w) for o, w in rk])) if rk else None
+    ru = [(usage[c["code"]], (c.get("n_intitules") or 1) / W) for c in codes if usage.get(c["code"], {}).get("rang_oit") is not None]
+    gap_u = abs(mean([(o["rang_oit"], w) for o, w in ru]) - mean([(o["rang_usage"], w) for o, w in ru])) if ru else None
     clip = lambda x, lo, hi: None if x is None else min(100, max(0, (x - lo) / (hi - lo) * 100))  # noqa: E731
     fam = [f["milliers"] for f in (d.get("emploi2030") or []) if not f.get("absent") and (f.get("milliers") or {}).get("emploi_2019")]
     m = statistics.fmean([x["postes"] / x["emploi_2019"] for x in fam]) if fam else None
@@ -227,8 +261,9 @@ def oracle_job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
               "S3": (0.35 * ia(exp, au) + 0.25 * dem(M3)) / 0.6}
     acc = 1 - abs(C - M) / 50 if C is not None and M is not None else 0.5
     acc = max(0.0, acc)
-    if gap is not None:
-        acc = min(acc, 1.0 if gap <= 0.15 else max(0.5, 1 - (gap - 0.15)))
+    for g in (gap, gap_u):
+        if g is not None:
+            acc = min(acc, 1.0 if g <= 0.15 else max(0.5, 1 - (g - 0.15)))
     return {"exp": exp, "aug": au, "scen": {k: round(v, 1) for k, v in sc.items()}, "C": C, "M": M, "T": T,
             "accord": acc, "gap": gap}
 
@@ -369,16 +404,20 @@ OECD = {"2512": {"oecd": 0.6, "oecd_s1": 0.72, "ratio": 1.2, "rang_oit": 0.9, "r
         "1330": {"oecd": 0.5, "oecd_s1": None, "ratio": None, "rang_oit": 0.4, "rang_oecd": 0.45},
         "3333": {"oecd": 0.7, "oecd_s1": 0.7, "ratio": 1.0, "rang_oit": 0.5, "rang_oecd": 0.55},
         "9999": {"oecd": 0.2, "oecd_s1": 0.3, "ratio": 1.5}}                       # no OIT score: no rank
+USAGE = {"2512": {"usage": 0.3, "rang_oit": 0.9, "rang_usage": 0.85},          # agree
+         "1330": {"usage": 0.0, "rang_oit": 0.4, "rang_usage": 0.05},          # 35 points apart
+         "3333": {"usage": 0.2, "rang_oit": 0.5, "rang_usage": 0.5},
+         "9999": {"usage": 0.1}}                                                # no OIT score: no rank
 
 
 @check("RB3 per job: an independent implementation of the PRD formulas equals the module on crafted jobs")
 def rb3(c: Ctx):
     R = c.R()
     bad = []
-    for (name, d), oe in [(x, o) for x in crafted().items() for o in (None, OECD)]:
-        got = R.job(d, AUG, CED, oe)
-        exp = oracle_job(d, AUG, {k: v["postes"] for k, v in CED.items()}, oe)
-        name = f"{name}{' +OCDE' if oe else ''}"
+    for (name, d), oe, us in [(x, o, u) for x in crafted().items() for o in (None, OECD) for u in (None, USAGE)]:
+        got = R.job(d, AUG, CED, oe, None, us)
+        exp = oracle_job(d, AUG, {k: v["postes"] for k, v in CED.items()}, oe, us)
+        name = f"{name}{' +OCDE' if oe else ''}{' +usage' if us else ''}"
         if abs(got["confiance"]["accord_sources"] - round(exp["accord"], 3)) > 1e-9:
             bad.append(f"{name}: agreement {got['confiance']['accord_sources']} != {exp['accord']:.3f}")
         if exp["scen"]:
@@ -627,11 +666,32 @@ def rb7(c: Ctx):
                 bad.append(f"ocde {k}")
     else:
         bad.append("the OECD workbook is missing")
+    # the AEI usage cross-check (owner, 2026-11-17), re-derived from the real file with the oracle
+    cols = {r[0] for r in src.execute("DESCRIBE r35_isco").fetchall()}
+    usage = {}
+    if "usage" in cols:
+        usage = {r[0]: {"usage": r[1], "rang_oit": r[2], "rang_usage": r[3]}
+                 for r in src.execute("SELECT isco, usage, rang_oit_usage, rang_usage FROM r35_isco WHERE usage IS NOT NULL").fetchall()}
+        zp = ROOT / "data" / "sources" / R.AEI_ZIP
+        with zipfile.ZipFile(zp) as z, z.open(R.AEI_FILE) as f:
+            import csv as _csv
+            rows_aei = [(r["geo_id"], r["category_name"], r["hierarchy_level"], r["date_start"], r["metric_id"], r["value"], r["node_external_id"])
+                        for r in _csv.DictReader(io.TextIOWrapper(f, encoding="utf-8")) if r["metric_id"] == "pct"]
+        links = con.execute("SELECT DISTINCT onet, isco FROM core.ia_theta_lien").fetchall()
+        ilo = dict(con.execute("SELECT isco, moyenne FROM core.ia_oit_isco WHERE moyenne IS NOT NULL").fetchall())
+        eu = oracle_usage(rows_aei, links, ilo)
+        for k in set(eu) | set(usage):
+            a, b = eu.get(k), usage.get(k)
+            if not a or not b or abs(a["usage"] - b["usage"]) > 1e-9 or (a.get("rang_oit") is None) != (b["rang_oit"] is None) \
+                    or (b["rang_oit"] is not None and max(abs(a["rang_oit"] - b["rang_oit"]), abs(a["rang_usage"] - b["rang_usage"])) > 1e-9):
+                bad.append(f"usage {k}")
+    else:
+        bad.append("no AEI usage column in r35_isco: rebuild the warehouse")
     stored = {m: json.loads(d) for m, d in src.execute("SELECT met_id, data FROM r35_metier").fetchall()}
     rng = random.Random(7)
     for mid in rng.sample(sorted(stored), min(80, len(stored))):
         d = MT.detail(con, mid)
-        o = oracle_job(d, aug, {k: v[1] for k, v in ced.items()}, oecd)
+        o = oracle_job(d, aug, {k: v[1] for k, v in ced.items()}, oecd, usage)
         s = stored[mid]
         if s["scenarios"] is not None and s["scenarios"] != o["scen"]:
             bad.append(f"{mid}: {s['scenarios']} != {o['scen']}")
@@ -675,7 +735,7 @@ SOURCE_MUTANTS = [
     ("rob", "S1 ignores the OECD scenario", "exp * (ratio if ratio is not None else S1_EXP)", "exp * S1_EXP", "RB3"),
     ("rob", "rank gap threshold", "RANK_GAP, RANK_FLOOR = 0.15, 0.5", "RANK_GAP, RANK_FLOOR = 0.30, 0.5", "RB3"),
     ("rob", "no floor: a rank gap hides scores", "RANK_GAP, RANK_FLOOR = 0.15, 0.5", "RANK_GAP, RANK_FLOOR = 0.15, 0.0", "RB3"),
-    ("rob", "rank gap ignored", "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem", "accord = accord_dem", "RB3"),
+    ("rob", "rank gap ignored", "accord = min([accord_dem] + [a for a in (accord_ia, accord_use) if a is not None])", "accord = accord_dem", "RB3"),
     ("rob", "OECD exposure mixed into the exposure", "        if c.get(\"score\") is not None:\n            exp_p.append((c[\"score\"], w))",
      "        if c.get(\"score\") is not None:\n            exp_p.append(((c[\"score\"] + oe[\"oecd\"]) / 2 if oe else c[\"score\"], w))", "RB3"),
     ("rob", "OECD column misread", 'head.index("AI Capability Gap Index_Rev. norm.")', 'head.index("AI Capability Gap Index_Total")', "RB9"),
@@ -683,7 +743,7 @@ SOURCE_MUTANTS = [
     ("rob", "ties not averaged", "while j + 1 < n and values[order[j + 1]] == values[order[i]]:", "while False:", "RB9"),
     ("rob", "ranks over every OECD code", "both = sorted(k for k in out if k in ilo)", "both = sorted(k for k in out if k in ilo or True)", "RB9"),
     ("rob", "partial scenario averaged", "s1 = statistics.fmean(sc) if len(sc) == len(vals) else None", "s1 = statistics.fmean(sc) if sc else None", "RB9"),
-    ("js", "no OECD comparison", "${conf}${ocde}${esco}</details>", "${conf}${esco}</details>", "RB5"),
+    ("js", "no OECD comparison", "${conf}${ocde}${usage}${esco}</details>", "${conf}${usage}${esco}</details>", "RB5"),
     ("rob", "repère tails of 10 %", "REPERE_SHARE = 0.20", "REPERE_SHARE = 0.10", "RB11"),
     ("rob", "repère levels swapped", 'return "haut" if median >= hi else "bas" if median <= lo else "moyen"',
      'return "bas" if median >= hi else "haut" if median <= lo else "moyen"', "RB11"),
@@ -692,15 +752,24 @@ SOURCE_MUTANTS = [
      "${score}${head}${phrase}<details class=\"more-card\"><summary>Détail du calcul</summary>", "RB5"),
     ("js", "fact on the wrong scale", "${robNum(c.tension / 10)} recrutements sur 10", "${robNum(c.tension)} recrutements sur 10", "RB5"),
     ("js", "tile shows the score", '`<span class="text">${esc(ROB_REPERE[q.niveau] || "")}</span>`', '`${robNum(r.score.median)} / 100`', "RB5"),
-    ("js", "no ESCO control", "${conf}${ocde}${esco}</details>", "${conf}${ocde}</details>", "RB5"),
+    ("js", "no ESCO control", "${conf}${ocde}${usage}${esco}</details>", "${conf}${ocde}${usage}</details>", "RB5"),
     ("rob", "ESCO rows of every level read", 'r.get("conceptType") == "ISCO level 4" and len(r.get("code") or "") == 4 and r["code"].isdigit()',
      "True", "RB10"),
-    ("rob", "ESCO enters the confidence", "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem",
-     "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem\n    accord = min(accord, vert if vert is not None else 1)", "RB10"),
+    ("rob", "ESCO enters the confidence", "accord = min([accord_dem] + [a for a in (accord_ia, accord_use) if a is not None])",
+     "accord = min([accord_dem] + [a for a in (accord_ia, accord_use) if a is not None])\n    accord = min(accord, vert if vert is not None else 1)", "RB10"),
     ("rob", "ESCO share not weighted", "            esco_p.append((esco[code], w))", "            esco_p.append((esco[code], 1.0))", "RB10"),
     ("js", "label unescaped", '<li>${esc(x.libelle)}</li>', '<li>${x.libelle}</li>', "RB5"),
     ("js", "no estimation label", '${estimTag("place du métier parmi ceux que le modèle peut estimer")}', "", "RB5"),
     ("js", "no confidence detail", "fraîcheur des sources ${fmt2(k.fraicheur)}", "${fmt2(k.fraicheur)}", "RB5"),
+    ("rob", "usage summed over occupations", 'out[isco] = {"usage": statistics.fmean(vals), "n_onet": len(vals)}',
+     'out[isco] = {"usage": sum(vals), "n_onet": len(vals)}', "RB12"),
+    ("rob", "usage major groups read", 'and r["hierarchy_level"] == "0" and r["metric_id"] == "pct"', 'and r["metric_id"] == "pct"', "RB12"),
+    ("rob", "usage gap ignored", "accord = min([accord_dem] + [a for a in (accord_ia, accord_use) if a is not None])",
+     "accord = min([accord_dem] + [a for a in (accord_ia,) if a is not None])", "RB12"),
+    ("rob", "usage enters the exposure", "        if c.get(\"score\") is not None:\n            exp_p.append((c[\"score\"], w))",
+     "        if c.get(\"score\") is not None:\n            exp_p.append((c[\"score\"] * (1 + us[\"usage\"]) if us else c[\"score\"], w))", "RB12"),
+    ("rob", "usage ranks over every code", "scored = sorted(k for k in out if k in ilo)", "scored = sorted(out)", "RB12"),
+    ("js", "no usage line", "${conf}${ocde}${usage}${esco}</details>", "${conf}${ocde}${esco}</details>", "RB12"),
     ("js", "number with insufficient data", '`<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer ce métier.</p>`',
      '`<p>Dans la moyenne des métiers</p>`', "RB5"),
 ]
@@ -884,6 +953,86 @@ def rb11(c: Ctx):
             real = {x: sum(1 for d in stored if (d.get("repere") or {}).get("niveau") == x) for x in ("haut", "moyen", "bas")}
             real["seuils"] = (round(lo2, 1), round(hi2, 1))
     return not bad, f"differences {bad[:4]}; real {real}"
+
+
+@check("RB12 AEI usage: share of the conversations per ISCO code (mean), ranks against the OIT, agreement only, never in the score")
+def rb12(c: Ctx):
+    R = c.R()
+    import duckdb
+    tmp = Path(tempfile.mkdtemp())
+    bad = []
+    try:
+        fixture_aei(tmp / "a.zip")
+        raw = R.read_aei_usage(tmp / "a.zip")
+        links = sorted(set(FIX_OECD_LINKS))
+        con = duckdb.connect()
+        con.execute("CREATE SCHEMA core")
+        con.execute("CREATE TABLE core.ia_theta_lien (onet VARCHAR, soc2018 VARCHAR, soc2010 VARCHAR, isco VARCHAR)")
+        con.executemany("INSERT INTO core.ia_theta_lien VALUES (?, '', '', ?)", links)
+        con.execute("CREATE TABLE core.ia_oit_isco (isco VARCHAR, moyenne DOUBLE)")
+        con.executemany("INSERT INTO core.ia_oit_isco VALUES (?, ?)", list(FIX_ILO.items()) + [("9999", None)])
+        got = R.isco_usage(con, raw)
+        exp = oracle_usage(FIX_AEI, links, FIX_ILO)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    for k in set(exp) | set(got):
+        a, b = exp.get(k), got.get(k)
+        if not a or not b or abs(a["usage"] - b["usage"]) > 1e-12 or (a.get("rang_oit") is None) != (b.get("rang_oit") is None) \
+                or (a.get("rang_oit") is not None and (abs(a["rang_oit"] - b["rang_oit"]) > 1e-12 or abs(a["rang_usage"] - b["rang_usage"]) > 1e-12)):
+            bad.append(f"{k}: {b} != {a}")
+    if "43" in raw or raw.get("11-1011.00") != 0.0 or raw.get("29-1141.00") != 0.0:
+        bad.append(f"filters (major group, other country, other month): {raw}")
+    if abs(got.get("2512", {}).get("usage", 0) - 0.3) > 1e-12:
+        bad.append("a code's share is not the MEAN of its occupations")
+    # never in the score: the same job with and without the usage table keeps its components and scenarios
+    for name, d in crafted().items():
+        a, b = R.job(d, AUG, CED, None, None, None), R.job(d, AUG, CED, None, None, USAGE)
+        if a["composantes"] != b["composantes"] or a["scenarios"] not in (b["scenarios"], None) or a["regime_ia"] != b["regime_ia"]:
+            bad.append(f"{name}: the usage share changes the score or its components")
+    far = R.job(crafted()["spread"], AUG, CED, None, None, {"3333": {"usage": 0.0, "rang_oit": 1.0, "rang_usage": 0.0}})
+    if far["score"] is None or abs(far["confiance"]["accord_sources"] - 0.5) > 1e-9 or far["usage"]["accord"] != 0.5:
+        bad.append(f"a full rank disagreement: agreement {far['confiance']} (floor 0.5, score kept)")
+    near = R.job(crafted()["full"], AUG, CED, None, None, {"2512": dict(USAGE["2512"]), "1330": dict(USAGE["1330"], rang_usage=0.4)})
+    if near["confiance"]["accord_sources"] != R.job(crafted()["full"], AUG, CED)["confiance"]["accord_sources"]:
+        bad.append("a rank gap of at most 15 points lowers the agreement")
+    # page: the line is in « Détail du calcul », says it stays out of the score; none without both ranks
+    prog = STUB + "\n".join(top(c.js, n) for n in ("ROB_REGIME", "ROB_SCEN", "ROB_CONF", "robNum", "ROB_REPERE", "robFaits", "robustesseCard")) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      process.stdout.write(JSON.stringify([robustesseCard(D.a), robustesseCard(D.b)]));"""
+    ja = json.loads(json.dumps(R.job(crafted()["full"], AUG, CED, None, None, USAGE)))
+    jb = json.loads(json.dumps(R.job(crafted()["full"], AUG, CED)))
+    out = node(prog, {"a": ja, "b": jb})
+    if out is not None:
+        ca, cb = out
+        u = ja["usage"]
+        line = (f"plus exposé que {round(u['rang_oit'] * 100)} % des métiers mesurés. Ses tâches reviennent dans plus de conversations avec "
+                f"l'IA que celles de {round(u['rang_usage'] * 100)} % des métiers")
+        detail = ca.partition("<summary>Détail du calcul</summary>")[2]
+        if line not in detail or "Ce chiffre n'entre pas dans le score" not in detail.split("Anthropic Economic Index, mai 2026")[-1]:
+            bad.append("the usage line is missing from « Détail du calcul » or does not say it stays out of the score")
+        if "usage réel de l'IA" in cb:
+            bad.append("a usage line without ranks")
+    real = ROOT / "data" / "sources" / R.AEI_ZIP
+    info = ""
+    if real.exists():
+        rr = R.read_aei_usage(real)
+        if len(rr) != 718 or any(not re.fullmatch(r"\d\d-\d{4}\.\d\d", k) for k in rr):
+            bad.append(f"real file: {len(rr)} detailed occupations")
+        info = f"; real: {len(rr)} occupations, {sum(1 for v in rr.values() if v == 0)} at 0.00 %, total {sum(rr.values()):.1f} %"
+        if c.real and c.db:
+            con = duckdb.connect(str(c.db), read_only=True)
+            try:
+                us = R.isco_usage(con, rr)
+            finally:
+                con.close()
+            both = [k for k, v in us.items() if v.get("rang_oit") is not None]
+            if both:
+                xs, ys = [us[k]["rang_oit"] for k in both], [us[k]["rang_usage"] for k in both]
+                mx, my = statistics.fmean(xs), statistics.fmean(ys)
+                rho = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sum((x - mx) ** 2 for x in xs) * sum((y - my) ** 2 for y in ys)) ** 0.5
+                info += (f"; {len(both)} ISCO codes ranked, Spearman OIT/usage {rho:.2f}, "
+                         f"{sum(1 for k in both if abs(us[k]['rang_oit'] - us[k]['rang_usage']) > 0.15)} codes more than 15 points apart")
+    return not bad, f"differences {bad[:4]}{info}"
 
 
 @check("RB8 mutation test: every seeded bug is caught")

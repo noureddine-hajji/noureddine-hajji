@@ -20,6 +20,7 @@ import html
 
 from . import aide as AI
 from . import chiffres as CH
+from . import methode_robustesse as MR
 from . import analytics as A
 from . import config
 from . import contact as C
@@ -35,8 +36,8 @@ TILES = {"name": "OpenStreetMap Foundation", "country": "Royaume-Uni", "host": "
          "policy": "https://osmfoundation.org/wiki/Privacy_Policy"}
 DEFENSEUR = "https://formulaire.defenseurdesdroits.fr/"
 CNIL = "https://www.cnil.fr/fr/plaintes"
-SLUGS = ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres")   # "aide": Q4 (aide.py); "nos-chiffres": chiffres.py
-FOOTER = (("aide", "Se faire aider"), ("nos-chiffres", "Nos chiffres et Parcoursup"), ("a-propos", "À propos"), ("contact", "Contact"), ("mentions-legales", "Mentions légales"),
+SLUGS = ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres", "robustesse")   # "aide": Q4 (aide.py); "nos-chiffres": chiffres.py; "robustesse": methode_robustesse.py
+FOOTER = (("aide", "Se faire aider"), ("nos-chiffres", "Nos chiffres et Parcoursup"), ("robustesse", "Méthode de la robustesse 2035"), ("a-propos", "À propos"), ("contact", "Contact"), ("mentions-legales", "Mentions légales"),
           ("confidentialite", "Confidentialité"), ("accessibilite", "Accessibilité : non conforme"))
 
 
@@ -248,6 +249,8 @@ PAGES = {
              "psychologue de l'Éducation nationale, CIO, Mon orientation en ligne, numéro vert Parcoursup.", AI.page),
     "nos-chiffres": ("Nos chiffres et ceux de Parcoursup", "Pourquoi SupCompass ne donne pas de probabilité d'admission, et ce "
                      "que ses chiffres ajoutent à ceux de la fiche Parcoursup.", CH.page),
+    "robustesse": ("Comment on calcule la robustesse 2035", "La méthode de l'estimation de robustesse 2035 des métiers et des "
+                   "formations, ses sources, ses garde-fous et les versions du modèle.", MR.page),
 }
 
 
