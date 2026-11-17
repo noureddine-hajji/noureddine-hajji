@@ -114,6 +114,51 @@ métier visé change. On l'ajoute pour mieux juger la formation.
 - Page méthode publique et journal des versions du modèle (R-03) : chaque changement de score est noté (avant, après, cause).
 - Badge de sensibilité aux pondérations (R-02) : « classement stable » ou « sensible ».
 
+## Vérifications faites le 17/11 (données réelles, session 2025)
+
+**1. Lien formation → fiche RNCP (officiel).** La fiche Onisep de chaque licence, DE infirmier et DE du travail social donne
+l'adresse de sa fiche RNCP. Pour les BTS et les BUT, l'intitulé national du diplôme retrouve la fiche RNCP (règle fixe sur le
+titre, la fiche active d'abord). Résultat : **8 976 formations sur 14 252 (63 %)**, dont 4 432 BTS sur 5 351, 2 788 licences sur
+3 052, 757 BUT sur 820, 412 LAS sur 513, 344 IFSI sur 344 et 243 EFTS sur 243. Il manque les BTSA (agricoles), le BTS ESF et quelques
+parcours de BUT (à rattraper). Les CPGE, PASS et écoles n'ont pas de fiche RNCP pour l'entrée en première année : pas de carte
+compétences, dit sur la page.
+
+**2. Lien blocs RNCP → ESCO par les mots : NON fiable.** Sur 25 blocs tirés au hasard, 5 à 7 seulement tombent juste (« Gérer
+l'engraissement des escargots » → « élever des escargots », mais « Communiquer dans des situations variées » → « services de
+communication radio »). Cette voie est abandonnée, comme prévu.
+
+**3. Voie officielle retenue : RNCP → codes ROME → compétences ROME 4.0 (France Travail, open data).** La fiche RNCP cite les
+codes ROME des métiers visés. Le ROME 4.0 donne, pour chacun des 1 923 métiers, ses compétences (20 088 au total), chacune classée
+par France Travail en **technique**, **technique expert** ou **transverse**, avec un repère « transition écologique » et
+« transition numérique », et les **mobilités professionnelles** officielles vers d'autres métiers. Aucun appariement de textes.
+Médianes par formation :
+
+| Filière | Formations | Métiers ROME | Compétences | Transverses | Partagées par ≥ 20 métiers | Numérique | Écologique | Métiers proches |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| BTS | 4 432 | 3 | 87 | 21 % | 33 % | 7 % | 2 % | 25 |
+| Licence | 2 788 | 5 | 179 | 27 % | 27 % | 7 % | 2 % | 41 |
+| BUT | 757 | 11 | 288 | 20 % | 29 % | 9 % | 4 % | 62 |
+| LAS | 412 | 5 | 171 | 26 % | 31 % | 9 % | 2 % | 40 |
+| IFSI | 344 | 1 | 28 | 29 % | 36 % | 0 % | 7 % | 10 |
+| EFTS | 243 | 1 | 44 | 33 % | 28 % | 2 % | 0 % | 10 |
+
+Limite à dire : ce sont les compétences des **métiers que le diplôme vise** selon sa fiche RNCP. Les blocs de compétences du
+diplôme lui-même sont affichés tels que publiés (médiane : 5 blocs), sans calcul dessus.
+
+**4. Pratique et entreprise.** L'apprentissage est possible pour tous les BTS et BUT (voies d'accès RNCP). La durée des stages
+n'est imprimée que sur 119 textes de fiches Parcoursup : on l'affiche quand elle est écrite, et sinon la règle nationale du type
+de diplôme avec sa source (par exemple 22 à 26 semaines de stage en BUT, arrêté du 6 décembre 2019), jamais une durée inventée.
+
+**5. Métiers accessibles avec le seul diplôme.** Les métiers de la fiche Onisep d'un diplôme sont tous à son niveau ou en dessous
+(0 métier au-dessus du niveau du diplôme sur 74 000 liens). Ils forment la liste « avec ce diplôme seul », avec leur repère de
+robustesse. 5 182 BTS sur 5 502 et 3 254 BUT sur 3 268 ont au moins un métier noté.
+
+**6. Gain par un master (licences).** 2 785 licences ont à la fois des métiers « licence seule » et des masters reliés (même
+université, même discipline). La robustesse médiane des métiers après le master dépasse celle de la licence seule pour 2 505
+d'entre elles (90 %). Le gain médian est de **+4,2 points** (de 0 à +9,8 points pour 80 % des licences). Il sera affiché comme
+un changement de repère et de faits, par exemple « après un master, 5 % des métiers visés sont parmi les plus robustes, contre
+aucun avec la licence seule », jamais comme une promesse.
+
 ## Validé par le propriétaire (17/11) et précisions
 
 Les 5 recommandations sont validées. Le propriétaire ajoute :
