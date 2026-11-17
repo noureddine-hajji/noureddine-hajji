@@ -14,3 +14,4 @@ requirements-pipeline.txt
 **/data/calendrier/*.pdf
 **/docs/brief-ui/
 **/data/jpo/
+**/data/rncp/

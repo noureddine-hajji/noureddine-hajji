@@ -1,0 +1,38 @@
+# Robustesse 2035 per formation (owner, 2026-11-17): the official RNCP export of France Compétences (blocks of competences per
+# certification, ROME codes, NSF), fetched from data.gouv.fr (blocked in the development sandbox) into suptracker/data/rncp/.
+# On request only (the export is ~9 MB): workflow_dispatch, or a push of data/rncp/request.json on a claude/ branch.
+name: suptracker-rncp
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/rncp/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-rncp
+  cancel-in-progress: false
+jobs:
+  rncp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Fetch the RNCP export
+        run: python scripts/rncp_fetch.py data/rncp
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rncp
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Official RNCP export fetched ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push

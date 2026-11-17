@@ -114,7 +114,21 @@ métier visé change. On l'ajoute pour mieux juger la formation.
 - Page méthode publique et journal des versions du modèle (R-03) : chaque changement de score est noté (avant, après, cause).
 - Badge de sensibilité aux pondérations (R-02) : « classement stable » ou « sensible ».
 
-## Décisions à prendre par le propriétaire avant de coder
+## Validé par le propriétaire (17/11) et précisions
+
+Les 5 recommandations sont validées. Le propriétaire ajoute :
+- **Une formation = la somme des compétences qu'elle développe**, par la théorie, la pratique et l'expérience en entreprise
+  (stages, alternance). On lit donc, pour chaque diplôme, ses blocs de compétences et, quand la source le dit, la part de
+  pratique et de stage (durée des stages, alternance possible : fiche RNCP, fiche Onisep, fiche Parcoursup). Chaque compétence
+  reçoit sa robustesse (portée ESCO, numérique, verte, et l'exposition à l'IA des métiers qui l'utilisent).
+- **Le gain de robustesse par un master** : pour une licence (et un BUT ou un BTS quand une poursuite existe), on compare la
+  robustesse avec le diplôme seul et après les masters accessibles (même université, même discipline, admis MonMaster). Le
+  gain est affiché comme un écart de repère et de faits, jamais comme une promesse.
+- **Les métiers accessibles avec le seul diplôme post-bac** sont traités à part : ceux dont le niveau minimum Onisep est atteint
+  par le diplôme (bac+2 pour un BTS, bac+3 pour BUT et licence). Ils ont leur propre repère, séparé de celui des métiers après
+  un master.
+
+## Décisions (validées le 17/11)
 
 1. **Repère des formations** : comparer chaque formation à toutes les formations, ou seulement à celles de sa filière (un BTS
    avec les BTS) ? Recommandation : la filière, car une licence et un BTS n'ont pas les mêmes débouchés ni la même insertion.
