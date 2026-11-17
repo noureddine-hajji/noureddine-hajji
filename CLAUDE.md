@@ -198,8 +198,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Three shard runners
-    (`pytest -n auto --dist loadfile --shard=i/3`, files spread by `tests/durations.json`; a new test file goes in that table, with its
+  - CI: push on `main` only, branches through their PR, stale runs cancelled. Four shard runners
+    (`pytest -n auto --dist loadfile --shard=i/4`, four since 2026-11-17 when two shards reached 41-45 min, files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
