@@ -691,7 +691,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   campaign only. Outlets ω, one method said: direct (Onisep sheet jobs, equal weights; = « avec ce diplôme seul »), poursuite (licence/LAS:
   the university's masters of the same discipline weighted by MonMaster admits, their Onisep jobs; licence-only jobs apart), famille
   (parcours.py routes entering the formation's group, confidence x 0.5). Skills: RNCP fiche (Onisep's France Compétences link, else
-  the BTS title before options / BUT specialty+parcours; content, ACTIVE, latest decision; never fuzzy) -> its ROME codes -> ROME 4.0
+  the BTS title before options / BUT specialty + its OWN parcours (folded spelling, else the ONE parcours whose title is a prefix of
+  the other; never another parcours of the specialty: Codex, PR #82); content, ACTIVE, latest decision; never fuzzy) -> its ROME codes -> ROME 4.0
   competences; portable = « Transverse » or shared by >= 20 sheets; RNCP blocks verbatim. R = 0.60 Σω R_job + 0.10 Ins (licence:
   master InserSup stable rate weighted by admits, labelled estimation; BTS 6-month insertion stays OUT) + 0.15 Div (Shannon over
   ISCO major groups / ln 10) + 0.15 Comp, renormalised over available terms. Repère among the SAME filière with the SAME terms, by

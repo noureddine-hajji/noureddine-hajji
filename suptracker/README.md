@@ -3776,3 +3776,9 @@ with the later-studies caveat; never one combined mark, never a sort by either. 
 de la robustesse 2035 », sitemap): what the score weighs (every weight and threshold READ from the modules' constants), the
 repères, the confidence and the two controls, Mes vœux, and `CHANGELOG`, every model version (the modules' `MODEL_VERSION` must
 be listed). Both robustesse cards and the comparator link it. Red team RF9-RF10 (`redteam_robustesse_formations.py`, 36/36 mutants).
+
+**BUT parcours (Codex, PR #82).** A BUT's RNCP fiche is now always the fiche of its OWN parcours: the same title once folded
+(« éco-conception » = « Ecoconception », curly and straight apostrophes alike), else the one parcours of the specialty whose title is
+a prefix of the other (« … des matériaux » = « … des matériaux et des produits »); with no such parcours the formation has no RNCP
+skills. The former fallback to any fiche of the specialty linked e.g. « animation sociale et socio-culturelle » to « Villes et
+territoires durables ». On the real export: 78 of 85 BUT sheets linked, each to its own parcours (red team RF2, real mode).

@@ -132,17 +132,34 @@ def onisep_rncp(sources: dict | None = None) -> dict:
     return out
 
 
+def tight(s: str | None) -> str:
+    """fold() without spaces: « éco-conception » = « Ecoconception », « l’industrie » = « l'industrie » (format only)."""
+    return fold(s).replace(" ", "")
+
+
 def title_index(rncp: dict) -> dict:
-    """{("BTS", head) | ("BUT", spe|parcours) | ("BUTsp", spe): [fiches with blocks or ROME codes]}."""
+    """{("BTS", head): [fiches]} and {("BUTsp", spécialité): {parcours: [fiches]}} (spellings folded by tight())."""
     idx: dict = {}
     for k, v in rncp.items():
         if v["abrege"] == "BTS":
             idx.setdefault(("BTS", head(v["intitule"])), []).append(k)
         elif v["abrege"] == "BUT":
             sp, _, pa = v["intitule"].partition(":")
-            idx.setdefault(("BUT", fold(sp) + "|" + fold(pa)), []).append(k)
-            idx.setdefault(("BUTsp", fold(sp)), []).append(k)
+            idx.setdefault(("BUTsp", tight(sp)), {}).setdefault(tight(pa), []).append(k)
     return idx
+
+
+def but_parcours(parcours: dict, pa: str) -> list:
+    """Codex (PR #82): the fiches of the SAME parcours only, never another parcours of the specialty. Same title once
+    folded; else the one parcours whose title is a prefix of the other (« … des matériaux » = « … des matériaux et des
+    produits »), only when exactly one parcours of the specialty matches; else nothing."""
+    t = tight(pa)
+    if not t:
+        return []
+    if t in parcours:
+        return parcours[t]
+    hits = [k for k in parcours if k and (k.startswith(t) or t.startswith(k))]
+    return parcours[hits[0]] if len(hits) == 1 else []
 
 
 def pick(fiches: list, rncp: dict) -> str | None:
@@ -167,7 +184,7 @@ def rncp_of(for_id: str | None, label: str | None, on_link: dict, idx: dict, rnc
         return (f, "titre") if f else (None, None)
     if lab.startswith("but "):
         sp, _, pa = lab[4:].partition(" parcours ")
-        f = pick(idx.get(("BUT", sp.strip() + "|" + pa.strip())), rncp) or pick(idx.get(("BUTsp", sp.strip())), rncp)
+        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)
         return (f, "titre") if f else (None, None)
     return None, None
 

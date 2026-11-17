@@ -5,7 +5,8 @@ per-job model (redteam_robustesse.py).
       ROME 4.0 open data (competences, links, mobilities) gives each fiche's blocks, ROME codes, apprenticeship flag, and the
       competences of its ROME codes: portable = « Transverse » or shared by >= 20 sheets; the module equals it (fixture and real).
   RF2 links: Onisep's own France Compétences link first; else the national BTS title before its options, the BUT specialty and
-      parcours (else the specialty), among the fiches WITH content, ACTIVE first then the latest decision; never a fuzzy title.
+      its OWN parcours (same title once folded, else the one parcours whose title is a prefix of the other; never another
+      parcours of the specialty: Codex, PR #82), among the fiches WITH content, ACTIVE first then the latest decision.
   RF3 formula: an independent implementation of R(f,s) = 0.60 Σω R_job + 0.10 Ins + 0.15 Div + 0.15 Comp renormalised over the
       available terms (Div = 100 x Shannon entropy over ISCO major groups / ln 10; Comp = 100 x portable share), the median of
       the three scenarios, min, max, the confidence (lowest of four, method weight 1 / 0.8 / 0.5), « données insuffisantes »
@@ -96,10 +97,17 @@ STD = [  # fiche, intitulé, abrégé, actif, décision
     ("RNCP5", "Licence Économie " + HOSTILE, "LIC", "ACTIVE", ""),
     ("RNCP6", "Conception de produits options A et B", "BTS", "ACTIVE", "02/02/2021"),
     ("RNCP7", "Management commercial opérationnel", "BTS", "ACTIVE", "01/09/2023"),   # newer, but no content: never read
+    ("RNCP8", "Informatique : Cybersécurité", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP9", "Packaging emballage : Ecoconception et industrialisation", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP10", "Matériaux : Métiers du recyclage des matériaux et des produits", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP11", "Matériaux : Métiers de la caractérisation", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP12", "Énergie : Management de l’énergie", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP13", "Énergie : Management de l’énergie et des fluides", "BUT", "ACTIVE", "15/06/2022"),
 ]
 BLOCS = [("RNCP1", "Gérer la relation client"), ("RNCP3", "Animer l'offre"), ("RNCP3", " "), ("RNCP4", "Réaliser une application"),
          ("RNCP5", "Analyser " + HOSTILE), ("RNCP6", "Concevoir")]
-ROMES = [("RNCP1", "D1501"), ("RNCP2", "D1501"), ("RNCP3", "D1501"), ("RNCP3", "D1502"), ("RNCP4", "M1805"), ("RNCP5", "C1201"), ("RNCP6", "H1203"),
+ROMES = [("RNCP8", "M1805"), ("RNCP9", "H1203"), ("RNCP10", "H1203"), ("RNCP11", "H1203"), ("RNCP12", "H1203"), ("RNCP13", "H1203"),
+         ("RNCP1", "D1501"), ("RNCP2", "D1501"), ("RNCP3", "D1501"), ("RNCP3", "D1502"), ("RNCP4", "M1805"), ("RNCP5", "C1201"), ("RNCP6", "H1203"),
          ("RNCP5", "")]
 VOIES = [("RNCP3", "Par apprentissage"), ("RNCP3", "Après un parcours de formation sous statut d'élève ou d'étudiant"),
          ("RNCP4", "Par candidature individuelle")]
@@ -247,7 +255,12 @@ def rf2(c: Ctx):
         ("A", "BTS management commercial opérationnel", {}, ("RNCP3", "titre")),       # RNCP7 newer but empty; RNCP2 inactive
         ("B", "BTS conception de produits option A", {}, ("RNCP6", "titre")),          # options off on both sides
         ("C", "BUT informatique parcours développement d'applications", {}, ("RNCP4", "titre")),
-        ("D", "BUT informatique parcours autre", {}, ("RNCP4", "titre")),              # parcours unknown: the specialty
+        ("D", "BUT informatique parcours autre", {}, (None, None)),                    # Codex: never another parcours
+        ("D2", "BUT informatique", {}, (None, None)),                                  # no parcours: no fiche
+        ("D3", "BUT packaging emballage parcours éco-conception et industrialisation", {}, ("RNCP9", "titre")),  # spelling only
+        ("D4", "BUT matériaux parcours métiers du recyclage des matériaux", {}, ("RNCP10", "titre")),          # the one prefix
+        ("D5", "BUT énergie parcours management de l'énergie", {}, ("RNCP12", "titre")),  # exact wins over a longer prefix
+        ("D6", "BUT énergie parcours management", {}, (None, None)),                   # two parcours start so: none
         ("E", "licence mention économie", {"E": "RNCP5"}, ("RNCP5", "onisep")),
         ("F", "BTS management commercial", {}, (None, None)),                          # never a partial title
         ("G", "licence mention économie", {"G": "RNCP99"}, (None, None)),              # a link to an unknown fiche
@@ -257,7 +270,31 @@ def rf2(c: Ctx):
         got = F.rncp_of(fid, lab, link, idx, rn)
         if got != exp:
             bad.append(f"{lab!r}: {got} != {exp}")
-    return not bad, f"differences {bad[:4]}"
+    # real: every BUT sheet linked by title reaches a fiche of its OWN parcours (independent check on the folded words)
+    d = ROOT / "data" / "rncp"
+    info = ""
+    if c.real and (d / F.RNCP_ZIP).exists():
+        from suptracker import onisep as ON
+        src = ON.find_sources().get("formations")
+        if src:
+            rr = F.read_rncp(d / F.RNCP_ZIP)
+            ix = F.title_index(rr)
+            words = lambda x: re.sub(r"[^a-z0-9]", "", F.fold(x))  # noqa: E731
+            n = 0
+            for f in ON._xml_root(src).iter("formation"):
+                lab = f.findtext("libelle_complet") or f.findtext("libelle") or ""
+                if not F.fold(lab).startswith("but "):
+                    continue
+                fiche, how = F.rncp_of(f.findtext("identifiant"), lab, {}, ix, rr)
+                if not fiche:
+                    continue
+                n += 1
+                mine = words(F.fold(lab)[4:].partition(" parcours ")[2])
+                theirs = words(rr[fiche]["intitule"].partition(":")[2])
+                if not mine or not (mine == theirs or mine.startswith(theirs) or theirs.startswith(mine)):
+                    bad.append(f"real: {lab!r} -> {rr[fiche]['intitule']!r}")
+            info = f"; real: {n} BUT sheets linked to their own parcours"
+    return not bad, f"differences {bad[:4]}{info}"
 
 
 # ------------------------------------------------------------------------------------------------------------- formula
@@ -785,6 +822,10 @@ SOURCE_MUTANTS = [
     ("robf", "apprenticeship from any route", 'any("apprentissage" in x.lower() for x in v["voies"])', "bool(v[\"voies\"])", "RF1"),
     ("robf", "empty fiche picked", 'ok = [k for k in fiches or () if rncp[k]["blocs"] or rncp[k]["rome"]]', "ok = list(fiches or ())", "RF2"),
     ("robf", "inactive first", "key=lambda k: (rncp[k][\"actif\"], date(k), k)", "key=lambda k: (date(k), k)", "RF2"),
+    ("robf", "another parcours substituted", '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)',
+     '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp) or pick([x for v in idx.get(("BUTsp", tight(sp)), {}).values() for x in v], rncp)', "RF2"),
+    ("robf", "ambiguous prefix accepted", "return parcours[hits[0]] if len(hits) == 1 else []", "return parcours[hits[0]] if hits else []", "RF2"),
+    ("robf", "spelling not folded", '    return fold(s).replace(" ", "")', "    return fold(s)", "RF2"),
     ("robf", "options kept", 'return re.split(r" options? | parcours | specialite ", " " + fold(title) + " ")[0].strip()', "return fold(title)", "RF2"),
     ("robf", "insertion weight 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.15, 0.15, 0.15", "RF3"),
     ("robf", "entropy over 9 groups", "ISCO_GROUPS = 10", "ISCO_GROUPS = 9", "RF3"),
