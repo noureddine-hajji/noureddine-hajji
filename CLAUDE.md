@@ -655,6 +655,38 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   sentence, no Crous table; overseas = +majoration on every échelon. Mention, bac route and académie are compared in the browser
   (`aidesHint`), never sent. vie.py's CVEC and meal must equal the official pages. Page links: `.gouv.fr` https only.
   Red team `redteam_aides.py` (AI1-AI8).
+- **Nos chiffres et ceux de Parcoursup (owner, 2026-11-16).** `chiffres.py`, a `legal.SLUGS` page (`/nos-chiffres`, `#/info/nos-chiffres`):
+  what the fiche shows (global figures; « selon mon profil » = terminale only, by bac type, not comparable, as the fiche says), why no
+  probability, what the site adds, why two figures may differ; the fiche prevails. Every red team listing the trust pages lists it.
+- **Journées portes ouvertes (owner, 2026-11-16).** `jpo.py`, workflow `suptracker-jpo` (daily; `jpo_fetch.py`): Onisep Idéo-Structures
+  sup + secondaire (ODbL credit on the card), every changed version kept, older ones from the Internet Archive; the establishments'
+  sites (Onisep « voir » link, cartographie site; robots.txt, masked lines around « portes ouvertes » only). Season = 1 September Y-1 to
+  1 May Y included (owner); the season shown contains today else the next. A future date must be in the LATEST Onisep version (or on
+  the site); a passed date of the season is shown « passée ». A site date needs its year or a TRUE weekday, the keyword's own
+  line (or a short heading above it), no « publié le », no collège line; it only CONFIRMS Onisep's dates where the establishment
+  has some (sites show other campuses: first real run), is added « à vérifier » only where Onisep has none, never from an agenda
+  page (> 4 dates a season). The formation's own fiche texts (data/fiches, attendus complémentaires / conseils / info) are read the
+  same way (mostly last year's dates: the period); no date of its own = its UNIVERSITY's (Onisep « université de rattachement »,
+  a university only), named « Université X » (owner, 2026-11-16). The jpo_* tables live in rapport_textes.duckdb (`jpo._src`), never in the
+  warehouse (it went to 95.7 MB with them). No date = a PERIOD by
+  thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
+  « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
+  `redteam_jpo.py` (J1-J10).
+- **Robustesse 2035 per job (owner's PRD, 2026-11-16).** `robustesse.py` (model 2027.1), jobs first, formations next. The owner
+  LIFTED « never one composite score » for this feature only, with guardrails: « estimation du modèle », the MEDIAN of the three
+  scenarios with min-max under it, components always shown, sources + years + model version, « données insuffisantes » (no number)
+  when confidence < 0.4. IA = 100(1 − Exp(1 − Aug)): Exp = OIT 2025 as published, Aug = AEI May 2026 augmentation/(aug+automation)
+  via official O*NET→ISCO links (else SOC major groups, flagged). Dem = 0.5 Cedefop + 0.3 Métiers 2030 + 0.2 BMO, FIXED bounds
+  (BOUNDS), never min-max. Cedefop France 2021 break (owner's rule): EU-27 growth when |2020→21| > 25 % or |FR − EU| > 30 points,
+  replacement French. R = (0.35 IA + 0.25 Dem)/0.6; S1 Exp × the OECD « +1 cognitive » ratio (else ×1.25, cap 1) Aug×0.8, S2 central, S3 = Métiers
+  2030 low-carbon variant. Confidence = min(freshness weighted, observed links, agreement, coverage); agreement = min(Cedefop/M2030,
+  OIT/OECD RANK gap: > 15 points lowers it, floor 0.5). OECD (owner, 2026-11-17) = cross-check only, NEVER in the exposure (other
+  notion and scale, r = 0.02); both ranks printed side by side. ESCO green-skill share per ISCO-4 (owner, 2026-11-17) = a CONTROL printed
+  beside S3 with the national median, never in the score, scenarios or confidence. The page LEADS with a repère (owner,
+  2026-11-17: the scores are a tight bell): top / bottom 20 % of the scored jobs' medians (cut points measured at build,
+  `with_repere`), then three plain facts (Cedefop positions per 100 jobs, AEI uses out of 10, BMO hirings out of 10); the score and
+  everything else in « Détail du calcul », never before it. Reachability never enters. Tables r35_*
+  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB11).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

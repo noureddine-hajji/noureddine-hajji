@@ -664,8 +664,8 @@ def mutants():
     page_mut("the page's subjects differ", "js", '["autre", "Autre chose"]', '["autre", "Autre"]', {"QC4"})
     page_mut("success shown on any answer", "js", "if (r && r.status === 201 && d.ok) {", "if (r) {", {"QC6"})
     page_mut("no report link on the formation page", "js", '${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}', '${feedbackBox("fiche")}', {"QC9"})
-    page_mut("an address that does not open in the app", "js", "(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide)",
-             "(a-propos|contact|mentions-legales|confidentialite|aide)", {"QC9"})
+    page_mut("an address that does not open in the app", "js", "(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres)",
+             "(a-propos|contact|mentions-legales|confidentialite|aide|nos-chiffres)", {"QC9"})
     page_mut("tutoiement in the form", "js", "Votre message <span", "Ton message <span", {"QC9"})
     page_mut("the app's title keeps the old tagline", "js", "const HOME_TITLE = \"SupCompass — ", "const HOME_TITLE = \"SupCompass — les vrais chiffres ", {"QC8"})
     return out

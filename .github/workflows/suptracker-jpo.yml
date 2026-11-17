@@ -1,0 +1,42 @@
+# Journées portes ouvertes (owner, 2026-11-16): the Onisep Idéo-Structures files (enseignement supérieur and secondaire, ODbL), their
+# older copies kept by the Internet Archive, and the lines around « portes ouvertes » on the establishments' own sites (robots.txt
+# honoured), fetched into suptracker/data/jpo/ (these hosts are blocked in the development sandbox). The dates are read from these
+# files at build by the fixed rules of suptracker/jpo.py. Triggered by workflow_dispatch, a daily schedule (default branch: the sites
+# are visited oldest check first, a share every day), or a push of data/jpo/request.json on a claude/ branch.
+name: suptracker-jpo
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * *"
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/jpo/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-jpo
+  cancel-in-progress: false
+jobs:
+  jpo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx openpyxl duckdb==2.0.0
+      - name: Fetch the open days (Onisep, archive, establishments' sites)
+        run: python scripts/jpo_fetch.py data/jpo --warehouse data/suptracker.duckdb
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/jpo
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Open days fetched ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push

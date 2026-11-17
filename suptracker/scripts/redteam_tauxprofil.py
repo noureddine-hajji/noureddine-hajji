@@ -387,6 +387,9 @@ process.stdout.write(JSON.stringify(out));
 
 def band_ok(js: str):
     extra = "\n".join(top(js, n) for n in ("admisBar", "reoWhy") if re.search(rf"^function {n}\(", js, re.M))
+    # the open days' summary line (owner, 2026-11-16) and the date helpers it reads
+    extra += "\n" + "\n".join(top(js, n) for n in ("localIso", "frDate", "jpoUrl", "jpoNext", "jpoWhen", "jpoLine")
+                               if not re.search(rf"^(?:const|function) {n}\b", harness(js), re.M))
     rs = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const REO_NO_ZONE = ", "const REO_METHOD = ")))
     prog = harness(js) + "\n" + rs + "\n" + extra + "\n" + top(js, "summaryBand") + BAND_PROG
     r = node(prog)

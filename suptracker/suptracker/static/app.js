@@ -639,7 +639,7 @@ function guideHtml(G, c) {
   <ol class="guide">${G.steps.map((x, i) => `<li class="card guide-step${x.key === G.next ? " next" : ""}">
     <div class="guide-head"><span class="guide-num" aria-hidden="true">${x.statut === "fait" ? ICONS.check : i + 1}</span><h2>${esc(x.titre)}</h2><span class="badge">${GUIDE_STATUT[x.statut]}</span></div>
     ${body[x.key]}</li>`).join("")}</ol>
-  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi.</p>`;
+  <p class="muted small">Des repères tirés des admis des campagnes 2022–2025, pas des chances d'admission. La fiche Parcoursup de chaque formation fait foi. <a href="#/info/nos-chiffres">Nos chiffres et ceux de Parcoursup</a></p>`;
 }
 let guideSeq = 0;
 async function viewGuide() {
@@ -1937,6 +1937,7 @@ function summaryBand(r, d) {
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
+    ${jpoLine(d.jpo)}
     ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
 }
@@ -2039,6 +2040,54 @@ function recoCard(rc) {
     <p>${recoPill(rc.categorie, rc.libelle, rc.explication)}</p>
     <p>${esc(rc.explication)}</p>${lab}${brs ? `<p class="small">${esc(brs)}</p>` : ""}
     <p class="muted small">Lu sur la fiche Parcoursup${rc.session ? ` de la campagne ${esc(rc.session)}` : ""}. La fiche fait foi.</p></div>`;
+}
+// owner, 2026-11-16: the establishment's open days (jpo.py). Dates of the season as Onisep lists them, checked on the establishment's
+// own site; none this season = a PERIOD from the past seasons (« aux alentours de mi-janvier »), never a day; passed dates said
+const jpoUrl = (u) => (typeof u === "string" && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : null);
+function jpoNext(j) {
+  const today = localIso();
+  return ((j && j.dates) || []).find((e) => (e.fin || e.date) >= today) || null;
+}
+function jpoWhen(e) {
+  return e.fin ? `du ${frDate(e.date)} au ${frDate(e.fin)}` : frDate(e.date);
+}
+function jpoLine(j) {
+  if (!j) return "";
+  const n = jpoNext(j), dates = j.dates || [];
+  const who = j.universite ? ` (${esc(j.universite.nom)})` : "";
+  const txt = n ? `Portes ouvertes${who} : ${esc(jpoWhen(n))}${n.source === "site" ? " (site de l'établissement, à vérifier)" : ""}`
+    : dates.length ? `Portes ouvertes${who} ${esc(j.saison.annees)} : déjà passées`
+    : j.environ ? `Portes ouvertes${who} : ${esc(j.environ.texte)}, d'après les années passées`
+    : "";
+  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="cout">${txt} →</button></p>` : "";
+}
+function jpoCard(j) {
+  if (!j) return "";
+  const today = localIso(), dates = j.dates || [];
+  const noms = [...new Set((j.etablissements || []).map((e) => e.nom).filter(Boolean))];
+  const fiche = (e) => (e.fiche && e.source !== "fiche" && e.source !== "fiche_site" ? ", aussi sur la fiche Parcoursup de la formation" : "");
+  const src = (e) => e.source === "onisep_site" ? `Onisep, date retrouvée sur le site de l'établissement${fiche(e)}`
+    : e.source === "onisep" ? `Onisep${fiche(e)}`
+    : e.source === "fiche" ? "fiche Parcoursup de la formation"
+    : e.source === "fiche_site" ? "fiche Parcoursup de la formation, date retrouvée sur le site de l'établissement"
+    : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
+  const li = (e) => {
+    const past = (e.fin || e.date) < today;
+    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.virtuel ? ", en ligne" : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
+      <span class="small muted"> · ${src(e)}${e.source !== "site" && jpoUrl(e.voir) ? ` · <a href="${esc(jpoUrl(e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
+  };
+  const body = dates.length ? `<ul class="jpo-list">${dates.map(li).join("")}</ul>`
+    : j.environ ? `<p>Aucune date n'est encore annoncée pour ${esc(j.saison.annees)}. Les années passées (${esc(j.environ.annees.join(", "))}), elles ont eu lieu <strong>${esc(j.environ.texte)}</strong>.</p>
+      <p class="small">C'est une période, pas une date : à confirmer sur le site de l'établissement.</p>`
+    : `<p class="muted">Aucune date n'est publiée pour l'instant, ni par l'Onisep ni sur le site de l'établissement.</p>`;
+  const links = (j.etablissements || []).filter((e) => jpoUrl(e.onisep_url))
+    .map((e) => `<a href="${esc(jpoUrl(e.onisep_url))}" target="_blank" rel="noopener">fiche Onisep${noms.length > 1 && e.nom ? ` (${esc(e.nom)})` : ""} ↗</a>`);
+  const sites = (j.sites_verifies || []).filter((x) => jpoUrl(x.url));
+  return `<div class="card" id="jpo"><h2>Les portes ouvertes</h2>
+    ${j.universite ? `<p>Aucune date propre à cette formation n'est publiée. Voici les portes ouvertes de son université : <strong>${esc(j.universite.nom)}</strong>.</p>`
+      : noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
+    ${body}
+    <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}${dates.some((e) => e.fiche) ? ", et la fiche Parcoursup de la formation" : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
@@ -2312,7 +2361,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -3956,6 +4005,7 @@ async function viewMetier(id, from = "") {
       ${tile("formations", "Diplômes", fmt(d.diplomes.length), nForm ? `${fmt(nForm)} formation(s) Parcoursup` : "aucune formation Parcoursup")}
       ${tile("avenir", "Emploi d'ici 2030", r2030 ? `<span class="text">${esc(r2030)}</span>` : "—", n2030)}
       ${tile("avenir", "Tâches exposées à l'IA", iaSpan || "—", iaSpan ? "note OIT sur 1, pas un risque de perte d'emploi" : "pas de note OIT")}
+      ${robustesseTile(d.robustesse)}
     </div></section>`;
   $view.innerHTML = `<div class="card"><p class="small"><a href="#/metiers">← Autres métiers</a></p>
     <h1>${esc(d.nom)}</h1>
@@ -3967,12 +4017,78 @@ async function viewMetier(id, from = "") {
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     ${d.diplomes.map(dip).join("")}
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p>`],
-      ["avenir", "Avenir du métier", `${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`],
+      ["avenir", "Avenir du métier", `${robustesseCard(d.robustesse)}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`],
     ])}${nextSteps("metier", /^https:\/\//.test(d.url || "") ? [{ href: d.url, text: "Lire la fiche du métier sur le site de l'Onisep" }] : [])}`;
   bindTabs("metier");
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Robustesse 2035 (owner's PRD, 2026-11-16): an ESTIMATION OF THE MODEL per job (robustesse.py), never a forecast for a
+// person, a promise or a chance. The median of three scenarios, the range under it, the components, the confidence and
+// « D'où vient ce chiffre ? » (sources, dates, model version). Fixed wording only (no free text), no alarming word.
+const ROB_REGIME = {
+  peu_expose: "peu exposé à l'IA générative : peu de ses tâches pourraient être faites par l'IA",
+  surtout_augmente: "exposé à l'IA générative, mais l'IA y sert surtout à aider le travail plutôt qu'à le faire à la place",
+  surtout_substituable: "exposé à l'IA générative, et l'IA y fait souvent la tâche à la place : ses tâches vont évoluer",
+  mixte: "exposé à l'IA générative, l'IA y aide le travail autant qu'elle fait des tâches à la place",
+};
+const ROB_SCEN = { S1: "IA accélérée", S2: "Central", S3: "Transition rapide (bas-carbone)" };
+const ROB_CONF = { haute: "confiance haute", moyenne: "confiance moyenne", faible: "données insuffisantes" };
+const robNum = (x) => (x === null || x === undefined ? "—" : Number(x).toLocaleString("fr-FR", { maximumFractionDigits: 0 }));
+// owner, 2026-11-17: the scores form a tight bell, so the page leads with a repère in three levels and three plain facts;
+// the score, the scenarios and the components stay in « Détail du calcul ».
+const ROB_REPERE = {
+  haut: "Parmi les 20 % de métiers les plus robustes",
+  moyen: "Dans la moyenne des métiers",
+  bas: "Parmi les 20 % de métiers les moins robustes",
+};
+function robFaits(c) {
+  const out = [];
+  if (c.cedefop_taux != null) out.push(`D'ici 2035 : environ ${robNum(Math.max(0, c.cedefop_taux * 100))} postes à pourvoir pour 100 emplois actuels, départs à la retraite compris (Cedefop).`);
+  if (c.augmentation != null) out.push(`IA générative : dans ${robNum(c.augmentation * 10)} usages sur 10, elle aide le travail plutôt qu'elle ne le fait à la place (Anthropic Economic Index).`);
+  if (c.tension != null) out.push(`En 2026 : ${robNum(c.tension / 10)} recrutements sur 10 sont jugés difficiles par les employeurs (France Travail, BMO).`);
+  return out;
+}
+function robustesseTile(r) {
+  if (!r) return "";
+  const q = r.repere;
+  return `<button type="button" class="sum-tile" data-goto="avenir"><span class="sum-label">Robustesse 2035</span>
+    <span class="sum-value">${q ? `<span class="text">${esc(ROB_REPERE[q.niveau] || "")}</span>` : "—"}</span>
+    <span class="sum-note">${q ? estimTag("", false, true) : "données insuffisantes"}</span></button>`;
+}
+function robustesseCard(r) {
+  if (!r) return "";
+  const s = r.score, c = r.composantes || {}, k = r.confiance || {};
+  const q = r.repere, faits = robFaits(c);
+  const head = (s && q ? `<p><strong>${esc(ROB_REPERE[q.niveau] || "")}</strong> ${estimTag("place du métier parmi ceux que le modèle peut estimer")}</p>`
+    : `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer ce métier.</p>`)
+    + (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${x}</li>`).join("")}</ul>` : "");
+  const score = s ? `<p>Score : <strong>${robNum(s.median)}</strong> sur 100, médiane des trois scénarios. Selon le scénario, de <strong>${robNum(s.min)}</strong> (le moins favorable) à <strong>${robNum(s.max)}</strong> (le plus favorable)${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}.</p>
+      ${q ? `<p class="small">Repère : les 20 % de métiers aux scores les plus hauts (${robNum(q.seuil_haut)} ou plus) et les 20 % aux scores les plus bas (${robNum(q.seuil_bas)} ou moins), parmi ${robNum(q.n_metiers)} métiers estimés. Les scores sont proches les uns des autres : un ou deux points d'écart ne veulent rien dire.</p>` : ""}` : "";
+  const phrase = r.regime_ia ? `<p>Ce métier est ${esc(ROB_REGIME[r.regime_ia] || "")}.</p>` : "";
+  const scen = s && r.scenarios ? `<div class="scroll"><table><tr><th>Scénario</th><th class="num">Score</th></tr>
+      ${["S1", "S2", "S3"].map((x) => `<tr><td>${esc(ROB_SCEN[x])}</td><td class="num" data-label="Score">${robNum(r.scenarios[x])}</td></tr>`).join("")}</table></div>` : "";
+  const comp = `<div class="scroll"><table><tr><th>Ce qui compte</th><th class="num">Sur 100</th></tr>
+      <tr><td>Résistance à l'IA (35 %) : exposition des tâches ${c.exposition != null ? fmt2(c.exposition) : "—"} sur 1, part d'usage où l'IA aide plutôt qu'elle ne remplace ${c.augmentation != null ? `${robNum(c.augmentation * 100)} %` : "—"}</td><td class="num" data-label="Sur 100">${robNum(c.ia)}</td></tr>
+      <tr><td>Demande d'ici 2035 (25 %)</td><td class="num" data-label="Sur 100">${robNum(c.demande)}</td></tr>
+      <tr><td class="small">· Postes à pourvoir 2024-2035, Cedefop (50 %)${c.cedefop_taux != null ? ` : ${robNum(c.cedefop_taux * 100)} % de l'emploi actuel` : ""}</td><td class="num" data-label="Sur 100">${robNum(c.cedefop)}</td></tr>
+      <tr><td class="small">· Postes à pourvoir 2019-2030, Métiers 2030 (30 %)${c.m2030_taux != null ? ` : ${robNum(c.m2030_taux * 100)} % de l'emploi de 2019` : ""}</td><td class="num" data-label="Sur 100">${robNum(c.m2030)}</td></tr>
+      <tr><td class="small">· Recrutements jugés difficiles en 2026, BMO (20 %)</td><td class="num" data-label="Sur 100">${robNum(c.tension)}</td></tr></table></div>`;
+  const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
+  const o = r.ocde || {};
+  const ocde = o.rang_oit != null && o.rang_ocde != null ? `<p class="small">Contrôle avec une autre mesure, celle de l'OCDE (2026). Selon l'OIT, ce métier est plus exposé à l'IA que ${robNum(o.rang_oit * 100)} % des métiers mesurés. Selon l'OCDE, plus exposé que ${robNum(o.rang_ocde * 100)} %. Les deux mesures ne comptent pas la même chose : seul l'écart entre ces deux places est lu. Au-delà de 15 points, la confiance baisse.</p>` : "";
+  const v = r.esco || {}, pc = (x) => (x * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  const esco = v.part_verte != null ? `<p class="small">Contrôle « transition écologique » : selon ESCO (Commission européenne), ${pc(v.part_verte)} % des compétences de ce métier sont « vertes »${v.mediane != null ? ` (médiane de tous les métiers : ${pc(v.mediane)} %)` : ""}. Ce chiffre n'entre pas dans le score. Le scénario bas-carbone vient de « Les métiers en 2030 ».</p>` : "";
+  const eu = (r.isco || []).some((i) => i.cedefop_croissance_source === "UE27");
+  const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
+      <ul class="small">${(r.sources_detail || []).map((x) => `<li>${esc(x.libelle)}</li>`).join("")}</ul>
+      ${eu ? `<p class="small">Pour un ou plusieurs groupes de ce métier, la croissance est la moyenne européenne : les chiffres français du Cedefop sont faussés par un changement de méthode de l'enquête Emploi en 2021.</p>` : ""}
+      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
+  return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
+    <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
+    ${head}${phrase}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}${ocde}${esco}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----
@@ -4646,7 +4762,7 @@ async function viewListe(rawCodes, rawProfile) {
 // ---- sprint Q1 (owner, 2026-11-13): trust and compliance pages and the contact form ----
 // The five pages (À propos, Contact, Mentions légales, Confidentialité, Accessibilité) come from legal.py, the same HTML as their
 // server page (/a-propos…). The contact form sends only what it shows; a message that was not stored is said, never a fake success.
-const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide"];   // "aide": sprint Q4
+const INFO_SLUGS = ["a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres"];   // "aide": sprint Q4; "nos-chiffres": owner, 2026-11-16
 const CONTACT_TYPES = [["erreur", "Une erreur dans un chiffre ou un texte"], ["question", "Une question sur le site"],
   ["suggestion", "Une suggestion"], ["autre", "Autre chose"]];
 const CONTACT_MAX = 1000, CONTACT_MIN = 10;
@@ -4752,7 +4868,7 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
-  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide)\/?$/.exec(pathname);   // sprint Q1, Q4
+  const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres)\/?$/.exec(pathname);   // sprint Q1, Q4
   if (i) return `/info/${i[1]}`;
   return null;
 }

@@ -3569,3 +3569,136 @@ blank browser gives the same 13 formations); `redteam_filtres.py` FI2-FI4 now ch
 parameter, a profile sent changes nothing and is not recorded, nothing sorted by a figure; 13 mutants);
 `redteam_visuel.py` VI6 and `redteam_moyenne.py` check that the search reads no profile.
 
+
+## Nos chiffres et ceux de Parcoursup (owner, 2026-11-16)
+
+A page that explains, in plain words, how the site's figures relate to those of the Parcoursup fiche, and why the site never gives a
+probability of admission. One source (`suptracker/chiffres.py`), served like the trust pages of `legal.py`: `/nos-chiffres`
+(indexable, readable without JavaScript, in the sitemap) and `/api/page/nos-chiffres` (`#/info/nos-chiffres`), linked from the footer
+and from the guide "Construire ma liste".
+
+- **What the fiche shows**, as read on the live fiches kept in `data/rapports/live/fiches_live/` (checked on 16 November 2026): the
+  global figures of the last campaign for every candidate, and the block « accès à la formation selon mon profil », which counts only
+  lycéens de terminale by type of bac and which the fiche itself says is not comparable with the first block.
+- **Why no probability**: the public data describe past admits, never a candidate's file; the site shows shares of admits and zones,
+  every figure with its source, every computed figure labelled « estimation ».
+- **What the site adds**: four campaigns side by side with a range for the next one, the jury's public report by pair of specialties,
+  the fiche's evaluation grid, Plan B, the list read at once, the cost of living and the aids.
+- **When two figures differ**: they may not count the same people (all candidates or terminale only) or the same year; the official
+  rate is shown as published. The Parcoursup fiche prevails.
+
+Red teams: the page is one of `legal.SLUGS` (conformité QC1-QC11, langage LA1-LA8, SEO sitemap, navigation, scale S1, security SE1).
+
+## Journées portes ouvertes (owner, 2026-11-16)
+
+Each formation page shows the open days of its establishment: a line in « L'essentiel » (the next date, or the usual period) and a
+card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
+
+**Sources** (`suptracker/jpo.py`, fetched by the `suptracker-jpo` workflow, blocked in the development sandbox):
+- Onisep, *Idéo-Structures d'enseignement supérieur* and *d'enseignement secondaire* (the lycées that host BTS and CPGE), ODbL. The
+  field « journées portes ouvertes » reads « le 06/02/2027 de 09h00 à 16h00 (sur inscription) voir https://… | le … ». Every version
+  whose content changed is kept in `data/jpo/onisep/` (`versions.csv`); older versions are read from the Internet Archive (CDX, one
+  capture a day, each capture read once: `archive_lues.txt`).
+- The establishment's own site: the Onisep « voir » link and the cartographie's « site internet », visited oldest check first
+  (robots.txt honoured, one request per host a second apart, at most 4 pages on the same site). Only the lines around « portes
+  ouvertes » / « JPO » are kept (e-mail addresses and phone numbers masked) in `data/jpo/sites/extraits.csv.gz`.
+
+**Rules** (owner's words, fixed in code, red team `scripts/redteam_jpo.py` J1-J10):
+- A date is shown only if it falls in the season **1 September Y-1 - 1 May Y** (both included). The season shown contains today, else
+  it is the next one: on 16 November 2026, from 1 September 2026 to 1 May 2027. A date of 22 May 2027 is never shown.
+- A future date must be in the **latest** Onisep version (or on the site): a date Onisep removed is never announced. A passed date of
+  the season from an older version is shown as « passée » (Onisep drops passed open days).
+- A date read on Onisep and on the site says « date retrouvée sur le site de l'établissement ». A site date counts only on the line of
+  the words « portes ouvertes » (or under a short heading), never right after « publié le », never on a line naming a collège or a
+  primary school, with its year printed or its weekday printed and true for the season (« samedi 31 janvier » is refused in 2027: a
+  Sunday, so another year's page).
+- The first real run (16 November 2026) showed why the site is only a check: university and network sites list the open days of OTHER
+  campuses or components on the same page. So a site date only CONFIRMS a date Onisep lists for an establishment that has Onisep dates
+  this season; it is added (« à vérifier », with the page and the day it was read) only where Onisep has none; a page printing more
+  than 4 dates in a season is an agenda: its dates only confirm, never add, never feed the past-season period.
+- **The formation's own Parcoursup fiche** (owner, 2026-11-16, for a view as complete as possible): its free texts (attendus
+  complémentaires, conseils, informations, already harvested in `data/fiches/`) are read sentence by sentence with the site rules (the
+  reading day is the fiche's campaign). A dated sentence never takes the next one; a text printing more than 4 dates in a season (salons)
+  is never used. These are mostly LAST year's dates: they feed the past-season period (275 formations with a period instead of 99 on
+  the first real build). A fiche date of the season counts like Onisep's; with Onisep's same date it is one open day, said « aussi sur
+  la fiche Parcoursup ».
+- **The university** (owner, 2026-11-16): Onisep names the university each component belongs to (« université de rattachement »,
+  kept by the fetch with the rows that name one). A formation with no date of its own this season shows its university's open days,
+  named (« Voici les portes ouvertes de son université : Université X »); a component with its own date keeps its own; an attachment
+  that is not a university (an institute, a group) lends nothing. With no date anywhere, the formation's own past period comes first,
+  else the university's.
+- Virtual open days (« , en virtuel » in the Onisep field) are said « en ligne ». No copy of the Onisep files exists in the Internet
+  Archive (checked on the first run): the past-season periods come from the versions this workflow keeps from now on and from the
+  past dates the establishments' pages still print.
+- **No date this season**: the dates of at most 3 past seasons give a period by thirds of the month (1-9 « début », 10-20 « mi- »,
+  21-31 « fin »): « aux alentours de mi-janvier », with the years read, « c'est une période, pas une date : à confirmer ». Never a day.
+- Formations are linked by **exact UAI** (the SIES UAI of the latest campaign, then the cartographie UAI), never by name. The open days
+  are the establishment's: the card names it.
+
+The warehouse fingerprint takes the Onisep versions, the site extracts and each site's status, never a check date alone. The tables (`jpo_date`, `jpo_etab`,
+`jpo_site`, `jpo_meta`) are written in `rapport_textes.duckdb` beside the warehouse: in the warehouse they pushed it to 95.7 MB, over
+its 95 MB budget (first data build, 2026-11-16).
+
+## Robustesse 2035 of each job (owner's PRD, 2026-11-16)
+
+Every job page shows a « Robustesse 2035 » tile in « L'essentiel » and a card first in « Avenir du métier »: an **estimation of the
+model**, never a forecast for a person, a promise or a chance. The owner lifted, for this feature, the rule « never one composite
+score », with guardrails: the MEDIAN of three scenarios is shown with the range from the least to the most favourable one under it,
+the components are always shown, and « D'où vient ce chiffre ? » gives the sources, their years and the model version.
+
+**What the page leads with (owner, 2026-11-17).** The scores form a tight bell: on the 2026-11-17 build, 876 scored jobs from
+49 to 83, 80 % between 64 and 75 (standard deviation 4.5), so 70 and 72 mean almost nothing. The tile and the card therefore lead
+with a REPÈRE in three levels, the job's place among the scored jobs: « Parmi les 20 % de métiers les plus robustes » (median score
+at or above the 80th percentile, 73.3), « Dans la moyenne », « Parmi les 20 % … les moins robustes » (at or below the 20th, 67.2);
+the cut points are measured at build (`robustesse.with_repere`), never typed, and there is no repère without a score. Then three
+plain facts from the job's components: positions to fill by 2035 for 100 current jobs (Cedefop), the uses out of 10 where generative
+AI helps rather than does the task (AEI), the hirings out of 10 judged difficult in 2026 (BMO). The score, its range, the scenarios,
+the components, the confidence and the OECD / ESCO controls are folded under « Détail du calcul ». Lowest: agent de constatation
+des douanes (49), secretaries (51); highest: chef d'exploitation des remontées mécaniques (83).
+
+**Per ISCO-08 unit group of the job** (sprint 13's codes, weighted by their count of distinct titles; `robustesse.py`, model 2027.1):
+- exposure `Exp` = the OIT 2025 mean task score (0-1), as published (the OECD 2026 measure never enters it: see below);
+- augmentation `Aug` = Anthropic Economic Index, May 2026, Claude.ai, global: augmentation / (augmentation + automation) of the
+  O*NET occupations linked to the code by official tables; none published = the mean of their SOC major groups, flagged;
+- `IA = 100 × (1 − Exp × (1 − Aug))`: exposure is not replacement, a job where AI mostly helps keeps a high score.
+
+**Demand** (0-100 between FIXED bounds, so versions stay comparable): `Dem = 0.5 Cedefop + 0.3 Métiers 2030 + 0.2 BMO`.
+- Cedefop Skills Forecast 2026 (France, ISCO 2 digits): positions to fill 2024-2035 / employment 2023 (growth + replacement).
+  The French series carry the **2021 labour-force-survey break**. Owner's rule: the growth is the EU-27 one when the group moved by
+  more than 25 % between 2020 and 2021 or when its 2023-2035 growth differs from the EU-27 one by more than 30 points (19 of 40
+  groups), said « moyenne européenne »; replacement stays French. Bounds −10 % / 90 %.
+- Les métiers en 2030: positions to fill 2019-2030 / employment 2019 of the job's families (bounds 0 / 60 %).
+- BMO 2026: share of hiring projects judged difficult (bounds 0 / 100 %).
+
+**Score**: `R = (0.35 IA + 0.25 Dem) / 0.60` (the PRD's weights of these two terms; the formation adds insertion and diversity).
+Scenarios: S1 AI accelerated (Exp × the job's OECD « +1 cognitive level » ratio, else × 1.25, capped at 1; Aug × 0.8), S2 central, S3 fast transition (the official low-carbon variant
+of Métiers 2030 instead of ESCO green skills). « Dépend du scénario » when the range exceeds 15 points.
+
+**Confidence** = the lowest of four components: freshness (each source's age, weighted by its weight), observed links (a code
+from the Onisep ROME = 1, by name = 0.5, a major-group augmentation × 0.75), agreement of the sources (Cedefop vs Métiers
+2030, and the OIT vs OECD ranks below; the lower is kept), coverage of the terms. Below 0.4 the page says « données insuffisantes »
+and shows no number.
+
+**OECD 2026 (owner's choices, 2026-11-17).** The OECD AI exposure measure (AI Papers n° 59, CC BY 4.0, 879 O*NET occupations) is
+`1 − capability gap / 23`, another notion on another scale: Pearson 0.02 with the OIT score over 414 ISCO codes. So it is a
+CROSS-CHECK, never part of the exposure:
+- per ISCO code, the mean over the O*NET occupations linked by the official tables (`core.ia_theta_lien`), for the baseline and the
+  « +1 cognitive level » scenario (a scenario ratio only when every linked occupation has one);
+- the job's RANK (0-1, ties averaged, among the codes with both measures) under each measure; a gap above 15 points lowers the
+  agreement by one point per point, never under 0.5 (the value of an unknown agreement: the measures are uncorrelated by
+  construction, so a disagreement alone never hides a score). On the 2026-11-17 build, 950 jobs have both ranks and 773 of them
+  differ by more than 15 points: 185 jobs move from « haute » to « moyenne », none is hidden;
+- S1 multiplies the OIT exposure by scenario / baseline (median 1.07, at most 1.35) instead of the PRD's fixed 1.25;
+- the card prints both places side by side (« plus exposé que X % des métiers mesurés », OIT then OECD).
+
+**ESCO v1.2.1 (owner's choice, 2026-11-17): a control beside S3.** ESCO publishes, per ISCO-08 4-digit group, the share of
+« green » skills of its occupations (`greenShareOcc`, the mean of the occupations' shares: re-derived exactly by the red team; the
+occupations' own shares equal green skills / skills for 2,982 of 3,039 occupations, a diagnostic printed by RB10). The card prints the
+job's title-weighted share beside the national median and says it does not enter the score: S3 stays the official low-carbon variant
+of Métiers 2030, and neither the score, the scenarios nor the confidence change with ESCO. On the 2026-11-17 build, 956 jobs carry
+the share (426 ISCO groups published, national median 1.5 %).
+
+First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 and 73); confidence high for 612, medium 264,
+insufficient 248 (with the OECD cross-check: high 427, medium 449, insufficient 248). Red team `scripts/redteam_robustesse.py`
+(RB1-RB11; RB7 prints the order's Spearman stability at ±10 weight points; RB9 re-reads the OECD workbook from its total-gap column;
+RB10 re-derives ESCO's green shares; RB11 the repère's cut points).

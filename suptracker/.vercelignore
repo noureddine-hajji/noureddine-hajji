@@ -13,3 +13,4 @@ requirements-pipeline.txt
 **/data/fiches/
 **/data/calendrier/*.pdf
 **/docs/brief-ui/
+**/data/jpo/

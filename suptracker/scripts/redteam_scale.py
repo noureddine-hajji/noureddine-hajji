@@ -103,6 +103,7 @@ class Ctx:
             "/a-propos": "/a-propos", "/contact": "/contact", "/mentions-legales": "/mentions-legales",
             "/confidentialite": "/confidentialite", "/accessibilite": "/accessibilite",
             "/aide": "/aide",                                                       # sprint Q4: the help page
+            "/nos-chiffres": "/nos-chiffres",                                       # owner, 2026-11-16: our figures and Parcoursup's
         }
 
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, jpo, robustesse, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -45,6 +45,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
         vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         aides.build(con)                   # sprint F: student aids read from the official pages (data/aides)
+        jpo.build(con, textes=rapports.textes_path(db_path))   # open days (data/jpo, data/fiches): beside the warehouse
         tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)
@@ -62,7 +63,9 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         emploi2030.build(con, emploi2030.source_path() if m2030_source is _SOURCE else m2030_source)
         bmo.build(con, bmo.source_path() if bmo_source is _SOURCE else bmo_source)
         ia_exposition.build(con, ia_exposition.sources() if ia_sources is _SOURCE else ia_sources)
-        licence_master.build(con)
+        details = {}                                     # metiers.detail per job, read once for both steps (CI time)
+        licence_master.build(con, details)
+        robustesse.build(con, textes=rapports.textes_path(db_path), details=details)   # robustesse 2035 per job (owner's PRD), beside the warehouse
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         search.persist(con)            # the search index, stored once: the first search of an instance no longer builds it
