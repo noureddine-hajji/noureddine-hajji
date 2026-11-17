@@ -4037,19 +4037,36 @@ const ROB_REGIME = {
 const ROB_SCEN = { S1: "IA accélérée", S2: "Central", S3: "Transition rapide (bas-carbone)" };
 const ROB_CONF = { haute: "confiance haute", moyenne: "confiance moyenne", faible: "données insuffisantes" };
 const robNum = (x) => (x === null || x === undefined ? "—" : Number(x).toLocaleString("fr-FR", { maximumFractionDigits: 0 }));
+// owner, 2026-11-17: the scores form a tight bell, so the page leads with a repère in three levels and three plain facts;
+// the score, the scenarios and the components stay in « Détail du calcul ».
+const ROB_REPERE = {
+  haut: "Parmi les 20 % de métiers les plus robustes",
+  moyen: "Dans la moyenne des métiers",
+  bas: "Parmi les 20 % de métiers les moins robustes",
+};
+function robFaits(c) {
+  const out = [];
+  if (c.cedefop_taux != null) out.push(`D'ici 2035 : environ ${robNum(Math.max(0, c.cedefop_taux * 100))} postes à pourvoir pour 100 emplois actuels, départs à la retraite compris (Cedefop).`);
+  if (c.augmentation != null) out.push(`IA générative : dans ${robNum(c.augmentation * 10)} usages sur 10, elle aide le travail plutôt qu'elle ne le fait à la place (Anthropic Economic Index).`);
+  if (c.tension != null) out.push(`En 2026 : ${robNum(c.tension / 10)} recrutements sur 10 sont jugés difficiles par les employeurs (France Travail, BMO).`);
+  return out;
+}
 function robustesseTile(r) {
   if (!r) return "";
-  const s = r.score;
+  const q = r.repere;
   return `<button type="button" class="sum-tile" data-goto="avenir"><span class="sum-label">Robustesse 2035</span>
-    <span class="sum-value">${s ? `${robNum(s.median)}<span class="small"> / 100</span>` : "—"}</span>
-    <span class="sum-note">${s ? `de ${robNum(s.min)} à ${robNum(s.max)} selon les scénarios · ${estimTag("", false, true)}` : "données insuffisantes"}</span></button>`;
+    <span class="sum-value">${q ? `<span class="text">${esc(ROB_REPERE[q.niveau] || "")}</span>` : "—"}</span>
+    <span class="sum-note">${q ? estimTag("", false, true) : "données insuffisantes"}</span></button>`;
 }
 function robustesseCard(r) {
   if (!r) return "";
   const s = r.score, c = r.composantes || {}, k = r.confiance || {};
-  const head = s ? `<p><span class="big">${robNum(s.median)}</span> <span class="muted">/ 100</span> ${estimTag("médiane des trois scénarios")}</p>
-      <p class="small">Selon le scénario, de <strong>${robNum(s.min)}</strong> (le moins favorable) à <strong>${robNum(s.max)}</strong> (le plus favorable)${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}.</p>`
-    : `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas afficher de chiffre.</p>`;
+  const q = r.repere, faits = robFaits(c);
+  const head = (s && q ? `<p><strong>${esc(ROB_REPERE[q.niveau] || "")}</strong> ${estimTag("place du métier parmi ceux que le modèle peut estimer")}</p>`
+    : `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer ce métier.</p>`)
+    + (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${x}</li>`).join("")}</ul>` : "");
+  const score = s ? `<p>Score : <strong>${robNum(s.median)}</strong> sur 100, médiane des trois scénarios. Selon le scénario, de <strong>${robNum(s.min)}</strong> (le moins favorable) à <strong>${robNum(s.max)}</strong> (le plus favorable)${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}.</p>
+      ${q ? `<p class="small">Repère : les 20 % de métiers aux scores les plus hauts (${robNum(q.seuil_haut)} ou plus) et les 20 % aux scores les plus bas (${robNum(q.seuil_bas)} ou moins), parmi ${robNum(q.n_metiers)} métiers estimés. Les scores sont proches les uns des autres : un ou deux points d'écart ne veulent rien dire.</p>` : ""}` : "";
   const phrase = r.regime_ia ? `<p>Ce métier est ${esc(ROB_REGIME[r.regime_ia] || "")}.</p>` : "";
   const scen = s && r.scenarios ? `<div class="scroll"><table><tr><th>Scénario</th><th class="num">Score</th></tr>
       ${["S1", "S2", "S3"].map((x) => `<tr><td>${esc(ROB_SCEN[x])}</td><td class="num" data-label="Score">${robNum(r.scenarios[x])}</td></tr>`).join("")}</table></div>` : "";
@@ -4071,7 +4088,7 @@ function robustesseCard(r) {
       <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
-    ${head}${phrase}${scen}${comp}${conf}${ocde}${esco}${src}</div>`;
+    ${head}${phrase}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}${ocde}${esco}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

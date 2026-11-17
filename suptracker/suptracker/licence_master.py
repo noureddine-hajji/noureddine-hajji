@@ -62,8 +62,9 @@ def job_class(lectures: list[str | None]) -> str:
 
 
 # ------------------------------------------------------------------------- build
-def build(con) -> dict:
-    """core.master_onisep (MonMaster mention -> Onisep master sheet) and core.metier_axes (one row per job)."""
+def build(con, details: dict | None = None) -> dict:
+    """core.master_onisep (MonMaster mention -> Onisep master sheet) and core.metier_axes (one row per job). `details`, when
+    given, is filled with metiers.detail per job, so a later step of the build (robustesse) reads them once (CI time)."""
     con.execute("CREATE SCHEMA IF NOT EXISTS core")
     con.execute("CREATE OR REPLACE TABLE core.master_onisep (mention VARCHAR, for_id VARCHAR, regle VARCHAR)")
     con.execute("""CREATE OR REPLACE TABLE core.metier_axes (met_id VARCHAR, n_isco INTEGER, ilo_min DOUBLE, ilo_max DOUBLE,
@@ -72,7 +73,7 @@ def build(con) -> dict:
     have = {t for (t,) in con.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'core'").fetchall()}
     if not set(need) <= have:
         return {"mentions": 0, "metiers": 0}
-    return {"mentions": build_link(con), "metiers": build_axes(con)}
+    return {"mentions": build_link(con), "metiers": build_axes(con, details)}
 
 
 def build_link(con) -> int:
@@ -94,12 +95,14 @@ def build_link(con) -> int:
     return len(rows)
 
 
-def build_axes(con) -> int:
+def build_axes(con, details: dict | None = None) -> int:
     from . import metiers as MT
     con.execute("DELETE FROM core.metier_axes")
     axes = []
     for (mid,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall():
         d = MT.detail(con, mid)
+        if details is not None:
+            details[mid] = d
         ia = d.get("ia") or {}
         lect = [f.get("lecture") for f in (d.get("emploi2030") or []) if not f.get("absent")]
         axes.append((mid, len(ia.get("isco") or []), ia.get("min"), ia.get("max"), ia.get("theta_min"), ia.get("theta_max"),

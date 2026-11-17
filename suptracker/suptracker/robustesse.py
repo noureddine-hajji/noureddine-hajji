@@ -51,6 +51,10 @@ ESCO_ZIP = "ESCO dataset - v1.2.1 - classification - fr - csv.zip"
 # (reached at a gap of RANK_GAP + 1 - RANK_FLOOR). The floor is the value of an unknown agreement: the two measures are
 # uncorrelated by construction (other notion, other scale), so a disagreement lowers the confidence but alone never hides a score.
 RANK_GAP, RANK_FLOOR = 0.15, 0.5
+# owner, 2026-11-17: the scores form a tight bell (80 % between 64 and 75), so the page leads with a REPÈRE in three levels and
+# three plain facts; the score itself goes in « Détail du calcul ». The levels are the job's place among the SCORED jobs: the
+# top and bottom REPERE_SHARE of their medians (cut points measured at build, never typed)
+REPERE_SHARE = 0.20
 AEI_ZIP = "data_documentation_claude_ai.zip"
 AEI_FILE = "aei_claude_ai_2026-06-26.csv"
 AEI_MONTH = "2026-05-01"
@@ -383,8 +387,38 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | No
     }
 
 
+def repere_cuts(medians: list[float]) -> tuple[float, float] | None:
+    """(low cut, high cut): the REPERE_SHARE and 1 - REPERE_SHARE quantiles of the scored jobs' medians (inclusive method)."""
+    if len(medians) < 5:
+        return None
+    k = round(1 / REPERE_SHARE)
+    q = statistics.quantiles(sorted(medians), n=k, method="inclusive")
+    return q[0], q[-1]
+
+
+def repere_level(median: float, cuts: tuple[float, float]) -> str:
+    lo, hi = cuts
+    return "haut" if median >= hi else "bas" if median <= lo else "moyen"
+
+
+def with_repere(jobs: list[tuple[str, str]]) -> tuple[list[tuple[str, str]], tuple[float, float] | None]:
+    """Adds `repere` (level, the two cut points, the number of scored jobs) to every scored job."""
+    parsed = [(m, json.loads(j)) for m, j in jobs]
+    cuts = repere_cuts([d["score"]["median"] for _, d in parsed if d["score"]])
+    out = []
+    for m, d in parsed:
+        if d["score"] and cuts:
+            d["repere"] = {"niveau": repere_level(d["score"]["median"], cuts), "seuil_bas": round(cuts[0], 1),
+                           "seuil_haut": round(cuts[1], 1), "part": REPERE_SHARE,
+                           "n_metiers": sum(1 for _, x in parsed if x["score"])}
+        else:
+            d["repere"] = None
+        out.append((m, json.dumps(d, ensure_ascii=False, sort_keys=True)))
+    return out, cuts
+
+
 # ------------------------------------------------------------------------------------------------------------------ build
-def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
+def build(con, d: Path = DIR, textes: Path | None = None, details: dict | None = None) -> dict:
     """r35_cedefop, r35_isco and r35_metier (one JSON per job), beside the warehouse when the file exists (95 MB budget)."""
     from . import metiers as MT
     have = {t for (t,) in con.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'core'").fetchall()}
@@ -397,7 +431,8 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
     jobs = []
     if "onisep_metier" in have:
         for (mid,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall():
-            jobs.append((mid, json.dumps(job(MT.detail(con, mid), aug, ced, oecd, esco), ensure_ascii=False, sort_keys=True)))
+            jobs.append((mid, json.dumps(job(details[mid] if details and mid in details else MT.detail(con, mid), aug, ced, oecd, esco), ensure_ascii=False, sort_keys=True)))
+    jobs, cuts = with_repere(jobs)
     crows = [[k, v["croissance_fr"], v["croissance_ue"], v["saut_2021"], v["croissance"], v["source_croissance"],
               v["remplacement"], v["postes"]] for k, v in sorted(ced.items())]
     irows = [[k, *(aug[k] if k in aug else (None, None, None)), *((oecd[k].get(x) for x in ("oecd", "oecd_s1", "ratio", "rang_oit", "rang_oecd"))
@@ -433,7 +468,7 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
     shown = sum(1 for _, j in jobs if json.loads(j)["score"])
     return {"cedefop_groupes": len(crows), "cedefop_ue": sum(1 for r in crows if r[5] == "UE27"),
             "isco_aug": len(aug), "isco_ocde": len(oecd), "isco_esco": len(esco),
-            "metiers": len(jobs), "metiers_score": shown}
+            "metiers": len(jobs), "metiers_score": shown, "repere": cuts}
 
 
 def _src(con):

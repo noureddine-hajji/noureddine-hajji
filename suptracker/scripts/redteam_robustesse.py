@@ -23,6 +23,9 @@
       normalised gap 1 - total / 23), averaged over the O*NET occupations linked to each ISCO code; RANKS (ties averaged, 0-1)
       among the codes with both the OIT and the OECD measure; the job's rank gap lowers the agreement beyond 15 points (floor 0.5,
       never hides a score alone); S1's exposure x the OECD scenario ratio, else x 1.25; the OECD never enters the exposure.
+  RB11 repère (owner, 2026-11-17): the scores form a tight bell, so the page leads with the job's place among the SCORED jobs
+      (top / bottom 20 % of the medians, cut points re-derived independently) and three plain facts; the score is only in
+      « Détail du calcul »; no repère without a score.
   RB10 ESCO (owner, 2026-11-17): the green-skill share per ISCO-08 4-digit group is re-derived as the mean of ESCO's own
       occupation rows (fixture and real zip; the occupations' shares re-counted from their skills are printed as a diagnostic);
       per job the title-weighted mean, beside the national median; a CONTROL only: score, scenarios and confidence are the same
@@ -480,7 +483,7 @@ const estimTag = (d) => `<span class="estim">estimation</span> ${d || ""}`;
 
 @check("RB5 page: escaped, estimation, median and range, confidence with its components, sources and version, no alarm word")
 def rb5(c: Ctx):
-    names = ("ROB_REGIME", "ROB_SCEN", "ROB_CONF", "robNum", "robustesseTile", "robustesseCard")
+    names = ("ROB_REGIME", "ROB_SCEN", "ROB_CONF", "robNum", "ROB_REPERE", "robFaits", "robustesseTile", "robustesseCard")
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     R = c.R()
@@ -489,6 +492,7 @@ def rb5(c: Ctx):
     full["isco"][0]["libelle"] = HOSTILE
     full["model_version"] = HOSTILE
     full["sources_detail"] = [{"id": "oit", "libelle": "OIT " + HOSTILE, "annee": 2025}]
+    full["repere"] = {"niveau": "haut", "seuil_bas": 67.2, "seuil_haut": 73.3, "part": 0.2, "n_metiers": 876}
     none = R.job(crafted()["no_demand"], AUG, {})
     prog = STUB + "\n".join(top(c.js, n) for n in names) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -506,11 +510,25 @@ def rb5(c: Ctx):
             bad.append(f"output {i}: tutoiement")
         if re.search(r"(?i)condamn|menac|danger|disparaî|chance|garanti|probabilit|feu rouge", txt):
             bad.append(f"output {i}: an alarming word, a chance or a promise")
-    s = full["score"]
-    if '<span class="estim">' not in cf or f">{round(s['median'])}<" not in cf.replace(" ", "") and str(round(s["median"])) not in cf:
-        bad.append("the median is not shown as an estimation")
-    if f"{round(s['min'])}" not in cf or f"{round(s['max'])}" not in cf:
-        bad.append("the range between the scenarios is not shown")
+    s, k = full["score"], full["composantes"]
+    half = lambda x: int(x + 0.5)  # noqa: E731  (toLocaleString rounds half away from zero)
+    lead, _, detail = cf.partition("<summary>Détail du calcul</summary>")
+    # owner, 2026-11-17: the repère and three plain facts lead; the score is only in « Détail du calcul »
+    if "Parmi les 20 % de métiers les plus robustes" not in lead or '<span class="estim">' not in lead:
+        bad.append("the repère does not lead the card as an estimation")
+    if re.search(r"sur 100|/ 100|Score", lead):
+        bad.append("the score is shown before « Détail du calcul »")
+    for fact in (f"environ {half(k['cedefop_taux'] * 100)} postes à pourvoir pour 100 emplois actuels",
+                 f"dans {half(k['augmentation'] * 10)} usages sur 10", f"{half(k['tension'] / 10)} recrutements sur 10"):
+        if fact not in lead:
+            bad.append(f"fact missing or wrong: « {fact} »")
+    if f"<strong>{round(s['median'])}</strong> sur 100" not in detail or f"<strong>{round(s['min'])}</strong>" not in detail \
+            or f"<strong>{round(s['max'])}</strong>" not in detail:
+        bad.append("the score and its range are not in « Détail du calcul »")
+    if "73 ou plus" not in detail or "67 ou moins" not in detail or "876 métiers" not in detail:
+        bad.append("the repère's cut points are not said")
+    if "Parmi les 20 % de métiers les plus robustes" not in tf or re.search(r"/ 100|\d+ sur 100", tf):
+        bad.append("the summary tile shows the score instead of the repère")
     if "Selon l'OIT, ce métier est plus exposé à l'IA que 90 % des métiers mesurés. Selon l'OCDE, plus exposé que 30 %" not in cf:
         bad.append("the OIT / OECD ranks are not shown side by side")
     if "selon ESCO (Commission européenne), 18,8 % des compétences de ce métier sont « vertes » (médiane de tous les métiers : 12,5 %). Ce chiffre n'entre pas dans le score." not in cf:
@@ -523,7 +541,8 @@ def rb5(c: Ctx):
               "« +1 niveau cognitif » de l'OCDE"):
         if w not in cf:
             bad.append(f"card lacks « {w} »")
-    if "Données insuffisantes" not in cn or re.search(r"/ 100", cn) or "données insuffisantes" not in tn:
+    if "Données insuffisantes" not in cn or re.search(r"/ 100|sur 100|Parmi les|Dans la moyenne|Score :", cn.partition("<summary>Détail du calcul</summary>")[0]) \
+            or re.search(r"Score :|Repère :", cn) or "données insuffisantes" not in tn:
         bad.append("insufficient data still shows a number")
     if c0 or t0:
         bad.append("output without data")
@@ -533,7 +552,7 @@ def rb5(c: Ctx):
 @check("RB6 plumbing: build beside the warehouse, API, job page tile and card, sources, README, CLAUDE.md, tests and durations")
 def rb6(c: Ctx):
     bad = []
-    if "robustesse.build(con, textes=rapports.textes_path(db_path))" not in (ROOT / "suptracker" / "build.py").read_text():
+    if "robustesse.build(con, textes=rapports.textes_path(db_path), details=details)" not in (ROOT / "suptracker" / "build.py").read_text():
         bad.append("build")
     if 'd["robustesse"] = ROB.for_metier(' not in (ROOT / "suptracker" / "api.py").read_text():
         bad.append("API")
@@ -664,18 +683,26 @@ SOURCE_MUTANTS = [
     ("rob", "ties not averaged", "while j + 1 < n and values[order[j + 1]] == values[order[i]]:", "while False:", "RB9"),
     ("rob", "ranks over every OECD code", "both = sorted(k for k in out if k in ilo)", "both = sorted(k for k in out if k in ilo or True)", "RB9"),
     ("rob", "partial scenario averaged", "s1 = statistics.fmean(sc) if len(sc) == len(vals) else None", "s1 = statistics.fmean(sc) if sc else None", "RB9"),
-    ("js", "no OECD comparison", "${conf}${ocde}${esco}${src}", "${conf}${esco}${src}", "RB5"),
-    ("js", "no ESCO control", "${conf}${ocde}${esco}${src}", "${conf}${ocde}${src}", "RB5"),
+    ("js", "no OECD comparison", "${conf}${ocde}${esco}</details>", "${conf}${esco}</details>", "RB5"),
+    ("rob", "repère tails of 10 %", "REPERE_SHARE = 0.20", "REPERE_SHARE = 0.10", "RB11"),
+    ("rob", "repère levels swapped", 'return "haut" if median >= hi else "bas" if median <= lo else "moyen"',
+     'return "bas" if median >= hi else "haut" if median <= lo else "moyen"', "RB11"),
+    ("rob", "repère given without a score", '        if d["score"] and cuts:', '        if cuts:', "RB11"),
+    ("js", "score leads the card", "${head}${phrase}<details class=\"more-card\"><summary>Détail du calcul</summary>${score}",
+     "${score}${head}${phrase}<details class=\"more-card\"><summary>Détail du calcul</summary>", "RB5"),
+    ("js", "fact on the wrong scale", "${robNum(c.tension / 10)} recrutements sur 10", "${robNum(c.tension)} recrutements sur 10", "RB5"),
+    ("js", "tile shows the score", '`<span class="text">${esc(ROB_REPERE[q.niveau] || "")}</span>`', '`${robNum(r.score.median)} / 100`', "RB5"),
+    ("js", "no ESCO control", "${conf}${ocde}${esco}</details>", "${conf}${ocde}</details>", "RB5"),
     ("rob", "ESCO rows of every level read", 'r.get("conceptType") == "ISCO level 4" and len(r.get("code") or "") == 4 and r["code"].isdigit()',
      "True", "RB10"),
     ("rob", "ESCO enters the confidence", "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem",
      "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem\n    accord = min(accord, vert if vert is not None else 1)", "RB10"),
     ("rob", "ESCO share not weighted", "            esco_p.append((esco[code], w))", "            esco_p.append((esco[code], 1.0))", "RB10"),
     ("js", "label unescaped", '<li>${esc(x.libelle)}</li>', '<li>${x.libelle}</li>', "RB5"),
-    ("js", "no estimation label", '${estimTag("médiane des trois scénarios")}', "", "RB5"),
+    ("js", "no estimation label", '${estimTag("place du métier parmi ceux que le modèle peut estimer")}', "", "RB5"),
     ("js", "no confidence detail", "fraîcheur des sources ${fmt2(k.fraicheur)}", "${fmt2(k.fraicheur)}", "RB5"),
-    ("js", "number with insufficient data", '`<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas afficher de chiffre.</p>`',
-     '`<p>0 / 100</p>`', "RB5"),
+    ("js", "number with insufficient data", '`<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer ce métier.</p>`',
+     '`<p>Dans la moyenne des métiers</p>`', "RB5"),
 ]
 
 
@@ -805,6 +832,58 @@ def rb10(c: Ctx):
         else:
             info = f"{len(g2)} groups"
     return not bad, f"differences {bad[:4]}; real: {info}"
+
+
+def oracle_cuts(medians: list) -> tuple:
+    """Own quantiles (inclusive, linear): position (n - 1) * q in the sorted list."""
+    v = sorted(medians)
+    def q(p):
+        x = (len(v) - 1) * p
+        i = int(x)
+        return v[i] + (v[min(i + 1, len(v) - 1)] - v[i]) * (x - i)
+    return q(0.2), q(0.8)
+
+
+@check("RB11 repère: the top and bottom 20 % of the scored jobs, cut points re-derived, levels per job, none without a score")
+def rb11(c: Ctx):
+    R = c.R()
+    bad = []
+    rng = random.Random(11)
+    meds = [round(rng.gauss(70, 4.5), 1) for _ in range(500)] + [70.0] * 20
+    jobs = [(f"M{i}", json.dumps({"score": {"median": m}})) for i, m in enumerate(meds)] + [("X", json.dumps({"score": None}))]
+    out, cuts = R.with_repere(jobs)
+    lo, hi = oracle_cuts(meds)
+    if cuts is None or abs(cuts[0] - lo) > 1e-9 or abs(cuts[1] - hi) > 1e-9:
+        bad.append(f"cut points {cuts} != {(lo, hi)}")
+    lv = {m: json.loads(j)["repere"] for m, j in out}
+    for (m, j), med in zip(jobs, meds):
+        want = "haut" if med >= hi else "bas" if med <= lo else "moyen"
+        if (lv[m] or {}).get("niveau") != want:
+            bad.append(f"{m} {med}: {lv[m]} != {want}")
+            break
+    if lv["X"] is not None:
+        bad.append("a repère without a score")
+    share = {x: sum(1 for v in lv.values() if v and v["niveau"] == x) / len(meds) for x in ("haut", "bas")}
+    if not all(0.17 <= v <= 0.25 for v in share.values()):
+        bad.append(f"tails {share}")
+    if R.with_repere([("A", json.dumps({"score": {"median": 70}}))])[1] is not None:
+        bad.append("a repère from fewer than 5 scored jobs")
+    real = None
+    if c.real and c.db is not None:
+        import duckdb
+        con = duckdb.connect(str(c.db), read_only=True)
+        src, p = R._src(con)
+        if src is not None:
+            stored = [json.loads(d) for _, d in src.execute(f"SELECT met_id, data FROM {p}r35_metier").fetchall()]
+            sm = [d["score"]["median"] for d in stored if d["score"]]
+            lo2, hi2 = oracle_cuts(sm)
+            wrong = sum(1 for d in stored if d["score"] and (d.get("repere") or {}).get("niveau")
+                        != ("haut" if d["score"]["median"] >= hi2 else "bas" if d["score"]["median"] <= lo2 else "moyen"))
+            if wrong or any(d.get("repere") for d in stored if not d["score"]):
+                bad.append(f"real: {wrong} stored levels differ")
+            real = {x: sum(1 for d in stored if (d.get("repere") or {}).get("niveau") == x) for x in ("haut", "moyen", "bas")}
+            real["seuils"] = (round(lo2, 1), round(hi2, 1))
+    return not bad, f"differences {bad[:4]}; real {real}"
 
 
 @check("RB8 mutation test: every seeded bug is caught")

@@ -3646,6 +3646,16 @@ model**, never a forecast for a person, a promise or a chance. The owner lifted,
 score », with guardrails: the MEDIAN of three scenarios is shown with the range from the least to the most favourable one under it,
 the components are always shown, and « D'où vient ce chiffre ? » gives the sources, their years and the model version.
 
+**What the page leads with (owner, 2026-11-17).** The scores form a tight bell: on the 2026-11-17 build, 876 scored jobs from
+49 to 83, 80 % between 64 and 75 (standard deviation 4.5), so 70 and 72 mean almost nothing. The tile and the card therefore lead
+with a REPÈRE in three levels, the job's place among the scored jobs: « Parmi les 20 % de métiers les plus robustes » (median score
+at or above the 80th percentile, 73.3), « Dans la moyenne », « Parmi les 20 % … les moins robustes » (at or below the 20th, 67.2);
+the cut points are measured at build (`robustesse.with_repere`), never typed, and there is no repère without a score. Then three
+plain facts from the job's components: positions to fill by 2035 for 100 current jobs (Cedefop), the uses out of 10 where generative
+AI helps rather than does the task (AEI), the hirings out of 10 judged difficult in 2026 (BMO). The score, its range, the scenarios,
+the components, the confidence and the OECD / ESCO controls are folded under « Détail du calcul ». Lowest: agent de constatation
+des douanes (49), secretaries (51); highest: chef d'exploitation des remontées mécaniques (83).
+
 **Per ISCO-08 unit group of the job** (sprint 13's codes, weighted by their count of distinct titles; `robustesse.py`, model 2027.1):
 - exposure `Exp` = the OIT 2025 mean task score (0-1), as published (the OECD 2026 measure never enters it: see below);
 - augmentation `Aug` = Anthropic Economic Index, May 2026, Claude.ai, global: augmentation / (augmentation + automation) of the
@@ -3690,5 +3700,5 @@ the share (426 ISCO groups published, national median 1.5 %).
 
 First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 and 73); confidence high for 612, medium 264,
 insufficient 248 (with the OECD cross-check: high 427, medium 449, insufficient 248). Red team `scripts/redteam_robustesse.py`
-(RB1-RB10; RB7 prints the order's Spearman stability at ±10 weight points; RB9 re-reads the OECD workbook from its total-gap column;
-RB10 re-derives ESCO's green shares).
+(RB1-RB11; RB7 prints the order's Spearman stability at ±10 weight points; RB9 re-reads the OECD workbook from its total-gap column;
+RB10 re-derives ESCO's green shares; RB11 the repère's cut points).
