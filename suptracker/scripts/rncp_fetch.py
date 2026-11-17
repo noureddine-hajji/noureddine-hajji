@@ -23,7 +23,11 @@ import httpx
 
 DATASET = "5eebbc067a14b6fecc9c9976"            # « Répertoire national des certifications professionnelles et répertoire spécifique »
 API = f"https://www.data.gouv.fr/api/1/datasets/{DATASET}/"
-HOSTS = {"www.data.gouv.fr", "static.data.gouv.fr"}
+HOSTS = {"www.data.gouv.fr", "static.data.gouv.fr", "api.francetravail.fr", "www.francetravail.org"}
+# ROME 4.0 (France Travail, open data listed on data.gouv.fr): every competence of every job sheet, and the competence tree;
+# read to check whether an OFFICIAL chain RNCP -> ROME -> competences (-> ESCO) exists (owner, 2026-11-17)
+ROME = {"rome_toutes_donnees.zip": "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/csv",
+        "rome_arbo_competences.xlsx": "https://www.francetravail.org/files/live/sites/peorg/files/documents/Statistiques-et-analyses/Open-data/ROME/261014-rome_arbocompetences-octobre-2026.xlsx"}
 NAME = re.compile(r"^export-fiches-csv-(\d{4}-\d{2}-\d{2})\.zip$")
 
 
@@ -78,11 +82,27 @@ def main(argv: list[str]) -> int:
         if urlparse(str(resp.url)).hostname not in HOSTS:
             raise SystemExit(f"redirected off the official hosts: {resp.url}")
         blob = resp.content
+        rome = {}
+        for name, url in ROME.items():
+            try:
+                r = client.get(official(url))
+                r.raise_for_status()
+                if urlparse(str(r.url)).hostname not in HOSTS:
+                    raise ValueError(f"redirected to {r.url}")
+                (d / name).write_bytes(r.content)
+                rome[name] = {"url": url, "octets": len(r.content), "type": r.headers.get("content-type"),
+                              "sha256": hashlib.sha256(r.content).hexdigest()}
+                if r.content[:2] == b"PK":
+                    rome[name]["membres"] = inventory(r.content)
+            except Exception as e:  # noqa: BLE001  (an unavailable ROME file is reported, the RNCP export still kept)
+                rome[name] = {"url": url, "erreur": f"{type(e).__name__}: {e}"[:300]}
+    meta["rome"] = rome
     meta["sha256"] = hashlib.sha256(blob).hexdigest()
     meta["membres"] = inventory(blob)
     (d / "export-fiches-csv.zip").write_bytes(blob)
     (d / "inventaire.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
     print(json.dumps({k: meta[k] for k in ("date", "title", "sha256")}, ensure_ascii=False))
+    print(json.dumps(meta["rome"], ensure_ascii=False)[:3000])
     for m in meta["membres"]:
         print(m.get("membre"), m.get("lignes"), (m.get("colonnes") or [])[:12])
     return 0
