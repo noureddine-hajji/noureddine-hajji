@@ -3676,7 +3676,8 @@ CROSS-CHECK, never part of the exposure:
   « +1 cognitive level » scenario (a scenario ratio only when every linked occupation has one);
 - the job's RANK (0-1, ties averaged, among the codes with both measures) under each measure; a gap above 15 points lowers the
   agreement by one point per point, never under 0.5 (the value of an unknown agreement: the measures are uncorrelated by
-  construction, so a disagreement alone never hides a score). 185 jobs move from « haute » to « moyenne », none is hidden;
+  construction, so a disagreement alone never hides a score). On the 2026-11-17 build, 950 jobs have both ranks and 773 of them
+  differ by more than 15 points: 185 jobs move from « haute » to « moyenne », none is hidden;
 - S1 multiplies the OIT exposure by scenario / baseline (median 1.07, at most 1.35) instead of the PRD's fixed 1.25;
 - the card prints both places side by side (« plus exposé que X % des métiers mesurés », OIT then OECD).
 
