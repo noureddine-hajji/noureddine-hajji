@@ -3743,4 +3743,6 @@ jobs (listed only when the cut does not split equal weights), the RNCP blocks; t
 First build (2026-11-17): 12,513 formations with a block, 12,185 scored (85.5 % of the latest campaign); methods direct 6,780,
 poursuite 3,044, famille 2,689; skills for 9,117 (144 RNCP fiches). Repère: BTS 805 high / 3,016 average / 874 low, licence
 587 / 1,931 / 491, BUT 147 / 486 / 124; CPGE, engineering and business schools, PASS and IFSI not ranked (same outlets). Tables
-`r35_formation` and `r35_rncp` in `rapport_textes.duckdb`. Red team `scripts/redteam_robustesse_formations.py` (RF1-RF8).
+`r35_formation` and `r35_rncp` in `rapport_textes.duckdb` (the warehouse stays at 93.9 MB). Red team
+`scripts/redteam_robustesse_formations.py` (RF1-RF8); on the data workflow's warehouse of 2026-11-17, RF7 re-derives every
+repère, 150 direct blocks, the skills of 400 sampled formations and 40 API answers with no difference.
