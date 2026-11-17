@@ -53,6 +53,7 @@ from . import tension as TS
 from . import apprentissage as APP
 from . import aides as AID
 from . import jpo as JPO
+from . import robustesse as ROB
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -1210,6 +1211,8 @@ def metier(met_id: str):
     d = MT.detail(_con().cursor(), met_id)
     if d is None:
         raise HTTPException(404, "métier inconnu")
+    # robustesse 2035 (owner's PRD, 2026-11-16): an estimation of the model, precomputed at build, with its sources
+    d["robustesse"] = ROB.for_metier(_con().cursor(), met_id)
     return d
 
 

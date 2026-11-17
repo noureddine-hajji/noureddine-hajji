@@ -4005,6 +4005,7 @@ async function viewMetier(id, from = "") {
       ${tile("formations", "Diplômes", fmt(d.diplomes.length), nForm ? `${fmt(nForm)} formation(s) Parcoursup` : "aucune formation Parcoursup")}
       ${tile("avenir", "Emploi d'ici 2030", r2030 ? `<span class="text">${esc(r2030)}</span>` : "—", n2030)}
       ${tile("avenir", "Tâches exposées à l'IA", iaSpan || "—", iaSpan ? "note OIT sur 1, pas un risque de perte d'emploi" : "pas de note OIT")}
+      ${robustesseTile(d.robustesse)}
     </div></section>`;
   $view.innerHTML = `<div class="card"><p class="small"><a href="#/metiers">← Autres métiers</a></p>
     <h1>${esc(d.nom)}</h1>
@@ -4016,12 +4017,57 @@ async function viewMetier(id, from = "") {
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     ${d.diplomes.map(dip).join("")}
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p>`],
-      ["avenir", "Avenir du métier", `${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`],
+      ["avenir", "Avenir du métier", `${robustesseCard(d.robustesse)}${emploi2030Card(d.emploi2030)}${bmoCard(d.bmo)}${iaCard(d.ia)}${codesCard(d.codes)}`],
     ])}${nextSteps("metier", /^https:\/\//.test(d.url || "") ? [{ href: d.url, text: "Lire la fiche du métier sur le site de l'Onisep" }] : [])}`;
   bindTabs("metier");
   const h = document.getElementById("mhome");
   if (h) h.onchange = () => { store.set("metierHome", h.checked); viewMetier(id, from); };
   bindVoeuButton(() => viewMetier(id, from));
+}
+
+// ---- Robustesse 2035 (owner's PRD, 2026-11-16): an ESTIMATION OF THE MODEL per job (robustesse.py), never a forecast for a
+// person, a promise or a chance. The median of three scenarios, the range under it, the components, the confidence and
+// « D'où vient ce chiffre ? » (sources, dates, model version). Fixed wording only (no free text), no alarming word.
+const ROB_REGIME = {
+  peu_expose: "peu exposé à l'IA générative : peu de ses tâches pourraient être faites par l'IA",
+  surtout_augmente: "exposé à l'IA générative, mais l'IA y sert surtout à aider le travail plutôt qu'à le faire à la place",
+  surtout_substituable: "exposé à l'IA générative, et l'IA y fait souvent la tâche à la place : ses tâches vont évoluer",
+  mixte: "exposé à l'IA générative, l'IA y aide le travail autant qu'elle fait des tâches à la place",
+};
+const ROB_SCEN = { S1: "IA accélérée", S2: "Central", S3: "Transition rapide (bas-carbone)" };
+const ROB_CONF = { haute: "confiance haute", moyenne: "confiance moyenne", faible: "données insuffisantes" };
+const robNum = (x) => (x === null || x === undefined ? "—" : Number(x).toLocaleString("fr-FR", { maximumFractionDigits: 0 }));
+function robustesseTile(r) {
+  if (!r) return "";
+  const s = r.score;
+  return `<button type="button" class="sum-tile" data-goto="avenir"><span class="sum-label">Robustesse 2035</span>
+    <span class="sum-value">${s ? `${robNum(s.median)}<span class="small"> / 100</span>` : "—"}</span>
+    <span class="sum-note">${s ? `de ${robNum(s.min)} à ${robNum(s.max)} selon les scénarios · ${estimTag("", false, true)}` : "données insuffisantes"}</span></button>`;
+}
+function robustesseCard(r) {
+  if (!r) return "";
+  const s = r.score, c = r.composantes || {}, k = r.confiance || {};
+  const head = s ? `<p><span class="big">${robNum(s.median)}</span> <span class="muted">/ 100</span> ${estimTag("médiane des trois scénarios")}</p>
+      <p class="small">Selon le scénario, de <strong>${robNum(s.min)}</strong> (le moins favorable) à <strong>${robNum(s.max)}</strong> (le plus favorable)${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}.</p>`
+    : `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas afficher de chiffre.</p>`;
+  const phrase = r.regime_ia ? `<p>Ce métier est ${esc(ROB_REGIME[r.regime_ia] || "")}.</p>` : "";
+  const scen = s && r.scenarios ? `<div class="scroll"><table><tr><th>Scénario</th><th class="num">Score</th></tr>
+      ${["S1", "S2", "S3"].map((x) => `<tr><td>${esc(ROB_SCEN[x])}</td><td class="num" data-label="Score">${robNum(r.scenarios[x])}</td></tr>`).join("")}</table></div>` : "";
+  const comp = `<div class="scroll"><table><tr><th>Ce qui compte</th><th class="num">Sur 100</th></tr>
+      <tr><td>Résistance à l'IA (35 %) : exposition des tâches ${c.exposition != null ? fmt2(c.exposition) : "—"} sur 1, part d'usage où l'IA aide plutôt qu'elle ne remplace ${c.augmentation != null ? `${robNum(c.augmentation * 100)} %` : "—"}</td><td class="num" data-label="Sur 100">${robNum(c.ia)}</td></tr>
+      <tr><td>Demande d'ici 2035 (25 %)</td><td class="num" data-label="Sur 100">${robNum(c.demande)}</td></tr>
+      <tr><td class="small">· Postes à pourvoir 2024-2035, Cedefop (50 %)${c.cedefop_taux != null ? ` : ${robNum(c.cedefop_taux * 100)} % de l'emploi actuel` : ""}</td><td class="num" data-label="Sur 100">${robNum(c.cedefop)}</td></tr>
+      <tr><td class="small">· Postes à pourvoir 2019-2030, Métiers 2030 (30 %)${c.m2030_taux != null ? ` : ${robNum(c.m2030_taux * 100)} % de l'emploi de 2019` : ""}</td><td class="num" data-label="Sur 100">${robNum(c.m2030)}</td></tr>
+      <tr><td class="small">· Recrutements jugés difficiles en 2026, BMO (20 %)</td><td class="num" data-label="Sur 100">${robNum(c.tension)}</td></tr></table></div>`;
+  const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
+  const eu = (r.isco || []).some((i) => i.cedefop_croissance_source === "UE27");
+  const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
+      <ul class="small">${(r.sources_detail || []).map((x) => `<li>${esc(x.libelle)}</li>`).join("")}</ul>
+      ${eu ? `<p class="small">Pour un ou plusieurs groupes de ce métier, la croissance est la moyenne européenne : les chiffres français du Cedefop sont faussés par un changement de méthode de l'enquête Emploi en 2021.</p>` : ""}
+      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition × 1,25, aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
+  return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
+    <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
+    ${head}${phrase}${scen}${comp}${conf}${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

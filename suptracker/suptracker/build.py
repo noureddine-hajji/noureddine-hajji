@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, jpo, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, jpo, robustesse, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -64,6 +64,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         bmo.build(con, bmo.source_path() if bmo_source is _SOURCE else bmo_source)
         ia_exposition.build(con, ia_exposition.sources() if ia_sources is _SOURCE else ia_sources)
         licence_master.build(con)
+        robustesse.build(con, textes=rapports.textes_path(db_path))   # robustesse 2035 per job (owner's PRD), beside the warehouse
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         search.persist(con)            # the search index, stored once: the first search of an instance no longer builds it

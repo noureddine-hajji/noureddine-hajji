@@ -3638,3 +3638,35 @@ card « Les portes ouvertes » at the top of the « Combien ça coûte » tab.
 The warehouse fingerprint takes the Onisep versions, the site extracts and each site's status, never a check date alone. The tables (`jpo_date`, `jpo_etab`,
 `jpo_site`, `jpo_meta`) are written in `rapport_textes.duckdb` beside the warehouse: in the warehouse they pushed it to 95.7 MB, over
 its 95 MB budget (first data build, 2026-11-16).
+
+## Robustesse 2035 of each job (owner's PRD, 2026-11-16)
+
+Every job page shows a « Robustesse 2035 » tile in « L'essentiel » and a card first in « Avenir du métier »: an **estimation of the
+model**, never a forecast for a person, a promise or a chance. The owner lifted, for this feature, the rule « never one composite
+score », with guardrails: the MEDIAN of three scenarios is shown with the range from the least to the most favourable one under it,
+the components are always shown, and « D'où vient ce chiffre ? » gives the sources, their years and the model version.
+
+**Per ISCO-08 unit group of the job** (sprint 13's codes, weighted by their count of distinct titles; `robustesse.py`, model 2027.1):
+- exposure `Exp` = the OIT 2025 mean task score (0-1), as published; the OECD 2026 measure will be crossed with it once uploaded;
+- augmentation `Aug` = Anthropic Economic Index, May 2026, Claude.ai, global: augmentation / (augmentation + automation) of the
+  O*NET occupations linked to the code by official tables; none published = the mean of their SOC major groups, flagged;
+- `IA = 100 × (1 − Exp × (1 − Aug))`: exposure is not replacement, a job where AI mostly helps keeps a high score.
+
+**Demand** (0-100 between FIXED bounds, so versions stay comparable): `Dem = 0.5 Cedefop + 0.3 Métiers 2030 + 0.2 BMO`.
+- Cedefop Skills Forecast 2026 (France, ISCO 2 digits): positions to fill 2024-2035 / employment 2023 (growth + replacement).
+  The French series carry the **2021 labour-force-survey break**. Owner's rule: the growth is the EU-27 one when the group moved by
+  more than 25 % between 2020 and 2021 or when its 2023-2035 growth differs from the EU-27 one by more than 30 points (19 of 40
+  groups), said « moyenne européenne »; replacement stays French. Bounds −10 % / 90 %.
+- Les métiers en 2030: positions to fill 2019-2030 / employment 2019 of the job's families (bounds 0 / 60 %).
+- BMO 2026: share of hiring projects judged difficult (bounds 0 / 100 %).
+
+**Score**: `R = (0.35 IA + 0.25 Dem) / 0.60` (the PRD's weights of these two terms; the formation adds insertion and diversity).
+Scenarios: S1 AI accelerated (Exp × 1.25 capped at 1, Aug × 0.8), S2 central, S3 fast transition (the official low-carbon variant
+of Métiers 2030 instead of ESCO green skills). « Dépend du scénario » when the range exceeds 15 points.
+
+**Confidence** = the lowest of four components: freshness (each source's age, weighted by its weight), observed links (a code
+from the Onisep ROME = 1, by name = 0.5, a major-group augmentation × 0.75), agreement of the two demand sources (Cedefop vs Métiers
+2030), coverage of the terms. Below 0.4 the page says « données insuffisantes » and shows no number.
+
+First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 and 73); confidence high for 612, medium 264,
+insufficient 248. Red team `scripts/redteam_robustesse.py` (RB1-RB8; RB7 prints the order's Spearman stability at ±10 weight points).

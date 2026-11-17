@@ -672,6 +672,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
   « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
   `redteam_jpo.py` (J1-J10).
+- **Robustesse 2035 per job (owner's PRD, 2026-11-16).** `robustesse.py` (model 2027.1), jobs first, formations next. The owner
+  LIFTED « never one composite score » for this feature only, with guardrails: « estimation du modèle », the MEDIAN of the three
+  scenarios with min-max under it, components always shown, sources + years + model version, « données insuffisantes » (no number)
+  when confidence < 0.4. IA = 100(1 − Exp(1 − Aug)): Exp = OIT 2025 as published, Aug = AEI May 2026 augmentation/(aug+automation)
+  via official O*NET→ISCO links (else SOC major groups, flagged). Dem = 0.5 Cedefop + 0.3 Métiers 2030 + 0.2 BMO, FIXED bounds
+  (BOUNDS), never min-max. Cedefop France 2021 break (owner's rule): EU-27 growth when |2020→21| > 25 % or |FR − EU| > 30 points,
+  replacement French. R = (0.35 IA + 0.25 Dem)/0.6; S1 Exp×1.25 (cap 1) Aug×0.8, S2 central, S3 = Métiers 2030 low-carbon variant.
+  Confidence = min(freshness weighted, observed links, Cedefop/M2030 agreement, coverage). Reachability never enters. Tables r35_*
+  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
