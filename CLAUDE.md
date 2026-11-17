@@ -687,6 +687,17 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `with_repere`), then three plain facts (Cedefop positions per 100 jobs, AEI uses out of 10, BMO hirings out of 10); the score and
   everything else in « Détail du calcul », never before it. Reachability never enters. Tables r35_*
   in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB11).
+- **Robustesse 2035 per formation (owner, 2026-11-17).** `robustesse_formation.py` (model 2027.1-f), built after the jobs, latest
+  campaign only. Outlets ω, one method said: direct (Onisep sheet jobs, equal weights; = « avec ce diplôme seul »), poursuite (licence/LAS:
+  the university's masters of the same discipline weighted by MonMaster admits, their Onisep jobs; licence-only jobs apart), famille
+  (parcours.py routes entering the formation's group, confidence x 0.5). Skills: RNCP fiche (Onisep's France Compétences link, else
+  the BTS title before options / BUT specialty+parcours; content, ACTIVE, latest decision; never fuzzy) -> its ROME codes -> ROME 4.0
+  competences; portable = « Transverse » or shared by >= 20 sheets; RNCP blocks verbatim. R = 0.60 Σω R_job + 0.10 Ins (licence:
+  master InserSup stable rate weighted by admits, labelled estimation; BTS 6-month insertion stays OUT) + 0.15 Div (Shannon over
+  ISCO major groups / ln 10) + 0.15 Comp, renormalised over available terms. Repère among the SAME filière with the SAME terms, by
+  rank (ties never above/below); < 20 formations or < 5 distinct scores = no level, its reason said (CPGE, schools, PASS, IFSI).
+  Main jobs listed only when the cut does not split a tie. data/rncp (workflow `suptracker-rncp`) is in the data fingerprint and out
+  of the Vercel bundle. Red team `redteam_robustesse_formations.py` (RF1-RF8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
