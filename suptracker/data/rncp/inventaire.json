@@ -1,0 +1,677 @@
+{
+ "date": "2026-11-17",
+ "title": "export-fiches-csv-2026-11-17.zip",
+ "url": "https://static.data.gouv.fr/resources/repertoire-national-des-certifications-professionnelles-et-repertoire-specifique/20261117-020001/export-fiches-csv-2026-11-17.zip",
+ "rome": {
+  "rome_toutes_donnees.zip": {
+   "url": "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/csv",
+   "octets": 4556970,
+   "type": "application/zip",
+   "sha256": "ae63cf9155c59710175ed214b9ad4310e5d52c88582eb9a8c90e8505cacf7fcb",
+   "membres": [
+    {
+     "membre": "unix_arborescence_centre_interet_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_centre_interet",
+      "libelle_centre_interet",
+      "code_ogr_rome",
+      "code_rome",
+      "libelle_rome",
+      "principal"
+     ],
+     "lignes": 5698
+    },
+    {
+     "membre": "unix_arborescence_competences_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_domaine_competence",
+      "domaine_competence",
+      "code_enjeu",
+      "enjeu",
+      "code_objectif",
+      "objectif",
+      "code_macro_competence",
+      "code_ogr_macro_competence",
+      "libelle_macro_competence",
+      "code_ogr_competence",
+      "libelle_competence"
+     ],
+     "lignes": 19598
+    },
+    {
+     "membre": "unix_arborescence_secteur_activite_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_sect_activite",
+      "libelle_sect_activite",
+      "code_ss_sect_activite",
+      "libelle_ss_sect_activite",
+      "code_ogr_rome",
+      "code_rome",
+      "libelle_rome",
+      "principal"
+     ],
+     "lignes": 4341
+    },
+    {
+     "membre": "unix_arborescence_secteur_naf_v462_utf8.csv",
+     "encodage": "cp1252",
+     "separateur": ",",
+     "colonnes": [
+      "code_secteur_naf",
+      "libelle_secteur_naf",
+      "code_ogr_rome",
+      "code_rome",
+      "libelle_rome"
+     ],
+     "lignes": 3626
+    },
+    {
+     "membre": "unix_arborescence_thematique_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_theme",
+      "libelle_theme",
+      "code_ogr_rome",
+      "code_rome",
+      "libelle_rome"
+     ],
+     "lignes": 1660
+    },
+    {
+     "membre": "unix_centre_interet_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_centre_interet",
+      "libelle_centre_interet",
+      "definition_centre_interet"
+     ],
+     "lignes": 60
+    },
+    {
+     "membre": "unix_coherence_item_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "code_ogr",
+      "coeur_metier"
+     ],
+     "lignes": 124910
+    },
+    {
+     "membre": "unix_composition_bloc_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_compo_bloc",
+      "libelle_bloc"
+     ],
+     "lignes": 8
+    },
+    {
+     "membre": "unix_cr_gd_dp_appellations_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_grand_domaine",
+      "code_domaine_professionnel",
+      "numero_fiche_rome",
+      "intitule",
+      "libelle_appellation_long",
+      "libelle_appellation_court",
+      "type_provenance",
+      "code_fiche",
+      "ogr_rome",
+      "ogr_appellation"
+     ],
+     "lignes": 16377
+    },
+    {
+     "membre": "unix_cr_gd_dp_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "libelle_rome",
+      "code_grand_domaine",
+      "libelle_grand_domaine",
+      "code_domaine_professionel",
+      "libelle_domaine_professionel"
+     ],
+     "lignes": 1923
+    },
+    {
+     "membre": "unix_descriptif_rubrique_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rubrique",
+      "code_compo_bloc",
+      "position_rubrique",
+      "libelle_rubrique"
+     ],
+     "lignes": 3
+    },
+    {
+     "membre": "unix_domaine_professionnel_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_domaine_professionnel",
+      "libelle_domaine_professionnel"
+     ],
+     "lignes": 110
+    },
+    {
+     "membre": "unix_grand_domaine_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_grand_domaine",
+      "libelle_grand_domaine"
+     ],
+     "lignes": 14
+    },
+    {
+     "membre": "unix_item_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr",
+      "libelle",
+      "code_rubrique"
+     ],
+     "lignes": 35981
+    },
+    {
+     "membre": "unix_liens_rome_referentiels_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "code_compo_bloc",
+      "code_rubrique",
+      "code_ogr"
+     ],
+     "lignes": 141163
+    },
+    {
+     "membre": "unix_referentiel_appellation_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr",
+      "libelle_appellation_long",
+      "libelle_appellation_court",
+      "code_rome",
+      "transition_eco",
+      "transition_num",
+      "transition_demo",
+      "emploi_reglemente",
+      "emploi_cadre",
+      "classification",
+      "origine",
+      "code_rome_parent",
+      "peu_usite"
+     ],
+     "lignes": 14330
+    },
+    {
+     "membre": "unix_referentiel_code_rome_riasec_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "riasec_majeur",
+      "riasec_mineur"
+     ],
+     "lignes": 1923
+    },
+    {
+     "membre": "unix_referentiel_code_rome_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "code_fiche_metier",
+      "code_ogr",
+      "libelle_rome",
+      "transition_eco",
+      "transition_num",
+      "transition_demo",
+      "emploi_reglemente",
+      "emploi_cadre",
+      "code_rome_parent"
+     ],
+     "lignes": 1923
+    },
+    {
+     "membre": "unix_referentiel_competence_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr",
+      "nature",
+      "libelle_competence",
+      "definition",
+      "code_ogr_macro_comp",
+      "code_macro_comp",
+      "cat_comp",
+      "sous_cat_comp",
+      "transition_eco",
+      "transition_num",
+      "libelle_heterogeneite",
+      "libelle_origine"
+     ],
+     "lignes": 20088
+    },
+    {
+     "membre": "unix_referentiel_contexte_travail_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr",
+      "libelle_cont_travail",
+      "code_type_cont_trav",
+      "libelle_type_cont_trav"
+     ],
+     "lignes": 194
+    },
+    {
+     "membre": "unix_referentiel_macro_competence_riasec_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr",
+      "riasec_majeur",
+      "riasec_mineur"
+     ],
+     "lignes": 506
+    },
+    {
+     "membre": "unix_referentiel_savoir_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ogr_savoir",
+      "libelle_savoir",
+      "categorie_savoir",
+      "sous_categorie_savoir",
+      "transition_eco",
+      "transition_num"
+     ],
+     "lignes": 15699
+    },
+    {
+     "membre": "unix_rubrique_mobilite_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "code_rome_cible",
+      "numero_ordre"
+     ],
+     "lignes": 18601
+    },
+    {
+     "membre": "unix_secteur_activite_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_sect_activite",
+      "libelle_sect_activite",
+      "definition_sect_activite"
+     ],
+     "lignes": 70
+    },
+    {
+     "membre": "unix_secteur_naf_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_tech_secteur_naf",
+      "code_secteur_naf",
+      "libelle_secteur_naf"
+     ],
+     "lignes": 89
+    },
+    {
+     "membre": "unix_sous_secteur_activite_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_ss_sect_activite",
+      "libelle_ss_sect_activite",
+      "definition_ss_sect_activite",
+      "code_sect_activite"
+     ],
+     "lignes": 40
+    },
+    {
+     "membre": "unix_texte_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_rome",
+      "code_compo_bloc",
+      "libelle_type_texte",
+      "position_phrase",
+      "libelle_texte"
+     ],
+     "lignes": 15048
+    },
+    {
+     "membre": "unix_themes_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_theme",
+      "libelle_theme",
+      "definition_theme"
+     ],
+     "lignes": 17
+    },
+    {
+     "membre": "unix_type_referentiel_v462_utf8.csv",
+     "encodage": "utf-8-sig",
+     "separateur": ",",
+     "colonnes": [
+      "code_type_referentiel",
+      "libelle_type_referentiel"
+     ],
+     "lignes": 0
+    },
+    {
+     "membre": "version.txt"
+    }
+   ]
+  },
+  "rome_arbo_competences.xlsx": {
+   "url": "https://www.francetravail.org/files/live/sites/peorg/files/documents/Statistiques-et-analyses/Open-data/ROME/261014-rome_arbocompetences-octobre-2026.xlsx",
+   "octets": 952692,
+   "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   "sha256": "7bde840fc9df90c4b67720ac376615ae841fdec02013dbfffad5405849d5faa0",
+   "membres": [
+    {
+     "membre": "[Content_Types].xml"
+    },
+    {
+     "membre": "[trash]/0000.dat"
+    },
+    {
+     "membre": "[trash]/0001.dat"
+    },
+    {
+     "membre": "[trash]/0002.dat"
+    },
+    {
+     "membre": "[trash]/0003.dat"
+    },
+    {
+     "membre": "[trash]/0004.dat"
+    },
+    {
+     "membre": "_rels/.rels"
+    },
+    {
+     "membre": "customXml/_rels/item1.xml.rels"
+    },
+    {
+     "membre": "customXml/_rels/item2.xml.rels"
+    },
+    {
+     "membre": "customXml/_rels/item3.xml.rels"
+    },
+    {
+     "membre": "customXml/item1.xml"
+    },
+    {
+     "membre": "customXml/item2.xml"
+    },
+    {
+     "membre": "customXml/item3.xml"
+    },
+    {
+     "membre": "customXml/itemProps1.xml"
+    },
+    {
+     "membre": "customXml/itemProps2.xml"
+    },
+    {
+     "membre": "customXml/itemProps3.xml"
+    },
+    {
+     "membre": "docProps/app.xml"
+    },
+    {
+     "membre": "docProps/core.xml"
+    },
+    {
+     "membre": "docProps/custom.xml"
+    },
+    {
+     "membre": "xl/_rels/workbook.xml.rels"
+    },
+    {
+     "membre": "xl/drawings/_rels/drawing1.xml.rels"
+    },
+    {
+     "membre": "xl/drawings/drawing1.xml"
+    },
+    {
+     "membre": "xl/media/image1.png"
+    },
+    {
+     "membre": "xl/media/image2.png"
+    },
+    {
+     "membre": "xl/media/image3.png"
+    },
+    {
+     "membre": "xl/media/image4.png"
+    },
+    {
+     "membre": "xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels"
+    },
+    {
+     "membre": "xl/pivotCache/_rels/pivotCacheDefinition2.xml.rels"
+    },
+    {
+     "membre": "xl/pivotCache/pivotCacheDefinition1.xml"
+    },
+    {
+     "membre": "xl/pivotCache/pivotCacheDefinition2.xml"
+    },
+    {
+     "membre": "xl/pivotCache/pivotCacheRecords1.xml"
+    },
+    {
+     "membre": "xl/pivotCache/pivotCacheRecords2.xml"
+    },
+    {
+     "membre": "xl/pivotTables/_rels/pivotTable1.xml.rels"
+    },
+    {
+     "membre": "xl/pivotTables/_rels/pivotTable2.xml.rels"
+    },
+    {
+     "membre": "xl/pivotTables/pivotTable1.xml"
+    },
+    {
+     "membre": "xl/pivotTables/pivotTable2.xml"
+    },
+    {
+     "membre": "xl/sharedStrings.xml"
+    },
+    {
+     "membre": "xl/styles.xml"
+    },
+    {
+     "membre": "xl/workbook.xml"
+    },
+    {
+     "membre": "xl/worksheets/_rels/sheet1.xml.rels"
+    },
+    {
+     "membre": "xl/worksheets/_rels/sheet2.xml.rels"
+    },
+    {
+     "membre": "xl/worksheets/_rels/sheet3.xml.rels"
+    },
+    {
+     "membre": "xl/worksheets/sheet1.xml"
+    },
+    {
+     "membre": "xl/worksheets/sheet2.xml"
+    },
+    {
+     "membre": "xl/worksheets/sheet3.xml"
+    },
+    {
+     "membre": "xl/worksheets/sheet4.xml"
+    },
+    {
+     "membre": "xl/worksheets/sheet5.xml"
+    }
+   ]
+  }
+ },
+ "sha256": "34708b40b5e5a4c2cd16af034a923c9ae08ad04abd25daac712c14c1b8ee9d3f",
+ "membres": [
+  {
+   "membre": "export_fiches_CSV_Ancienne_Nouvelle_Certification_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Ancienne_Certification",
+    "Nouvelle_Certification"
+   ],
+   "lignes": 18125
+  },
+  {
+   "membre": "export_fiches_CSV_Blocs_De_Compétences_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Bloc_Competences_Code",
+    "Bloc_Competences_Libelle"
+   ],
+   "lignes": 56555
+  },
+  {
+   "membre": "export_fiches_CSV_CCN_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Ccn_1_Numero",
+    "Ccn_1_Libelle",
+    "Ccn_2_Numero",
+    "Ccn_2_Libelle",
+    "Ccn_3_Numero",
+    "Ccn_3_Libelle"
+   ],
+   "lignes": 1171
+  },
+  {
+   "membre": "export_fiches_CSV_Certificateurs_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Siret_Certificateur",
+    "Nom_Certificateur"
+   ],
+   "lignes": 43101
+  },
+  {
+   "membre": "export_fiches_CSV_Formacode_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Formacode_Code",
+    "Formacode_Libelle"
+   ],
+   "lignes": 36612
+  },
+  {
+   "membre": "export_fiches_CSV_Nsf_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Nsf_Code",
+    "Nsf_Intitule"
+   ],
+   "lignes": 47655
+  },
+  {
+   "membre": "export_fiches_CSV_Partenaires_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Nom_Partenaire",
+    "Siret_Partenaire",
+    "Habilitation_Partenaire"
+   ],
+   "lignes": 405848
+  },
+  {
+   "membre": "export_fiches_CSV_Rome_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Codes_Rome_Code",
+    "Codes_Rome_Libelle"
+   ],
+   "lignes": 68185
+  },
+  {
+   "membre": "export_fiches_CSV_Standard_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Id_Fiche",
+    "Numero_Fiche",
+    "Intitule",
+    "Abrege_Libelle",
+    "Abrege_Intitule",
+    "Nomenclature_Europe_Niveau",
+    "Nomenclature_Europe_Intitule",
+    "Accessible_Nouvelle_Caledonie",
+    "Accessible_Polynesie_Francaise",
+    "Date_dernier_jo",
+    "Date_Decision",
+    "Date_Fin_Enregistrement",
+    "Date_Effet",
+    "Type_Enregistrement",
+    "Validation_Partielle",
+    "Actif"
+   ],
+   "lignes": 30801
+  },
+  {
+   "membre": "export_fiches_CSV_VoixdAccès_2026_11_16.csv",
+   "encodage": "utf-8-sig",
+   "separateur": ";",
+   "colonnes": [
+    "Numero_Fiche",
+    "Si_Jury"
+   ],
+   "lignes": 113744
+  }
+ ]
+}

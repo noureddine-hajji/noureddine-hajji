@@ -54,6 +54,7 @@ from . import apprentissage as APP
 from . import aides as AID
 from . import jpo as JPO
 from . import robustesse as ROB
+from . import robustesse_formation as ROBF
 from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
@@ -728,6 +729,8 @@ def formation(cod: str, session: int | None = None):
             # sprint F: the student aids as the official pages state them, adapted to this place and these fees
             "aides": AID.for_formation(_con().cursor(), rec["cod_aff_form"], vie),
             "tension": TS.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
+            # robustesse 2035 per formation (owner, 2026-11-17): outlets, skills, insertion, an estimation of the model
+            "robustesse": ROBF.for_formation(_con().cursor(), rec["cod_aff_form"]),
             "apprenti": APP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),

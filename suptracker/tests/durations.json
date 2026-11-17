@@ -47,6 +47,7 @@
  "tests/test_release.py": 0,
  "tests/test_reorientation.py": 135.0,
  "tests/test_robustesse.py": 60,
+ "tests/test_robustesse_formations.py": 70,
  "tests/test_scale.py": 129,
  "tests/test_securite.py": 165,
  "tests/test_semblables.py": 264,

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, jpo, robustesse, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, jpo, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -66,6 +66,9 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         details = {}                                     # metiers.detail per job, read once for both steps (CI time)
         licence_master.build(con, details)
         robustesse.build(con, textes=rapports.textes_path(db_path), details=details)   # robustesse 2035 per job (owner's PRD), beside the warehouse
+        # robustesse 2035 per formation (owner, 2026-11-17): outlets, skills (RNCP x ROME 4.0), insertion, after the jobs
+        robustesse_formation.build(con, textes=rapports.textes_path(db_path),
+                                   sources=onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         pou = (poursuite.find_sources() if poursuite_sources is _SOURCE else poursuite_sources) or {}
         poursuite.build(con, pou)
         search.persist(con)            # the search index, stored once: the first search of an instance no longer builds it

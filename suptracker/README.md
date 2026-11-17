@@ -3702,3 +3702,55 @@ First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 a
 insufficient 248 (with the OECD cross-check: high 427, medium 449, insufficient 248). Red team `scripts/redteam_robustesse.py`
 (RB1-RB11; RB7 prints the order's Spearman stability at ±10 weight points; RB9 re-reads the OECD workbook from its total-gap column;
 RB10 re-derives ESCO's green shares; RB11 the repère's cut points).
+
+## Robustesse 2035 des formations (owner, 2026-11-17)
+
+Every formation page of the latest campaign shows a « Robustesse 2035 de la formation » card, first in « Emploi et métiers »:
+an **estimation of the model** built on the per-job model above, never a chance of a job, a forecast for a person or a promise.
+A formation is read, as the owner put it, as the result of the skills it develops through theory, practice and the company:
+
+**1. Its outlets ω** (one method per formation, said on the card; `robustesse_formation.py`, model 2027.1-f):
+- « direct »: the jobs of the diploma's Onisep sheet, equal weights (Onisep gives none); they are also « avec ce diplôme seul »;
+- « poursuite » (licence, LAS; decision 4): the masters of the same university and discipline (sprint 16), weighted by their
+  MonMaster admits (people), then each master's Onisep jobs; the licence-only jobs are shown apart (« Avec ce diplôme seul »), and
+  the gain through a master is the two medians side by side;
+- « famille » (CPGE, PASS, schools, others without an Onisep sheet): the jobs whose route (`parcours.py`) enters through this
+  formation's Parcoursup group, equal weights, a less sure link (confidence × 0.5).
+
+**2. Its skills**: the RNCP fiche of the diploma (France Compétences export, fetched by the `suptracker-rncp` workflow into
+`data/rncp/`: Onisep's own France Compétences link for licences and DE, else the national BTS title before its options, the BUT
+specialty and parcours; among fiches with content, the ACTIVE one, then the latest decision; never a fuzzy title) gives the ROME
+codes it targets; the ROME 4.0 open data of France Travail gives their competences. Portable = classed « transverse » by France
+Travail, or shared by at least 20 job sheets. The card prints the portable share, the digital and ecological competences, and the
+RNCP skill blocks verbatim with the fiche's link. No text matching.
+
+**3. Its practice**: apprenticeship possible (the RNCP access routes); for a licence, the stable-employment rate 18 months after
+its masters (InserSup, mean of the published masters weighted by their admits, labelled « estimation »). BTS insertion is measured
+at 6 months and stays apart, out of the score (decision 2).
+
+**Score per scenario** (decisions 3 and 5): `R = 0.60 Σω R_job + 0.10 Ins + 0.15 Div + 0.15 Comp`, renormalised over the terms
+available (a missing term lowers the coverage, never a typed value). `Div` = 100 × Shannon entropy of ω over the ISCO major groups /
+ln 10; `Comp` = 100 × portable share. The median of the three scenarios with min-max, the confidence = the lowest of freshness,
+observed links (method weight 1 / 0.8 / 0.5 × the jobs' own), agreement and coverage; < 0.4 = « données insuffisantes ».
+
+**A second repère, among ALL formations (owner, 2026-11-17).** The full score drops the terms a formation lacks (insertion, skills),
+so comparing full scores across filières would favour those with fewer data. The national repère therefore reads `score_national`:
+the median of the three scenarios of `(0.60 jobs + 0.15 diversity) / 0.75`, the only terms every formation has, and places it among
+every scored formation (same rank rule, top / bottom 20 %). Its line says when the counted jobs come after more studies: a licence's
+masters (« après la licence et un master, bac+5 »), a family route (« souvent après d'autres études ») — so a prépa or a school is
+not read as « safer » than a short diploma. The scale is tight (p20 61.3, median 65.0, p80 66.7 on the 2026-11-17 build): never a
+rank, only the three levels.
+
+**What the card leads with**: a REPÈRE among the scored formations of the SAME filière computed with the SAME terms (decision 1):
+top / bottom 20 % by rank (ties never count as above or below). Formations of a filière that share their outlets share their score:
+with fewer than 5 distinct scores (CPGE, écoles d'ingénieurs et de commerce, PASS, IFSI) the card says they lead to the same jobs and
+are not ranked among themselves; fewer than 20 formations = too few to compare. Then the plain facts (outlets in the top / bottom
+20 % of jobs, portable share, the masters, apprenticeship), « Avec ce diplôme seul », « Après un master de l'université », the main
+jobs (listed only when the cut does not split equal weights), the RNCP blocks; the score in « Détail du calcul ».
+
+First build (2026-11-17): 12,513 formations with a block, 12,185 scored (85.5 % of the latest campaign); methods direct 6,780,
+poursuite 3,044, famille 2,689; skills for 9,117 (144 RNCP fiches). Repère: BTS 805 high / 3,016 average / 874 low, licence
+587 / 1,931 / 491, BUT 147 / 486 / 124; CPGE, engineering and business schools, PASS and IFSI not ranked (same outlets). Tables
+`r35_formation` and `r35_rncp` in `rapport_textes.duckdb` (the warehouse stays at 93.9 MB). Red team
+`scripts/redteam_robustesse_formations.py` (RF1-RF8); on the data workflow's warehouse of 2026-11-17, RF7 re-derives every
+repère, 150 direct blocks, the skills of 400 sampled formations and 40 API answers with no difference.
