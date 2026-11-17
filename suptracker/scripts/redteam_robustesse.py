@@ -19,6 +19,10 @@
   RB7 real (--real): the stored tables equal the independent readings, 80 jobs re-derived from metiers.detail, coverage printed;
       stability of the order of the scored jobs when the two weights move by 10 points (Spearman, measured, printed).
   RB8 mutation test.
+  RB9 OECD (owner, 2026-11-17): an independent reading of the workbook (Data and « +1 cognitive » Scenario sheets, reversed
+      normalised gap 1 - total / 23), averaged over the O*NET occupations linked to each ISCO code; RANKS (ties averaged, 0-1)
+      among the codes with both the OIT and the OECD measure; the job's rank gap lowers the agreement beyond 15 points (floor 0.5,
+      never hides a score alone); S1's exposure x the OECD scenario ratio, else x 1.25; the OECD never enters the exposure.
 """
 from __future__ import annotations
 
@@ -182,8 +186,9 @@ def oracle_aug(aei_rows: list, links: list) -> dict:
     return out
 
 
-def oracle_job(d: dict, aug: dict, ced: dict) -> dict:
-    """The PRD's formulas, written again."""
+def oracle_job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
+    """The PRD's formulas, written again (with the owner's OECD rules, 2026-11-17)."""
+    oecd = oecd or {}
     codes = [c for c in ((d.get("ia") or {}).get("isco") or []) if re.fullmatch(r"\d{4}", c.get("code") or "")]
     W = sum(c.get("n_intitules") or 1 for c in codes)
     def mean(pairs):
@@ -192,6 +197,10 @@ def oracle_job(d: dict, aug: dict, ced: dict) -> dict:
     exp = mean([(c["score"], (c.get("n_intitules") or 1) / W) for c in codes if c.get("score") is not None])
     au = mean([(aug[c["code"]][0], (c.get("n_intitules") or 1) / W) for c in codes if c["code"] in aug])
     cr = mean([(ced[c["code"][:2]], (c.get("n_intitules") or 1) / W) for c in codes if c["code"][:2] in ced])
+    ratio = mean([(oecd[c["code"]]["ratio"], (c.get("n_intitules") or 1) / W) for c in codes
+                  if c["code"] in oecd and oecd[c["code"]].get("ratio") is not None])
+    rk = [(oecd[c["code"]], (c.get("n_intitules") or 1) / W) for c in codes if oecd.get(c["code"], {}).get("rang_oit") is not None]
+    gap = abs(mean([(o["rang_oit"], w) for o, w in rk]) - mean([(o["rang_oecd"], w) for o, w in rk])) if rk else None
     clip = lambda x, lo, hi: None if x is None else min(100, max(0, (x - lo) / (hi - lo) * 100))  # noqa: E731
     fam = [f["milliers"] for f in (d.get("emploi2030") or []) if not f.get("absent") and (f.get("milliers") or {}).get("emploi_2019")]
     m = statistics.fmean([x["postes"] / x["emploi_2019"] for x in fam]) if fam else None
@@ -206,10 +215,73 @@ def oracle_job(d: dict, aug: dict, ced: dict) -> dict:
         return 100 * (1 - e * (1 - a))
     sc = {}
     if exp is not None and au is not None and dem(M) is not None:
-        sc = {"S1": (0.35 * ia(min(1, exp * 1.25), au * 0.8) + 0.25 * dem(M)) / 0.6,
+        sc = {"S1": (0.35 * ia(min(1, exp * (1.25 if ratio is None else ratio)), au * 0.8) + 0.25 * dem(M)) / 0.6,
               "S2": (0.35 * ia(exp, au) + 0.25 * dem(M)) / 0.6,
               "S3": (0.35 * ia(exp, au) + 0.25 * dem(M3)) / 0.6}
-    return {"exp": exp, "aug": au, "scen": {k: round(v, 1) for k, v in sc.items()}, "C": C, "M": M, "T": T}
+    acc = 1 - abs(C - M) / 50 if C is not None and M is not None else 0.5
+    acc = max(0.0, acc)
+    if gap is not None:
+        acc = min(acc, 1.0 if gap <= 0.15 else max(0.5, 1 - (gap - 0.15)))
+    return {"exp": exp, "aug": au, "scen": {k: round(v, 1) for k, v in sc.items()}, "C": C, "M": M, "T": T,
+            "accord": acc, "gap": gap}
+
+
+def fixture_oecd(path: Path, rows: list):
+    """rows = (O*NET code, baseline total gap, scenario total gap or None): the workbook's layout (3 heading rows + a units row)."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    wb.active.title = "README"
+    for name, i in (("Data", 1), ("Scenario", 2)):
+        ws = wb.create_sheet(name)
+        ws.append(["OCCUPATION IDENTIFIERS", None, "AI CAPABILITY GAP INDEX", None])
+        ws.append(["Occupation Code (O*NET-SOC Code)", "Occupation Title", "AI Capability Gap Index (Reversed, norm.)", "Total"])
+        ws.append(["OCC_Code", "OCC_Title", "AI Capability Gap Index_Rev. norm.", "AI Capability Gap Index_Total"])
+        ws.append(["—", "—", "Numeric 0-1 (higher = more exposed)", "Numeric >0"])
+        for r in rows:
+            if r[i] is not None:
+                ws.append([r[0], "t", 1 - r[i] / 23, r[i]])
+        ws.append(["Note: a footer line", None, None, None])
+    wb.save(path)
+
+
+def oracle_oecd(path: Path, links: list, ilo: dict) -> dict:
+    """Own reading: the total gap column -> 1 - total / 23 (the codebook's definition), mean per ISCO code, ranks with ties."""
+    import openpyxl
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+
+    def read(name):
+        out = {}
+        for r in wb[name].iter_rows(values_only=True):
+            if r and isinstance(r[0], str) and re.fullmatch(r"\d\d-\d{4}\.\d\d", r[0]) and isinstance(r[3], (int, float)):
+                out[r[0]] = 1 - r[3] / 23
+        return out
+    base, scen = read("Data"), read("Scenario")
+    by = {}
+    for onet, isco in links:
+        by.setdefault(isco, set()).add(onet)
+    out = {}
+    for isco, onets in by.items():
+        b = [base[o] for o in onets if o in base]
+        if not b:
+            continue
+        sc = [scen[o] for o in onets if o in base and o in scen]
+        o = {"oecd": sum(b) / len(b), "ratio": None}
+        if len(sc) == len(b) and o["oecd"] > 0:
+            o["ratio"] = (sum(sc) / len(sc)) / o["oecd"]
+        out[isco] = o
+    both = [k for k in out if k in ilo]
+
+    def rank(vals):
+        r = {}
+        for k in both:
+            below = sum(1 for j in both if vals[j] < vals[k])
+            equal = sum(1 for j in both if vals[j] == vals[k])
+            r[k] = (below + (equal - 1) / 2) / (len(both) - 1) if len(both) > 1 else 0.5
+        return r
+    ri, ro = rank(ilo), rank({k: out[k]["oecd"] for k in both})
+    for k in both:
+        out[k]["rang_oit"], out[k]["rang_oecd"] = ri[k], ro[k]
+    return out
 
 
 # --------------------------------------------------------------------------------------------------------------- checks
@@ -286,15 +358,22 @@ AUG = {"2512": (0.4, 2, "detail"), "1330": (0.7, 0, "grand_groupe"), "3333": (0.
 CED = {"25": {"postes": 0.5, "source_croissance": "France"}, "13": {"postes": 0.2, "source_croissance": "UE27"},
        "33": {"postes": 0.3, "source_croissance": "France"},
        "99": {"postes": 0.1, "source_croissance": "France"}}
+OECD = {"2512": {"oecd": 0.6, "oecd_s1": 0.72, "ratio": 1.2, "rang_oit": 0.9, "rang_oecd": 0.3},
+        "1330": {"oecd": 0.5, "oecd_s1": None, "ratio": None, "rang_oit": 0.4, "rang_oecd": 0.45},
+        "3333": {"oecd": 0.7, "oecd_s1": 0.7, "ratio": 1.0, "rang_oit": 0.5, "rang_oecd": 0.55},
+        "9999": {"oecd": 0.2, "oecd_s1": 0.3, "ratio": 1.5}}                       # no OIT score: no rank
 
 
 @check("RB3 per job: an independent implementation of the PRD formulas equals the module on crafted jobs")
 def rb3(c: Ctx):
     R = c.R()
     bad = []
-    for name, d in crafted().items():
-        got = R.job(d, AUG, CED)
-        exp = oracle_job(d, AUG, {k: v["postes"] for k, v in CED.items()})
+    for (name, d), oe in [(x, o) for x in crafted().items() for o in (None, OECD)]:
+        got = R.job(d, AUG, CED, oe)
+        exp = oracle_job(d, AUG, {k: v["postes"] for k, v in CED.items()}, oe)
+        name = f"{name}{' +OCDE' if oe else ''}"
+        if abs(got["confiance"]["accord_sources"] - round(exp["accord"], 3)) > 1e-9:
+            bad.append(f"{name}: agreement {got['confiance']['accord_sources']} != {exp['accord']:.3f}")
         if exp["scen"]:
             vals = list(exp["scen"].values())
             if got["scenarios"] is None and got["confiance"]["valeur"] >= 0.4:
@@ -324,6 +403,14 @@ def rb3(c: Ctx):
         bad.append(f"observed links {full['confiance']['donnees_observees']}")
     if R.job(crafted()["no_demand"], AUG, {})["score"] is not None:
         bad.append("a job without any demand term has a score")
+    far = R.job(crafted()["spread"], AUG, CED, {"3333": {"oecd": 0.1, "ratio": 1.0, "rang_oit": 1.0, "rang_ocde": 0.0, "rang_oecd": 0.0}})
+    if far["score"] is None or far["confiance"]["accord_sources"] < 0.5 - 1e-9:
+        bad.append(f"a rank disagreement alone hides the score: {far['confiance']}")
+    if R.job(crafted()["full"], AUG, CED, OECD)["composantes"] != R.job(crafted()["full"], AUG, CED)["composantes"]:
+        bad.append("the OECD measure enters the exposure or a component of the score")
+    near = R.job(crafted()["full"], AUG, CED, {"2512": dict(OECD["2512"], rang_oecd=0.8), "1330": OECD["1330"]})
+    if near["confiance"]["accord_sources"] != R.job(crafted()["full"], AUG, CED)["confiance"]["accord_sources"]:
+        bad.append("a rank gap of at most 15 points lowers the agreement")
     return not bad, f"differences {bad[:4]}"
 
 
@@ -393,7 +480,7 @@ def rb5(c: Ctx):
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     R = c.R()
-    full = R.job(crafted()["full"], AUG, CED)
+    full = R.job(crafted()["full"], AUG, CED, {"2512": dict(OECD["2512"]), "1330": dict(OECD["2512"])})
     full = json.loads(json.dumps(full))
     full["isco"][0]["libelle"] = HOSTILE
     full["model_version"] = HOSTILE
@@ -420,7 +507,12 @@ def rb5(c: Ctx):
         bad.append("the median is not shown as an estimation")
     if f"{round(s['min'])}" not in cf or f"{round(s['max'])}" not in cf:
         bad.append("the range between the scenarios is not shown")
-    for w in ("fraîcheur", "liens observés", "accord des sources", "couverture", "D'où vient ce chiffre", "Version du modèle", "OIT &lt;img"):
+    if "Selon l'OIT, ce métier est plus exposé à l'IA que 90 % des métiers mesurés. Selon l'OCDE, plus exposé que 30 %" not in cf:
+        bad.append("the OIT / OECD ranks are not shown side by side")
+    if "Selon l'OCDE" in cn:
+        bad.append("an OECD line without ranks")
+    for w in ("fraîcheur", "liens observés", "accord des sources", "couverture", "D'où vient ce chiffre", "Version du modèle", "OIT &lt;img",
+              "« +1 niveau cognitif » de l'OCDE"):
         if w not in cf:
             bad.append(f"card lacks « {w} »")
     if "Données insuffisantes" not in cn or re.search(r"/ 100", cn) or "données insuffisantes" not in tn:
@@ -441,7 +533,7 @@ def rb6(c: Ctx):
         bad.append("job page")
     from suptracker import sources as SRC
     st = {s["key"]: s["status"] for s in SRC.SOURCES if "robustesse_2035" in s.get("feeds", ()) and s["status"] == "en_ligne"}
-    if st != {"cedefop_skills_forecast_2026": "en_ligne", "anthropic_aei": "en_ligne"}:
+    if st != {"cedefop_skills_forecast_2026": "en_ligne", "anthropic_aei": "en_ligne", "oecd_ai_exposure_2026": "en_ligne"}:
         bad.append(f"sources {st}")
     if "## Robustesse 2035" not in (ROOT / "README.md").read_text():
         bad.append("README")
@@ -490,15 +582,33 @@ def rb7(c: Ctx):
     ced = {r[0]: r for r in src.execute("SELECT isco2, postes, source_croissance FROM r35_cedefop").fetchall()}
     exp = oracle_cedefop(ROOT / "data" / "sources" / R.CEDEFOP_ZIP)
     bad += [f"cedefop {k}" for k in exp if k not in ced or abs(ced[k][1] - exp[k][0]) > 1e-9 or ced[k][2] != exp[k][1]]
-    aug = {r[0]: (r[1], r[2], r[3]) for r in src.execute("SELECT isco, augmentation, n_onet, niveau FROM r35_isco").fetchall()}
+    rows = src.execute("SELECT isco, augmentation, n_onet, niveau, ocde, ratio_s1, rang_oit, rang_ocde FROM r35_isco").fetchall()
+    aug = {r[0]: (r[1], r[2], r[3]) for r in rows if r[1] is not None}
+    oecd = {r[0]: {"oecd": r[4], "ratio": r[5], "rang_oit": r[6], "rang_oecd": r[7]} for r in rows if r[4] is not None}
+    xl = ROOT / "data" / "sources" / R.OECD_XLSX
+    if xl.exists():
+        links = con.execute("SELECT DISTINCT onet, isco FROM core.ia_theta_lien").fetchall()
+        ilo = dict(con.execute("SELECT isco, moyenne FROM core.ia_oit_isco WHERE moyenne IS NOT NULL").fetchall())
+        eo = oracle_oecd(xl, links, ilo)
+        for k in set(eo) | set(oecd):
+            a, b = eo.get(k), oecd.get(k)
+            if not a or not b or abs(a["oecd"] - b["oecd"]) > 1e-6 or (a["ratio"] is None) != (b["ratio"] is None) \
+                    or (a["ratio"] is not None and abs(a["ratio"] - b["ratio"]) > 1e-6) \
+                    or (a.get("rang_oit") is None) != (b["rang_oit"] is None) \
+                    or (b["rang_oit"] is not None and max(abs(a["rang_oit"] - b["rang_oit"]), abs(a["rang_oecd"] - b["rang_oecd"])) > 1e-9):
+                bad.append(f"ocde {k}")
+    else:
+        bad.append("the OECD workbook is missing")
     stored = {m: json.loads(d) for m, d in src.execute("SELECT met_id, data FROM r35_metier").fetchall()}
     rng = random.Random(7)
     for mid in rng.sample(sorted(stored), min(80, len(stored))):
         d = MT.detail(con, mid)
-        o = oracle_job(d, aug, {k: v[1] for k, v in ced.items()})
+        o = oracle_job(d, aug, {k: v[1] for k, v in ced.items()}, oecd)
         s = stored[mid]
         if s["scenarios"] is not None and s["scenarios"] != o["scen"]:
             bad.append(f"{mid}: {s['scenarios']} != {o['scen']}")
+        if abs(s["confiance"]["accord_sources"] - round(o["accord"], 3)) > 1e-9:
+            bad.append(f"{mid}: agreement {s['confiance']['accord_sources']} != {o['accord']:.3f}")
     scored = [s for s in stored.values() if s["score"]]
     # stability: the PRD weights (35 / 25) moved by 10 points each way, order of the scored jobs (Spearman)
     base, plus, minus = [], [], []
@@ -508,8 +618,11 @@ def rb7(c: Ctx):
         plus.append((0.45 * k["ia"] + 0.15 * k["demande"]) / 0.6)
         minus.append((0.25 * k["ia"] + 0.35 * k["demande"]) / 0.6)
     rho = (round(spearman(base, plus), 3), round(spearman(base, minus), 3)) if base else None
+    gaps = [s["ocde"]["ecart_rang"] for s in stored.values() if (s.get("ocde") or {}).get("ecart_rang") is not None]
+    lv = {x: sum(1 for s in stored.values() if s["confiance"]["niveau"] == x) for x in ("haute", "moyenne", "faible")}
     return not bad, (f"{len(scored)}/{len(stored)} jobs scored; {sum(1 for v in ced.values() if v[2] == 'UE27')} groups with the "
-                     f"EU-27 growth; Spearman at ±10 points: {rho}; differences {bad[:3]}")
+                     f"EU-27 growth; Spearman at ±10 points: {rho}; OIT/OECD rank gap > 15 points for {sum(g > 0.15 for g in gaps)}"
+                     f"/{len(gaps)} jobs; confidence {lv}; differences {bad[:3]}")
 
 
 SOURCE_MUTANTS = [
@@ -520,7 +633,7 @@ SOURCE_MUTANTS = [
     ("rob", "augmentation over all usage", "out[soc] = a / (a + b)", "out[soc] = a / 100", "RB2"),
     ("rob", "no major-group fallback", '            out[isco] = (statistics.fmean(majors), 0, "grand_groupe")', "            pass", "RB2"),
     ("rob", "exposure x augmentation", "return 100.0 * (1.0 - exp * (1.0 - aug))", "return 100.0 * (1.0 - exp * aug)", "RB4"),
-    ("rob", "S1 softer", "exp, aug = min(1.0, exp * S1_EXP), aug * S1_AUG", "exp, aug = exp, aug", "RB3"),
+    ("rob", "S1 softer", "exp, aug = min(1.0, exp * (ratio if ratio is not None else S1_EXP)), aug * S1_AUG", "exp, aug = exp, aug", "RB3"),
     ("rob", "demand weights swapped", "W_CED, W_M2030, W_BMO = 0.5, 0.3, 0.2", "W_CED, W_M2030, W_BMO = 0.3, 0.5, 0.2", "RB3"),
     ("rob", "other fixed bounds", '"ced": (-0.10, 0.90)', '"ced": (-0.10, 1.90)', "RB3"),
     ("rob", "median replaced by the worst case", '"median": statistics.median(vals)', '"median": min(vals)', "RB3"),
@@ -528,6 +641,18 @@ SOURCE_MUTANTS = [
     ("rob", "score shown at low confidence", "shown = len(vals) == 3 and conf >= CONF_LOW", "shown = len(vals) == 3", "RB3"),
     ("rob", "name links counted as observed", "observed += w * (1.0 if onisep else 0.5)", "observed += w * (1.0 if True else 0.5)", "RB3"),
     ("rob", "badge threshold", "max(vals) - min(vals) > BADGE_SPREAD", "max(vals) - min(vals) > 50", "RB3"),
+    ("rob", "S1 ignores the OECD scenario", "exp * (ratio if ratio is not None else S1_EXP)", "exp * S1_EXP", "RB3"),
+    ("rob", "rank gap threshold", "RANK_GAP, RANK_FLOOR = 0.15, 0.5", "RANK_GAP, RANK_FLOOR = 0.30, 0.5", "RB3"),
+    ("rob", "no floor: a rank gap hides scores", "RANK_GAP, RANK_FLOOR = 0.15, 0.5", "RANK_GAP, RANK_FLOOR = 0.15, 0.0", "RB3"),
+    ("rob", "rank gap ignored", "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem", "accord = accord_dem", "RB3"),
+    ("rob", "OECD exposure mixed into the exposure", "        if c.get(\"score\") is not None:\n            exp_p.append((c[\"score\"], w))",
+     "        if c.get(\"score\") is not None:\n            exp_p.append(((c[\"score\"] + oe[\"oecd\"]) / 2 if oe else c[\"score\"], w))", "RB3"),
+    ("rob", "OECD column misread", 'head.index("AI Capability Gap Index_Rev. norm.")', 'head.index("AI Capability Gap Index_Total")', "RB9"),
+    ("rob", "baseline read from the scenario sheet", 'now, scen = sheet("Data"), sheet("Scenario")', 'now, scen = sheet("Scenario"), sheet("Scenario")', "RB9"),
+    ("rob", "ties not averaged", "while j + 1 < n and values[order[j + 1]] == values[order[i]]:", "while False:", "RB9"),
+    ("rob", "ranks over every OECD code", "both = sorted(k for k in out if k in ilo)", "both = sorted(k for k in out if k in ilo or True)", "RB9"),
+    ("rob", "partial scenario averaged", "s1 = statistics.fmean(sc) if len(sc) == len(vals) else None", "s1 = statistics.fmean(sc) if sc else None", "RB9"),
+    ("js", "no OECD comparison", "${conf}${ocde}${src}", "${conf}${src}", "RB5"),
     ("js", "label unescaped", '<li>${esc(x.libelle)}</li>', '<li>${x.libelle}</li>', "RB5"),
     ("js", "no estimation label", '${estimTag("médiane des trois scénarios")}', "", "RB5"),
     ("js", "no confidence detail", "fraîcheur des sources ${fmt2(k.fraicheur)}", "${fmt2(k.fraicheur)}", "RB5"),
@@ -536,9 +661,66 @@ SOURCE_MUTANTS = [
 ]
 
 
+FIX_OECD = [("15-1252.00", 4.6, 2.3), ("15-1253.00", 9.2, 6.9), ("43-9061.00", 11.5, None), ("11-1011.00", 4.6, 4.6),
+            ("29-1141.00", 13.8, 9.2), ("99-9999.00", 0.0, 0.0),
+            ("43-9071.00", 6.9, 4.6)]                                  # 4110: one of its two occupations has no scenario
+FIX_OECD_LINKS = FIX_LINKS + [("11-1011.00", "1120"), ("29-1141.00", "2221"), ("43-9061.00", "4110"), ("43-9071.00", "4110")]
+FIX_ILO = {"2512": 0.6, "4110": 0.6, "1120": 0.2, "2221": 0.3}          # 9999: no OIT score, no rank
+
+
+@check("RB9 OECD: own reading of the workbook, mean per ISCO code, ranks with ties, scenario ratio, never in the exposure")
+def rb9(c: Ctx):
+    R = c.R()
+    import duckdb
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        fixture_oecd(tmp / "o.xlsx", FIX_OECD)
+        raw = R.read_oecd(tmp / "o.xlsx")
+        con = duckdb.connect()
+        con.execute("CREATE SCHEMA core")
+        con.execute("CREATE TABLE core.ia_theta_lien (onet VARCHAR, soc2018 VARCHAR, soc2010 VARCHAR, isco VARCHAR)")
+        con.executemany("INSERT INTO core.ia_theta_lien VALUES (?, '', '', ?)", sorted(set(FIX_OECD_LINKS)))
+        con.execute("CREATE TABLE core.ia_oit_isco (isco VARCHAR, moyenne DOUBLE)")
+        con.executemany("INSERT INTO core.ia_oit_isco VALUES (?, ?)", list(FIX_ILO.items()) + [("9999", None)])
+        got = R.isco_oecd(con, raw)
+        exp = oracle_oecd(tmp / "o.xlsx", sorted(set(FIX_OECD_LINKS)), FIX_ILO)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    bad = []
+    for k in set(exp) | set(got):
+        a, b = exp.get(k), got.get(k)
+        if not a or not b or abs(a["oecd"] - b["oecd"]) > 1e-9 or (a["ratio"] is None) != (b["ratio"] is None) \
+                or (a["ratio"] is not None and abs(a["ratio"] - b["ratio"]) > 1e-9) \
+                or (a.get("rang_oit") is None) != (b.get("rang_oit") is None) \
+                or (a.get("rang_oit") is not None and (abs(a["rang_oit"] - b["rang_oit"]) > 1e-9 or abs(a["rang_oecd"] - b["rang_oecd"]) > 1e-9)):
+            bad.append(f"{k}: {b} != {a}")
+    # fixture expectations: 4110's scenario is missing -> no ratio; 2512 and 4110 tie on the OIT score -> same rank
+    if got.get("4110", {}).get("ratio") is not None or "rang_oit" in got.get("9999", {}) \
+            or abs(got["2512"]["rang_oit"] - got["4110"]["rang_oit"]) > 1e-12:
+        bad.append(f"fixture rules {got}")
+    if R.rank_agreement(0.15) != 1 or abs(R.rank_agreement(0.35) - 0.8) > 1e-9 or R.rank_agreement(1.0) != 0.5 or R.rank_agreement(None) is not None:
+        bad.append("rank agreement rule")
+    if re.search(r"oe\[\"oecd\"\][^\n]*exp_p|exp_p[^\n]*oe\[", c.src["rob"]):
+        bad.append("the OECD exposure enters the exposure")
+    real = ROOT / "data" / "sources" / R.OECD_XLSX
+    n = None
+    if real.exists():
+        rr = R.read_oecd(real)
+        n = len(rr)
+        import openpyxl
+        wb = openpyxl.load_workbook(real, read_only=True, data_only=True)
+        tot = {r[0]: 1 - r[3] / 23 for r in wb["Data"].iter_rows(values_only=True)
+               if r and isinstance(r[0], str) and re.fullmatch(r"\d\d-\d{4}\.\d\d", r[0]) and isinstance(r[3], (int, float))}
+        diff = [k for k in tot if k not in rr or abs(rr[k][0] - tot[k]) > 1e-6]
+        if diff or n != 879:
+            bad.append(f"real workbook: {n} occupations, reversed index != 1 - total / 23 for {diff[:3]}")
+    return not bad, f"differences {bad[:4]}; real occupations read: {n}"
+
+
 @check("RB8 mutation test: every seeded bug is caught")
 def rb8(c: Ctx):
-    base_bad = [fn.check_name.split()[0] for fn in CHECKS[:5] if not fn(c)[0]]
+    targets = {m[4] for m in SOURCE_MUTANTS}
+    base_bad = [fn.check_name.split()[0] for fn in CHECKS if fn.check_name.split()[0] in targets and not fn(c)[0]]
     if base_bad:
         return False, f"the unmutated code fails {base_bad}: mutants not counted"
     caught, missed = 0, []

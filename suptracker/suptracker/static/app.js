@@ -4060,14 +4060,16 @@ function robustesseCard(r) {
       <tr><td class="small">· Postes à pourvoir 2019-2030, Métiers 2030 (30 %)${c.m2030_taux != null ? ` : ${robNum(c.m2030_taux * 100)} % de l'emploi de 2019` : ""}</td><td class="num" data-label="Sur 100">${robNum(c.m2030)}</td></tr>
       <tr><td class="small">· Recrutements jugés difficiles en 2026, BMO (20 %)</td><td class="num" data-label="Sur 100">${robNum(c.tension)}</td></tr></table></div>`;
   const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
+  const o = r.ocde || {};
+  const ocde = o.rang_oit != null && o.rang_ocde != null ? `<p class="small">Contrôle avec une autre mesure, celle de l'OCDE (2026). Selon l'OIT, ce métier est plus exposé à l'IA que ${robNum(o.rang_oit * 100)} % des métiers mesurés. Selon l'OCDE, plus exposé que ${robNum(o.rang_ocde * 100)} %. Les deux mesures ne comptent pas la même chose : seul l'écart entre ces deux places est lu. Au-delà de 15 points, la confiance baisse.</p>` : "";
   const eu = (r.isco || []).some((i) => i.cedefop_croissance_source === "UE27");
   const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
       <ul class="small">${(r.sources_detail || []).map((x) => `<li>${esc(x.libelle)}</li>`).join("")}</ul>
       ${eu ? `<p class="small">Pour un ou plusieurs groupes de ce métier, la croissance est la moyenne européenne : les chiffres français du Cedefop sont faussés par un changement de méthode de l'enquête Emploi en 2021.</p>` : ""}
-      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition × 1,25, aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
+      <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
-    ${head}${phrase}${scen}${comp}${conf}${src}</div>`;
+    ${head}${phrase}${scen}${comp}${conf}${ocde}${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

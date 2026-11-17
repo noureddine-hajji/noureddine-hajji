@@ -3647,7 +3647,7 @@ score », with guardrails: the MEDIAN of three scenarios is shown with the range
 the components are always shown, and « D'où vient ce chiffre ? » gives the sources, their years and the model version.
 
 **Per ISCO-08 unit group of the job** (sprint 13's codes, weighted by their count of distinct titles; `robustesse.py`, model 2027.1):
-- exposure `Exp` = the OIT 2025 mean task score (0-1), as published; the OECD 2026 measure will be crossed with it once uploaded;
+- exposure `Exp` = the OIT 2025 mean task score (0-1), as published (the OECD 2026 measure never enters it: see below);
 - augmentation `Aug` = Anthropic Economic Index, May 2026, Claude.ai, global: augmentation / (augmentation + automation) of the
   O*NET occupations linked to the code by official tables; none published = the mean of their SOC major groups, flagged;
 - `IA = 100 × (1 − Exp × (1 − Aug))`: exposure is not replacement, a job where AI mostly helps keeps a high score.
@@ -3661,12 +3661,25 @@ the components are always shown, and « D'où vient ce chiffre ? » gives the so
 - BMO 2026: share of hiring projects judged difficult (bounds 0 / 100 %).
 
 **Score**: `R = (0.35 IA + 0.25 Dem) / 0.60` (the PRD's weights of these two terms; the formation adds insertion and diversity).
-Scenarios: S1 AI accelerated (Exp × 1.25 capped at 1, Aug × 0.8), S2 central, S3 fast transition (the official low-carbon variant
+Scenarios: S1 AI accelerated (Exp × the job's OECD « +1 cognitive level » ratio, else × 1.25, capped at 1; Aug × 0.8), S2 central, S3 fast transition (the official low-carbon variant
 of Métiers 2030 instead of ESCO green skills). « Dépend du scénario » when the range exceeds 15 points.
 
 **Confidence** = the lowest of four components: freshness (each source's age, weighted by its weight), observed links (a code
-from the Onisep ROME = 1, by name = 0.5, a major-group augmentation × 0.75), agreement of the two demand sources (Cedefop vs Métiers
-2030), coverage of the terms. Below 0.4 the page says « données insuffisantes » and shows no number.
+from the Onisep ROME = 1, by name = 0.5, a major-group augmentation × 0.75), agreement of the sources (Cedefop vs Métiers
+2030, and the OIT vs OECD ranks below; the lower is kept), coverage of the terms. Below 0.4 the page says « données insuffisantes »
+and shows no number.
+
+**OECD 2026 (owner's choices, 2026-11-17).** The OECD AI exposure measure (AI Papers n° 59, CC BY 4.0, 879 O*NET occupations) is
+`1 − capability gap / 23`, another notion on another scale: Pearson 0.02 with the OIT score over 414 ISCO codes. So it is a
+CROSS-CHECK, never part of the exposure:
+- per ISCO code, the mean over the O*NET occupations linked by the official tables (`core.ia_theta_lien`), for the baseline and the
+  « +1 cognitive level » scenario (a scenario ratio only when every linked occupation has one);
+- the job's RANK (0-1, ties averaged, among the codes with both measures) under each measure; a gap above 15 points lowers the
+  agreement by one point per point, never under 0.5 (the value of an unknown agreement: the measures are uncorrelated by
+  construction, so a disagreement alone never hides a score). 185 jobs move from « haute » to « moyenne », none is hidden;
+- S1 multiplies the OIT exposure by scenario / baseline (median 1.07, at most 1.35) instead of the PRD's fixed 1.25;
+- the card prints both places side by side (« plus exposé que X % des métiers mesurés », OIT then OECD).
 
 First build (2026-11-17): 876 of 1,124 jobs scored, median 70 (half between 68 and 73); confidence high for 612, medium 264,
-insufficient 248. Red team `scripts/redteam_robustesse.py` (RB1-RB8; RB7 prints the order's Spearman stability at ±10 weight points).
+insufficient 248 (with the OECD cross-check: high 427, medium 449, insufficient 248). Red team `scripts/redteam_robustesse.py`
+(RB1-RB9; RB7 prints the order's Spearman stability at ±10 weight points; RB9 re-reads the OECD workbook from its total-gap column).

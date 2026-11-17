@@ -678,9 +678,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   when confidence < 0.4. IA = 100(1 − Exp(1 − Aug)): Exp = OIT 2025 as published, Aug = AEI May 2026 augmentation/(aug+automation)
   via official O*NET→ISCO links (else SOC major groups, flagged). Dem = 0.5 Cedefop + 0.3 Métiers 2030 + 0.2 BMO, FIXED bounds
   (BOUNDS), never min-max. Cedefop France 2021 break (owner's rule): EU-27 growth when |2020→21| > 25 % or |FR − EU| > 30 points,
-  replacement French. R = (0.35 IA + 0.25 Dem)/0.6; S1 Exp×1.25 (cap 1) Aug×0.8, S2 central, S3 = Métiers 2030 low-carbon variant.
-  Confidence = min(freshness weighted, observed links, Cedefop/M2030 agreement, coverage). Reachability never enters. Tables r35_*
-  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB8).
+  replacement French. R = (0.35 IA + 0.25 Dem)/0.6; S1 Exp × the OECD « +1 cognitive » ratio (else ×1.25, cap 1) Aug×0.8, S2 central, S3 = Métiers
+  2030 low-carbon variant. Confidence = min(freshness weighted, observed links, agreement, coverage); agreement = min(Cedefop/M2030,
+  OIT/OECD RANK gap: > 15 points lowers it, floor 0.5). OECD (owner, 2026-11-17) = cross-check only, NEVER in the exposure (other
+  notion and scale, r = 0.02); both ranks printed side by side. Reachability never enters. Tables r35_*
+  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB9).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
