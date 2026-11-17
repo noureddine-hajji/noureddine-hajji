@@ -218,8 +218,8 @@ def site_dates(text: str, fetched: date) -> list[date]:
         own = dates_in(fold(ln))
         if own:
             found |= own                                           # the keyword's own line has its dates: the next line is other
-        elif len(ln) <= HEADING and i + 1 < len(lines):
-            found |= dates_in(fold(ln + " " + lines[i + 1]))       # a short heading, its date on the next line
+        elif len(ln) <= HEADING and i + 1 < len(lines) and not _OTHER_SCHOOL.search(fold(lines[i + 1])):
+            found |= dates_in(fold(ln + " " + lines[i + 1]))       # a short heading, its date on the next line (never a collège's: Codex)
     return sorted(d for d in found if season_of(d) is not None)
 
 

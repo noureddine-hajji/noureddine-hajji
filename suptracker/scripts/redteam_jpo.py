@@ -308,6 +308,7 @@ def j4(c: Ctx):
         ("Rentrée le 2 septembre 2026\nInscriptions le 15 mars 2027", []),           # no keyword
         ("nos portes-ouvertes : dimanche 15 novembre 2026", [date(2026, 11, 15)]),
         ("JPO : 7 février", []),                                                     # neither a year nor a weekday
+        ("Portes ouvertes\nECOLE - COLLEGE : VENDREDI 11 DECEMBRE 2026", []),         # a collège's date under a heading (Codex)
         ("Nous vous attendons à nos journées portes ouvertes pour découvrir toutes nos formations et nos campus\n"
          "Mardi 17 novembre 2026", []),                                              # a long sentence is not a heading
         ("Portes ouvertes - Campus\nPublié le 8 octobre 2025", []),                  # the page's own date
@@ -517,6 +518,22 @@ def j7(c: Ctx):
         F.store_version(tmp, "sup", rows, "2026-11-17", "onisep", "u", log)
         if len(F.versions(tmp)) != 1:
             bad.append("an unchanged content stored twice")
+        # A, then B, then A again: the restoration is the latest version (Codex)
+        rows_b = [dict(rows[0], jpo="le 13/02/2027")]
+        F.store_version(tmp, "sup", rows_b, "2026-11-18", "onisep", "u", log)
+        F.store_version(tmp, "sup", rows, "2026-11-19", "onisep", "u", log)
+        vs = sorted(F.versions(tmp), key=lambda v: v["as_of"])
+        if len(vs) != 3 or vs[-1]["as_of"] != "2026-11-19" or vs[-1]["sha256"] != vs[0]["sha256"]:
+            bad.append(f"content restored after a change is not the latest version: {[v['as_of'] for v in vs]}")
+        F.store_version(tmp, "sup", rows_b, "2024-01-05", "archive", "x", log)
+        if len(F.versions(tmp)) != 3:
+            bad.append("an archived capture equal to a kept version stored again")
+        # a page that withdrew its announcement replaces the old extract; an empty page never read before adds nothing
+        old = [{"uai": "A", "url": "u", "fetched": "2026-11-10", "text": "JPO le samedi 20 mars 2027"}]
+        rows_x, added = F.merge_extracts(old, [{"uai": "A", "url": "u", "fetched": "2026-11-14", "text": ""},
+                                               {"uai": "B", "url": "v", "fetched": "2026-11-14", "text": ""}])
+        if [(r["uai"], r["fetched"], r["text"]) for r in rows_x] != [("A", "2026-11-10", "JPO le samedi 20 mars 2027"), ("A", "2026-11-14", "")]:
+            bad.append(f"a withdrawn announcement is not recorded: {rows_x}")
         # an archived capture already read is not downloaded again
         (tmp / "onisep" / "archive_lues.txt").write_text("20250105000000 data.onisep.fr/api/v1/downloads/5fa586da5c4b6/5fa586da5c4b6.csv\n")
         cdx = json.dumps([["urlkey", "timestamp", "original"],
@@ -544,7 +561,8 @@ def j7(c: Ctx):
         bad.append(f"a malformed link stops the run ({type(e).__name__})")
     if links != ["https://univ-a.fr/actus/portes-ouvertes", "https://www.univ-a.fr/x"]:
         bad.append(f"links followed {links}")
-    cl = _Client({"https://s.fr/robots.txt": ("User-agent: *\nDisallow: /prive/",), "https://s.fr/ok": ("<p>Portes ouvertes le 12/03/2027</p>",)})
+    cl = _Client({"https://s.fr/robots.txt": ("User-agent: *\nDisallow: /prive/",), "https://s.fr/ok": ("<p>Portes ouvertes le 12/03/2027</p>",),
+                  "https://s.fr/vide": ("<p>Nos formations</p>",)})
     F.time.sleep = lambda s: None
     cr = F.Crawler(cl)
     if cr.get("https://s.fr/prive/jpo")[0] != "robots" or "https://s.fr/prive/jpo" in cl.calls:
@@ -562,6 +580,9 @@ def j7(c: Ctx):
     if F.Crawler(Boom({})).get("https://boom.fr/x")[1] is not None:
         bad.append("an unexpected client error is not caught")
     ext, st = F.visit(cr, "0590001A", ["https://s.fr/ok"])
+    ext2, _ = F.visit(cr, "0590001A", ["https://s.fr/vide"])
+    if [e["text"] for e in ext2] != [""] and cl.pages.get("https://s.fr/vide"):
+        bad.append("a page read without an announcement is not an observation")
     if st["status"] != "ok" or [e["text"] for e in ext] != ["Portes ouvertes le 12/03/2027"]:
         bad.append(f"visit {ext} {st}")
     return not bad, f"differences {bad[:4]}"
@@ -659,7 +680,8 @@ SOURCE_MUTANTS = [
     ("jpo", "false weekday accepted", "if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:", "if False:", "J4"),
     ("jpo", "date without year nor weekday accepted", "            else:\n                d = None\n            if d is not None:\n                out.add(d)",
      "            else:\n                d = _mkdate(dd, mo, s)\n            if d is not None:\n                out.add(d)", "J4"),
-    ("jpo", "long line takes the next one", "        elif len(ln) <= HEADING and i + 1 < len(lines):", "        elif i + 1 < len(lines):", "J4"),
+    ("jpo", "long line takes the next one", "        elif len(ln) <= HEADING and i + 1 < len(lines) and not _OTHER",
+     "        elif i + 1 < len(lines) and not _OTHER", "J4"),
     ("jpo", "dated line takes the next one", "        if own:\n            found |= own", "        if False:\n            found |= own", "J5"),
     ("jpo", "agenda page adds dates", 'if e["onisep"] or e["fiche"] or (e.pop("_own") and e["uai"] not in with_onisep and not own_fiche)]',
      'if e["onisep"] or e["fiche"] or (e["uai"] not in with_onisep and not own_fiche)]', "J5"),
@@ -685,11 +707,17 @@ SOURCE_MUTANTS = [
     ("js", "university not named", "son université : <strong>${esc(j.universite.nom)}</strong>", "son université : <strong></strong>", "J6"),
     ("fetch", "robots ignored", "return rp.can_fetch(UA, url)", "return True", "J7"),
     ("fetch", "other sites followed", "site_of(url) == site_of(base) and (", "(", "J7"),
-    ("fetch", "unchanged content stored again", 'if any(v["sha256"] == sha for v in same_kind):', "if False:", "J7"),
+    ("fetch", "unchanged content stored again", 'source != "archive" and same_kind and same_kind[-1]["sha256"] == sha)', "False)", "J7"),
     ("fetch", "malformed address fetched", """        if not good_url(url):
             res = ("adresse invalide", None)
         elif not self.allowed(url):""", """        if not self.allowed(url):""", "J7"),
     ("fetch", "malformed link stops the run", """        except ValueError:                      # a malformed link""", """        except KeyError:                      # a malformed link""", "J7"),
+    ("fetch", "restored content dropped", 'source != "archive" and same_kind and same_kind[-1]["sha256"] == sha)',
+     'source != "archive" and any(v["sha256"] == sha for v in same_kind))', "J7"),
+    ("fetch", "withdrawn announcement not recorded", 'if (prev is None and e["text"]) or (prev is not None and prev["text"] != e["text"]):',
+     'if e["text"] and (prev is None or prev["text"] != e["text"]):', "J7"),
+    ("jpo", "collège line under a heading read", "        elif len(ln) <= HEADING and i + 1 < len(lines) and not _OTHER_SCHOOL.search(fold(lines[i + 1])):",
+     "        elif len(ln) <= HEADING and i + 1 < len(lines):", "J4"),
     ("fetch", "whole page kept", "keep.update(range(i, min(i + 3, len(lines))))", "keep.update(range(len(lines)))", "J7"),
     ("fetch", "captures downloaded again", 'if f"{ts} {orig}" in seen:', "if False:", "J7"),
     ("fetch", "rows without open days kept", 'if (r["jpo"] or r["univ"]) and re.fullmatch', "if re.fullmatch", "J7"),

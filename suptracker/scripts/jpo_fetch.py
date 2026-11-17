@@ -119,13 +119,17 @@ def store_version(d: Path, kind: str, rows: list[dict], as_of: str, source: str,
     text = J.csv_text(rows, COLS)
     sha = hashlib.sha256(text.encode()).hexdigest()
     vs = versions(d)
-    same_kind = sorted((v for v in vs if v["kind"] == kind), key=lambda v: v["as_of"])
-    if any(v["sha256"] == sha for v in same_kind):
-        log.append({"kind": kind, "source": source, "as_of": as_of, "status": "same content as a kept version"})
+    same_kind = sorted((v for v in vs if v["kind"] == kind), key=lambda v: (v["as_of"], v["source"]))
+    # a live reading is compared with the LATEST version only: content restored after a change (A, B, then A again) is a new
+    # observation, or the site would keep announcing B's dates (Codex); an archived capture is history: never stored twice
+    if (source == "archive" and any(v["sha256"] == sha for v in same_kind)) or (
+            source != "archive" and same_kind and same_kind[-1]["sha256"] == sha):
+        log.append({"kind": kind, "source": source, "as_of": as_of, "status": "same content as the kept version"})
         return
     name = f"{kind}_{as_of.replace('-', '')}_{source}.csv.gz"
     (d / "onisep").mkdir(parents=True, exist_ok=True)
     (d / "onisep" / name).write_bytes(gz(text))
+    vs = [v for v in vs if v["file"] != name]          # the same day read again with another content: this reading replaces it
     vs.append({"file": name, "kind": kind, "as_of": as_of, "source": source, "url": url, "sha256": sha, "rows": str(len(rows))})
     vs.sort(key=lambda v: (v["kind"], v["as_of"], v["source"]))
     (d / "onisep" / "versions.csv").write_text(J.csv_text(vs, ["file", "kind", "as_of", "source", "url", "sha256", "rows"]),
@@ -351,11 +355,29 @@ def visit(cr: Crawler, uai: str, starts: list[str]) -> tuple[list[dict], dict]:
             status = status if status == "ok" else st
             continue
         status = "ok"
-        text = keyword_lines(page_text(html))
-        if text:
-            extraits.append({"uai": uai, "url": url, "fetched": today(), "text": text})
+        # every page read is an observation, an empty one included: a page that withdrew its announcement must replace the old
+        # extract, or its date would stay announced (Codex); fetch_sites stores an empty one only over a non-empty one
+        extraits.append({"uai": uai, "url": url, "fetched": today(), "text": keyword_lines(page_text(html))})
         queue += [u for u in jpo_links(html, url) if u not in seen]
     return extraits, {"uai": uai, "url": starts[0], "status": status, "checked": today()}
+
+
+def merge_extracts(old: list[dict], found: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(every row to keep, the rows added): a page's reading is added when its text differs from the newest kept one, an EMPTY
+    reading only over a non-empty one (a withdrawn announcement: Codex), and it replaces a row of the same page and day."""
+    newest = {}
+    for r in old:
+        k = (r["uai"], r["url"])
+        if k not in newest or r["fetched"] > newest[k]["fetched"]:
+            newest[k] = r
+    added = []
+    for e in found:
+        prev = newest.get((e["uai"], e["url"]))
+        if (prev is None and e["text"]) or (prev is not None and prev["text"] != e["text"]):
+            added.append(e)
+    same_day = {(e["uai"], e["url"], e["fetched"]) for e in added}
+    rows = [r for r in old if (r["uai"], r["url"], r["fetched"]) not in same_day] + added
+    return sorted(rows, key=lambda r: (r["uai"], r["url"], r["fetched"])), added
 
 
 def fetch_sites(client, d: Path, warehouse: str | None, req: dict, log: list) -> None:
@@ -369,11 +391,6 @@ def fetch_sites(client, d: Path, warehouse: str | None, req: dict, log: list) ->
             etat = {r["uai"]: r for r in csv.DictReader(f)}
     order = sorted(start, key=lambda u: ((etat.get(u) or {}).get("checked", ""), u))[: int(req.get("max_sites", 1500))]
     old = J._read_csv_gz(sd / "extraits.csv.gz") if (sd / "extraits.csv.gz").exists() else []
-    newest = {}
-    for r in old:
-        k = (r["uai"], r["url"])
-        if k not in newest or r["fetched"] > newest[k]["fetched"]:
-            newest[k] = r
     cr = Crawler(client)
     added, done = [], 0
     budget = float(req.get("minutes", 40)) * 60
@@ -392,11 +409,8 @@ def fetch_sites(client, d: Path, warehouse: str | None, req: dict, log: list) ->
             ext, st = res
             done += 1
             etat[st["uai"]] = st
-            for e in ext:
-                prev = newest.get((e["uai"], e["url"]))
-                if prev is None or prev["text"] != e["text"]:
-                    added.append(e)
-    rows = sorted(old + added, key=lambda r: (r["uai"], r["url"], r["fetched"]))
+            added += ext
+    rows, added = merge_extracts(old, added)
     (sd / "extraits.csv.gz").write_bytes(gz(J.csv_text(rows, ["uai", "url", "fetched", "text"])))
     (sd / "etat.csv").write_text(J.csv_text(sorted(etat.values(), key=lambda r: r["uai"]), ["uai", "url", "status", "checked"]),
                                  encoding="utf-8")
