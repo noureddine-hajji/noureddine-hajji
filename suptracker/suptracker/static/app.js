@@ -4101,6 +4101,15 @@ const ROBF_REPERE = {
   moyen: "Dans la moyenne des formations de sa filière",
   bas: "Parmi les 20 % de formations les moins robustes de sa filière",
 };
+const ROBF_REPERE_NATIONAL = {
+  haut: "Parmi les 20 % de formations les plus robustes, toutes filières confondues",
+  moyen: "Dans la moyenne de toutes les formations",
+  bas: "Parmi les 20 % de formations les moins robustes, toutes filières confondues",
+};
+const ROBF_APRES = {
+  master: "Les métiers comptés sont ceux des masters : ils arrivent après la licence et un master (bac+5).",
+  autres: "Les métiers comptés arrivent souvent après d'autres études (bac+5 et plus) : la comparaison avec un diplôme court est donc à lire avec prudence.",
+};
 const ROBF_METHODE = {
   direct: "les métiers de la fiche Onisep du diplôme",
   poursuite: "les métiers des masters de la même université et de la même discipline, pesés par leurs admis (MonMaster)",
@@ -4124,6 +4133,9 @@ function formationRobustesseCard(r) {
     : q && q.niveau ? `<p><strong>${esc(ROBF_REPERE[q.niveau] || "")}</strong>${fil} ${estimTag(`parmi ${robNum(q.n_formations)} formations comparables`)}</p>`
     : q && q.raison === "memes_debouches" ? `<p>Les formations de cette filière${fil} mènent aux mêmes métiers : nous ne les classons pas entre elles. ${estimTag("")}</p>`
     : `<p>Trop peu de formations comparables dans cette filière${fil} pour situer celle-ci. ${estimTag("")}</p>`;
+  // owner, 2026-11-17: a second repère among EVERY formation, on the terms all of them have (their jobs and the diversity)
+  const qn = r.repere_national;
+  const nat = s && qn && qn.niveau ? `<p><strong>${esc(ROBF_REPERE_NATIONAL[qn.niveau] || "")}</strong> ${estimTag(`parmi ${robNum(qn.n_formations)} formations, sur les métiers visés et leur diversité`)}${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}</p>` : "";
   const list = (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const seul = r.diplome_seul && r.diplome_seul.n ? `<h3>Avec ce diplôme seul</h3><p class="small">${esc(robJobs(r.diplome_seul))}${r.diplome_seul.mediane != null ? ` (score médian de ces métiers : ${robNum(r.diplome_seul.mediane)} sur 100)` : ""}. Ce sont les métiers de la fiche Onisep du diplôme, sans études de plus.</p>` : "";
   const am = r.master && r.master.apres_master;
@@ -4133,7 +4145,7 @@ function formationRobustesseCard(r) {
   const num = /^RNCP\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null;
   const blocs = (rn.blocs || []).length ? `<details class="more-card"><summary>Les blocs de compétences du diplôme (RNCP)</summary><ul class="small">${rn.blocs.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
       <p class="muted small">Tels que les publie France Compétences${rn.intitule ? ` pour « ${esc(rn.intitule)} »` : ""} (${esc(ROBF_LIEN[rn.lien] || "")})${num ? ` · <a href="https://www.francecompetences.fr/recherche/rncp/${num}/" target="_blank" rel="noopener">fiche RNCP ${esc(num)} ↗</a>` : ""}.</p></details>` : "";
-  const score = s ? `<p>Score : <strong>${robNum(s.median)}</strong> sur 100, médiane des trois scénarios. Selon le scénario, de <strong>${robNum(s.min)}</strong> à <strong>${robNum(s.max)}</strong>${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}. Un ou deux points d'écart ne veulent rien dire.</p>` : "";
+  const score = s ? `<p>Score : <strong>${robNum(s.median)}</strong> sur 100, médiane des trois scénarios. Selon le scénario, de <strong>${robNum(s.min)}</strong> à <strong>${robNum(s.max)}</strong>${s.dependance_scenario ? ' · <span class="badge">dépend du scénario</span>' : ""}. Un ou deux points d'écart ne veulent rien dire.</p>${r.score_national != null ? `<p class="small">Sur la base commune à toutes les formations (métiers visés et diversité) : <strong>${robNum(r.score_national)}</strong> sur 100.</p>` : ""}` : "";
   const scen = s && r.scenarios ? `<div class="scroll"><table><tr><th>Scénario</th><th class="num">Score</th></tr>
       ${["S1", "S2", "S3"].map((x) => `<tr><td>${esc(ROB_SCEN[x])}</td><td class="num" data-label="Score">${robNum(r.scenarios[x])}</td></tr>`).join("")}</table></div>` : "";
   const row = (lab, v) => `<tr><td>${lab}</td><td class="num" data-label="Sur 100">${v == null ? "—" : robNum(v)}</td></tr>`;
@@ -4143,11 +4155,11 @@ function formationRobustesseCard(r) {
       <p class="small">Une ligne « — » n'est pas publiée pour cette formation : le score se calcule sur les autres lignes, et la couverture baisse.</p>`;
   const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
   const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
-      <p class="small">Chaque métier visé a sa robustesse 2035 (voir sa page : résistance à l'IA générative et demande d'ici 2035). Pour la formation, on pèse ces métiers (60 %), l'insertion publiée après le diplôme de sortie (10 % ; le BTS, mesuré à 6 mois, reste à part), la diversité des débouchés entre les grands groupes de métiers (15 %) et la part de compétences transférables (15 %). Les compétences viennent de la fiche RNCP du diplôme (France Compétences : codes ROME visés) et du référentiel ROME 4.0 de France Travail : une compétence est transférable quand France Travail la classe « transverse » ou qu'au moins 20 fiches métiers la partagent. Le repère compare la formation aux formations de la même filière calculées avec les mêmes éléments. Version du modèle ${esc(r.model_version)}.</p>
+      <p class="small">Chaque métier visé a sa robustesse 2035 (voir sa page : résistance à l'IA générative et demande d'ici 2035). Pour la formation, on pèse ces métiers (60 %), l'insertion publiée après le diplôme de sortie (10 % ; le BTS, mesuré à 6 mois, reste à part), la diversité des débouchés entre les grands groupes de métiers (15 %) et la part de compétences transférables (15 %). Les compétences viennent de la fiche RNCP du diplôme (France Compétences : codes ROME visés) et du référentiel ROME 4.0 de France Travail : une compétence est transférable quand France Travail la classe « transverse » ou qu'au moins 20 fiches métiers la partagent. Le premier repère compare la formation aux formations de la même filière calculées avec les mêmes éléments. Le second la compare à toutes les formations, sur les seuls éléments que toutes ont : les métiers visés et leur diversité. Version du modèle ${esc(r.model_version)}.</p>
       <p class="muted small">Sources : Onisep, Idéo (licence ODbL) ; France Compétences, RNCP (Licence Ouverte) ; France Travail, ROME 4.0 (Licence Ouverte) ; MonMaster et InserSup (MESR) ; et les sources de la robustesse des métiers (OIT, Anthropic Economic Index, Cedefop, Dares, France Travail).</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : les métiers auxquels mène cette formation et les compétences qu'elle développe garderont-ils de la valeur entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse d'emploi.</p>
-    ${head}${list}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
+    ${head}${nat}${list}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

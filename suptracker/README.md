@@ -3733,6 +3733,14 @@ available (a missing term lowers the coverage, never a typed value). `Div` = 100
 ln 10; `Comp` = 100 × portable share. The median of the three scenarios with min-max, the confidence = the lowest of freshness,
 observed links (method weight 1 / 0.8 / 0.5 × the jobs' own), agreement and coverage; < 0.4 = « données insuffisantes ».
 
+**A second repère, among ALL formations (owner, 2026-11-17).** The full score drops the terms a formation lacks (insertion, skills),
+so comparing full scores across filières would favour those with fewer data. The national repère therefore reads `score_national`:
+the median of the three scenarios of `(0.60 jobs + 0.15 diversity) / 0.75`, the only terms every formation has, and places it among
+every scored formation (same rank rule, top / bottom 20 %). Its line says when the counted jobs come after more studies: a licence's
+masters (« après la licence et un master, bac+5 »), a family route (« souvent après d'autres études ») — so a prépa or a school is
+not read as « safer » than a short diploma. The scale is tight (p20 61.3, median 65.0, p80 66.7 on the 2026-11-17 build): never a
+rank, only the three levels.
+
 **What the card leads with**: a REPÈRE among the scored formations of the SAME filière computed with the SAME terms (decision 1):
 top / bottom 20 % by rank (ties never count as above or below). Formations of a filière that share their outlets share their score:
 with fewer than 5 distinct scores (CPGE, écoles d'ingénieurs et de commerce, PASS, IFSI) the card says they lead to the same jobs and

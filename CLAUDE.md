@@ -696,6 +696,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   master InserSup stable rate weighted by admits, labelled estimation; BTS 6-month insertion stays OUT) + 0.15 Div (Shannon over
   ISCO major groups / ln 10) + 0.15 Comp, renormalised over available terms. Repère among the SAME filière with the SAME terms, by
   rank (ties never above/below); < 20 formations or < 5 distinct scores = no level, its reason said (CPGE, schools, PASS, IFSI).
+  Second, NATIONAL repère (owner, 2026-11-17): `score_national` = median over scenarios of (0.60 jobs + 0.15 div) / 0.75, the terms EVERY
+  formation has, placed among all scored formations by the same rank rule; its line names the later studies (poursuite = master,
+  famille = « souvent après d'autres études »). Both repères are shown, the filière one first; never a rank number.
   Main jobs listed only when the cut does not split a tie. data/rncp (workflow `suptracker-rncp`) is in the data fingerprint and out
   of the Vercel bundle. Red team `redteam_robustesse_formations.py` (RF1-RF8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not

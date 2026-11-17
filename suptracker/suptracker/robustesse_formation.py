@@ -29,6 +29,7 @@ build) and three plain facts; the score is in « Détail du calcul » only.
 """
 from __future__ import annotations
 
+import bisect
 import csv
 import io
 import json
@@ -225,11 +226,14 @@ def formation(omega: dict, method: str, jobs: dict, ins: float | None, comp: dic
     div = entropy(major_groups(omega, jobs))
     comp_term = 100 * comp["part_portable"] if comp else None
     terms = {"metiers": None, "insertion": ins, "diversite": div, "competences": comp_term}
-    scen = {}
+    scen, common = {}, {}
     for s in ("S1", "S2", "S3"):
         a = sum(w * jobs[m]["scenarios"][s] for m, w in sw.items()) if sw else None
         parts = [(v, wt) for v, wt in ((a, W_JOBS), (ins, W_INS), (div, W_DIV), (comp_term, W_COMP)) if v is not None]
         scen[s] = round(_wmean(parts), 1) if a is not None and parts else None
+        # national basis (owner, 2026-11-17): only the terms EVERY formation has (its jobs and their diversity), so that
+        # formations of all filières are compared on the same terms
+        common[s] = round(_wmean([(a, W_JOBS), (div, W_DIV)]), 1) if a is not None and div is not None else None
         if s == "S2":
             terms["metiers"] = round(a, 1) if a is not None else None
     vals = [v for v in scen.values() if v is not None]
@@ -249,6 +253,7 @@ def formation(omega: dict, method: str, jobs: dict, ins: float | None, comp: dic
         "score": {"median": statistics.median(vals), "min": min(vals), "max": max(vals),
                   "dependance_scenario": max(vals) - min(vals) > RJ.BADGE_SPREAD} if shown else None,
         "scenarios": scen if shown else None,
+        "score_national": statistics.median(common.values()) if shown and None not in common.values() else None,
         "composantes": {k: (round(v, 1) if v is not None else None) for k, v in terms.items()},
         "metiers": {"n": len(omega), "n_notes": len(scored),
                     "n_haut": sum(1 for m in omega if lv[m].get("niveau") == "haut"),
@@ -282,10 +287,10 @@ MIN_DISTINCT = 5                   # a filière whose formations share fewer dis
 
 def place(v: float, others: list[float]) -> str:
     """« haut » when the score is above at least 1 - REPERE_SHARE of the others, « bas » when below at least as many; ties never
-    count as above or below (formations of one group share their outlets, hence their score)."""
+    count as above or below (formations of one group share their outlets, hence their score). `others` is SORTED."""
     n = len(others)
-    below = sum(1 for x in others if x < v) / n
-    above = sum(1 for x in others if x > v) / n
+    below = bisect.bisect_left(others, v) / n
+    above = (n - bisect.bisect_right(others, v)) / n
     return "haut" if below >= 1 - REPERE_SHARE else "bas" if above >= 1 - REPERE_SHARE else "moyen"
 
 
@@ -296,13 +301,16 @@ def terms_key(d: dict) -> str:
 
 
 def with_repere(rows: dict, fili: dict) -> dict:
-    """The repère of each scored formation among the scored formations of its filière computed with the same terms (decision 1).
+    """The repère of each scored formation among the scored formations of its filière computed with the same terms (decision 1),
+    and its NATIONAL repère (owner, 2026-11-17) among every formation on the common terms (jobs + diversity, `score_national`).
     Fewer than MIN_FILIERE of them, or fewer than MIN_DISTINCT distinct scores (the formations of a filière that share their
     outlets share their score): no repère, said on the page, never a comparison with other filières."""
     by: dict = {}
     for cod, d in rows.items():
         if d["score"]:
             by.setdefault((fili.get(cod), terms_key(d)), []).append(d["score"]["median"])
+    for ref in by.values():
+        ref.sort()
     for cod, d in rows.items():
         d["repere"] = None
         if not d["score"]:
@@ -314,6 +322,13 @@ def with_repere(rows: dict, fili: dict) -> dict:
         else:
             d["repere"] = {"niveau": None, "filiere": fili.get(cod), "n_formations": len(ref), "raison": "memes_debouches"
                            if len(ref) >= MIN_FILIERE else "trop_peu"}
+    nat = sorted(d["score_national"] for d in rows.values() if d.get("score_national") is not None)
+    for d in rows.values():
+        v = d.get("score_national")
+        d["repere_national"] = None if v is None else {
+            "niveau": place(v, nat), "n_formations": len(nat), "part": REPERE_SHARE,
+            # the outlets counted come after more studies (a licence's masters, a family route): said beside the level
+            "apres_etudes": {"poursuite": "master", "famille": "autres"}.get(d["methode"])}
     return rows
 
 

@@ -11,7 +11,9 @@ per-job model (redteam_robustesse.py).
       the three scenarios, min, max, the confidence (lowest of four, method weight 1 / 0.8 / 0.5), « données insuffisantes »
       under 0.4 or without the three scenarios; main jobs never cut inside a tie; equals the module on crafted formations.
   RF4 repère: among the scored formations of the SAME filière computed with the SAME terms, top / bottom 20 % by rank, ties never
-      above or below; fewer than 20 formations or fewer than 5 distinct scores = no level, with its reason; re-derived.
+      above or below; fewer than 20 formations or fewer than 5 distinct scores = no level, with its reason; re-derived. The
+      NATIONAL repère (owner, 2026-11-17): among every scored formation on the terms all of them have (jobs 0.60 + diversity
+      0.15, renormalised; `score_national` re-derived in RF3), with the later-studies caveat (licence -> master, family routes).
   RF5 page (node): formationRobustesseCard escapes every stored string, leads with the repère (or its reason) and the plain
       facts, never the score before « Détail du calcul »; « avec ce diplôme seul » apart; the master gain for a licence; the
       RNCP blocks verbatim with an https France Compétences link built from digits only; vouvoiement, no chance or promise.
@@ -267,19 +269,21 @@ def oracle_formation(omega: dict, method: str, jobs: dict, ins, comp) -> dict:
     gs = sum(groups.values())
     div = 100 * -sum(p / gs * math.log(p / gs) for p in groups.values() if p > 0) / math.log(10) if gs else None
     cterm = 100 * comp["part_portable"] if comp else None
-    scen = {}
+    scen, nat = {}, {}
     for s in ("S1", "S2", "S3"):
         a = sum(v / st * jobs[m]["scenarios"][s] for m, v in sc.items()) if st else None
         terms = [(a, 0.6), (ins, 0.1), (div, 0.15), (cterm, 0.15)]
         av = [(x, y) for x, y in terms if x is not None]
         scen[s] = round(sum(x * y for x, y in av) / sum(y for _, y in av), 1) if a is not None else None
+        nat[s] = round((0.6 * a + 0.15 * div) / 0.75, 1) if a is not None and div is not None else None
     wm = lambda key: sum(v / st * jobs[m]["confiance"][key] for m, v in sc.items()) if st else 0.0  # noqa: E731
     cover = 0.6 * st + sum(y for x, y in ((ins, 0.1), (div, 0.15), (cterm, 0.15)) if x is not None)
     conf = min(wm("fraicheur"), {"direct": 1, "poursuite": 0.8, "famille": 0.5}[method] * wm("donnees_observees"), wm("accord_sources"), cover)
     vals = [v for v in scen.values() if v is not None]
     ok = len(vals) == 3 and conf >= CONF_LOW
     return {"median": statistics.median(vals) if ok else None, "min": min(vals) if ok else None, "max": max(vals) if ok else None,
-            "conf": round(conf, 3), "div": None if div is None else round(div, 1)}
+            "conf": round(conf, 3), "div": None if div is None else round(div, 1),
+            "nat": statistics.median(nat.values()) if ok and None not in nat.values() else None}
 
 
 def job(score, s1, s2, s3, isco, conf=(0.9, 1.0, 0.8), niveau="moyen"):
@@ -318,6 +322,8 @@ def rf3(c: Ctx):
             bad.append(f"case {i}: confidence {got['confiance']['valeur']} vs {exp['conf']}")
         if got["composantes"]["diversite"] != exp["div"]:
             bad.append(f"case {i}: diversity {got['composantes']['diversite']} vs {exp['div']}")
+        if got.get("score_national") != exp["nat"]:
+            bad.append(f"case {i}: national score {got.get('score_national')} vs {exp['nat']}")
         if got["score"] is None and got.get("scenarios"):
             bad.append(f"case {i}: scenarios without a score")
     first = F.formation(CASES[0][0], CASES[0][1], JOBS, CASES[0][2], CASES[0][3])["metiers"]
@@ -360,6 +366,25 @@ def oracle_repere(rows: dict, fili: dict) -> dict:
     return out
 
 
+def oracle_national(rows: dict) -> dict:
+    vals = [d["score_national"] for d in rows.values() if d.get("score_national") is not None]
+    out = {}
+    for cod, d in rows.items():
+        v = d.get("score_national")
+        if v is None:
+            out[cod] = None
+            continue
+        lo = sum(x < v for x in vals) / len(vals)
+        hi = sum(x > v for x in vals) / len(vals)
+        out[cod] = ("haut" if lo >= 0.8 else "bas" if hi >= 0.8 else "moyen", {"poursuite": "master", "famille": "autres"}.get(d["methode"]))
+    return out
+
+
+def got_national(rows):
+    return {c: None if d.get("repere_national") is None else (d["repere_national"]["niveau"], d["repere_national"]["apres_etudes"])
+            for c, d in rows.items()}
+
+
 def got_repere(rows):
     return {c: None if d["repere"] is None else (d["repere"]["niveau"] or ("-", d["repere"]["raison"])) for c, d in rows.items()}
 
@@ -377,10 +402,18 @@ def crafted_rows():
     for i in range(25):                                   # ties at the top
         rows[f"t{i}"], fili[f"t{i}"] = {"score": {"median": 70 if i >= 15 else 50 + i + rnd.random()}, "composantes": comp(None)}, "BUT"
     rows["n"], fili["n"] = {"score": None, "composantes": comp(None)}, "BTS"
+    order = list(range(30))
+    rnd.shuffle(order)
+    for i in order:                                       # LAS: distinct scores inserted in a shuffled order
+        rows[f"l{i}"], fili[f"l{i}"] = {"score": {"median": 40 + i}, "composantes": comp(None)}, "Licence_Las"
+    meth = ("direct", "poursuite", "famille")
+    for i, (k, d) in enumerate(sorted(rows.items())):                      # national basis: its own score, every filière mixed
+        d["methode"] = meth[i % 3]
+        d["score_national"] = None if d["score"] is None else round(55 + rnd.random() * 15, 1) if i % 7 else 70.0
     return rows, fili
 
 
-@check("RF4 repère: same filière, same terms, top / bottom 20 % by rank, ties never above, reasons when it cannot say")
+@check("RF4 repère: same filière, same terms, top / bottom 20 % by rank, ties never above, reasons; national repère on common terms")
 def rf4(c: Ctx):
     F = c.F()
     rows, fili = crafted_rows()
@@ -392,11 +425,18 @@ def rf4(c: Ctx):
         bad.append("the crafted landmarks")
     if got["n"] is not None:
         bad.append("a repère without a score")
+    out = F.with_repere(copy.deepcopy(rows), fili)
+    gn, en = got_national(out), oracle_national(rows)
+    dn = [k for k in en if gn[k] != en[k]]
+    if dn:
+        bad.append(f"national repère differs for {dn[:3]}: {[(gn[k], en[k]) for k in dn[:2]]}")
+    if {v[0] for v in en.values() if v} != {"haut", "moyen", "bas"}:
+        bad.append("the crafted national levels do not cover the three levels")
     return not bad, f"differences {bad[:5]}"
 
 
 # ------------------------------------------------------------------------------------------------------------- page
-NAMES = ("ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_METHODE", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
+NAMES = ("ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
 
 
 def page_data():
@@ -411,12 +451,14 @@ def page_data():
         "diplome_seul": {"n": 4, "n_notes": 3, "n_haut": 0, "n_bas": 2, "mediane": 64.6},
         "rncp": {"fiche": "RNCP40114", "lien": "onisep", "apprentissage": True, "intitule": HOSTILE, "blocs": ["Bloc " + HOSTILE]},
         "repere": {"niveau": "haut", "filiere": "Licence" + HOSTILE, "n_formations": 2403, "part": 0.2},
+        "score_national": 64.4, "repere_national": {"niveau": "bas", "n_formations": 12185, "part": 0.2, "apres_etudes": "master"},
     }
     same = copy.deepcopy(full)
     same["repere"] = {"niveau": None, "filiere": "CPGE", "n_formations": 809, "raison": "memes_debouches"}
     same["rncp"] = {"fiche": "RNCP1\" onmouseover=alert(1)", "lien": "titre", "apprentissage": False, "blocs": ["x"]}
+    same["repere_national"] = {"niveau": "haut", "n_formations": 12185, "part": 0.2, "apres_etudes": "autres"}
     none = copy.deepcopy(full)
-    none["score"], none["scenarios"], none["repere"] = None, None, None
+    none["score"], none["scenarios"], none["repere"], none["score_national"], none["repere_national"] = None, None, None, None, None
     none["confiance"]["niveau"] = "faible"
     return full, same, none
 
@@ -458,7 +500,18 @@ def rf5(c: Ctx):
     for w in ("fraîcheur", "liens observés", "accord des sources", "couverture", "Version du modèle", "RNCP", "ROME 4.0", "transverse"):
         if w not in cf:
             bad.append(f"card lacks « {w} »")
-    if "ne les classons pas" not in cs or "Parmi les 20 %" in cs or "francecompetences.fr/recherche/rncp/1" in cs:
+    # the national repère (owner, 2026-11-17): second line, before the facts, with the later-studies caveat; its score in the detail
+    if "Parmi les 20 % de formations les moins robustes, toutes filières confondues" not in lead.split("<ul")[0] \
+            or "parmi 12 185 formations" not in lead.replace("\u202f", " ").replace("\xa0", " ") \
+            or "ils arrivent après la licence et un master (bac+5)" not in lead:
+        bad.append("the national repère, its count or its master caveat is missing before the facts")
+    if "base commune à toutes les formations (métiers visés et diversité) : <strong>64</strong>" not in detail:
+        bad.append("the national score is not in « Détail du calcul »")
+    if "Parmi les 20 % de formations les plus robustes, toutes filières confondues" not in cs or "souvent après d&#39;autres études" not in cs:
+        bad.append("a formation not ranked in its filière loses its national repère or its caveat")
+    if "toutes filières" in cn or "base commune" in cn:
+        bad.append("a national repère without a score")
+    if "ne les classons pas" not in cs or "robustes de sa filière" in cs or "francecompetences.fr/recherche/rncp/1" in cs:
         bad.append("shared outlets: no level said, or a link from a non-numeric fiche")
     if "Données insuffisantes" not in cn or re.search(r"Score :|Parmi les 20 % de formations", cn):
         bad.append("insufficient data still shows a number")
@@ -535,6 +588,10 @@ def rf7(c: Ctx):
     diff = [k for k in rows if got_repere(rows)[k] != exp[k]]
     if diff:
         bad.append(f"repère differs for {len(diff)}, e.g. {diff[:3]}")
+    gn, en = got_national(rows), oracle_national(rows)
+    dn = [k for k in rows if gn[k] != en[k]]
+    if dn:
+        bad.append(f"national repère differs for {len(dn)}, e.g. {dn[:3]}")
     # direct outlets and the formula on a sample
     rnd = random.Random(11)
     direct = [k for k, v in rows.items() if v["methode"] == "direct"]
@@ -547,7 +604,8 @@ def rf7(c: Ctx):
         comp = rows[k]["competences"]
         e = oracle_formation(om, "direct", jobs, None, comp)
         s = rows[k]["score"] or {}
-        if (s.get("median"), s.get("min"), s.get("max")) != (e["median"], e["min"], e["max"]) or abs(rows[k]["confiance"]["valeur"] - e["conf"]) > 0.001:
+        if (s.get("median"), s.get("min"), s.get("max"), rows[k].get("score_national")) != (e["median"], e["min"], e["max"], e["nat"]) \
+                or abs(rows[k]["confiance"]["valeur"] - e["conf"]) > 0.001:
             bad.append(f"{k}: formula")
         n_ok += 1
     # skills of the stored fiches from the real files
@@ -574,6 +632,9 @@ def rf7(c: Ctx):
                     or (fiche and api["rncp"].get("blocs") != rn_rows[fiche]["blocs"]):
                 bad.append(f"{k}: the API differs from the stored block")
                 break
+            if api.get("repere_national") != rows[k].get("repere_national"):
+                bad.append(f"{k}: the API loses the national repère")
+                break
         if F.for_formation(con.cursor(), "no-such-code") is not None:
             bad.append("a block for an unknown code")
     finally:
@@ -584,8 +645,12 @@ def rf7(c: Ctx):
         p[0] += 1
         p[1] += bool(rows.get(k, {}).get("score"))
         p[2] += bool((rows.get(k, {}).get("repere") or {}).get("niveau"))
+        nv = (rows.get(k, {}).get("repere_national") or {}).get("niveau")
+        if nv:
+            p.append(nv)
     cov = sum(p[1] for p in per.values()) / max(1, len(fili))
-    top = ", ".join(f"{f} {p[1]}/{p[0]} ({p[2]} situées)" for f, p in sorted(per.items(), key=lambda x: -x[1][0])[:8])
+    top = ", ".join(f"{f} {p[1]}/{p[0]} ({p[2]} situées dans la filière; national haut {p[3:].count('haut')} bas {p[3:].count('bas')})"
+                    for f, p in sorted(per.items(), key=lambda x: -x[1][0])[:11])
     return not bad, f"differences {bad[:4]}; {n_ok} direct blocks re-derived; scored {cov:.1%}; {top}"
 
 
@@ -603,11 +668,17 @@ SOURCE_MUTANTS = [
     ("robf", "score with low confidence", "shown = len(vals) == 3 and conf >= RJ.CONF_LOW", "shown = len(vals) == 3", "RF3"),
     ("robf", "unscored jobs count", "scored = {m: w for m, w in omega.items() if (jobs.get(m) or {}).get(\"score\")}", "scored = dict(omega)", "RF3"),
     ("robf", "arbitrary main jobs", "return ranked[:TOP_JOBS] if ranked[TOP_JOBS - 1][1] > ranked[TOP_JOBS][1] else []", "return ranked[:TOP_JOBS]", "RF3"),
-    ("robf", "ties count as below", "below = sum(1 for x in others if x < v) / n", "below = sum(1 for x in others if x <= v) / n", "RF4"),
     ("robf", "terms mixed", 'by.setdefault((fili.get(cod), terms_key(d)), [])', 'by.setdefault((fili.get(cod), ""), [])', "RF4"),
     ("robf", "terms mixed (read)", "ref = by[(fili.get(cod), terms_key(d))]", "ref = [x for (f, _), v in by.items() if f == fili.get(cod) for x in v]", "RF4"),
     ("robf", "no distinct-score rule", "if len(ref) >= MIN_FILIERE and len(set(ref)) >= MIN_DISTINCT:", "if len(ref) >= MIN_FILIERE:", "RF4"),
-    ("js", "score in the lead", "${head}${list}${seul}", "${score}${head}${list}${seul}", "RF5"),
+    ("robf", "national on every term", "common[s] = round(_wmean([(a, W_JOBS), (div, W_DIV)]), 1) if a is not None and div is not None else None",
+     "common[s] = scen[s]", "RF3"),
+    ("robf", "national without the caveat", '"apres_etudes": {"poursuite": "master", "famille": "autres"}.get(d["methode"])}', '"apres_etudes": None}', "RF4"),
+    ("robf", "filière lists unsorted", "    for ref in by.values():\n        ref.sort()\n", "", "RF4"),
+    ("robf", "national ties count as below", "below = bisect.bisect_left(others, v) / n", "below = bisect.bisect_right(others, v) / n", "RF4"),
+    ("js", "no national line", "${head}${nat}${list}", "${head}${list}", "RF5"),
+    ("js", "national caveat dropped", '${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}', "", "RF5"),
+    ("js", "score in the lead", "${head}${nat}${list}${seul}", "${score}${head}${nat}${list}${seul}", "RF5"),
     ("js", "filière unescaped", "` (${esc(q.filiere.replace(\"_\", \" \"))})`", "` (${q.filiere})`", "RF5"),
     ("js", "fiche link not checked", '/^RNCP\\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null', '(rn.fiche || "").slice(4) || null', "RF5"),
     ("js", "no diploma-alone block", '<h3>Avec ce diplôme seul</h3>', '<h3>Débouchés</h3>', "RF5"),
