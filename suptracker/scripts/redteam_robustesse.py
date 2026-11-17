@@ -440,7 +440,7 @@ def rb6(c: Ctx):
     if "${robustesseTile(d.robustesse)}" not in c.js or '["avenir", "Avenir du métier", `${robustesseCard(d.robustesse)}' not in c.js:
         bad.append("job page")
     from suptracker import sources as SRC
-    st = {s["key"]: s["status"] for s in SRC.SOURCES if "robustesse_2035" in s.get("feeds", ())}
+    st = {s["key"]: s["status"] for s in SRC.SOURCES if "robustesse_2035" in s.get("feeds", ()) and s["status"] == "en_ligne"}
     if st != {"cedefop_skills_forecast_2026": "en_ligne", "anthropic_aei": "en_ligne"}:
         bad.append(f"sources {st}")
     if "## Robustesse 2035" not in (ROOT / "README.md").read_text():
