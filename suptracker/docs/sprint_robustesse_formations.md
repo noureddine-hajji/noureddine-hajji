@@ -63,6 +63,20 @@ L'objectif du PRD est un score publié pour au moins 95 % des formations. Il fau
 9. **Stockage** : un JSON compact par formation dans `rapport_textes.duckdb`, jamais dans l'entrepôt (budget de 95 Mo).
    Les détails métiers déjà calculés sont réutilisés, sans relire `metiers.detail`, pour le temps de CI.
 
+## PR 1 bis : l'usage observé de l'IA comme contrôle des métiers (accord du propriétaire, 17/11)
+
+- **Donnée** : l'Anthropic Economic Index publie, pour 740 métiers O*NET (mai 2026, monde), la part de l'usage de Claude qui
+  porte sur les tâches de chaque métier (indicateur `pct`). C'est une exposition « observée » : ce que les gens font vraiment
+  avec l'IA. L'OIT, elle, mesure ce que l'IA pourrait faire.
+- **Règle** (la même que pour l'OCDE) : c'est un contrôle, jamais dans l'exposition ni dans le score. On compare le rang du
+  métier selon l'OIT et selon l'usage observé ; un écart de plus de 15 points fait baisser l'accord des sources, avec le même
+  plancher à 0,5. Les deux places sont affichées côte à côte dans « Détail du calcul ».
+- **À vérifier d'abord sur les données** : la part d'usage dépend du nombre de personnes qui exercent le métier et des
+  utilisateurs de Claude. Il faut donc trouver une normalisation défendable, par exemple la part d'usage rapportée à
+  l'emploi du métier (BLS) ou le seul rang. Si aucune n'est défendable, on ne l'affiche pas et on le dit au propriétaire.
+- Lien : le même que pour l'augmentation (O*NET → SOC → ISCO, tables officielles ; grand groupe signalé à défaut).
+- Red team : RB12 (lecture indépendante, rangs, aucun effet sur le score, page), mutants.
+
 ## PR 2 : comparer ses vœux (P0 C-01, C-02 ; P1)
 
 - Dans Mes vœux, jusqu'à 10 formations sur un graphique robustesse × atteignabilité (atteignabilité = la zone déjà calculée,
@@ -82,7 +96,7 @@ L'objectif du PRD est un score publié pour au moins 95 % des formations. Il fau
    métiers de la licence elle-même ? Recommandation : la poursuite seule, comme le PRD, avec les métiers de la licence montrés
    à part.
 
-## Avant le sprint : finir la PR #81
+## Fait : la PR #81 a été fusionnée le 17/11
 
 - CI verte (le lot 2 avait dépassé 45 minutes ; la construction relit maintenant une seule fois les fiches métiers, environ
   75 s de gagnées par entrepôt de test), puis passer la PR en « prête » pour lancer la relecture Codex et en traiter les
