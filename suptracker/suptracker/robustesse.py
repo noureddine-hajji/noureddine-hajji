@@ -43,6 +43,9 @@ MODEL_VERSION = "2027.1"
 DIR = Path(__file__).resolve().parent.parent / "data" / "sources"
 CEDEFOP_ZIP = "cedefopskillsforecast2026.zip"
 OECD_XLSX = "OECD AI Capability Gap Index_public data.xlsx"
+ESCO_ZIP = "ESCO dataset - v1.2.1 - classification - fr - csv.zip"
+# owner, 2026-11-17: ESCO's green-skill share is a CONTROL printed beside the low-carbon scenario (S3), never in the score or the
+# confidence: S3 stays the official low-carbon variant of Métiers 2030
 # owner, 2026-11-17: the OECD measure is another notion on another scale (uncorrelated with the OIT one): the score keeps the
 # OIT exposure, the two are compared by RANK: a gap of more than RANK_GAP lowers the agreement linearly, down to RANK_FLOOR
 # (reached at a gap of RANK_GAP + 1 - RANK_FLOOR). The floor is the value of an unknown agreement: the two measures are
@@ -63,7 +66,7 @@ S1_EXP, S1_AUG = 1.25, 0.8
 BADGE_SPREAD = 15
 CONF_HIGH, CONF_LOW = 0.7, 0.4
 # publication year of each source, for the freshness component (1 the year of the model, minus 1/8 per year of age)
-SOURCE_YEAR = {"oit": 2025, "aei": 2026, "cedefop": 2026, "m2030": 2022, "bmo": 2026, "ocde": 2026}
+SOURCE_YEAR = {"oit": 2025, "aei": 2026, "cedefop": 2026, "m2030": 2022, "bmo": 2026, "ocde": 2026, "esco": 2025}
 MODEL_YEAR = 2026
 SOURCES = {
     "oit": "OIT, Working Paper 140 (2025) : exposition des tâches à l'IA générative",
@@ -72,6 +75,7 @@ SOURCES = {
     "m2030": "Dares / France Stratégie, Les métiers en 2030 (2022)",
     "bmo": "France Travail, Besoins en main-d'œuvre 2026",
     "ocde": "OCDE (2026), mesure d'exposition à l'IA (écart de capacités) et son scénario « +1 niveau cognitif »",
+    "esco": "Commission européenne, ESCO v1.2.1 : part des compétences « vertes » des métiers (contrôle, hors calcul)",
 }
 REGIMES = ("peu_expose", "surtout_augmente", "surtout_substituable", "mixte")
 
@@ -174,6 +178,18 @@ def isco_aug(con, aei: dict) -> dict:
     return out
 
 
+# ------------------------------------------------------------------------------------------------------------------- ESCO
+def read_esco(path: Path) -> dict:
+    """{ISCO-08 4-digit code: ESCO's published green-skill share (0-1)}, the « ISCO level 4 » rows of greenShareOcc."""
+    import csv
+    with zipfile.ZipFile(path) as z:
+        name = next(n for n in z.namelist() if n.rsplit("/", 1)[-1].startswith("greenShareOcc"))
+        rows = csv.DictReader(io.TextIOWrapper(z.open(name), encoding="utf-8"))
+        return {r["code"]: float(r["greenShare"]) for r in rows
+                if r.get("conceptType") == "ISCO level 4" and len(r.get("code") or "") == 4 and r["code"].isdigit()
+                and (r.get("greenShare") or "").strip()}
+
+
 # ------------------------------------------------------------------------------------------------------------------- OECD
 def read_oecd(path: Path) -> dict:
     """{O*NET code: (reversed normalised gap now, the same in the « +1 cognitive » scenario)}: higher = more exposed."""
@@ -244,9 +260,10 @@ def _wmean(pairs: list[tuple[float, float]]) -> float | None:
     return sum(v * w for v, w in pairs) / tot if tot else None
 
 
-def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
-    """One job's block from metiers.detail's answer `d`, the ISCO augmentation, Cedefop and OECD tables."""
-    oecd = oecd or {}
+def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None, esco: dict | None = None) -> dict:
+    """One job's block from metiers.detail's answer `d`, the ISCO augmentation, Cedefop, OECD and ESCO tables."""
+    oecd, esco = oecd or {}, esco or {}
+    esco_p = []
     codes = (d.get("ia") or {}).get("isco") or []
     weights = {c["code"]: (c.get("n_intitules") or 1) for c in codes if len(c.get("code") or "") == 4 and c["code"].isdigit()}
     tot_w = sum(weights.values())
@@ -261,6 +278,8 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
         a = aug.get(code)
         cd = ced.get(code[:2])
         oe = oecd.get(code)
+        if code in esco:
+            esco_p.append((esco[code], w))
         if oe:
             oecd_p.append((oe["oecd"], w))
             if oe.get("ratio") is not None:
@@ -280,9 +299,10 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
                        "augmentation": round(a[0], 4) if a else None, "augmentation_niveau": a[2] if a else None,
                        "cedefop_isco2": code[:2], "cedefop_postes": round(cd["postes"], 4) if cd else None,
                        "cedefop_croissance_source": cd["source_croissance"] if cd else None, "lien": "onisep" if onisep else "nom",
-                       "ocde": round(oe["oecd"], 4) if oe else None})
+                       "ocde": round(oe["oecd"], 4) if oe else None,
+                       "esco_vert": round(esco[code], 4) if code in esco else None})
     exp, augm, ced_rate = _wmean(exp_p), _wmean(aug_p), _wmean(ced_p)
-    ratio, oecd_v = _wmean(ratio_p), _wmean(oecd_p)
+    ratio, oecd_v, vert = _wmean(ratio_p), _wmean(oecd_p), _wmean(esco_p)
     r_oit, r_oecd = _wmean(rk_oit), _wmean(rk_oecd)
     rank_gap = abs(r_oit - r_oecd) if r_oit is not None and r_oecd is not None else None
     fams = [f for f in (d.get("emploi2030") or []) if not f.get("absent") and (f.get("milliers") or {}).get("emploi_2019")]
@@ -316,7 +336,7 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
         scen[s] = round((W_IA * ia + W_DEM * de) / (W_IA + W_DEM), 1)
     vals = [v for v in scen.values() if v is not None]
     # confidence: four components, the lowest one is kept
-    used = [k for k, v in (("oit", exp), ("aei", augm), ("cedefop", ced_rate), ("m2030", m2030), ("bmo", t), ("ocde", oecd_v))
+    used = [k for k, v in (("oit", exp), ("aei", augm), ("cedefop", ced_rate), ("m2030", m2030), ("bmo", t), ("ocde", oecd_v), ("esco", vert))
             if v is not None]
     # freshness: each source's age weighted by its weight in the score (the oldest source alone would cap every job)
     fw = {"oit": W_IA / 2, "aei": W_IA / 2, "cedefop": W_DEM * W_CED, "m2030": W_DEM * W_M2030, "bmo": W_DEM * W_BMO}
@@ -354,6 +374,9 @@ def job(d: dict, aug: dict, ced: dict, oecd: dict | None = None) -> dict:
                  "ecart_rang": round(rank_gap, 3) if rank_gap is not None else None,
                  "accord": round(accord_ia, 3) if accord_ia is not None else None,
                  "ratio_s1": round(ratio, 4) if ratio is not None else None},
+        "esco": {"part_verte": round(vert, 4) if vert is not None else None,
+                 "mediane": round(statistics.median(esco.values()), 4) if esco else None,
+                 "n_codes": len(esco_p)},
         "confiance": {"niveau": level(conf), "valeur": round(conf, 3), **comps},
         "isco": lignes,
         "sources": [k for k in SOURCES if k in used],
@@ -370,14 +393,15 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
     aug = isco_aug(con, aei) if "ia_theta_lien" in have else {}
     oe = read_oecd(d / OECD_XLSX) if (d / OECD_XLSX).exists() else {}
     oecd = isco_oecd(con, oe) if oe and {"ia_theta_lien", "ia_oit_isco"} <= have else {}
+    esco = read_esco(d / ESCO_ZIP) if (d / ESCO_ZIP).exists() else {}
     jobs = []
     if "onisep_metier" in have:
         for (mid,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall():
-            jobs.append((mid, json.dumps(job(MT.detail(con, mid), aug, ced, oecd), ensure_ascii=False, sort_keys=True)))
+            jobs.append((mid, json.dumps(job(MT.detail(con, mid), aug, ced, oecd, esco), ensure_ascii=False, sort_keys=True)))
     crows = [[k, v["croissance_fr"], v["croissance_ue"], v["saut_2021"], v["croissance"], v["source_croissance"],
               v["remplacement"], v["postes"]] for k, v in sorted(ced.items())]
     irows = [[k, *(aug[k] if k in aug else (None, None, None)), *((oecd[k].get(x) for x in ("oecd", "oecd_s1", "ratio", "rang_oit", "rang_oecd"))
-              if k in oecd else (None,) * 5)] for k in sorted(set(aug) | set(oecd))]
+              if k in oecd else (None,) * 5), esco.get(k)] for k in sorted(set(aug) | set(oecd) | set(esco))]
 
     def write(c, p):
         c.execute(f"""CREATE OR REPLACE TABLE {p}r35_cedefop (isco2 VARCHAR, croissance_fr DOUBLE, croissance_ue DOUBLE,
@@ -385,9 +409,9 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
         if crows:
             c.executemany(f"INSERT INTO {p}r35_cedefop VALUES (?, ?, ?, ?, ?, ?, ?, ?)", crows)
         c.execute(f"""CREATE OR REPLACE TABLE {p}r35_isco (isco VARCHAR, augmentation DOUBLE, n_onet INTEGER, niveau VARCHAR,
-                      ocde DOUBLE, ocde_s1 DOUBLE, ratio_s1 DOUBLE, rang_oit DOUBLE, rang_ocde DOUBLE)""")
+                      ocde DOUBLE, ocde_s1 DOUBLE, ratio_s1 DOUBLE, rang_oit DOUBLE, rang_ocde DOUBLE, esco_vert DOUBLE)""")
         if irows:
-            c.executemany(f"INSERT INTO {p}r35_isco VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", irows)
+            c.executemany(f"INSERT INTO {p}r35_isco VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", irows)
         c.execute(f"CREATE OR REPLACE TABLE {p}r35_metier (met_id VARCHAR, data VARCHAR)")
         if jobs:
             c.executemany(f"INSERT INTO {p}r35_metier VALUES (?, ?)", jobs)
@@ -408,7 +432,7 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
             tc.close()
     shown = sum(1 for _, j in jobs if json.loads(j)["score"])
     return {"cedefop_groupes": len(crows), "cedefop_ue": sum(1 for r in crows if r[5] == "UE27"),
-            "isco_aug": len(aug), "isco_ocde": len(oecd),
+            "isco_aug": len(aug), "isco_ocde": len(oecd), "isco_esco": len(esco),
             "metiers": len(jobs), "metiers_score": shown}
 
 

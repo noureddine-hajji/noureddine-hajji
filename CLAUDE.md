@@ -681,8 +681,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   replacement French. R = (0.35 IA + 0.25 Dem)/0.6; S1 Exp × the OECD « +1 cognitive » ratio (else ×1.25, cap 1) Aug×0.8, S2 central, S3 = Métiers
   2030 low-carbon variant. Confidence = min(freshness weighted, observed links, agreement, coverage); agreement = min(Cedefop/M2030,
   OIT/OECD RANK gap: > 15 points lowers it, floor 0.5). OECD (owner, 2026-11-17) = cross-check only, NEVER in the exposure (other
-  notion and scale, r = 0.02); both ranks printed side by side. Reachability never enters. Tables r35_*
-  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB9).
+  notion and scale, r = 0.02); both ranks printed side by side. ESCO green-skill share per ISCO-4 (owner, 2026-11-17) = a CONTROL printed
+  beside S3 with the national median, never in the score, scenarios or confidence. Reachability never enters. Tables r35_*
+  in rapport_textes.duckdb (`_src`). Red team `redteam_robustesse.py` (RB1-RB10).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

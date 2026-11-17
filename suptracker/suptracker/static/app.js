@@ -4062,6 +4062,8 @@ function robustesseCard(r) {
   const conf = `<p class="small"><strong>${esc(ROB_CONF[k.niveau] || "")}</strong>${k.valeur != null ? ` (${fmt2(k.valeur)} sur 1, la plus faible de quatre mesures : fraîcheur des sources ${fmt2(k.fraicheur)}, liens observés ${fmt2(k.donnees_observees)}, accord des sources ${fmt2(k.accord_sources)}, couverture ${fmt2(k.couverture)})` : ""}.</p>`;
   const o = r.ocde || {};
   const ocde = o.rang_oit != null && o.rang_ocde != null ? `<p class="small">Contrôle avec une autre mesure, celle de l'OCDE (2026). Selon l'OIT, ce métier est plus exposé à l'IA que ${robNum(o.rang_oit * 100)} % des métiers mesurés. Selon l'OCDE, plus exposé que ${robNum(o.rang_ocde * 100)} %. Les deux mesures ne comptent pas la même chose : seul l'écart entre ces deux places est lu. Au-delà de 15 points, la confiance baisse.</p>` : "";
+  const v = r.esco || {}, pc = (x) => (x * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  const esco = v.part_verte != null ? `<p class="small">Contrôle « transition écologique » : selon ESCO (Commission européenne), ${pc(v.part_verte)} % des compétences de ce métier sont « vertes »${v.mediane != null ? ` (médiane de tous les métiers : ${pc(v.mediane)} %)` : ""}. Ce chiffre n'entre pas dans le score. Le scénario bas-carbone vient de « Les métiers en 2030 ».</p>` : "";
   const eu = (r.isco || []).some((i) => i.cedefop_croissance_source === "UE27");
   const src = `<details class="more-card"><summary>D'où vient ce chiffre ?</summary>
       <ul class="small">${(r.sources_detail || []).map((x) => `<li>${esc(x.libelle)}</li>`).join("")}</ul>
@@ -4069,7 +4071,7 @@ function robustesseCard(r) {
       <p class="small">Calcul : par métier, la résistance à l'IA (exposition × part où l'IA remplace) et la demande (Cedefop, Métiers 2030, BMO), ramenées sur 100 avec des bornes fixes, pondérées 35 et 25. Trois scénarios : IA accélérée (exposition augmentée comme dans le scénario « +1 niveau cognitif » de l'OCDE, sinon × 1,25 ; aide × 0,8), central, transition rapide (variante bas-carbone de Métiers 2030). Version du modèle ${esc(r.model_version)}.</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : ce métier gardera-t-il de la valeur sur le marché du travail entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse.</p>
-    ${head}${phrase}${scen}${comp}${conf}${ocde}${src}</div>`;
+    ${head}${phrase}${scen}${comp}${conf}${ocde}${esco}${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

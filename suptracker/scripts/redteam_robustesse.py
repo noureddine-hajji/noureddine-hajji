@@ -23,6 +23,10 @@
       normalised gap 1 - total / 23), averaged over the O*NET occupations linked to each ISCO code; RANKS (ties averaged, 0-1)
       among the codes with both the OIT and the OECD measure; the job's rank gap lowers the agreement beyond 15 points (floor 0.5,
       never hides a score alone); S1's exposure x the OECD scenario ratio, else x 1.25; the OECD never enters the exposure.
+  RB10 ESCO (owner, 2026-11-17): the green-skill share per ISCO-08 4-digit group is re-derived as the mean of ESCO's own
+      occupation rows (fixture and real zip; the occupations' shares re-counted from their skills are printed as a diagnostic);
+      per job the title-weighted mean, beside the national median; a CONTROL only: score, scenarios and confidence are the same
+      with or without it; the card says it does not enter the score.
 """
 from __future__ import annotations
 
@@ -480,7 +484,7 @@ def rb5(c: Ctx):
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     R = c.R()
-    full = R.job(crafted()["full"], AUG, CED, {"2512": dict(OECD["2512"]), "1330": dict(OECD["2512"])})
+    full = R.job(crafted()["full"], AUG, CED, {"2512": dict(OECD["2512"]), "1330": dict(OECD["2512"])}, {"2512": 0.25, "1330": 0.0})
     full = json.loads(json.dumps(full))
     full["isco"][0]["libelle"] = HOSTILE
     full["model_version"] = HOSTILE
@@ -509,6 +513,10 @@ def rb5(c: Ctx):
         bad.append("the range between the scenarios is not shown")
     if "Selon l'OIT, ce métier est plus exposé à l'IA que 90 % des métiers mesurés. Selon l'OCDE, plus exposé que 30 %" not in cf:
         bad.append("the OIT / OECD ranks are not shown side by side")
+    if "selon ESCO (Commission européenne), 18,8 % des compétences de ce métier sont « vertes » (médiane de tous les métiers : 12,5 %). Ce chiffre n'entre pas dans le score." not in cf:
+        bad.append("the ESCO control is not shown, or not said to stay out of the score")
+    if "ESCO" in cn:
+        bad.append("an ESCO line without a share")
     if "Selon l'OCDE" in cn:
         bad.append("an OECD line without ranks")
     for w in ("fraîcheur", "liens observés", "accord des sources", "couverture", "D'où vient ce chiffre", "Version du modèle", "OIT &lt;img",
@@ -533,7 +541,8 @@ def rb6(c: Ctx):
         bad.append("job page")
     from suptracker import sources as SRC
     st = {s["key"]: s["status"] for s in SRC.SOURCES if "robustesse_2035" in s.get("feeds", ()) and s["status"] == "en_ligne"}
-    if st != {"cedefop_skills_forecast_2026": "en_ligne", "anthropic_aei": "en_ligne", "oecd_ai_exposure_2026": "en_ligne"}:
+    if st != {"cedefop_skills_forecast_2026": "en_ligne", "anthropic_aei": "en_ligne", "oecd_ai_exposure_2026": "en_ligne",
+              "esco_v121_fr": "en_ligne"}:
         bad.append(f"sources {st}")
     if "## Robustesse 2035" not in (ROOT / "README.md").read_text():
         bad.append("README")
@@ -618,11 +627,14 @@ def rb7(c: Ctx):
         plus.append((0.45 * k["ia"] + 0.15 * k["demande"]) / 0.6)
         minus.append((0.25 * k["ia"] + 0.35 * k["demande"]) / 0.6)
     rho = (round(spearman(base, plus), 3), round(spearman(base, minus), 3)) if base else None
+    esco_jobs = sum(1 for s in stored.values() if (s.get("esco") or {}).get("part_verte") is not None)
+    if not esco_jobs:
+        bad.append("no job carries the ESCO control: rebuild the warehouse")
     gaps = [s["ocde"]["ecart_rang"] for s in stored.values() if (s.get("ocde") or {}).get("ecart_rang") is not None]
     lv = {x: sum(1 for s in stored.values() if s["confiance"]["niveau"] == x) for x in ("haute", "moyenne", "faible")}
     return not bad, (f"{len(scored)}/{len(stored)} jobs scored; {sum(1 for v in ced.values() if v[2] == 'UE27')} groups with the "
                      f"EU-27 growth; Spearman at ±10 points: {rho}; OIT/OECD rank gap > 15 points for {sum(g > 0.15 for g in gaps)}"
-                     f"/{len(gaps)} jobs; confidence {lv}; differences {bad[:3]}")
+                     f"/{len(gaps)} jobs; ESCO green share for {esco_jobs} jobs; confidence {lv}; differences {bad[:3]}")
 
 
 SOURCE_MUTANTS = [
@@ -652,7 +664,13 @@ SOURCE_MUTANTS = [
     ("rob", "ties not averaged", "while j + 1 < n and values[order[j + 1]] == values[order[i]]:", "while False:", "RB9"),
     ("rob", "ranks over every OECD code", "both = sorted(k for k in out if k in ilo)", "both = sorted(k for k in out if k in ilo or True)", "RB9"),
     ("rob", "partial scenario averaged", "s1 = statistics.fmean(sc) if len(sc) == len(vals) else None", "s1 = statistics.fmean(sc) if sc else None", "RB9"),
-    ("js", "no OECD comparison", "${conf}${ocde}${src}", "${conf}${src}", "RB5"),
+    ("js", "no OECD comparison", "${conf}${ocde}${esco}${src}", "${conf}${esco}${src}", "RB5"),
+    ("js", "no ESCO control", "${conf}${ocde}${esco}${src}", "${conf}${ocde}${src}", "RB5"),
+    ("rob", "ESCO rows of every level read", 'r.get("conceptType") == "ISCO level 4" and len(r.get("code") or "") == 4 and r["code"].isdigit()',
+     "True", "RB10"),
+    ("rob", "ESCO enters the confidence", "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem",
+     "accord = min(accord_dem, accord_ia) if accord_ia is not None else accord_dem\n    accord = min(accord, vert if vert is not None else 1)", "RB10"),
+    ("rob", "ESCO share not weighted", "            esco_p.append((esco[code], w))", "            esco_p.append((esco[code], 1.0))", "RB10"),
     ("js", "label unescaped", '<li>${esc(x.libelle)}</li>', '<li>${x.libelle}</li>', "RB5"),
     ("js", "no estimation label", '${estimTag("médiane des trois scénarios")}', "", "RB5"),
     ("js", "no confidence detail", "fraîcheur des sources ${fmt2(k.fraicheur)}", "${fmt2(k.fraicheur)}", "RB5"),
@@ -715,6 +733,78 @@ def rb9(c: Ctx):
         if diff or n != 879:
             bad.append(f"real workbook: {n} occupations, reversed index != 1 - total / 23 for {diff[:3]}")
     return not bad, f"differences {bad[:4]}; real occupations read: {n}"
+
+
+FIX_ESCO = [("ISCO level 4", "2512", "0.25"), ("ISCO level 4", "1330", "0.0"), ("ISCO level 3", "251", "0.9"),
+            ("ISCO level 4", "3333", "0.5"), ("Occupation", "2512.1", "0.2"), ("Occupation", "2512.2", "0.3"),
+            ("Occupation", "1330.1", "0.0"), ("Occupation", "3333.4", "0.5")]
+
+
+def fixture_esco(path: Path):
+    body = "conceptType,conceptUri,code,preferredLabel,greenShare\n" + "".join(f"{t},u{i},{c},l,{v}\n" for i, (t, c, v) in enumerate(FIX_ESCO))
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("greenShareOcc_fr.csv", body)
+        z.writestr("occupations_fr.csv", "conceptType\n")
+
+
+def oracle_esco(path: Path) -> dict:
+    """Own reading: the mean of the OCCUPATION rows per 4-digit prefix of their code."""
+    import csv
+    by = {}
+    with zipfile.ZipFile(path) as z:
+        for r in csv.DictReader(io.TextIOWrapper(z.open("greenShareOcc_fr.csv"), encoding="utf-8")):
+            if r["conceptType"] == "Occupation":
+                by.setdefault(r["code"][:4], []).append(float(r["greenShare"]))
+    return {k: sum(v) / len(v) for k, v in by.items()}
+
+
+@check("RB10 ESCO: green share per ISCO group re-derived from the occupation rows, weighted per job, control only")
+def rb10(c: Ctx):
+    R = c.R()
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        fixture_esco(tmp / "e.zip")
+        got, exp = R.read_esco(tmp / "e.zip"), oracle_esco(tmp / "e.zip")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    bad = [k for k in set(got) | set(exp) if k not in got or k not in exp or abs(got[k] - exp[k]) > 1e-9]
+    if "251" in got:
+        bad.append("an ISCO level 3 row read")
+    d = crafted()["full"]
+    a, b = R.job(d, AUG, CED, OECD), R.job(d, AUG, CED, OECD, got)
+    for key in ("score", "scenarios", "composantes", "confiance", "ocde"):
+        if a[key] != b[key]:
+            bad.append(f"ESCO changes « {key} »")
+    want = (0.25 * 3 + 0.0 * 1) / 4
+    e = b.get("esco") or {}
+    if e.get("part_verte") is None or abs(e["part_verte"] - round(want, 4)) > 1e-9 or e.get("n_codes") != 2 \
+            or abs(e.get("mediane", -1) - statistics.median(got.values())) > 1e-4:
+        bad.append(f"job ESCO block {e}")
+    if (a.get("esco") or {}).get("part_verte") is not None:
+        bad.append("a green share without ESCO")
+    real = ROOT / "data" / "sources" / R.ESCO_ZIP
+    info = None
+    if real.exists():
+        g2, e2 = R.read_esco(real), oracle_esco(real)
+        diff = [k for k in set(g2) | set(e2) if k not in g2 or k not in e2 or abs(g2[k] - e2[k]) > 1e-9]
+        if diff or len(g2) < 400:
+            bad.append(f"real zip: {len(g2)} groups, differences {sorted(diff)[:4]}")
+        if c.real:
+            import csv
+            with zipfile.ZipFile(real) as z:
+                rd = lambda n: csv.DictReader(io.TextIOWrapper(z.open(n), encoding="utf-8"))  # noqa: E731
+                occ = {r["conceptUri"]: float(r["greenShare"]) for r in rd("greenShareOcc_fr.csv") if r["conceptType"] == "Occupation"}
+                green = {r["conceptUri"] for r in rd("greenSkillsCollection_fr.csv")}
+                tot, gr = {}, {}
+                for r in rd("occupationSkillRelations_fr.csv"):
+                    o = r["occupationUri"]
+                    tot[o] = tot.get(o, 0) + 1
+                    gr[o] = gr.get(o, 0) + (r["skillUri"] in green)
+            same = sum(1 for o, v in occ.items() if tot.get(o) and abs(gr[o] / tot[o] - v) < 1e-9)
+            info = f"{len(g2)} groups; occupations whose published share = green skills / skills: {same}/{len(occ)}"
+        else:
+            info = f"{len(g2)} groups"
+    return not bad, f"differences {bad[:4]}; real: {info}"
 
 
 @check("RB8 mutation test: every seeded bug is caught")
