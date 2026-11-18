@@ -2374,18 +2374,25 @@ function trFuel(T, dep) {
   }
   return { fuel, local, all: Object.keys(fuel) };
 }
-// the sea or a border between two points: the continent (its box also takes the nearest foreign towns), Corsica, French Guiana and
-// New Caledonia's main island (both larger than 100 km) and every other place (the other overseas islands, formations abroad) are
-// told apart by their coordinates; two of those other points more than 100 km apart are not on the same land. No car estimate then
-// (French fuel prices, no road distance across the sea).
+// the sea or a border between two points (Codex, PR #86: two islands less than 100 km apart are still two islands): each land
+// with roads is named by its coordinates (the continent, whose box also takes the nearest foreign towns; Corsica; French Guiana;
+// New Caledonia's main island, a band along its axis; Réunion; Martinique; Guadeloupe's Basse-Terre and Grande-Terre, joined by
+// bridges; Mayotte's Grande-Terre; Tahiti); every other place (Marie-Galante, Les Saintes, Petite-Terre, Moorea, the other islands,
+// formations abroad) is "autre" and gets NO car estimate, even next door: a road between them is never assumed
 function trLand(lat, lon) {
   if (lat >= 41.3 && lat <= 43.1 && lon >= 8.45 && lon <= 9.65) return "corse";
   if (lat >= 42.3 && lat <= 51.2 && lon >= -5.3 && lon <= 8.35) return "continent";
   if (lat >= 2 && lat <= 6 && lon >= -55 && lon <= -51) return "guyane";
-  if (lat >= -22.8 && lat <= -20 && lon >= 163.5 && lon <= 167.2) return "grande-terre";
+  const ax = 163.95 - 166.95, ay = -20.05 + 22.45, px = lon - 166.95, py = lat + 22.45, t = (px * ax + py * ay) / (ax * ax + ay * ay);
+  if (t >= -0.05 && t <= 1.05 && Math.hypot(px - t * ax, py - t * ay) <= 0.42) return "grande-terre";
+  if (lat >= -21.4 && lat <= -20.85 && lon >= 55.2 && lon <= 55.85) return "reunion";
+  if (lat >= 14.38 && lat <= 14.9 && lon >= -61.25 && lon <= -60.8) return "martinique";
+  if ((lat >= 15.94 && lat <= 16.52 && lon >= -61.82 && lon <= -61.55) || (lat >= 16.18 && lat <= 16.52 && lon > -61.55 && lon <= -61.17)) return "guadeloupe";
+  if (lat >= -13.02 && lat <= -12.62 && lon >= 44.98 && lon <= 45.25) return "mayotte";
+  if (lat >= -17.9 && lat <= -17.48 && lon >= -149.65 && lon <= -149.1) return "tahiti";
   return "autre";
 }
-const trSea = (home, lat, lon, km) => { const a = trLand(home.lat, home.lon), b = trLand(lat, lon); return a !== b || (a === "autre" && km > 100); };
+const trSea = (home, lat, lon) => { const a = trLand(home.lat, home.lon); return a !== trLand(lat, lon) || a === "autre"; };
 // the car: road = crow-fly x detour range, fuel = the lowest and highest median of the fuels read, round trip; time one way
 function trCar(km, H, fuel) {
   const prices = Object.values(fuel || {}).map((x) => x.prix).filter((x) => Number.isFinite(x));
@@ -2422,7 +2429,7 @@ const TR_LINKS = { sncf: "https://www.sncf-connect.com/" };
 function transportsHtml(T, home, lat, lon) {
   const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
   if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
-  const sea = trSea(home, lat, lon, km), F = trFuel(T, home.dep);
+  const sea = trSea(home, lat, lon), F = trFuel(T, home.dep);
   const car = sea ? null : trCar(km, H, F.fuel), tr = trTrain(T, home, lat, lon);
   const fuelDate = Object.values(T.carburant || {}).map((x) => x.date).sort().pop();
   const names = (ks) => ks.map((k) => TR_FUEL_NAMES[k] || k).join(", ");
@@ -2441,7 +2448,7 @@ function transportsHtml(T, home, lat, lon) {
   ];
   // owner, 2026-11-18: no carpooling or bus line (no public price, nothing to say); a ferry only where Corsica or two islands are concerned
   const la = trLand(home.lat, home.lon), lb = trLand(lat, lon);
-  if (sea && (la === "corse" || lb === "corse" || (la === "autre" && lb === "autre")))
+  if (sea && (la === "corse" || lb === "corse" || (la !== "continent" && lb !== "continent")))
     rows.push(row("Bateau", "pas de prix public", "—", "comparez sur les sites des compagnies maritimes, au départ des ports les plus proches."));
   if (km >= H.avion_km || sea) rows.push(row("Avion", "pas de prix public", "—", `${sea && km < H.avion_km ? "pour traverser la mer" : "au-delà de 500 km"}, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports.`));
   return `<p class="small">De ${esc(villeLabel(home))} à la formation : <strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau. Des fourchettes à titre d'information, pas des prix garantis.</p>

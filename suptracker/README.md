@@ -3894,8 +3894,10 @@ The build stores one compressed JSON value beside the warehouse; `/api/transport
   per 100 km, 90 to 110 km/h; Paris-Lyon: about 4 h 20 to 5 h 40), the lowest fuel median with the lowest consumption and the highest with the highest, round trip; time
   one way; « carburant seul, péages et parking non compris », labelled estimation. Each fuel's price is the median of the student's
   department when published, else the national one, and the page says which (fuel by fuel). No car estimate when the sea or a border
-  lies between the town and the formation (`trLand`: the continent, Corsica, French Guiana and New Caledonia's main island by their
-  coordinates, the other overseas islands and formations abroad apart, two of those more than 100 km apart on different lands); the
+  lies between the town and the formation (`trLand`: each land with roads is named by its coordinates: the continent, Corsica,
+  French Guiana, New Caledonia's main island (a band along its axis), Réunion, Martinique, Guadeloupe's Basse-Terre and Grande-Terre
+  (bridged), Mayotte's Grande-Terre, Tahiti; every other place, Marie-Galante, Les Saintes, Petite-Terre, Moorea or a formation
+  abroad, gets no car estimate even next door: Codex on PR #86 found Marie-Galante → Les Abymes, 49 km, priced by car); the
   plane row then shows whatever the distance and a ferry row (no price) appears where Corsica or two islands are concerned. On the real cartographie, all 10,184 formation positions fall on their department's land;
 - TGV: every fare station within 30 km of the town and of the formation (Paris has several), the pair with the lowest published
   normal fare; its range x 2 with the carriers (OUIGO, TGV INOUI), « plein tarif, 2de classe », and the SNCF's own published

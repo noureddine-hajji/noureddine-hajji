@@ -735,7 +735,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   fuel MEDIANS of the last 30 days, national and per department (>= 10 stations; the page uses the student's department fuel by fuel,
   else the national one, and says which), the fixed HYPOTHESES of the car estimate (road 1.2-1.3 x crow-fly, 5-7 L/100 km, 90-110 km/h;
   owner-reviewable, printed on the page). The page computes the round trip from `villeDepart` (never sent): car = fuel only, tolls and
-  parking said not counted, estimation label, NONE across the sea or a border (`trLand` boxes, checked on every formation); TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
+  parking said not counted, estimation label, NONE across the sea or a border (`trLand`: each land with roads named by its coordinates, the continent, Corsica, Guiana,
+  New Caledonia's main island, Réunion, Martinique, Guadeloupe's two bridged islands, Mayotte's Grande-Terre, Tahiti; any other place
+  gets no car even next door: Codex, PR #86; checked on every formation); TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
   with the lowest published normal fare, its range x 2, plus the SNCF's own « Tarif Élève - Étudiant - Apprenti » range where published
   (none when one station serves both ends); the plane (from 500 km or across the sea) and the ferry have no public
   price: a line without a figure; NO carpooling or bus line (owner, 2026-11-18: no public data); no

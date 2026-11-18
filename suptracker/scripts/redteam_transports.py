@@ -8,7 +8,8 @@
       x detour range, round trip, the lowest price with the lowest consumption and the highest with the highest, time one way from
       the speed range; the nearest fare station within the radius on each side, none when the same station serves both, the
       published range x 2; euros rounded OUTWARDS; each fuel's price = its department median when published, else the national
-      one; no car estimate when the sea or a border lies between the two points (a table of real places).
+      one; no car estimate when the sea or a border lies between the two points (a table of real places, nearby islands included:
+      Codex, PR #86).
   TR3 page text (node): every stored string escaped; no carpooling or bus line (owner: no public data); no figure for the plane; the plane only from 500 km; tolls and
       parking said not counted; the estimation label on the car; ODbL and Licence Ouverte credited; https links with noopener;
       vouvoiement; never a guaranteed price; a town at the formation says so; no town = a link to Mon profil.
@@ -242,13 +243,26 @@ PLACES = {"Paris": (48.8566, 2.3522), "Lyon": (45.764, 4.8357), "Brest": (48.390
           "Fort-de-France": (14.6161, -61.0588), "Pointe-à-Pitre": (16.2411, -61.5331), "Basse-Terre": (15.9985, -61.7255),
           "Saint-Denis (Réunion)": (-20.8821, 55.4507), "Saint-Pierre (Réunion)": (-21.3393, 55.4781), "Cayenne": (4.9224, -52.3135),
           "Saint-Laurent-du-Maroni": (5.4985, -54.0325), "Nouméa": (-22.2758, 166.458), "Koné": (-21.0595, 164.8658),
-          "Mamoudzou": (-12.7806, 45.2279), "Papeete": (-17.5516, -149.5585)}
+          "Mamoudzou": (-12.7806, 45.2279), "Papeete": (-17.5516, -149.5585),
+          # Codex, PR #86: islands less than 100 km apart are still two lands
+          "Grand-Bourg (Marie-Galante)": (15.8838, -61.3141), "Les Abymes": (16.2710, -61.5045), "Terre-de-Haut (Les Saintes)": (15.8659, -61.5815),
+          "Saint-François (Guadeloupe)": (16.2522, -61.2740), "La Désirade": (16.3110, -61.0800), "Dzaoudzi (Petite-Terre)": (-12.7880, 45.2830),
+          "Sada (Mayotte)": (-12.8500, 45.1050), "Afareaitu (Moorea)": (-17.5400, -149.7920), "Taravao (Tahiti)": (-17.7400, -149.3110),
+          "Ouvéa": (-20.6500, 166.5300), "Hienghène": (-20.6900, 164.9400), "Saint-Pierre (Martinique)": (14.7430, -61.1760),
+          "Le Lamentin": (14.6130, -60.9990), "Saint-Pierre (Réunion)": (-21.3393, 55.4781)}
 SEA = {("Paris", "Lyon"): False, ("Brest", "Strasbourg"): False, ("Nice", "Perpignan"): False, ("Lille", "Bruxelles"): False,
        ("Ajaccio", "Bastia"): False, ("Pointe-à-Pitre", "Basse-Terre"): False, ("Saint-Denis (Réunion)", "Saint-Pierre (Réunion)"): False,
        ("Cayenne", "Saint-Laurent-du-Maroni"): False, ("Nouméa", "Koné"): False,
        ("Nice", "Ajaccio"): True, ("Paris", "Bastia"): True, ("Paris", "Berlin"): True, ("Perpignan", "Madrid"): True,
        ("Fort-de-France", "Pointe-à-Pitre"): True, ("Paris", "Saint-Denis (Réunion)"): True, ("Cayenne", "Fort-de-France"): True,
-       ("Mamoudzou", "Saint-Denis (Réunion)"): True, ("Papeete", "Nouméa"): True, ("Lyon", "Cayenne"): True}
+       ("Mamoudzou", "Saint-Denis (Réunion)"): True, ("Papeete", "Nouméa"): True, ("Lyon", "Cayenne"): True,
+       ("Grand-Bourg (Marie-Galante)", "Les Abymes"): True, ("Terre-de-Haut (Les Saintes)", "Basse-Terre"): True,
+       ("Grand-Bourg (Marie-Galante)", "Terre-de-Haut (Les Saintes)"): True,      # two unnamed islands, about 28 km apart
+       ("La Désirade", "Saint-François (Guadeloupe)"): True, ("Dzaoudzi (Petite-Terre)", "Mamoudzou"): True,
+       ("Afareaitu (Moorea)", "Papeete"): True, ("Ouvéa", "Nouméa"): True,
+       ("Les Abymes", "Basse-Terre"): False, ("Saint-François (Guadeloupe)", "Pointe-à-Pitre"): False, ("Sada (Mayotte)", "Mamoudzou"): False,
+       ("Taravao (Tahiti)", "Papeete"): False, ("Hienghène", "Nouméa"): False, ("Saint-Pierre (Martinique)", "Le Lamentin"): False,
+       ("Fort-de-France", "Le Lamentin"): False}
 
 
 def hav(a, b, c, d):
@@ -497,7 +511,9 @@ def tr7(c: Ctx):
                 "Saint-Pierre-et-Miquelon", "Wallis et Futuna", "Wallis-et-Futuna"}
     if lands is not None:
         def want(dep):
-            return ({"Corse-du-Sud": {"corse"}, "Haute-Corse": {"corse"}, "Guyane": {"guyane"}, "Nouvelle-Calédonie": {"grande-terre", "autre"}}
+            return ({"Corse-du-Sud": {"corse"}, "Haute-Corse": {"corse"}, "Guyane": {"guyane"}, "Nouvelle-Calédonie": {"grande-terre", "autre"},
+                     "La Réunion": {"reunion"}, "Martinique": {"martinique"}, "Guadeloupe": {"guadeloupe", "autre"},
+                     "Mayotte": {"mayotte", "autre"}, "Polynésie française": {"tahiti", "autre"}}
                     .get(dep) or ({"autre"} if dep in OVERSEAS else {"continent"}))
         wrong = [(d, la, lo, got) for (d, la, lo), got in zip(pts, lands) if got not in want(d)]
         if wrong:
@@ -535,7 +551,13 @@ SOURCE_MUTANTS = [
     ("js", "department ignored", "  const D = (T.carburant_dep || {})[String(dep || \"\").toUpperCase()] || {}, fuel = {}, local = [];",
      "  const D = {}, fuel = {}, local = [];", "TR2"),
     ("js", "Corsica on the continent", '  if (lat >= 41.3 && lat <= 43.1 && lon >= 8.45 && lon <= 9.65) return "corse";\n', "", "TR2"),
-    ("js", "islands joined", 'return a !== b || (a === "autre" && km > 100); };', "return a !== b; };", "TR2"),
+    ("js", "islands joined", 'return a !== trLand(lat, lon) || a === "autre"; };', "return a !== trLand(lat, lon); };", "TR2"),
+    ("js", "nearby islands joined (Codex)", 'return a !== trLand(lat, lon) || a === "autre"; };',
+     'return a !== trLand(lat, lon) || (a === "autre" && haversineKm(home.lat, home.lon, lat, lon) > 100); };', "TR2"),
+    ("js", "Marie-Galante on Guadeloupe's main island", "(lat >= 15.94 && lat <= 16.52 && lon >= -61.82 && lon <= -61.55)", "(lat >= 15.8 && lat <= 16.52 && lon >= -61.82 && lon <= -61.2)", "TR2"),
+    ("js", "Petite-Terre on Mayotte's main island", "lon >= 44.98 && lon <= 45.25) return \"mayotte\";", "lon >= 44.98 && lon <= 45.35) return \"mayotte\";", "TR2"),
+    ("js", "Ouvéa on New Caledonia's main island", "Math.hypot(px - t * ax, py - t * ay) <= 0.42", "Math.hypot(px - t * ax, py - t * ay) <= 1.5", "TR2"),
+    ("js", "Réunion not named", '  if (lat >= -21.4 && lat <= -20.85 && lon >= 55.2 && lon <= 55.85) return "reunion";\n', "", "TR2"),
     ("js", "Guiana split", '  if (lat >= 2 && lat <= 6 && lon >= -55 && lon <= -51) return "guyane";\n', "", "TR2"),
     ("tr", "department threshold ignored", "                if len(vs) >= MIN_STATIONS_DEP:", "                if vs:", "TR1"),
     ("tr", "department window ignored", "            for v, dep in recent:\n", "            for v, _t, dep in vals:\n", "TR1"),
