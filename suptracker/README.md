@@ -3855,7 +3855,9 @@ named the concours (a wrong or moved address shows nothing). The concours sites 
 in the warehouse fingerprint. First real reading (2026-11-18): Geipi Polytech, SESAME, Advance and ACCÈS read and named, Puissance
 Alpha and Avenir unreachable from the runner (connection error: nothing shown, retried each day); events kept: the ACCÈS webinar
 on the 2027 selection (17 November 2026), Geipi Polytech at two fairs (8 and 22 January 2027). SESAME's agenda listed only single
-schools' fairs and open days (LEM Strasbourg, EMLV): none kept, by the naming rule written after this reading.
+schools' fairs and open days (LEM Strasbourg, EMLV): none kept, by the naming rule written after this reading. On the refreshed
+warehouse (2026-11-18): every Geipi Polytech formation shows the two fairs with the agenda page and the reading day; J9 passes
+(2,628 of 14,252 formations with a date this season, 708 with a period from past seasons).
 
 **Ce que regarde le jury: one card.** When the formation has both its Parcoursup fiche (the coming campaign) and its jury's own
 report (the past session), the tab is ONE card « Comment votre dossier est examiné » (`juryMerged`): the fiche comes first and
@@ -3908,6 +3910,8 @@ Red team `redteam_transports.py` (TR1-TR8): an independent reading of crafted SN
 Python on a grid of towns, the page text (escaping, no figure where no price is public, the plane only from 500 km, credits, safe
 links), privacy (no parameter, the town never sent, no late fill), the fetcher (columns by name, official hosts), the plumbing; the
 real data check prints the share of formations with a fare station nearby and checks every formation's land against its department.
-34/34 mutants caught. Data refresh: the transports workflow runs on the 3rd of every month; the data workflow rebuilds the
+34/34 mutants caught. Checked on the refreshed warehouse (2026-11-18): TR7 passes (the served payload equals data/transports;
+230 stations, 3,691 fares, fuel medians of 96 departments; 4,745 of the 5,797 latest-campaign formations within 30 km of a fare
+station). Data refresh: the transports workflow runs on the 3rd of every month; the data workflow rebuilds the
 warehouse when the fetched files changed (they are in its fingerprint). Fuel medians on the 2026-11-18 file: gazole 2.139 € (9,331
 stations), SP95-E10 1.977 € (7,521), SP95 2.020 € (2,637).
