@@ -3799,3 +3799,31 @@ no licence is set aside (poursuite 3,044, direct 6,780, famille 2,689, as before
 through that master again, and the card still says how many masters and jobs the score rests on. Red team RF3 truth table and
 mutants follow the new thresholds (43/43). Checked on the data workflow's warehouse of 2026-11-18 (21e03d8): RB, RF and VT
 red teams pass on real data.
+
+## Robustesse 2035: the published insertion beside it, and a search filter (owner, 2026-11-18)
+
+**Beside the score, never in it.** The formation's robustesse card now shows, in its own framed block « À côté : l'insertion
+publiée », what the official sources publish about this diploma's insertion, the facts the model leaves out of the score:
+- a BTS: Inserjeunes for THIS establishment (`insertion.for_bts`, the « Insertion professionnelle » card's own rows): employed 6
+  months after among the students who LEFT studies, continuing studies among the final-year students; each option on its own line,
+  never averaged; a masked value says « non publié »;
+- a BUT: InserSup (`insertion.for_but`): this specialty at the university, else every BUT of the university, else the specialty in
+  France; employed in France 18 months after among the graduates who left, the stable share among the salaried; most BUT graduates
+  go on studying and are not counted (said).
+The block says the figures stay beside the robustesse, never in it (past classes, a few months after the diploma; the robustesse
+reads the jobs of 2030-2035), never a chance of a job. It appears even when the model has no estimate. No new request: the formation
+page passes its own `insertion` and `but.insertion` blocks. On the 2026-11-18 warehouse: 3,916 of 5,351 BTS have Inserjeunes rows
+(employment at 6 months published on 1,571 of 4,707 rows, continuation on 3,412), 53 of a 56-BUT sample have their own specialty.
+
+**Search filters.** The search page (`#/carte`) has two more dropdowns, « Robustesse 2035 dans sa filière » and « Robustesse 2035,
+toutes formations » (top 20 %, average, bottom 20 %, « non classée » / « pas de repère »), read from the lists' payload
+`/api/reconnaissance` (no request of its own, nothing sent), counted like every group, kept in the shared link and the reset. Each
+dropdown carries the estimation label, its help text and the method link; the dropdowns are hidden when the repères did not load
+(the filter then keeps every formation). Each result card with a repère prints it in one line, apart from the zone and the rates.
+The list is NEVER sorted by a repère. On the real layer: 21,914 formations, 1,666 in the top 20 % of their filière.
+
+Red team RF11 (`redteam_robustesse_formations.py`): the block re-read from crafted Inserjeunes and InserSup rows (options named and
+apart, masked said, specialty first then the fallbacks, the out-of-score sentence, the block before « Détail du calcul »), the
+formation model never reads Inserjeunes or the BUT insertion, every filter option re-derived from the compact payload (« sans » = no
+level), the counts equal to the other groups' selection, no filter without the repères, card lines without unknown levels, no sort by
+a repère; 64/64 mutants caught.

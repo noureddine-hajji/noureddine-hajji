@@ -710,6 +710,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   lists every MODEL_VERSION (bump the version AND the changelog together). RF9-RF10.
   A licence goes through its masters with >= MIN_MASTERS masters or >= MIN_MASTER_JOBS jobs (`enough_masters`; owner 2026-11-18:
   first 2 / 5, re-set the same day to 1 / 1, model 2027.4-f); otherwise its own jobs (else family), masters kept, reason said.
+  Owner, 2026-11-18: the formation card shows the PUBLISHED insertion of a BTS (Inserjeunes, own establishment, each option apart)
+  or a BUT (InserSup: specialty at the university, else all its BUT, else the specialty in France) in its own block BESIDE the
+  repères, never in the score (`robInsPublie`); the search page filters by both repères (`CARTE_ROB`, `robLevel`, « sans » = no
+  level, read from /api/reconnaissance, hidden when not loaded), the card prints them in one line; never a sort by a repère. RF11.
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

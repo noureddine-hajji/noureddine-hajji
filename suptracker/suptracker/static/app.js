@@ -749,6 +749,8 @@ const FI_HELP = {
   zone: "Lue pour votre profil (bac, spécialités, mention), comme dans « Mes vœux » : rien n'est enregistré. Des repères, pas des chances.",
   complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",
   taux: "Le taux d'accès officiel de la formation, tous candidats confondus : un repère, pas vos chances.",
+  robf: "Estimation du modèle de SupCompass : les métiers auxquels mène la formation devraient-ils garder de la valeur entre 2030 et 2035 ? Comparée aux formations de sa filière. Ni une chance d'admission, ni une promesse d'emploi.",
+  robn: "Le même repère, comparé à toutes les formations, sur les métiers visés et leur diversité. Ni une chance d'admission, ni une promesse d'emploi.",
 };
 const fiOptions = (g) => ((typeof META !== "undefined" && META && META.filtres && META.filtres[g]) || []);
 // the band of a value: lower limit included, upper limit excluded (twin of filtres.band)
@@ -1260,8 +1262,18 @@ const kwWords = (q) => foldText(q).split(/[^a-z0-9]+/).filter((w) => w.length > 
 const CARTE_R3 = ["capacite", "complementaire", "taux"];
 // owner, 2026-11-16: the académie list of the two earlier search pages stays a filter of its own (the place field reads it too)
 const CARTE_ACADS = [];                    // filled from the layer by the search page
+// owner, 2026-11-18: the robustesse 2035 repères of each formation (the two the formation page shows, read from the lists'
+// payload /api/reconnaissance: no request of its own, nothing sent); "sans" = no repère (not ranked, or no estimate). A FILTER only:
+// the list is never sorted by a repère, and a repère is never merged with the zone
+const CARTE_ROB = [
+  ["robf", "Robustesse 2035 dans sa filière", [["haut", "Parmi les 20 % les plus robustes de sa filière"], ["moyen", "Dans la moyenne de sa filière"],
+    ["bas", "Parmi les 20 % les moins robustes de sa filière"], ["sans", "Non classée dans sa filière"]]],
+  ["robn", "Robustesse 2035, toutes formations", [["haut", "Parmi les 20 % les plus robustes"], ["moyen", "Dans la moyenne"],
+    ["bas", "Parmi les 20 % les moins robustes"], ["sans", "Pas de repère"]]],
+];
+const robLevel = (cod, k) => (RECO && RECO.rob && RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";
 const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ...CARTE_GROUPS.slice(1),
-  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])])];
+  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
@@ -1273,11 +1285,12 @@ function carteHas(f, g, o) {
   if (g === "zones") return carteZone(f) === o;
   if (g === "capacite") return filtreBand(f.capa_fin, fiOptions("capacite")) === o;
   if (g === "taux") return filtreBand(f.taux_acces_ens, fiOptions("taux")) === o;
+  if (g === "robf" || g === "robn") return !(RECO && RECO.rob) || robLevel(f.cod_aff_form, g) === o;   // repères not loaded: no filter
   if (g === "complementaire") return f.acc_pc !== null && f.acc_pc !== undefined && (o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0);   // unknown: neither
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
-const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3];
+const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3, "robf", "robn"];
 // sprint Vitesse (owner, 2026-11-16): an apprenticeship offer's folded name is computed once per name, not at every count
 const carteFolded = new Map();
 function carteText(f) {
@@ -1427,9 +1440,17 @@ function carteCard(f, ctx, pinned) {
     ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
     ${carteMajo(f)}
     ${carteFigures(f, { ...ctx, compact: true })}
-    ${appOffers(f.offres_app)}`}
+    ${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}
     <div class="toolbar ctools">${f.stats === false ? "" : `${voeuButton(f.cod_aff_form)}${compareButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Fiche →</a>`}${pinned ? '<button type="button" class="btn-sec" data-unpin>Fermer</button>' : ""}</div>
   </div>`;
+}
+// the two robustesse repères on a result card, in words, apart from the zone and the rates (never one mark); nothing when unknown
+const ROB_CARD = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
+function robCardLine(cod) {
+  const R = RECO && RECO.rob;
+  const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];      // a known level only
+  if (!a && !b) return "";
+  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.</p>`;
 }
 function carteList(rows, ctx) {
   const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
@@ -1654,8 +1675,9 @@ async function viewCarte(dArg, mArg) {
       ${D.mentions.filter((m) => offered(nMen.get(`${D.label}\u0000${m.label}`) || 0, (sel.m[D.label] || []).includes(m.label))).map((m) => `<label data-men-label="${esc(foldText(m.label))}"><input type="checkbox" data-men="${esc(m.label)}" data-mdip="${esc(D.label)}" ${(sel.m[D.label] || []).includes(m.label) ? "checked" : ""}> <span>${esc(m.label)}</span> <span class="muted">${fmt(nMen.get(`${D.label}\u0000${m.label}`) || 0)}</span></label>`).join("")}</fieldset>`).join("")) : "";
     // a group is marked (and its ticked count shown) only when it differs from its default (statut: paid unticked)
     const moved = (gr) => JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || []);
-    const groups = carteGroups().map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
-      ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}`, moved(gr)));
+    const robOk = !!(RECO && RECO.rob);
+    const groups = carteGroups().filter(([gr]) => robOk || !gr.startsWith("rob")).map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
+      ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} <a href="#/info/robustesse">Comment on calcule la robustesse</a></p>` : ""}`, moved(gr)));
     const zones = ok ? dd("zones", "Votre zone", (F.zones || []).length, `${clear("zones")}${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}<p class="muted small">${esc(FI_HELP.zone)}</p>`) : "";
     // the count of active groups, said on the "Filtrer" fold that hides the dropdowns on a phone
     const active = [sel.d.length, menDips.length && sel.d.some((d) => (sel.m[d] || []).length), (F.zones || []).length,
@@ -2404,7 +2426,7 @@ async function viewFormation(cod, session) {
   ${licenceMasterCard(d.licence_master)}
   ${butCard(d.but)}`],
     ["emploi", "Emploi et métiers", `
-  ${formationRobustesseCard(d.robustesse)}
+  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}
   ${insertionCard(d.insertion)}
   ${apprentiInsertionCard(d.apprenti)}
   ${cereqCard(d.cereq)}
@@ -4165,7 +4187,25 @@ function robfFaits(r) {
   if (k.fiche) out.push(k.apprentissage ? "Pratique : le diplôme peut se préparer en apprentissage (expérience en entreprise), selon sa fiche RNCP." : "Pratique : la fiche RNCP du diplôme ne cite pas l'apprentissage parmi ses voies d'accès.");
   return out;
 }
-function formationRobustesseCard(r) {
+// owner, 2026-11-18: the PUBLISHED insertion of a BTS (Inserjeunes, this establishment) or a BUT (InserSup) shown BESIDE the
+// robustesse, in its own block, never in the score (the BTS is measured at 6 months, the BUT among the few who leave): each value
+// as published with its denominator, a masked one said, the options of a BTS each on its own line (never averaged)
+const robPc = (v) => (v == null ? '<span class="muted">non publié</span>' : `<strong>${pc1d(v)}\u00a0%</strong>`);
+function robInsPublie(ins, but) {
+  let body = "";
+  if (ins && ins.rows && ins.rows.length) {
+    const many = ins.rows.length > 1;
+    body = `<p class="small">Ce BTS dans cet établissement (Inserjeunes, ${esc(String(ins.annee || "").replace("cumul", "sortis en"))})${many ? ", chaque option à part" : ""} :</p>
+      <ul class="small">${ins.rows.map((r) => `<li>${many ? `${esc(r.libelle_formation)} : ` : ""}en emploi 6 mois après, ${robPc(r.taux_emploi_6)} des élèves qui ont quitté les études ; poursuivent leurs études, ${robPc(r.taux_poursuite)} des élèves de dernière année.</li>`).join("")}</ul>`;
+  } else if (but && (but.specialite || but.total || but.france_specialite)) {
+    const [lab, x] = but.specialite ? ["Cette spécialité dans l'université", but.specialite] : but.total ? ["Tous les BUT de l'université", but.total] : ["Cette spécialité, en France", but.france_specialite];
+    body = `<p class="small">${esc(lab)} (InserSup, ${promoTxt(x)}) : en emploi salarié en France ${H} mois après, ${robPc(x[`tx_sortants_en_emploi_sal_fr_${H}`])} des diplômés qui ont quitté les études ; en emploi stable, ${robPc(x[`tx_sortants_en_emploi_stable_${H}`])} de ceux en emploi salarié. La plupart des diplômés de BUT poursuivent leurs études : ils ne sont pas comptés.</p>`;
+  }
+  if (!body) return "";
+  return `<div class="rob-pub"><h3>À côté : l'insertion publiée</h3>${body}
+    <p class="muted small">Ces chiffres publiés restent à côté de la robustesse, jamais dedans : ils décrivent des promotions passées, quelques mois après le diplôme, alors que la robustesse porte sur les métiers entre 2030 et 2035. Ce ne sont pas des chances d'emploi. Le détail est dans la carte « Insertion professionnelle »${ins && ins.rows && ins.rows.length ? " plus bas" : ", onglet « Réussir et poursuivre »"}.</p></div>`;
+}
+function formationRobustesseCard(r, pub) {
   if (!r) return "";
   const s = r.score, q = r.repere, cp = r.composantes || {}, k = r.confiance || {}, faits = robfFaits(r);
   const fil = q && q.filiere ? ` (${esc(q.filiere.replace("_", " "))})` : "";
@@ -4199,7 +4239,7 @@ function formationRobustesseCard(r) {
       <p class="muted small">Sources : Onisep, Idéo (licence ODbL) ; France Compétences, RNCP (Licence Ouverte) ; France Travail, ROME 4.0 (Licence Ouverte) ; MonMaster et InserSup (MESR) ; et les sources de la robustesse des métiers (OIT, Anthropic Economic Index, Cedefop, Dares, France Travail).</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : les métiers auxquels mène cette formation et les compétences qu'elle développe garderont-ils de la valeur entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse d'emploi.</p>
-    ${head}${nat}${list}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
+    ${head}${nat}${list}${robInsPublie(pub && pub.ins, pub && pub.but)}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

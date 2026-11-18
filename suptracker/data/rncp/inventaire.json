@@ -1,7 +1,7 @@
 {
- "date": "2026-11-17",
- "title": "export-fiches-csv-2026-11-17.zip",
- "url": "https://static.data.gouv.fr/resources/repertoire-national-des-certifications-professionnelles-et-repertoire-specifique/20261117-020001/export-fiches-csv-2026-11-17.zip",
+ "date": "2026-11-18",
+ "title": "export-fiches-csv-2026-11-18.zip",
+ "url": "https://static.data.gouv.fr/resources/repertoire-national-des-certifications-professionnelles-et-repertoire-specifique/20261118-020002/export-fiches-csv-2026-11-18.zip",
  "rome": {
   "rome_toutes_donnees.zip": {
    "url": "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/csv",
@@ -544,10 +544,10 @@
    ]
   }
  },
- "sha256": "34708b40b5e5a4c2cd16af034a923c9ae08ad04abd25daac712c14c1b8ee9d3f",
+ "sha256": "dd7c9a3475fb2ea870d9c17844b76ecde88f557af704f71a0cff82f9931456a0",
  "membres": [
   {
-   "membre": "export_fiches_CSV_Ancienne_Nouvelle_Certification_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Ancienne_Nouvelle_Certification_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -555,10 +555,10 @@
     "Ancienne_Certification",
     "Nouvelle_Certification"
    ],
-   "lignes": 18125
+   "lignes": 18128
   },
   {
-   "membre": "export_fiches_CSV_Blocs_De_Compétences_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Blocs_De_Compétences_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -569,7 +569,7 @@
    "lignes": 56555
   },
   {
-   "membre": "export_fiches_CSV_CCN_2026_11_16.csv",
+   "membre": "export_fiches_CSV_CCN_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -584,7 +584,7 @@
    "lignes": 1171
   },
   {
-   "membre": "export_fiches_CSV_Certificateurs_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Certificateurs_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -592,10 +592,10 @@
     "Siret_Certificateur",
     "Nom_Certificateur"
    ],
-   "lignes": 43101
+   "lignes": 43102
   },
   {
-   "membre": "export_fiches_CSV_Formacode_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Formacode_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -603,10 +603,10 @@
     "Formacode_Code",
     "Formacode_Libelle"
    ],
-   "lignes": 36612
+   "lignes": 36614
   },
   {
-   "membre": "export_fiches_CSV_Nsf_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Nsf_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -614,10 +614,10 @@
     "Nsf_Code",
     "Nsf_Intitule"
    ],
-   "lignes": 47655
+   "lignes": 47657
   },
   {
-   "membre": "export_fiches_CSV_Partenaires_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Partenaires_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -626,10 +626,10 @@
     "Siret_Partenaire",
     "Habilitation_Partenaire"
    ],
-   "lignes": 405848
+   "lignes": 405964
   },
   {
-   "membre": "export_fiches_CSV_Rome_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Rome_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -640,7 +640,7 @@
    "lignes": 68185
   },
   {
-   "membre": "export_fiches_CSV_Standard_2026_11_16.csv",
+   "membre": "export_fiches_CSV_Standard_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
@@ -661,17 +661,17 @@
     "Validation_Partielle",
     "Actif"
    ],
-   "lignes": 30801
+   "lignes": 30803
   },
   {
-   "membre": "export_fiches_CSV_VoixdAccès_2026_11_16.csv",
+   "membre": "export_fiches_CSV_VoixdAccès_2026_11_17.csv",
    "encodage": "utf-8-sig",
    "separateur": ";",
    "colonnes": [
     "Numero_Fiche",
     "Si_Jury"
    ],
-   "lignes": 113744
+   "lignes": 113747
   }
  ]
 }

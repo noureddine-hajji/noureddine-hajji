@@ -23,6 +23,9 @@ per-job model (redteam_robustesse.py).
   RF7 real (--real): the stored blocks re-derived for a sample (skills from the real RNCP and ROME files, outlets and formula
       from the stored jobs), the repère of every formation re-derived, coverage per filière printed.
   RF8 mutation test.
+  RF9 Mes vœux comparator; RF10 the method page.
+  RF11 (owner, 2026-11-18): the published BTS / BUT insertion beside the score (never in it), the search page's two robustesse
+      filters re-derived from the compact payload, their counts, the card line, never a sort by a repère.
 """
 from __future__ import annotations
 
@@ -487,7 +490,7 @@ def rf4(c: Ctx):
 
 
 # ------------------------------------------------------------------------------------------------------------- page
-NAMES = ("ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
+NAMES = ("pc1d", "promoTxt", "robPc", "robInsPublie", "ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
 
 
 def page_data():
@@ -519,7 +522,7 @@ def rf5(c: Ctx):
     if not all(RB.top(c.js, n) for n in NAMES):
         return False, "a renderer is missing from app.js"
     full, same, none = page_data()
-    prog = RB.STUB + "\n".join(RB.top(c.js, n) for n in NAMES) + """
+    prog = RB.STUB + "const H = 18;\n" + "\n".join(RB.top(c.js, n) for n in NAMES) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       process.stdout.write(JSON.stringify([formationRobustesseCard(D.f), formationRobustesseCard(D.s), formationRobustesseCard(D.n), formationRobustesseCard(null)]));"""
     out = RB.node(prog, {"f": full, "s": same, "n": none})
@@ -588,7 +591,7 @@ def rf6(c: Ctx):
         bad.append("build (after the jobs)")
     if '"robustesse": ROBF.for_formation(' not in (ROOT / "suptracker" / "api.py").read_text():
         bad.append("API")
-    if '["emploi", "Emploi et métiers", `\n  ${formationRobustesseCard(d.robustesse)}' not in c.js:
+    if '["emploi", "Emploi et métiers", `\n  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}' not in c.js:
         bad.append("formation page")
     from suptracker import sources as SRC
     st = {s["key"]: s["status"] for s in SRC.SOURCES}
@@ -847,6 +850,141 @@ def rf10(c: Ctx):
     return not bad, f"differences {bad[:5]}"
 
 
+# ------------------------------------------------------------------------- RF11: insertion beside the score, search filters
+FILTER_NAMES = ("CARTE_ROB", "robLevel", "CARTE_FGROUPS", "carteHas", "carteFilter", "carteFacets", "carteCommon", "carteInLieu", "ROB_CARD",
+                "robCardLine")
+FILTER_STUB = """
+const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, carteZone = () => "autre", carteText = () => "", haversineKm = () => 0;
+"""
+FILTER_PROG = """
+const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+var RECO = { rob: robDecode(D.p) };
+const ref = {};
+for (const [g, os] of Object.entries(D.opts)) for (const o of os) ref[g + ":" + o] = carteFilter(D.rows, { [g]: [o] }).map((f) => f.cod_aff_form);
+const both = carteFilter(D.rows, { robf: ["haut", "sans"], robn: ["bas"] }).map((f) => f.cod_aff_form);
+const fac = carteFacets(D.rows, { robf: ["haut"] }, null, D.opts);
+const facets = Object.fromEntries(Object.entries(fac).map(([g, m]) => [g, Object.fromEntries(m)]));
+const lines = D.rows.map((f) => robCardLine(f.cod_aff_form));
+RECO = null;
+const none = carteFilter(D.rows, { robf: ["haut"], robn: ["bas"] }).length;
+process.stdout.write(JSON.stringify({ ref, both, facets, lines, none, noline: robCardLine("1") }));"""
+
+
+@check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by both repères, counted, never sorted by")
+def rf11(c: Ctx):
+    bad = []
+    if not all(RB.top(c.js, n) for n in NAMES + FILTER_NAMES + VX_NAMES[1:]):
+        return False, "a renderer is missing from app.js"
+    # 1. the published insertion block (robInsPublie), alone and inside the card
+    full, _, none = page_data()
+    bts1 = {"annee": "cumul 2023-2024", "rows": [{"libelle_formation": HOSTILE, "taux_emploi_6": 61.0, "taux_poursuite": 45.5}]}
+    bts2 = {"annee": "cumul 2023-2024", "rows": [{"libelle_formation": "option A " + HOSTILE, "taux_emploi_6": 40.0, "taux_poursuite": None},
+                                                {"libelle_formation": "option B", "taux_emploi_6": 60.0, "taux_poursuite": 30.0}]}
+    ins = lambda emp, st, promo="2024": {"promo": promo, "pooled": False, "tx_sortants_en_emploi_sal_fr_18": emp, "tx_sortants_en_emploi_stable_18": st}
+    but1 = {"specialite": ins(88.2, 70.1, HOSTILE), "total": ins(99.0, 99.0), "france_specialite": ins(77.0, 77.0)}
+    but2 = {"specialite": None, "total": ins(81.0, 66.0), "france_specialite": ins(77.0, 77.0)}
+    but3 = {"specialite": None, "total": None, "france_specialite": ins(77.3, None)}
+    prog = RB.STUB + "const H = 18;\n" + "\n".join(RB.top(c.js, n) for n in NAMES) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      process.stdout.write(JSON.stringify([robInsPublie(D.b1), robInsPublie(D.b2), robInsPublie(null, D.u1), robInsPublie(null, D.u2),
+        robInsPublie(null, D.u3), robInsPublie({ rows: [] }, null), robInsPublie(null, {}), formationRobustesseCard(D.f, { ins: D.b1 }),
+        formationRobustesseCard(D.n, { but: D.u1 })]));"""
+    out = RB.node(prog, {"b1": bts1, "b2": bts2, "u1": but1, "u2": but2, "u3": but3, "f": full, "n": none})
+    if out is None:
+        return True, "node absent: not run"
+    b1, b2, u1, u2, u3, e1, e2, cf, cn = out
+    nb = lambda h: h.replace("\u202f", " ").replace("\xa0", " ")
+    if "<img" in "".join(out):
+        bad.append("an unescaped stored string")
+    if "61,0 %" not in nb(b1) or "45,5 %" not in nb(b1) or "sortis en 2023-2024" not in b1 or "&lt;img" in b1:
+        bad.append("BTS: the published rates, the class or the single-row rule")
+    if "option A &lt;img" not in b2 or "option B" not in b2 or b2.count("<li>") != 2 or "non publié" not in b2 or "50,0" in b2 \
+            or "chaque option à part" not in b2:
+        bad.append("BTS options: each named on its own line, a masked value said, never averaged")
+    if "88,2 %" not in nb(u1) or "70,1 %" not in nb(u1) or "99,0" in u1 or "Cette spécialité dans l&#39;université" not in u1 \
+            or "18 mois" not in u1 or "ne sont pas comptés" not in u1:
+        bad.append("BUT: the specialty of the university first, its two published rates, the leavers caveat")
+    if "Tous les BUT de l&#39;université" not in u2 or "81,0 %" not in nb(u2) or "en France" not in u3 or "non publié" not in u3:
+        bad.append("BUT fallbacks: university total, then the specialty in France, a masked rate said")
+    if e1 or e2:
+        bad.append("a block with nothing published")
+    for h in (b1, u1):
+        if "jamais dedans" not in h or "pas des chances d&#39;emploi" not in h.replace("'", "&#39;"):
+            bad.append("the block does not say it stays out of the score, or lacks its caveat")
+    lead, _, detail = cf.partition("<summary>Détail du calcul</summary>")
+    if "À côté : l&#39;insertion publiée" not in lead.replace("'", "&#39;") or "61,0 %" in nb(detail):
+        bad.append("the block is not beside the repères, before the calculation")
+    if "À côté" not in cn or "88,2 %" not in nb(cn):
+        bad.append("with no estimate, the published insertion disappears")
+    rf_src = c.src["robf"]
+    if re.search(r"for_bts|for_but|taux_emploi|inserjeunes", rf_src, re.I):
+        bad.append("the formation model reads the BTS / BUT insertion (it must stay out of the score)")
+    # 2. the search filters, re-derived from the compact payload
+    lv = ["haut", "moyen", "bas", None]
+    rows, p = [], {"filiere": {}, "national": {}, "raison": {}, "apres": {}}
+    exp = {}
+    for i in range(40):
+        cod = str(100 + i)
+        a, b = lv[i % 4], lv[(i // 4) % 4]
+        if a:
+            p["filiere"].setdefault(a, []).append(cod)
+        elif i % 8 == 3:
+            p["raison"].setdefault("memes_debouches", []).append(cod)
+        if b:
+            p["national"].setdefault(b, []).append(cod)
+        rows.append({"cod_aff_form": cod, "statut": "public"})
+        exp[cod] = (a or "sans", b or "sans")
+    rows.append({"cod_aff_form": "X1", "statut": "prive_app", "stats": False})          # an apprenticeship offer: no repère
+    exp["X1"] = ("sans", "sans")
+    payload = {k: {lvl: ",".join(v) for lvl, v in d.items()} for k, d in p.items()}
+    opts = {"robf": ["haut", "moyen", "bas", "sans"], "robn": ["haut", "moyen", "bas", "sans"]}
+    fprog = RB.STUB + FILTER_STUB + "\n".join(RB.top(c.js, n) for n in ("robDecode",) + FILTER_NAMES) + FILTER_PROG
+    o = RB.node(fprog, {"p": payload, "rows": rows, "opts": opts})
+    for g, k in (("robf", 0), ("robn", 1)):
+        for lvl in opts[g]:
+            want = [cod for cod, e in exp.items() if e[k] == lvl]
+            if sorted(o["ref"][f"{g}:{lvl}"]) != sorted(want):
+                bad.append(f"filter {g}={lvl}: {len(o['ref'][f'{g}:{lvl}'])} kept, {len(want)} expected")
+    if sorted(o["both"]) != sorted(cod for cod, e in exp.items() if e[0] in ("haut", "sans") and e[1] == "bas"):
+        bad.append("two groups together: options OR inside a group, AND between groups")
+    keep = [cod for cod, e in exp.items() if e[0] == "haut"]
+    want_n = {lvl: sum(1 for cod in keep if exp[cod][1] == lvl) for lvl in opts["robn"]}
+    if o["facets"]["robn"] != want_n or o["facets"]["robf"] != {lvl: sum(1 for e in exp.values() if e[0] == lvl) for lvl in opts["robf"]}:
+        bad.append("the counts beside the options are not those of the other groups' selection")
+    if o["none"] != len(rows):
+        bad.append("repères not loaded: the filter must keep every formation (and the dropdowns are hidden)")
+    for f, line in zip(rows, o["lines"]):
+        a, b = exp[f["cod_aff_form"]]
+        if (a, b) == ("sans", "sans"):
+            if line:
+                bad.append("a card line with no repère")
+            continue
+        if "estimation" not in line or (a != "sans" and "de sa filière" not in line) or (b != "sans" and "toutes formations" not in line):
+            bad.append("a card line without its label or a repère")
+            break
+    if o["noline"]:
+        bad.append("a card line without the repères loaded")
+    # a level the payload never sends is never printed
+    q = RB.node(RB.STUB + "\n".join(RB.top(c.js, n) for n in ("ROB_CARD", "robCardLine")) + """
+      var RECO = { rob: { filiere: { "1": "<img src=x>" }, national: { "1": "zz" } } };
+      process.stdout.write(JSON.stringify(robCardLine("1")));""", {})
+    if q:
+        bad.append("an unknown level printed on a card")
+    view = c.js[c.js.index("async function viewCarte("): c.js.index("\n// ---- lot 2 (Claude design guidelines)")]
+    sort = view[view.index("const listed = kept.filter("): view.index('document.getElementById("cs-status")')]
+    wiring = {
+        "the groups in the dropdowns": "...CARTE_ROB];" in c.js and '"robf", "robn"];' in c.js,
+        "hidden when the repères did not load": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view,
+        "estimation label and method link in the dropdowns": 'estimTag("modèle de SupCompass")} <a href="#/info/robustesse">' in view,
+        "card line on the formations with statistics only": "${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}" in c.js,
+        "never sorted by a repère": "rob" not in sort.lower(),
+        "help texts": "robf" in RB.top(c.js, "FI_HELP") and "robn" in RB.top(c.js, "FI_HELP"),
+        "the formation page passes its insertion": "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })" in c.js,
+    }
+    bad += [k for k, v in wiring.items() if not v]
+    return not bad, f"differences {bad[:5]}"
+
+
 SOURCE_MUTANTS = [
     ("robf", "portable threshold 19", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS - 1", "RF1"),
     ("robf", "technique counted portable", 'C[o]["sous_cat"] == "Transverse" or', 'C[o]["sous_cat"] != "Technique expert" or', "RF1"),
@@ -891,12 +1029,33 @@ SOURCE_MUTANTS = [
     ("js", "no comparator in Mes vœux", "${robVoeuxCard(d.voeux, (v) =>", "${(() => \"\")(d.voeux, (v) =>", "RF9"),
     ("methode", "a version missing from the changelog", '    ("2027.2 / 2027.2-f", "17 novembre 2026",', '    ("2027.9", "17 novembre 2026",', "RF10"),
     ("methode", "a weight typed on the page", "<li>Les métiers visés comptent pour {pc(RF.W_JOBS)}.", "<li>Les métiers visés comptent pour 50 %.", "RF10"),
-    ("js", "score in the lead", "${head}${nat}${list}${seul}", "${score}${head}${nat}${list}${seul}", "RF5"),
+    ("js", "score in the lead", "${head}${nat}${list}${robInsPublie", "${score}${head}${nat}${list}${robInsPublie", "RF5"),
     ("js", "filière unescaped", "` (${esc(q.filiere.replace(\"_\", \" \"))})`", "` (${q.filiere})`", "RF5"),
     ("js", "fiche link not checked", '/^RNCP\\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null', '(rn.fiche || "").slice(4) || null', "RF5"),
     ("js", "no diploma-alone block", '<h3>Avec ce diplôme seul</h3>', '<h3>Débouchés</h3>', "RF5"),
     ("js", "blocks unescaped", "rn.blocs.map((b) => `<li>${esc(b)}</li>`)", "rn.blocs.map((b) => `<li>${b}</li>`)", "RF5"),
-    ("js", "card not first", "${formationRobustesseCard(d.robustesse)}\n  ${insertionCard(d.insertion)}", "${insertionCard(d.insertion)}\n  ${formationRobustesseCard(d.robustesse)}", "RF6"),
+    ("js", "card not first", "${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${insertionCard(d.insertion)}",
+     "${insertionCard(d.insertion)}\n  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}", "RF6"),
+    # RF11 (owner, 2026-11-18): published insertion beside the score, robustesse filters and card line on the search page
+    ("js", "options not named", "${many ? `${esc(r.libelle_formation)} : ` : \"\"}", "", "RF11"),
+    ("js", "option name unescaped", "${many ? `${esc(r.libelle_formation)} : `", "${many ? `${r.libelle_formation} : `", "RF11"),
+    ("js", "masked value shown as 0", "(v == null ? '<span class=\"muted\">non publié</span>'", "(v == null ? '<strong>0 %</strong>'", "RF11"),
+    ("js", "BUT university total before the specialty", '["Cette spécialité dans l\'université", but.specialite]', '["Cette spécialité dans l\'université", but.total || but.specialite]', "RF11"),
+    ("js", "insertion said to be in the score", "restent à côté de la robustesse, jamais dedans", "complètent la robustesse", "RF11"),
+    ("js", "insertion block dropped", "${robInsPublie(pub && pub.ins, pub && pub.but)}", "", "RF11"),
+    ("js", "page does not pass the insertion", "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${insertionCard",
+     "formationRobustesseCard(d.robustesse, {})}\n  ${insertionCard", "RF11"),
+    ("js", "national repère read for the filière filter", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]', 'RECO.rob["filiere"][cod]', "RF11"),
+    ("js", "no repère counted as average", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";', 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "moyen";', "RF11"),
+    ("js", "repères not loaded hide every formation", "return !(RECO && RECO.rob) || robLevel(f.cod_aff_form, g) === o;", "return robLevel(f.cod_aff_form, g) === o;", "RF11"),
+    ("js", "filter ignored by the list", '...CARTE_R3, "robf", "robn"];', "...CARTE_R3];", "RF11"),
+    ("js", "groups not offered", "fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "fiOptions(g).map((o) => [o.key, o.label])])];", "RF11"),
+    ("js", "groups offered without repères", '.filter(([gr]) => robOk || !gr.startsWith("rob"))', ".filter(() => true)", "RF11"),
+    ("js", "dropdown without its estimation label", '${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} ', '${gr.startsWith("rob") ? `<p class="small"> ', "RF11"),
+    ("js", "card line reads unknown levels", "const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];", "const a = R && (ROB_CARD[R.filiere[cod]] || R.filiere[cod]), b = R && ROB_CARD[R.national[cod]];", "RF11"),
+    ("js", "card line without estimation", 'Robustesse 2035 des métiers visés ${estimTag("", false, true)} :', "Robustesse 2035 des métiers visés :", "RF11"),
+    ("js", "card line dropped", "${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}", "${appOffers(f.offres_app)}`}", "RF11"),
+    ("js", "list sorted by repère", "        || byName(a, b));", "        || (robLevel(a.cod_aff_form, \"robn\") < robLevel(b.cod_aff_form, \"robn\") ? -1 : 0) || byName(a, b));", "RF11"),
 ]
 
 
