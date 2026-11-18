@@ -539,7 +539,7 @@ def mutants(base: Ctx) -> tuple[int, list[str]]:
     js_mut("a step to an unknown route", '{ href: "#/calendrier", text: "Noter les dates de Parcoursup" }],\n  metier',
            '{ href: "#/conseils", text: "Noter les dates de Parcoursup" }],\n  metier', {"LA4"})
     js_mut("a figure in a step", "avec au moins un vœu de sécurité\" },\n    { href: \"#/carte\"", "avec 3 vœux de sécurité\" },\n    { href: \"#/carte\"", {"LA4"})
-    js_mut("help page not opened by the app", '"accessibilite", "aide", "nos-chiffres"];', '"accessibilite", "nos-chiffres"];', {"LA5"})
+    js_mut("help page not opened by the app", '"accessibilite", "aide", "nos-chiffres", "robustesse"];', '"accessibilite", "nos-chiffres", "robustesse"];', {"LA5"})
 
     orig = AI.SERVICES
 

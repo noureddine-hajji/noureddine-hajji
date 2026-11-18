@@ -347,6 +347,7 @@ const document = { getElementById: (id) => { const html = $view.innerHTML; retur
 const $view = { dataset: {}, innerHTML: "", querySelectorAll: () => [] };
 const location = { hash: "" };
 const tip = () => "", feedbackBox = (p) => `<fb ${p}>`, searchPage = () => PAGE, profileBar = { render() {} };
+const recoLoad = async () => null, robVoeuxCard = () => "";     // the robustesse comparator: red team RF9
 let API = {};
 const api = async (u) => { CALLS.push(u); for (const k of Object.keys(API)) if (u.startsWith(k)) return JSON.parse(JSON.stringify(API[k])); throw new Error("no stub " + u); };
 """

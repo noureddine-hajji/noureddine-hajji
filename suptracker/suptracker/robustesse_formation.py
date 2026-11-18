@@ -42,7 +42,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.1-f"
+MODEL_VERSION = "2027.4-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -50,6 +50,9 @@ METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5}
 PORTABLE_SHEETS = 20
 REPERE_SHARE = RJ.REPERE_SHARE
 MIN_FILIERE = 20                   # fewer scored formations in a filière: the repère is read among all formations
+# owner, 2026-11-18 (thresholds re-set the same day): a licence is scored through its university's masters when they cover at
+# least MIN_MASTERS masters or MIN_MASTER_JOBS jobs; otherwise on the licence's own jobs, the masters still shown, the reason said
+MIN_MASTERS, MIN_MASTER_JOBS = 1, 1
 TOP_JOBS = 8                       # the main outlets listed, only when the cut is not inside a tie (equal weights)
 ISCO_GROUPS = 10
 
@@ -132,17 +135,34 @@ def onisep_rncp(sources: dict | None = None) -> dict:
     return out
 
 
+def tight(s: str | None) -> str:
+    """fold() without spaces: « éco-conception » = « Ecoconception », « l’industrie » = « l'industrie » (format only)."""
+    return fold(s).replace(" ", "")
+
+
 def title_index(rncp: dict) -> dict:
-    """{("BTS", head) | ("BUT", spe|parcours) | ("BUTsp", spe): [fiches with blocks or ROME codes]}."""
+    """{("BTS", head): [fiches]} and {("BUTsp", spécialité): {parcours: [fiches]}} (spellings folded by tight())."""
     idx: dict = {}
     for k, v in rncp.items():
         if v["abrege"] == "BTS":
             idx.setdefault(("BTS", head(v["intitule"])), []).append(k)
         elif v["abrege"] == "BUT":
             sp, _, pa = v["intitule"].partition(":")
-            idx.setdefault(("BUT", fold(sp) + "|" + fold(pa)), []).append(k)
-            idx.setdefault(("BUTsp", fold(sp)), []).append(k)
+            idx.setdefault(("BUTsp", tight(sp)), {}).setdefault(tight(pa), []).append(k)
     return idx
+
+
+def but_parcours(parcours: dict, pa: str) -> list:
+    """Codex (PR #82): the fiches of the SAME parcours only, never another parcours of the specialty. Same title once
+    folded; else the one parcours whose title is a prefix of the other (« … des matériaux » = « … des matériaux et des
+    produits »), only when exactly one parcours of the specialty matches; else nothing."""
+    t = tight(pa)
+    if not t:
+        return []
+    if t in parcours:
+        return parcours[t]
+    hits = [k for k in parcours if k and (k.startswith(t) or t.startswith(k))]
+    return parcours[hits[0]] if len(hits) == 1 else []
 
 
 def pick(fiches: list, rncp: dict) -> str | None:
@@ -167,7 +187,7 @@ def rncp_of(for_id: str | None, label: str | None, on_link: dict, idx: dict, rnc
         return (f, "titre") if f else (None, None)
     if lab.startswith("but "):
         sp, _, pa = lab[4:].partition(" parcours ")
-        f = pick(idx.get(("BUT", sp.strip() + "|" + pa.strip())), rncp) or pick(idx.get(("BUTsp", sp.strip())), rncp)
+        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)
         return (f, "titre") if f else (None, None)
     return None, None
 
@@ -263,6 +283,11 @@ def formation(omega: dict, method: str, jobs: dict, ins: float | None, comp: dic
         "competences": comp,
         "confiance": {"niveau": RJ.level(conf), "valeur": round(conf, 3), **comps},
     }
+
+
+def enough_masters(n_masters: int, n_jobs: int) -> bool:
+    """Owner, 2026-11-18: a licence is scored through its masters only when they cover enough jobs."""
+    return n_masters >= MIN_MASTERS or n_jobs >= MIN_MASTER_JOBS
 
 
 def main_jobs(ranked: list) -> list:
@@ -406,7 +431,7 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 if fiche:
                     break
             sk = skills(rncp.get(fiche), rome) if fiche else None
-            ins = master = None
+            ins = master = master_seul = None
             if fl in ("Licence", "Licence_Las"):
                 lic = LM.for_licence(con, cod, fl, contrat) if {"monmaster", "master_onisep", "metier_axes"} <= have else None
                 if lic and lic.get("status") == "ok":
@@ -423,10 +448,15 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                         ins = _wmean(stable)
                         master = {"n_masters": len(mentions), "n_admis": tot, "insertion_masters": len(stable),
                                   "apres_master": facts_jobs(sorted(omega), jobs)}
-                        block = formation(omega, "poursuite", jobs, ins, sk)
-                        block["master"] = master
-                        block["diplome_seul"] = facts_jobs(direct, jobs)
-                        rows[cod] = block
+                        if enough_masters(len(mentions), len(omega)):
+                            block = formation(omega, "poursuite", jobs, ins, sk)
+                            block["master"] = master
+                            block["diplome_seul"] = facts_jobs(direct, jobs)
+                            rows[cod] = block
+                        else:
+                            # too few documented masters to score the licence through them: kept for display, said
+                            master["insuffisant"] = True
+                            master_seul = master
             if cod in rows:
                 pass
             elif direct:
@@ -436,6 +466,8 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 rows[cod] = formation({m: 1.0 for m in family[cod]}, "famille", jobs, None, sk)
             else:
                 continue
+            if master_seul:
+                rows[cod]["master"] = master_seul
             r = rows[cod]
             r["rncp"] = {"fiche": fiche, "lien": method_r, "apprentissage": rncp[fiche]["apprentissage"]} if fiche else None
             if fiche and fiche not in rncp_rows:
@@ -490,6 +522,29 @@ def _src(con):
         return c, ""
     except Exception:  # noqa: BLE001
         return None, None
+
+
+def compact(con) -> dict:
+    """Both repères of every formation, for the lists (sent inside /api/reconnaissance, no parameter, shared-cached):
+    {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
+    Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
+    c, p = _src(con)
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}}
+    if c is None:
+        return out
+    acc = {k: {} for k in out}
+    for cod, data in c.execute(f"SELECT cod_aff_form, data FROM {p}r35_formation").fetchall():
+        d = json.loads(data)
+        q, n = d.get("repere") or {}, d.get("repere_national") or {}
+        if q.get("niveau"):
+            acc["filiere"].setdefault(q["niveau"], []).append(cod)
+        elif q.get("raison"):
+            acc["raison"].setdefault(q["raison"], []).append(cod)
+        if n.get("niveau"):
+            acc["national"].setdefault(n["niveau"], []).append(cod)
+            if n.get("apres_etudes"):
+                acc["apres"].setdefault(n["apres_etudes"], []).append(cod)
+    return {k: {lv: ",".join(sorted(v)) for lv, v in sorted(m.items())} for k, m in acc.items()}
 
 
 def for_formation(con, cod: str) -> dict | None:

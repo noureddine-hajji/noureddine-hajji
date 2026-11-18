@@ -52,12 +52,15 @@ def _has(c, schema_table: str) -> bool:
 
 def reconnaissance_payload(con) -> dict:
     """/api/reconnaissance: the State-label badges and fees (sprint V1), the strong-demand formations and the apprenticeship
-    codes (sprint V2), for the lists. One definition for the route and the build."""
+    codes (sprint V2), both robustesse repères (owner, 2026-11-17), for the lists. One definition for the route and the build."""
     from . import apprentissage as APP
     from . import reconnaissance as RC
+    from . import robustesse_formation as RF
     from . import tension as TS
     from . import vie as VIE
-    return {**RC.compact(con, VIE.compact(con)), "tension": TS.compact(con), "apprentissage": APP.codes(con)}
+    # owner, 2026-11-17: both robustesse repères of every formation, read by Mes vœux beside each zone (never merged)
+    return {**RC.compact(con, VIE.compact(con)), "tension": TS.compact(con), "apprentissage": APP.codes(con),
+            "robustesse": RF.compact(con)}
 
 
 def json_bytes(payload, sort_keys: bool = False) -> bytes:

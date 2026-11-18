@@ -691,7 +691,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   campaign only. Outlets ω, one method said: direct (Onisep sheet jobs, equal weights; = « avec ce diplôme seul »), poursuite (licence/LAS:
   the university's masters of the same discipline weighted by MonMaster admits, their Onisep jobs; licence-only jobs apart), famille
   (parcours.py routes entering the formation's group, confidence x 0.5). Skills: RNCP fiche (Onisep's France Compétences link, else
-  the BTS title before options / BUT specialty+parcours; content, ACTIVE, latest decision; never fuzzy) -> its ROME codes -> ROME 4.0
+  the BTS title before options / BUT specialty + its OWN parcours (folded spelling, else the ONE parcours whose title is a prefix of
+  the other; never another parcours of the specialty: Codex, PR #82); content, ACTIVE, latest decision; never fuzzy) -> its ROME codes -> ROME 4.0
   competences; portable = « Transverse » or shared by >= 20 sheets; RNCP blocks verbatim. R = 0.60 Σω R_job + 0.10 Ins (licence:
   master InserSup stable rate weighted by admits, labelled estimation; BTS 6-month insertion stays OUT) + 0.15 Div (Shannon over
   ISCO major groups / ln 10) + 0.15 Comp, renormalised over available terms. Repère among the SAME filière with the SAME terms, by
@@ -700,7 +701,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   formation has, placed among all scored formations by the same rank rule; its line names the later studies (poursuite = master,
   famille = « souvent après d'autres études »). Both repères are shown, the filière one first; never a rank number.
   Main jobs listed only when the cut does not split a tie. data/rncp (workflow `suptracker-rncp`) is in the data fingerprint and out
-  of the Vercel bundle. Red team `redteam_robustesse_formations.py` (RF1-RF8).
+  of the Vercel bundle. Red team `redteam_robustesse_formations.py` (RF1-RF10).
+- **Robustesse follow-ups (owner, 2026-11-17; model 2027.2 / 2027.2-f).** AEI observed use (`pct`, global, May 2026, detailed
+  occupations only) per ISCO = MEAN over the official O*NET links; a second RANK cross-check of the OIT exposure (> 15 points lowers
+  the agreement, floor 0.5), NEVER in the exposure, score or scenarios (RB12). Mes vœux: `robVoeuxCard` = zone and both repères in
+  SEPARATE cells, list order kept, never one mark, from `/api/reconnaissance` (`robustesse` key, `robustesse_formation.compact`; no
+  new request). Method page `methode_robustesse.py` (`/robustesse`, a legal.SLUGS page): weights read from the constants, `CHANGELOG`
+  lists every MODEL_VERSION (bump the version AND the changelog together). RF9-RF10.
+  A licence goes through its masters with >= MIN_MASTERS masters or >= MIN_MASTER_JOBS jobs (`enough_masters`; owner 2026-11-18:
+  first 2 / 5, re-set the same day to 1 / 1, model 2027.4-f); otherwise its own jobs (else family), masters kept, reason said.
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

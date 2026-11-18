@@ -5,7 +5,8 @@ per-job model (redteam_robustesse.py).
       ROME 4.0 open data (competences, links, mobilities) gives each fiche's blocks, ROME codes, apprenticeship flag, and the
       competences of its ROME codes: portable = « Transverse » or shared by >= 20 sheets; the module equals it (fixture and real).
   RF2 links: Onisep's own France Compétences link first; else the national BTS title before its options, the BUT specialty and
-      parcours (else the specialty), among the fiches WITH content, ACTIVE first then the latest decision; never a fuzzy title.
+      its OWN parcours (same title once folded, else the one parcours whose title is a prefix of the other; never another
+      parcours of the specialty: Codex, PR #82), among the fiches WITH content, ACTIVE first then the latest decision.
   RF3 formula: an independent implementation of R(f,s) = 0.60 Σω R_job + 0.10 Ins + 0.15 Div + 0.15 Comp renormalised over the
       available terms (Div = 100 x Shannon entropy over ISCO major groups / ln 10; Comp = 100 x portable share), the median of
       the three scenarios, min, max, the confidence (lowest of four, method weight 1 / 0.8 / 0.5), « données insuffisantes »
@@ -62,12 +63,21 @@ class Ctx:
     def __init__(self, db: Path | None = None, real: bool = False):
         self.db = db if db and db.exists() else None
         self.real = real
-        self.src = {"robf": (ROOT / "suptracker" / "robustesse_formation.py").read_text()}
+        self.src = {"robf": (ROOT / "suptracker" / "robustesse_formation.py").read_text(),
+                    "methode": (ROOT / "suptracker" / "methode_robustesse.py").read_text()}
         self.js = (ROOT / "suptracker" / "static" / "app.js").read_text()
 
     def F(self):
         import suptracker  # noqa: F401
         return RB.load(ROOT / "suptracker" / "robustesse_formation.py", "suptracker.robustesse_formation_rt", self.src["robf"])
+
+    def M(self, F=None):
+        """The method page module, reading the (possibly mutated) formation module."""
+        import suptracker  # noqa: F401
+        m = RB.load(ROOT / "suptracker" / "methode_robustesse.py", "suptracker.methode_robustesse_rt",
+                    self.src["methode"].replace("from . import robustesse_formation as RF", "RF = None"))
+        m.RF = F or self.F()
+        return m
 
 
 # ------------------------------------------------------------------------------------------------------------- fixtures
@@ -87,10 +97,17 @@ STD = [  # fiche, intitulé, abrégé, actif, décision
     ("RNCP5", "Licence Économie " + HOSTILE, "LIC", "ACTIVE", ""),
     ("RNCP6", "Conception de produits options A et B", "BTS", "ACTIVE", "02/02/2021"),
     ("RNCP7", "Management commercial opérationnel", "BTS", "ACTIVE", "01/09/2023"),   # newer, but no content: never read
+    ("RNCP8", "Informatique : Cybersécurité", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP9", "Packaging emballage : Ecoconception et industrialisation", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP10", "Matériaux : Métiers du recyclage des matériaux et des produits", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP11", "Matériaux : Métiers de la caractérisation", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP12", "Énergie : Management de l’énergie", "BUT", "ACTIVE", "15/06/2022"),
+    ("RNCP13", "Énergie : Management de l’énergie et des fluides", "BUT", "ACTIVE", "15/06/2022"),
 ]
 BLOCS = [("RNCP1", "Gérer la relation client"), ("RNCP3", "Animer l'offre"), ("RNCP3", " "), ("RNCP4", "Réaliser une application"),
          ("RNCP5", "Analyser " + HOSTILE), ("RNCP6", "Concevoir")]
-ROMES = [("RNCP1", "D1501"), ("RNCP2", "D1501"), ("RNCP3", "D1501"), ("RNCP3", "D1502"), ("RNCP4", "M1805"), ("RNCP5", "C1201"), ("RNCP6", "H1203"),
+ROMES = [("RNCP8", "M1805"), ("RNCP9", "H1203"), ("RNCP10", "H1203"), ("RNCP11", "H1203"), ("RNCP12", "H1203"), ("RNCP13", "H1203"),
+         ("RNCP1", "D1501"), ("RNCP2", "D1501"), ("RNCP3", "D1501"), ("RNCP3", "D1502"), ("RNCP4", "M1805"), ("RNCP5", "C1201"), ("RNCP6", "H1203"),
          ("RNCP5", "")]
 VOIES = [("RNCP3", "Par apprentissage"), ("RNCP3", "Après un parcours de formation sous statut d'élève ou d'étudiant"),
          ("RNCP4", "Par candidature individuelle")]
@@ -238,7 +255,12 @@ def rf2(c: Ctx):
         ("A", "BTS management commercial opérationnel", {}, ("RNCP3", "titre")),       # RNCP7 newer but empty; RNCP2 inactive
         ("B", "BTS conception de produits option A", {}, ("RNCP6", "titre")),          # options off on both sides
         ("C", "BUT informatique parcours développement d'applications", {}, ("RNCP4", "titre")),
-        ("D", "BUT informatique parcours autre", {}, ("RNCP4", "titre")),              # parcours unknown: the specialty
+        ("D", "BUT informatique parcours autre", {}, (None, None)),                    # Codex: never another parcours
+        ("D2", "BUT informatique", {}, (None, None)),                                  # no parcours: no fiche
+        ("D3", "BUT packaging emballage parcours éco-conception et industrialisation", {}, ("RNCP9", "titre")),  # spelling only
+        ("D4", "BUT matériaux parcours métiers du recyclage des matériaux", {}, ("RNCP10", "titre")),          # the one prefix
+        ("D5", "BUT énergie parcours management de l'énergie", {}, ("RNCP12", "titre")),  # exact wins over a longer prefix
+        ("D6", "BUT énergie parcours management", {}, (None, None)),                   # two parcours start so: none
         ("E", "licence mention économie", {"E": "RNCP5"}, ("RNCP5", "onisep")),
         ("F", "BTS management commercial", {}, (None, None)),                          # never a partial title
         ("G", "licence mention économie", {"G": "RNCP99"}, (None, None)),              # a link to an unknown fiche
@@ -248,7 +270,31 @@ def rf2(c: Ctx):
         got = F.rncp_of(fid, lab, link, idx, rn)
         if got != exp:
             bad.append(f"{lab!r}: {got} != {exp}")
-    return not bad, f"differences {bad[:4]}"
+    # real: every BUT sheet linked by title reaches a fiche of its OWN parcours (independent check on the folded words)
+    d = ROOT / "data" / "rncp"
+    info = ""
+    if c.real and (d / F.RNCP_ZIP).exists():
+        from suptracker import onisep as ON
+        src = ON.find_sources().get("formations")
+        if src:
+            rr = F.read_rncp(d / F.RNCP_ZIP)
+            ix = F.title_index(rr)
+            words = lambda x: re.sub(r"[^a-z0-9]", "", F.fold(x))  # noqa: E731
+            n = 0
+            for f in ON._xml_root(src).iter("formation"):
+                lab = f.findtext("libelle_complet") or f.findtext("libelle") or ""
+                if not F.fold(lab).startswith("but "):
+                    continue
+                fiche, how = F.rncp_of(f.findtext("identifiant"), lab, {}, ix, rr)
+                if not fiche:
+                    continue
+                n += 1
+                mine = words(F.fold(lab)[4:].partition(" parcours ")[2])
+                theirs = words(rr[fiche]["intitule"].partition(":")[2])
+                if not mine or not (mine == theirs or mine.startswith(theirs) or theirs.startswith(mine)):
+                    bad.append(f"real: {lab!r} -> {rr[fiche]['intitule']!r}")
+            info = f"; real: {n} BUT sheets linked to their own parcours"
+    return not bad, f"differences {bad[:4]}{info}"
 
 
 # ------------------------------------------------------------------------------------------------------------- formula
@@ -336,6 +382,11 @@ def rf3(c: Ctx):
     lead = dict(many, x0=5.0, x1=5.0, x2=5.0, x3=5.0, x4=5.0, x5=5.0, x6=5.0, x7=5.0)
     if [m for m, _ in F.formation(lead, "famille", JOBS, None, None)["metiers"]["principaux"]] != sorted(f"x{i}" for i in range(8)):
         bad.append("the heavier outlets are not listed")
+    # owner, 2026-11-18 (re-set): through its masters with at least 1 master or 1 job
+    table = {(1, 4): True, (1, 1): True, (0, 1): True, (1, 0): True, (0, 0): False, (3, 9): True}
+    got_t = {k: F.enough_masters(*k) for k in table}
+    if got_t != table:
+        bad.append(f"enough_masters {got_t} != {table}")
     # invariants: a missing term is never a typed value; more portable skills never lower the score
     a = F.formation({"m1": 1, "m2": 1}, "direct", JOBS, None, {"part_portable": 0.3})["score"]["median"]
     b = F.formation({"m1": 1, "m2": 1}, "direct", JOBS, None, {"part_portable": 0.6})["score"]["median"]
@@ -517,6 +568,14 @@ def rf5(c: Ctx):
         bad.append("insufficient data still shows a number")
     if c0:
         bad.append("output without data")
+    weak = copy.deepcopy(page_data()[0])
+    weak["methode"], weak["master"] = "direct", {"n_masters": 1, "n_admis": 30, "insertion_masters": 0, "insuffisant": True,
+                                               "apres_master": {"n": 3, "n_notes": 3, "n_haut": 1, "n_bas": 0, "mediane": 73.9}}
+    out2 = RB.node(prog, {"f": weak, "s": same, "n": none})
+    if out2 is not None and ("ne mènent qu&#39;à 3 métiers" not in out2[0] or "notée sur les métiers de la licence seule" not in out2[0]):
+        bad.append("a licence scored on its own jobs does not say why its masters were set aside")
+    if "ne mènent qu" in cf:
+        bad.append("the insufficient-masters sentence on a licence scored through its masters")
     return not bad, f"differences {bad[:5]}"
 
 
@@ -592,6 +651,15 @@ def rf7(c: Ctx):
     dn = [k for k in rows if gn[k] != en[k]]
     if dn:
         bad.append(f"national repère differs for {len(dn)}, e.g. {dn[:3]}")
+    # owner, 2026-11-18: a licence scored through its masters only when they cover enough jobs
+    for k, v in rows.items():
+        m = v.get("master") or {}
+        if v["methode"] == "poursuite" and not (m.get("n_masters", 0) >= 1 or v["metiers"]["n"] >= 1):
+            bad.append(f"{k}: scored through too few masters")
+            break
+        if m.get("insuffisant") and (v["methode"] == "poursuite" or m.get("n_masters", 0) >= 1 or (m.get("apres_master") or {}).get("n", 0) >= 1):
+            bad.append(f"{k}: flagged insufficient wrongly")
+            break
     # direct outlets and the formula on a sample
     rnd = random.Random(11)
     direct = [k for k, v in rows.items() if v["methode"] == "direct"]
@@ -654,6 +722,131 @@ def rf7(c: Ctx):
     return not bad, f"differences {bad[:4]}; {n_ok} direct blocks re-derived; scored {cov:.1%}; {top}"
 
 
+# ------------------------------------------------------------------------------------------------------- Mes vœux + method
+VX_NAMES = ("esc", "ROB_WORD", "ROB_RAISON", "robDecode", "robVoeuxCard")
+
+
+@check("RF9 Mes vœux: both repères beside each zone, never merged or sorted by; compact payload re-derived; escaped")
+def rf9(c: Ctx):
+    import duckdb
+    F = c.F()
+    bad = []
+    # compact(): every formation's levels, re-derived from the stored blocks (a crafted table in core)
+    rows = {"1": {"repere": {"niveau": "haut"}, "repere_national": {"niveau": "bas", "apres_etudes": "master"}},
+            "2": {"repere": {"niveau": None, "raison": "memes_debouches"}, "repere_national": {"niveau": "haut", "apres_etudes": "autres"}},
+            "3": {"repere": {"niveau": None, "raison": "trop_peu"}, "repere_national": None},
+            "4": {"repere": None, "repere_national": None},
+            "5": {"repere": {"niveau": "moyen"}, "repere_national": {"niveau": "moyen", "apres_etudes": None}}}
+    con = duckdb.connect()
+    con.execute("CREATE SCHEMA core")
+    con.execute("CREATE TABLE core.r35_formation (cod_aff_form VARCHAR, data VARCHAR)")
+    con.executemany("INSERT INTO core.r35_formation VALUES (?, ?)", [(k, json.dumps(v)) for k, v in rows.items()])
+    got = F.compact(con)
+    exp = {"filiere": {"haut": "1", "moyen": "5"}, "national": {"bas": "1", "haut": "2", "moyen": "5"},
+           "raison": {"memes_debouches": "2", "trop_peu": "3"}, "apres": {"autres": "2", "master": "1"}}
+    if got != exp:
+        bad.append(f"compact {got} != {exp}")
+    pc_src = (ROOT / "suptracker" / "precomp.py").read_text()
+    if '"robustesse": RF.compact(con)' not in pc_src:
+        bad.append("the lists' payload (/api/reconnaissance) does not carry the repères")
+    # the page: decoded from the payload, both repères in their own cells beside the zone, escaped, nothing combined or sorted
+    if not all(RB.top(c.js, n) for n in VX_NAMES[1:]):
+        return False, "a renderer is missing from app.js"
+    prog = RB.STUB + "\n".join(RB.top(c.js, n) for n in VX_NAMES[1:]) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      var RECO = { rob: robDecode(D.p) };
+      const zone = (v) => `<span class="zone">Z-${v.zone}</span>`;
+      process.stdout.write(JSON.stringify([robVoeuxCard(D.v, zone), robVoeuxCard(D.reo), robVoeuxCard([]), robVoeuxCard(D.none, zone)]));"""
+    # Codex (PR #83): two courses of one establishment must stay apart: terminale rows carry `filiere` + `complement`, the
+    # reorientation rows (/api/reorientation/voeux) the course name in `formation`
+    vx = [{"cod_aff_form": "1", "status": "ok", "etablissement": RB.HOSTILE, "filiere": "BTS", "complement": "Option Ω" + RB.HOSTILE,
+           "zone": "cible"},
+          {"cod_aff_form": "2", "status": "ok", "etablissement": "Lycée B", "filiere": "CPGE", "zone": "securite"},
+          {"cod_aff_form": "3", "status": "ok", "etablissement": "C", "filiere": "x", "zone": "ambitieux"},
+          {"cod_aff_form": "9", "status": "absente", "zone": None}]
+    reo = [{"cod_aff_form": "1", "status": "ok", "etablissement": "Université A", "formation": "Licence - Droit Ψ" + RB.HOSTILE},
+           {"cod_aff_form": "2", "status": "ok", "etablissement": "Université A", "formation": "Licence - Histoire Φ"},
+           {"cod_aff_form": "3", "status": "ok", "etablissement": "C", "formation": "BUT"}, {"cod_aff_form": "9", "status": "absente"}]
+    out = RB.node(prog, {"p": exp, "v": vx, "reo": reo, "none": [{"cod_aff_form": "77", "status": "ok", "etablissement": "Z", "zone": "cible"}]})
+    if out is None:
+        return not bad, "node absent: page not run"
+    full, nozone, empty, none = out
+    if "<img" in full or "<img" in nozone:
+        bad.append("an unescaped stored string")
+    trs = re.findall(r"<tr>(.*?)</tr>", full, re.S)
+    if len(trs) != 4 or any(len(re.findall(r"<td", t)) != 4 for t in trs):
+        bad.append("each vœu must have its own row with four cells (formation, zone, filière, toutes filières)")
+    else:
+        cells = [re.findall(r"<td[^>]*>(.*?)</td>", t, re.S) for t in trs]
+        if "Z-cible" not in cells[0][1] or "parmi les 20 % les plus robustes" not in cells[0][2] or "parmi les 20 % les moins robustes" not in cells[0][3] \
+                or "métiers après un master" not in cells[0][3]:
+            bad.append("row 1: the zone and the two repères are not each in their own cell")
+        if "mêmes métiers" not in cells[1][2] or "après d&#39;autres études" not in cells[1][3].replace("'", "&#39;"):
+            bad.append("row 2: the reason or the later-studies caveat is missing")
+        if "trop peu" not in cells[2][2] or "pas d" not in cells[2][3]:
+            bad.append("row 3: an unscored national repère must say so")
+        if [re.search(r'href="#/f/(\d+)"', t).group(1) if re.search(r'href="#/f/(\d+)"', t) else None for t in trs] != ["1", "2", "3", None]:
+            bad.append("the rows are not in the list's own order")
+        if any("Z-" in x for row in cells for x in row[2:]) or any("robustes" in row[1] for row in cells):
+            bad.append("a zone and a repère share a cell")
+    if "Option Ω" not in full:
+        bad.append("a terminale row loses the course's complement (two courses of one filière look alike)")
+    if "Licence - Droit Ψ" not in nozone or "Licence - Histoire Φ" not in nozone:
+        bad.append("a reorientation row loses the course name (/api/reorientation/voeux sends it as `formation`)")
+    if "Zone pour votre profil" in nozone or "Z-" in nozone:
+        bad.append("outside terminale (no zone) the card shows a zone column")
+    if empty or none:
+        bad.append("a card with no vœu or no repère")
+    txt = re.sub(r"<[^>]+>", " ", full)
+    if re.search(r"\b(?:tu|ton|ta|tes|toi)\b", txt, re.I) or re.search(r"(?i)note globale|score combin|probabilit|garanti", txt):
+        bad.append("tutoiement, a combined mark or a promise")
+    if "jamais réunis en une seule note" not in full or "ni des chances d'admission, ni des promesses d'emploi" not in full.replace("&#39;", "'") \
+            or 'href="#/info/robustesse"' not in full:
+        bad.append("the card does not say the two are never merged, or lacks its caveat or the method link")
+    for fn in ("viewVoeux", "viewVoeuxReo"):
+        body = c.js[c.js.find(f"async function {fn}("):]
+        body = body[: body.find("\n}\n") + 3]
+        if "robVoeuxCard(d.voeux" not in body:
+            bad.append(f"{fn} does not show the comparator")
+    if "rob: robDecode(d.robustesse)" not in c.js:
+        bad.append("recoLoad does not decode the repères")
+    return not bad, f"differences {bad[:5]}"
+
+
+@check("RF10 method page: a trust page, numbers read from the modules, every model version in the changelog, plain words")
+def rf10(c: Ctx):
+    F = c.F()
+    M = c.M(F)
+    from suptracker import cache as CA
+    from suptracker import legal as LG
+    from suptracker import robustesse as RJ
+    bad = []
+    html = M.page()
+    pct = lambda x: f"{round(100 * x)} %"  # noqa: E731
+    for w in (F.W_JOBS, F.W_INS, F.W_DIV, F.W_COMP, RJ.REPERE_SHARE):
+        if pct(w) not in html:
+            bad.append(f"the page does not print {pct(w)} read from the modules")
+    if f"{round(100 * RJ.RANK_GAP)} points d'écart" not in html:
+        bad.append("the rank gap is not printed in points")
+    versions = " ".join(v for v, _, _ in M.CHANGELOG)
+    for v in (RJ.MODEL_VERSION, F.MODEL_VERSION):
+        if v not in versions or v not in html:
+            bad.append(f"model version {v} missing from the changelog or the page")
+    if "robustesse" not in LG.SLUGS or LG.page("robustesse") is None or (CA.policy("/robustesse") or (None,))[0] != CA.PAGE:
+        bad.append("not served as a trust page (slug, page, cache policy)")
+    if '"robustesse"];' not in c.js or "|nos-chiffres|robustesse)" not in c.js:
+        bad.append("the app does not open #/info/robustesse or /robustesse")
+    txt = re.sub(r"<[^>]+>", " ", html)
+    if re.search(r"\b(?:tu|ton|ta|tes|toi)\b", txt, re.I) or re.search(r"(?i)probabilit|garanti|vos chances", txt):
+        bad.append("tutoiement, a probability or a promise")
+    long = [x for x in re.split(r"(?<=[.!?:])\s+", " ".join(txt.split())) if len(x.split()) > 30]
+    if long:
+        bad.append(f"sentences over 30 words: {long[:1]}")
+    if "<script" in html or "javascript:" in html:
+        bad.append("script in the page")
+    return not bad, f"differences {bad[:5]}"
+
+
 SOURCE_MUTANTS = [
     ("robf", "portable threshold 19", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS - 1", "RF1"),
     ("robf", "technique counted portable", 'C[o]["sous_cat"] == "Transverse" or', 'C[o]["sous_cat"] != "Technique expert" or', "RF1"),
@@ -661,6 +854,14 @@ SOURCE_MUTANTS = [
     ("robf", "apprenticeship from any route", 'any("apprentissage" in x.lower() for x in v["voies"])', "bool(v[\"voies\"])", "RF1"),
     ("robf", "empty fiche picked", 'ok = [k for k in fiches or () if rncp[k]["blocs"] or rncp[k]["rome"]]', "ok = list(fiches or ())", "RF2"),
     ("robf", "inactive first", "key=lambda k: (rncp[k][\"actif\"], date(k), k)", "key=lambda k: (date(k), k)", "RF2"),
+    ("robf", "two masters required", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 1", "MIN_MASTERS, MIN_MASTER_JOBS = 2, 1", "RF3"),
+    ("robf", "five jobs required", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 1", "MIN_MASTERS, MIN_MASTER_JOBS = 0, 5", "RF3"),
+    ("robf", "masters rule needs both", "return n_masters >= MIN_MASTERS or n_jobs >= MIN_MASTER_JOBS", "return n_masters >= MIN_MASTERS and n_jobs >= MIN_MASTER_JOBS", "RF3"),
+    ("js", "insufficient masters not said", "  if (r.master && r.master.insuffisant) out.push(", "  if (false) out.push(", "RF5"),
+    ("robf", "another parcours substituted", '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)',
+     '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp) or pick([x for v in idx.get(("BUTsp", tight(sp)), {}).values() for x in v], rncp)', "RF2"),
+    ("robf", "ambiguous prefix accepted", "return parcours[hits[0]] if len(hits) == 1 else []", "return parcours[hits[0]] if hits else []", "RF2"),
+    ("robf", "spelling not folded", '    return fold(s).replace(" ", "")', "    return fold(s)", "RF2"),
     ("robf", "options kept", 'return re.split(r" options? | parcours | specialite ", " " + fold(title) + " ")[0].strip()', "return fold(title)", "RF2"),
     ("robf", "insertion weight 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.15, 0.15, 0.15", "RF3"),
     ("robf", "entropy over 9 groups", "ISCO_GROUPS = 10", "ISCO_GROUPS = 9", "RF3"),
@@ -678,6 +879,18 @@ SOURCE_MUTANTS = [
     ("robf", "national ties count as below", "below = bisect.bisect_left(others, v) / n", "below = bisect.bisect_right(others, v) / n", "RF4"),
     ("js", "no national line", "${head}${nat}${list}", "${head}${list}", "RF5"),
     ("js", "national caveat dropped", '${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}', "", "RF5"),
+    ("robf", "compact drops the national repère", '            acc["national"].setdefault(n["niveau"], []).append(cod)', "            pass", "RF9"),
+    ("robf", "compact drops the reasons", '            acc["raison"].setdefault(q["raison"], []).append(cod)', "            pass", "RF9"),
+    ("js", "zone and repère merged", '      ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}\n      <td data-label="Robustesse dans sa filière">${cell(v.cod_aff_form, "filiere")}</td>',
+     '      <td data-label="Robustesse dans sa filière">${zcol ? zoneOf(v) : ""} ${cell(v.cod_aff_form, "filiere")}</td>', "RF9"),
+    ("js", "comparator rows sorted by repère", "const body = rows.map(", "const body = [...rows].sort((a, b) => (R.national[b.cod_aff_form] || \"z\").localeCompare(R.national[a.cod_aff_form] || \"z\")).map(", "RF9"),
+    ("js", "comparator name unescaped", "${esc(v.etablissement || v.cod_aff_form)}", "${v.etablissement || v.cod_aff_form}", "RF9"),
+    ("js", "comparator drops the complement", '${v.complement ? ` · ${esc(v.complement)}` : ""}</div>`}</td>\n      ${zcol', '</div>`}</td>\n      ${zcol', "RF9"),
+    ("js", "comparator ignores the reorientation course name", '${esc(v.filiere || v.formation || "")}${v.complement', '${esc(v.filiere || "")}${v.complement', "RF9"),
+    ("js", "comparator complement unescaped", '` · ${esc(v.complement)}` : ""}</div>`}</td>\n      ${zcol', '` · ${v.complement}` : ""}</div>`}</td>\n      ${zcol', "RF9"),
+    ("js", "no comparator in Mes vœux", "${robVoeuxCard(d.voeux, (v) =>", "${(() => \"\")(d.voeux, (v) =>", "RF9"),
+    ("methode", "a version missing from the changelog", '    ("2027.2 / 2027.2-f", "17 novembre 2026",', '    ("2027.9", "17 novembre 2026",', "RF10"),
+    ("methode", "a weight typed on the page", "<li>Les métiers visés comptent pour {pc(RF.W_JOBS)}.", "<li>Les métiers visés comptent pour 50 %.", "RF10"),
     ("js", "score in the lead", "${head}${nat}${list}${seul}", "${score}${head}${nat}${list}${seul}", "RF5"),
     ("js", "filière unescaped", "` (${esc(q.filiere.replace(\"_\", \" \"))})`", "` (${q.filiere})`", "RF5"),
     ("js", "fiche link not checked", '/^RNCP\\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null', '(rn.fiche || "").slice(4) || null', "RF5"),
