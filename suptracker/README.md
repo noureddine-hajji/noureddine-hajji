@@ -3797,4 +3797,5 @@ and VT10 (the brotli body of `/api/reconnaissance` with the repères) pass on re
 else on its own jobs, else on its family route. Every licence with a documented master with jobs passes, so on the 2026-11-18 build
 no licence is set aside (poursuite 3,044, direct 6,780, famille 2,689, as before the rule); the single-master licences are scored
 through that master again, and the card still says how many masters and jobs the score rests on. Red team RF3 truth table and
-mutants follow the new thresholds (43/43).
+mutants follow the new thresholds (43/43). Checked on the data workflow's warehouse of 2026-11-18 (21e03d8): RB, RF and VT
+red teams pass on real data.
