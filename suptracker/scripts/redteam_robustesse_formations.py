@@ -382,8 +382,8 @@ def rf3(c: Ctx):
     lead = dict(many, x0=5.0, x1=5.0, x2=5.0, x3=5.0, x4=5.0, x5=5.0, x6=5.0, x7=5.0)
     if [m for m, _ in F.formation(lead, "famille", JOBS, None, None)["metiers"]["principaux"]] != sorted(f"x{i}" for i in range(8)):
         bad.append("the heavier outlets are not listed")
-    # owner, 2026-11-18: through its masters only with at least 2 masters or 5 jobs
-    table = {(1, 4): False, (1, 5): True, (2, 1): True, (0, 0): False, (1, 1): False, (3, 9): True}
+    # owner, 2026-11-18 (re-set): through its masters with at least 1 master or 1 job
+    table = {(1, 4): True, (1, 1): True, (0, 1): True, (1, 0): True, (0, 0): False, (3, 9): True}
     got_t = {k: F.enough_masters(*k) for k in table}
     if got_t != table:
         bad.append(f"enough_masters {got_t} != {table}")
@@ -654,10 +654,10 @@ def rf7(c: Ctx):
     # owner, 2026-11-18: a licence scored through its masters only when they cover enough jobs
     for k, v in rows.items():
         m = v.get("master") or {}
-        if v["methode"] == "poursuite" and not (m.get("n_masters", 0) >= 2 or v["metiers"]["n"] >= 5):
+        if v["methode"] == "poursuite" and not (m.get("n_masters", 0) >= 1 or v["metiers"]["n"] >= 1):
             bad.append(f"{k}: scored through too few masters")
             break
-        if m.get("insuffisant") and (v["methode"] == "poursuite" or m.get("n_masters", 0) >= 2 or (m.get("apres_master") or {}).get("n", 0) >= 5):
+        if m.get("insuffisant") and (v["methode"] == "poursuite" or m.get("n_masters", 0) >= 1 or (m.get("apres_master") or {}).get("n", 0) >= 1):
             bad.append(f"{k}: flagged insufficient wrongly")
             break
     # direct outlets and the formula on a sample
@@ -844,7 +844,8 @@ SOURCE_MUTANTS = [
     ("robf", "apprenticeship from any route", 'any("apprentissage" in x.lower() for x in v["voies"])', "bool(v[\"voies\"])", "RF1"),
     ("robf", "empty fiche picked", 'ok = [k for k in fiches or () if rncp[k]["blocs"] or rncp[k]["rome"]]', "ok = list(fiches or ())", "RF2"),
     ("robf", "inactive first", "key=lambda k: (rncp[k][\"actif\"], date(k), k)", "key=lambda k: (date(k), k)", "RF2"),
-    ("robf", "one master enough", "MIN_MASTERS, MIN_MASTER_JOBS = 2, 5", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 5", "RF3"),
+    ("robf", "two masters required", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 1", "MIN_MASTERS, MIN_MASTER_JOBS = 2, 1", "RF3"),
+    ("robf", "five jobs required", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 1", "MIN_MASTERS, MIN_MASTER_JOBS = 0, 5", "RF3"),
     ("robf", "masters rule needs both", "return n_masters >= MIN_MASTERS or n_jobs >= MIN_MASTER_JOBS", "return n_masters >= MIN_MASTERS and n_jobs >= MIN_MASTER_JOBS", "RF3"),
     ("js", "insufficient masters not said", "  if (r.master && r.master.insuffisant) out.push(", "  if (false) out.push(", "RF5"),
     ("robf", "another parcours substituted", '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)',

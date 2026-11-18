@@ -708,8 +708,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   SEPARATE cells, list order kept, never one mark, from `/api/reconnaissance` (`robustesse` key, `robustesse_formation.compact`; no
   new request). Method page `methode_robustesse.py` (`/robustesse`, a legal.SLUGS page): weights read from the constants, `CHANGELOG`
   lists every MODEL_VERSION (bump the version AND the changelog together). RF9-RF10.
-  A licence goes through its masters only with >= 2 masters or >= 5 jobs (`enough_masters`, owner 2026-11-18, model 2027.3-f);
-  otherwise its own jobs (else family), the masters kept on the card with the reason said.
+  A licence goes through its masters with >= MIN_MASTERS masters or >= MIN_MASTER_JOBS jobs (`enough_masters`; owner 2026-11-18:
+  first 2 / 5, re-set the same day to 1 / 1, model 2027.4-f); otherwise its own jobs (else family), masters kept, reason said.
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

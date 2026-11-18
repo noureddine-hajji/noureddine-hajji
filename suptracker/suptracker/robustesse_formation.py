@@ -42,7 +42,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.3-f"
+MODEL_VERSION = "2027.4-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -50,9 +50,9 @@ METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5}
 PORTABLE_SHEETS = 20
 REPERE_SHARE = RJ.REPERE_SHARE
 MIN_FILIERE = 20                   # fewer scored formations in a filière: the repère is read among all formations
-# owner, 2026-11-18: a licence is scored through its university's masters only when they cover enough jobs (at least
-# MIN_MASTERS masters or MIN_MASTER_JOBS jobs); otherwise on the licence's own jobs, the masters still shown, the reason said
-MIN_MASTERS, MIN_MASTER_JOBS = 2, 5
+# owner, 2026-11-18 (thresholds re-set the same day): a licence is scored through its university's masters when they cover at
+# least MIN_MASTERS masters or MIN_MASTER_JOBS jobs; otherwise on the licence's own jobs, the masters still shown, the reason said
+MIN_MASTERS, MIN_MASTER_JOBS = 1, 1
 TOP_JOBS = 8                       # the main outlets listed, only when the cut is not inside a tie (equal weights)
 ISCO_GROUPS = 10
 
