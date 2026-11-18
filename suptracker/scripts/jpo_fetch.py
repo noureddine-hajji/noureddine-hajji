@@ -417,6 +417,75 @@ def fetch_sites(client, d: Path, warehouse: str | None, req: dict, log: list) ->
     log.append({"sites": len(start), "visited": done, "new_extracts": len(added)})
 
 
+# ------------------------------------------------------------------------------------------------------------------ concours
+CONCOURS_LINK = re.compile(r"webinaire|webinar|portes?[\s_-]*ouvertes?|\bjpo\b|information|rencontr|agenda|evenement|salon", re.I)
+
+
+def event_lines(text: str) -> str:
+    """The lines of a concours page that carry an event word (J.CONCOURS_EVENT) and the next one, masked, at most 4,000 characters."""
+    lines = J.mask(text).splitlines()
+    keep = set()
+    for i, ln in enumerate(lines):
+        if J.CONCOURS_EVENT.search(J.fold(ln)):
+            keep.update(range(i, min(i + 2, len(lines))))
+    return "\n".join(lines[i][:600] for i in sorted(keep))[:4000]
+
+
+def visit_concours(cr: Crawler, key: str, start: str, named: str) -> tuple[list[dict], dict]:
+    """Up to 5 pages of a concours's official site: its home page, then the links (same site) to its sessions. `nomme`: the home
+    page prints the concours's name (a moved or wrong address names another thing and is never shown)."""
+    seen, extraits, status, nomme = [], [], "pas_de_page", False
+    queue = [start]
+    while queue and len(seen) < 5:
+        url = queue.pop(0)
+        if url in seen:
+            continue
+        seen.append(url)
+        st, html = cr.get(url)
+        if html is None:
+            status = status if status == "ok" else st
+            continue
+        status = "ok"
+        text = page_text(html)
+        if url == start:
+            nomme = named in J.fold(text)
+        extraits.append({"concours": key, "url": url, "fetched": today(), "text": event_lines(text)})
+        for href, inner in re.findall(r'<a\b[^>]*?href="([^"#]+)[^"]*"[^>]*>(.*?)</a>', html, flags=re.S | re.I):
+            try:
+                u = urljoin(url, htmlmod.unescape(href))
+            except ValueError:
+                continue
+            words = J.fold(htmlmod.unescape(re.sub(r"<[^>]+>", " ", inner))) + " " + J.fold(u)
+            if good_url(u) and site_of(u) == site_of(start) and CONCOURS_LINK.search(words) and u not in seen and u not in queue:
+                queue.append(u)
+    return extraits, {"concours": key, "url": start, "status": status, "checked": today(), "nomme": "1" if nomme else "0"}
+
+
+def fetch_concours(client, d: Path, log: list) -> None:
+    """Every concours of the registry (jpo.CONCOURS), each day: data/jpo/concours/extraits.csv.gz (event lines of each page,
+    a reading kept when its text changed) and etat.csv (the home page's status and whether it names the concours)."""
+    cd = d / "concours"
+    cd.mkdir(parents=True, exist_ok=True)
+    old = J._read_csv_gz(cd / "extraits.csv.gz") if (cd / "extraits.csv.gz").exists() else []
+    cr = Crawler(client)
+    found, etat = [], []
+    for key, _nom, _rx, url, named in J.CONCOURS:
+        try:
+            ext, st = visit_concours(cr, key, url, named)
+        except Exception as e:  # noqa: BLE001  (one concours never stops the run)
+            ext, st = [], {"concours": key, "url": url, "status": f"error {type(e).__name__}", "checked": today(), "nomme": "0"}
+        found += ext
+        etat.append(st)
+    # merge_extracts keys on (uai, url): the concours key plays the uai's part
+    as_uai = [{"uai": r["concours"], "url": r["url"], "fetched": r["fetched"], "text": r["text"]} for r in old]
+    rows, added = merge_extracts(as_uai, [{"uai": r["concours"], **{k: r[k] for k in ("url", "fetched", "text")}} for r in found])
+    rows = [{"concours": r["uai"], "url": r["url"], "fetched": r["fetched"], "text": r["text"]} for r in rows]
+    (cd / "extraits.csv.gz").write_bytes(gz(J.csv_text(rows, ["concours", "url", "fetched", "text"])))
+    (cd / "etat.csv").write_text(J.csv_text(etat, ["concours", "url", "status", "checked", "nomme"]), encoding="utf-8")
+    log.append({"concours": len(J.CONCOURS), "read": sum(1 for e in etat if e["status"] == "ok"),
+                "named": sum(1 for e in etat if e["nomme"] == "1"), "new_extracts": len(added)})
+
+
 def main(out: str, warehouse: str | None) -> int:
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
@@ -430,6 +499,8 @@ def main(out: str, warehouse: str | None) -> int:
             fetch_history(client, d, log)
         if req.get("sites", False):
             fetch_sites(client, d, warehouse, req, log)
+        if req.get("concours", True):
+            fetch_concours(client, d, log)
     print(json.dumps(log, ensure_ascii=False, indent=1))
     if not versions(d):
         print("no Onisep version could be read", file=sys.stderr)

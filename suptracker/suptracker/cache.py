@@ -68,6 +68,7 @@ POLICY = [
     (r"/api/calendrier\.ics", PUBLIC, "sprint 22: the same calendar as an .ics file (no parameter)"),
     (r"/api/metiers", PUBLIC, "job catalogue (no parameter: searched in the browser)"),
     (r"/api/reconnaissance", PUBLIC, "sprint V1: the State-label badge and tuition of every read fiche (no parameter)"),
+    (r"/api/transports", PUBLIC, "owner 2026-11-18: TGV fares, stations, fuel prices for the trip computed in the browser (no parameter)"),
     (r"/api/communes", PUBLIC, "sprint V2: every commune and its centre, for the distance computed in the browser (no parameter)"),
     (r"/api/metier/[^/]+", PUBLIC, "one job and the formations preparing it"),
     (r"/api/contact", NO_STORE, "sprint Q1: a message from the contact form (POST)"),

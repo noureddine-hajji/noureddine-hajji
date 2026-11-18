@@ -26,6 +26,9 @@ per-job model (redteam_robustesse.py).
   RF9 Mes vœux comparator; RF10 the method page.
   RF11 (owner, 2026-11-18): the published BTS / BUT insertion beside the score (never in it), the search page's two robustesse
       filters re-derived from the compact payload, their counts, the card line, never a sort by a repère.
+  RF12 (owner, 2026-11-18): L'essentiel shows the formation's robustesse: the median score « / 100 » with its two repères in words
+      and the estimation label; no score = « données insuffisantes », no block = « pas d'estimation », never a number invented;
+      the tile opens « Emploi et métiers ».
 """
 from __future__ import annotations
 
@@ -990,7 +993,48 @@ def rf11(c: Ctx):
     return not bad, f"differences {bad[:5]}"
 
 
+@check("RF12 L'essentiel: the robustesse tile (median score / 100, both repères, estimation; none invented), opens « Emploi et métiers »")
+def rf12(c: Ctx):
+    names = ("ROB_SUM", "robNum", "formationRobTile")
+    if not all(RB.top(c.js, n) for n in names):
+        return False, "a renderer is missing from app.js"
+    full, same, none = page_data()
+    prog = RB.STUB + "\n".join(RB.top(c.js, n) for n in names) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      process.stdout.write(JSON.stringify([formationRobTile(D.f), formationRobTile(D.s), formationRobTile(D.n), formationRobTile(null),
+        formationRobTile(D.t)]));"""
+    trop = copy.deepcopy(full)
+    trop["repere"] = {"niveau": None, "raison": "trop_peu"}
+    trop["repere_national"] = {"niveau": "moyen"}
+    out = RB.node(prog, {"f": full, "s": same, "n": none, "t": trop})
+    if out is None:
+        return True, "node absent: not run"
+    f, sm, n, z, t = out
+    bad = []
+    if "66 / 100" not in f or "parmi les 20 % les plus robustes de sa filière" not in f or "parmi les 20 % les moins robustes de toutes les formations" not in f \
+            or "estimation" not in f:
+        bad.append("the score, a repère or the estimation label is missing")
+    if "non classée dans sa filière" not in sm or "plus robustes de toutes les formations" not in sm:
+        bad.append("a formation not ranked in its filière: no reason or no national repère")
+    if "trop peu de formations comparables" not in t or "dans la moyenne de toutes les formations" not in t:
+        bad.append("too few comparable formations: not said")
+    if "/ 100" in n or "données insuffisantes" not in n or "/ 100" in z or "pas d'estimation" not in z:
+        bad.append("a number without a score, or the absence not said")
+    if any('data-goto="emploi"' not in x for x in out) or "<img" in "".join(out):
+        bad.append("the tile does not open « Emploi et métiers », or is not escaped")
+    sb = RB.top(c.js, "summaryBand")
+    if "${formationRobTile(d.robustesse)}" not in sb:
+        bad.append("the tile is not in L'essentiel")
+    if re.search(r"\bchances?\b|promesse|garanti", re.sub(r"<[^>]+>", " ", "".join(out)), re.I):
+        bad.append("a chance or a promise")
+    return not bad, f"differences {bad[:4]}"
+
+
 SOURCE_MUTANTS = [
+    ("js", "score without its estimation label", '.map(esc).join(" ; ")} ${estimTag("", false, true)}`;', '.map(esc).join(" ; ")}`;', "RF12"),
+    ("js", "national repère dropped from the tile", "  const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : \"\";", "  const nat = \"\";", "RF12"),
+    ("js", "a number with no score", '<span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span>', '<span class="sum-value">${robNum(rb && rb.score_national)} / 100</span>', "RF12"),
+    ("js", "tile out of the summary", "      ${formationRobTile(d.robustesse)}\n", "", "RF12"),
     ("robf", "portable threshold 19", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS - 1", "RF1"),
     ("robf", "technique counted portable", 'C[o]["sous_cat"] == "Transverse" or', 'C[o]["sous_cat"] != "Technique expert" or', "RF1"),
     ("robf", "inactive fiches read", 'r["Actif"] == "ACTIVE"', 'r["Actif"] != ""', "RF1"),

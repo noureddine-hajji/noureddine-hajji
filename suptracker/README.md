@@ -3827,3 +3827,93 @@ apart, masked said, specialty first then the fallbacks, the out-of-score sentenc
 formation model never reads Inserjeunes or the BUT insertion, every filter option re-derived from the compact payload (« sans » = no
 level), the counts equal to the other groups' selection, no filter without the repères, card lines without unknown levels, no sort by
 a repère; 64/64 mutants caught.
+
+## The formation page, tidied (owner, 2026-11-18)
+
+**L'essentiel.** The official access rate and the figure for the profile are ONE cell (`accesTile`), two halves side by side and
+one short sentence: « Officiel : la part de tous les candidats qui ont reçu une proposition. Pour votre profil : le même taux,
+pour les candidats qui ont votre bac ou vos deux spécialités. » (outside terminale the second half is the estimated access of
+sprint 21). The cell spans two columns; the other tiles follow three by row (two on a phone): the zone, the admits, a new
+« Robustesse 2035 » tile and the jobs. The robustesse tile (`formationRobTile`) shows the median score « / 100 » with the two
+repères in words (within the filière, among all formations) and the estimation label; no score = « données insuffisantes »,
+no block = « pas d'estimation ». Tile counts are unchanged: 5 with a terminale profile, 4 otherwise (red team Z3).
+
+**Open days and webinars, in « Y entrer ».** The card « Portes ouvertes et webinaires » is now the first card of « Y entrer »,
+before the SIES indicators (the L'essentiel line opens that tab). On-site sessions and online ones (Onisep's « en virtuel »:
+webinars, virtual visits) are listed apart. A formation recruited through a concours (`jpo.CONCOURS`: Puissance Alpha 195
+formations, Avenir 77, Geipi Polytech 76, SESAME 60, Advance 23, ACCÈS 10 in the 2025 campaign, matched on the words of its
+Parcoursup labels) also gets the concours's own sessions: the `suptracker-jpo` workflow reads each concours's OFFICIAL site
+(robots.txt honoured, up to 5 pages: the home page and its same-site links to webinars, information days, agenda) into
+data/jpo/concours/ (event lines, masked; `etat.csv` with `nomme` = the home page names the concours). `jpo.concours_events` keeps
+a date only on a line carrying an event word (webinaire, visio, live, portes ouvertes, JPO, journée/réunion/session d'information,
+salon), never on a line about registration, the exam or its results, with the same date rules as the establishments' sites;
+online = webinar words; the event's line (or heading + line) must NAME the concours (`CONCOURS_NAMES`: the concours agendas also
+list single schools' fairs and open days); a range of days (« les 8-9 janvier », « du 19, 20 au 21 novembre ») counts from its
+first day; a page with more than 12 sessions a season is an agenda and is dropped. The page shows the season's dates
+of the latest reading, each « à vérifier » with the page and the day read; the official site only when a reading succeeded AND
+named the concours (a wrong or moved address shows nothing). The concours sites are a source of their own (`sites_concours`) and
+in the warehouse fingerprint. First real reading (2026-11-18): Geipi Polytech, SESAME, Advance and ACCÈS read and named, Puissance
+Alpha and Avenir unreachable from the runner (connection error: nothing shown, retried each day); events kept: the ACCÈS webinar
+on the 2027 selection (17 November 2026), Geipi Polytech at two fairs (8 and 22 January 2027). SESAME's agenda listed only single
+schools' fairs and open days (LEM Strasbourg, EMLV): none kept, by the naming rule written after this reading. On the refreshed
+warehouse (2026-11-18): every Geipi Polytech formation shows the two fairs with the agenda page and the reading day; J9 passes
+(2,628 of 14,252 formations with a date this season, 708 with a period from past seasons).
+
+**Ce que regarde le jury: one card.** When the formation has both its Parcoursup fiche (the coming campaign) and its jury's own
+report (the past session), the tab is ONE card « Comment votre dossier est examiné » (`juryMerged`): the fiche comes first and
+prevails, its grid replaces the report's criteria (said) and its advice the report's; the report adds only what the fiche does not
+publish (the specialties taken into account, the options cited, eliminating criteria, how the files were examined, the algorithm)
+under « Ce que le rapport du jury 2025 ajoute »; with no grid on the fiche the report's criteria come back, said; both sources are
+credited at the bottom. A formation with only one of them keeps that card; without an own report, the similar formations' card.
+
+Red teams: J11 (`redteam_jpo.py`, an independent reading of the concours pages, the named-site rule, the placement; 62/62
+mutants), GR10 (`redteam_grilles.py`, one card, fiche first, report additions; 45/45), RF12 (`redteam_robustesse_formations.py`,
+the tile; 71/71), Z3-Z6 (`redteam_tauxprofil.py`, the access cell; 16/16); ux X16 and reorientation E5/E6 follow the new code.
+
+## Travel costs (owner, 2026-11-18)
+
+**What.** In « Combien ça coûte », a card « Venir depuis chez vous : le trajet » gives, for the town stored in Mon profil, a round
+trip to the formation by car and by TGV, and a line without a price for the plane (and the ferry across the sea), « à titre
+d'information ». No carpooling or bus line (owner, 2026-11-18: no public price or timetable to read).
+
+**Data, official only.** The `suptracker-transports` workflow (monthly, `scripts/transports_fetch.py`) fetches into
+data/transports/, keeping only the columns read, a file rewritten only when its content changed:
+- SNCF « Tarifs TGV INOUI et OUIGO » (ODbL): the one-way price RANGE per origin-destination; `transports.py` keeps the 2nd class
+  « Tarif Normal » rows (the fare without a discount card) and pools both directions (lowest minimum, highest maximum);
+- SNCF « Gares de voyageurs » (ODbL): the position of the stations the fares name (UIC code); a station without one is left out and
+  counted in the audit;
+- « Prix des carburants en France, flux instantané v2 » (Ministère de l'Économie, Licence Ouverte): the MEDIAN price of gazole,
+  SP95-E10 and SP95 over the stations updated in the last 30 days before the newest update, with the count and the date; the same
+  median PER DEPARTMENT (owner, 2026-11-18: « au plus proche ») when at least 10 stations of the department updated that fuel in
+  the window (`transports.MIN_STATIONS_DEP`). On the 2026-11-18 file: 96 departments for gazole (2.064 to 2.230 €), 94 for SP95-E10
+  (1.929 to 2.048 €), 91 for SP95 (1.979 to 2.239 €).
+The build stores one compressed JSON value beside the warehouse; `/api/transports` serves it with no parameter (shared cache).
+
+**In the browser, never sent.** The town never leaves the browser (it lives in `villeDepart`). From the crow-fly distance:
+- car: the FIXED hypotheses printed on the page (`transports.HYPOTHESES`: road 1.2 to 1.3 times the crow-fly distance, 5 to 7 litres
+  per 100 km, 90 to 110 km/h; Paris-Lyon: about 4 h 20 to 5 h 40), the lowest fuel median with the lowest consumption and the highest with the highest, round trip; time
+  one way; « carburant seul, péages et parking non compris », labelled estimation. Each fuel's price is the median of the student's
+  department when published, else the national one, and the page says which (fuel by fuel). No car estimate when the sea or a border
+  lies between the town and the formation (`trLand`: each land with roads is named by its coordinates: the continent, Corsica,
+  French Guiana, New Caledonia's main island (a band along its axis), Réunion, Martinique, Guadeloupe's Basse-Terre and Grande-Terre
+  (bridged), Mayotte's Grande-Terre, Tahiti; every other place, Marie-Galante, Les Saintes, Petite-Terre, Moorea or a formation
+  abroad, gets no car estimate even next door: Codex on PR #86 found Marie-Galante → Les Abymes, 49 km, priced by car); the
+  plane row then shows whatever the distance and a ferry row (no price) appears where Corsica or two islands are concerned. On the real cartographie, all 10,184 formation positions fall on their department's land;
+- TGV: every fare station within 30 km of the town and of the formation (Paris has several), the pair with the lowest published
+  normal fare; its range x 2 with the carriers (OUIGO, TGV INOUI), « plein tarif, 2de classe », and the SNCF's own published
+  « Tarif Élève - Étudiant - Apprenti » range x 2 where it exists (on the real file: 2nd class Tarif Normal 5,248 rows, student fare
+  4,443; 230 stations with a position, 15 left out; 3,691 station pairs). None when no station is near, when one station serves both
+  ends, or when no fare is published between them (a TER or a trip with a change may exist: SNCF Connect link). Paris → Lyon on the
+  2026-11-18 files: 51 to 230 € round trip at the normal fare, 40 € at the student fare;
+- plane (from 500 km, or across the sea) and ferry: no public price, never a figure, a sentence only.
+Euros are rounded outwards; the travel time is not computed for the train (no timetable read): the SNCF Connect link.
+
+Red team `redteam_transports.py` (TR1-TR8): an independent reading of crafted SNCF and fuel files, the page arithmetic re-derived in
+Python on a grid of towns, the page text (escaping, no figure where no price is public, the plane only from 500 km, credits, safe
+links), privacy (no parameter, the town never sent, no late fill), the fetcher (columns by name, official hosts), the plumbing; the
+real data check prints the share of formations with a fare station nearby and checks every formation's land against its department.
+34/34 mutants caught. Checked on the refreshed warehouse (2026-11-18): TR7 passes (the served payload equals data/transports;
+230 stations, 3,691 fares, fuel medians of 96 departments; 4,745 of the 5,797 latest-campaign formations within 30 km of a fare
+station). Data refresh: the transports workflow runs on the 3rd of every month; the data workflow rebuilds the
+warehouse when the fetched files changed (they are in its fingerprint). Fuel medians on the 2026-11-18 file: gazole 2.139 € (9,331
+stations), SP95-E10 1.977 € (7,521), SP95 2.020 € (2,637).

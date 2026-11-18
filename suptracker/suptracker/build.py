@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, jpo, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -46,6 +46,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         aides.build(con)                   # sprint F: student aids read from the official pages (data/aides)
         jpo.build(con, textes=rapports.textes_path(db_path))   # open days (data/jpo, data/fiches): beside the warehouse
+        transports.build(con, textes=rapports.textes_path(db_path))   # owner 2026-11-18: fares, stations, fuel (beside)
         tension.build(con)                 # sprint V2: vœux per place of each formation, placed among its type
         referentiel.build_referentiel(con, raw_dir)
         lycee.build_lycees(con, raw_dir)

@@ -4633,29 +4633,1408 @@ uai,url,status,checked
 0681810Y,https://www.lycee-cfa-du-btp-cernay.com/,ok,2026-11-18
 0681817F,http://www.lyceeschwendi.fr,ok,2026-11-18
 0681832X,https://www.formation-industries-alsace.fr/,ok,2026-11-18
+0681839E,https://lyc-storck.monbureaunumerique.fr,ok,2026-11-18
+0681847N,https://www.praxis.alsace,ok,2026-11-18
+0681882B,https://lyc-schongauer.monbureaunumerique.fr/,error ConnectError,2026-11-18
+0681885E,http://www.lyceesonnenberg.com,ok,2026-11-18
+0681888H,http://lyceeameliezurcher.net/,http 500,2026-11-18
+0681904A,https://www.irfa-est.fr/,ok,2026-11-18
+0681917P,https://donboscowit.eu,ok,2026-11-18
+0681948Y,http://www.ccicampus.fr,ok,2026-11-18
+0681955F,https://www.esgmformation.com/,ok,2026-11-18
+0681962N,http://groupe-terrade.com,ok,2026-11-18
+0681967U,https://www.business-school.uha.fr,ok,2026-11-18
+0681983L,https://www.cfahotrest-colmar.com,ok,2026-11-18
+0682016X,http://www.imt-formation.fr,ok,2026-11-18
+0682019A,http://www.kedi-formation.fr,ok,2026-11-18
+0682021C,http://www.formation-industries-alsace.fr,ok,2026-11-18
+0682022D,http://www.formation-industries-alsace.fr,ok,2026-11-18
+0682029L,http://www.ccicampus.fr,ok,2026-11-18
+0682049H,https://www.myec2m.com,ok,2026-11-18
+0682052L,http://www.ghrmsa.fr,http 418,2026-11-18
+0682053M,http://www.ghrmsa.fr,http 418,2026-11-18
+0682054N,https://www.esgmformation.com/,ok,2026-11-18
+0682064Z,https://maformation-monavenir.aftral.com/,ok,2026-11-18
+0682065A,https://www.appuiformation.com/,ok,2026-11-18
+0682076M,https://esc-3frontieres.fr/,ok,2026-11-18
+0682079R,http://www.st-jean-colmar.fr,ok,2026-11-18
+0682085X,https://www.st-jean-colmar.fr/cfa,http 404,2026-11-18
+0682086Y,https://www.esspa-formation.fr/,ok,2026-11-18
+0682087Z,https://sahneo.com/,ok,2026-11-18
+0682090C,https://www.epitech.eu,ok,2026-11-18
+0682091D,https://www.ecf.asso.fr/Auto-ecole/LLERENA/ECF-LLERENA-ECKBOLSHEIM-CEDEX/Nos-Formations-Pro/ISLT-L-e,http 404,2026-11-18
+0682092E,https://www.ecf.asso.fr/Auto-ecole/LLERENA/ECF-LLERENA-ILLZACH,ok,2026-11-18
+0682093F,https://www.tihs.fr/accueil,ok,2026-11-18
+0682096J,https://www.alaji.fr,ok,2026-11-18
+0682098L,https://imt-formation.fr/,ok,2026-11-18
+0682099M,http://www.bkambitions.com,ok,2026-11-18
+0682104T,https://www.ecm-france.fr/,ok,2026-11-18
+0682105U,https://www.euclea-business-school.com/,ok,2026-11-18
+0682108X,http://www.alaji.fr,ok,2026-11-18
+0682109Y,https://www.diaconat-formation.fr/devenir-ide/ifsi-mulhouse,http 404,2026-11-18
+0682110Z,http://www.ghrmsa.fr/,http 418,2026-11-18
+0682111A,https://escm-ecole.fr/,ok,2026-11-18
+0682115E,https://www.em-strasbourg.com/,ok,2026-11-18
+0682117G,https://esov.fr/,ok,2026-11-18
+0682120K,https://imt-formation.fr/,ok,2026-11-18
+0682124P,https://www.cfpp-colmar.fr,ok,2026-11-18
+0682125R,https://www.groupe-alternance.com/ecoles/colmar/,ok,2026-11-18
+0682127T,https://www.mindshift-school.com,ok,2026-11-18
+0682130W,https://gt24.fr/,ok,2026-11-18
+0690008J,https://gustave-eiffel.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690010L,https://tony-garnier.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690018V,https://danielle-casanova.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0690023A,https://ampere.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690026D,https://lyceeduparc.fr,ok,2026-11-18
+0690027E,https://lycee-eherriot.etab.ac-lyon.fr/spip,ok,2026-11-18
+0690028F,http://saint-just.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0690029G,https://lacassagne.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690032K,https://juliette-recamier.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0690035N,https://lumiere.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690037R,http://www.lamartinierediderot.fr,ok,2026-11-18
+0690038S,http://www.martiniere-duchere.fr,ok,2026-11-18
+0690040U,http://hector-guimard.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0690042W,http://colbert.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0690046A,https://louise-labe.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690047B,https://magenta.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690048C,https://www.lamartinierediderot.fr/,ok,2026-11-18
+0690074F,https://parc-chabrieres.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690082P,http://www2.ac-lyon.fr/etab/lycees/lyc-69/lyjperrin/index.html,error ConnectError,2026-11-18
+0690085T,https://cassin-laurencin.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690092A,http://www2.ac-lyon.fr/etab/lycees/lyc-69/1erfilm/,error ConnectError,2026-11-18
+0690093B,https://helene-boucher.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0690097F,http://claude-bernard.elycee.rhonealpes.fr,error ConnectError,2026-11-18
+0690103M,https://lyc-frederic-fays.ent.auvergnerhonealpes.fr/nos-formations/,ok,2026-11-18
+0690104N,https://sembat-seguin.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690105P,https://emile-bejuit.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690107S,https://alfred-de-musset.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690125L,http://camille-claudel.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0690128P,http://www.lyceebranly.com,ok,2026-11-18
+0690129R,https://parc-chabrieres.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690132U,https://pierre-brossolette.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0690173N,https://www.sciencespo-lyon.fr/accueil,ok,2026-11-18
+0690184A,http://www.lyon.archi.fr,ok,2026-11-18
+0690185B,http://www.ensba-lyon.fr,ok,2026-11-18
+0690187D,https://www.ec-lyon.fr/,ok,2026-11-18
+0690192J,http://www.insa-lyon.fr/,error ConnectTimeout,2026-11-18
+0690193K,https://www.vetagro-sup.fr,ok,2026-11-18
+0690194L,http://www.ecam.fr,ok,2026-11-18
+0690195M,https://www.ucly.fr,ok,2026-11-18
+0690197P,https://bba.em-lyon.com/fr,ok,2026-11-18
+0690199S,https://ecole-rockefeller.com/,ok,2026-11-18
+0690200T,https://www.infn.fr/,ok,2026-11-18
+0690250X,http://www.agri-lyon-dardilly-ecully.fr,ok,2026-11-18
+0690253A,https://cnam-auvergnerhonealpes.com/,ok,2026-11-18
+0690274Y,http://iut.univ-lyon1.fr,error ConnectTimeout,2026-11-18
+0690275Z,http://www.lycee-belair.fr,ok,2026-11-18
+0690276A,https://www.cned.fr,ok,2026-11-18
+0690279D,http://www.epl.saintgenislaval.educagri.fr,ok,2026-11-18
+0690281F,http://joseph-marie-jacquard.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0690519P,https://www.lesminimes-lyon.org/,ok,2026-11-18
+0690520R,https://www.la-favorite.org/enseignement-superieur/,error ConnectTimeout,2026-11-18
+0690521S,http://www.sainte-marie-lyon.fr,ok,2026-11-18
+0690522T,https://www.auxlazaristeslasalle.fr/nos-formations-superieures/,ok,2026-11-18
+0690539L,https://sup-bellevue.org/,ok,2026-11-18
+0690542P,https://www.la-favorite.org/campus/,error ConnectTimeout,2026-11-18
+0690543R,https://www.saint-thom.fr/etablissements/sup-saint-thom/,ok,2026-11-18
+0690553B,https://www.bs-beaujolais.fr/,ok,2026-11-18
+0690563M,http://www.slsb.fr/es/,ok,2026-11-18
+0690564N,http://www.leschartreux.com/les-filieres-post-bac,ok,2026-11-18
+0690571W,http://www.lyceesaintmarc.org,ok,2026-11-18
+0690631L,http://www.icof.fr,ok,2026-11-18
+0690634P,http://www.ecolelamache.org,ok,2026-11-18
+0690642Y,http://www.ort-france.fr/lyon,ok,2026-11-18
+0690646C,http://www.carrel.fr,ok,2026-11-18
+0690651H,https://assomption-stjosephiraf.org/,ok,2026-11-18
+0690660T,http://www.lyceejapy.fr,robots,2026-11-18
+0690670D,https://www.maestris-bts.com/,ok,2026-11-18
+0690671E,https://www.auxlazaristeslasalle.fr,ok,2026-11-18
+0690696G,https://www.groupe-terrade.com/fr/ecoles/lyon,ok,2026-11-18
+0690697H,https://www.la-favorite.org/campus/,error ConnectTimeout,2026-11-18
+0690698J,http://www.sepr.edu,ok,2026-11-18
+0690712Z,http://www.slsb.fr,ok,2026-11-18
+0690723L,http://www.carrel.fr,ok,2026-11-18
+0691501G,https://www.estbb.fr,ok,2026-11-18
+0691503J,http://www.esdes.fr,ok,2026-11-18
+0691626T,https://georges-lamarque.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0691644M,http://lyc-louis-armand-villefranche.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0691654Y,http://www.champagnat-stsymphorien.eu/,ok,2026-11-18
+0691659D,http://www.donboscolyon.org,ok,2026-11-18
+0691678Z,http://www.sandar.org,ok,2026-11-18
+0691680B,https://supetixs.fr,ok,2026-11-18
+0691696U,https://www.cesi.fr/,ok,2026-11-18
+0691774D,http://www.univ-lyon1.fr,error ConnectTimeout,2026-11-18
+0691775E,https://www.univ-lyon2.fr/,ok,2026-11-18
+0691860X,http://iut.univ-lyon1.fr,error ConnectTimeout,2026-11-18
+0691875N,https://peyrefitte-esthetique.com/campuses/27-campus-lyon,ok,2026-11-18
+0692185A,http://www.univ-lyon1.fr,error ConnectTimeout,2026-11-18
+0692198P,https://www.univ-lyon2.fr/,ok,2026-11-18
+0692210C,http://www.iri-lyon.com/contact,ok,2026-11-18
+0692214G,https://btpcfa-aura.fr/formations?cfa=btp-cfa-rhone,ok,2026-11-18
+0692353H,https://www.isara.fr,ok,2026-11-18
+0692360R,https://www.bs-beaujolais.fr/,ok,2026-11-18
+0692390Y,https://erea-pellet.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0692437Z,http://www.univ-lyon3.fr,ok,2026-11-18
+0692514H,https://www.sepr.edu/,ok,2026-11-18
+0692517L,https://camus-sermenaz-rillieux.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0692522S,https://www.ocellia.fr,ok,2026-11-18
+0692523T,http://www.chu-lyon.fr/fr/formation-infirmier,error ConnectTimeout,2026-11-18
 0692525V,https://www.croix-rouge.fr/actualite/journee-portes-ouvertes-croix-rouge-competence-jpo,ok,2026-11-16
+0692526W,http://www.saintjosephsaintluc.fr,ok,2026-11-18
+0692566P,http://www.entpe.fr,ok,2026-11-18
+0692589P,https://hno.fr/,ok,2026-11-18
+0692681P,http://lyceehorticole.com/,ok,2026-11-18
+0692706S,http://www.mfr-st-laurent.fr,ok,2026-11-18
+0692710W,https://www.mfr-lapetitegonthiere.fr,ok,2026-11-18
+0692717D,http://lyc-jacques-brel.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0692781Y,http://www.afpia-lyon.fr,ok,2026-11-18
+0692800U,https://charlie-chaplin.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0692866R,https://martiniere-monplaisir.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0692918X,http://www.mfr-chessy.fr,ok,2026-11-18
+0692955M,https://www.ifag.com/campus/lyon,ok,2026-11-18
+0692968B,https://andre-cuzin.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0692984U,http://www.chu-lyon.fr,error ConnectTimeout,2026-11-18
+0692987X,http://www.ch-le-vinatier.fr/ifsi.,http 418,2026-11-18
+0692988Y,http://www.chu-lyon.fr/,error ConnectTimeout,2026-11-18
+0693044J,http://www2.ac-lyon.fr/etab/lycees/lyc-69/jpsartre/index.php,error ConnectError,2026-11-18
+0693067J,http://www.mfr-lapalma.fr,ok,2026-11-18
+0693094N,https://fernand-forest.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0693133F,http://www.cnsmd-lyon.fr/,ok,2026-11-18
+0693176C,http://www.ecole-presquile.fr,ok,2026-11-18
+0693177D,http://www.ecole3a.edu,ok,2026-11-18
 0693178E,https://www.cohl.fr/ecole/rencontres-et-jpo/nous-rencontrer/,ok,2026-11-16
+0693180G,https://www.ecoles-idrac.com/campus/lyon/,ok,2026-11-18
+0693217X,https://www.agri-lyon-dardilly-ecully.fr/,ok,2026-11-18
+0693222C,https://www.vatel.fr,ok,2026-11-18
+0693267B,https://www.bs-beaujolais.fr/,ok,2026-11-18
+0693285W,https://ispef.univ-lyon2.fr/,ok,2026-11-18
+0693306U,https://www.igensia-alternance.fr/,ok,2026-11-18
+0693328T,https://interfora-ifaip-cfa.com/,ok,2026-11-18
+0693330V,https://aragon-picasso.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0693368L,http://www.academieartdentaire.fr,ok,2026-11-18
+0693373S,http://www.carrel.fr,ok,2026-11-18
+0693403Z,http://www.lycee-belair.fr,ok,2026-11-18
+0693405B,https://www.isodiet.fr/,ok,2026-11-18
+0693406C,https://ort-france.fr/lyon,ok,2026-11-18
+0693448Y,https://www.inseec.com/programmes-inseec/bba/,ok,2026-11-18
+0693452C,http://www.ifir.fr,ok,2026-11-18
 0693453D,https://www.institutlyfe.com/rencontrons-nous-evenements/,ok,2026-11-16
+0693478F,http://condorcet.elycee.rhonealpes.fr,error ConnectError,2026-11-18
+0693504J,https://www.lyceecfarabelais-lyondardilly.fr/,ok,2026-11-18
+0693521C,https://iut.univ-lyon2.fr,ok,2026-11-18
+0693550J,http://polytech.univ-lyon1.fr/,error ConnectTimeout,2026-11-18
+0693565A,http://iut.univ-lyon3.fr,ok,2026-11-18
+0693566B,https://francois-mansart.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0693579R,http://www.epl.saintgenislaval.educagri.fr,ok,2026-11-18
+0693619J,https://robert-doisneau.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0693623N,http://www.prepa.cpe.fr,ok,2026-11-18
+0693640G,https://groupe-ispa.fr/,ok,2026-11-18
+0693654X,http://rene-descartes.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0693694R,https://fcn75.ymag.cloud/index.php,ok,2026-11-18
+0693699W,http://www.iso.fr/,ok,2026-11-18
+0693701Y,https://maformation-monavenir.aftral.com/,ok,2026-11-18
+0693702Z,http://www.inhni.com,ok,2026-11-18
+0693703A,https://www.esbanque.fr/le-cfpb/le-reseau-cfpb/france/region-auvergne-rhone-alpes/delegation-cfpb,error ConnectError,2026-11-18
+0693704B,http://www.esup.fr,ok,2026-11-18
+0693714M,https://www.ieftourisme.com/programme/bts-tourisme#admission,ok,2026-11-18
+0693726A,https://www.campus-promotrans.fr/,ok,2026-11-18
 0693733H,https://www.pigier.com/performance-lyon/agenda,ok,2026-11-16
+0693734J,https://aiguerande.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0693735K,https://www.ensatt.fr/,ok,2026-11-18
+0693786R,http://jehannedefrance.fr/,error ConnectTimeout,2026-11-18
+0693818A,https://www.donboscolyon.org/,ok,2026-11-18
+0693820C,https://www.arfrips.fr/formation/index.php/fr/je-cherche-une-formation,ok,2026-11-18
+0693830E,http://www.esme.fr,ok,2026-11-18
+0693860W,http://www.cefedem-aura.org,ok,2026-11-18
+0693936D,http://www.ducretet.net,ok,2026-11-18
+0693974V,https://www.studio-m.fr/ecole-digital-lyon,ok,2026-11-18
+0693977Y,http://www.ecema.fr,ok,2026-11-18
+0694051D,https://www.esce.fr/program/programme-grande-ecole-grade-de-master/,ok,2026-11-18
+0694060N,https://www.iet.fr?utm_source=parcoursup&utm_medium=referral&utm_campaign=parcoursup-plateforme,ok,2026-11-18
+0694061P,http://www.esima.fr,ok,2026-11-18
+0694070Z,https://www.sciences-u-lyon.fr/,ok,2026-11-18
+0694078H,https://www.ecoles-idrac.com/campus/lyon/,ok,2026-11-18
+0694088U,https://ecoleterrade.com/ecoles/rhone-alpes/villefranche/campus-villefranche/,ok,2026-11-18
+0694089V,https://afip-formations.com,ok,2026-11-18
+0694100G,https://www.epitech.eu,ok,2026-11-18
+0694118B,https://www.coursdiderot.fr/,ok,2026-11-18
+0694123G,http://www.ens-lyon.fr,ok,2026-11-18
+0694126K,https://adonis.education/,ok,2026-11-18
+0694148J,https://gfslyon.com,error ConnectError,2026-11-18
+0694164B,https://maformation-monavenir.aftral.com/centre/aftral-villefranche-sur-saone/,ok,2026-11-18
+0694179T,https://forma-btp.com/,ok,2026-11-18
+0694215G,http://www.ecole-isitech.com,ok,2026-11-18
+0694217J,https://ecole-de-commerce-de-lyon.fr,ok,2026-11-18
+0694228W,https://www.groupe-alternance.com/ecoles/lyon/,ok,2026-11-18
+0694251W,https://www.ynov.com/campus/lyon,ok,2026-11-18
+0694253Y,http://www.ipso-campus.com,ok,2026-11-18
+0694280C,https://www.essca.eu,ok,2026-11-18
+0694283F,http://www.ecole-foucauld.fr/foucauld-sup,error ConnectError,2026-11-18
+0694286J,http://www.ecoris.com,ok,2026-11-18
+0694307G,https://www.isg.fr/,ok,2026-11-18
+0694310K,http://www.epita.fr,ok,2026-11-18
+0694324A,http://www.metisports.com,ok,2026-11-18
+0694325B,http://www.edenschool.fr,ok,2026-11-18
+0694333K,https://www.ece.fr,ok,2026-11-18
+0694340T,http://afpa.fr,ok,2026-11-18
+0694349C,https://www.euridis-ecole.com/,ok,2026-11-18
+0694364U,http://www.acfal.com,ok,2026-11-18
+0694365V,https://camasformation.fr/nos-centres/camas-lyon-ville/,ok,2026-11-18
+0694366W,http://www.campus-du-beaujolais.mfr.fr,ok,2026-11-18
+0694373D,https://www.bsb-education.com/bsb-programmes/bachelor-in-management/,ok,2026-11-18
+0694377H,https://www.agri-lyon-dardilly-ecully.fr/,ok,2026-11-18
+0694378J,https://www.euridis-ecole.com/,ok,2026-11-18
+0694388V,https://www.ircom.fr/formations/lettres-et-sciences-politiques/presentation-de-la-licence/,ok,2026-11-18
+0694389W,https://www.ics-begue.com/,robots,2026-11-18
+0694396D,https://www.leges.fr,ok,2026-11-18
+0694404M,https://usflyon.com,ok,2026-11-18
+0694413X,http://www.supbiotech.fr,ok,2026-11-18
 0694423H,https://www.ipsa.fr/agenda/,ok,2026-11-16
+0694424J,https://www.mydigitalschool.com/ecole-multimedia-lyon,ok,2026-11-18
+0694426L,https://www.strate.design/,ok,2026-11-18
+0694429P,https://3is-education.fr/,ok,2026-11-18
+0694430R,https://elysees-marbeuf.fr/,ok,2026-11-18
+0694434V,https://avenirsup.com,ok,2026-11-18
+0694440B,https://peyrefitte-formations.com/,error ConnectError,2026-11-18
+0694441C,https://isteli.aftral.com/campus/lyon/,ok,2026-11-18
+0694444F,https://www.deust-pharma.fr,ok,2026-11-18
+0694445G,http://www.objectif-commercial.fr,error ConnectError,2026-11-18
+0694457V,http://www.builders-ingenieurs.fr,ok,2026-11-18
+0694473M,https://www.suptertiaire-immobilier.fr/nos-campus/ecole-en-immobilier-a-lyon/,ok,2026-11-18
+0694476R,http://www.c2n-formation.fr/,ok,2026-11-18
+0694480V,https://www.lyceecfarabelais-lyondardilly.fr/,ok,2026-11-18
+0694483Y,http://www.alternance.ifbtpra.com,error ConnectError,2026-11-18
+0694493J,https://isupcompta.com/,ok,2026-11-18
+0694496M,https://rocket-school.com/campus/rocket-school-lyon/,ok,2026-11-18
+0694513F,https://ebmbusinessschool.com/,http 503,2026-11-18
+0694521P,https://www.ecoles-supdecom.com/,ok,2026-11-18
+0694524T,https://www.lyssupinternational.com/lyssuplyon,ok,2026-11-18
+0694527W,https://www.institut-g4.fr/,ok,2026-11-18
+0694529Y,http://www.experideacademy.fr,error ConnectError,2026-11-18
+0694533C,https://groupe-espi.fr/,ok,2026-11-18
+0694534D,https://www.escg-lyon.fr,ok,2026-11-18
+0694537G,https://www.esarc-evolution.fr/ecole-bts-lyon,ok,2026-11-18
+0694549V,https://www.esav-institut-bonaparte.fr,ok,2026-11-18
+0694550W,https://supsante.com/campus/campus-lyon/,ok,2026-11-18
+0694551X,http://www.progress-sante.com,ok,2026-11-18
+0694554A,https://www.esb-campus.fr/campus/campus-lyon/,ok,2026-11-18
+0694555B,http://www.international-terra-institute.com,ok,2026-11-18
+0694556C,https://www.ifa.asso.fr/,ok,2026-11-18
+0694557D,http://www.igefi.net,ok,2026-11-18
+0694561H,http://www.laforbine.com,ok,2026-11-18
+0694565M,http://www.cifep.fr,http 404,2026-11-18
+0694566N,https://www.claire-formations.com/,ok,2026-11-18
+0694567P,https://www.groupe-ics.fr/,ok,2026-11-18
+0694573W,https://www.absup.pro/,error ConnectError,2026-11-18
+0694584H,https://hem-sante.fr/,error ReadTimeout,2026-11-18
+0694586K,http://www.cfaedc.fr,ok,2026-11-18
+0694587L,https://almgroup.fr/,ok,2026-11-18
+0694590P,https://nextgen-school.fr/,ok,2026-11-18
+0694592S,http://www.ecslyon.fr,ok,2026-11-18
+0694594U,https://www.eklya.fr/,ok,2026-11-18
+0694602C,https://supetixs.fr,error ConnectError,2026-11-18
+0694606G,https://www.nexa.fr/,ok,2026-11-18
+0694611M,https://academie-tourisme.fr/lyon/,ok,2026-11-18
+0694615S,https://formation-alternance-superieure.fr/,ok,2026-11-18
+0694623A,https://www.ecolesupbio.fr/,ok,2026-11-18
+0694625C,https://www.groupe-imt.com/,ok,2026-11-18
+0694627E,http://www.donboscolyon.org,ok,2026-11-18
+0694652G,https://solemn.eu,ok,2026-11-18
+0694666X,https://www.sphbusiness-school.fr/,ok,2026-11-18
+0694667Y,https://www.exchange-college.com/nos-campus-exchange-college,http 400,2026-11-18
+0694668Z,https://www.lesminimes-lyon.org/etude-superieur/presentation/bachelor/,ok,2026-11-18
+0694669A,https://www.arinfo.fr/,error ConnectError,2026-11-18
+0694672D,https://www.ifpass.fr,ok,2026-11-18
+0694673E,https://www.pl-education.com,ok,2026-11-18
+0694698G,https://www.ieqt.org/ieqt-lyon/,ok,2026-11-18
+0694741D,https://www.dgo-formations.fr/,ok,2026-11-18
+0694746J,http://2e2s.fr,ok,2026-11-18
+0694750N,https://esmep.fr/campus-de-lyon/,ok,2026-11-18
+0694757W,https://www.groupe-alternance.com/ecoles/villefranche-sur-saone/,ok,2026-11-18
+0700009E,https://www.lycee-cournot.fr,error RemoteProtocolError,2026-11-18
+0700018P,http://www.lyc-colomb.ac-besancon.fr/,ok,2026-11-18
+0700038L,https://lyc-luxembourg-vesoul.eclat-bfc.fr/,http 403,2026-11-18
+0700796K,https://www.cmaformation-bfc.fr/,ok,2026-11-18
+0700827U,https://www.vesoul-agrocampus.fr/,ok,2026-11-18
+0700882D,https://lycee-pontarcher.fr/,ok,2026-11-18
+0700905D,http://www.lycee-belin.fr,ok,2026-11-18
+0700958L,https://www.mfr-fougerolles.fr,ok,2026-11-18
+0700983N,https://irfss-bourgogne-franche-comte.croix-rouge.fr,ok,2026-11-18
+0701001H,https://spfgray.net/,ok,2026-11-18
+0701029N,https://www.vesoul-agrocampus.fr/,ok,2026-11-18
+0701035V,https://lyc-laragon-hericourt.eclat-bfc.fr,http 404,2026-11-18
+0701045F,http://www.imea.info,ok,2026-11-18
+0701048J,http://iut-bv.univ-fcomte.fr/,ok,2026-11-18
+0701052N,https://www.lyc-leshaberges.ac-besancon.fr,ok,2026-11-18
+0701053P,http://www.mfrchargey.fr,ok,2026-11-18
+0701078S,http://www.lyc-lumiere.ac-besancon.fr,ok,2026-11-18
+0701147S,https://formation-industries-fc.fr/,ok,2026-11-18
+0710001R,https://lyc-bonaparte-autun.eclat-bfc.fr/,error RemoteProtocolError,2026-11-18
+0710010A,http://www.lycee-mathias.fr,error ConnectError,2026-11-18
+0710011B,http://lyc71-pontusdetyard.ac-dijon.fr/,error ConnectTimeout,2026-11-18
+0710012C,http://www.cite-niepce-balleure.fr/,ok,2026-11-18
+0710018J,http://lycee-wittmer.net,ok,2026-11-18
+0710023P,https://lyc-laprats-cluny.eclat-bfc.fr/,error RemoteProtocolError,2026-11-18
+0710026T,https://lyc-lblum-le-creusot.eclat-bfc.fr/,error RemoteProtocolError,2026-11-18
+0710042K,https://cs-hvincenot-louhans.eclat-bfc.fr,error TooManyRedirects,2026-11-18
+0710045N,https://lyc-lamartine-macon.eclat-bfc.fr/,http 410,2026-11-18
+0710048S,https://lyc-rcassin-macon.eclat-bfc.fr/,error ConnectTimeout,2026-11-18
+0710054Y,http://www.parriat.fr,error RemoteProtocolError,2026-11-18
+0710087J,https://lyc71-astier.sd.ac-dijon.fr/,ok,2026-11-18
+0710100Y,http://www.cnam-bourgognefranchecomte.fr,ok,2026-11-18
+0711064W,https://www.terre.defense.gouv.fr/lycee-militaire-autun,ok,2026-11-18
+0711067Z,https://abcdavaye.com/,ok,2026-11-18
+0711068A,http://www.epl-fontaines.fr,ok,2026-11-18
+0711073F,http://www.epl-tournus.educagri.fr,ok,2026-11-18
+0711078L,http://www.cmaformation-bfc.fr,ok,2026-11-18
+0711103N,https://www.epl-fontaines.fr/les-centres/cfa-71/les-sites#gueugnon,http 404,2026-11-18
+0711137A,http://www.cite-scolairedigoin.com,ok,2026-11-18
+0711246U,http://www.smartcampusbycci.fr,ok,2026-11-18
+0711249X,https://www.notre-dame-ozanam.fr,ok,2026-11-18
+0711317W,https://cfaauto-macon.fr,ok,2026-11-18
+0711322B,https://lyc-jguyot-chalon-sur-saone.eclat-bfc.fr/,error ConnectTimeout,2026-11-18
 0711372F,https://jpo.ube.fr/,http 403,2026-11-16
+0711373G,http://www.ifsi-duchalonnais.fr,ok,2026-11-18
+0711385V,http://www.ifsi-macon.fr,ok,2026-11-18
+0711422K,https://lyc-hilairedechardonnet-chalon-sur-saone.eclat-bfc.fr/,ok,2026-11-18
+0711453U,http://mfr-anzy.fr,ok,2026-11-18
+0711454V,http://www.mfr-mazille.fr,ok,2026-11-18
+0711455W,http://ifsi-ifas-paray.fr,ok,2026-11-18
+0711456X,http://www.ifsi-montceau-les-mines.com,ok,2026-11-18
+0711494N,https://www.institution-st-lazare-st-sacrement-autun.fr,ok,2026-11-18
+0711566S,https://www.formation-industries-2171.com/,ok,2026-11-18
+0711648F,https://www.egc-centrest.fr/,ok,2026-11-18
 0711690B,https://jpo.ube.fr/,http 403,2026-11-16
+0711729U,https://lyc-egauthey-chalon-sur-saone.eclat-bfc.fr/,ok,2026-11-18
+0711734Z,http://www.emafructidor.com,ok,2026-11-18
+0711755X,https://www.lasalleparay.fr,ok,2026-11-18
+0711775U,https://www.ube.fr/,ok,2026-11-18
+0711782B,https://abcdavaye.com,ok,2026-11-18
+0711815M,https://lpa-de-velet.eclat-bfc.fr/,error RemoteProtocolError,2026-11-18
+0711884M,http://www.2sformations.com,http 403,2026-11-18
+0711896A,https://www.saintcharles71.fr,ok,2026-11-18
+0711915W,https://www.groupe-alternance.com/ecoles/macon/,ok,2026-11-18
+0711921C,http://www.esmp.fr,ok,2026-11-18
+0711934S,https://www.ecole2cg.com,ok,2026-11-18
+0711937V,https://www.chalonformation.com/,ok,2026-11-18
+0711944C,https://maformation-monavenir.aftral.com/,ok,2026-11-18
+0711945D,https://www.aftral.com/ecoles/cfatl/dijon/formations,http 404,2026-11-18
+0711949H,https://www.campusmecateam.com/,ok,2026-11-18
+0711958T,http://www.smartcampusbycci.fr,ok,2026-11-18
+0711964Z,https://inova-business.school/,ok,2026-11-18
+0711967C,https://formapichalon.com/,ok,2026-11-18
+0711975L,https://ifpalternance.com/,ok,2026-11-18
+0711976M,https://ifpalternance.com/,ok,2026-11-18
+0711978P,http://www.cmaformation-bfc.fr,ok,2026-11-18
+0711979R,https://inova-business.school/,ok,2026-11-18
+0711987Z,https://www.formation-industries-2171.com/,ok,2026-11-18
+0711988A,https://www.ube.fr/,ok,2026-11-18
+0720003M,http://chappe.paysdelaloire.e-lyco.fr/,ok,2026-11-18
+0720010V,https://www.agrocampus-lagerminiere.fr,ok,2026-11-18
+0720017C,https://robert-garnier.paysdelaloire.e-lyco.fr/,ok,2026-11-18
+0720021G,https://estournelles-constant.paysdelaloire.e-lyco.fr/,ok,2026-11-18
+0720029R,https://montesquieu.paysdelaloire.e-lyco.fr/,ok,2026-11-18
+0720033V,https://www.touchard-washington.fr,ok,2026-11-18
+0720034W,https://funay-boucher.paysdelaloire.e-lyco.fr/,ok,2026-11-18
+0720048L,http://raphaelelize.paysdelaloire.e-lyco.fr,ok,2026-11-18
+0720061A,https://inspe-site-lemans.univ-nantes.fr/,error ConnectError,2026-11-18
+0720079V,https://esad-talm.fr/fr/talm/talm-le-mans,ok,2026-11-18
+0720083Z,http://iut.univ-lemans.fr,ok,2026-11-18
+0720822C,http://www.campus-stecatherine.fr,ok,2026-11-18
+0720825F,https://lyceeroussel72.com,ok,2026-11-18
+0720837U,http://www.lyceenotre-dame72.fr,ok,2026-11-18
+0720896H,https://prytanee-national-militaire.e-lyco.fr/,ok,2026-11-18
+0720916E,http://www.univ-lemans.fr/fr/index.html,ok,2026-11-18
+0720930V,http://cfa.lemans.sarthe.cci.fr/,ok,2026-11-18
+0720937C,http://www.btpcfa72.com,http 401,2026-11-18
+0721009F,http://www.valdesarthe.fr,ok,2026-11-18
+0721094Y,http://lemans-sud.e-lyco.fr/,ok,2026-11-18
+0721317R,https://www.ch-lemans.fr/formation/ifsi/la-formation-infirmier/,ok,2026-11-18
+0721329D,https://lycee-leshorizons.fr,ok,2026-11-18
+0721337M,http://www.lppnazareth.com,ok,2026-11-18
+0721366U,http://www.mfr-la-ferte-bernard.asso.fr,error ConnectError,2026-11-18
+0721381K,http://www.mfr-bernayenchampagne.fr,ok,2026-11-18
+0721409R,http://ifsi-chs-sarthe.fr,ok,2026-11-18
+0721410S,http://www.ifsi-ifas-lafleche.fr,ok,2026-11-18
+0721429M,http://www.itemm.fr,ok,2026-11-18
+0721476N,https://agrocampus-lagerminiere.fr/,ok,2026-11-18
+0721478R,http://www.stjoseph-lasalle.fr,ok,2026-11-18
+0721484X,https://ismans.cesi.fr/,ok,2026-11-18
+0721493G,http://yourcenar.e-lyco.fr,ok,2026-11-18
+0721513D,http://www.egc-lemans.com,ok,2026-11-18
+0721522N,https://www.ecofac.fr/business-school/campus-le-mans/,ok,2026-11-18
+0721528V,https://www.fabacademy-pdl.fr/,ok,2026-11-18
+0721548S,http://malraux.e-lyco.fr,ok,2026-11-18
+0721553X,http://ensim.univ-lemans.fr/fr/index.html,ok,2026-11-18
+0721554Y,https://www.cfaec72.fr,ok,2026-11-18
+0721575W,http://www.esgt.cnam.fr,ok,2026-11-18
+0721654G,http://www.groupe-terrade.com,ok,2026-11-18
+0721658L,https://competence.croix-rouge.fr/formation/infirmier-le-mans/,ok,2026-11-18
+0721684P,http://www.stcharles-stecroix.org,ok,2026-11-18
+0721685R,https://aden-formations.fr/,ok,2026-11-18
+0721692Y,http://www.creps-pdl.sports.gouv.fr/,ok,2026-11-18
+0721696C,https://www.aftral.com/,ok,2026-11-18
+0721704L,https://www.cesi.fr/,ok,2026-11-18
+0721712V,https://www.irss.fr,ok,2026-11-18
+0721713W,https://www.isme.fr/,ok,2026-11-18
+0721715Y,http://www.esbia.fr,ok,2026-11-18
+0721725J,https://www.groupe-alternance.com/ecoles/le-mans/,ok,2026-11-18
+0721727L,https://www.arinfo.fr,error ConnectError,2026-11-18
+0721733T,https://www.ifag.com/campus/le-mans,ok,2026-11-18
+0730003G,http://marlioz.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0730005J,http://jean-moulin.ent.auvergnerhonealpes.fr,ok,2026-11-18
+0730006K,https://lyceelegrandarc.fr/,ok,2026-11-18
+0730012S,http://lyceehoteliercle.fr,ok,2026-11-18
+0730013T,http://vaugelas.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0730016W,http://www.ac-grenoble.fr/lycee/chambery.monge,http 404,2026-11-18
+0730029K,https://ambroise-croizat.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0730032N,http://www.ac-grenoble.fr/lycee/nivolet.la-ravoire,http 404,2026-11-18
+0730037U,https://www.lycee-paul-heroult.fr/formations/filiere-ms/,ok,2026-11-18
+0730039W,https://www.lyceedesmetiersdelamontagne.org/,ok,2026-11-18
+0730043A,https://lyceereneperrin.fr/,ok,2026-11-18
+0730760E,https://spt.education/,ok,2026-11-18
+0730763H,http://www.st-ambroise.org,ok,2026-11-18
+0730772T,http://www.lpp-margeriaz.fr,ok,2026-11-18
+0730774V,http://www.steanne-sav.fr,ok,2026-11-18
+0730776X,https://lpp-ste-genevieve.fr/,ok,2026-11-18
+0730805D,http://www.ecoris.com,ok,2026-11-18
+0730813M,https://reinach.fr,ok,2026-11-18
+0730858L,https://www.univ-smb.fr/,ok,2026-11-18
+0731043M,https://cardiniere.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0731198F,http://www.fondationdubocage.org/rubrique-87.html,ok,2026-11-18
+0731230R,http://www.ifsi-savoie.fr,ok,2026-11-18
+0731248K,https://lyc-louis-armand-chambery.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0731364L,http://www.reinach.fr,ok,2026-11-18
+0731383G,https://www.univ-smb.fr/,ok,2026-11-18
+0731386K,https://www.univ-smb.fr/polytech/,ok,2026-11-18
+0731392S,https://granier.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0731447B,http://www.reinach-formations.educagri.fr,ok,2026-11-18
+0731487V,http://www.iut-chy.univ-smb.fr,ok,2026-11-18
+0731505P,https://www.formation-industries-savoie.fr/presentation/cfai.html,ok,2026-11-18
+0731506R,http://www.technopolys.fr,ok,2026-11-18
+0731518D,https://www.ipac-france.com/ecole-commerce-chambery,ok,2026-11-18
+0731519E,https://ipac-france.com,ok,2026-11-18
+0731527N,https://peyrefitte-esthetique.com/campuses/26-campus-aix-les-bains,ok,2026-11-18
+0731563C,https://www.inseec.com/program/formation-bts/,ok,2026-11-18
+0731570K,https://www.univ-smb.fr/,ok,2026-11-18
+0731573N,https://maformation-monavenir.aftral.com/,ok,2026-11-18
+0731582Y,https://g5.fr,ok,2026-11-18
+0731584A,https://www.panthera.info/formation/,ok,2026-11-18
+0731586C,https://cifep.fr,error ConnectError,2026-11-18
+0731589F,https://www.palafis.fr,ok,2026-11-18
+0731595M,https://g5.fr,ok,2026-11-18
+0731599S,https://avenirpro-formations.com/,ok,2026-11-18
+0731604X,https://yaceschool.fr,ok,2026-11-18
+0731612F,https://lyceedurkheim.fr,error ConnectError,2026-11-18
 0731613G,https://www.groupe-alternance.com/evenements/soiree-portes-ouvertes-au-campus-de-chambery/,ok,2026-11-16
+0740003B,https://lycee-berthollet-annecy.web.ac-grenoble.fr/,ok,2026-11-18
+0740005D,http://www.lycee-faure.fr,ok,2026-11-18
+0740006E,http://www.ac-grenoble.fr/lycee/lachenal.pringy/,http 404,2026-11-18
+0740009H,http://www.ac-grenoble.fr/lycee/glieres.annemasse/fr/,http 404,2026-11-18
+0740013M,http://guillaume-fichet.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0740014N,https://www.lycee-hoteliere-bonneville.fr/,error ConnectError,2026-11-18
+0740017S,https://charles-poncet.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0740027C,https://mont-blanc.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0740031G,http://porte-des-alpes.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0740037N,https://madame-de-stael.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0740046Y,http://versoie.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0740047Z,http://www.lhsl.fr,ok,2026-11-18
+0740051D,http://anna-de-noailles.elycee.rhonealpes.fr,error ConnectError,2026-11-18
+0740054G,http://germain-sommeiller.elycee.rhonealpes.fr/,error ConnectError,2026-11-18
+0740062R,https://amedee-gordini.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0740082M,https://www.st-michel.fr/formations/etablissement-superieur,ok,2026-11-18
+0740092Y,http://www.escr74.com,ok,2026-11-18
+0740098E,http://www.ecs-sallanches.fr/bts,http 404,2026-11-18
+0740100G,https://www.stjothonon.org/presentation-de-lenseignement-superieur/,ok,2026-11-18
+0740143D,http://www.suplescordeliers.es2c.fr,ok,2026-11-18
+0740148J,http://www.lpp-lafontaine.com,ok,2026-11-18
+0740276Y,https://epl.contamine.educagri.fr/,ok,2026-11-18
+0740283F,https://iseta-eca.fr/,ok,2026-11-18
+0740290N,https://www.cfacoiffureannecy.com/,ok,2026-11-18
+0740927F,https://larochesurforon.enilv-alpes.fr/,ok,2026-11-18
+0741101V,http://www.lycee-prive-bressis.fr,ok,2026-11-18
+0741133E,https://www.univ-smb.fr/iut-annecy/,ok,2026-11-18
+0741158G,http://www.campusdegroisy.com,ok,2026-11-18
+0741164N,https://tommorel.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0741224D,https://lyceeles3vallees.fr,http 403,2026-11-18
+0741236S,https://mfr-bonne.fr/,ok,2026-11-18
+0741237T,http://www.cfmm.fr,ok,2026-11-18
+0741253K,http://www.mfr-annecy.fr,ok,2026-11-18
+0741307U,http://www.jeannedarc-thonon.com,ok,2026-11-18
+0741328S,https://www.mfr-vulbens.fr/,ok,2026-11-18
+0741330U,http://www.ifsi-annemasse.fr,error ConnectError,2026-11-18
+0741331V,https://www.ifsi-annecy.fr/,ok,2026-11-18
+0741333X,http://www.hopitauxduleman.fr,ok,2026-11-18
+0741408D,http://mfr-dronieres.fr,ok,2026-11-18
+0741410F,http://www.ipso-esthetique.com,ok,2026-11-18
+0741418P,https://charles-baudelaire.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0741437K,http://www.mfr-villaret.fr,ok,2026-11-18
+0741438L,https://mfr-seyssel.com/,ok,2026-11-18
+0741443S,https://sainte-croix-des-neiges.fr/fr/,ok,2026-11-18
+0741444T,http://www.esaaa.fr,ok,2026-11-18
+0741451A,http://www.mfr-annecy.fr,ok,2026-11-18
+0741469V,http://demotz.com,ok,2026-11-18
+0741476C,https://jean-monnet-annemasse.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0741510P,http://www.polytech.univ-smb.fr,error ConnectTimeout,2026-11-18
+0741525F,http://www.mfr-imaa.fr,ok,2026-11-18
+0741532N,https://albanais.ent.auvergnerhonealpes.fr/,ok,2026-11-18
+0741548F,https://epl.contamine.educagri.fr/le-cfppa,http 404,2026-11-18
+0741586X,https://www.univ-smb.fr/,ok,2026-11-18
+0741622L,http://www.ecoris.com,ok,2026-11-18
+0741624N,https://www.enseis.fr,ok,2026-11-18
+0741626R,http://www.enilv74.com,ok,2026-11-18
+0741627S,http://www.ipac-france.com,ok,2026-11-18
+0741630V,https://mfr-cranves-sales.fr,ok,2026-11-18
+0741670N,http://www.enilv-alpes.fr,ok,2026-11-18
+0741677W,https://www.poleformationhautesavoie.com/,ok,2026-11-18
 0741691L,https://www.ecoris.com/jpo/,ok,2026-11-16
+0741710G,http://www.ipac-france.com,ok,2026-11-18
+0741739N,https://iseta-eca.fr/,ok,2026-11-18
+0741744U,https://www.lecole-cci.fr/,http 403,2026-11-18
+0741758J,https://www.poleformationhautesavoie.com/,ok,2026-11-18
+0741774B,https://escannecy.com/,ok,2026-11-18
+0741775C,http://www.elevage-poisy.org/,ok,2026-11-18
+0741781J,https://www.jeannedarc-thonon.com/apprentissage-esl/,ok,2026-11-18
+0741787R,http://alpeseurope.ucly.fr/,ok,2026-11-18
+0741789T,https://www.groupe-terrade.com/fr/ecoles/annecy,ok,2026-11-18
+0741796A,http://www.palafis.fr,ok,2026-11-18
+0741813U,http://infim.fr/nos-diplomes,http 409,2026-11-18
+0741820B,https://lecole-cci.fr/,http 403,2026-11-18
+0741822D,https://www.mydigitalschool.com/ecole-multimedia-annecy,ok,2026-11-18
+0741839X,https://www.aftral.com/centre/aftral-ayse-2/,http 404,2026-11-18
+0750043P,https://www.eivp-paris.fr/,ok,2026-11-18
+0750252S,http://www.iscparis.com,ok,2026-11-18
+0750330B,http://www.etsl.fr,ok,2026-11-18
+0750436S,https://pia.ac-paris.fr/serail/jcms/s1_2578597/fr/lycee-des-metiers-corbon,error ConnectTimeout,2026-11-18
+0750463W,http://lyc-lucas-de-nehou.scola.ac-paris.fr,error ConnectError,2026-11-18
+0750502N,https://www.lyceemaximilienvox.com/edu/,ok,2026-11-18
+0750508V,https://lyc-charlesdegaulle.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750553U,https://pia.ac-paris.fr/serail/jcms/s6_213629/fr/accueil,error ConnectTimeout,2026-11-18
+0750558Z,http://lycee-paul-poiret.org/,ok,2026-11-18
+0750588G,https://pia.ac-paris.fr/serail/jcms/s1_2378160/fr/accueil,http 403,2026-11-18
+0750612H,http://www.ensaama.net,ok,2026-11-18
+0750647W,http://lyc-turgot.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750648X,http://www.ac-paris.fr/serail/clg-victor-hugo/,http 403,2026-11-18
+0750650Z,http://lyceedalembert.paris,ok,2026-11-18
+0750651A,http://lyc-simone-weil.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750652B,http://www.lycee-charlemagne.fr,ok,2026-11-18
+0750653C,https://pia.ac-paris.fr/serail/jcms/s1_624230/fr/accueil,http 403,2026-11-18
+0750654D,https://lycee-henri4.com,ok,2026-11-18
+0750655E,https://www.louislegrand.fr,ok,2026-11-18
+0750656F,http://lyc-lavoisier.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750657G,https://www.ac-paris.fr/serail/jcms/s1_2056026/fr/lycee-college-montaigne,error ConnectTimeout,2026-11-18
+0750658H,https://lycee-saintlouis.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750660K,https://pia.ac-paris.fr/serail/jcms/s2_1470075/fr/accueil,error ConnectError,2026-11-18
+0750662M,http://www.victor-duruy.org,ok,2026-11-18
+0750663N,https://pia.ac-paris.fr/serail/jcms/s2_1584176/fr/l-etablissement,http 403,2026-11-18
+0750664P,http://lyc-racine.scola.ac-paris.fr/,error ConnectError,2026-11-18
+0750667T,http://lycee-condorcet.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750668U,https://pia.ac-paris.fr/serail/jcms/s1_2862494/fr/accueil,error ConnectError,2026-11-18
+0750669V,http://lyc-jules-ferry.scola.ac-paris.fr,error ConnectError,2026-11-18
+0750670W,https://pia.ac-paris.fr/serail/jcms/p2_73121/fr/accueil,http 403,2026-11-18
+0750671X,http://lyc-edgar-quinet.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750672Y,http://www.duperre.org,ok,2026-11-18
+0750673Z,https://www.google.com/search?client=firefox-b-d&q=site+lyc%C3%A9e+colbert,robots,2026-11-18
+0750674A,https://www.ac-paris.fr/serail/jcms/s2_708110/fr/accueil,http 403,2026-11-18
+0750675B,http://lyc-voltaire.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750676C,https://www.lycee-dorian.fr/,ok,2026-11-18
+0750677D,https://www.elisa-lemonnier.fr,ok,2026-11-18
+0750679F,https://pia.ac-paris.fr/serail/jcms/s1_942748/accueil,http 403,2026-11-18
+0750680G,https://pia.ac-paris.fr/serail/jcms/s1_1585845/fr/lycee-arago,error ConnectTimeout,2026-11-18
+0750681H,http://www.ecole-boulle.org,ok,2026-11-18
+0750682J,http://www.lyc-rodin.ac-paris.fr/,error ConnectError,2026-11-18
+0750683K,https://pia.ac-paris.fr/serail/jcms/s2_469330/accueil,http 403,2026-11-18
+0750685M,http://www.encpb.org,ok,2026-11-18
+0750686N,http://www.ecole-estienne.paris,ok,2026-11-18
+0750688R,https://pia.ac-paris.fr/serail/jcms/s1_984030/fr/accueil,http 403,2026-11-18
+0750690T,http://www.citescolairevillon.paris,error ConnectError,2026-11-18
+0750691U,http://ldmraspail.fr,ok,2026-11-18
+0750692V,https://pia.ac-paris.fr/serail/jcms/s1_1705212/fr/lycee-emile-dubois,http 403,2026-11-18
+0750693W,http://www.lycee-buffon.fr/,ok,2026-11-18
+0750695Y,https://lyc-fresnel.ac-paris.fr/,error ConnectError,2026-11-18
+0750696Z,https://lyc-roger-verlomme.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750697A,http://www.saint-lambert.org,ok,2026-11-18
+0750698B,https://pia.ac-paris.fr/serail/jcms/s2_544112/fr/accueil,http 403,2026-11-18
+0750699C,http://www.janson-de-sailly.fr,ok,2026-11-18
+0750700D,https://lyc-jb-say.ac-paris.fr,error ConnectError,2026-11-18
+0750703G,https://pia.ac-paris.fr/serail/jcms/s2_755341/fr/a-la-une,error ConnectTimeout,2026-11-18
+0750704H,http://lyc-carnot.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750705J,http://lyc-balzac.ac-paris.fr,error ConnectTimeout,2026-11-18
+0750707L,http://www.enc-bessieres.org,http 403,2026-11-18
+0750708M,http://www.lyceejeandrouant.fr,ok,2026-11-18
+0750710P,http://ecole-lycee-renoir-paris.fr,ok,2026-11-18
+0750711R,https://pia.ac-paris.fr/serail/jcms/p2_72913/fr/accueil,http 403,2026-11-18
+0750712S,http://www.diderot.org,error ConnectTimeout,2026-11-18
+0750714U,https://pia.ac-paris.fr/serail/jcms/s2_94920/fr/accueil,error ConnectTimeout,2026-11-18
+0750715V,http://www.lycee-maurice-ravel.fr/,http 404,2026-11-18
+0750736T,https://dauphine.psl.eu,ok,2026-11-18
+0750770E,https://pia.ac-paris.fr/serail/jcms/s2_2634231/fr/accueil,http 500,2026-11-18
+0750775K,https://pia.ac-paris.fr/serail/jcms/s2_593937/fr/accueil,http 403,2026-11-18
+0750776L,https://pia.ac-paris.fr/serail/jcms/s2_1636651/fr/lycee-marie-laurencin-lycee-des-metiers-eco-responsables-de-la-mode-et-du-commerce,error ConnectTimeout,2026-11-18
+0750778N,https://pia.ac-paris.fr/serail/jcms/s1_714926/fr/accueil,error ConnectTimeout,2026-11-18
+0750783U,http://www.lpcm12.fr,ok,2026-11-18
+0750785W,https://lyc-galilee.ac-paris.fr/,error ConnectError,2026-11-18
+0750787Y,https://lycee-corvisart-tolbiac.fr/,ok,2026-11-18
+0750788Z,https://pia.ac-paris.fr/serail/jcms/s1_1471400/fr/accueil,error ConnectError,2026-11-18
+0750793E,https://pia.ac-paris.fr/serail/jcms/s1_119796/fr/accueil,error ConnectTimeout,2026-11-18
+0750802P,http://lyc-hector-guimard.scola.ac-paris.fr,error ConnectError,2026-11-18
+0750808W,https://pia.ac-paris.fr/serail/jcms/s1_95350/fr/accueil,http 403,2026-11-18
+0751150E,http://www.esme.fr,ok,2026-11-18
+0751457B,https://www.aepo.fr/,ok,2026-11-18
+0751475W,http://www.cfadelepine.fr,ok,2026-11-18
+0751488K,http://www.ecoledetravail.fr,ok,2026-11-18
+0751497V,http://cfpp.org,ok,2026-11-18
+0751508G,http://www.cfasaintlambert.fr,ok,2026-11-18
+0751510J,http://www.cfamederic.com,robots,2026-11-18
+0751698N,http://www.pigier.com,ok,2026-11-18
+0751708Z,http://louis-armand.paris,ok,2026-11-18
+0751710B,http://www.ac-paris.fr/serail/lyc-vauquelin,ok,2026-11-18
+0751717J,https://www.pantheonsorbonne.fr/accueil/,ok,2026-11-18
+0751718K,http://www.u-paris2.fr,ok,2026-11-18
+0751719L,http://www.univ-paris3.fr,ok,2026-11-18
+0751720M,https://lettres.sorbonne-universite.fr/formation/inscription,ok,2026-11-18
+0751722P,https://sciences.sorbonne-universite.fr/formation-sciences/licences/cycle-dintegration-l1,ok,2026-11-18
+0751871B,https://paris-malaquais.archi.fr/etudes/p/admissions/,ok,2026-11-18
+0751875F,http://www.paris-lavillette.archi.fr,ok,2026-11-18
+0751877H,http://www.paris-belleville.archi.fr,ok,2026-11-18
+0751883P,https://www.cloriviere.paris,ok,2026-11-18
+0751909T,https://www.escg-paris.com,ok,2026-11-18
+0752068R,http://www.cifca.fr,ok,2026-11-18
+0752099Z,https://ecole-pstc.fr/,ok,2026-11-18
+0752124B,https://campus-esthetique-spa.fr/,ok,2026-11-18
+0752139T,http://ipc-paris.fr,ok,2026-11-18
+0752206R,https://stephenson-formation.fr/,ok,2026-11-18
+0752280W,https://www.ferrandi-paris.com/fr,ok,2026-11-18
+0752304X,http://istec.fr,ok,2026-11-18
+0752325V,https://www.lea-cfi.fr/,ok,2026-11-18
+0752376A,http://www.efht.fr,ok,2026-11-18
+0752388N,https://pia.ac-paris.fr/serail/jcms/s2_162052/fr/accueil,error ConnectTimeout,2026-11-18
+0752426E,http://www.ecoledubreuil.fr,ok,2026-11-18
+0752608C,https://campusbelliard.fr/,ok,2026-11-18
+0752790A,https://swll.to/hireHk,ok,2026-11-18
+0752792C,https://www.ipag.edu/,ok,2026-11-18
+0752824M,https://www.isrp.fr,ok,2026-11-18
+0752830U,http://www.epmt.fr,ok,2026-11-18
+0752845K,https://lyc-theophile-gautier.ac-paris.fr,error ConnectTimeout,2026-11-18
+0752846L,http://lyc-erik-satie.ac-paris.fr,error ConnectTimeout,2026-11-18
+0752877V,http://www.anafe.fr,error ConnectError,2026-11-18
+0752944T,http://www.cfa-igs.com,ok,2026-11-18
 0752946V,https://www.ecole-tunon.com/paris/journees-portes-ouvertes,ok,2026-11-16
+0752961L,https://lyc-gustave-eiffel.ac-paris.fr/,ok,2026-11-18
+0753001E,https://www.vatel.fr,ok,2026-11-18
+0753007L,https://pia.ac-paris.fr/serail/jcms/s6_234575/fr/accueil,error ConnectTimeout,2026-11-18
+0753017X,http://cfdc.aphp.fr/ifsi-ifas-saint-louis/,error ConnectTimeout,2026-11-18
+0753019Z,http://cfdc.aphp.fr/ifsi-ifas-campus-picpus/,error ConnectTimeout,2026-11-18
+0753021B,http://cfdc.aphp.fr/ifsi-ifas-pitie-salpetriere/,error ConnectTimeout,2026-11-18
+0753026G,https://cfdc.aphp.fr/ifsi-bichat/,error ConnectTimeout,2026-11-18
+0753028J,http://cfdc.aphp.fr/ifsi-ifas-tenon/,error ConnectTimeout,2026-11-18
+0753030L,https://lesdiaconesses.org/etablissements/,ok,2026-11-18
+0753034R,http://www.ac-paris.fr/serail/jcms/s2_1121832/fr/ifsi-rabelais,http 403,2026-11-18
+0753035S,https://campuscroixsaintsimon.org/ecole-de-montreuil/,ok,2026-11-18
+0753043A,http://cfdc.aphp.fr/ifmem/,error ConnectTimeout,2026-11-18
+0753044B,https://www.institut-national-podologie.com,ok,2026-11-18
+0753082T,https://www.ecole-europeenne.com/,ok,2026-11-18
+0753111Z,https://www.psbedu.paris/,ok,2026-11-18
+0753147N,http://www.icd-ecoles.com,ok,2026-11-18
+0753184D,https://www.ferrandi-paris.com/fr,ok,2026-11-18
+0753216N,https://www.ifocop.fr,ok,2026-11-18
+0753217P,https://sainte-therese.apprentis-auteuil.org,ok,2026-11-18
+0753256G,https://pia.ac-paris.fr/serail/jcms/s1_3676602/fr/l-erea-alexandre-dumas-lycee-professionnel-d-education-adaptee-et-inclusif,error ConnectTimeout,2026-11-18
+0753268V,http://www.lycee-jean-lurcat.net/,error ConnectTimeout,2026-11-18
+0753324F,https://esra.edu,ok,2026-11-18
+0753350J,https://pia.ac-paris.fr/serail/jcms/s6_185556/fr/accueil,error ConnectTimeout,2026-11-18
+0753378P,http://formation-bts-assurance.esaassurance.com/,ok,2026-11-18
+0753396J,https://esve-paris.com,ok,2026-11-18
+0753400N,https://cpda.cnam.fr,error ConnectError,2026-11-18
+0753431X,http://www.sciencespo.fr/,ok,2026-11-18
 0753435B,https://www.iscom.fr/evenements,ok,2026-11-16
+0753469N,https://cnsad.fr/,error ConnectError,2026-11-18
+0753470P,http://www.ensad.fr,ok,2026-11-18
+0753471R,http://alternance.cnam.fr.,ok,2026-11-18
+0753488J,http://www.inalco.fr/,error ConnectTimeout,2026-11-18
+0753489K,http://www.ecoledulouvre.fr/,ok,2026-11-18
+0753493P,https://www.minesparis.psl.eu/,ok,2026-11-18
+0753495S,http://www.conservatoiredeparis.fr,ok,2026-11-18
+0753516P,http://www.esup.fr,ok,2026-11-18
+0753533H,http://www.esa-paris.fr,ok,2026-11-18
+0753535K,http://www.gretametehor.com,http 403,2026-11-18
+0753537M,http://www.estba.org,ok,2026-11-18
+0753541S,http://www.icp.fr,ok,2026-11-18
+0753547Y,https://www.escp.eu/bachelor,ok,2026-11-18
+0753559L,http://www.isep.fr,ok,2026-11-18
+0753584N,http://www.efom.fr,ok,2026-11-18
+0753602H,http://www.etsup.com,ok,2026-11-18
+0753605L,https://www.ipt-edu.fr,error ConnectError,2026-11-18
+0753619B,http://intec.cnam.fr/,ok,2026-11-18
+0753620C,http://www.isg.fr,ok,2026-11-18
+0753635U,https://www.cfjparis.com/,ok,2026-11-18
+0753636V,https://www.ebs-paris.fr/,ok,2026-11-18
+0753667D,http://www.beauxartsparis.fr,ok,2026-11-18
+0753696K,https://www.efpp.fr,ok,2026-11-18
+0753815P,http://petitschamps.fr,error ConnectTimeout,2026-11-18
+0753838P,http://www.st-sulpice.fr,ok,2026-11-18
+0753840S,http://www.stanislas.fr,ok,2026-11-18
+0753844W,https://isg6.paris,ok,2026-11-18
+0753873C,http://www.fenelonsaintemarie.org/classes-preparatoires/,http 404,2026-11-18
+0753890W,https://charlespeguyparis.com/,ok,2026-11-18
+0753897D,http://stmicheldepicpus.fr,ok,2026-11-18
+0753915Y,http://www.blomet-enc.com,error ConnectTimeout,2026-11-18
+0753933T,http://www.franklinparis.fr,ok,2026-11-18
+0753947H,https://www.saintjeandepassy.fr/etablissements/prepas/presentation-et-projet-pedagogique/,ok,2026-11-18
+0754015G,http://www.ecolejulesrichard.fr,ok,2026-11-18
+0754016H,https://www.linitiative.paris,ok,2026-11-18
+0754022P,https://www.ics-begue.com/,robots,2026-11-18
+0754025T,http://www.lyceesaintnicolas.com,ok,2026-11-18
+0754029X,https://carcado-saisseval.com/,ok,2026-11-18
+0754030Y,http://www.albertdemun.eu,ok,2026-11-18
+0754032A,http://www.ecolecamondo.fr,ok,2026-11-18
+0754037F,http://www.fenelonsup.org,ok,2026-11-18
+0754039H,https://www.engde.fr/,ok,2026-11-18
+0754042L,https://www.lerebours.fr/,ok,2026-11-18
+0754045P,https://www.saintecatherinelaboure.com/,ok,2026-11-18
+0754086J,https://www.lyceecharlesdefoucauldsup.fr/,http 403,2026-11-18
+0754101A,http://www.sornas.fr,ok,2026-11-18
+0754163T,https://ecoleterrade.com/ecoles/ile-de-france/paris/campus-paris-bastille/,ok,2026-11-18
+0754239A,https://www.stjeandemontmartre.com,ok,2026-11-18
+0754247J,https://iutparis-seine.u-paris.fr/,ok,2026-11-18
+0754292H,http://www.iso.fr,ok,2026-11-18
+0754302U,https://www.esup.fr/ecole-de-commerce-paris/,ok,2026-11-18
+0754318L,https://www.esaj.asso.fr,ok,2026-11-18
+0754338H,https://www.groupe-terrade.com/fr,ok,2026-11-18
+0754400A,https://www.polytech.sorbonne-universite.fr/formations/cycle-preparatoire-peip-a,ok,2026-11-18
+0754431J,https://www.ece.fr,ok,2026-11-18
+0754440U,http://iticparis.com,ok,2026-11-18
+0754458N,http://www.campusmontsouris.fr,ok,2026-11-18
+0754471C,http://www.cfacodis.com,ok,2026-11-18
+0754475G,https://lyc-leonard-de-vinci.ac-paris.fr,http 403,2026-11-18
+0754476H,https://www.lyceeguillaumetirel.fr,ok,2026-11-18
+0754493B,http://www.isit-paris.fr,ok,2026-11-18
+0754507S,https://www.campus-stratinnov.com/,ok,2026-11-18
+0754530S,http://www.lyceenadaud.fr,error ConnectTimeout,2026-11-18
+0754540C,http://www.paris-valdeseine.archi.fr,ok,2026-11-18
+0754566F,https://www.ifmparis.fr/,ok,2026-11-18
+0754585B,http://www.ensci.com,ok,2026-11-18
+0754663L,https://u-paris.fr/choisir-sa-formation/,ok,2026-11-18
+0754666P,https://www.psh-sup.com/,ok,2026-11-18
+0754674Y,https://supexpertise.fr,ok,2026-11-18
+0754679D,https://www.cfasacef.fr/,http 403,2026-11-18
+0754696X,https://www.irtsparmentier.fr,ok,2026-11-18
+0754724C,https://www.esgi.fr/,ok,2026-11-18
+0754725D,https://www.esgci.com/,ok,2026-11-18
+0754738T,https://www.igensia-rh.com/,ok,2026-11-18
+0754783S,http://www.adere-paris.fr,ok,2026-11-18
+0754784T,https://www.cramif.fr/ecole-du-service-social/formation-dassistant-de-service-social,ok,2026-11-18
+0754785U,https://competence.croix-rouge.fr/formation/infirmier-paris/,ok,2026-11-18
+0754791A,http://ensparis.fr,ok,2026-11-18
+0754815B,https://www.campus14.fr,ok,2026-11-18
+0754841E,https://ines-expertise.fr/,ok,2026-11-18
+0754902W,https://www.ghu-paris.fr/fr/institut-de-formation-en-soins-infirmiers-ifsi-virginie-olivier-site-sainte-anne,error ConnectError,2026-11-18
+0754903X,https://www.fhsj.fr/campus-formation-sante/instituts-de-formations-diplomantes/,ok,2026-11-18
+0754908C,http://www.stho.org,ok,2026-11-18
+0754924V,http://www.gs-svp.com,ok,2026-11-18
+0754955D,https://www.lafabrique-ecole.fr/,error ConnectError,2026-11-18
+0755020Z,https://www.afbb-paris.com/,ok,2026-11-18
+0755088Y,https://www.cfaunivsport.com/,ok,2026-11-18
+0755111Y,https://www.cfa-bessieres.org/,error ConnectError,2026-11-18
+0755113A,https://u-paris.fr/,ok,2026-11-18
+0755115C,https://www.isefac.org,ok,2026-11-18
+0755120H,http://www.autograf.fr,ok,2026-11-18
+0755188G,https://sante.sorbonne-universite.fr/,ok,2026-11-18
+0755197S,http://www.imc.randstad.fr/site/accueil.jsp?process=1,error ConnectError,2026-11-18
+0755198T,https://www.talis.community/,ok,2026-11-18
+0755203Y,https://www.progress-sante.com/,ok,2026-11-18
+0755206B,https://www.euridis-ecole.com/,ok,2026-11-18
+0755213J,https://www.isart.fr/,ok,2026-11-18
+0755214K,https://institutnemoprerecrute1.lpages.co/parcoursup/,ok,2026-11-18
+0755217N,http://www.ipi-ecoles.com,ok,2026-11-18
+0755237K,https://www.ppa.fr,ok,2026-11-18
+0755272Y,https://www.iscg.fr/,ok,2026-11-18
+0755273Z,https://paris-bts.com/,ok,2026-11-18
+0755290T,https://www.suptertiaire-immobilier.fr/,ok,2026-11-18
+0755308M,http://iuspx.fr,ok,2026-11-18
+0755331M,http://www.ecoledassas.com,ok,2026-11-18
+0755335S,https://supsante.com/,ok,2026-11-18
+0755432X,https://cfa-insta.fr/,ok,2026-11-18
+0755437C,https://www.infn.fr/?formation=bts-collaborateur-juriste-notarial,ok,2026-11-18
+0755448P,http://www.pspbb.fr/,ok,2026-11-18
+0755453V,http://www.insecc.fr,ok,2026-11-18
+0755501X,https://doranco-ecole.fr,ok,2026-11-18
+0755513K,https://www.snpicampus.fr,ok,2026-11-18
+0755535J,http://www.ceflu.com/formation-diplomantes-bts.html,ok,2026-11-18
+0755544U,https://ecoleterrade.com/ecoles/ile-de-france/paris/campus-paris-vaugirard/,ok,2026-11-18
+0755545V,https://www.h3campus.fr/,ok,2026-11-18
+0755559K,https://www.coursdiderot.fr/,ok,2026-11-18
+0755561M,https://www.eiml-paris.fr/,ok,2026-11-18
+0755562N,https://www.ican-design.fr/campus-paris.html,ok,2026-11-18
+0755568V,https://www.ipf-formation.com,ok,2026-11-18
+0755573A,http://myfrenchuniversity.fr,ok,2026-11-18
+0755584M,http://www.progresscom.fr,ok,2026-11-18
+0755600E,https://www.ecitv.fr/,ok,2026-11-18
+0755609P,https://cfa-goldencollar.fr,ok,2026-11-18
+0755626H,http://www.isa-paris.com,ok,2026-11-18
+0755637V,http://www.afrep.fr,ok,2026-11-18
+0755641Z,https://www.eemi.com,ok,2026-11-18
+0755662X,http://www.omega-fi.eu,ok,2026-11-18
+0755672H,https://www.esce.fr,ok,2026-11-18
+0755701P,http://AURLOM.COM,ok,2026-11-18
+0755732Y,https://opticours.com,ok,2026-11-18
+0755736C,https://www.inspe-paris.fr/,ok,2026-11-18
+0755748R,https://ecoleiris.fr/ecole,ok,2026-11-18
+0755758B,https://www.aureisformation.fr,ok,2026-11-18
+0755774U,https://ismac.fr,ok,2026-11-18
+0755781B,https://www.aftral.com/aftral-pres-de-chez-vous/isteli/isteli-paris,http 404,2026-11-18
+0755805C,http://www.promotrans.fr,ok,2026-11-18
+0755810H,http://www.aftral.com,ok,2026-11-18
+0755811J,https://eimparis.com/,ok,2026-11-18
+0755839P,https://kedge.edu/,error ConnectTimeout,2026-11-18
+0755890V,https://www.sorbonne-universite.fr/,ok,2026-11-18
+0755893Y,http://www.studio-m.fr,ok,2026-11-18
+0755900F,http://www.gobelins.fr,ok,2026-11-18
+0755902H,https://www.supdev.fr/,ok,2026-11-18
+0755908P,https://openclassrooms.com/fr,ok,2026-11-18
+0755910S,https://www.facforpro.com/,ok,2026-11-18
+0755931P,http://www.insta.fr,ok,2026-11-18
+0755932R,http://www.escc-bs.fr,ok,2026-11-18
+0755934T,https://ingetis.com/,ok,2026-11-18
+0755943C,https://ecoleterrade.com/ecoles/ile-de-france/paris/campus-paris-champs-elysees/,ok,2026-11-18
+0755956S,http://www.neoma-bs.fr/,ok,2026-11-18
+0755960W,https://www.ecolew.com/,ok,2026-11-18
+0755961X,https://www.esiee-it.fr,ok,2026-11-18
+0755964A,http://www.supdev.fr,ok,2026-11-18
+0755976N,http://www.u-pariscite.fr,ok,2026-11-18
+0755978R,https://www.firstavenir.fr,ok,2026-11-18
+0755984X,http://www.mbseducation.fr,ok,2026-11-18
+0755986Z,http://www.groupeigf.com,ok,2026-11-18
+0756000P,https://webitechparis.com/,ok,2026-11-18
+0756001R,https://enoes.com/cfa-miromesnil/,ok,2026-11-18
+0756002S,http://www.scholanova.fr,ok,2026-11-18
+0756004U,https://elysees-marbeuf.fr/,ok,2026-11-18
+0756010A,http://www.wf3.fr,ok,2026-11-18
+0756016G,http://www.lbdeveloppement.com,http 404,2026-11-18
+0756019K,https://ecole-hoteliere-sainte-therese.apprentis-auteuil.org/,error ConnectError,2026-11-18
+0756024R,https://habitat-formation.com/bts-des-professions-immobilieres/,ok,2026-11-18
+0756029W,http://www.anafe.fr,error ConnectError,2026-11-18
+0756036D,https://www.psl.eu,http 503,2026-11-18
+0756053X,http://www.ecoledetourisme.fr,error ConnectTimeout,2026-11-18
+0756059D,https://www.arinfo.fr,error ConnectError,2026-11-18
+0756066L,https://www.pl-education.com/,ok,2026-11-18
+0756070R,http://pariscomsup.fr,ok,2026-11-18
+0756071S,http://www.realcampus.fr,ok,2026-11-18
+0756073U,https://dbima.eu/,ok,2026-11-18
+0756074V,https://www.elysees-apprentissage.fr/,ok,2026-11-18
+0756075W,https://www.studency.io/,ok,2026-11-18
+0756077Y,https://www.ecole-besaf.fr/,ok,2026-11-18
+0756079A,https://www.inseec.com/programmes-inseec/bts/,ok,2026-11-18
+0756085G,https://ecole-ecs.com/,ok,2026-11-18
+0756087J,https://www.trans-faire.fr/,ok,2026-11-18
+0756144W,https://www.euridis-ecole.com/,ok,2026-11-18
+0756151D,https://alterneoecole.fr/,ok,2026-11-18
+0756158L,https://www.international-terra-institute.com/,ok,2026-11-18
+0756159M,http://www.escg.fr,ok,2026-11-18
+0756172B,https://rocket-school.com/campus/rocket-school-paris/,ok,2026-11-18
+0756180K,https://www.estiam.education,ok,2026-11-18
+0756206N,https://asfored.org/,ok,2026-11-18
+0756214X,http://www.iafm.fr,error ConnectError,2026-11-18
+0756237X,https://www.esav-institut-bonaparte.fr/,ok,2026-11-18
+0756241B,https://imcp.fr/,ok,2026-11-18
+0756243D,https://www.mydigitalschool.com/ecole-multimedia-paris,ok,2026-11-18
+0756248J,http://www.apepsup.com,ok,2026-11-18
+0756249K,https://formation.businessimmo.com/etudiant.html,error ConnectError,2026-11-18
+0756262Z,http://ifams.fr,ok,2026-11-18
 0756266D,https://www.luxuryhotelschool.fr/rencontrez-nous/jpo/,robots,2026-11-16
+0756289D,https://www.grenoble-em.com/bachelor-digital-business-development,http 403,2026-11-18
+0756296L,https://www.icademie.com/fr/icademie-paris,ok,2026-11-18
+0756298N,https://www.pstb.fr/,ok,2026-11-18
+0756303U,https://campuscroixsaintsimon.org/,ok,2026-11-18
+0756304V,https://campuscroixsaintsimon.org/formation-assistant-de-service-social/,ok,2026-11-18
+0756305W,https://www.assas-universite.fr/fr,ok,2026-11-18
+0756328W,https://www.luca.school/,ok,2026-11-18
+0756338G,https://forward-college.eu/,ok,2026-11-18
+0756347S,https://iag-paris.com/,ok,2026-11-18
+0756360F,https://forma-institut.fr,ok,2026-11-18
+0756361G,https://www.infn.fr,ok,2026-11-18
+0756363J,https://www.ensao.fr,ok,2026-11-18
+0756364K,https://schools-group.com/bts,ok,2026-11-18
+0756365L,https://talia.fr/,ok,2026-11-18
+0756371T,http://www.tbs-education.fr,ok,2026-11-18
+0756393S,https://www.ibssc.com/,ok,2026-11-18
+0756413N,https://www.iaag-aero.com/,ok,2026-11-18
+0756417T,https://www.rennes-sb.fr/,ok,2026-11-18
+0756420W,https://www.classeos.com/,ok,2026-11-18
+0756445Y,https://groupe-ics.fr/,ok,2026-11-18
+0756450D,https://app-rendre.fr,ok,2026-11-18
+0756457L,https://www.3-14-academy.fr/,ok,2026-11-18
+0756460P,https://cbschool.fr/paris/,ok,2026-11-18
+0756465V,https://www.irss.fr/,ok,2026-11-18
+0756479K,https://www.edlp.fr/formation/cdui/,error ConnectError,2026-11-18
+0756490X,https://cometformation.com,error ConnectError,2026-11-18
+0756492Z,https://hecten.fr,http 522,2026-11-18
+0756512W,https://www.pnbs.fr/,ok,2026-11-18
+0756522G,https://www.elysees-apprentissage.fr/,ok,2026-11-18
+0756524J,https://www.nexa.fr/,ok,2026-11-18
+0756548K,http://integraleacademy.com,ok,2026-11-18
+0756561Z,https://www.esupcom.com/nos-ecoles/paris/,ok,2026-11-18
+0756569H,https://www.edenschool.fr/,ok,2026-11-18
+0756612E,https://www.efab.fr/campus/campus-paris/,ok,2026-11-18
+0756613F,http://esmb.fr,ok,2026-11-18
+0756616J,https://opticours.com/,ok,2026-11-18
+0756628X,https://diplomance.fr/academie/,ok,2026-11-18
+0756637G,https://www.h3hitema.fr/,ok,2026-11-18
+0756660G,https://www.mbs-education.com/programmes-formations/bachelor/,ok,2026-11-18
+0756677A,https://www.iso.fr/,ok,2026-11-18
+0756687L,http://www.prepavenir-formation.fr/,ok,2026-11-18
+0756689N,https://www.schools-group.com/bts,ok,2026-11-18
+0756711M,https://ecole-decode.fr/,ok,2026-11-18
+0756739T,https://linova-education.fr/,ok,2026-11-18
+0756745Z,https://www.supdeluxe.com/fr/,ok,2026-11-18
+0756811W,https://cbschool.fr/paris/,ok,2026-11-18
+0756822H,https://www.congruences-formation.com,ok,2026-11-18
+0756852R,https://www.amytisschool.fr/,ok,2026-11-18
+0760005T,https://thomas-corneille-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760023M,https://ango.lycee.ac-normandie.fr/,ok,2026-11-18
+0760024N,https://ufaandrevoisin.jimdofree.com/,ok,2026-11-18
+0760029U,http://maurois-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760030V,https://buisson.lycee.ac-normandie.fr/,ok,2026-11-18
+0760032X,http://lycee-anguier.fr,ok,2026-11-18
+0760035A,https://maupassant.lycee.ac-normandie.fr/,ok,2026-11-18
+0760052U,https://francois1er-lehavre.lycee.ac-normandie.fr/,ok,2026-11-18
+0760054W,https://porte-oceane.lycee.ac-normandie.fr/,ok,2026-11-18
+0760056Y,https://siegfried.lycee.ac-normandie.fr/,ok,2026-11-18
+0760058A,https://schuman.lycee.ac-normandie.fr/,ok,2026-11-18
+0760062E,https://www.lyceejuleslecesne.fr/,ok,2026-11-18
+0760072R,https://www.lycee-guillaumeleconquerant.fr/le-bts-compta-gestion,ok,2026-11-18
+0760076V,http://prevost-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760082B,https://rostand-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760087G,http://colbert-lyc.spip.ac-rouen.fr/,error ConnectError,2026-11-18
+0760088H,https://lemonnier-petit-quevilly.lycee.ac-normandie.fr/,ok,2026-11-18
+0760090K,http://lgcorneille-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760091L,https://www.lyceejeannedarc.fr,ok,2026-11-18
+0760093N,https://stsaens.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0760095R,https://pascal.lycee.ac-normandie.fr/,error ConnectTimeout,2026-11-18
+0760096S,http://lycee-flaubert-rouen.fr,ok,2026-11-18
+0760109F,https://bruyeres.lycee.ac-normandie.fr/,ok,2026-11-18
+0760110G,https://lyceesmarcelsembat.wordpress.com/,ok,2026-11-18
+0760114L,http://hurlevent-lyc.spip.ac-rouen.fr,error ConnectTimeout,2026-11-18
+0760142S,https://www.lycee-flaubert-rouen.fr/,ok,2026-11-18
+0760145V,https://lyceevaldeseine.fr,ok,2026-11-18
+0760164R,http://www.rouen.archi.fr,ok,2026-11-18
+0760165S,http://www.insa-rouen.fr,ok,2026-11-18
+0760166T,https://www.supmaritime.fr,ok,2026-11-18
+0760167U,http://www.neoma-bs.fr,ok,2026-11-18
+0760168V,https://www.em-normandie.com/,ok,2026-11-18
+0760169W,https://www.infn.fr/,ok,2026-11-18
 0760170X,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0760174B,http://lyceeclaudemonetlh.fr/,ok,2026-11-18
+0760177E,https://cnamnormandie.fr,error ConnectError,2026-11-18
+0761315S,http://www.legta-yvetot.naturapole.fr/,ok,2026-11-18
+0761341V,https://institut-lestourelles.com/,ok,2026-11-18
+0761343X,http://www.la-chataigneraie.org,ok,2026-11-18
+0761350E,https://formation-industries-eure-seine-estuaire.fr/,ok,2026-11-18
+0761353H,https://rouen.fr/,ok,2026-11-18
+0761356L,http://www.providencesaintetherese.fr,ok,2026-11-18
+0761688X,http://www-iut.univ-lehavre.fr/,http 403,2026-11-18
+0761710W,https://sup.st-jo.fr,ok,2026-11-18
+0761719F,http://www.sacre-coeur-rouen.fr,ok,2026-11-18
+0761721H,http://www.lyceejean23.eu,ok,2026-11-18
+0761735Y,https://www.ensemblescolaire-jeannedarc.fr/le-campus/le-campus-accueil,ok,2026-11-18
+0761742F,https://www.lyceevaldeseine.fr/,ok,2026-11-18
+0761772N,http://www.groupe-terrade.com,ok,2026-11-18
+0761801V,http://www.afi-rouen.com,error ConnectError,2026-11-18
+0761817M,http://www.batimentcfanormandie.fr,ok,2026-11-18
+0761819P,http://www.batimentcfanormandie.fr,ok,2026-11-18
+0761904G,http://www.univ-rouen.fr/,ok,2026-11-18
+0761942Y,http://www.esadhar.fr,ok,2026-11-18
+0762047M,http://www.univ-rouen.fr,ok,2026-11-18
 0762049P,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0762169V,https://www.lycee-pablo-neruda-dieppe.fr/,ok,2026-11-18
+0762204H,https://formation.cma-normandie.fr,ok,2026-11-18
+0762284V,https://institut-mesnieres.fr/,ok,2026-11-18
+0762312A,https://www.la-chataigneraie.org/,ok,2026-11-18
+0762313B,http://emulation-lyc.spip.ac-rouen.fr,error ConnectTimeout,2026-11-18
+0762378X,https://www.esigelec.fr,ok,2026-11-18
+0762380Z,http://www.idsnormandie.fr,ok,2026-11-18
+0762403Z,https://www.ifa-rouen.fr/,ok,2026-11-18
+0762442S,http://www.chateau-de-mesnieres.com,ok,2026-11-18
+0762572H,http://www.aftral.com,ok,2026-11-18
+0762600N,https://delamare.lycee.ac-normandie.fr/,ok,2026-11-18
+0762601P,https://brassens.lycee.ac-normandie.fr/,ok,2026-11-18
+0762602R,http://grieu-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0762624P,https://greta.ac-normandie.fr/greta/greta-de-rouen/,ok,2026-11-18
+0762637D,https://www.croix-rouge.fr/formation-professionnelle/infirmier-bois-guillaume,ok,2026-11-18
+0762638E,https://ght-caux-maritime.fr/ifsi-ifas/,ok,2026-11-18
+0762640G,http://www.ifsi-fecamp.fr/IFSIIFAS_WEB/FR/,ok,2026-11-18
+0762641H,https://www.ch-havre.fr/enseignement-et-formation/formations-paramedicales-ifp-mary-thieullent/,ok,2026-11-18
+0762642J,https://erfps.chu-rouen.fr/13-formations/,http 404,2026-11-18
+0762646N,http://www.ch-lerouvray.fr/ifsi/ifsi.html,http 404,2026-11-18
+0762652V,http://www.cfa.naturapole.fr,ok,2026-11-18
+0762687H,https://esadhar.fr/,ok,2026-11-18
+0762733H,https://www.ifen-formation.com,ok,2026-11-18
+0762735K,http://lycee-anita-conti.fr/,ok,2026-11-18
+0762762P,https://www.univ-lehavre.fr/?lang=fr,ok,2026-11-18
+0762765T,https://www.lyceelavoisier-lehavre.com/,ok,2026-11-18
+0762879S,https://cailly.lycee.ac-normandie.fr,ok,2026-11-18
+0762880T,http://queneau-lyc.spip.ac-normandie.fr/,error ConnectTimeout,2026-11-18
+0762911B,http://galilee-lyc.spip.ac-rouen.fr,error ConnectTimeout,2026-11-18
+0762917H,https://www.pigier.com/ecole-commerce-rouen,ok,2026-11-18
+0762920L,http://coubertin-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0762961F,https://www.univ-rouen.fr/,ok,2026-11-18
+0762964J,https://lycee-le-corbusier.fr/,ok,2026-11-18
+0762969P,https://www.cesi.fr/,ok,2026-11-18
+0762976X,https://francoise-de-grace.lycee.ac-normandie.fr,ok,2026-11-18
+0763003B,https://www.campus-promotrans.fr/campus/rouen/,ok,2026-11-18
+0763004C,http://www.cfa.naturapole.fr,ok,2026-11-18
 0763069Y,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0763092Y,http://www.ccicaux-formation.com,http 200,2026-11-18
+0763094A,http://www.mfr-coquereaumont.org/,ok,2026-11-18
+0763096C,http://isel.univ-lehavre.fr/,ok,2026-11-18
+0763111U,http://www.univ-rouen.fr,ok,2026-11-18
+0763117A,http://schuman-lyc.spip.ac-rouen.fr/,error ConnectTimeout,2026-11-18
+0763137X,https://www.cefedem-normandie.fr/,ok,2026-11-18
+0763150L,https://www.formation-industries-rouen-dieppe.fr,ok,2026-11-18
+0763153P,https://www.ensemblescolaire-jeannedarc.fr/le-campus/le-campus-accueil,ok,2026-11-18
+0763154R,http://www.ccicaux-formation.com,http 200,2026-11-18
+0763165C,http://www.campus-hortitheque.fr,ok,2026-11-18
+0763212D,https://www.mfr-totes.fr/,ok,2026-11-18
 0763214F,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0763237F,http://georgesbaptiste.fr/,ok,2026-11-18
+0763381M,http://www.sciencespo.fr/,ok,2026-11-18
+0763400H,http://www.unilasalle.fr,ok,2026-11-18
+0763409T,http://www.institutionjeanpaul2.fr,ok,2026-11-18
+0763417B,http://www.mfr-coquereaumont.org,ok,2026-11-18
+0763418C,https://www.cfa.naturapole.fr,error ConnectError,2026-11-18
 0763422G,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0763424J,https://seine-maritime.profession-sport-loisirs.fr/,ok,2026-11-18
+0763431S,https://www.aftral.com/,ok,2026-11-18
 0763448K,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
 0763460Y,https://www.univ-rouen.fr/jpo/,ok,2026-11-16
+0763470J,http://www.univ-rouen.fr,ok,2026-11-18
+0763486B,https://www.ies-business-school.com/,ok,2026-11-18
+0763496M,http://www.irf-normandie.fr,ok,2026-11-18
+0763500S,http://www.stvp.fr,ok,2026-11-18
+0763501T,https://www.keylia.fr/,ok,2026-11-18
+0763502U,http://www.ispn-rouen.education,ok,2026-11-18
+0763519M,https://skala-business-school.com/,ok,2026-11-18
+0763522R,https://www.scholarfab.com/,ok,2026-11-18
+0763523S,https://www.scholarfab.com/,ok,2026-11-18
+0763531A,http://www.esbanque.fr,error ConnectError,2026-11-18
+0763532B,https://lavaguenormande.fr/formation/,ok,2026-11-18
+0763534D,http://www.cnam-normandie.fr,error ConnectError,2026-11-18
+0763535E,https://www.cnam-normandie.fr,error ConnectError,2026-11-18
+0763542M,https://www.alternancia.fr,ok,2026-11-18
+0763544P,http://www.formation-industries-rouen-dieppe.fr,ok,2026-11-18
+0763548U,https://www.co-sup.fr/,ok,2026-11-18
+0763550W,https://greta.ac-normandie.fr/greta/greta-rouen-maritime/,ok,2026-11-18
+0763551X,https://greta.ac-normandie.fr/greta/greta-rouen-maritime/,ok,2026-11-18
+0763557D,https://www.alternancia.fr,ok,2026-11-18
+0763558E,http://www.isteli.fr,ok,2026-11-18
+0763559F,http://emn-competences.fr,ok,2026-11-18
+0763561H,https://www.ecole-tp-normandie.fr/,ok,2026-11-18
+0763567P,https://greta.ac-normandie.fr/greta/greta-rouen-maritime/,ok,2026-11-18
+0763569S,https://greta.ac-normandie.fr/greta/greta-rouen-maritime/,ok,2026-11-18
+0763573W,https://www.icp.fr,ok,2026-11-18
+0763577A,https://www.groupe-alternance.com/ecoles/rouen/,ok,2026-11-18
+0763583G,https://www.esarc-evolution.fr/ecole-bts-rouen,ok,2026-11-18
+0763585J,https://sup-business.fr,error ConnectError,2026-11-18
+0763587L,https://www.groupe-alternance.com/ecoles/le-havre/,ok,2026-11-18
+0763588M,https://www.iso.fr/,ok,2026-11-18
+0763593T,https://ecoleiris.fr/campus/rouen,ok,2026-11-18
+0763599Z,https://www.ynov.com/campus/rouen,ok,2026-11-18
+0763602C,https://cbschool.fr/,ok,2026-11-18
+0763603D,https://formation-alternance-superieure.fr/,ok,2026-11-18
+0763605F,https://ebmbusinessschool.com,http 503,2026-11-18
+0763606G,https://emn-competences.fr/,ok,2026-11-18
+0763609K,https://e2se.fr/e2se-groupe/nos-campus/campus-le-havre/,ok,2026-11-18
+0763621Y,https://www.ispn-lehavre.fr/centres/campus-du-havre,ok,2026-11-18
+0770918E,http://www.uruguayfrance.fr/,ok,2026-11-18
+0770920G,http://www.lyceelafayette.fr,ok,2026-11-18
+0770922J,http://www.lyceebachelardchelles.fr/,ok,2026-11-18
+0770924L,http://www.campus-coulommiers.eu/,ok,2026-11-18
+0770926N,http://www.francoiscouperin.fr,ok,2026-11-18
+0770927P,http://www.lyceefrancois1.net,error ConnectError,2026-11-18
+0770930T,https://www.lyceemoissan.fr,ok,2026-11-18
+0770931U,http://www.coubertin-meaux.fr,ok,2026-11-18
+0770933W,http://www.lyceejamyot-melun.fr,ok,2026-11-18
+0770934X,http://www.vinci-melun.org,ok,2026-11-18
+0770938B,http://www.lycee-andre-malraux.org,ok,2026-11-18
+0770940D,http://lyceebezout77.fr/,ok,2026-11-18
+0770942F,http://www.lyceethibautdechampagne.com,ok,2026-11-18
+0770943G,https://www.lycee-benjamin-franklin.com,ok,2026-11-18
+0770945J,http://lyceegustaveeiffel77.fr,ok,2026-11-18
+0770998S,https://www.cma-idf.fr/cma-formation-pays-de-meaux,http 502,2026-11-18
+0771027Y,http://www.lyceejoliotcurie77.fr,ok,2026-11-18
+0771171E,http://www.lyceelouislumiere.fr,ok,2026-11-18
+0771200L,http://www.bdcfontainebleau.com,http 404,2026-11-18
+0771204R,https://www.pigier.com/ecole-commerce-melun,ok,2026-11-18
+0771237B,http://www.maristes-stlaurent77.fr,ok,2026-11-18
+0771238C,http://www.institutionsaintaspais.fr/campus,ok,2026-11-18
+0771246L,http://www.ecm-meaux.fr,ok,2026-11-18
+0771336J,http://www.lespannevelles.net,http 429,2026-11-18
+0771357G,http://www.labretonniere.fr,ok,2026-11-18
+0771436T,https://campus-bougainville.fr/,ok,2026-11-18
+0771512A,https://www.lyceevandongen.fr/,ok,2026-11-18
+0771654E,http://www.btpcfa-iledefrance.fr,ok,2026-11-18
+0771658J,https://legueatresmes.fr/,ok,2026-11-18
+0771663P,http://www.lycee-george-sand-lemee.fr,ok,2026-11-18
+0771763Y,http://www.lyceecharleslechauve.eu/,ok,2026-11-18
+0771817G,http://www.labretonniere.fr,ok,2026-11-18
+0771880A,https://www.lpbaudelaire.fr/,ok,2026-11-18
+0771914M,http://www.utec77.fr,ok,2026-11-18
+0771940R,https://lyceesimoneveil.fr/,ok,2026-11-18
+0771984N,https://ifsi77melun.wordpress.com/,ok,2026-11-18
+0771985P,https://www.ghef.fr/etudiants-eleves/instituts-de-formations-paramedicales,ok,2026-11-18
+0771986R,https://www.ghef.fr/professionnels/etudiants/formation/ifsi-ifas-ifap-du-ghef,http 404,2026-11-18
+0771987S,https://www.ch-sud-seine-et-marne.fr,ok,2026-11-18
+0771988T,https://www.ch-sud-seine-et-marne.fr,ok,2026-11-18
+0771989U,http://www.ifsi-ifasprovins.fr,ok,2026-11-18
+0771990V,https://www.ghef.fr/professionnels/etudiants/formation/ifsi,http 404,2026-11-18
+0771995A,https://www.lechampdeclaye.fr/,ok,2026-11-18
+0771996B,https://lpohdb.fr/,ok,2026-11-18
+0771997C,http://lyceejacquesprevert.fr,ok,2026-11-18
+0772120L,http://jeanmoulintorcy.fr,ok,2026-11-18
+0772127U,http://btsci-galilee.jimdo.com/,error ConnectError,2026-11-18
+0772153X,http://www.ecm-meaux.fr,ok,2026-11-18
+0772188K,http://lyceepmf-savigny77.fr,ok,2026-11-18
+0772223Y,https://www.rene-descartes.fr/,ok,2026-11-18
+0772225A,https://www.lyceelinoventura.com,http 522,2026-11-18
+0772228D,http://cdg-longperrier.fr/,ok,2026-11-18
+0772229E,http://www.lycee-jean-vilar77.com,ok,2026-11-18
+0772230F,http://www.lyceeblaisepascal77.fr,ok,2026-11-18
+0772241T,https://www.aforp.fr,ok,2026-11-18
+0772242U,http://www.aftral.com,ok,2026-11-18
+0772243V,https://www.lcc77.fr,ok,2026-11-18
+0772244W,https://lyc-careme-savigny-77.fr,ok,2026-11-18
+0772275E,http://www.lyceerondeau.eu,ok,2026-11-18
+0772276F,http://www.jehandechelles.fr,ok,2026-11-18
+0772277G,https://www.hbecquerel.fr/,ok,2026-11-18
+0772290W,https://www.saintecroix77.fr/,ok,2026-11-18
+0772292Y,http://www.lyceemlk.net,ok,2026-11-18
+0772294A,https://www.lyceebrontelognes.websco.fr/,ok,2026-11-18
+0772296C,http://www.lamarecarree.fr,ok,2026-11-18
+0772297D,https://inspe.u-pec.fr/,ok,2026-11-18
+0772310T,http://lycee-signoret.fr,ok,2026-11-18
+0772312V,http://lyceefloratristan77.com,ok,2026-11-18
+0772319C,https://btpcfa-iledefrance.fr/,ok,2026-11-18
+0772342C,http://www.lyceeader.eu,ok,2026-11-18
+0772346G,http://www.iutsf.org,ok,2026-11-18
+0772347H,https://www.iutsf.u-pec.fr,ok,2026-11-18
+0772348J,https://iut.univ-gustave-eiffel.fr/,ok,2026-11-18
+0772432A,https://iut.univ-gustave-eiffel.fr/,ok,2026-11-18
+0772448T,https://www.assas-universite.fr/fr,ok,2026-11-18
+0772468P,https://www.cfadescartes.fr,ok,2026-11-18
+0772496V,https://geodata-paris.fr,http 503,2026-11-18
+0772519V,http://www.u-pec.fr/vous-etes/lyceen-ne/,ok,2026-11-18
+0772551E,http://www.paris-est.archi.fr,ok,2026-11-18
+0772587U,https://www.aftral.com/aftral-pres-de-chez-vous/aftral/aftral-savigny-le-temple,ok,2026-11-18
+0772667F,https://iseam.eu/?RO=PARCOURSUP&OP=ref,ok,2026-11-18
+0772685A,https://sbeckett.fr/,ok,2026-11-18
+0772688D,http://www.lycee-edc.fr,ok,2026-11-18
+0772691G,http://www.utec77.fr,ok,2026-11-18
+0772692H,http://www.irtsparmentier.fr,ok,2026-11-18
+0772715H,http://aforpa.fr,ok,2026-11-18
+0772737G,https://internat-sourdun.fr/,ok,2026-11-18
+0772739J,https://www.lyceerondeau.eu,ok,2026-11-18
+0772742M,http://www.utec77.fr,ok,2026-11-18
+0772750W,https://campus-bougainville.fr/,ok,2026-11-18
+0772766N,http://www.cmdl.eu,ok,2026-11-18
+0772797X,http://www.icam.fr,ok,2026-11-18
+0772817U,https://www.creps-idf.fr/,ok,2026-11-18
+0772818V,http://www.utec77.fr,ok,2026-11-18
+0772824B,https://www.aforp.fr,ok,2026-11-18
+0772884S,https://www.cma-idf.fr/cma-formation-melun-val-de-seine,http 502,2026-11-18
+0772890Y,https://cogefi.com,ok,2026-11-18
+0772893B,https://www.emsca.com,ok,2026-11-18
+0772894C,https://formations.univ-gustave-eiffel.fr/,ok,2026-11-18
+0772902L,http://www.ifap-management.com,http 503,2026-11-18
+0772909U,https://www.ascencia-business-school.com/campus/marne-la-vallee/,ok,2026-11-18
+0772910V,https://iep-fontainebleau.u-pec.fr/,ok,2026-11-18
+0772915A,https://www.promotrans.fr/ville/meaux-centre-de-formation/,ok,2026-11-18
+0772918D,https://www.wecformations.com/,ok,2026-11-18
+0772919E,http://www.utec77.fr,ok,2026-11-18
+0772925L,https://www.groupe-terrade.com/fr,ok,2026-11-18
+0772931T,https://www.infa-formation.com/,ok,2026-11-18
+0772942E,https://www.groupe-alternance.com/ecoles/marne-la-vallee/,ok,2026-11-18
+0772949M,https://horus-formation.com/,ok,2026-11-18
+0772961A,https://ilmis.fr,ok,2026-11-18
+0772962B,https://esiia.fr/,ok,2026-11-18
+0772979V,https://alema-bs.fr/,ok,2026-11-18
+0773006Z,https://www.ynov.com/campus/val-deurope,ok,2026-11-18
+0773014H,https://www.fondation-itsrs.org/,ok,2026-11-18
+0773026W,https://athena-bs.fr/,ok,2026-11-18
+0780004F,https://agrocampus78.fr,ok,2026-11-18
+0780015T,https://rh-terre.defense.gouv.fr/formation/lyceesmilitaires/lycee-militaire-de-saint-cyr-l-ecole,ok,2026-11-18
+0780273Y,http://www.lyc-bleriot-trappes.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0780293V,http://www.acppav.org,ok,2026-11-18
+0780412Z,http://www.versailles.archi.fr,ok,2026-11-18
+0780422K,http://www.lyc-villon-mureaux.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0780424M,https://www.apprentissage-formation-cma78.fr/,error ConnectError,2026-11-18
+0780492L,http://ifsy.yvelines.fr/,error ConnectError,2026-11-18
+0780515L,http://www.lyc-7mares-maurepas.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0780548X,https://ifsi-ifas.ch-versailles.fr/,ok,2026-11-18
+0780582J,https://lyc-vilar-plaisir.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0780584L,https://lyc-matisse-trappes.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0780762E,https://www.aftral.com/aftral-pres-de-chez-vous/cfatl/aftral-cfatl-le-tremblay,ok,2026-11-18
+0780819S,http://www.cfmbtp.com,ok,2026-11-18
+0780850A,http://www.aforp.fr,ok,2026-11-18
+0780851B,https://www.lea-cfi.fr,ok,2026-11-18
+0781023N,https://www.lea-cfi.fr/,ok,2026-11-18
+0781069N,http://www.esta-magnanville.fr,ok,2026-11-18
+0781070P,http://www.campus-lebuat.fr,ok,2026-11-18
+0781297L,http://www.lyc-plaineneauphle-trappes.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781512V,http://www.lyc-descartes-montigny.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781516Z,https://www.supdev.fr,ok,2026-11-18
+0781578S,http://www.lyc-hotellerie-guyancourt.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0781626U,https://www.ghtyvelinesnord.fr/instituts-de-formation,http 403,2026-11-18
+0781627V,https://competence.croix-rouge.fr,ok,2026-11-18
+0781629X,https://jeanmarcboussard.wixsite.com/ifsi-rambouillet,ok,2026-11-18
+0781631Z,https://www.ghtyvelinesnord.fr/campus-insante/nos-formations/ifmem-de-poissy/presentation-du-metier/,http 403,2026-11-18
+0781663J,https://www.pigier.com/ecole-commerce-saint-quentin-en-yvelines,ok,2026-11-18
+0781779K,http://www.agrocampus78.fr/cfa/,ok,2026-11-18
+0781809T,http://www.esiee-it.fr/,ok,2026-11-18
+0781839A,http://www.lyc-monnet-lqly.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0781845G,http://www.lyc-ferry-conflans.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781858W,https://www.h3campus.fr/,ok,2026-11-18
+0781883Y,http://www.lyc-dumont-maurepas.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0781897N,https://www.lea-cfi.fr/,ok,2026-11-18
+0781898P,http://www.lyc-cdg-poissy.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781944P,http://www.uvsq.fr/,ok,2026-11-18
+0781945R,http://www.iut-velizy-rambouillet.uvsq.fr,ok,2026-11-18
+0781946S,http://www.igecomsup.com,ok,2026-11-18
+0781948U,http://www.lyc-lavoisier-porcheville.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781949V,http://www.lyc-villaroy-guyancourt.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0781951X,http://www.lyc-senghor-magnanville.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0781975Y,https://www.groupe-ics.fr,ok,2026-11-18
+0781981E,https://www.supdev.fr/,ok,2026-11-18
+0781983G,http://www.lyc-bolland-poissy.ac-versailles.fr/,error ConnectError,2026-11-18
+0781984H,http://www.lyc-vaucanson-lesmureaux.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782019W,https://www.ecole-paysage.fr/fr,http 418,2026-11-18
+0782058N,https://www.supdev.fr/,ok,2026-11-18
+0782075G,http://www.uvsq.fr/les-licences-du-domaine-science-technologie-sante-350887.kjsp?RH=FORM_04,ok,2026-11-18
+0782076H,http://www.uvsq.fr/les-licences-generales-et-professionnelles-234428.kjsp?RH=1452188055687,ok,2026-11-18
+0782090Y,http://www.isipca.fr,ok,2026-11-18
+0782092A,https://www.afipe.fr,error ConnectError,2026-11-18
+0782093B,https://www.cfatrajectoire.fr/,ok,2026-11-18
+0782104N,http://www.isty.uvsq.fr,ok,2026-11-18
+0782113Y,https://www.bergerie-nationale.fr/formations-bergerie/pole-formation/apprentissage-cfa/#metiers-agri,ok,2026-11-18
+0782117C,http://www.iut-mantes.uvsq.fr,ok,2026-11-18
+0782118D,http://www.iut-velizy.uvsq.fr,error ConnectTimeout,2026-11-18
+0782132U,http://www.lyc-albret-st-germain-laye.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0782539L,http://www.lyc-stex-mantes.ac-versailles.fr/,error ConnectError,2026-11-18
+0782540M,http://www.lyc-rostand-mantes.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0782546U,http://www.lyc-lecorbusier-poissy.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782549X,https://lyc-bascan.fr/,ok,2026-11-18
+0782556E,http://www.lyc-vinci-saint-germain.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782557F,http://www.lycee-jbpoquelin.fr,http 403,2026-11-18
+0782562L,https://lyc-hoche-versailles.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782563M,http://www.lyc-labruyere-versailles.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0782565P,http://www.lyc-ferry-versailles.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0782567S,http://www.lyc-curie-versailles.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0782587N,http://www.lyc-violletleduc.ac-versailles.fr/spip.php?rubrique14,error ConnectTimeout,2026-11-18
+0782593V,http://www.lyc-perrin-st-cyr.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782602E,http://www.lyc-moulin-lechesnay.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782603F,http://www.lyc-prevert-versailles.ac-versailles.fr/site/spip.php?article177,error ConnectTimeout,2026-11-18
+0782822U,http://www.lyc-corneille-lacelle.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0782924E,http://www.lyc-galois-sartrouville.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0783053V,http://www.bginette.com,ok,2026-11-18
+0783192W,https://buc-ressources.org/,ok,2026-11-18
+0783282U,http://www.blanche-de-castille.fr,ok,2026-11-18
+0783289B,https://ufa.asndsl.fr,ok,2026-11-18
+0783323N,http://www.stv-st-germain.fr/,ok,2026-11-18
+0783325R,http://www.lpstvincent.org,ok,2026-11-18
+0783344L,https://www.ndoverneuil.com/superieur,ok,2026-11-18
+0783351U,https://www.nd-grandchamp.fr/,ok,2026-11-18
+0783379Z,http://www.institut-etudescomptables.com,http 403,2026-11-18
+0783389K,https://proximite.mgen.fr/224-ifsi-de-la-verriere,ok,2026-11-18
+0783390L,https://www.ghtyvelinesnord.fr/instituts-de-formation,ok,2026-11-18
+0783431F,http://www.lyc-verne-sartrouville.ac-versailles.fr/,error ConnectTimeout,2026-11-18
+0783447Y,http://www.lyc-weil-conflans.ac-versailles.fr,error ConnectTimeout,2026-11-18
+0783455G,http://CHEP78.fr,ok,2026-11-18
+0783533S,http://www.lyc-metiers-mantes.ac-versailles.fr/,error ConnectError,2026-11-18
+0783545E,https://www.ensup.eu/,ok,2026-11-18
+0783553N,https://www.affida.fr/,ok,2026-11-18
+0783596K,https://www.ascencia-business-school.com/,ok,2026-11-18
+0783603T,http://www.eecs.fr,ok,2026-11-18
+0783634B,https://www.cyu.fr/,ok,2026-11-18
+0783640H,https://www.sciencespo-saintgermainenlaye.fr/,ok,2026-11-18
 0783664J,https://www.estaca.fr/agenda/journee-portes-ouvertes-sqy-3/,ok,2026-11-16
+0783672T,https://www.supdev.fr/,ok,2026-11-18
+0783676X,https://3is-education.fr/,ok,2026-11-18
+0783697V,http://www.supdevente-essym.fr,error ConnectError,2026-11-18
+0783703B,http://www.aforpa.fr,ok,2026-11-18
+0783706E,http://www.incm-formation.fr,ok,2026-11-18
+0783713M,https://www.camille-seline.fr/,ok,2026-11-18
+0783718T,http://www.ecoledassas.fr,ok,2026-11-18
+0783720V,http://www.eseo.fr,ok,2026-11-18
+0783729E,https://www.ecole-metiers-habitat.fr,ok,2026-11-18
+0783751D,http://www.alydrine-formation.com,ok,2026-11-18
+0783752E,https://www.ghtyvelinesnord.fr/campus-insante/,ok,2026-11-18
+0783754G,https://www.ghtyvelinesnord.fr/instituts-de-formation/presentation/,ok,2026-11-18
+0783778H,https://www.cy-ecolededesign.fr/,ok,2026-11-18
+0783793Z,https://www.ifocop.fr,ok,2026-11-18
+0783807P,https://www.supdevente-essym.fr/,error ConnectError,2026-11-18
+0783811U,https://www.groupe-esa.com/,ok,2026-11-18
+0783822F,https://www.groupe-alternance.com/ecoles/saint-germain-en-laye/lecole-de-saint-germain-en-laye/,ok,2026-11-18
+0783824H,https://www.forces-lms.com/,ok,2026-11-18
+0783833T,http://www.esb-campus.fr,ok,2026-11-18
+0783843D,https://mantes-school.com,ok,2026-11-18
+0783867E,https://www.groupe-alternance.com/ecoles/mantes-la-jolie/,ok,2026-11-18
+0783874M,https://encm.education,ok,2026-11-18
+0783889D,https://ecloson.com,ok,2026-11-18
+0783890E,https://www.cyu.fr/,ok,2026-11-18
+0783892G,https://www.cyu.fr/,ok,2026-11-18
+0783894J,https://www.avensiabusinessschool.com/,ok,2026-11-18
+0783904V,http://www.uvsq.fr/,ok,2026-11-18
+0790007D,https://etab.ac-poitiers.fr/lyc-mgenevoix-bressuire/,error ConnectTimeout,2026-11-18
+0790019S,http://www.lycee-desfontaines.eu/,ok,2026-11-18
+0790023W,http://www.lycee-jeanmace.fr/,ok,2026-11-18
+0790024X,http://www.lycee-paul-guerin.fr/,ok,2026-11-18
+0790029C,http://lycee-perochon.fr,error ConnectError,2026-11-18
+0790031E,http://www.lycee-hautvaldesevre.fr,ok,2026-11-18
+0790036K,http://www.jeanmoulin-thouars.fr/,error ConnectTimeout,2026-11-18
+0790038M,http://www.jeanmoulin-thouars.fr/,error ConnectTimeout,2026-11-18
+0790080H,http://www.saintjo.org/campus/,ok,2026-11-18
+0790090U,https://www.lyceegrippeaux.fr,ok,2026-11-18
+0790670Z,http://www.mfr-maraispoitevin.fr,error ConnectError,2026-11-18
+0790706N,http://www.sicaudieres.org,ok,2026-11-18
+0790767E,http://www.terres-et-paysages.fr,ok,2026-11-18
+0790768F,http://www.terres-et-paysages.fr/,ok,2026-11-18
+0790924A,https://formation.cma-nouvelleaquitaine.fr/nos-centres-de-formation/niort,ok,2026-11-18
+0790928E,https://www.lycee-gaston-barre.fr/,ok,2026-11-18
+0790964U,https://etab.ac-poitiers.fr/lp-tjmain-niort/,error ConnectTimeout,2026-11-18
+0791005N,https://www.sevreurope.eu,ok,2026-11-18
+0791009T,http://www.chnds.fr,ok,2026-11-18
+0791018C,https://www.ch-niort.fr,ok,2026-11-18
+0791029P,http://www.genevoix-signoret-vinci.fr/,error ConnectTimeout,2026-11-18
+0791046H,https://terres-et-paysages.fr/campus/,ok,2026-11-18
+0791055T,https://www.cnam-nouvelle-aquitaine.fr,ok,2026-11-18
+0791057V,http://www.mfr-brioux.com,ok,2026-11-18
+0791062A,http://etab.ac-poitiers.fr/lyc-venise-verte-niort/,error ConnectTimeout,2026-11-18
 0791082X,https://jpo.univ-poitiers.fr/,error ConnectTimeout,2026-11-16
+0791088D,http://www.lecampusbycci79.com,ok,2026-11-18
 0791090F,https://jpo.univ-poitiers.fr/,error ConnectTimeout,2026-11-16
 0791103V,https://jpo.univ-poitiers.fr/,error ConnectTimeout,2026-11-16
+0791115H,http://www.sicaudieres.org,ok,2026-11-18
+0791131A,https://terres-et-paysages.fr/campus/,ok,2026-11-18
+0791132B,https://www.groupe-alternance.com/ecoles/niort/,ok,2026-11-18
+0791168R,http://www.formation-isfac.com,ok,2026-11-18
+0791171U,http://www.icssa-niort.com/,ok,2026-11-18
+0791189N,https://www.formations-marais.com/,ok,2026-11-18
+0791192S,https://www.fi-pc.fr/,ok,2026-11-18
+0791193T,https://www.aftral.com/aftral-pres-de-chez-vous/aftral/aftral-niort,ok,2026-11-18
+0791199Z,https://niort.uco.fr,error ConnectError,2026-11-18
+0791211M,https://www.ifpass.fr/,ok,2026-11-18
+0791213P,https://arinfo.fr/,error ConnectError,2026-11-18
+0791216T,https://hem-sante.fr/,error ReadTimeout,2026-11-18
+0791217U,https://formation.cma-nouvelleaquitaine.fr/nos-centres-de-formation/parthenay,ok,2026-11-18
+0800001S,http://www.lyceeboucherdeperthes.fr,ok,2026-11-18
+0800007Y,http://lamarck.lyc.ac-amiens.fr,error ConnectTimeout,2026-11-18
+0800009A,https://louis-thuillier.ac-amiens.fr,error ConnectTimeout,2026-11-18
+0800010B,http://michelis.lyc.ac-amiens.fr/,error ConnectTimeout,2026-11-18
+0800011C,http://lycée-édouard-gand-amiens.fr/gest.0800011c@ac-amiens.fr/index.php,ok,2026-11-18
+0800046R,https://www.pierre-mendes-france.fr,ok,2026-11-18
+0800063J,https://www.lyceeboucherdeperthes.fr,ok,2026-11-18
+0800080C,https://www.esc-amiens.com,error ConnectError,2026-11-18
+0801068B,https://www.u-picardie.fr/,ok,2026-11-18
+0801194N,https://lycees-delambre-montaigne.fr/,ok,2026-11-18
 0801773T,https://simusante.com/forum-des-metiers-prete-moi-ta-blouse/,ok,2026-11-16
 0801911T,https://www.unilasalle.fr/agenda/soiree-portes-ouvertes-unilasalle-amiens-13novembre2026,ok,2026-11-16
 0802177G,https://simusante.com/forum-des-metiers-prete-moi-ta-blouse/,ok,2026-11-16

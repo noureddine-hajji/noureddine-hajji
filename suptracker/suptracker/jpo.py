@@ -176,6 +176,36 @@ def _published(zone: str, start: int) -> bool:
     return bool(_PUBLISHED.search(zone[max(0, start - 40):start]))
 
 
+def _dates_in(zone: str, s: int) -> set:
+    """The dates of a folded zone of text: with their year printed, or with a weekday printed that is TRUE for season `s`."""
+    out = set()
+    for mt in _SITE_TEXTUAL.finditer(zone):
+        if _published(zone, mt.start()):
+            continue                                           # « Publié le 8 octobre 2025 »: the page's date, not an event
+        wd, day, mon, year = mt.groups()
+        mo = _FOLD_MONTHS[mon]
+        dd = 1 if day == "1er" else int(day)
+        if year:
+            d = _mkdate(dd, mo, year)
+        elif wd:
+            d = _mkdate(dd, mo, s - 1 if mo >= 9 else s)
+            if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:
+                d = None                                       # a weekday that is false that year: another year's page
+        else:
+            d = None
+        if d is not None:
+            out.add(d)
+    for mt in _SITE_NUMERIC.finditer(zone):
+        if _published(zone, mt.start()):
+            continue
+        dd, mo, yy = mt.groups()
+        y = int(yy) + 2000 if len(yy) == 2 else int(yy)
+        d = _mkdate(dd, mo, y)
+        if d is not None:
+            out.add(d)
+    return out
+
+
 def site_dates(text: str, fetched: date) -> list[date]:
     """The dates a site prints with « portes ouvertes » / « JPO »: on the keyword's own line, or on the next line when the
     keyword's line is a short heading (at most HEADING characters). A date counts with its year printed, or with a weekday
@@ -184,33 +214,9 @@ def site_dates(text: str, fetched: date) -> list[date]:
     lines = [ln.strip() for ln in (text or "").splitlines()]
     s = current_season(fetched)
     found = set()
+
     def dates_in(zone: str) -> set:
-        out = set()
-        for mt in _SITE_TEXTUAL.finditer(zone):
-            if _published(zone, mt.start()):
-                continue                                           # « Publié le 8 octobre 2025 »: the page's date, not an event
-            wd, day, mon, year = mt.groups()
-            mo = _FOLD_MONTHS[mon]
-            dd = 1 if day == "1er" else int(day)
-            if year:
-                d = _mkdate(dd, mo, year)
-            elif wd:
-                d = _mkdate(dd, mo, s - 1 if mo >= 9 else s)
-                if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:
-                    d = None                                       # a weekday that is false that year: another year's page
-            else:
-                d = None
-            if d is not None:
-                out.add(d)
-        for mt in _SITE_NUMERIC.finditer(zone):
-            if _published(zone, mt.start()):
-                continue
-            dd, mo, yy = mt.groups()
-            y = int(yy) + 2000 if len(yy) == 2 else int(yy)
-            d = _mkdate(dd, mo, y)
-            if d is not None:
-                out.add(d)
-        return out
+        return _dates_in(zone, s)
 
     for i, ln in enumerate(lines):
         if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):
@@ -221,6 +227,68 @@ def site_dates(text: str, fetched: date) -> list[date]:
         elif len(ln) <= HEADING and i + 1 < len(lines) and not _OTHER_SCHOOL.search(fold(lines[i + 1])):
             found |= dates_in(fold(ln + " " + lines[i + 1]))       # a short heading, its date on the next line (never a collège's: Codex)
     return sorted(d for d in found if season_of(d) is not None)
+
+
+# ------------------------------------------------------------------------------------------------------------------ concours
+# owner, 2026-11-18: a formation recruited through a concours (one exam for several schools) often has the CONCOURS's own
+# information days and webinars. One row per concours: (key, name, the words of the formation's Parcoursup labels that name it,
+# folded, and its official site). The site is read by the `suptracker-jpo` workflow (scripts/jpo_fetch.py, robots.txt honoured);
+# it is shown only when a reading succeeded AND the page names the concours (`nomme`): a wrong or moved address shows nothing.
+CONCOURS = (
+    ("puissance_alpha", "Concours Puissance Alpha", r"\bconcours puissance alpha\b", "https://www.concourspuissancealpha.fr/", "puissance alpha"),
+    ("avenir", "Concours Avenir", r"\bconcours avenir\b", "https://www.concours-avenir.fr/", "concours avenir"),
+    ("geipi", "Concours Geipi Polytech", r"\bconcours geipi polytech\b", "https://www.geipi-polytech.org/", "geipi"),
+    ("sesame", "Concours SESAME", r"\bconcours sesame\b", "https://www.concours-sesame.net/", "sesame"),
+    ("advance", "Concours Advance", r"\bconcours advance\b", "https://www.concours-advance.fr/", "advance"),
+    ("acces", "Concours ACCÈS", r"\bconcours acces\b", "https://www.concours-acces.com/", "acces"),
+)
+# an event line: a webinar or an online session, else an information day or open day; a line about registration, the exam
+# or its results is never an event (the concours sites print those dates beside their sessions)
+CONCOURS_EVENT = re.compile(r"webinaires?|webinars?|\bvisio|\blives?\b|portes?[\s-]+ouvertes?|\bjpo\b|"
+                            r"(?:journees?|reunions?|sessions?|soirees?|matinees?) d.?information|\bsalons?\b")
+CONCOURS_ONLINE = re.compile(r"webinaires?|webinars?|\bvisio|\blives?\b|\ben ligne\b|\ben distanciel\b|\bvirtuel")
+CONCOURS_NOT = re.compile(r"\bepreuves?\b|\bresultats?\b|date limite|\bclotures?\b|\binscriptions? (?:sur|jusqu|du|avant)|"
+                          r"\boraux?\b|\bentretiens?\b|\badmissibilit|\bconvocations?\b|\bpaiements?\b")
+CONCOURS_AGENDA = 12      # more sessions than this in one season on one page: an agenda of every school, not the concours's own
+# an event counts only when its own line (or heading + line) NAMES the concours: the concours agendas also list single schools'
+# fairs and open days (SESAME: « LEM Strasbourg … salon Oriaction de Metz »), which are not the concours's (first real run)
+CONCOURS_NAMES = {"puissance_alpha": r"\bpuissance alpha\b", "avenir": r"\bconcours avenir\b", "geipi": r"\bgeipi\b",
+                  "sesame": r"\bsesame\b", "advance": r"\badvance\b", "acces": r"\bconcours acces\b"}
+# a range of days « les 8-9 janvier 2027 », « du 19, 20 au 21 novembre » starts on its FIRST day (the date reader alone takes the last)
+_DAY_RANGE = re.compile(r"\b(1er|\d{1,2})(?:\s*(?:-|–|,|et|au)\s*(?:1er|\d{1,2}))+\s+(" + "|".join(
+    sorted(map(re.escape, _FOLD_MONTHS), key=len, reverse=True)) + r")\b")
+
+
+def concours_of(labels: str) -> tuple | None:
+    """The registry row of the concours a formation's Parcoursup labels name (folded words), or None."""
+    t = fold(labels)
+    return next((c for c in CONCOURS if re.search(c[2], t)), None)
+
+
+def concours_events(text: str, fetched: date, concours: str | None = None) -> list[tuple[date, str]]:
+    """(date, « en_ligne » | « information ») of the events a concours page prints: the event word and the date on the SAME
+    line (or the next line under a short heading), the same date rules as the establishments' sites; never a line about
+    registration, the exam or its results. With `concours`, only the events whose zone names it (CONCOURS_NAMES); a range of
+    days counts from its first day."""
+    lines = [_DAY_RANGE.sub(r"\1 \2", fold(ln.strip())) for ln in (text or "").splitlines()]
+    named = re.compile(CONCOURS_NAMES[concours]) if concours else None
+    s = current_season(fetched)
+    out = {}
+    for i, ln in enumerate(lines):
+        if not CONCOURS_EVENT.search(ln) or CONCOURS_NOT.search(ln):
+            continue
+        zone = ln
+        found = _dates_in(zone, s)
+        if not found and len(ln) <= HEADING and i + 1 < len(lines) and not CONCOURS_NOT.search(lines[i + 1]):
+            zone = ln + " " + lines[i + 1]
+            found = _dates_in(zone, s)
+        if named is not None and not named.search(zone):
+            continue                                           # a school's own event listed on the concours's agenda
+        kind = "en_ligne" if CONCOURS_ONLINE.search(zone) else "information"
+        for d in found:
+            if season_of(d) is not None and (d not in out or kind == "en_ligne"):
+                out[d] = kind
+    return sorted(out.items())
 
 
 # --------------------------------------------------------------------------------------------------------------------- reading
@@ -290,8 +358,43 @@ def read(d: Path = DIR) -> dict:
                               "ref_url": r["url"], "source": "site_agenda" if agenda else "site", "as_of": r["fetched"][:10],
                               "latest": r["fetched"] == newest[(r["uai"], r["url"])]})
     dates += fiche_dates(d.parent / "fiches", audit)
-    return {"dates": dates, "etabs": etabs, "sites": sites, "audit": audit,
+    conc, conc_sites = read_concours(d)
+    return {"dates": dates, "etabs": etabs, "sites": sites, "audit": audit, "concours": conc, "concours_sites": conc_sites,
             "versions": [{k: v[k] for k in ("file", "kind", "as_of", "source")} for v in versions]}
+
+
+def read_concours(d: Path = DIR) -> tuple[list[dict], list[dict]]:
+    """The events read on the concours' official sites (data/jpo/concours, latest reading of each page flagged) and each
+    site's reading status (`nomme`: the page names the concours)."""
+    known = {c[0] for c in CONCOURS}
+    events, sites = [], []
+    ef = d / "concours" / "etat.csv"
+    if ef.exists():
+        with open(ef, encoding="utf-8", newline="") as f:
+            sites = [r for r in csv.DictReader(f) if r.get("concours") in known]
+    xf = d / "concours" / "extraits.csv.gz"
+    if xf.exists():
+        rows = [r for r in _read_csv_gz(xf) if r.get("concours") in known]
+        newest = {}
+        for r in rows:
+            k = (r["concours"], r["url"])
+            if k not in newest or r["fetched"] > newest[k]:
+                newest[k] = r["fetched"]
+        for r in rows:
+            try:
+                fetched = date.fromisoformat(r["fetched"][:10])
+            except ValueError:
+                continue
+            ev = concours_events(r["text"], fetched, r["concours"])
+            per_season = {}
+            for dd, _ in ev:
+                per_season[season_of(dd)] = per_season.get(season_of(dd), 0) + 1
+            if any(n > CONCOURS_AGENDA for n in per_season.values()):
+                continue
+            for dd, kind in ev:
+                events.append({"concours": r["concours"], "debut": dd, "kind": kind, "ref_url": r["url"], "as_of": r["fetched"][:10],
+                               "latest": r["fetched"] == newest[(r["concours"], r["url"])]})
+    return events, sites
 
 
 def fiche_key(cod) -> str:
@@ -368,7 +471,7 @@ def univ_of(label: str) -> tuple[str | None, str | None]:
     return m.group(1), m.group(2)
 
 
-TABLES = ("jpo_date", "jpo_etab", "jpo_site", "jpo_meta")
+TABLES = ("jpo_date", "jpo_etab", "jpo_site", "jpo_meta", "jpo_concours", "jpo_concours_site")
 
 
 def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
@@ -381,6 +484,10 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
     erows = [[u, e["nom"], e["onisep_url"], e["modif"], e["kind"], e.get("univ_uai"), e.get("univ_nom")]
              for u, e in sorted(data["etabs"].items())]
     srows = [[u, s["url"], s["status"], s["checked"]] for u, ss in sorted(data["sites"].items()) for s in ss]
+    crows = sorted({(e["concours"], e["debut"], e["kind"], e["ref_url"], e["as_of"], e["latest"]) for e in data.get("concours", [])},
+                   key=lambda t: tuple(str(x) for x in t))
+    csrows = sorted({(r["concours"], r["url"], r["status"], r["checked"], r.get("nomme") == "1") for r in data.get("concours_sites", [])},
+                    key=lambda t: tuple(str(x) for x in t))
 
     def write(c, p):
         c.execute(f"""CREATE OR REPLACE TABLE {p}jpo_date (uai VARCHAR, debut DATE, fin DATE, heures VARCHAR, remarque VARCHAR,
@@ -394,6 +501,14 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
         c.execute(f"CREATE OR REPLACE TABLE {p}jpo_site (uai VARCHAR, url VARCHAR, status VARCHAR, checked VARCHAR)")
         if srows:
             c.executemany(f"INSERT INTO {p}jpo_site VALUES (?, ?, ?, ?)", srows)
+        c.execute(f"""CREATE OR REPLACE TABLE {p}jpo_concours (concours VARCHAR, debut DATE, kind VARCHAR, ref_url VARCHAR,
+                      as_of VARCHAR, latest BOOLEAN)""")
+        if crows:
+            c.executemany(f"INSERT INTO {p}jpo_concours VALUES (?, ?, ?, ?, ?, ?)", [list(r) for r in crows])
+        c.execute(f"""CREATE OR REPLACE TABLE {p}jpo_concours_site (concours VARCHAR, url VARCHAR, status VARCHAR, checked VARCHAR,
+                      nomme BOOLEAN)""")
+        if csrows:
+            c.executemany(f"INSERT INTO {p}jpo_concours_site VALUES (?, ?, ?, ?, ?)", [list(r) for r in csrows])
         c.execute(f"CREATE OR REPLACE TABLE {p}jpo_meta (data VARCHAR)")
         c.execute(f"INSERT INTO {p}jpo_meta VALUES (?)",
                   [json.dumps({"versions": data["versions"], "audit": data["audit"]}, ensure_ascii=False)])
@@ -412,7 +527,7 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
             tc.execute("CHECKPOINT")
         finally:
             tc.close()
-    return {"dates": len(rows), "etablissements": len(erows), "audit": data["audit"]}
+    return {"dates": len(rows), "etablissements": len(erows), "concours": len(crows), "audit": data["audit"]}
 
 
 def _src(con):
@@ -552,10 +667,59 @@ def university(con, uais: list[str]) -> tuple[str, str] | None:
     return None
 
 
+def for_concours(con, cod: str, today: date) -> dict | None:
+    """The concours block of a formation recruited through a concours of the registry: its name, its official site (only when
+    a reading succeeded and named the concours), the events of the season read on that site (latest readings; a passed one
+    flagged), each with the page read and the day it was read. None for a formation of no concours of the registry."""
+    try:
+        r = con.execute("""SELECT lib_for_voe_ins, lib_comp_voe_ins FROM core.formation_year WHERE cod_aff_form = ?
+                           ORDER BY session DESC LIMIT 1""", [cod]).fetchone()
+    except Exception:  # noqa: BLE001  (a warehouse without the labels)
+        return None
+    k = concours_of(" ".join(x or "" for x in r)) if r else None
+    if k is None:
+        return None
+    out = {"cle": k[0], "nom": k[1], "site": None, "lu_le": None, "dates": []}
+    c, p = _src(con)
+    if c is None:
+        return out
+    try:
+        sites = c.execute(f"SELECT url, status, checked, nomme FROM {p}jpo_concours_site WHERE concours = ?", [k[0]]).fetchall()
+        rows = c.execute(f"SELECT debut, kind, ref_url, as_of FROM {p}jpo_concours WHERE concours = ? AND latest", [k[0]]).fetchall()
+    except Exception:  # noqa: BLE001  (a file built before the concours)
+        return out
+    ok = sorted((s for s in sites if s[1] == "ok" and s[3]), key=lambda s: s[2], reverse=True)
+    if ok:
+        out["site"], out["lu_le"] = https(ok[0][0]) or https(k[3]), ok[0][2]
+    s = current_season(today)
+    w0, w1 = window(s)
+    best = {}
+    for debut, kind, url, as_of in rows:
+        if season_of(debut) == s and w0 <= debut <= w1 and (debut not in best or kind == "en_ligne"):
+            best[debut] = {"date": debut.isoformat(), "kind": kind, "url": https(url), "lu_le": as_of, "passee": debut < today}
+    out["dates"] = [best[d] for d in sorted(best)] if out["site"] else []
+    return out
+
+
 def for_formation(con, cod: str, today: date | None = None) -> dict | None:
     """The formation's block: its establishment(s) and its own fiche. No date this season: the open days of the UNIVERSITY it
-    belongs to (owner, 2026-11-16), named; then the period of past seasons (own first, else the university's)."""
+    belongs to (owner, 2026-11-16), named; then the period of past seasons (own first, else the university's). A formation
+    recruited through a concours of the registry also carries the concours's own sessions (`concours`, owner 2026-11-18)."""
     today = today or datetime.now().date()
+    res = _for_formation(con, cod, today)
+    conc = for_concours(con, cod, today)
+    if conc is None:
+        return res
+    if res is None:
+        s = current_season(today)
+        w0, w1 = window(s)
+        res = {"saison": {"debut": w0.isoformat(), "fin": w1.isoformat(), "annees": f"{s - 1}-{s}"}, "dates": [],
+               "etablissements": [], "sites_verifies": [], "environ": None}
+    res["concours"] = conc
+    return res
+
+
+def _for_formation(con, cod: str, today: date) -> dict | None:
     uais = _uais(con, cod)
     own = for_uais(con, uais + [fiche_key(cod)], today)
     if own and own["dates"]:

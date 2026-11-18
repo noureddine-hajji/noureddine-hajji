@@ -1,0 +1,41 @@
+# Owner, 2026-11-18: travel costs between the student's town and the formation. Fetches the OFFICIAL open data the site reads
+# (SNCF TGV INOUI/OUIGO fares and stations, the Ministry of the Economy's fuel prices) into suptracker/data/transports/ (these
+# hosts are blocked in the development sandbox). Read at build by suptracker/transports.py with fixed rules.
+# Triggered by workflow_dispatch, a monthly schedule (default branch), or a push of data/transports/request.json on a claude/ branch.
+name: suptracker-transports
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 3 * *"        # monthly: fares and fuel prices move slowly; the site gives ranges
+  push:
+    branches: ["claude/**"]
+    paths: ["suptracker/data/transports/request.json"]
+permissions:
+  contents: write
+concurrency:
+  group: suptracker-transports
+  cancel-in-progress: false
+jobs:
+  transports:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Fetch the official fares, stations and fuel prices
+        run: python scripts/transports_fetch.py data/transports
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/transports
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "Official fares, stations and fuel prices fetched ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push

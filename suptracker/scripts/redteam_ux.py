@@ -597,7 +597,9 @@ def short_fiche(js: str) -> tuple[bool, str]:
     in_view = all(x in shown for x in Y_SHOWN) and n_cards == 5
     out = all(x in folded and x not in shown for x in Y_FOLDED)
     # the fiche's grid first (owner, 2026-11-13), then the own report, else the similar formations' reports
-    same = ("const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);" in vf
+    # owner, 2026-11-18: the fiche and the own report in ONE card (juryMerged) when the formation has both
+    same = ("const grHtml = both ? juryMerged(d.grille, d.rapport) : grilleCard(d.grille);" in vf
+            and 'const repHtml = both ? "" : juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);' in vf
             and "const juryHtml = grHtml + repHtml;" in vf
             and '["jury", "Ce que regarde le jury", juryHtml]' in vf and "d.jury_tab = !juryHtml ? null :" in vf)
     head = vf[vf.index('<div class="card fhead">'):vf.index("${summaryBand(r, d)}")]

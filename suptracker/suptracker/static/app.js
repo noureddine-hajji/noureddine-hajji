@@ -994,8 +994,7 @@ const RP_OPTIONS = { maths_expertes: "Mathématiques expertes", maths_complement
   langues_anciennes: "Langues anciennes (latin, grec)", lv3: "Troisième langue vivante", option_arts: "Option arts", option_eps: "Option EPS",
   section_euro: "Section européenne ou internationale", certifications: "Certifications" };
 const rpText = (t) => esc(t || "").replace(/\n/g, "<br>");
-function juryCard(rp) {
-  if (!rp || !rp.textes) return "";
+function juryParts(rp) {
   const t = rp.textes, prof = bacProfile() || {};
   const crit = (t.criteres || []).filter((c) => c.critere || c.elements);
   const champs = [...new Set(crit.map((c) => c.champ))];
@@ -1015,10 +1014,16 @@ function juryCard(rp) {
     ${me ? `<p class="small">Vous suivez <strong>Mathématiques expertes</strong> : ${opts.maths_expertes ? "le rapport de cette formation la cite (voir ci-dessous)." : "le rapport de cette formation ne la cite pas. Cela ne veut pas dire qu'elle ne compte pas : regardez les attendus de la fiche Parcoursup."}</p>` : ""}
     ${Object.entries(opts).map(([k, quotes]) => `<p class="small"><strong>${esc(RP_OPTIONS[k] || k)}</strong></p>${quotes.map((q) => `<blockquote class="rp-quote">« ${esc(q)} »</blockquote>`).join("")}`).join("")}` : "";
   const fold = (title, txt) => (txt ? `<details class="dip"><summary>${title}</summary><p class="small">${rpText(txt)}</p></details>` : "");
+  return { critHtml, edsHtml, optHtml, elim: fold("Critères éliminatoires", t.eliminatoires), modal: fold("Comment les dossiers ont été examinés", t.modalites),
+    algo: fold("Traitement algorithmique", t.algorithme), conseils: fold("Les conseils du jury pour la prochaine session", t.conseils) };
+}
+function juryCard(rp) {
+  if (!rp || !rp.textes) return "";
+  const P = juryParts(rp);
   return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}${rpPending(rp)}</h2>
     <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
-    ${critHtml}${edsHtml}${optHtml}
-    ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
+    ${P.critHtml}${P.edsHtml}${P.optHtml}
+    ${P.elim}${P.modal}${P.algo}${P.conseils}
     <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
@@ -1044,8 +1049,8 @@ function grilleImp(n) {
   if (!lab) return "";
   return `<span class="gr-imp"><span class="rp-imp imp${4 - n}">${esc(lab)}</span> <span class="gr-dots" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span></span>`;
 }
-function grilleCard(g) {
-  if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return "";
+const grilleHas = (g) => !!(g && (g.grille || g.nationaux || g.complementaires || g.info));
+function grilleParts(g) {
   const lu = g.lu_le ? new Date(`${g.lu_le}T12:00:00Z`).toLocaleDateString("fr-FR") : null;
   const camp = g.session ? ` pour la campagne ${esc(g.session)}` : "";
   const champs = g.grille ? g.champs || [] : [];
@@ -1059,12 +1064,39 @@ function grilleCard(g) {
       </table></div></details>`).join("")}
     <p class="muted small">L'importance va de « Complémentaire » (1 sur 4) à « Essentiel » (4 sur 4), comme sur la fiche.</p>` : "";
   const fold = (title, t, open) => (t ? `<details class="dip gr-txt"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
+  return { camp, champs, info: g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : "", global, detail,
+    attendus: `${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}`,
+    conseils: fold("Les conseils de la formation", g.conseils, false),
+    source: `Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.` };
+}
+function grilleCard(g) {
+  if (!grilleHas(g)) return "";
+  const P = grilleParts(g);
   return `<div class="card gr-card"><h2>Comment votre dossier sera examiné · fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}</h2>
-    <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
-    ${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}${global}${detail}
-    ${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}${fold("Les conseils de la formation", g.conseils, false)}
+    <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${P.camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
+    ${P.info}${P.global}${P.detail}
+    ${P.attendus}${P.conseils}
     <p class="muted small">La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Elle décrit l'examen des dossiers, pas des chances d'admission.</p>
-    <p class="muted small">Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.</p></div>`;
+    <p class="muted small">${P.source}</p></div>`;
+}
+// owner, 2026-11-18: ONE card when the formation has both its fiche (the coming campaign) and its jury's report (the past
+// session): each subject said once. The fiche comes first and prevails: its grid replaces the report's criteria, its advice the
+// report's; the report adds only what the fiche does not publish (specialties taken into account, options cited, eliminating
+// criteria, how the files were examined, the algorithm), each part labelled with its session. Texts verbatim and escaped.
+function juryMerged(g, rp) {
+  const G = grilleParts(g), R = juryParts(rp), grid = G.champs.length > 0;
+  const fiche = `fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}`, rapport = `rapport du jury ${esc(rp.session)}`;
+  const crit = grid ? `${G.global}${G.detail}${R.critHtml ? `<p class="muted small">Le ${rapport} décrivait aussi ses critères : la grille de la ${fiche}, plus récente, les remplace.</p>` : ""}`
+    : R.critHtml ? `${R.critHtml}<p class="muted small">Critères du ${rapport} : la ${fiche} ne publie pas de grille d'examen.</p>` : "";
+  const fromReport = R.edsHtml || R.optHtml || R.elim || R.modal || R.algo;
+  return `<div class="card gr-card jury-merged"><h2>Comment votre dossier est examiné</h2>
+    <p class="small">Deux sources, reprises telles quelles : la <strong>${fiche}</strong>${G.camp}, la plus récente, qui fait foi, et le <strong>${rapport}</strong> de la session passée${rpPending(rp)}. Chaque sujet n'est montré qu'une fois ; quand les deux en parlent, c'est la fiche qui est retenue.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
+    ${G.info}${crit}
+    ${G.attendus}
+    ${fromReport ? `<h3>Ce que le ${rapport} ajoute</h3>${R.edsHtml}${R.optHtml}${R.elim}${R.modal}${R.algo}` : ""}
+    ${G.conseils || R.conseils}
+    <p class="muted small">Les critères peuvent changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
+    <p class="muted small">Fiche : ${G.source}</p><p class="muted small">${rapportSource(rp)}</p></div>`;
 }
 // owner's request (2026-11-10): no readable jury texts in this formation's own report, so the counts of what the commissions of
 // its similar formations published (same diploma, same mention), never their average, never this formation's own criteria
@@ -1933,14 +1965,38 @@ const PR_SOURCE = {
   national: () => estimTag("écart national de vos deux spécialités", false, true),
   voie: (pr) => `taux de proposition de cette formation (effectifs publiés)${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}`,
 };
+// owner, 2026-11-18: the profile's figure is the second half of ONE access cell (accesTile), beside the official rate
 function profileRateTile(pr) {
-  const tile = (value, note) => `<button type="button" class="sum-tile sum-profil" data-goto="admission">
+  const tile = (value, note) => `<button type="button" class="sum-part sum-profil" data-goto="admission">
       <span class="sum-label">Pour votre profil</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
-  const link = (note) => `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
+  const link = (note) => `<a class="sum-part sum-profil" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
   if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et le chiffre de votre bac");
   if (pr.kind === "incomplet") return link("indiquez vos deux spécialités dans « Mon profil »");
   if (pr.kind === "aucun" || pr.taux === null || pr.taux === undefined) return tile("—", `${esc(pr.what)} · ${esc(pr.why || "pas de chiffre")}`);
   return tile(pct1(pr.taux), `${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}`);
+}
+// owner, 2026-11-18: the official access rate and the profile's figure in ONE cell, with one short sentence saying what each is
+// (outside terminale the second half is the estimated access of sprint 21); never a chance
+const ACCES_EXPLAIN = "Officiel : la part de tous les candidats qui ont reçu une proposition.";
+function accesTile(r, d, prof, pr) {
+  const off = `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Taux d'accès ${r.session}</span><span class="sum-value">${pct(r.taux_acces_ens)}</span><span class="sum-note">officiel, tous candidats, phase principale</span></button>`;
+  const reo = isReo(prof);
+  const second = reo ? `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Accès estimé hors terminale</span><span class="sum-value">${pct1(d.reorientation && d.reorientation.acces_estime)}</span><span class="sum-note">${reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »")}</span></button>`
+    : profileRateTile(pr);
+  const why = reo ? "Hors terminale : une estimation pour les candidats qui ne sont pas en terminale."
+    : "Pour votre profil : le même taux, pour les candidats qui ont votre bac ou vos deux spécialités.";
+  return `<div class="sum-tile sum-acces">${off}${second}<p class="sum-explain">${ACCES_EXPLAIN} ${why} Des résultats passés, pas des chances.</p></div>`;
+}
+// owner, 2026-11-18: the robustesse 2035 of the formation in L'essentiel: its score (median of the three scenarios) and its two
+// repères (within its filière, among all formations), always an estimation of the model; the detail stays in « Emploi et métiers »
+const ROB_SUM = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
+function formationRobTile(rb) {
+  const s = rb && rb.score, q = (rb && rb.repere) || {}, n = (rb && rb.repere_national) || {};
+  const fil = q.niveau ? `${ROB_SUM[q.niveau]} de sa filière` : q.raison === "memes_debouches" ? "non classée dans sa filière (mêmes métiers)" : q.raison ? "trop peu de formations comparables dans sa filière" : "";
+  const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : "";
+  const note = !rb ? "pas d'estimation pour cette formation" : !s ? "données insuffisantes pour une estimation sûre"
+    : `${[fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
+  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
@@ -1950,16 +2006,15 @@ function summaryBand(r, d) {
       <span class="sum-label">${label}</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
   return `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2>
     <div class="sum-grid">
-      ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "officiel, tous candidats, phase principale")}
-      ${isReo(prof) ? "" : profileRateTile(pr)}
-      ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
-        : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
+      ${accesTile(r, d, prof, pr)}
+      ${!isReo(prof) && prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places${d.tension ? ` · ${fmt(d.tension.par_place)} vœux par place${d.tension.libelle ? ` <span class="badge tension">${esc(d.tension.libelle)}</span>` : ""}` : ""}` : "places non publiées")}
+      ${formationRobTile(d.robustesse)}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
-    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
+    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "both" ? `Comment votre dossier est examiné : la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""} et le rapport du jury ${esc(d.jury_tab.rapport)}` : d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
     ${jpoLine(d.jpo)}
     ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
@@ -2119,7 +2174,7 @@ function jpoLine(j) {
     : dates.length ? `Portes ouvertes${who} ${esc(j.saison.annees)} : déjà passées`
     : j.environ ? `Portes ouvertes${who} : ${esc(j.environ.texte)}, d'après les années passées`
     : "";
-  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="cout">${txt} →</button></p>` : "";
+  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="admission">${txt} →</button></p>` : "";
 }
 function jpoCard(j) {
   if (!j) return "";
@@ -2136,18 +2191,36 @@ function jpoCard(j) {
     return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.virtuel ? ", en ligne" : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
       <span class="small muted"> · ${src(e)}${e.source !== "site" && jpoUrl(e.voir) ? ` · <a href="${esc(jpoUrl(e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
   };
-  const body = dates.length ? `<ul class="jpo-list">${dates.map(li).join("")}</ul>`
+  // owner, 2026-11-18: the sessions on site and the online ones (webinars, virtual visits: « en virtuel » on Onisep) apart
+  const surPlace = dates.filter((e) => !e.virtuel), enLigne = dates.filter((e) => e.virtuel);
+  const body = dates.length ? `${surPlace.length ? `${enLigne.length ? "<h3>Sur place</h3>" : ""}<ul class="jpo-list">${surPlace.map(li).join("")}</ul>` : ""}
+    ${enLigne.length ? `<h3>En ligne (webinaires, visites virtuelles)</h3><ul class="jpo-list">${enLigne.map(li).join("")}</ul>` : ""}`
     : j.environ ? `<p>Aucune date n'est encore annoncée pour ${esc(j.saison.annees)}. Les années passées (${esc(j.environ.annees.join(", "))}), elles ont eu lieu <strong>${esc(j.environ.texte)}</strong>.</p>
       <p class="small">C'est une période, pas une date : à confirmer sur le site de l'établissement.</p>`
     : `<p class="muted">Aucune date n'est publiée pour l'instant, ni par l'Onisep ni sur le site de l'établissement.</p>`;
   const links = (j.etablissements || []).filter((e) => jpoUrl(e.onisep_url))
     .map((e) => `<a href="${esc(jpoUrl(e.onisep_url))}" target="_blank" rel="noopener">fiche Onisep${noms.length > 1 && e.nom ? ` (${esc(e.nom)})` : ""} ↗</a>`);
   const sites = (j.sites_verifies || []).filter((x) => jpoUrl(x.url));
-  return `<div class="card" id="jpo"><h2>Les portes ouvertes</h2>
+  return `<div class="card" id="jpo"><h2>Portes ouvertes et webinaires</h2>
     ${j.universite ? `<p>Aucune date propre à cette formation n'est publiée. Voici les portes ouvertes de son université : <strong>${esc(j.universite.nom)}</strong>.</p>`
       : noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
     ${body}
+    ${jpoConcours(j.concours, today)}
     <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}${dates.some((e) => e.fiche) ? ", et la fiche Parcoursup de la formation" : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
+}
+// owner, 2026-11-18: a formation recruited through a concours: the concours's own webinars and information days, read on its
+// OFFICIAL site (jpo.CONCOURS), each with the page read and its day, « à vérifier »; no site read = no link, never a guess
+const JPO_KIND = { en_ligne: "en ligne (webinaire)", information: "journée ou réunion d'information" };
+function jpoConcours(k, today) {
+  if (!k) return "";
+  const site = jpoUrl(k.site);
+  const li = (e) => `<li class="${e.passee ? "muted" : ""}"><strong>${esc(frDate(e.date))}</strong>, ${esc(JPO_KIND[e.kind] || "")}${e.passee ? " · passée" : ""}
+      <span class="small muted"> · lue sur le site du concours le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.url) ? ` (<a href="${esc(jpoUrl(e.url))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}</span></li>`;
+  return `<h3>Le ${esc(k.nom)}</h3>
+    <p class="small">Cette formation recrute par le ${esc(k.nom)}, commun à plusieurs écoles : il organise aussi ses propres webinaires et journées d'information.</p>
+    ${(k.dates || []).length ? `<ul class="jpo-list">${k.dates.map(li).join("")}</ul>`
+      : `<p class="small muted">Aucune date de webinaire ou de journée d'information n'a été trouvée pour l'instant${site ? " sur le site officiel du concours" : ""}.</p>`}
+    ${site ? `<p class="small"><a href="${esc(site)}" target="_blank" rel="noopener">Site officiel du ${esc(k.nom)} ↗</a>${k.lu_le ? ` <span class="muted">(consulté le ${esc(frDate(k.lu_le))})</span>` : ""}</p>` : ""}`;
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
@@ -2284,6 +2357,118 @@ function distanceText(from, lat, lon) {
   if (km < 1) return `Vous êtes dans la même commune ou presque (moins de 1 km à vol d'oiseau depuis le centre de ${esc(villeLabel(from))}).`;
   return `<strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau depuis le centre de ${esc(villeLabel(from))} ${estimTag("distance en ligne droite entre les centres des communes ; la route est plus longue")}.${km > 50 ? " À cette distance, la plupart des étudiants se logent sur place : le loyer ci-dessous compte." : " À cette distance, des allers-retours sont souvent possibles : regardez les transports."}`;
 }
+// owner, 2026-11-18: a round trip between the student's town and the formation, « à titre d'information ». The town never leaves
+// the browser: /api/transports has no parameter (official TGV fares and stations, median fuel prices, the fixed hypotheses of the
+// car estimate, transports.py) and everything is computed here. Ranges only; no figure where no price is public.
+let TRANSPORTS_P = null;
+const trLoad = () => (TRANSPORTS_P = TRANSPORTS_P || api("/api/transports").catch(() => { TRANSPORTS_P = null; return null; }));
+// owner, 2026-11-18 (« au plus proche »): each fuel's median in the student's DEPARTMENT when published (enough stations,
+// transports.MIN_STATIONS_DEP), else its national median; `dep` lists the fuels read in the department
+const TR_FUEL_NAMES = { gazole: "gazole", e10: "SP95-E10", sp95: "SP95" };
+function trFuel(T, dep) {
+  const D = (T.carburant_dep || {})[String(dep || "").toUpperCase()] || {}, fuel = {}, local = [];
+  for (const [k, x] of Object.entries(T.carburant || {})) {
+    const d = D[k] && Number.isFinite(D[k].prix) ? D[k] : null;
+    fuel[k] = d || x;
+    if (d) local.push(k);
+  }
+  return { fuel, local, all: Object.keys(fuel) };
+}
+// the sea or a border between two points (Codex, PR #86: two islands less than 100 km apart are still two islands): each land
+// with roads is named by its coordinates (the continent, whose box also takes the nearest foreign towns; Corsica; French Guiana;
+// New Caledonia's main island, a band along its axis; Réunion; Martinique; Guadeloupe's Basse-Terre and Grande-Terre, joined by
+// bridges; Mayotte's Grande-Terre; Tahiti); every other place (Marie-Galante, Les Saintes, Petite-Terre, Moorea, the other islands,
+// formations abroad) is "autre" and gets NO car estimate, even next door: a road between them is never assumed
+function trLand(lat, lon) {
+  if (lat >= 41.3 && lat <= 43.1 && lon >= 8.45 && lon <= 9.65) return "corse";
+  if (lat >= 42.3 && lat <= 51.2 && lon >= -5.3 && lon <= 8.35) return "continent";
+  if (lat >= 2 && lat <= 6 && lon >= -55 && lon <= -51) return "guyane";
+  const ax = 163.95 - 166.95, ay = -20.05 + 22.45, px = lon - 166.95, py = lat + 22.45, t = (px * ax + py * ay) / (ax * ax + ay * ay);
+  if (t >= -0.05 && t <= 1.05 && Math.hypot(px - t * ax, py - t * ay) <= 0.42) return "grande-terre";
+  if (lat >= -21.4 && lat <= -20.85 && lon >= 55.2 && lon <= 55.85) return "reunion";
+  if (lat >= 14.38 && lat <= 14.9 && lon >= -61.25 && lon <= -60.8) return "martinique";
+  if ((lat >= 15.94 && lat <= 16.52 && lon >= -61.82 && lon <= -61.55) || (lat >= 16.18 && lat <= 16.52 && lon > -61.55 && lon <= -61.17)) return "guadeloupe";
+  if (lat >= -13.02 && lat <= -12.62 && lon >= 44.98 && lon <= 45.25) return "mayotte";
+  if (lat >= -17.9 && lat <= -17.48 && lon >= -149.65 && lon <= -149.1) return "tahiti";
+  return "autre";
+}
+const trSea = (home, lat, lon) => { const a = trLand(home.lat, home.lon); return a !== trLand(lat, lon) || a === "autre"; };
+// the car: road = crow-fly x detour range, fuel = the lowest and highest median of the fuels read, round trip; time one way
+function trCar(km, H, fuel) {
+  const prices = Object.values(fuel || {}).map((x) => x.prix).filter((x) => Number.isFinite(x));
+  if (!prices.length || !(km > 0)) return null;
+  const road = [km * H.detour[0], km * H.detour[1]];
+  const cost = [2 * road[0] * H.conso_l_100km[0] / 100 * Math.min(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.max(...prices)];
+  const minutes = [road[0] / H.vitesse_kmh[1] * 60, road[1] / H.vitesse_kmh[0] * 60];
+  return { road, cost, minutes, pmin: Math.min(...prices), pmax: Math.max(...prices) };
+}
+// the fare stations within `maxKm` of a point, nearest first
+function trNear(stations, lat, lon, maxKm) {
+  return (stations || []).map(([uic, nom, la, lo]) => ({ uic, nom, km: haversineKm(lat, lon, la, lo) })).filter((x) => x.km <= maxKm)
+    .sort((x, y) => x.km - y.km);
+}
+// the TGV: every fare station within H.gare_km of the town and of the formation (a city has several), the pair with the lowest
+// published normal fare; the published range x 2 (round trip), and the pupil-student-apprentice range where the SNCF publishes it
+function trTrain(T, home, lat, lon) {
+  const H = T.hypotheses, A = trNear(T.stations, home.lat, home.lon, H.gare_km), B = trNear(T.stations, lat, lon, H.gare_km);
+  if (!A.length || !B.length) return { none: `pas de gare TGV à moins de ${H.gare_km} km ${!A.length ? "de votre ville" : "de la formation"}` };
+  if (A.some((x) => B.some((y) => y.uic === x.uic))) return { none: "la même gare TGV dessert votre ville et la formation" };
+  let best = null;
+  for (const a of A) for (const b of B) {
+    const od = T.od[[a.uic, b.uic].sort().join("-")];
+    if (od && (!best || od[0] < best.od[0] || (od[0] === best.od[0] && a.km + b.km < best.a.km + best.b.km))) best = { a, b, od };
+  }
+  if (!best) return { none: `pas de prix TGV publié entre les gares proches (${A[0].nom}, ${B[0].nom})` };
+  const { a, b, od } = best;
+  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2], etudiant: od.length > 4 ? [2 * od[3], 2 * od[4]] : null };
+}
+const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
+const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
+const trFr = (x, d = 2) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const TR_LINKS = { sncf: "https://www.sncf-connect.com/" };
+function transportsHtml(T, home, lat, lon) {
+  const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
+  if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
+  const sea = trSea(home, lat, lon), F = trFuel(T, home.dep);
+  const car = sea ? null : trCar(km, H, F.fuel), tr = trTrain(T, home, lat, lon);
+  const fuelDate = Object.values(T.carburant || {}).map((x) => x.date).sort().pop();
+  const names = (ks) => ks.map((k) => TR_FUEL_NAMES[k] || k).join(", ");
+  const fuelWhere = !F.local.length ? "prix médians en France"
+    : F.local.length === F.all.length ? `prix médians des stations de votre département (${esc(home.dep)})`
+    : `prix médians des stations de votre département (${esc(home.dep)}) ; en France pour le ${esc(names(F.all.filter((k) => !F.local.includes(k))))}, trop peu de stations le vendent près de chez vous`;
+  const link = (k, txt) => `<a href="${esc(TR_LINKS[k])}" target="_blank" rel="noopener">${esc(txt)} ↗</a>`;
+  const row = (mode, prix, duree, comment) => `<tr><td>${mode}</td><td class="num" data-label="Aller-retour">${prix}</td><td data-label="Durée (aller)">${duree}</td><td data-label="D'où vient le chiffre" class="small">${comment}</td></tr>`;
+  const rows = [
+    car ? row("Voiture", trEuros(car.cost), `${trHours(car.minutes[0])} à ${trHours(car.minutes[1])}`,
+      `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (${esc(names(F.all))} : ${fuelWhere}, sur les 30 jours avant le ${esc(frDate(fuelDate || ""))}). Péages et parking non compris.`)
+      : row("Voiture", "—", "—", sea ? "la mer ou une frontière sépare votre ville et la formation : pas d'estimation en voiture." : "prix des carburants pas encore lus"),
+    tr.price ? row(`Train (${tr.carriers.map(esc).join(", ")})`, trEuros(tr.price), `voir ${link("sncf", "SNCF Connect")}`,
+      `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}.${tr.etudiant ? ` Au « Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>${trEuros(tr.etudiant)}</strong> l'aller-retour.` : ""} Avec une carte Avantage, c'est souvent moins cher.`)
+      : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)}${sea ? "." : " : un TER ou un trajet avec changement reste possible."}`),
+  ];
+  // owner, 2026-11-18: no carpooling or bus line (no public price, nothing to say); a ferry only where Corsica or two islands are concerned
+  const la = trLand(home.lat, home.lon), lb = trLand(lat, lon);
+  if (sea && (la === "corse" || lb === "corse" || (la !== "continent" && lb !== "continent")))
+    rows.push(row("Bateau", "pas de prix public", "—", "comparez sur les sites des compagnies maritimes, au départ des ports les plus proches."));
+  if (km >= H.avion_km || sea) rows.push(row("Avion", "pas de prix public", "—", `${sea && km < H.avion_km ? "pour traverser la mer" : "au-delà de 500 km"}, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports.`));
+  return `<p class="small">De ${esc(villeLabel(home))} à la formation : <strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau. Des fourchettes à titre d'information, pas des prix garantis.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Mode</th><th class="num">Aller-retour</th><th>Durée (aller)</th><th>D'où vient le chiffre</th></tr>${rows.join("")}</table></div>
+    <p class="muted small">Sources : SNCF, « Tarifs TGV INOUI et OUIGO » et « Gares de voyageurs » (licence ODbL) ; ministère de l'Économie, « Prix des carburants » (Licence Ouverte)${T.lu_le && T.lu_le.tarifs_tgv ? `, lus le ${esc(frDate(T.lu_le.tarifs_tgv))}` : ""}. Votre ville reste dans ce navigateur : elle n'est jamais envoyée.</p>`;
+}
+function transportsCard(v) {
+  if (!v || v.lat == null || v.lon == null) return "";
+  return `<div class="card" id="transports"><h2>Venir depuis chez vous : le trajet</h2>
+    <div id="transports-body">${villeDepart() ? '<p class="muted small">Chargement des tarifs…</p>' : 'Indiquez votre ville dans <a href="#/profil">Mon profil</a> : le coût et la durée d\'un aller-retour jusqu\'ici s\'afficheront ici.'}</div></div>`;
+}
+async function fillTransports(v) {
+  const home = villeDepart();
+  if (!home || !v || v.lat == null) return;
+  const el = document.getElementById("transports-body");
+  const T = await trLoad();
+  if (!el || el !== document.getElementById("transports-body")) return;          // the student left the page
+  const ready = T && T.hypotheses && ((T.stations || []).length || Object.keys(T.carburant || {}).length);
+  el.innerHTML = ready ? transportsHtml(T, home, v.lat, v.lon) : '<p class="muted small">Les tarifs ne sont pas encore disponibles.</p>';
+}
 function distanceBlock(v) {
   // owner, 2026-11-15: the town is entered ONCE, in "Mon profil"; here it is only read (no input on the formation page)
   if (!v || v.lat == null || v.lon == null) return "";
@@ -2365,9 +2550,13 @@ async function viewFormation(cod, session) {
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
   // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
   // the fiche's grid first (the campaign it serves), then the jury's own report, else the similar formations' reports
-  const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
+  // owner, 2026-11-18: the fiche and the jury's own report in ONE card (juryMerged), the fiche first and prevailing
+  const both = grilleHas(d.grille) && !!(d.rapport && d.rapport.textes);
+  const grHtml = both ? juryMerged(d.grille, d.rapport) : grilleCard(d.grille);
+  const repHtml = both ? "" : juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
   const juryHtml = grHtml + repHtml;
-  d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
+  d.jury_tab = !juryHtml ? null : both ? { kind: "both", session: d.grille.session, rapport: d.rapport.session }
+    : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
     : grHtml ? { kind: "grille", session: d.grille.session } : { kind: "semblables" };
   $view.innerHTML = `
   <div class="card fhead">
@@ -2387,6 +2576,7 @@ async function viewFormation(cod, session) {
       · <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}</p>
   ${tabbed("fiche", [
     ["admission", "Y entrer", `
+  ${jpoCard(d.jpo)}
   <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
     <div class="grid3">
       <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div>${pvLine(d.prevision, "taux_acces_ens")}</div>
@@ -2421,7 +2611,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r) + transportsCard(d.vie) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -2443,6 +2633,7 @@ async function viewFormation(cod, session) {
   </table></div></div>`],
   ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
+  fillTransports(d.vie);
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };

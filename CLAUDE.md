@@ -444,8 +444,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   (`pickVoie`), else the card's "votre bac" row (this formation's route proposal rate, the page's campaign, "peu de candidats"
   below 20; never Plan B's latest-campaign estimate: review). Route rates and estimates are read at the PAGE's campaign (their
 trend entry; the top-level figure is the lineage's latest: Codex). Report figures carry their counts; no two distinct specialties = a
-  link to Mon profil. Outside terminale the estimate keeps its own tile. Published replaces estimate, never beside it. 5 tiles with
-  a terminale profile, 4 otherwise. Two DIFFERENT specialties in terminale, one artistic at most (owner, 2026-11-12): the
+  link to Mon profil. Outside terminale the estimate takes the profile's place. Published replaces estimate, never beside it.
+  Owner, 2026-11-18: the official rate and the profile's figure are ONE cell (`accesTile`, two halves + one short sentence saying
+  what each is), spanning two columns; then the zone, admits, robustesse and jobs tiles: 5 tiles with a terminale profile, 4 otherwise. Two DIFFERENT specialties in terminale, one artistic at most (owner, 2026-11-12): the
   form's second list never offers the first; the pair is made distinct BEFORE it is saved (`spe2Of`, a swap), a stored identical
   pair shows "Choisissez" and a warning, never another specialty it does not carry (Codex). Red team
   `redteam_tauxprofil.py` (Z1-Z6).
@@ -605,6 +606,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   members appended; `grille_texte` and the grids' JSON `grille_data` in rapport_textes.duckdb, never in the warehouse: 95 MB budget). The fingerprint takes the content files and the (code, status) of etat.csv, never its dates (Codex); data/fiches
   stays out of the Vercel bundle. Jury tab: the grid first, then the own report (or the similar formations'). Red team
   `redteam_grilles.py` (GR1-GR9; GR1 = an independent BeautifulSoup reading of the saved pages).
+  Owner, 2026-11-18: with both the fiche and the jury's OWN report, the jury tab is ONE card (`juryMerged`): the fiche first and
+  prevailing (its grid replaces the report's criteria, said; its advice the report's); the report adds only what the fiche does
+  not publish (specialties, options, eliminating criteria, how the files were examined, algorithm) under its session; with no grid
+  the report's criteria come back, said; both sources credited. GR10.
 - **From each job to Parcoursup (owner, 2026-11-14).** `parcours.py` reads each job's route BACKWARDS from the diploma Onisep
   requires (else names): direct (a Parcoursup diploma), Onisep's continuations (`poursuites_etudes`, <= 4 steps, a branch ends at a
   Parcoursup diploma), then FAMILY_RULES (one per family, written from Onisep's access texts: PASS/LAS for MMOPK, engineering, business,
@@ -667,10 +672,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   has some (sites show other campuses: first real run), is added « à vérifier » only where Onisep has none, never from an agenda
   page (> 4 dates a season). The formation's own fiche texts (data/fiches, attendus complémentaires / conseils / info) are read the
   same way (mostly last year's dates: the period); no date of its own = its UNIVERSITY's (Onisep « université de rattachement »,
-  a university only), named « Université X » (owner, 2026-11-16). The jpo_* tables live in rapport_textes.duckdb (`jpo._src`), never in the
+  a university only), named « Université X » (owner, 2026-11-16). Owner, 2026-11-18: the card « Portes ouvertes et webinaires » is the
+  FIRST card of « Y entrer » (before the SIES indicators; never in « Combien ça coûte »), on-site and online sessions apart (Onisep
+  « en virtuel »); a formation recruited through a concours of `jpo.CONCOURS` (Puissance Alpha, Avenir, Geipi Polytech, SESAME,
+  Advance, ACCÈS: label words) also shows the concours's webinars and information days read on its OFFICIAL site (same workflow,
+  data/jpo/concours/, `concours_events`: event word and date on one line NAMING the concours (`CONCOURS_NAMES`: agendas list single schools'
+  events), a day range from its first day, never registration/exam/results lines, > 12 a season =
+  agenda), each « à vérifier » with the page and the day read; the site is shown only when read AND naming the concours. J11. The jpo_* tables live in rapport_textes.duckdb (`jpo._src`), never in the
   warehouse (it went to 95.7 MB with them). No date = a PERIOD by
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,
-  « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card atop « Combien ça coûte ». Red team
+  « à confirmer ». Exact UAI only (SIES latest, then cartographie). Line in L'essentiel + card first in « Y entrer » (owner, 2026-11-18). Red team
   `redteam_jpo.py` (J1-J10).
 - **Robustesse 2035 per job (owner's PRD, 2026-11-16).** `robustesse.py` (model 2027.1), jobs first, formations next. The owner
   LIFTED « never one composite score » for this feature only, with guardrails: « estimation du modèle », the MEDIAN of the three
@@ -714,6 +725,23 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   or a BUT (InserSup: specialty at the university, else all its BUT, else the specialty in France) in its own block BESIDE the
   repères, never in the score (`robInsPublie`); the search page filters by both repères (`CARTE_ROB`, `robLevel`, « sans » = no
   level, read from /api/reconnaissance, hidden when not loaded), the card prints them in one line; never a sort by a repère. RF11.
+  Owner, 2026-11-18: L'essentiel carries a « Robustesse 2035 » tile (`formationRobTile`): the median score « / 100 » with both repères
+  in words and the estimation label (the owner's choice: the score leaves « Détail du calcul » for this tile only); no score =
+  « données insuffisantes ». RF12.
+- **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
+  hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
+  data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in
+  rapport_textes.duckdb): stations with a position, 2nd class « Tarif Normal » ranges per origin-destination (both directions pooled),
+  fuel MEDIANS of the last 30 days, national and per department (>= 10 stations; the page uses the student's department fuel by fuel,
+  else the national one, and says which), the fixed HYPOTHESES of the car estimate (road 1.2-1.3 x crow-fly, 5-7 L/100 km, 90-110 km/h;
+  owner-reviewable, printed on the page). The page computes the round trip from `villeDepart` (never sent): car = fuel only, tolls and
+  parking said not counted, estimation label, NONE across the sea or a border (`trLand`: each land with roads named by its coordinates, the continent, Corsica, Guiana,
+  New Caledonia's main island, Réunion, Martinique, Guadeloupe's two bridged islands, Mayotte's Grande-Terre, Tahiti; any other place
+  gets no car even next door: Codex, PR #86; checked on every formation); TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
+  with the lowest published normal fare, its range x 2, plus the SNCF's own « Tarif Élève - Étudiant - Apprenti » range where published
+  (none when one station serves both ends); the plane (from 500 km or across the sea) and the ferry have no public
+  price: a line without a figure; NO carpooling or bus line (owner, 2026-11-18: no public data); no
+  third-party route planner such as Rome2rio; official open data only, refreshed monthly). Card in « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors
