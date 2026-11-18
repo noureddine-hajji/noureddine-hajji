@@ -387,6 +387,9 @@ process.stdout.write(JSON.stringify(out));
 
 def band_ok(js: str):
     extra = "\n".join(top(js, n) for n in ("admisBar", "reoWhy") if re.search(rf"^function {n}\(", js, re.M))
+    # owner, 2026-11-18: the access cell and the robustesse tile of the summary
+    # (accesTile, ROB_SUM and formationRobTile sit inside the R2 block the harness already reads)
+    extra += "\n" + top(js, "robNum")
     # the open days' summary line (owner, 2026-11-16) and the date helpers it reads
     extra += "\n" + "\n".join(top(js, n) for n in ("localIso", "frDate", "jpoUrl", "jpoNext", "jpoWhen", "jpoLine")
                                if not re.search(rf"^(?:const|function) {n}\b", harness(js), re.M))
@@ -425,7 +428,9 @@ def z3(c: Ctx):
 def z4(c: Ctx):
     js, bad = c.js, []
     sb = top(js, "summaryBand")
-    if "const pr = profileRate(d, bacProfile());" not in sb or "${isReo(prof) ? \"\" : profileRateTile(pr)}" not in sb:
+    # owner, 2026-11-18: the profile's figure is the second half of ONE access cell beside the official rate
+    if "const pr = profileRate(d, bacProfile());" not in sb or "${accesTile(r, d, prof, pr)}" not in sb \
+            or ": profileRateTile(pr);" not in top(js, "accesTile"):
         bad.append("the tile does not read the validated profile")
     lp = js[js.index("async function loadPlanB("):js.index("async function loadPlanB(") + 4000]
     if "fillZoneTile(null);" not in lp or "fillZoneTile(d.target);" not in lp:
@@ -542,8 +547,7 @@ MUTANTS = [
     ("report counts dropped", " · ${fmt(pr.en_position)} sur ${fmt(pr.confirmes)} candidats`,", "`,", ("z3",)),
     ("not-cross-checked report hidden", '${pr.recoupe ? "" : ", pas encore recoupé"}', "", ("z3",)),
     ("few candidates not said", '${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}', "", ("z3",)),
-    ("profile tile after the zone", "      ${isReo(prof) ? \"\" : profileRateTile(pr)}\n      ${isReo(prof) ? tile(",
-     "      ${isReo(prof) ? tile(", ("z3", "z4")),
+    ("profile figure out of the access cell", "    : profileRateTile(pr);\n  const why", "    : \"\";\n  const why", ("z3", "z4")),
     ("chance wording", 'national: () => estimTag("écart national de vos deux spécialités", false, true),',
      'national: () => "vos chances d\'être admis",', ("z3", "z4")),
     ("raw profile read", "  const pr = profileRate(d, bacProfile());", "  const pr = profileRate(d, prof);", ("z4",)),

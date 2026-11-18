@@ -30,6 +30,9 @@ the jury tab's grilleCard).
       content moves it, a date-only refresh does not (Codex, run on fake harvests with the workflow's own command);
       .vercelignore; sources.py; the formation API; README, CLAUDE.md, durations.
   GR9 mutation test: mutants of the reader, the harvest, the build and the page, each caught.
+  GR10 (owner, 2026-11-18) one jury card: with both the fiche and the jury's own report, ONE card; the fiche's grid replaces the
+       report's criteria (said), the fiche's advice the report's; the report adds only what the fiche does not publish, under its
+       session; with no grid the report's criteria come back, said; both sources credited; every string escaped.
 """
 from __future__ import annotations
 
@@ -546,7 +549,7 @@ HOSTILE = "<img src=x onerror=alert(1)>"
 
 @check("GR7 page: grilleCard escapes, shows every weight and importance (label + dots), campaign, fait foi, no chance, vouvoiement")
 def gr7(c: Ctx):
-    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleCard"))
+    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "grilleCard"))
     g = {"session": 2026, "lu_le": "2026-11-13", "url": "https://dossier.parcoursup.fr/x?g_ta_cod=1", "grille": True,
          "nationaux": f"Savoir lire.\n- {HOSTILE}\n- Écrire", "complementaires": None, "conseils": HOSTILE,
          "champs": [{"rang": 1, "champ": "Résultats scolaires", "poids": 73, "intitule": "x", "criteres": [
@@ -656,7 +659,92 @@ def fingerprint_follows_status(c: Ctx, proj: str) -> list:
     return bad
 
 
+# --------------------------------------------------------------------------------------------------------------------- GR10
+JURY_NAMES = ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "rpText", "RP_SPE", "RP_IMP",
+              "RP_OPTIONS", "rpPending", "rapportSource", "juryParts", "juryMerged")
+
+
+def top_bal(js: str, name: str) -> str:
+    """A top-level const read up to its balanced end (RP_OPTIONS spans several lines), else top()."""
+    m = re.search(rf"^const {re.escape(name)} = ", js, re.M)
+    if not m:
+        return top(js, name)
+    end = m.start()
+    while True:
+        end = js.index("\n", end) + 1
+        part = js[m.start():end]
+        if part.count("{") == part.count("}") and part.count("(") == part.count(")") and part.rstrip().endswith(";"):
+            return part
+
+
+@check("GR10 one jury card: fiche first and prevailing (grid, advice), report only for what the fiche lacks, both credited, escaped")
+def gr10(c: Ctx):
+    if not all(top_bal(c.js, n) for n in JURY_NAMES):
+        return False, "a renderer is missing from app.js"
+    prog = "const bacProfile = () => ({ spe1: 'MATHS', spe2: 'SES' });\n" + "\n".join(top_bal(c.js, n) for n in JURY_NAMES) + """
+const D = JSON.parse(require("fs").readFileSync(0, "utf8"));
+process.stdout.write(JSON.stringify([juryMerged(D.g, D.rp), juryMerged(D.g2, D.rp2)]));"""
+    g = {"session": 2026, "lu_le": "2026-11-13", "url": "https://dossier.parcoursup.fr/x", "grille": True, "nationaux": "Attendus " + HOSTILE,
+         "complementaires": None, "conseils": "Conseil fiche " + HOSTILE,
+         "champs": [{"rang": 1, "champ": "Résultats scolaires", "poids": 100, "intitule": "x",
+                     "criteres": [{"critere": "Notes fiche", "elements": "Bulletins", "importance": 4, "importance_label": "Essentiel"}]}]}
+    rp = {"session": 2025, "capture": "20250709", "source": "live", "archive": "https://dossierappel.parcoursup.fr/r.pdf", "recoupe": True,
+          "textes": {"criteres": [{"champ": "Résultats", "critere": "Critère rapport " + HOSTILE, "elements": "x", "importance": "Important"}],
+                     "eds": {"pris_en_compte": "Oui", "liste": {"Générale": ["Mathématiques Spécialité"]}},
+                     "options_citees": {"maths_expertes": ["Option " + HOSTILE]},
+                     "eliminatoires": "Élim " + HOSTILE, "modalites": "Modalités rapport", "algorithme": None, "conseils": "Conseil rapport"}}
+    g2 = {"session": 2026, "grille": False, "nationaux": "Attendus nationaux", "complementaires": None, "conseils": None, "champs": []}
+    rp2 = dict(rp, recoupe=False, session=2026)
+    try:
+        out = node(prog, {"g": g, "rp": rp, "g2": g2, "rp2": rp2})
+    except RuntimeError as e:
+        return False, f"node: {e}"
+    if out is None:
+        return True, "node not installed"
+    a, b = out
+    bad = []
+    if "<img" in a + b:
+        bad.append("a stored string is not escaped")
+    if a.count("<h2>") != 1 or b.count("<h2>") != 1:
+        bad.append("not ONE card")
+    if "Notes fiche" not in a or "Critère rapport" in a or "les remplace" not in a:
+        bad.append("with a grid: the report's criteria are shown beside it, or the replacement is not said")
+    if "Conseil fiche" not in a or "Conseil rapport" in a:
+        bad.append("the report's advice beside the fiche's")
+    add = a[a.find("ajoute"):] if "ajoute" in a else ""
+    if not add or not all(w in add for w in ("prendre en compte", "Option &lt;img", "Élim &lt;img", "Modalités rapport")):
+        bad.append("what the report adds is missing or not under its session")
+    if "Ce que le rapport du jury 2025 ajoute" not in a or "fiche Parcoursup 2026" not in a or "fait foi" not in a:
+        bad.append("the two sources are not named with their sessions, the fiche prevailing")
+    if "Lu le 13/11/2026" not in a and "13/11/2026" not in a or "rapport public Parcoursup de la session 2025" not in a:
+        bad.append("both sources are not credited")
+    if a.find("Notes fiche") > a.find("ajoute"):
+        bad.append("the fiche does not come first")
+    if "Critère rapport" not in b or "ne publie pas de grille" not in b or "Conseil rapport" not in b or "pas encore recoupé" not in b:
+        bad.append("without a grid: the report's criteria, advice or its pending mark are lost")
+    txt = re.sub(r"<[^>]+>", " ", a + b)
+    if re.search(r"\b(tu|ton|ta|tes|toi)\b", txt, re.I) or re.search(r"\bchances?\b", txt.replace("pas des chances", "")):
+        bad.append("tutoiement or a chance")
+    vf = top(c.js, "viewFormation")
+    if "const both = grilleHas(d.grille) && !!(d.rapport && d.rapport.textes);" not in vf \
+            or "const grHtml = both ? juryMerged(d.grille, d.rapport) : grilleCard(d.grille);" not in vf \
+            or 'const repHtml = both ? "" : juryCard(d.rapport)' not in vf or 'kind: "both"' not in vf:
+        bad.append("the jury tab does not merge the two sources")
+    if 'd.jury_tab.kind === "both"' not in top(c.js, "summaryBand"):
+        bad.append("the summary link does not name both sources")
+    return not bad, f"{bad[:4]}"
+
+
 SOURCE_MUTANTS = [
+    ("js", "report criteria beside the grid", "  const crit = grid ? `${G.global}${G.detail}${R.critHtml ? `",
+     "  const crit = grid ? `${G.global}${G.detail}${R.critHtml}${R.critHtml ? `", "GR10"),
+    ("js", "both advices shown", "    ${G.conseils || R.conseils}", "    ${G.conseils}${R.conseils}", "GR10"),
+    ("js", "report criteria dropped without a grid", "    : R.critHtml ? `${R.critHtml}<p class", "    : R.critHtml ? `<p class", "GR10"),
+    ("js", "report additions dropped", "${R.edsHtml}${R.optHtml}${R.elim}${R.modal}${R.algo}` : \"\"}", "` : \"\"}", "GR10"),
+    ("js", "two cards again", "  const grHtml = both ? juryMerged(d.grille, d.rapport) : grilleCard(d.grille);",
+     "  const grHtml = grilleCard(d.grille);", "GR10"),
+    ("js", "report source dropped", '<p class="muted small">Fiche : ${G.source}</p><p class="muted small">${rapportSource(rp)}</p></div>`;',
+     '<p class="muted small">Fiche : ${G.source}</p></div>`;', "GR10"),
     ("fp", "caption weight not checked", "if not w or int(w.group(1)) != out[\"champs\"][i][\"poids\"]:", "if not w:", "GR4"),
     ("fp", "sum not checked", 'if sum(x["poids"] for x in out["champs"]) != 100:', "if False:", "GR4"),
     ("fp", "total not checked", "or (total and pct(total[0][1]) != 100):", "or (total and pct(total[0][1]) is None):", "GR4"),
@@ -680,7 +768,7 @@ SOURCE_MUTANTS = [
     ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)]', "and False]", "GR5"),
     ("gr", "grid JSON kept in the warehouse", '    if textes is None or not textes.exists():\n        write(con, "core.")', '    if True:\n        write(con, "core.")', "GR6"),
     ("gr", "notice dropped at build", '"info": tx(a.get("info_id")), "champs"', '"info": None, "champs"', "GR6"),
-    ("js", "notice not shown", '${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}', "", "GR7"),
+    ("js", "notice not shown", 'info: g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""', 'info: ""', "GR7"),
     ("fg", "closed site writes", "if probe and all(fetch_fiche(http, c, pause)[0] is None for c in probe):", "if False:", "GR5"),
     ("fg", "texts stored again", "if i and i not in ids:", "if i:", "GR5"),
     ("fg", "no refresh", 'and etat[c]["lu_le"] < old and id(etat[c]) not in seen),', 'and False and id(etat[c]) not in seen),', "GR5"),
@@ -696,7 +784,7 @@ SOURCE_MUTANTS = [
     ("js", "dots off by one", "`<i class=\"${i <= n ? \"on\" : \"\"}\"></i>`", "`<i class=\"${i < n ? \"on\" : \"\"}\"></i>`", "GR7"),
     ("js", "no fait foi", "La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi.", "La grille peut changer.", "GR7"),
     ("js", "grid not in the jury tab", "const juryHtml = grHtml + repHtml;", "const juryHtml = repHtml;", "GR7"),
-    ("js", "empty card shown", "if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return \"\";", "if (!g) return \"\";", "GR7"),
+    ("js", "empty card shown", "const grilleHas = (g) => !!(g && (g.grille || g.nationaux || g.complementaires || g.info));", "const grilleHas = (g) => !!g;", "GR7"),
 ]
 
 

@@ -25,6 +25,12 @@
   J9 real data (--real, when data/jpo holds versions): the warehouse equals a reading of data/jpo (no stale build), every served
      date is in the season, and the coverage of the latest campaign's formations is printed (measured, never typed).
   J10 mutation test.
+  J11 (owner, 2026-11-18) concours and placement: the concours of a formation from its Parcoursup labels (registry, folded words);
+      the events of a concours page read by an INDEPENDENT oracle (an event word and a date on the same line or under a short
+      heading, never a line about registration, the exam or its results; online = webinar words); an agenda page dropped; the
+      official site shown only when read AND naming the concours, the season's latest dates only, passed ones flagged; the page:
+      the card in « Y entrer » before the SIES indicators (never in « Combien ça coûte »), the summary line opening that tab,
+      on-site and online sessions apart, the concours block escaped with « à vérifier » and https links only.
 """
 from __future__ import annotations
 
@@ -418,7 +424,7 @@ const frDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", 
 
 @check("J6 page: escaped, passed dates marked, a period is not a date, ODbL credit, safe links, vouvoiement, no chance, no call")
 def j6(c: Ctx):
-    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "jpoCard")
+    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoCard")
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     J = c.J()
@@ -608,7 +614,7 @@ def j8(c: Ctx):
         bad.append("vercelignore")
     from suptracker import sources as SRC
     keys = {s["key"] for s in SRC.SOURCES if "jpo" in s.get("feeds", ())}
-    if keys != {"onisep_structures", "sites_etablissements"}:
+    if keys != {"onisep_structures", "sites_etablissements", "sites_concours"}:
         bad.append(f"sources {keys}")
     if "jpoCard(d.jpo)" not in c.js or "${jpoLine(d.jpo)}" not in c.js:
         bad.append("the card or the summary line is not on the formation page")
@@ -669,6 +675,180 @@ def j9(c: Ctx):
 
 
 # ---------------------------------------------------------------------------------------------------------------------- J10
+# ---------------------------------------------------------------------------------------------------------------------- J11
+EVENT_WORDS = ("webinaire", "webinar", "visio", "live", "portes ouvertes", "porte ouverte", "jpo", "journee d'information",
+               "journees d'information", "reunion d'information", "session d'information", "soiree d'information",
+               "matinee d'information", "salon")
+NOT_WORDS = ("epreuve", "resultat", "date limite", "cloture", "inscription sur", "inscription jusqu", "inscriptions jusqu",
+             "inscription du", "inscription avant", "oral", "entretien", "admissibilit", "convocation", "paiement")
+ONLINE_WORDS = ("webinaire", "webinar", "visio", "live", "en ligne", "en distanciel", "virtuel")
+CONC_TEXT = {
+    "c1": ("2026-11-12", "Nos webinaires\nMercredi 9 décembre 2026 à 18h\n"
+                         "Journée d'information samedi 16 janvier 2027 à Paris\n"
+                         "Inscriptions jusqu'au 12 mars 2027 : webinaire de présentation de la procédure\n"
+                         "Épreuves écrites le 15 avril 2027\n"
+                         "Live Instagram le jeudi 3 décembre\n"
+                         "Salon du lycéen lundi 3 décembre\n"
+                         "Réunion d'information le samedi 7 novembre 2026\n"
+                         "Webinaire le 15 juillet 2027"),
+}
+
+
+def oracle_events(text: str, s: int):
+    """An independent reading of a concours page: (iso date, kind) per event."""
+    import unicodedata
+    fold = lambda t: unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower().replace("’", "'")
+    months = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8, "septembre": 9,
+              "octobre": 10, "novembre": 11, "decembre": 12}
+    days = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+    from datetime import date as _d
+    lines = [fold(x.strip()) for x in text.splitlines()]
+    out = {}
+
+    def in_season(d):
+        return (d.month >= 9 and d.year == s - 1) or ((d.month < 5 or (d.month == 5 and d.day == 1)) and d.year == s)
+    for i, ln in enumerate(lines):
+        if not any(w in ln for w in EVENT_WORDS) or any(w in ln for w in NOT_WORDS):
+            continue
+        zone = ln
+        ds = re.findall(r"(?:(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) )?(\d{1,2}) (" + "|".join(months) + r")(?: (20\d\d))?", zone)
+        if not ds and len(ln) <= 80 and i + 1 < len(lines) and not any(w in lines[i + 1] for w in NOT_WORDS):
+            zone = ln + " " + lines[i + 1]
+            ds = re.findall(r"(?:(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) )?(\d{1,2}) (" + "|".join(months) + r")(?: (20\d\d))?", zone)
+        kind = "en_ligne" if any(w in zone for w in ONLINE_WORDS) else "information"
+        for wd, dd, mo, yy in ds:
+            m = months[mo]
+            if yy:
+                d = _d(int(yy), m, int(dd))
+            elif wd:
+                d = _d(s - 1 if m >= 9 else s, m, int(dd))
+                if days[d.weekday()] != wd:
+                    continue
+            else:
+                continue
+            if in_season(d) or d.month >= 9 or d.month < 5 or (d.month == 5 and d.day == 1):
+                if not (5 <= d.month <= 8 and not (d.month == 5 and d.day == 1)):
+                    out[d.isoformat()] = "en_ligne" if kind == "en_ligne" or out.get(d.isoformat()) == "en_ligne" else kind
+    return sorted(out.items())
+
+
+def conc_dir(base: Path) -> Path:
+    d = make_dir(base)
+    cd = d / "concours"
+    cd.mkdir()
+    agenda = "\n".join(f"Webinaire école {i} le {i + 1} décembre 2026" for i in range(14))
+    ext = [{"concours": "avenir", "url": "https://www.concours-avenir.fr/webinaires", "fetched": "2026-11-12", "text": CONC_TEXT["c1"][1]},
+           # an older reading of the same page: a date it no longer lists is never served
+           {"concours": "avenir", "url": "https://www.concours-avenir.fr/webinaires", "fetched": "2026-10-01",
+            "text": "Webinaire le mercredi 20 janvier 2027"},
+           {"concours": "avenir", "url": "https://www.concours-avenir.fr/agenda", "fetched": "2026-11-12", "text": agenda},
+           # a site read but that does not name the concours: nothing shown
+           {"concours": "geipi", "url": "https://www.geipi-polytech.org/", "fetched": "2026-11-12", "text": "Webinaire le mercredi 9 décembre 2026"},
+           {"concours": "inconnu", "url": "https://x.fr/", "fetched": "2026-11-12", "text": "Webinaire le mercredi 9 décembre 2026"}]
+    (cd / "extraits.csv.gz").write_bytes(gz(csvtext(ext, ["concours", "url", "fetched", "text"])))
+    (cd / "etat.csv").write_text(csvtext([
+        {"concours": "avenir", "url": "https://www.concours-avenir.fr/", "status": "ok", "checked": "2026-11-12", "nomme": "1"},
+        {"concours": "geipi", "url": "https://www.geipi-polytech.org/", "status": "ok", "checked": "2026-11-12", "nomme": "0"},
+        {"concours": "sesame", "url": "https://www.concours-sesame.net/", "status": "http 404", "checked": "2026-11-12", "nomme": "1"}],
+        ["concours", "url", "status", "checked", "nomme"]))
+    return d
+
+
+@check("J11 concours and placement: labels, events (oracle), agenda, named site only, latest season dates; card in « Y entrer »")
+def j11(c: Ctx):
+    import duckdb
+    from datetime import date as _d
+    J = c.J()
+    bad = []
+    got = [(d.isoformat(), k) for d, k in J.concours_events(CONC_TEXT["c1"][1], _d(2026, 11, 12))]
+    exp = oracle_events(CONC_TEXT["c1"][1], 2027)
+    if got != exp or ("2026-12-09", "en_ligne") not in got or ("2027-01-16", "information") not in got:
+        bad.append(f"events {got} != oracle {exp}")
+    if any(d in ("2027-03-12", "2027-04-15", "2027-07-15") for d, _ in got):
+        bad.append("a registration, exam or summer date read as an event")
+    labels = {"Concours Puissance Alpha - Formation d'ingénieur": "puissance_alpha", "CONCOURS AVENIR - Bac + 5": "avenir",
+              "Concours Geipi Polytech - Bac général": "geipi", "Concours SESAME - Bachelor": "sesame",
+              "Licence Accès Santé (L.AS)": None, "Bachelor - Accès direct": None, "Concours ACCÈS - ESSCA": "acces",
+              "Concours Advance - Bachelor": "advance", "Licence - Économie et gestion": None}
+    wrong = {k: v for k, v in labels.items() if (J.concours_of(k) or (None,))[0] != v}
+    if wrong:
+        bad.append(f"concours from the labels {wrong}")
+    if not all(u.startswith("https://") and named for _k, _n, _rx, u, named in J.CONCOURS):
+        bad.append("a registry site not https, or without the words that name it")
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        con = duckdb.connect()
+        con.execute("CREATE SCHEMA core")
+        con.execute("CREATE TABLE core.formation_year (cod_aff_form VARCHAR, session BIGINT, cod_uai VARCHAR, lib_for_voe_ins VARCHAR, lib_comp_voe_ins VARCHAR)")
+        con.execute("""INSERT INTO core.formation_year VALUES ('20', 2025, '9999998Y', 'Formation d''ingénieur', 'Concours Avenir - Bac + 5'),
+                       ('21', 2025, '9999998Y', 'Formation d''ingénieur', 'Concours Geipi Polytech - Bac général'),
+                       ('22', 2025, '9999998Y', 'Bachelor', 'Concours SESAME - Bachelor'), ('23', 2025, '9999998Y', 'Licence', 'Droit')""")
+        J.build(con, conc_dir(tmp))
+        a, g, se, none = (J.for_formation(con, k, TODAY) for k in ("20", "21", "22", "23"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    ka = (a or {}).get("concours") or {}
+    if ka.get("nom") != "Concours Avenir" or ka.get("site") != "https://www.concours-avenir.fr/":
+        bad.append(f"the named site read: {ka}")
+    da = [(e["date"], e["kind"], e["passee"]) for e in ka.get("dates", [])]
+    want = [(d, k, d < TODAY.isoformat()) for d, k in exp]
+    if da != want:
+        bad.append(f"served dates {da} != {want} (latest reading, season, no agenda)")
+    if "2027-01-20" in [x[0] for x in da]:
+        bad.append("a date of an older reading served")
+    kg = (g or {}).get("concours") or {}
+    if not kg or kg.get("site") or kg.get("dates"):
+        bad.append("a site that does not name the concours is shown")
+    ks = (se or {}).get("concours") or {}
+    if not ks or ks.get("site") or ks.get("dates"):
+        bad.append("a site that failed is shown")
+    if none and none.get("concours"):
+        bad.append("a formation of no concours gets a concours block")
+    # the page
+    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoCard")
+    if not all(top(c.js, n) for n in names):
+        return False, "a renderer is missing from app.js"
+    prog = STUB + "\n".join(top(c.js, n) for n in names) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      process.stdout.write(JSON.stringify([jpoCard(D.j), jpoCard(D.k), jpoLine(D.j)]));"""
+    H = HOSTILE
+    j = {"saison": {"debut": "2026-09-01", "fin": "2027-05-01", "annees": "2026-2027"}, "etablissements": [], "sites_verifies": [], "environ": None,
+         "dates": [{"date": "2026-12-05", "source": "onisep", "virtuel": False, "remarque": H},
+                   {"date": "2027-01-23", "source": "onisep", "virtuel": True}],
+         "concours": {"nom": "Concours " + H, "site": "https://www.concours-avenir.fr/", "lu_le": "2026-11-12",
+                      "dates": [{"date": "2026-12-09", "kind": "en_ligne", "url": "javascript:alert(1)", "lu_le": "2026-11-12", "passee": False},
+                                {"date": "2026-10-01", "kind": "information", "url": "https://www.concours-avenir.fr/x", "lu_le": "2026-09-20", "passee": True}]}}
+    k = dict(j, dates=[], concours={"nom": "Concours SESAME", "site": "http://x.fr", "lu_le": None, "dates": []})
+    o = node(prog, {"j": j, "k": k})
+    if o is not None:
+        cj, ck, line = o
+        if "<img" in cj or "javascript:" in cj or 'href="http://' in ck:
+            bad.append("unescaped or unsafe link")
+        if "<h3>Sur place</h3>" not in cj or "<h3>En ligne (webinaires, visites virtuelles)</h3>" not in cj \
+                or cj.index("Sur place") > cj.index("5 décembre") or cj.index("En ligne (webinaires") > cj.index("23 janvier"):
+            bad.append("on-site and online sessions not apart")
+        if "à vérifier" not in cj or "en ligne (webinaire)" not in cj or "passée" not in cj or "Site officiel du Concours" not in cj:
+            bad.append("the concours block lacks its kinds, its caveat, its passed mark or its official link")
+        if "Aucune date de webinaire" not in ck or "Site officiel" in ck:
+            bad.append("a concours with no site read: no sentence, or a link")
+        if 'data-goto="admission"' not in line:
+            bad.append("the summary line does not open « Y entrer »")
+    vf = c.js[c.js.index("async function viewFormation("):]
+    adm = vf[vf.index('["admission", "Y entrer", `'):vf.index('["jury", "Ce que regarde le jury"')]
+    cout = vf[vf.index('["cout", "Combien ça coûte"'):vf.index('["reussite", "Réussir et poursuivre"')]
+    if "${jpoCard(d.jpo)}" not in adm or adm.index("${jpoCard(d.jpo)}") > adm.index("Indicateurs officiels SIES"):
+        bad.append("the open days are not in « Y entrer » before the SIES indicators")
+    if "jpoCard" in cout:
+        bad.append("the open days are still in « Combien ça coûte »")
+    F = c.F()
+    ev = F.event_lines("Accueil\nWebinaire le mercredi 9 décembre 2026 contact x@y.fr\n18h-19h\nMentions légales")
+    if "Webinaire" not in ev or "x@y.fr" in ev or "Accueil" in ev or "Mentions" in ev:
+        bad.append(f"fetcher event lines {ev!r}")
+    if 'if req.get("concours", True):\n            fetch_concours(client, d, log)' not in c.src["fetch"]:
+        bad.append("the workflow does not read the concours")
+    return not bad, f"differences {bad[:4]}"
+
+
 SOURCE_MUTANTS = [
     ("jpo", "window ends in late May", "return date(season - 1, 9, 1), date(season, 5, 1)", "return date(season - 1, 9, 1), date(season, 5, 31)", "J2"),
     ("jpo", "1 May outside", "if d.month < 5 or (d.month == 5 and d.day == 1):", "if d.month < 5:", "J2"),
@@ -678,8 +858,8 @@ SOURCE_MUTANTS = [
     ("jpo", "a day in the period", 'return f"mi-{m}" if t == "mi" else f"{t} {m}"', 'return f"mi-{m}" if t == "mi" else f"le 1er {m}"', "J3"),
     ("jpo", "removed future date announced", "if not latest and debut >= today:", "if False:", "J5"),
     ("jpo", "false weekday accepted", "if d is not None and fold(WEEKDAYS[d.weekday()]) != wd:", "if False:", "J4"),
-    ("jpo", "date without year nor weekday accepted", "            else:\n                d = None\n            if d is not None:\n                out.add(d)",
-     "            else:\n                d = _mkdate(dd, mo, s)\n            if d is not None:\n                out.add(d)", "J4"),
+    ("jpo", "date without year nor weekday accepted", "        else:\n            d = None\n        if d is not None:\n            out.add(d)",
+     "        else:\n            d = _mkdate(dd, mo, s)\n        if d is not None:\n            out.add(d)", "J4"),
     ("jpo", "long line takes the next one", "        elif len(ln) <= HEADING and i + 1 < len(lines) and not _OTHER",
      "        elif i + 1 < len(lines) and not _OTHER", "J4"),
     ("jpo", "dated line takes the next one", "        if own:\n            found |= own", "        if False:\n            found |= own", "J5"),
@@ -689,8 +869,8 @@ SOURCE_MUTANTS = [
      'if e["onisep"] or e["fiche"] or e.pop("_own")]', "J5"),
     ("jpo", "collège line read", "if not KEYWORD.search(ln) or _OTHER_SCHOOL.search(fold(ln)):", "if not KEYWORD.search(ln):", "J5"),
     ("jpo", "agenda page feeds the period", ' and source != "site_agenda":', ":", "J5"),
-    ("jpo", "publication date read", "            if _published(zone, mt.start()):\n                continue                                           # « Publié",
-     "            if False:\n                continue                                           # « Publié", "J4"),
+    ("jpo", "publication date read", "        if _published(zone, mt.start()):\n            continue                                           # « Publié",
+     "        if False:\n            continue                                           # « Publié", "J4"),
     ("jpo", "virtual flag lost", '"virtuel": bool(m.group(11)),', '"virtuel": False,', "J1"),
     ("jpo", "no masking", 'return _PHONE.sub("[téléphone masqué]", _EMAIL.sub("[adresse masquée]", text))', "return text", "J4"),
     ("jpo", "http links kept", 'url.startswith("https://") and not', 'url.startswith("http") and not', "J5"),
@@ -729,6 +909,31 @@ SOURCE_MUTANTS = [
     ("js", "unsafe link", """const jpoUrl = (u) => (typeof u === "string" && /^https:\\/\\/[^\\s"'<>]+$/.test(u) ? u : null);""",
      "const jpoUrl = (u) => u || null;", "J6"),
     ("js", "period said as a date", "C'est une période, pas une date : à confirmer sur le site de l'établissement.", "", "J6"),
+]
+
+
+SOURCE_MUTANTS += [
+    ("jpo", "exam lines read as events", "        if not CONCOURS_EVENT.search(ln) or CONCOURS_NOT.search(ln):", "        if not CONCOURS_EVENT.search(ln):", "J11"),
+    ("jpo", "online sessions not told apart", 'kind = "en_ligne" if CONCOURS_ONLINE.search(zone) else "information"', 'kind = "information"', "J11"),
+    ("jpo", "no heading rule", "        if not found and len(ln) <= HEADING and i + 1 < len(lines)", "        if False and i + 1 < len(lines)", "J11"),
+    ("jpo", "agenda page kept", "            if any(n > CONCOURS_AGENDA for n in per_season.values()):\n                continue",
+     "            if False:\n                continue", "J11"),
+    ("jpo", "older readings served", 'WHERE concours = ? AND latest", [k[0]]).fetchall()', 'WHERE concours = ?", [k[0]]).fetchall()', "J11"),
+    ("jpo", "unnamed site shown", 'ok = sorted((s for s in sites if s[1] == "ok" and s[3]), key=lambda s: s[2], reverse=True)',
+     'ok = sorted((s for s in sites if s[1] == "ok"), key=lambda s: s[2], reverse=True)', "J11"),
+    ("jpo", "failed site shown", 'ok = sorted((s for s in sites if s[1] == "ok" and s[3]), key=lambda s: s[2], reverse=True)',
+     'ok = sorted((s for s in sites if s[3]), key=lambda s: s[2], reverse=True)', "J11"),
+    ("jpo", "dates without a site", 'out["dates"] = [best[d] for d in sorted(best)] if out["site"] else []', 'out["dates"] = [best[d] for d in sorted(best)]', "J11"),
+    ("jpo", "passed flag lost", '"passee": debut < today}', '"passee": False}', "J11"),
+    ("jpo", "label words not folded", "    t = fold(labels)\n    return next(", "    t = labels\n    return next(", "J11"),
+    ("js", "concours link not checked", "  const site = jpoUrl(k.site);", "  const site = k.site;", "J11"),
+    ("js", "concours name unescaped", "<h3>Le ${esc(k.nom)}</h3>", "<h3>Le ${k.nom}</h3>", "J11"),
+    ("js", "online sessions mixed", "const surPlace = dates.filter((e) => !e.virtuel), enLigne = dates.filter((e) => e.virtuel);",
+     "const surPlace = dates, enLigne = [];", "J11"),
+    ("js", "card left in the cost tab", '    ["cout", "Combien ça coûte", coutCard(d.vie, r)', '    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r)', "J11"),
+    ("js", "card after the SIES indicators", "  ${jpoCard(d.jpo)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES", "  <div class=\"card\"><h2>Indicateurs officiels SIES", "J11"),
+    ("js", "summary line opens the cost tab", '<button type="button" class="linkish" data-goto="admission">${txt} →</button>',
+     '<button type="button" class="linkish" data-goto="cout">${txt} →</button>', "J11"),
 ]
 
 

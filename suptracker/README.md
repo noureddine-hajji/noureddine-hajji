@@ -3827,3 +3827,38 @@ apart, masked said, specialty first then the fallbacks, the out-of-score sentenc
 formation model never reads Inserjeunes or the BUT insertion, every filter option re-derived from the compact payload (« sans » = no
 level), the counts equal to the other groups' selection, no filter without the repères, card lines without unknown levels, no sort by
 a repère; 64/64 mutants caught.
+
+## The formation page, tidied (owner, 2026-11-18)
+
+**L'essentiel.** The official access rate and the figure for the profile are ONE cell (`accesTile`), two halves side by side and
+one short sentence: « Officiel : la part de tous les candidats qui ont reçu une proposition. Pour votre profil : le même taux,
+pour les candidats qui ont votre bac ou vos deux spécialités. » (outside terminale the second half is the estimated access of
+sprint 21). The cell spans two columns; the other tiles follow three by row (two on a phone): the zone, the admits, a new
+« Robustesse 2035 » tile and the jobs. The robustesse tile (`formationRobTile`) shows the median score « / 100 » with the two
+repères in words (within the filière, among all formations) and the estimation label; no score = « données insuffisantes »,
+no block = « pas d'estimation ». Tile counts are unchanged: 5 with a terminale profile, 4 otherwise (red team Z3).
+
+**Open days and webinars, in « Y entrer ».** The card « Portes ouvertes et webinaires » is now the first card of « Y entrer »,
+before the SIES indicators (the L'essentiel line opens that tab). On-site sessions and online ones (Onisep's « en virtuel »:
+webinars, virtual visits) are listed apart. A formation recruited through a concours (`jpo.CONCOURS`: Puissance Alpha 195
+formations, Avenir 77, Geipi Polytech 76, SESAME 60, Advance 23, ACCÈS 10 in the 2025 campaign, matched on the words of its
+Parcoursup labels) also gets the concours's own sessions: the `suptracker-jpo` workflow reads each concours's OFFICIAL site
+(robots.txt honoured, up to 5 pages: the home page and its same-site links to webinars, information days, agenda) into
+data/jpo/concours/ (event lines, masked; `etat.csv` with `nomme` = the home page names the concours). `jpo.concours_events` keeps
+a date only on a line carrying an event word (webinaire, visio, live, portes ouvertes, JPO, journée/réunion/session d'information,
+salon), never on a line about registration, the exam or its results, with the same date rules as the establishments' sites;
+online = webinar words; a page with more than 12 sessions a season is an agenda and is dropped. The page shows the season's dates
+of the latest reading, each « à vérifier » with the page and the day read; the official site only when a reading succeeded AND
+named the concours (a wrong or moved address shows nothing). The concours sites are a source of their own (`sites_concours`) and
+in the warehouse fingerprint. The hosts are blocked in this sandbox: the first dates come with the workflow's next run.
+
+**Ce que regarde le jury: one card.** When the formation has both its Parcoursup fiche (the coming campaign) and its jury's own
+report (the past session), the tab is ONE card « Comment votre dossier est examiné » (`juryMerged`): the fiche comes first and
+prevails, its grid replaces the report's criteria (said) and its advice the report's; the report adds only what the fiche does not
+publish (the specialties taken into account, the options cited, eliminating criteria, how the files were examined, the algorithm)
+under « Ce que le rapport du jury 2025 ajoute »; with no grid on the fiche the report's criteria come back, said; both sources are
+credited at the bottom. A formation with only one of them keeps that card; without an own report, the similar formations' card.
+
+Red teams: J11 (`redteam_jpo.py`, an independent reading of the concours pages, the named-site rule, the placement; 62/62
+mutants), GR10 (`redteam_grilles.py`, one card, fiche first, report additions; 45/45), RF12 (`redteam_robustesse_formations.py`,
+the tile; 71/71), Z3-Z6 (`redteam_tauxprofil.py`, the access cell; 16/16); ux X16 and reorientation E5/E6 follow the new code.

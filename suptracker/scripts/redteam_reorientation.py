@@ -522,7 +522,7 @@ def e5(c: Ctx):
         bad.append("no situation in the profile form")
     if 'statut: fd.get("statut") === "reorientation" ? "reorientation" : "terminale"' not in top(js, "readForm"):   # R1: "Mon profil"
         bad.append("the form does not store a validated status")
-    for fn in ("doubletteCard", "juryCard", "semblablesJuryCard", "doubletteCharts", "viewCarte", "profileRows"):
+    for fn in ("doubletteCard", "juryParts", "semblablesJuryCard", "doubletteCharts", "viewCarte", "profileRows"):
         try:
             body = top(js, fn)
         except KeyError:
@@ -606,7 +606,8 @@ def e6(c: Ctx):
     js = c.js
     # sprint R2: the summary's "Pour votre profil" tile and the page's own helpers it calls
     r2 = "".join(top(js, n) for n in ("pickDoublette", "estimateDoublette", "estimateSemblable", "ownHasBg", "pickRapport", "pickVoie",
-                                       "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile"))
+                                       "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile",
+                                       "ACCES_EXPLAIN", "accesTile", "ROB_SUM", "robNum", "formationRobTile"))
     pre = r2 + page_prog(c)
     zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
     draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
@@ -750,7 +751,7 @@ JS_MUTANTS = [
     ("Mes vœux reo name unescaped", '${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation',
      '${v.etablissement}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation'),
     ("Mon parcours does not delegate", '  if (isReo(store.get("profile", null))) return viewReorientation("", "");', ""),
-    ("zone tile outside terminale", "${isReo(prof) ? tile(", "${false ? tile("),
+    ("zone tile outside terminale", "${!isReo(prof) && prof ? tile(", "${prof ? tile("),
     ("door removed", '<a class="door" href="#/reorientation">', '<a class="doorx" href="#/reorientation">'),
     ("chance wording", "Les chiffres ci-dessous sont des parts", "Vous serez admis : les chiffres ci-dessous sont des parts"),
     ("tutoiement", "<p>Vous n'êtes plus en terminale", "<p>Tu n'es plus en terminale"),

@@ -994,8 +994,7 @@ const RP_OPTIONS = { maths_expertes: "Mathématiques expertes", maths_complement
   langues_anciennes: "Langues anciennes (latin, grec)", lv3: "Troisième langue vivante", option_arts: "Option arts", option_eps: "Option EPS",
   section_euro: "Section européenne ou internationale", certifications: "Certifications" };
 const rpText = (t) => esc(t || "").replace(/\n/g, "<br>");
-function juryCard(rp) {
-  if (!rp || !rp.textes) return "";
+function juryParts(rp) {
   const t = rp.textes, prof = bacProfile() || {};
   const crit = (t.criteres || []).filter((c) => c.critere || c.elements);
   const champs = [...new Set(crit.map((c) => c.champ))];
@@ -1015,10 +1014,16 @@ function juryCard(rp) {
     ${me ? `<p class="small">Vous suivez <strong>Mathématiques expertes</strong> : ${opts.maths_expertes ? "le rapport de cette formation la cite (voir ci-dessous)." : "le rapport de cette formation ne la cite pas. Cela ne veut pas dire qu'elle ne compte pas : regardez les attendus de la fiche Parcoursup."}</p>` : ""}
     ${Object.entries(opts).map(([k, quotes]) => `<p class="small"><strong>${esc(RP_OPTIONS[k] || k)}</strong></p>${quotes.map((q) => `<blockquote class="rp-quote">« ${esc(q)} »</blockquote>`).join("")}`).join("")}` : "";
   const fold = (title, txt) => (txt ? `<details class="dip"><summary>${title}</summary><p class="small">${rpText(txt)}</p></details>` : "");
+  return { critHtml, edsHtml, optHtml, elim: fold("Critères éliminatoires", t.eliminatoires), modal: fold("Comment les dossiers ont été examinés", t.modalites),
+    algo: fold("Traitement algorithmique", t.algorithme), conseils: fold("Les conseils du jury pour la prochaine session", t.conseils) };
+}
+function juryCard(rp) {
+  if (!rp || !rp.textes) return "";
+  const P = juryParts(rp);
   return `<div class="card"><h2>Ce que regarde le jury · rapport public ${esc(rp.session)}${rpPending(rp)}</h2>
     <p class="small">Ce que la commission d'examen des vœux de cette formation a écrit elle-même dans son rapport public, repris tel quel.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
-    ${critHtml}${edsHtml}${optHtml}
-    ${fold("Critères éliminatoires", t.eliminatoires)}${fold("Comment les dossiers ont été examinés", t.modalites)}${fold("Traitement algorithmique", t.algorithme)}${fold("Les conseils du jury pour la prochaine session", t.conseils)}
+    ${P.critHtml}${P.edsHtml}${P.optHtml}
+    ${P.elim}${P.modal}${P.algo}${P.conseils}
     <p class="muted small">Les critères et leur importance sont ceux que la formation a publiés ; ils peuvent changer d'une session à l'autre. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
     <p class="muted small">${rapportSource(rp)}</p></div>`;
 }
@@ -1044,8 +1049,8 @@ function grilleImp(n) {
   if (!lab) return "";
   return `<span class="gr-imp"><span class="rp-imp imp${4 - n}">${esc(lab)}</span> <span class="gr-dots" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span></span>`;
 }
-function grilleCard(g) {
-  if (!g || (!g.grille && !g.nationaux && !g.complementaires && !g.info)) return "";
+const grilleHas = (g) => !!(g && (g.grille || g.nationaux || g.complementaires || g.info));
+function grilleParts(g) {
   const lu = g.lu_le ? new Date(`${g.lu_le}T12:00:00Z`).toLocaleDateString("fr-FR") : null;
   const camp = g.session ? ` pour la campagne ${esc(g.session)}` : "";
   const champs = g.grille ? g.champs || [] : [];
@@ -1059,12 +1064,39 @@ function grilleCard(g) {
       </table></div></details>`).join("")}
     <p class="muted small">L'importance va de « Complémentaire » (1 sur 4) à « Essentiel » (4 sur 4), comme sur la fiche.</p>` : "";
   const fold = (title, t, open) => (t ? `<details class="dip gr-txt"${open ? " open" : ""}><summary>${title}</summary>${ficheText(t)}</details>` : "");
+  return { camp, champs, info: g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : "", global, detail,
+    attendus: `${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}`,
+    conseils: fold("Les conseils de la formation", g.conseils, false),
+    source: `Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.` };
+}
+function grilleCard(g) {
+  if (!grilleHas(g)) return "";
+  const P = grilleParts(g);
   return `<div class="card gr-card"><h2>Comment votre dossier sera examiné · fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}</h2>
-    <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
-    ${g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""}${global}${detail}
-    ${fold("Les attendus nationaux", g.nationaux, !champs.length)}${fold("Les attendus de cette formation", g.complementaires, false)}${fold("Les conseils de la formation", g.conseils, false)}
+    <p class="small">Voici ce que la formation publie sur sa fiche Parcoursup${P.camp}, repris tel quel.${g.grille ? "" : " Elle ne publie pas de grille d'examen."}</p>
+    ${P.info}${P.global}${P.detail}
+    ${P.attendus}${P.conseils}
     <p class="muted small">La grille peut changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Elle décrit l'examen des dossiers, pas des chances d'admission.</p>
-    <p class="muted small">Lu${lu ? ` le ${esc(lu)}` : ""} sur ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">la fiche Parcoursup ↗</a>` : "la fiche Parcoursup"}.</p></div>`;
+    <p class="muted small">${P.source}</p></div>`;
+}
+// owner, 2026-11-18: ONE card when the formation has both its fiche (the coming campaign) and its jury's report (the past
+// session): each subject said once. The fiche comes first and prevails: its grid replaces the report's criteria, its advice the
+// report's; the report adds only what the fiche does not publish (specialties taken into account, options cited, eliminating
+// criteria, how the files were examined, the algorithm), each part labelled with its session. Texts verbatim and escaped.
+function juryMerged(g, rp) {
+  const G = grilleParts(g), R = juryParts(rp), grid = G.champs.length > 0;
+  const fiche = `fiche Parcoursup${g.session ? ` ${esc(g.session)}` : ""}`, rapport = `rapport du jury ${esc(rp.session)}`;
+  const crit = grid ? `${G.global}${G.detail}${R.critHtml ? `<p class="muted small">Le ${rapport} décrivait aussi ses critères : la grille de la ${fiche}, plus récente, les remplace.</p>` : ""}`
+    : R.critHtml ? `${R.critHtml}<p class="muted small">Critères du ${rapport} : la ${fiche} ne publie pas de grille d'examen.</p>` : "";
+  const fromReport = R.edsHtml || R.optHtml || R.elim || R.modal || R.algo;
+  return `<div class="card gr-card jury-merged"><h2>Comment votre dossier est examiné</h2>
+    <p class="small">Deux sources, reprises telles quelles : la <strong>${fiche}</strong>${G.camp}, la plus récente, qui fait foi, et le <strong>${rapport}</strong> de la session passée${rpPending(rp)}. Chaque sujet n'est montré qu'une fois ; quand les deux en parlent, c'est la fiche qui est retenue.${rp.concours ? " Ce rapport est commun à plusieurs formations d'un même concours." : ""}</p>
+    ${G.info}${crit}
+    ${G.attendus}
+    ${fromReport ? `<h3>Ce que le ${rapport} ajoute</h3>${R.edsHtml}${R.optHtml}${R.elim}${R.modal}${R.algo}` : ""}
+    ${G.conseils || R.conseils}
+    <p class="muted small">Les critères peuvent changer d'une campagne à l'autre : la fiche Parcoursup fait foi. Ils décrivent l'examen des dossiers, pas des chances d'admission.</p>
+    <p class="muted small">Fiche : ${G.source}</p><p class="muted small">${rapportSource(rp)}</p></div>`;
 }
 // owner's request (2026-11-10): no readable jury texts in this formation's own report, so the counts of what the commissions of
 // its similar formations published (same diploma, same mention), never their average, never this formation's own criteria
@@ -1933,14 +1965,38 @@ const PR_SOURCE = {
   national: () => estimTag("écart national de vos deux spécialités", false, true),
   voie: (pr) => `taux de proposition de cette formation (effectifs publiés)${pr.fragile ? ` · peu de candidats (${fmt(pr.candidats)})` : ""}`,
 };
+// owner, 2026-11-18: the profile's figure is the second half of ONE access cell (accesTile), beside the official rate
 function profileRateTile(pr) {
-  const tile = (value, note) => `<button type="button" class="sum-tile sum-profil" data-goto="admission">
+  const tile = (value, note) => `<button type="button" class="sum-part sum-profil" data-goto="admission">
       <span class="sum-label">Pour votre profil</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
-  const link = (note) => `<a class="sum-tile" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
+  const link = (note) => `<a class="sum-part sum-profil" href="#/profil"><span class="sum-label">Pour votre profil</span><span class="sum-value">—</span><span class="sum-note">${note}</span></a>`;
   if (!pr) return link("créez votre profil dans « Mon profil » : votre zone et le chiffre de votre bac");
   if (pr.kind === "incomplet") return link("indiquez vos deux spécialités dans « Mon profil »");
   if (pr.kind === "aucun" || pr.taux === null || pr.taux === undefined) return tile("—", `${esc(pr.what)} · ${esc(pr.why || "pas de chiffre")}`);
   return tile(pct1(pr.taux), `${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}`);
+}
+// owner, 2026-11-18: the official access rate and the profile's figure in ONE cell, with one short sentence saying what each is
+// (outside terminale the second half is the estimated access of sprint 21); never a chance
+const ACCES_EXPLAIN = "Officiel : la part de tous les candidats qui ont reçu une proposition.";
+function accesTile(r, d, prof, pr) {
+  const off = `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Taux d'accès ${r.session}</span><span class="sum-value">${pct(r.taux_acces_ens)}</span><span class="sum-note">officiel, tous candidats, phase principale</span></button>`;
+  const reo = isReo(prof);
+  const second = reo ? `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Accès estimé hors terminale</span><span class="sum-value">${pct1(d.reorientation && d.reorientation.acces_estime)}</span><span class="sum-note">${reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »")}</span></button>`
+    : profileRateTile(pr);
+  const why = reo ? "Hors terminale : une estimation pour les candidats qui ne sont pas en terminale."
+    : "Pour votre profil : le même taux, pour les candidats qui ont votre bac ou vos deux spécialités.";
+  return `<div class="sum-tile sum-acces">${off}${second}<p class="sum-explain">${ACCES_EXPLAIN} ${why} Des résultats passés, pas des chances.</p></div>`;
+}
+// owner, 2026-11-18: the robustesse 2035 of the formation in L'essentiel: its score (median of the three scenarios) and its two
+// repères (within its filière, among all formations), always an estimation of the model; the detail stays in « Emploi et métiers »
+const ROB_SUM = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
+function formationRobTile(rb) {
+  const s = rb && rb.score, q = (rb && rb.repere) || {}, n = (rb && rb.repere_national) || {};
+  const fil = q.niveau ? `${ROB_SUM[q.niveau]} de sa filière` : q.raison === "memes_debouches" ? "non classée dans sa filière (mêmes métiers)" : q.raison ? "trop peu de formations comparables dans sa filière" : "";
+  const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : "";
+  const note = !rb ? "pas d'estimation pour cette formation" : !s ? "données insuffisantes pour une estimation sûre"
+    : `${[fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
+  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
@@ -1950,16 +2006,15 @@ function summaryBand(r, d) {
       <span class="sum-label">${label}</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
   return `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2>
     <div class="sum-grid">
-      ${tile("admission", `Taux d'accès ${r.session}`, pct(r.taux_acces_ens), "officiel, tous candidats, phase principale")}
-      ${isReo(prof) ? "" : profileRateTile(pr)}
-      ${isReo(prof) ? tile("admission", "Accès estimé hors terminale", pct1(d.reorientation && d.reorientation.acces_estime), reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »"))
-        : prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
+      ${accesTile(r, d, prof, pr)}
+      ${!isReo(prof) && prof ? tile("admission", "Votre zone", '<span class="muted">…</span>', "selon votre profil, d'après les admis passés", ' id="sum-zone"') : ""}
       ${tile("admission", `Admis ${r.session}`, fmt(r.acc_tot), r.capa_fin != null ? `pour ${fmt(r.capa_fin)} places${d.tension ? ` · ${fmt(d.tension.par_place)} vœux par place${d.tension.libelle ? ` <span class="badge tension">${esc(d.tension.libelle)}</span>` : ""}` : ""}` : "places non publiées")}
+      ${formationRobTile(d.robustesse)}
       ${tile("emploi", "Métiers visés", jobs != null ? fmt(jobs) : "—", jobs != null ? "d'après la fiche Onisep du diplôme" : "pas de fiche Onisep pour ce diplôme")}
     </div>
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
-    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
+    ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "both" ? `Comment votre dossier est examiné : la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""} et le rapport du jury ${esc(d.jury_tab.rapport)}` : d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
     ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
     ${jpoLine(d.jpo)}
     ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
@@ -2119,7 +2174,7 @@ function jpoLine(j) {
     : dates.length ? `Portes ouvertes${who} ${esc(j.saison.annees)} : déjà passées`
     : j.environ ? `Portes ouvertes${who} : ${esc(j.environ.texte)}, d'après les années passées`
     : "";
-  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="cout">${txt} →</button></p>` : "";
+  return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="admission">${txt} →</button></p>` : "";
 }
 function jpoCard(j) {
   if (!j) return "";
@@ -2136,18 +2191,36 @@ function jpoCard(j) {
     return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.virtuel ? ", en ligne" : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
       <span class="small muted"> · ${src(e)}${e.source !== "site" && jpoUrl(e.voir) ? ` · <a href="${esc(jpoUrl(e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
   };
-  const body = dates.length ? `<ul class="jpo-list">${dates.map(li).join("")}</ul>`
+  // owner, 2026-11-18: the sessions on site and the online ones (webinars, virtual visits: « en virtuel » on Onisep) apart
+  const surPlace = dates.filter((e) => !e.virtuel), enLigne = dates.filter((e) => e.virtuel);
+  const body = dates.length ? `${surPlace.length ? `${enLigne.length ? "<h3>Sur place</h3>" : ""}<ul class="jpo-list">${surPlace.map(li).join("")}</ul>` : ""}
+    ${enLigne.length ? `<h3>En ligne (webinaires, visites virtuelles)</h3><ul class="jpo-list">${enLigne.map(li).join("")}</ul>` : ""}`
     : j.environ ? `<p>Aucune date n'est encore annoncée pour ${esc(j.saison.annees)}. Les années passées (${esc(j.environ.annees.join(", "))}), elles ont eu lieu <strong>${esc(j.environ.texte)}</strong>.</p>
       <p class="small">C'est une période, pas une date : à confirmer sur le site de l'établissement.</p>`
     : `<p class="muted">Aucune date n'est publiée pour l'instant, ni par l'Onisep ni sur le site de l'établissement.</p>`;
   const links = (j.etablissements || []).filter((e) => jpoUrl(e.onisep_url))
     .map((e) => `<a href="${esc(jpoUrl(e.onisep_url))}" target="_blank" rel="noopener">fiche Onisep${noms.length > 1 && e.nom ? ` (${esc(e.nom)})` : ""} ↗</a>`);
   const sites = (j.sites_verifies || []).filter((x) => jpoUrl(x.url));
-  return `<div class="card" id="jpo"><h2>Les portes ouvertes</h2>
+  return `<div class="card" id="jpo"><h2>Portes ouvertes et webinaires</h2>
     ${j.universite ? `<p>Aucune date propre à cette formation n'est publiée. Voici les portes ouvertes de son université : <strong>${esc(j.universite.nom)}</strong>.</p>`
       : noms.length ? `<p class="small">Établissement : ${noms.map(esc).join(" ; ")}. Les portes ouvertes concernent tout l'établissement.</p>` : ""}
     ${body}
+    ${jpoConcours(j.concours, today)}
     <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}${dates.some((e) => e.fiche) ? ", et la fiche Parcoursup de la formation" : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
+}
+// owner, 2026-11-18: a formation recruited through a concours: the concours's own webinars and information days, read on its
+// OFFICIAL site (jpo.CONCOURS), each with the page read and its day, « à vérifier »; no site read = no link, never a guess
+const JPO_KIND = { en_ligne: "en ligne (webinaire)", information: "journée ou réunion d'information" };
+function jpoConcours(k, today) {
+  if (!k) return "";
+  const site = jpoUrl(k.site);
+  const li = (e) => `<li class="${e.passee ? "muted" : ""}"><strong>${esc(frDate(e.date))}</strong>, ${esc(JPO_KIND[e.kind] || "")}${e.passee ? " · passée" : ""}
+      <span class="small muted"> · lue sur le site du concours le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.url) ? ` (<a href="${esc(jpoUrl(e.url))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}</span></li>`;
+  return `<h3>Le ${esc(k.nom)}</h3>
+    <p class="small">Cette formation recrute par le ${esc(k.nom)}, commun à plusieurs écoles : il organise aussi ses propres webinaires et journées d'information.</p>
+    ${(k.dates || []).length ? `<ul class="jpo-list">${k.dates.map(li).join("")}</ul>`
+      : `<p class="small muted">Aucune date de webinaire ou de journée d'information n'a été trouvée pour l'instant${site ? " sur le site officiel du concours" : ""}.</p>`}
+    ${site ? `<p class="small"><a href="${esc(site)}" target="_blank" rel="noopener">Site officiel du ${esc(k.nom)} ↗</a>${k.lu_le ? ` <span class="muted">(consulté le ${esc(frDate(k.lu_le))})</span>` : ""}</p>` : ""}`;
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
@@ -2365,9 +2438,13 @@ async function viewFormation(cod, session) {
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
   // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
   // the fiche's grid first (the campaign it serves), then the jury's own report, else the similar formations' reports
-  const grHtml = grilleCard(d.grille), repHtml = juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
+  // owner, 2026-11-18: the fiche and the jury's own report in ONE card (juryMerged), the fiche first and prevailing
+  const both = grilleHas(d.grille) && !!(d.rapport && d.rapport.textes);
+  const grHtml = both ? juryMerged(d.grille, d.rapport) : grilleCard(d.grille);
+  const repHtml = both ? "" : juryCard(d.rapport) || semblablesJuryCard(d.semblables, d.rapport);
   const juryHtml = grHtml + repHtml;
-  d.jury_tab = !juryHtml ? null : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
+  d.jury_tab = !juryHtml ? null : both ? { kind: "both", session: d.grille.session, rapport: d.rapport.session }
+    : juryCard(d.rapport) ? { kind: "own", session: d.rapport.session }
     : grHtml ? { kind: "grille", session: d.grille.session } : { kind: "semblables" };
   $view.innerHTML = `
   <div class="card fhead">
@@ -2387,6 +2464,7 @@ async function viewFormation(cod, session) {
       · <a href="${esc(r.fiche_url)}" data-cod="${esc(r.cod_aff_form)}" target="_blank" rel="noopener">Fiche Parcoursup ↗</a>${geo}</p>
   ${tabbed("fiche", [
     ["admission", "Y entrer", `
+  ${jpoCard(d.jpo)}
   <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
     <div class="grid3">
       <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div>${pvLine(d.prevision, "taux_acces_ens")}</div>
@@ -2421,7 +2499,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
