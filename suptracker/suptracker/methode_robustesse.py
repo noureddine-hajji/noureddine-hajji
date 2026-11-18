@@ -86,6 +86,12 @@ du métier. Au-delà de {round(100 * RJ.RANK_GAP)} points d'écart entre les deu
 <h2>Dans « Mes vœux »</h2>
 <p>Chaque vœu montre côte à côte sa zone pour votre profil et ses repères de robustesse. Les deux ne sont jamais réunis en une
 seule note : l'une parle de l'admission, l'autre des métiers d'après.</p>
+<h2>Dans la recherche</h2>
+<p>La recherche de formations propose deux filtres : la robustesse dans la filière et parmi toutes les formations. Ce sont des
+filtres : la liste n'est jamais triée par ces repères.</p>
+<h2>À côté de l'insertion publiée</h2>
+<p>Pour un BTS ou un BUT, la page de la formation montre aussi l'insertion publiée par le ministère, dans un encadré à part. Ces
+chiffres n'entrent pas dans le score : ils décrivent des promotions passées, quelques mois après le diplôme.</p>
 <h2>Les versions du modèle</h2>
 <ul>
 {versions}

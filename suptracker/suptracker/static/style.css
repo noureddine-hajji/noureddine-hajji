@@ -460,6 +460,9 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 
 /* sprint 19: "Y entrer" keeps five cards in view; the other figures are folded, and the summary links to the jury tab */
 .more-card { margin: 12px 0; }
+/* the published insertion beside the robustesse (owner, 2026-11-18): its own framed block, never mixed with the estimate */
+.rob-pub { margin: 12px 0; padding: 4px 16px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.rob-pub h3 { margin-top: 8px; }
 .more-card > summary { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); cursor: pointer; }
 .more-card[open] > summary { margin-bottom: 12px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
