@@ -9,7 +9,7 @@
       the speed range; the nearest fare station within the radius on each side, none when the same station serves both, the
       published range x 2; euros rounded OUTWARDS; each fuel's price = its department median when published, else the national
       one; no car estimate when the sea or a border lies between the two points (a table of real places).
-  TR3 page text (node): every stored string escaped; no figure for carpooling, bus or plane; the plane only from 500 km; tolls and
+  TR3 page text (node): every stored string escaped; no carpooling or bus line (owner: no public data); no figure for the plane; the plane only from 500 km; tolls and
       parking said not counted; the estimation label on the car; ODbL and Licence Ouverte credited; https links with noopener;
       vouvoiement; never a guaranteed price; a town at the formation says so; no town = a link to Mon profil.
   TR4 privacy: /api/transports takes no parameter and is shared-cached; the page calls it without a query string and never sends the
@@ -337,7 +337,7 @@ def tr2(c: Ctx):
     return not bad, f"{len(homes)} towns, {covered} with a TGV fare; differences {bad[:3]}"
 
 
-@check("TR3 page text: escaped, no figure for carpooling / bus / plane, plane from 500 km, tolls said, credits, safe links, no promise")
+@check("TR3 page text: escaped, no carpooling / bus line, no plane figure, plane from 500 km, tolls said, credits, safe links, no promise")
 def tr3(c: Ctx):
     if not all(top(c.js, n) for n in NAMES):
         return False, "a function is missing from app.js"
@@ -367,12 +367,14 @@ def tr3(c: Ctx):
         bad.append("the department medians are not used, or not named fuel by fuel")
     if "la mer ou une frontière" not in sea or "carburant seul" in sea or "pour traverser la mer" not in sea:
         bad.append("a car trip estimated across the sea, or no plane row there")
-    if "Covoiturage" in sea or "<td>Bus</td>" in sea or "TER" in sea or "<td>Bateau</td>" not in sea or "Bateau" in near + far:
-        bad.append("carpooling, bus or a TER suggested across the sea, or the ferry row misplaced")
+    if "TER" in sea or "<td>Bateau</td>" not in sea or "Bateau" in near + far:
+        bad.append("a TER suggested across the sea, or the ferry row misplaced")
+    if re.search(r"covoiturage|<td>Bus</td>|blablacar|flixbus", near + far + same + sea, re.I):
+        bad.append("a carpooling or bus line (the owner removed them: no public data)")
     if "<img" in near + far:
         bad.append("a stored string is not escaped")
     rows = dict(re.findall(r"<tr><td>([^<]*)</td><td class=\"num\" data-label=\"Aller-retour\">([^<]*)</td>", near + far + sea))
-    for mode in ("Covoiturage", "Bus", "Avion", "Bateau"):
+    for mode in ("Avion", "Bateau"):
         if mode in rows and rows[mode] != "pas de prix public":
             bad.append(f"a figure for {mode}")
     if "Avion" in near or "Avion" not in far:
@@ -528,7 +530,7 @@ SOURCE_MUTANTS = [
     ("js", "station name unescaped", "entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}", "entre les gares de ${tr.a.nom} et ${tr.b.nom}", "TR3"),
     ("js", "plane always shown", "  if (km >= H.avion_km || sea) rows.push(", "  if (true) rows.push(", "TR3"),
     ("js", "national fuel only", "  const car = sea ? null : trCar(km, H, F.fuel), tr", "  const car = sea ? null : trCar(km, H, T.carburant), tr", "TR3"),
-    ("js", "carpooling across the sea", "  if (!sea) rows.push(row(\"Covoiturage\"", "  if (true) rows.push(row(\"Covoiturage\"", "TR3"),
+    ("js", "carpooling line back", "  // owner, 2026-11-18: no carpooling or bus line", "  rows.push(row(\"Covoiturage\", \"pas de prix public\", \"—\", \"BlaBlaCar\"));\n  // owner, 2026-11-18: no carpooling or bus line", "TR3"),
     ("js", "car across the sea", "  const car = sea ? null : trCar(km, H, F.fuel), tr", "  const car = trCar(km, H, F.fuel), tr", "TR3"),
     ("js", "department ignored", "  const D = (T.carburant_dep || {})[String(dep || \"\").toUpperCase()] || {}, fuel = {}, local = [];",
      "  const D = {}, fuel = {}, local = [];", "TR2"),

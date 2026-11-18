@@ -2418,7 +2418,7 @@ function trTrain(T, home, lat, lon) {
 const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
 const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
 const trFr = (x, d = 2) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
-const TR_LINKS = { sncf: "https://www.sncf-connect.com/", blablacar: "https://www.blablacar.fr/", bus_flixbus: "https://www.flixbus.fr/", bus_blablacar: "https://www.blablacar.fr/bus" };
+const TR_LINKS = { sncf: "https://www.sncf-connect.com/" };
 function transportsHtml(T, home, lat, lon) {
   const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
   if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
@@ -2439,9 +2439,7 @@ function transportsHtml(T, home, lat, lon) {
       `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}.${tr.etudiant ? ` Au « Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>${trEuros(tr.etudiant)}</strong> l'aller-retour.` : ""} Avec une carte Avantage, c'est souvent moins cher.`)
       : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)}${sea ? "." : " : un TER ou un trajet avec changement reste possible."}`),
   ];
-  // across the sea or a border, carpooling and the bus are not suggested; a ferry only where Corsica or two islands are concerned
-  if (!sea) rows.push(row("Covoiturage", "pas de prix public", "—", `les prix sont fixés par les conducteurs : comparez sur ${link("blablacar", "BlaBlaCar")}.`),
-    row("Bus", "pas de prix public", "—", `comparez sur les sites des compagnies : ${link("bus_flixbus", "FlixBus")}, ${link("bus_blablacar", "BlaBlaCar Bus")}.`));
+  // owner, 2026-11-18: no carpooling or bus line (no public price, nothing to say); a ferry only where Corsica or two islands are concerned
   const la = trLand(home.lat, home.lon), lb = trLand(lat, lon);
   if (sea && (la === "corse" || lb === "corse" || (la === "autre" && lb === "autre")))
     rows.push(row("Bateau", "pas de prix public", "—", "comparez sur les sites des compagnies maritimes, au départ des ports les plus proches."));

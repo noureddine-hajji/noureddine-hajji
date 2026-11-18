@@ -737,7 +737,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   owner-reviewable, printed on the page). The page computes the round trip from `villeDepart` (never sent): car = fuel only, tolls and
   parking said not counted, estimation label, NONE across the sea or a border (`trLand` boxes, checked on every formation); TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
   with the lowest published normal fare, its range x 2, plus the SNCF's own « Tarif Élève - Étudiant - Apprenti » range where published
-  (none when one station serves both ends); carpooling, bus and plane (from 500 km) have no public price: links only, never a figure (owner, 2026-11-18: no
+  (none when one station serves both ends); the plane (from 500 km or across the sea) and the ferry have no public
+  price: a line without a figure; NO carpooling or bus line (owner, 2026-11-18: no public data); no
   third-party route planner such as Rome2rio; official open data only, refreshed monthly). Card in « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn

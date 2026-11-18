@@ -14,8 +14,8 @@ Sources (fetched by the `suptracker-transports` workflow into data/transports/, 
 
 The car estimate needs hypotheses no open dataset gives per trip; they are FIXED here (HYPOTHESES), sent with the data and
 printed on the page: the road is 1.2 to 1.3 times the distance as the crow flies, a car burns 5 to 7 litres per 100 km, the
-average speed is 90 to 110 km/h; tolls and parking are not counted (said). Bus, carpooling and plane fares are not public: the
-page gives no figure for them, only links. Never a promise of a price, always ranges.
+average speed is 90 to 110 km/h; tolls and parking are not counted (said). Plane and ferry fares are not public: the
+page gives no figure for them, only a sentence; no carpooling or bus line (no public data). Never a promise of a price, always ranges.
 """
 from __future__ import annotations
 

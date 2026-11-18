@@ -3871,7 +3871,8 @@ the tile; 71/71), Z3-Z6 (`redteam_tauxprofil.py`, the access cell; 16/16); ux X1
 ## Travel costs (owner, 2026-11-18)
 
 **What.** In « Combien ça coûte », a card « Venir depuis chez vous : le trajet » gives, for the town stored in Mon profil, a round
-trip to the formation by car, by TGV, and says what is known for carpooling, bus and plane, « à titre d'information ».
+trip to the formation by car and by TGV, and a line without a price for the plane (and the ferry across the sea), « à titre
+d'information ». No carpooling or bus line (owner, 2026-11-18: no public price or timetable to read).
 
 **Data, official only.** The `suptracker-transports` workflow (monthly, `scripts/transports_fetch.py`) fetches into
 data/transports/, keeping only the columns read, a file rewritten only when its content changed:
@@ -3893,14 +3894,14 @@ The build stores one compressed JSON value beside the warehouse; `/api/transport
   department when published, else the national one, and the page says which (fuel by fuel). No car estimate when the sea or a border
   lies between the town and the formation (`trLand`: the continent, Corsica, French Guiana and New Caledonia's main island by their
   coordinates, the other overseas islands and formations abroad apart, two of those more than 100 km apart on different lands); the
-  plane row then shows whatever the distance, carpooling and the bus are not suggested, and a ferry row (no price) appears where Corsica or two islands are concerned. On the real cartographie, all 10,184 formation positions fall on their department's land;
+  plane row then shows whatever the distance and a ferry row (no price) appears where Corsica or two islands are concerned. On the real cartographie, all 10,184 formation positions fall on their department's land;
 - TGV: every fare station within 30 km of the town and of the formation (Paris has several), the pair with the lowest published
   normal fare; its range x 2 with the carriers (OUIGO, TGV INOUI), « plein tarif, 2de classe », and the SNCF's own published
   « Tarif Élève - Étudiant - Apprenti » range x 2 where it exists (on the real file: 2nd class Tarif Normal 5,248 rows, student fare
   4,443; 230 stations with a position, 15 left out; 3,691 station pairs). None when no station is near, when one station serves both
   ends, or when no fare is published between them (a TER or a trip with a change may exist: SNCF Connect link). Paris → Lyon on the
   2026-11-18 files: 51 to 230 € round trip at the normal fare, 40 € at the student fare;
-- carpooling, bus, plane (from 500 km): no public price, never a figure; links to the platforms (BlaBlaCar, FlixBus, BlaBlaCar Bus).
+- plane (from 500 km, or across the sea) and ferry: no public price, never a figure, a sentence only.
 Euros are rounded outwards; the travel time is not computed for the train (no timetable read): the SNCF Connect link.
 
 Red team `redteam_transports.py` (TR1-TR8): an independent reading of crafted SNCF and fuel files, the page arithmetic re-derived in
