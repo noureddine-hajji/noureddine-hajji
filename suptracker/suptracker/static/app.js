@@ -2362,15 +2362,6 @@ function distanceText(from, lat, lon) {
 // car estimate, transports.py) and everything is computed here. Ranges only; no figure where no price is public.
 let TRANSPORTS_P = null;
 const trLoad = () => (TRANSPORTS_P = TRANSPORTS_P || api("/api/transports").catch(() => { TRANSPORTS_P = null; return null; }));
-// the station of the fares nearest to a point, within `maxKm` (null otherwise)
-function trNearest(stations, lat, lon, maxKm) {
-  let best = null;
-  for (const [uic, nom, la, lo] of stations || []) {
-    const km = haversineKm(lat, lon, la, lo);
-    if (km <= maxKm && (!best || km < best.km)) best = { uic, nom, km };
-  }
-  return best;
-}
 // the car: road = crow-fly x detour range, fuel = the lowest and highest median of the fuels read, round trip; time one way
 function trCar(km, H, fuel) {
   const prices = Object.values(fuel || {}).map((x) => x.prix).filter((x) => Number.isFinite(x));
@@ -2380,14 +2371,25 @@ function trCar(km, H, fuel) {
   const minutes = [road[0] / H.vitesse_kmh[1] * 60, road[1] / H.vitesse_kmh[0] * 60];
   return { road, cost, minutes, pmin: Math.min(...prices), pmax: Math.max(...prices) };
 }
-// the TGV: the fare stations nearest to the town and to the formation (each within H.gare_km), the published range, round trip
+// the fare stations within `maxKm` of a point, nearest first
+function trNear(stations, lat, lon, maxKm) {
+  return (stations || []).map(([uic, nom, la, lo]) => ({ uic, nom, km: haversineKm(lat, lon, la, lo) })).filter((x) => x.km <= maxKm)
+    .sort((x, y) => x.km - y.km);
+}
+// the TGV: every fare station within H.gare_km of the town and of the formation (a city has several), the pair with the lowest
+// published normal fare; the published range x 2 (round trip), and the pupil-student-apprentice range where the SNCF publishes it
 function trTrain(T, home, lat, lon) {
-  const H = T.hypotheses, a = trNearest(T.stations, home.lat, home.lon, H.gare_km), b = trNearest(T.stations, lat, lon, H.gare_km);
-  if (!a || !b) return { none: `pas de gare TGV à moins de ${H.gare_km} km ${!a ? "de votre ville" : "de la formation"}` };
-  if (a.uic === b.uic) return { none: "la même gare TGV dessert votre ville et la formation" };
-  const od = T.od[[a.uic, b.uic].sort().join("-")];
-  if (!od) return { none: `pas de prix TGV publié entre ${a.nom} et ${b.nom}`, a, b };
-  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2] };
+  const H = T.hypotheses, A = trNear(T.stations, home.lat, home.lon, H.gare_km), B = trNear(T.stations, lat, lon, H.gare_km);
+  if (!A.length || !B.length) return { none: `pas de gare TGV à moins de ${H.gare_km} km ${!A.length ? "de votre ville" : "de la formation"}` };
+  if (A.some((x) => B.some((y) => y.uic === x.uic))) return { none: "la même gare TGV dessert votre ville et la formation" };
+  let best = null;
+  for (const a of A) for (const b of B) {
+    const od = T.od[[a.uic, b.uic].sort().join("-")];
+    if (od && (!best || od[0] < best.od[0] || (od[0] === best.od[0] && a.km + b.km < best.a.km + best.b.km))) best = { a, b, od };
+  }
+  if (!best) return { none: `pas de prix TGV publié entre les gares proches (${A[0].nom}, ${B[0].nom})` };
+  const { a, b, od } = best;
+  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2], etudiant: od.length > 4 ? [2 * od[3], 2 * od[4]] : null };
 }
 const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
 const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
@@ -2405,7 +2407,7 @@ function transportsHtml(T, home, lat, lon) {
       `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (prix médians${fuelDate ? ` au ${esc(frDate(fuelDate))}` : ""}). Péages et parking non compris.`)
       : row("Voiture", "—", "—", "prix des carburants pas encore lus"),
     tr.price ? row(`Train (${tr.carriers.map(esc).join(", ")})`, trEuros(tr.price), `voir ${link("sncf", "SNCF Connect")}`,
-      `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}. Avec une carte Avantage ou un tarif jeune, c'est souvent moins cher.`)
+      `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}.${tr.etudiant ? ` Au « Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>${trEuros(tr.etudiant)}</strong> l'aller-retour.` : ""} Avec une carte Avantage, c'est souvent moins cher.`)
       : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)} : un TER ou un trajet avec changement reste possible.`),
     row("Covoiturage", "pas de prix public", "—", `les prix sont fixés par les conducteurs : comparez sur ${link("blablacar", "BlaBlaCar")}.`),
     row("Bus", "pas de prix public", "—", `comparez sur les sites des compagnies : ${link("bus_flixbus", "FlixBus")}, ${link("bus_blablacar", "BlaBlaCar Bus")}.`),

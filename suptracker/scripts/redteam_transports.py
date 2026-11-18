@@ -95,12 +95,15 @@ TARIFS = [  # transporteur, origine, uic, destination, uic, classe, profil, min,
     ("TGV INOUI", "LYON", "87000002", "PARIS " + HOSTILE, "87000001", "2", "Tarif Normal", "25", "120"),   # other direction: pooled
     ("TGV INOUI", "PARIS " + HOSTILE, "87000001", "LYON", "87000002", "1", "Tarif Normal", "40", "200"),  # 1st class: out
     ("TGV INOUI", "PARIS " + HOSTILE, "87000001", "LYON", "87000002", "2", "Tarif Avantage", "10", "50"),  # discount profile: out
+    ("TGV INOUI", "PARIS " + HOSTILE, "87000001", "LYON", "87000002", "2", "Tarif Elève - Etudiant - Apprenti", "15", "49"),   # student: apart
+    ("OUIGO", "LYON", "87000002", "PARIS " + HOSTILE, "87000001", "2", "Tarif Elève - Etudiant - Apprenti", "12", "40"),
+    ("TGV INOUI", "PARIS NORD", "87000005", "LYON", "87000002", "2", "Tarif Normal", "45", "130"),     # a dearer Paris station
     ("TGV INOUI", "PARIS " + HOSTILE, "87000001", "LILLE", "87000003", "2", "Tarif Normal", "30", "90"),
     ("TGV INOUI", "LYON", "87000002", "NOWHERE", "87000009", "2", "Tarif Normal", "15", "60"),          # no position: out, counted
     ("OUIGO", "LYON", "87000002", "LILLE", "87000003", "2", "Tarif Normal", "abc", "60"),              # unreadable price: out
     ("OUIGO", "LYON", "87000002", "LILLE", "87000003", "2", "Tarif Normal", "70", "40"),               # max < min: out
 ]
-GARES = [("Paris " + HOSTILE, "87000001", "48.8443, 2.3744"), ("Lyon Part-Dieu", "87000002", "45.7606, 4.8595"),
+GARES = [("Paris " + HOSTILE, "87000001", "48.8443, 2.3744"), ("Paris Nord", "87000005", "48.8809, 2.3553"), ("Lyon Part-Dieu", "87000002", "45.7606, 4.8595"),
          ("Lille Europe", "87000003", "50.6394, 3.0755"), ("Sans position", "87000004", "")]
 FUEL = [  # id, gazole, maj, e10, maj
     ("1", "1.80", "2026-11-17T10:00:00+01:00", "1.90", "2026-11-17T10:00:00+01:00"),
@@ -129,9 +132,10 @@ def make_dir(base: Path) -> Path:
 
 def oracle_read():
     pos = {u: tuple(float(x) for x in p.split(",")) for _n, u, p in GARES if p}
-    od = {}
+    od, etu = {}, {}
     for car, _o, a, _de, b, cl, prof, lo, hi in TARIFS:
-        if cl != "2" or prof.lower() != "tarif normal":
+        student = prof.startswith("Tarif El")
+        if cl != "2" or not (prof.lower() == "tarif normal" or student):
             continue
         try:
             lo, hi = float(lo), float(hi)
@@ -140,6 +144,10 @@ def oracle_read():
         if hi < lo or a not in pos or b not in pos:
             continue
         k = "-".join(sorted((a, b)))
+        if student:
+            x = etu.setdefault(k, [lo, hi])
+            x[0], x[1] = min(x[0], lo), max(x[1], hi)
+            continue
         e = od.setdefault(k, [lo, hi, set()])
         e[0], e[1] = min(e[0], lo), max(e[1], hi)
         e[2].add("OUIGO" if "OUIGO" in car else "TGV INOUI")
@@ -151,7 +159,7 @@ def oracle_read():
         cut = (date.fromisoformat(newest) - timedelta(days=30)).isoformat()
         rec = [v for v, t in vals if t >= cut]
         fuel[col] = {"prix": round(statistics.median(rec), 3), "n": len(rec), "date": newest}
-    return {k: [v[0], v[1], sorted(v[2])] for k, v in od.items()}, fuel
+    return {k: [v[0], v[1], sorted(v[2])] + (etu[k] if k in etu else []) for k, v in od.items()}, fuel
 
 
 @check("TR1 reading: 2nd class normal fare, both directions pooled, stations with a position, fuel medians of the last 30 days")
@@ -168,7 +176,7 @@ def tr1(c: Ctx):
         bad.append(f"fares {got['od']} != {od}")
     if got["carburant"] != fuel:
         bad.append(f"fuels {got['carburant']} != {fuel}")
-    if sorted(s[0] for s in got["stations"]) != ["87000001", "87000002", "87000003"]:
+    if sorted(s[0] for s in got["stations"]) != ["87000001", "87000002", "87000003", "87000005"]:
         bad.append(f"stations {[s[0] for s in got['stations']]}")
     if not any("without a position" in a for a in got["audit"]):
         bad.append("a station without a position is not counted")
@@ -208,7 +216,7 @@ const estimTag = () => '<span class="estim">estimation</span>';
 const frDate = (iso) => iso;
 const villeLabel = (c) => `${c.nom} (${c.dep})`;
 """
-NAMES = ("haversineKm", "trNearest", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS", "transportsHtml")
+NAMES = ("haversineKm", "trNear", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS", "transportsHtml")
 
 
 def hav(a, b, c, d):
@@ -235,7 +243,8 @@ def tr2(c: Ctx):
     P = payload(T)
     H = P["hypotheses"]
     homes = [{"nom": "A", "dep": "75", "lat": 48.85 + i * 0.4, "lon": 2.35 + i * 0.3} for i in range(-3, 9)] \
-        + [{"nom": "Villeurbanne", "dep": "69", "lat": 45.77, "lon": 4.88}]          # the same station serves both
+        + [{"nom": "Villeurbanne", "dep": "69", "lat": 45.77, "lon": 4.88},          # the same station serves both
+           {"nom": "Paris 10e", "dep": "75", "lat": 48.8809, "lon": 2.3553}]           # the nearest station is the dearer one
     dest = (45.76, 4.86)
     prog = STUB + "\n".join(top(c.js, n) for n in NAMES) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -260,16 +269,22 @@ def tr2(c: Ctx):
         if any(abs(a - b) > 1e-6 for a, b in zip(o["car"]["cost"] + o["car"]["minutes"], cost + mins)):
             bad.append(("car", o["car"], cost, mins))
             break
-        near = lambda la, lo: min(((hav(la, lo, *p), u) for u, p in st.items() if hav(la, lo, *p) <= H["gare_km"]), default=None)
-        a, b = near(h["lat"], h["lon"]), near(*dest)
+        within = lambda la, lo: {u: hav(la, lo, *p) for u, p in st.items() if hav(la, lo, *p) <= H["gare_km"]}
+        A, B = within(h["lat"], h["lon"]), within(*dest)
         tr = o["tr"]
-        if a is None or b is None:
+        if not A or not B:
             ok = "none" in tr and "price" not in tr
-        elif a[1] == b[1]:
+        elif set(A) & set(B):
             ok = "none" in tr and "même gare" in tr["none"]
         else:
-            k = "-".join(sorted((a[1], b[1])))
-            ok = (k in P["od"] and tr.get("price") == [2 * P["od"][k][0], 2 * P["od"][k][1]]) or (k not in P["od"] and "none" in tr)
+            pairs = sorted(((P["od"]["-".join(sorted((a, b)))][0], A[a] + B[b], a, b) for a in A for b in B
+                            if "-".join(sorted((a, b))) in P["od"]), key=lambda t: (t[0], t[1]))
+            if not pairs:
+                ok = "none" in tr and "price" not in tr
+            else:
+                v = P["od"]["-".join(sorted((pairs[0][2], pairs[0][3])))]
+                ok = (tr.get("price") == [2 * v[0], 2 * v[1]] and tr["a"]["uic"] == pairs[0][2] and tr["b"]["uic"] == pairs[0][3]
+                      and tr.get("etudiant") == ([2 * v[3], 2 * v[4]] if len(v) > 4 else None))
         if not ok:
             bad.append(("train", h, tr))
             break
@@ -308,7 +323,9 @@ def tr3(c: Ctx):
     if "Avion" in near or "Avion" not in far:
         bad.append("the plane is not limited to long trips")
     if not re.search(r"Train \(OUIGO, TGV INOUI\)</td><td class=\"num\" data-label=\"Aller-retour\">38 à 240 €", near):
-        bad.append("the TGV row is not the published range x 2 with its carriers")
+        bad.append("the TGV row is not the published range x 2 with its carriers (the cheapest nearby station pair)")
+    if "« Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>24 à 98 €</strong>" not in near:
+        bad.append("the student fare published by the SNCF is not shown")
     if "Péages et parking non compris" not in near or "estimation" not in near or "carburant seul" not in near:
         bad.append("the car row lacks its estimation label or its caveats")
     if "ODbL" not in near or "Licence Ouverte" not in near or "jamais envoyée" not in near or "pas des prix garantis" not in near:
@@ -417,9 +434,9 @@ def tr7(c: Ctx):
 
 
 SOURCE_MUTANTS = [
-    ("tr", "1st class read", 'if r.get("classe", "").strip() != CLASSE or r.get("profil", "").strip().lower() != PROFIL:',
-     'if r.get("profil", "").strip().lower() != PROFIL:', "TR1"),
-    ("tr", "discount fares read", 'if r.get("classe", "").strip() != CLASSE or r.get("profil", "").strip().lower() != PROFIL:',
+    ("tr", "1st class read", 'if r.get("classe", "").strip() != CLASSE or prof not in (PROFIL, PROFIL_ETUDIANT):',
+     'if prof not in (PROFIL, PROFIL_ETUDIANT):', "TR1"),
+    ("tr", "discount fares read", 'if r.get("classe", "").strip() != CLASSE or prof not in (PROFIL, PROFIL_ETUDIANT):',
      'if r.get("classe", "").strip() != CLASSE:', "TR1"),
     ("tr", "directions not pooled", 'k = "-".join(sorted((a, b)))', 'k = f"{a}-{b}"', "TR1"),
     ("tr", "reversed range kept", "if not a or not b or a == b or lo is None or hi is None or hi < lo:", "if not a or not b or a == b or lo is None or hi is None:", "TR1"),
@@ -427,12 +444,15 @@ SOURCE_MUTANTS = [
     ("tr", "old fuel prices counted", "recent = [v for v, t in vals if t >= newest - timedelta(days=PRICE_DAYS)]", "recent = [v for v, t in vals]", "TR1"),
     ("tr", "absurd prices counted", "if v is None or not 0.5 <= v <= 5:", "if v is None:", "TR1"),
     ("tr", "mean instead of median", '"prix": round(statistics.median(recent), 3)', '"prix": round(statistics.mean(recent), 3)', "TR1"),
-    ("js", "one way instead of a round trip", "  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2] };", "  return { a, b, price: [od[0], od[1]], carriers: od[2] };", "TR2"),
+    ("js", "one way instead of a round trip", "  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2],", "  return { a, b, price: [od[0], od[1]], carriers: od[2],", "TR2"),
     ("js", "detour ignored", "  const road = [km * H.detour[0], km * H.detour[1]];", "  const road = [km, km];", "TR2"),
     ("js", "prices crossed", "* H.conso_l_100km[0] / 100 * Math.min(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.max(...prices)]",
      "* H.conso_l_100km[0] / 100 * Math.max(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.min(...prices)]", "TR2"),
-    ("js", "radius ignored", "    if (km <= maxKm && (!best || km < best.km)) best = { uic, nom, km };", "    if (!best || km < best.km) best = { uic, nom, km };", "TR2"),
-    ("js", "same station priced", '  if (a.uic === b.uic) return { none: "la même gare TGV dessert votre ville et la formation" };', "", "TR2"),
+    ("js", "radius ignored", ".filter((x) => x.km <= maxKm)", ".filter((x) => true)", "TR2"),
+    ("js", "same station priced", '  if (A.some((x) => B.some((y) => y.uic === x.uic))) return { none: "la même gare TGV dessert votre ville et la formation" };', "", "TR2"),
+    ("js", "first pair not the cheapest", "if (od && (!best || od[0] < best.od[0] ||", "if (od && (!best ||", "TR2"),
+    ("js", "student fare dropped", "etudiant: od.length > 4 ? [2 * od[3], 2 * od[4]] : null", "etudiant: null", "TR2"),
+    ("tr", "student fare mixed with the normal one", "            if prof == PROFIL_ETUDIANT:\n", "            if False:\n", "TR1"),
     ("js", "euros rounded inwards", "Math.floor(x[0]))}${x[0] === x[1] ? \"\" : ` à ${fmt(Math.ceil(x[1]))}`}", "Math.round(x[0]))}${x[0] === x[1] ? \"\" : ` à ${fmt(Math.round(x[1]))}`}", "TR2"),
     ("js", "station name unescaped", "entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}", "entre les gares de ${tr.a.nom} et ${tr.b.nom}", "TR3"),
     ("js", "plane always shown", "  if (km >= H.avion_km) rows.push(", "  if (true) rows.push(", "TR3"),

@@ -27,6 +27,7 @@ from pathlib import Path
 
 DIR = Path(__file__).resolve().parent.parent / "data" / "transports"
 CLASSE, PROFIL = "2", "tarif normal"
+PROFIL_ETUDIANT = "tarif eleve - etudiant - apprenti"     # folded: the SNCF's « Tarif Elève - Etudiant - Apprenti »
 PRICE_DAYS = 30
 FUELS = ("gazole", "e10", "sp95")
 HYPOTHESES = {
@@ -49,6 +50,11 @@ def _num(x: str) -> float | None:
     except ValueError:
         return None
     return v if v > 0 else None
+
+
+def fold(s: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower().strip()
 
 
 def carrier(name: str) -> str:
@@ -82,11 +88,12 @@ def read(d: Path = DIR) -> dict:
                 pos[uic] = (r.get("nom") or "").strip(), p
     else:
         audit.append("gares.csv.gz missing")
-    # fares: 2nd class, normal fare, both directions pooled; a station needs a position
-    od, names, nopos = {}, {}, set()
+    # fares: 2nd class, the normal fare and (apart) the pupil-student-apprentice fare, both directions pooled; a station needs a position
+    od, etu, names, nopos = {}, {}, {}, set()
     if (d / "tarifs_tgv.csv.gz").exists():
         for r in _rows(d / "tarifs_tgv.csv.gz"):
-            if r.get("classe", "").strip() != CLASSE or r.get("profil", "").strip().lower() != PROFIL:
+            prof = fold(r.get("profil", ""))
+            if r.get("classe", "").strip() != CLASSE or prof not in (PROFIL, PROFIL_ETUDIANT):
                 continue
             a, b = r.get("origine_uic", "").strip(), r.get("destination_uic", "").strip()
             lo, hi = _num(r.get("prix_min", "")), _num(r.get("prix_max", ""))
@@ -99,6 +106,10 @@ def read(d: Path = DIR) -> dict:
             if a not in pos or b not in pos:
                 continue
             k = "-".join(sorted((a, b)))
+            if prof == PROFIL_ETUDIANT:
+                x = etu.setdefault(k, [lo, hi])
+                x[0], x[1] = min(x[0], lo), max(x[1], hi)
+                continue
             e = od.setdefault(k, [lo, hi, set()])
             e[0], e[1] = min(e[0], lo), max(e[1], hi)
             e[2].add(carrier(r.get("transporteur", "")))
@@ -108,7 +119,9 @@ def read(d: Path = DIR) -> dict:
         audit.append(f"{len(nopos)} fare stations without a position in « Gares de voyageurs » (left out)")
     used = sorted({u for k in od for u in k.split("-")})
     out["stations"] = [[u, (pos[u][0] or names.get(u, "")).strip(), round(pos[u][1][0], 4), round(pos[u][1][1], 4)] for u in used]
-    out["od"] = {k: [round(v[0], 2), round(v[1], 2), sorted(v[2])] for k, v in sorted(od.items())}
+    # [normal min, normal max, carriers, student min, student max] (the student range only where the SNCF publishes it)
+    out["od"] = {k: [round(v[0], 2), round(v[1], 2), sorted(v[2])] + ([round(etu[k][0], 2), round(etu[k][1], 2)] if k in etu else [])
+                 for k, v in sorted(od.items())}
     # fuels: median over the stations updated in the last PRICE_DAYS days before the newest update
     if (d / "carburants.csv.gz").exists():
         rows = _rows(d / "carburants.csv.gz")

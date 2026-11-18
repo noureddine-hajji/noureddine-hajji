@@ -3882,14 +3882,17 @@ The build stores one compressed JSON value beside the warehouse; `/api/transport
 - car: the FIXED hypotheses printed on the page (`transports.HYPOTHESES`: road 1.2 to 1.3 times the crow-fly distance, 5 to 7 litres
   per 100 km, 90 to 110 km/h; Paris-Lyon: about 4 h 20 to 5 h 40), the lowest fuel median with the lowest consumption and the highest with the highest, round trip; time
   one way; « carburant seul, péages et parking non compris », labelled estimation;
-- TGV: the fare station nearest to the town and to the formation, each within 30 km; the published range x 2 with the carriers
-  (OUIGO, TGV INOUI), « plein tarif, 2de classe » and a reminder that discount cards cost less; none when no station is near, when
-  one station serves both, or when no fare is published between them (a TER or a trip with a change may exist: SNCF Connect link);
+- TGV: every fare station within 30 km of the town and of the formation (Paris has several), the pair with the lowest published
+  normal fare; its range x 2 with the carriers (OUIGO, TGV INOUI), « plein tarif, 2de classe », and the SNCF's own published
+  « Tarif Élève - Étudiant - Apprenti » range x 2 where it exists (on the real file: 2nd class Tarif Normal 5,248 rows, student fare
+  4,443; 230 stations with a position, 15 left out; 3,691 station pairs). None when no station is near, when one station serves both
+  ends, or when no fare is published between them (a TER or a trip with a change may exist: SNCF Connect link). Paris → Lyon on the
+  2026-11-18 files: 51 to 230 € round trip at the normal fare, 40 € at the student fare;
 - carpooling, bus, plane (from 500 km): no public price, never a figure; links to the platforms (BlaBlaCar, FlixBus, BlaBlaCar Bus).
 Euros are rounded outwards; the travel time is not computed for the train (no timetable read): the SNCF Connect link.
 
 Red team `redteam_transports.py` (TR1-TR8): an independent reading of crafted SNCF and fuel files, the page arithmetic re-derived in
 Python on a grid of towns, the page text (escaping, no figure where no price is public, the plane only from 500 km, credits, safe
 links), privacy (no parameter, the town never sent, no late fill), the fetcher (columns by name, official hosts), the plumbing; the
-real data check prints the share of formations with a fare station nearby. 21/21 mutants caught. The first real data come with the
-workflow's first run (the hosts are blocked in the development sandbox).
+real data check prints the share of formations with a fare station nearby. 24/24 mutants caught. Fuel medians on the 2026-11-18 file: gazole 2.139 € (9,331
+stations), SP95-E10 1.977 € (7,521), SP95 2.020 € (2,637).
