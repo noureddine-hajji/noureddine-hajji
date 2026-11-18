@@ -2357,6 +2357,78 @@ function distanceText(from, lat, lon) {
   if (km < 1) return `Vous êtes dans la même commune ou presque (moins de 1 km à vol d'oiseau depuis le centre de ${esc(villeLabel(from))}).`;
   return `<strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau depuis le centre de ${esc(villeLabel(from))} ${estimTag("distance en ligne droite entre les centres des communes ; la route est plus longue")}.${km > 50 ? " À cette distance, la plupart des étudiants se logent sur place : le loyer ci-dessous compte." : " À cette distance, des allers-retours sont souvent possibles : regardez les transports."}`;
 }
+// owner, 2026-11-18: a round trip between the student's town and the formation, « à titre d'information ». The town never leaves
+// the browser: /api/transports has no parameter (official TGV fares and stations, median fuel prices, the fixed hypotheses of the
+// car estimate, transports.py) and everything is computed here. Ranges only; no figure where no price is public.
+let TRANSPORTS_P = null;
+const trLoad = () => (TRANSPORTS_P = TRANSPORTS_P || api("/api/transports").catch(() => { TRANSPORTS_P = null; return null; }));
+// the station of the fares nearest to a point, within `maxKm` (null otherwise)
+function trNearest(stations, lat, lon, maxKm) {
+  let best = null;
+  for (const [uic, nom, la, lo] of stations || []) {
+    const km = haversineKm(lat, lon, la, lo);
+    if (km <= maxKm && (!best || km < best.km)) best = { uic, nom, km };
+  }
+  return best;
+}
+// the car: road = crow-fly x detour range, fuel = the lowest and highest median of the fuels read, round trip; time one way
+function trCar(km, H, fuel) {
+  const prices = Object.values(fuel || {}).map((x) => x.prix).filter((x) => Number.isFinite(x));
+  if (!prices.length || !(km > 0)) return null;
+  const road = [km * H.detour[0], km * H.detour[1]];
+  const cost = [2 * road[0] * H.conso_l_100km[0] / 100 * Math.min(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.max(...prices)];
+  const minutes = [road[0] / H.vitesse_kmh[1] * 60, road[1] / H.vitesse_kmh[0] * 60];
+  return { road, cost, minutes, pmin: Math.min(...prices), pmax: Math.max(...prices) };
+}
+// the TGV: the fare stations nearest to the town and to the formation (each within H.gare_km), the published range, round trip
+function trTrain(T, home, lat, lon) {
+  const H = T.hypotheses, a = trNearest(T.stations, home.lat, home.lon, H.gare_km), b = trNearest(T.stations, lat, lon, H.gare_km);
+  if (!a || !b) return { none: `pas de gare TGV à moins de ${H.gare_km} km ${!a ? "de votre ville" : "de la formation"}` };
+  if (a.uic === b.uic) return { none: "la même gare TGV dessert votre ville et la formation" };
+  const od = T.od[[a.uic, b.uic].sort().join("-")];
+  if (!od) return { none: `pas de prix TGV publié entre ${a.nom} et ${b.nom}`, a, b };
+  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2] };
+}
+const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
+const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
+const trFr = (x, d = 2) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const TR_LINKS = { sncf: "https://www.sncf-connect.com/", blablacar: "https://www.blablacar.fr/", bus_flixbus: "https://www.flixbus.fr/", bus_blablacar: "https://www.blablacar.fr/bus" };
+function transportsHtml(T, home, lat, lon) {
+  const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
+  if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
+  const car = trCar(km, H, T.carburant), tr = trTrain(T, home, lat, lon);
+  const fuelDate = Object.values(T.carburant || {}).map((x) => x.date).sort().pop();
+  const link = (k, txt) => `<a href="${esc(TR_LINKS[k])}" target="_blank" rel="noopener">${esc(txt)} ↗</a>`;
+  const row = (mode, prix, duree, comment) => `<tr><td>${mode}</td><td class="num" data-label="Aller-retour">${prix}</td><td data-label="Durée (aller)">${duree}</td><td data-label="D'où vient le chiffre" class="small">${comment}</td></tr>`;
+  const rows = [
+    car ? row("Voiture", trEuros(car.cost), `${trHours(car.minutes[0])} à ${trHours(car.minutes[1])}`,
+      `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (prix médians${fuelDate ? ` au ${esc(frDate(fuelDate))}` : ""}). Péages et parking non compris.`)
+      : row("Voiture", "—", "—", "prix des carburants pas encore lus"),
+    tr.price ? row(`Train (${tr.carriers.map(esc).join(", ")})`, trEuros(tr.price), `voir ${link("sncf", "SNCF Connect")}`,
+      `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}. Avec une carte Avantage ou un tarif jeune, c'est souvent moins cher.`)
+      : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)} : un TER ou un trajet avec changement reste possible.`),
+    row("Covoiturage", "pas de prix public", "—", `les prix sont fixés par les conducteurs : comparez sur ${link("blablacar", "BlaBlaCar")}.`),
+    row("Bus", "pas de prix public", "—", `comparez sur les sites des compagnies : ${link("bus_flixbus", "FlixBus")}, ${link("bus_blablacar", "BlaBlaCar Bus")}.`),
+  ];
+  if (km >= H.avion_km) rows.push(row("Avion", "pas de prix public", "—", "au-delà de 500 km, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports."));
+  return `<p class="small">De ${esc(villeLabel(home))} à la formation : <strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau. Des fourchettes à titre d'information, pas des prix garantis.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Mode</th><th class="num">Aller-retour</th><th>Durée (aller)</th><th>D'où vient le chiffre</th></tr>${rows.join("")}</table></div>
+    <p class="muted small">Sources : SNCF, « Tarifs TGV INOUI et OUIGO » et « Gares de voyageurs » (licence ODbL) ; ministère de l'Économie, « Prix des carburants » (Licence Ouverte)${T.lu_le && T.lu_le.tarifs_tgv ? `, lus le ${esc(frDate(T.lu_le.tarifs_tgv))}` : ""}. Votre ville reste dans ce navigateur : elle n'est jamais envoyée.</p>`;
+}
+function transportsCard(v) {
+  if (!v || v.lat == null || v.lon == null) return "";
+  return `<div class="card" id="transports"><h2>Venir depuis chez vous : le trajet</h2>
+    <div id="transports-body">${villeDepart() ? '<p class="muted small">Chargement des tarifs…</p>' : 'Indiquez votre ville dans <a href="#/profil">Mon profil</a> : le coût et la durée d\'un aller-retour jusqu\'ici s\'afficheront ici.'}</div></div>`;
+}
+async function fillTransports(v) {
+  const home = villeDepart();
+  if (!home || !v || v.lat == null) return;
+  const el = document.getElementById("transports-body");
+  const T = await trLoad();
+  if (!el || el !== document.getElementById("transports-body")) return;          // the student left the page
+  const ready = T && T.hypotheses && ((T.stations || []).length || Object.keys(T.carburant || {}).length);
+  el.innerHTML = ready ? transportsHtml(T, home, v.lat, v.lon) : '<p class="muted small">Les tarifs ne sont pas encore disponibles.</p>';
+}
 function distanceBlock(v) {
   // owner, 2026-11-15: the town is entered ONCE, in "Mon profil"; here it is only read (no input on the formation page)
   if (!v || v.lat == null || v.lon == null) return "";
@@ -2499,7 +2571,7 @@ async function viewFormation(cod, session) {
   </details>
 `],
     ["jury", "Ce que regarde le jury", juryHtml],
-    ["cout", "Combien ça coûte", coutCard(d.vie, r) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
+    ["cout", "Combien ça coûte", coutCard(d.vie, r) + transportsCard(d.vie) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
   ${successCard(d.success)}
@@ -2521,6 +2593,7 @@ async function viewFormation(cod, session) {
   </table></div></div>`],
   ])}${nextSteps("formation", /^https:\/\//.test(r.fiche_url || "") ? [{ href: r.fiche_url, text: "Lire les attendus et les critères du jury sur la fiche Parcoursup : c'est elle qui fait foi" }] : [])}${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}`;
   bindTabs("fiche");
+  fillTransports(d.vie);
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
   document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };

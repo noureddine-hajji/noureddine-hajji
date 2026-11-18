@@ -56,6 +56,7 @@
  "tests/test_shards.py": 30,
  "tests/test_success.py": 340,
  "tests/test_tauxprofil.py": 70.0,
+ "tests/test_transports.py": 15,
  "tests/test_ux.py": 2,
  "tests/test_vie.py": 8.0,
  "tests/test_visuel.py": 230.0,

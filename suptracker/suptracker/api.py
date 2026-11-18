@@ -49,6 +49,7 @@ from . import semblables as SB
 from . import grilles as GR
 from . import reconnaissance as RC
 from . import vie as VIE
+from . import transports as TR
 from . import tension as TS
 from . import apprentissage as APP
 from . import aides as AID
@@ -1187,6 +1188,13 @@ def communes_liste():
     """Sprint V2: every commune and its centre, for the distance from the student's town (computed in the browser, the
     town is never sent). No parameter, shared-cached."""
     return {"source": "API Géo (geo.api.gouv.fr), centre de chaque commune", "communes": VIE.communes(_con().cursor())}
+
+
+@app.get("/api/transports")
+def transports_data():
+    """Owner, 2026-11-18: the official TGV fares and station positions, the median fuel prices and the fixed hypotheses of the
+    car estimate. No parameter (shared-cached): the page computes the trip from the student's town, which is never sent."""
+    return TR.payload(_con().cursor())
 
 
 @app.get("/api/reconnaissance")

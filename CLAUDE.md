@@ -727,6 +727,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   Owner, 2026-11-18: L'essentiel carries a « Robustesse 2035 » tile (`formationRobTile`): the median score « / 100 » with both repères
   in words and the estimation label (the owner's choice: the score leaves « Détail du calcul » for this tile only); no score =
   « données insuffisantes ». RF12.
+- **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
+  hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
+  data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in
+  rapport_textes.duckdb): stations with a position, 2nd class « Tarif Normal » ranges per origin-destination (both directions pooled),
+  fuel MEDIANS of the last 30 days, the fixed HYPOTHESES of the car estimate (road 1.2-1.3 x crow-fly, 5-7 L/100 km, 90-110 km/h;
+  owner-reviewable, printed on the page). The page computes the round trip from `villeDepart` (never sent): car = fuel only, tolls and
+  parking said not counted, estimation label; TGV = the published range x 2 between the fare stations within 30 km of each end (none
+  when one station serves both); carpooling, bus and plane (from 500 km) have no public price: links only, never a figure. Card in
+  « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

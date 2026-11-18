@@ -3862,3 +3862,34 @@ credited at the bottom. A formation with only one of them keeps that card; witho
 Red teams: J11 (`redteam_jpo.py`, an independent reading of the concours pages, the named-site rule, the placement; 62/62
 mutants), GR10 (`redteam_grilles.py`, one card, fiche first, report additions; 45/45), RF12 (`redteam_robustesse_formations.py`,
 the tile; 71/71), Z3-Z6 (`redteam_tauxprofil.py`, the access cell; 16/16); ux X16 and reorientation E5/E6 follow the new code.
+
+## Travel costs (owner, 2026-11-18)
+
+**What.** In « Combien ça coûte », a card « Venir depuis chez vous : le trajet » gives, for the town stored in Mon profil, a round
+trip to the formation by car, by TGV, and says what is known for carpooling, bus and plane, « à titre d'information ».
+
+**Data, official only.** The `suptracker-transports` workflow (monthly, `scripts/transports_fetch.py`) fetches into
+data/transports/, keeping only the columns read, a file rewritten only when its content changed:
+- SNCF « Tarifs TGV INOUI et OUIGO » (ODbL): the one-way price RANGE per origin-destination; `transports.py` keeps the 2nd class
+  « Tarif Normal » rows (the fare without a discount card) and pools both directions (lowest minimum, highest maximum);
+- SNCF « Gares de voyageurs » (ODbL): the position of the stations the fares name (UIC code); a station without one is left out and
+  counted in the audit;
+- « Prix des carburants en France, flux instantané v2 » (Ministère de l'Économie, Licence Ouverte): the MEDIAN price of gazole,
+  SP95-E10 and SP95 over the stations updated in the last 30 days before the newest update, with the count and the date.
+The build stores one compressed JSON value beside the warehouse; `/api/transports` serves it with no parameter (shared cache).
+
+**In the browser, never sent.** The town never leaves the browser (it lives in `villeDepart`). From the crow-fly distance:
+- car: the FIXED hypotheses printed on the page (`transports.HYPOTHESES`: road 1.2 to 1.3 times the crow-fly distance, 5 to 7 litres
+  per 100 km, 90 to 110 km/h; Paris-Lyon: about 4 h 20 to 5 h 40), the lowest fuel median with the lowest consumption and the highest with the highest, round trip; time
+  one way; « carburant seul, péages et parking non compris », labelled estimation;
+- TGV: the fare station nearest to the town and to the formation, each within 30 km; the published range x 2 with the carriers
+  (OUIGO, TGV INOUI), « plein tarif, 2de classe » and a reminder that discount cards cost less; none when no station is near, when
+  one station serves both, or when no fare is published between them (a TER or a trip with a change may exist: SNCF Connect link);
+- carpooling, bus, plane (from 500 km): no public price, never a figure; links to the platforms (BlaBlaCar, FlixBus, BlaBlaCar Bus).
+Euros are rounded outwards; the travel time is not computed for the train (no timetable read): the SNCF Connect link.
+
+Red team `redteam_transports.py` (TR1-TR8): an independent reading of crafted SNCF and fuel files, the page arithmetic re-derived in
+Python on a grid of towns, the page text (escaping, no figure where no price is public, the plane only from 500 km, credits, safe
+links), privacy (no parameter, the town never sent, no late fill), the fetcher (columns by name, official hosts), the plumbing; the
+real data check prints the share of formations with a fare station nearby. 21/21 mutants caught. The first real data come with the
+workflow's first run (the hosts are blocked in the development sandbox).
