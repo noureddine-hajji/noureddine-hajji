@@ -2037,7 +2037,7 @@ function robVoeuxCard(rows, zoneOf) {
   const any = rows.some((v) => R.filiere[v.cod_aff_form] || R.national[v.cod_aff_form] || R.raison[v.cod_aff_form]);
   if (!any) return "";
   const zcol = typeof zoneOf === "function";
-  const body = rows.map((v) => `<tr><td data-label="Formation">${v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)}</span>` : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement || v.cod_aff_form)}</a><div class="muted small">${esc(v.filiere || "")}</div>`}</td>
+  const body = rows.map((v) => `<tr><td data-label="Formation">${v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)}</span>` : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement || v.cod_aff_form)}</a><div class="muted small">${esc(v.filiere || v.formation || "")}${v.complement ? ` · ${esc(v.complement)}` : ""}</div>`}</td>
       ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}
       <td data-label="Robustesse dans sa filière">${cell(v.cod_aff_form, "filiere")}</td>
       <td data-label="Toutes filières confondues">${cell(v.cod_aff_form, "national")}</td></tr>`).join("");

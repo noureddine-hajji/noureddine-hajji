@@ -756,12 +756,18 @@ def rf9(c: Ctx):
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       var RECO = { rob: robDecode(D.p) };
       const zone = (v) => `<span class="zone">Z-${v.zone}</span>`;
-      process.stdout.write(JSON.stringify([robVoeuxCard(D.v, zone), robVoeuxCard(D.v), robVoeuxCard([]), robVoeuxCard(D.none, zone)]));"""
-    vx = [{"cod_aff_form": "1", "status": "ok", "etablissement": RB.HOSTILE, "filiere": "BTS", "zone": "cible"},
+      process.stdout.write(JSON.stringify([robVoeuxCard(D.v, zone), robVoeuxCard(D.reo), robVoeuxCard([]), robVoeuxCard(D.none, zone)]));"""
+    # Codex (PR #83): two courses of one establishment must stay apart: terminale rows carry `filiere` + `complement`, the
+    # reorientation rows (/api/reorientation/voeux) the course name in `formation`
+    vx = [{"cod_aff_form": "1", "status": "ok", "etablissement": RB.HOSTILE, "filiere": "BTS", "complement": "Option Ω" + RB.HOSTILE,
+           "zone": "cible"},
           {"cod_aff_form": "2", "status": "ok", "etablissement": "Lycée B", "filiere": "CPGE", "zone": "securite"},
           {"cod_aff_form": "3", "status": "ok", "etablissement": "C", "filiere": "x", "zone": "ambitieux"},
           {"cod_aff_form": "9", "status": "absente", "zone": None}]
-    out = RB.node(prog, {"p": exp, "v": vx, "none": [{"cod_aff_form": "77", "status": "ok", "etablissement": "Z", "zone": "cible"}]})
+    reo = [{"cod_aff_form": "1", "status": "ok", "etablissement": "Université A", "formation": "Licence - Droit Ψ" + RB.HOSTILE},
+           {"cod_aff_form": "2", "status": "ok", "etablissement": "Université A", "formation": "Licence - Histoire Φ"},
+           {"cod_aff_form": "3", "status": "ok", "etablissement": "C", "formation": "BUT"}, {"cod_aff_form": "9", "status": "absente"}]
+    out = RB.node(prog, {"p": exp, "v": vx, "reo": reo, "none": [{"cod_aff_form": "77", "status": "ok", "etablissement": "Z", "zone": "cible"}]})
     if out is None:
         return not bad, "node absent: page not run"
     full, nozone, empty, none = out
@@ -783,6 +789,10 @@ def rf9(c: Ctx):
             bad.append("the rows are not in the list's own order")
         if any("Z-" in x for row in cells for x in row[2:]) or any("robustes" in row[1] for row in cells):
             bad.append("a zone and a repère share a cell")
+    if "Option Ω" not in full:
+        bad.append("a terminale row loses the course's complement (two courses of one filière look alike)")
+    if "Licence - Droit Ψ" not in nozone or "Licence - Histoire Φ" not in nozone:
+        bad.append("a reorientation row loses the course name (/api/reorientation/voeux sends it as `formation`)")
     if "Zone pour votre profil" in nozone or "Z-" in nozone:
         bad.append("outside terminale (no zone) the card shows a zone column")
     if empty or none:
@@ -875,6 +885,9 @@ SOURCE_MUTANTS = [
      '      <td data-label="Robustesse dans sa filière">${zcol ? zoneOf(v) : ""} ${cell(v.cod_aff_form, "filiere")}</td>', "RF9"),
     ("js", "comparator rows sorted by repère", "const body = rows.map(", "const body = [...rows].sort((a, b) => (R.national[b.cod_aff_form] || \"z\").localeCompare(R.national[a.cod_aff_form] || \"z\")).map(", "RF9"),
     ("js", "comparator name unescaped", "${esc(v.etablissement || v.cod_aff_form)}", "${v.etablissement || v.cod_aff_form}", "RF9"),
+    ("js", "comparator drops the complement", '${v.complement ? ` · ${esc(v.complement)}` : ""}</div>`}</td>\n      ${zcol', '</div>`}</td>\n      ${zcol', "RF9"),
+    ("js", "comparator ignores the reorientation course name", '${esc(v.filiere || v.formation || "")}${v.complement', '${esc(v.filiere || "")}${v.complement', "RF9"),
+    ("js", "comparator complement unescaped", '` · ${esc(v.complement)}` : ""}</div>`}</td>\n      ${zcol', '` · ${v.complement}` : ""}</div>`}</td>\n      ${zcol', "RF9"),
     ("js", "no comparator in Mes vœux", "${robVoeuxCard(d.voeux, (v) =>", "${(() => \"\")(d.voeux, (v) =>", "RF9"),
     ("methode", "a version missing from the changelog", '    ("2027.2 / 2027.2-f", "17 novembre 2026",', '    ("2027.9", "17 novembre 2026",', "RF10"),
     ("methode", "a weight typed on the page", "<li>Les métiers visés comptent pour {pc(RF.W_JOBS)}.", "<li>Les métiers visés comptent pour 50 %.", "RF10"),
