@@ -3789,4 +3789,5 @@ the licence's own Onisep jobs (else its family route), the masters stay on the c
 aside. Found while ranking the most robust formations: every science licence of one university led the national ranking through a
 single documented master (3 agri-food jobs). On the 2026-11-18 build: 47 licences moved (25 to their own jobs, 22 to their family
 route), 3 have no block left; poursuite 2,994, direct 6,805, famille 2,711. Red team RF3 (truth table), RF5 (the sentence), RF7
-(every stored block obeys the rule), 42/42 mutants.
+(every stored block obeys the rule), 42/42 mutants. Checked on the data workflow's warehouse of 2026-11-18: RB7, RB12, RF1-RF10
+and VT10 (the brotli body of `/api/reconnaissance` with the repères) pass on real data.
