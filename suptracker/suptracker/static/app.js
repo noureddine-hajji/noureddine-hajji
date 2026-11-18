@@ -2394,8 +2394,12 @@ function trTrain(T, home, lat, lon) {
 const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
 const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
 const trFr = (x, d = 2) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+// owner, 2026-11-18: Rome2rio compares every mode with its prices and times; a LINK only (never an API call): the town reaches
+// Rome2rio only if the student clicks, and the card says so. The formation's town without its arrondissement (« Lyon 7e … » -> Lyon)
+const trPlace = (x) => String(x || "").replace(/\s+\d.*$/, "").trim().replace(/\s+/g, "-");
+const trRome2rio = (from, to) => `https://www.rome2rio.com/fr/map/${encodeURIComponent(trPlace(from))}/${encodeURIComponent(trPlace(to))}`;
 const TR_LINKS = { sncf: "https://www.sncf-connect.com/", blablacar: "https://www.blablacar.fr/", bus_flixbus: "https://www.flixbus.fr/", bus_blablacar: "https://www.blablacar.fr/bus" };
-function transportsHtml(T, home, lat, lon) {
+function transportsHtml(T, home, lat, lon, ville) {
   const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
   if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
   const car = trCar(km, H, T.carburant), tr = trTrain(T, home, lat, lon);
@@ -2415,6 +2419,7 @@ function transportsHtml(T, home, lat, lon) {
   if (km >= H.avion_km) rows.push(row("Avion", "pas de prix public", "—", "au-delà de 500 km, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports."));
   return `<p class="small">De ${esc(villeLabel(home))} à la formation : <strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau. Des fourchettes à titre d'information, pas des prix garantis.</p>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Mode</th><th class="num">Aller-retour</th><th>Durée (aller)</th><th>D'où vient le chiffre</th></tr>${rows.join("")}</table></div>
+    ${ville ? `<p class="small">Pour comparer tous les trajets (train avec correspondances, bus, covoiturage, avion) avec leurs prix et leurs durées : <a href="${esc(trRome2rio(home.nom, ville))}" target="_blank" rel="noopener noreferrer">${esc(home.nom)} → ${esc(trPlace(ville).replace(/-/g, " "))} sur Rome2rio ↗</a>. En cliquant, votre ville est envoyée à Rome2rio, un site privé.</p>` : ""}
     <p class="muted small">Sources : SNCF, « Tarifs TGV INOUI et OUIGO » et « Gares de voyageurs » (licence ODbL) ; ministère de l'Économie, « Prix des carburants » (Licence Ouverte)${T.lu_le && T.lu_le.tarifs_tgv ? `, lus le ${esc(frDate(T.lu_le.tarifs_tgv))}` : ""}. Votre ville reste dans ce navigateur : elle n'est jamais envoyée.</p>`;
 }
 function transportsCard(v) {
@@ -2429,7 +2434,7 @@ async function fillTransports(v) {
   const T = await trLoad();
   if (!el || el !== document.getElementById("transports-body")) return;          // the student left the page
   const ready = T && T.hypotheses && ((T.stations || []).length || Object.keys(T.carburant || {}).length);
-  el.innerHTML = ready ? transportsHtml(T, home, v.lat, v.lon) : '<p class="muted small">Les tarifs ne sont pas encore disponibles.</p>';
+  el.innerHTML = ready ? transportsHtml(T, home, v.lat, v.lon, v.commune) : '<p class="muted small">Les tarifs ne sont pas encore disponibles.</p>';
 }
 function distanceBlock(v) {
   // owner, 2026-11-15: the town is entered ONCE, in "Mon profil"; here it is only read (no input on the formation page)
