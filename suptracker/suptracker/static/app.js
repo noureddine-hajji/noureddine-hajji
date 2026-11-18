@@ -4160,6 +4160,8 @@ function robfFaits(r) {
   if (m.n) out.push(`Débouchés : ${robJobs(m)}. On regarde ${ROBF_METHODE[r.methode] || ""}.`);
   if (c && c.n) out.push(`Compétences : ${robNum(c.part_portable * 100)} sur 100 sont transférables d'un métier à l'autre (France Travail). ${robNum(c.numeriques)} touchent au numérique, ${robNum(c.ecologiques)} à la transition écologique.`);
   if (r.master && r.master.n_admis) out.push(`Après la licence : ${robNum(r.master.n_masters)} master${r.master.n_masters > 1 ? "s" : ""} de cette université dans la même discipline, ${robNum(r.master.n_admis)} admis la dernière session.`);
+  // owner, 2026-11-18: too few documented masters to score the licence through them: said, the licence scored on its own jobs
+  if (r.master && r.master.insuffisant) out.push(`Les masters de cette université décrits par l'Onisep ne mènent qu'à ${robNum((r.master.apres_master || {}).n)} métier${(r.master.apres_master || {}).n > 1 ? "s" : ""} : c'est trop peu pour juger la licence par ses masters. Elle est donc notée sur les métiers de la licence seule.`);
   if (k.fiche) out.push(k.apprentissage ? "Pratique : le diplôme peut se préparer en apprentissage (expérience en entreprise), selon sa fiche RNCP." : "Pratique : la fiche RNCP du diplôme ne cite pas l'apprentissage parmi ses voies d'accès.");
   return out;
 }

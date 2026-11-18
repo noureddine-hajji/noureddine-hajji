@@ -16,6 +16,10 @@ from . import robustesse_formation as RF
 
 # every version of the model, newest first: (version, date, what changed). The modules' MODEL_VERSION must be listed.
 CHANGELOG = (
+    ("2027.3-f", "18 novembre 2026",
+     "Une licence n'est notée par les masters de son université que s'ils mènent à assez de métiers : au moins deux masters ou "
+     "cinq métiers. Sinon, elle est notée sur ses propres métiers, et la page le dit. Un BUT ne lit plus que la fiche RNCP de son "
+     "propre parcours."),
     ("2027.2 / 2027.2-f", "17 novembre 2026",
      "Contrôle avec l'usage réel de l'IA (Anthropic Economic Index) : il fait baisser la confiance quand il ne concorde pas avec "
      "l'OIT, sans changer le score. Second repère des formations, parmi toutes les formations."),
@@ -55,7 +59,8 @@ l'écart entre le moins et le plus favorable.</li>
 <h2>Pour une formation</h2>
 <ul>
 <li>Les métiers visés comptent pour {pc(RF.W_JOBS)}. Ce sont ceux de la fiche Onisep du diplôme. Pour une licence, ce sont ceux
-des masters de la même université, pesés par leurs admis.</li>
+des masters de la même université, pesés par leurs admis, quand ils mènent à assez de métiers : au moins {RF.MIN_MASTERS}
+masters ou {RF.MIN_MASTER_JOBS} métiers. Sinon, ce sont les métiers de la licence seule.</li>
 <li>L'insertion après le diplôme de sortie compte pour {pc(RF.W_INS)}, quand elle est publiée.</li>
 <li>La diversité des débouchés compte pour {pc(RF.W_DIV)}, et les compétences transférables pour {pc(RF.W_COMP)}. Les compétences
 viennent de la fiche RNCP du diplôme et du référentiel ROME 4.0 de France Travail.</li>

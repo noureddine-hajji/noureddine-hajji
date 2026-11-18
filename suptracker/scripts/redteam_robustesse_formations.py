@@ -382,6 +382,11 @@ def rf3(c: Ctx):
     lead = dict(many, x0=5.0, x1=5.0, x2=5.0, x3=5.0, x4=5.0, x5=5.0, x6=5.0, x7=5.0)
     if [m for m, _ in F.formation(lead, "famille", JOBS, None, None)["metiers"]["principaux"]] != sorted(f"x{i}" for i in range(8)):
         bad.append("the heavier outlets are not listed")
+    # owner, 2026-11-18: through its masters only with at least 2 masters or 5 jobs
+    table = {(1, 4): False, (1, 5): True, (2, 1): True, (0, 0): False, (1, 1): False, (3, 9): True}
+    got_t = {k: F.enough_masters(*k) for k in table}
+    if got_t != table:
+        bad.append(f"enough_masters {got_t} != {table}")
     # invariants: a missing term is never a typed value; more portable skills never lower the score
     a = F.formation({"m1": 1, "m2": 1}, "direct", JOBS, None, {"part_portable": 0.3})["score"]["median"]
     b = F.formation({"m1": 1, "m2": 1}, "direct", JOBS, None, {"part_portable": 0.6})["score"]["median"]
@@ -563,6 +568,14 @@ def rf5(c: Ctx):
         bad.append("insufficient data still shows a number")
     if c0:
         bad.append("output without data")
+    weak = copy.deepcopy(page_data()[0])
+    weak["methode"], weak["master"] = "direct", {"n_masters": 1, "n_admis": 30, "insertion_masters": 0, "insuffisant": True,
+                                               "apres_master": {"n": 3, "n_notes": 3, "n_haut": 1, "n_bas": 0, "mediane": 73.9}}
+    out2 = RB.node(prog, {"f": weak, "s": same, "n": none})
+    if out2 is not None and ("ne mènent qu&#39;à 3 métiers" not in out2[0] or "notée sur les métiers de la licence seule" not in out2[0]):
+        bad.append("a licence scored on its own jobs does not say why its masters were set aside")
+    if "ne mènent qu" in cf:
+        bad.append("the insufficient-masters sentence on a licence scored through its masters")
     return not bad, f"differences {bad[:5]}"
 
 
@@ -638,6 +651,15 @@ def rf7(c: Ctx):
     dn = [k for k in rows if gn[k] != en[k]]
     if dn:
         bad.append(f"national repère differs for {len(dn)}, e.g. {dn[:3]}")
+    # owner, 2026-11-18: a licence scored through its masters only when they cover enough jobs
+    for k, v in rows.items():
+        m = v.get("master") or {}
+        if v["methode"] == "poursuite" and not (m.get("n_masters", 0) >= 2 or v["metiers"]["n"] >= 5):
+            bad.append(f"{k}: scored through too few masters")
+            break
+        if m.get("insuffisant") and (v["methode"] == "poursuite" or m.get("n_masters", 0) >= 2 or (m.get("apres_master") or {}).get("n", 0) >= 5):
+            bad.append(f"{k}: flagged insufficient wrongly")
+            break
     # direct outlets and the formula on a sample
     rnd = random.Random(11)
     direct = [k for k, v in rows.items() if v["methode"] == "direct"]
@@ -822,6 +844,9 @@ SOURCE_MUTANTS = [
     ("robf", "apprenticeship from any route", 'any("apprentissage" in x.lower() for x in v["voies"])', "bool(v[\"voies\"])", "RF1"),
     ("robf", "empty fiche picked", 'ok = [k for k in fiches or () if rncp[k]["blocs"] or rncp[k]["rome"]]', "ok = list(fiches or ())", "RF2"),
     ("robf", "inactive first", "key=lambda k: (rncp[k][\"actif\"], date(k), k)", "key=lambda k: (date(k), k)", "RF2"),
+    ("robf", "one master enough", "MIN_MASTERS, MIN_MASTER_JOBS = 2, 5", "MIN_MASTERS, MIN_MASTER_JOBS = 1, 5", "RF3"),
+    ("robf", "masters rule needs both", "return n_masters >= MIN_MASTERS or n_jobs >= MIN_MASTER_JOBS", "return n_masters >= MIN_MASTERS and n_jobs >= MIN_MASTER_JOBS", "RF3"),
+    ("js", "insufficient masters not said", "  if (r.master && r.master.insuffisant) out.push(", "  if (false) out.push(", "RF5"),
     ("robf", "another parcours substituted", '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp)',
      '        f = pick(but_parcours(idx.get(("BUTsp", tight(sp)), {}), pa), rncp) or pick([x for v in idx.get(("BUTsp", tight(sp)), {}).values() for x in v], rncp)', "RF2"),
     ("robf", "ambiguous prefix accepted", "return parcours[hits[0]] if len(hits) == 1 else []", "return parcours[hits[0]] if hits else []", "RF2"),

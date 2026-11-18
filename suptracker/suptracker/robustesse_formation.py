@@ -42,7 +42,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.2-f"
+MODEL_VERSION = "2027.3-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -50,6 +50,9 @@ METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5}
 PORTABLE_SHEETS = 20
 REPERE_SHARE = RJ.REPERE_SHARE
 MIN_FILIERE = 20                   # fewer scored formations in a filière: the repère is read among all formations
+# owner, 2026-11-18: a licence is scored through its university's masters only when they cover enough jobs (at least
+# MIN_MASTERS masters or MIN_MASTER_JOBS jobs); otherwise on the licence's own jobs, the masters still shown, the reason said
+MIN_MASTERS, MIN_MASTER_JOBS = 2, 5
 TOP_JOBS = 8                       # the main outlets listed, only when the cut is not inside a tie (equal weights)
 ISCO_GROUPS = 10
 
@@ -282,6 +285,11 @@ def formation(omega: dict, method: str, jobs: dict, ins: float | None, comp: dic
     }
 
 
+def enough_masters(n_masters: int, n_jobs: int) -> bool:
+    """Owner, 2026-11-18: a licence is scored through its masters only when they cover enough jobs."""
+    return n_masters >= MIN_MASTERS or n_jobs >= MIN_MASTER_JOBS
+
+
 def main_jobs(ranked: list) -> list:
     """The first TOP_JOBS outlets by weight, only when the cut does not split a tie: equal weights (Onisep gives none, a family
     route neither) never show an arbitrary pick of « main » jobs."""
@@ -423,7 +431,7 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 if fiche:
                     break
             sk = skills(rncp.get(fiche), rome) if fiche else None
-            ins = master = None
+            ins = master = master_seul = None
             if fl in ("Licence", "Licence_Las"):
                 lic = LM.for_licence(con, cod, fl, contrat) if {"monmaster", "master_onisep", "metier_axes"} <= have else None
                 if lic and lic.get("status") == "ok":
@@ -440,10 +448,15 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                         ins = _wmean(stable)
                         master = {"n_masters": len(mentions), "n_admis": tot, "insertion_masters": len(stable),
                                   "apres_master": facts_jobs(sorted(omega), jobs)}
-                        block = formation(omega, "poursuite", jobs, ins, sk)
-                        block["master"] = master
-                        block["diplome_seul"] = facts_jobs(direct, jobs)
-                        rows[cod] = block
+                        if enough_masters(len(mentions), len(omega)):
+                            block = formation(omega, "poursuite", jobs, ins, sk)
+                            block["master"] = master
+                            block["diplome_seul"] = facts_jobs(direct, jobs)
+                            rows[cod] = block
+                        else:
+                            # too few documented masters to score the licence through them: kept for display, said
+                            master["insuffisant"] = True
+                            master_seul = master
             if cod in rows:
                 pass
             elif direct:
@@ -453,6 +466,8 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 rows[cod] = formation({m: 1.0 for m in family[cod]}, "famille", jobs, None, sk)
             else:
                 continue
+            if master_seul:
+                rows[cod]["master"] = master_seul
             r = rows[cod]
             r["rncp"] = {"fiche": fiche, "lien": method_r, "apprentissage": rncp[fiche]["apprentissage"]} if fiche else None
             if fiche and fiche not in rncp_rows:

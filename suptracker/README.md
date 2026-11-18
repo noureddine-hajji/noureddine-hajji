@@ -3782,3 +3782,11 @@ be listed). Both robustesse cards and the comparator link it. Red team RF9-RF10 
 a prefix of the other (« … des matériaux » = « … des matériaux et des produits »); with no such parcours the formation has no RNCP
 skills. The former fallback to any fiche of the specialty linked e.g. « animation sociale et socio-culturelle » to « Villes et
 territoires durables ». On the real export: 78 of 85 BUT sheets linked, each to its own parcours (red team RF2, real mode).
+
+**A licence needs enough masters (owner, 2026-11-18; model 2027.3-f).** A licence is scored through its university's masters
+only when they cover enough jobs: at least 2 masters or 5 jobs (`robustesse_formation.enough_masters`). Otherwise it is scored on
+the licence's own Onisep jobs (else its family route), the masters stay on the card and a plain sentence says why they were set
+aside. Found while ranking the most robust formations: every science licence of one university led the national ranking through a
+single documented master (3 agri-food jobs). On the 2026-11-18 build: 47 licences moved (25 to their own jobs, 22 to their family
+route), 3 have no block left; poursuite 2,994, direct 6,805, famille 2,711. Red team RF3 (truth table), RF5 (the sentence), RF7
+(every stored block obeys the rule), 42/42 mutants.
