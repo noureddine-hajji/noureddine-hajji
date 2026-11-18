@@ -851,7 +851,7 @@ def rf10(c: Ctx):
 
 
 # ------------------------------------------------------------------------- RF11: insertion beside the score, search filters
-FILTER_NAMES = ("CARTE_ROB", "robLevel", "CARTE_FGROUPS", "carteHas", "carteFilter", "carteFacets", "carteCommon", "carteInLieu", "ROB_CARD",
+FILTER_NAMES = ("CARTE_ROB", "robReady", "robLevel", "CARTE_FGROUPS", "carteHas", "carteFilter", "carteFacets", "carteCommon", "carteInLieu", "ROB_CARD",
                 "robCardLine")
 FILTER_STUB = """
 const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, carteZone = () => "autre", carteText = () => "", haversineKm = () => 0;
@@ -865,9 +865,11 @@ const both = carteFilter(D.rows, { robf: ["haut", "sans"], robn: ["bas"] }).map(
 const fac = carteFacets(D.rows, { robf: ["haut"] }, null, D.opts);
 const facets = Object.fromEntries(Object.entries(fac).map(([g, m]) => [g, Object.fromEntries(m)]));
 const lines = D.rows.map((f) => robCardLine(f.cod_aff_form));
+RECO = { rob: robDecode({ filiere: {}, national: {}, raison: {}, apres: {} }) };     // tables missing: an empty payload (Codex)
+const empty = carteFilter(D.rows, { robf: ["haut"], robn: ["bas"] }).length;
 RECO = null;
 const none = carteFilter(D.rows, { robf: ["haut"], robn: ["bas"] }).length;
-process.stdout.write(JSON.stringify({ ref, both, facets, lines, none, noline: robCardLine("1") }));"""
+process.stdout.write(JSON.stringify({ ref, both, facets, lines, none, empty, noline: robCardLine("1") }));"""
 
 
 @check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by both repères, counted, never sorted by")
@@ -951,6 +953,8 @@ def rf11(c: Ctx):
     want_n = {lvl: sum(1 for cod in keep if exp[cod][1] == lvl) for lvl in opts["robn"]}
     if o["facets"]["robn"] != want_n or o["facets"]["robf"] != {lvl: sum(1 for e in exp.values() if e[0] == lvl) for lvl in opts["robf"]}:
         bad.append("the counts beside the options are not those of the other groups' selection")
+    if o["empty"] != len(rows):
+        bad.append("an empty repères payload (tables missing) filters every formation out (Codex, PR #84)")
     if o["none"] != len(rows):
         bad.append("repères not loaded: the filter must keep every formation (and the dropdowns are hidden)")
     for f, line in zip(rows, o["lines"]):
@@ -974,7 +978,8 @@ def rf11(c: Ctx):
     sort = view[view.index("const listed = kept.filter("): view.index('document.getElementById("cs-status")')]
     wiring = {
         "the groups in the dropdowns": "...CARTE_ROB];" in c.js and '"robf", "robn"];' in c.js,
-        "hidden when the repères did not load": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view,
+        "hidden when the repères did not load or are empty": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view
+                                                              and "const robOk = robReady();" in view,
         "estimation label and method link in the dropdowns": 'estimTag("modèle de SupCompass")} <a href="#/info/robustesse">' in view,
         "card line on the formations with statistics only": "${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}" in c.js,
         "never sorted by a repère": "rob" not in sort.lower(),
@@ -1047,7 +1052,10 @@ SOURCE_MUTANTS = [
      "formationRobustesseCard(d.robustesse, {})}\n  ${insertionCard", "RF11"),
     ("js", "national repère read for the filière filter", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]', 'RECO.rob["filiere"][cod]', "RF11"),
     ("js", "no repère counted as average", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";', 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "moyen";', "RF11"),
-    ("js", "repères not loaded hide every formation", "return !(RECO && RECO.rob) || robLevel(f.cod_aff_form, g) === o;", "return robLevel(f.cod_aff_form, g) === o;", "RF11"),
+    ("js", "repères not loaded hide every formation", "return !robReady() || robLevel(f.cod_aff_form, g) === o;", "return robLevel(f.cod_aff_form, g) === o;", "RF11"),
+    ("js", "empty payload counted as loaded (Codex)", "out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0;", "out.ok = true;", "RF11"),
+    ("js", "readiness ignores an empty payload", "const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);", "const robReady = () => !!(RECO && RECO.rob);", "RF11"),
+    ("js", "dropdowns shown for an empty payload", "    const robOk = robReady();", "    const robOk = !!(RECO && RECO.rob);", "RF11"),
     ("js", "filter ignored by the list", '...CARTE_R3, "robf", "robn"];', "...CARTE_R3];", "RF11"),
     ("js", "groups not offered", "fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "fiOptions(g).map((o) => [o.key, o.label])])];", "RF11"),
     ("js", "groups offered without repères", '.filter(([gr]) => robOk || !gr.startsWith("rob"))', ".filter(() => true)", "RF11"),

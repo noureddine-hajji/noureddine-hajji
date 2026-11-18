@@ -1271,6 +1271,8 @@ const CARTE_ROB = [
   ["robn", "Robustesse 2035, toutes formations", [["haut", "Parmi les 20 % les plus robustes"], ["moyen", "Dans la moyenne"],
     ["bas", "Parmi les 20 % les moins robustes"], ["sans", "Pas de repère"]]],
 ];
+// the repères are usable only when the payload carried at least one level (robDecode's `ok`): never filter on an empty payload
+const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);
 const robLevel = (cod, k) => (RECO && RECO.rob && RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";
 const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ...CARTE_GROUPS.slice(1),
   ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];
@@ -1285,7 +1287,7 @@ function carteHas(f, g, o) {
   if (g === "zones") return carteZone(f) === o;
   if (g === "capacite") return filtreBand(f.capa_fin, fiOptions("capacite")) === o;
   if (g === "taux") return filtreBand(f.taux_acces_ens, fiOptions("taux")) === o;
-  if (g === "robf" || g === "robn") return !(RECO && RECO.rob) || robLevel(f.cod_aff_form, g) === o;   // repères not loaded: no filter
+  if (g === "robf" || g === "robn") return !robReady() || robLevel(f.cod_aff_form, g) === o;   // repères not loaded or empty: no filter
   if (g === "complementaire") return f.acc_pc !== null && f.acc_pc !== undefined && (o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0);   // unknown: neither
   return false;
 }
@@ -1675,7 +1677,7 @@ async function viewCarte(dArg, mArg) {
       ${D.mentions.filter((m) => offered(nMen.get(`${D.label}\u0000${m.label}`) || 0, (sel.m[D.label] || []).includes(m.label))).map((m) => `<label data-men-label="${esc(foldText(m.label))}"><input type="checkbox" data-men="${esc(m.label)}" data-mdip="${esc(D.label)}" ${(sel.m[D.label] || []).includes(m.label) ? "checked" : ""}> <span>${esc(m.label)}</span> <span class="muted">${fmt(nMen.get(`${D.label}\u0000${m.label}`) || 0)}</span></label>`).join("")}</fieldset>`).join("")) : "";
     // a group is marked (and its ticked count shown) only when it differs from its default (statut: paid unticked)
     const moved = (gr) => JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || []);
-    const robOk = !!(RECO && RECO.rob);
+    const robOk = robReady();
     const groups = carteGroups().filter(([gr]) => robOk || !gr.startsWith("rob")).map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
       ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} <a href="#/info/robustesse">Comment on calcule la robustesse</a></p>` : ""}`, moved(gr)));
     const zones = ok ? dd("zones", "Votre zone", (F.zones || []).length, `${clear("zones")}${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}<p class="muted small">${esc(FI_HELP.zone)}</p>`) : "";
@@ -2041,6 +2043,8 @@ function robDecode(r) {
   for (const k of Object.keys(out)) {
     for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
   }
+  // Codex (PR #84): an empty payload (tables or sidecar missing) decodes to empty maps: usable only with at least one level
+  out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0;
   return out;
 }
 // Mes vœux (owner, 2026-11-17): each vœu's zone for the profile and its two robustesse repères SIDE BY SIDE, never merged into
