@@ -250,6 +250,13 @@ CONCOURS_ONLINE = re.compile(r"webinaires?|webinars?|\bvisio|\blives?\b|\ben lig
 CONCOURS_NOT = re.compile(r"\bepreuves?\b|\bresultats?\b|date limite|\bclotures?\b|\binscriptions? (?:sur|jusqu|du|avant)|"
                           r"\boraux?\b|\bentretiens?\b|\badmissibilit|\bconvocations?\b|\bpaiements?\b")
 CONCOURS_AGENDA = 12      # more sessions than this in one season on one page: an agenda of every school, not the concours's own
+# an event counts only when its own line (or heading + line) NAMES the concours: the concours agendas also list single schools'
+# fairs and open days (SESAME: « LEM Strasbourg … salon Oriaction de Metz »), which are not the concours's (first real run)
+CONCOURS_NAMES = {"puissance_alpha": r"\bpuissance alpha\b", "avenir": r"\bconcours avenir\b", "geipi": r"\bgeipi\b",
+                  "sesame": r"\bsesame\b", "advance": r"\badvance\b", "acces": r"\bconcours acces\b"}
+# a range of days « les 8-9 janvier 2027 », « du 19, 20 au 21 novembre » starts on its FIRST day (the date reader alone takes the last)
+_DAY_RANGE = re.compile(r"\b(1er|\d{1,2})(?:\s*(?:-|–|,|et|au)\s*(?:1er|\d{1,2}))+\s+(" + "|".join(
+    sorted(map(re.escape, _FOLD_MONTHS), key=len, reverse=True)) + r")\b")
 
 
 def concours_of(labels: str) -> tuple | None:
@@ -258,11 +265,13 @@ def concours_of(labels: str) -> tuple | None:
     return next((c for c in CONCOURS if re.search(c[2], t)), None)
 
 
-def concours_events(text: str, fetched: date) -> list[tuple[date, str]]:
+def concours_events(text: str, fetched: date, concours: str | None = None) -> list[tuple[date, str]]:
     """(date, « en_ligne » | « information ») of the events a concours page prints: the event word and the date on the SAME
     line (or the next line under a short heading), the same date rules as the establishments' sites; never a line about
-    registration, the exam or its results."""
-    lines = [fold(ln.strip()) for ln in (text or "").splitlines()]
+    registration, the exam or its results. With `concours`, only the events whose zone names it (CONCOURS_NAMES); a range of
+    days counts from its first day."""
+    lines = [_DAY_RANGE.sub(r"\1 \2", fold(ln.strip())) for ln in (text or "").splitlines()]
+    named = re.compile(CONCOURS_NAMES[concours]) if concours else None
     s = current_season(fetched)
     out = {}
     for i, ln in enumerate(lines):
@@ -273,6 +282,8 @@ def concours_events(text: str, fetched: date) -> list[tuple[date, str]]:
         if not found and len(ln) <= HEADING and i + 1 < len(lines) and not CONCOURS_NOT.search(lines[i + 1]):
             zone = ln + " " + lines[i + 1]
             found = _dates_in(zone, s)
+        if named is not None and not named.search(zone):
+            continue                                           # a school's own event listed on the concours's agenda
         kind = "en_ligne" if CONCOURS_ONLINE.search(zone) else "information"
         for d in found:
             if season_of(d) is not None and (d not in out or kind == "en_ligne"):
@@ -374,7 +385,7 @@ def read_concours(d: Path = DIR) -> tuple[list[dict], list[dict]]:
                 fetched = date.fromisoformat(r["fetched"][:10])
             except ValueError:
                 continue
-            ev = concours_events(r["text"], fetched)
+            ev = concours_events(r["text"], fetched, r["concours"])
             per_season = {}
             for dd, _ in ev:
                 per_season[season_of(dd)] = per_season.get(season_of(dd), 0) + 1

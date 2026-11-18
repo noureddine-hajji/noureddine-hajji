@@ -3847,10 +3847,15 @@ Parcoursup labels) also gets the concours's own sessions: the `suptracker-jpo` w
 data/jpo/concours/ (event lines, masked; `etat.csv` with `nomme` = the home page names the concours). `jpo.concours_events` keeps
 a date only on a line carrying an event word (webinaire, visio, live, portes ouvertes, JPO, journée/réunion/session d'information,
 salon), never on a line about registration, the exam or its results, with the same date rules as the establishments' sites;
-online = webinar words; a page with more than 12 sessions a season is an agenda and is dropped. The page shows the season's dates
+online = webinar words; the event's line (or heading + line) must NAME the concours (`CONCOURS_NAMES`: the concours agendas also
+list single schools' fairs and open days); a range of days (« les 8-9 janvier », « du 19, 20 au 21 novembre ») counts from its
+first day; a page with more than 12 sessions a season is an agenda and is dropped. The page shows the season's dates
 of the latest reading, each « à vérifier » with the page and the day read; the official site only when a reading succeeded AND
 named the concours (a wrong or moved address shows nothing). The concours sites are a source of their own (`sites_concours`) and
-in the warehouse fingerprint. The hosts are blocked in this sandbox: the first dates come with the workflow's next run.
+in the warehouse fingerprint. First real reading (2026-11-18): Geipi Polytech, SESAME, Advance and ACCÈS read and named, Puissance
+Alpha and Avenir unreachable from the runner (connection error: nothing shown, retried each day); events kept: the ACCÈS webinar
+on the 2027 selection (17 November 2026), Geipi Polytech at two fairs (8 and 22 January 2027). SESAME's agenda listed only single
+schools' fairs and open days (LEM Strasbourg, EMLV): none kept, by the naming rule written after this reading.
 
 **Ce que regarde le jury: one card.** When the formation has both its Parcoursup fiche (the coming campaign) and its jury's own
 report (the past session), the tab is ONE card « Comment votre dossier est examiné » (`juryMerged`): the fiche comes first and

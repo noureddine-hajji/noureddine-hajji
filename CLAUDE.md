@@ -676,7 +676,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   FIRST card of « Y entrer » (before the SIES indicators; never in « Combien ça coûte »), on-site and online sessions apart (Onisep
   « en virtuel »); a formation recruited through a concours of `jpo.CONCOURS` (Puissance Alpha, Avenir, Geipi Polytech, SESAME,
   Advance, ACCÈS: label words) also shows the concours's webinars and information days read on its OFFICIAL site (same workflow,
-  data/jpo/concours/, `concours_events`: event word and date on one line, never registration/exam/results lines, > 12 a season =
+  data/jpo/concours/, `concours_events`: event word and date on one line NAMING the concours (`CONCOURS_NAMES`: agendas list single schools'
+  events), a day range from its first day, never registration/exam/results lines, > 12 a season =
   agenda), each « à vérifier » with the page and the day read; the site is shown only when read AND naming the concours. J11. The jpo_* tables live in rapport_textes.duckdb (`jpo._src`), never in the
   warehouse (it went to 95.7 MB with them). No date = a PERIOD by
   thirds of the month (1-9 début, 10-20 mi-, 21-31 fin) from at most 3 past seasons, « aux alentours de mi-janvier », never a day,

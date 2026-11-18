@@ -683,26 +683,30 @@ NOT_WORDS = ("epreuve", "resultat", "date limite", "cloture", "inscription sur",
              "inscription du", "inscription avant", "oral", "entretien", "admissibilit", "convocation", "paiement")
 ONLINE_WORDS = ("webinaire", "webinar", "visio", "live", "en ligne", "en distanciel", "virtuel")
 CONC_TEXT = {
-    "c1": ("2026-11-12", "Nos webinaires\nMercredi 9 décembre 2026 à 18h\n"
-                         "Journée d'information samedi 16 janvier 2027 à Paris\n"
-                         "Inscriptions jusqu'au 12 mars 2027 : webinaire de présentation de la procédure\n"
+    "c1": ("2026-11-12", "Webinaires du Concours Avenir\nMercredi 9 décembre 2026 à 18h\n"
+                         "Journée d'information du concours Avenir samedi 16 janvier 2027 à Paris\n"
+                         "Inscriptions jusqu'au 12 mars 2027 : webinaire de présentation du concours Avenir\n"
                          "Épreuves écrites le 15 avril 2027\n"
-                         "Live Instagram le jeudi 3 décembre\n"
+                         "Live Instagram du Concours Avenir le jeudi 3 décembre\n"
                          "Salon du lycéen lundi 3 décembre\n"
-                         "Réunion d'information le samedi 7 novembre 2026\n"
-                         "Webinaire le 15 juillet 2027"),
+                         "Réunion d'information Concours Avenir le samedi 7 novembre 2026\n"
+                         "Webinaire le 15 juillet 2027\n"
+                         "Le Concours Avenir au salon Studyrama les 12-13 décembre 2026\n"          # a range: its first day
+                         "Salon de l'Étudiant de Lille du 5, 6 au 7 décembre 2026 : l'ESILV vous accueille"),   # one school's: not the concours's
 }
 
 
-def oracle_events(text: str, s: int):
-    """An independent reading of a concours page: (iso date, kind) per event."""
+def oracle_events(text: str, s: int, name: str | None = None):
+    """An independent reading of a concours page: (iso date, kind) per event; a range of days from its first day; with `name`,
+    only the events whose zone contains that name."""
     import unicodedata
     fold = lambda t: unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower().replace("’", "'")
     months = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8, "septembre": 9,
               "octobre": 10, "novembre": 11, "decembre": 12}
     days = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
     from datetime import date as _d
-    lines = [fold(x.strip()) for x in text.splitlines()]
+    lines = [re.sub(r"\b(\d{1,2})(?:\s*(?:-|,|et|au)\s*\d{1,2})+ (" + "|".join(months) + r")", r"\1 \2", fold(x.strip()))
+             for x in text.splitlines()]
     out = {}
 
     def in_season(d):
@@ -715,6 +719,8 @@ def oracle_events(text: str, s: int):
         if not ds and len(ln) <= 80 and i + 1 < len(lines) and not any(w in lines[i + 1] for w in NOT_WORDS):
             zone = ln + " " + lines[i + 1]
             ds = re.findall(r"(?:(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) )?(\d{1,2}) (" + "|".join(months) + r")(?: (20\d\d))?", zone)
+        if name and name not in zone:
+            continue
         kind = "en_ligne" if any(w in zone for w in ONLINE_WORDS) else "information"
         for wd, dd, mo, yy in ds:
             m = months[mo]
@@ -736,14 +742,15 @@ def conc_dir(base: Path) -> Path:
     d = make_dir(base)
     cd = d / "concours"
     cd.mkdir()
-    agenda = "\n".join(f"Webinaire école {i} le {i + 1} décembre 2026" for i in range(14))
+    agenda = "\n".join(f"Webinaire du concours Avenir, école {i}, le {i + 1} décembre 2026" for i in range(14))
     ext = [{"concours": "avenir", "url": "https://www.concours-avenir.fr/webinaires", "fetched": "2026-11-12", "text": CONC_TEXT["c1"][1]},
            # an older reading of the same page: a date it no longer lists is never served
            {"concours": "avenir", "url": "https://www.concours-avenir.fr/webinaires", "fetched": "2026-10-01",
-            "text": "Webinaire le mercredi 20 janvier 2027"},
+            "text": "Webinaire du concours Avenir le mercredi 20 janvier 2027"},
            {"concours": "avenir", "url": "https://www.concours-avenir.fr/agenda", "fetched": "2026-11-12", "text": agenda},
            # a site read but that does not name the concours: nothing shown
-           {"concours": "geipi", "url": "https://www.geipi-polytech.org/", "fetched": "2026-11-12", "text": "Webinaire le mercredi 9 décembre 2026"},
+           {"concours": "geipi", "url": "https://www.geipi-polytech.org/", "fetched": "2026-11-12",
+            "text": "Webinaire du concours Geipi Polytech le mercredi 9 décembre 2026"},       # named event, but the site check failed
            {"concours": "inconnu", "url": "https://x.fr/", "fetched": "2026-11-12", "text": "Webinaire le mercredi 9 décembre 2026"}]
     (cd / "extraits.csv.gz").write_bytes(gz(csvtext(ext, ["concours", "url", "fetched", "text"])))
     (cd / "etat.csv").write_text(csvtext([
@@ -761,9 +768,15 @@ def j11(c: Ctx):
     J = c.J()
     bad = []
     got = [(d.isoformat(), k) for d, k in J.concours_events(CONC_TEXT["c1"][1], _d(2026, 11, 12))]
-    exp = oracle_events(CONC_TEXT["c1"][1], 2027)
+    every = oracle_events(CONC_TEXT["c1"][1], 2027)
+    if got != every or ("2026-12-05", "information") not in got:
+        bad.append(f"events {got} != oracle {every}")
+    got = [(d.isoformat(), k) for d, k in J.concours_events(CONC_TEXT["c1"][1], _d(2026, 11, 12), "avenir")]
+    exp = oracle_events(CONC_TEXT["c1"][1], 2027, "concours avenir")
     if got != exp or ("2026-12-09", "en_ligne") not in got or ("2027-01-16", "information") not in got:
-        bad.append(f"events {got} != oracle {exp}")
+        bad.append(f"named events {got} != oracle {exp}")
+    if ("2026-12-12", "information") not in got or any(d in ("2026-12-13", "2026-12-05", "2026-12-07") for d, _ in got):
+        bad.append("a range not read from its first day, or a single school's event kept as the concours's")
     if any(d in ("2027-03-12", "2027-04-15", "2027-07-15") for d, _ in got):
         bad.append("a registration, exam or summer date read as an event")
     labels = {"Concours Puissance Alpha - Formation d'ingénieur": "puissance_alpha", "CONCOURS AVENIR - Bac + 5": "avenir",
@@ -914,6 +927,11 @@ SOURCE_MUTANTS = [
 
 SOURCE_MUTANTS += [
     ("jpo", "exam lines read as events", "        if not CONCOURS_EVENT.search(ln) or CONCOURS_NOT.search(ln):", "        if not CONCOURS_EVENT.search(ln):", "J11"),
+    ("jpo", "single schools' events kept", "        if named is not None and not named.search(zone):\n            continue",
+     "        if False:\n            continue", "J11"),
+    ("jpo", "range read as its last day", '    lines = [_DAY_RANGE.sub(r"\\1 \\2", fold(ln.strip())) for ln in (text or "").splitlines()]',
+     "    lines = [fold(ln.strip()) for ln in (text or \"\").splitlines()]", "J11"),
+    ("jpo", "name not passed when reading", '            ev = concours_events(r["text"], fetched, r["concours"])', '            ev = concours_events(r["text"], fetched)', "J11"),
     ("jpo", "online sessions not told apart", 'kind = "en_ligne" if CONCOURS_ONLINE.search(zone) else "information"', 'kind = "information"', "J11"),
     ("jpo", "no heading rule", "        if not found and len(ln) <= HEADING and i + 1 < len(lines)", "        if False and i + 1 < len(lines)", "J11"),
     ("jpo", "agenda page kept", "            if any(n > CONCOURS_AGENDA for n in per_season.values()):\n                continue",
