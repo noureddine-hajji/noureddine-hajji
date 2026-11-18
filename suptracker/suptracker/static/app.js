@@ -2362,6 +2362,30 @@ function distanceText(from, lat, lon) {
 // car estimate, transports.py) and everything is computed here. Ranges only; no figure where no price is public.
 let TRANSPORTS_P = null;
 const trLoad = () => (TRANSPORTS_P = TRANSPORTS_P || api("/api/transports").catch(() => { TRANSPORTS_P = null; return null; }));
+// owner, 2026-11-18 (« au plus proche »): each fuel's median in the student's DEPARTMENT when published (enough stations,
+// transports.MIN_STATIONS_DEP), else its national median; `dep` lists the fuels read in the department
+const TR_FUEL_NAMES = { gazole: "gazole", e10: "SP95-E10", sp95: "SP95" };
+function trFuel(T, dep) {
+  const D = (T.carburant_dep || {})[String(dep || "").toUpperCase()] || {}, fuel = {}, local = [];
+  for (const [k, x] of Object.entries(T.carburant || {})) {
+    const d = D[k] && Number.isFinite(D[k].prix) ? D[k] : null;
+    fuel[k] = d || x;
+    if (d) local.push(k);
+  }
+  return { fuel, local, all: Object.keys(fuel) };
+}
+// the sea or a border between two points: the continent (its box also takes the nearest foreign towns), Corsica, French Guiana and
+// New Caledonia's main island (both larger than 100 km) and every other place (the other overseas islands, formations abroad) are
+// told apart by their coordinates; two of those other points more than 100 km apart are not on the same land. No car estimate then
+// (French fuel prices, no road distance across the sea).
+function trLand(lat, lon) {
+  if (lat >= 41.3 && lat <= 43.1 && lon >= 8.45 && lon <= 9.65) return "corse";
+  if (lat >= 42.3 && lat <= 51.2 && lon >= -5.3 && lon <= 8.35) return "continent";
+  if (lat >= 2 && lat <= 6 && lon >= -55 && lon <= -51) return "guyane";
+  if (lat >= -22.8 && lat <= -20 && lon >= 163.5 && lon <= 167.2) return "grande-terre";
+  return "autre";
+}
+const trSea = (home, lat, lon, km) => { const a = trLand(home.lat, home.lon), b = trLand(lat, lon); return a !== b || (a === "autre" && km > 100); };
 // the car: road = crow-fly x detour range, fuel = the lowest and highest median of the fuels read, round trip; time one way
 function trCar(km, H, fuel) {
   const prices = Object.values(fuel || {}).map((x) => x.prix).filter((x) => Number.isFinite(x));
@@ -2398,21 +2422,30 @@ const TR_LINKS = { sncf: "https://www.sncf-connect.com/", blablacar: "https://ww
 function transportsHtml(T, home, lat, lon) {
   const H = T.hypotheses, km = haversineKm(home.lat, home.lon, lat, lon);
   if (km < 1) return `<p class="small">Vous êtes dans la même commune, ou presque : pas de trajet longue distance à estimer.</p>`;
-  const car = trCar(km, H, T.carburant), tr = trTrain(T, home, lat, lon);
+  const sea = trSea(home, lat, lon, km), F = trFuel(T, home.dep);
+  const car = sea ? null : trCar(km, H, F.fuel), tr = trTrain(T, home, lat, lon);
   const fuelDate = Object.values(T.carburant || {}).map((x) => x.date).sort().pop();
+  const names = (ks) => ks.map((k) => TR_FUEL_NAMES[k] || k).join(", ");
+  const fuelWhere = !F.local.length ? "prix médians en France"
+    : F.local.length === F.all.length ? `prix médians des stations de votre département (${esc(home.dep)})`
+    : `prix médians des stations de votre département (${esc(home.dep)}) ; en France pour le ${esc(names(F.all.filter((k) => !F.local.includes(k))))}, trop peu de stations le vendent près de chez vous`;
   const link = (k, txt) => `<a href="${esc(TR_LINKS[k])}" target="_blank" rel="noopener">${esc(txt)} ↗</a>`;
   const row = (mode, prix, duree, comment) => `<tr><td>${mode}</td><td class="num" data-label="Aller-retour">${prix}</td><td data-label="Durée (aller)">${duree}</td><td data-label="D'où vient le chiffre" class="small">${comment}</td></tr>`;
   const rows = [
     car ? row("Voiture", trEuros(car.cost), `${trHours(car.minutes[0])} à ${trHours(car.minutes[1])}`,
-      `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (prix médians${fuelDate ? ` au ${esc(frDate(fuelDate))}` : ""}). Péages et parking non compris.`)
-      : row("Voiture", "—", "—", "prix des carburants pas encore lus"),
+      `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (${esc(names(F.all))} : ${fuelWhere}, sur les 30 jours avant le ${esc(frDate(fuelDate || ""))}). Péages et parking non compris.`)
+      : row("Voiture", "—", "—", sea ? "la mer ou une frontière sépare votre ville et la formation : pas d'estimation en voiture." : "prix des carburants pas encore lus"),
     tr.price ? row(`Train (${tr.carriers.map(esc).join(", ")})`, trEuros(tr.price), `voir ${link("sncf", "SNCF Connect")}`,
       `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}.${tr.etudiant ? ` Au « Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>${trEuros(tr.etudiant)}</strong> l'aller-retour.` : ""} Avec une carte Avantage, c'est souvent moins cher.`)
-      : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)} : un TER ou un trajet avec changement reste possible.`),
-    row("Covoiturage", "pas de prix public", "—", `les prix sont fixés par les conducteurs : comparez sur ${link("blablacar", "BlaBlaCar")}.`),
-    row("Bus", "pas de prix public", "—", `comparez sur les sites des compagnies : ${link("bus_flixbus", "FlixBus")}, ${link("bus_blablacar", "BlaBlaCar Bus")}.`),
+      : row("Train", "—", `voir ${link("sncf", "SNCF Connect")}`, `${esc(tr.none)}${sea ? "." : " : un TER ou un trajet avec changement reste possible."}`),
   ];
-  if (km >= H.avion_km) rows.push(row("Avion", "pas de prix public", "—", "au-delà de 500 km, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports."));
+  // across the sea or a border, carpooling and the bus are not suggested; a ferry only where Corsica or two islands are concerned
+  if (!sea) rows.push(row("Covoiturage", "pas de prix public", "—", `les prix sont fixés par les conducteurs : comparez sur ${link("blablacar", "BlaBlaCar")}.`),
+    row("Bus", "pas de prix public", "—", `comparez sur les sites des compagnies : ${link("bus_flixbus", "FlixBus")}, ${link("bus_blablacar", "BlaBlaCar Bus")}.`));
+  const la = trLand(home.lat, home.lon), lb = trLand(lat, lon);
+  if (sea && (la === "corse" || lb === "corse" || (la === "autre" && lb === "autre")))
+    rows.push(row("Bateau", "pas de prix public", "—", "comparez sur les sites des compagnies maritimes, au départ des ports les plus proches."));
+  if (km >= H.avion_km || sea) rows.push(row("Avion", "pas de prix public", "—", `${sea && km < H.avion_km ? "pour traverser la mer" : "au-delà de 500 km"}, comparez aussi sur les sites des compagnies aériennes, sans oublier le trajet jusqu'aux aéroports.`));
   return `<p class="small">De ${esc(villeLabel(home))} à la formation : <strong>${fmt(Math.round(km))} km</strong> à vol d'oiseau. Des fourchettes à titre d'information, pas des prix garantis.</p>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Mode</th><th class="num">Aller-retour</th><th>Durée (aller)</th><th>D'où vient le chiffre</th></tr>${rows.join("")}</table></div>
     <p class="muted small">Sources : SNCF, « Tarifs TGV INOUI et OUIGO » et « Gares de voyageurs » (licence ODbL) ; ministère de l'Économie, « Prix des carburants » (Licence Ouverte)${T.lu_le && T.lu_le.tarifs_tgv ? `, lus le ${esc(frDate(T.lu_le.tarifs_tgv))}` : ""}. Votre ville reste dans ce navigateur : elle n'est jamais envoyée.</p>`;

@@ -731,12 +731,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in
   rapport_textes.duckdb): stations with a position, 2nd class « Tarif Normal » ranges per origin-destination (both directions pooled),
-  fuel MEDIANS of the last 30 days, the fixed HYPOTHESES of the car estimate (road 1.2-1.3 x crow-fly, 5-7 L/100 km, 90-110 km/h;
+  fuel MEDIANS of the last 30 days, national and per department (>= 10 stations; the page uses the student's department fuel by fuel,
+  else the national one, and says which), the fixed HYPOTHESES of the car estimate (road 1.2-1.3 x crow-fly, 5-7 L/100 km, 90-110 km/h;
   owner-reviewable, printed on the page). The page computes the round trip from `villeDepart` (never sent): car = fuel only, tolls and
-  parking said not counted, estimation label; TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
+  parking said not counted, estimation label, NONE across the sea or a border (`trLand` boxes, checked on every formation); TGV = among EVERY fare station within 30 km of each end (a city has several), the pair
   with the lowest published normal fare, its range x 2, plus the SNCF's own « Tarif Élève - Étudiant - Apprenti » range where published
-  (none when one station serves both ends); carpooling, bus and plane (from 500 km) have no public price: links only, never a figure. Card in
-  « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
+  (none when one station serves both ends); carpooling, bus and plane (from 500 km) have no public price: links only, never a figure (owner, 2026-11-18: no
+  third-party route planner such as Rome2rio; official open data only, refreshed monthly). Card in « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

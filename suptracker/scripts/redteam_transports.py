@@ -2,11 +2,13 @@
 
   TR1 reading: an INDEPENDENT reading of crafted SNCF and fuel files equals transports.read: only 2nd class « Tarif Normal » rows,
       both directions pooled (lowest minimum, highest maximum), carriers named OUIGO / TGV INOUI, a station without a position left
-      out and counted, a fuel median over the stations updated in the last 30 days before the newest update, absurd prices dropped.
+      out and counted, a fuel median over the stations updated in the last 30 days before the newest update, absurd prices dropped;
+      the same median per department, only with at least MIN_STATIONS_DEP stations in the window.
   TR2 page arithmetic (node): trCar, trTrain and the formatters equal a Python re-derivation on a grid of distances: road = crow-fly
       x detour range, round trip, the lowest price with the lowest consumption and the highest with the highest, time one way from
       the speed range; the nearest fare station within the radius on each side, none when the same station serves both, the
-      published range x 2; euros rounded OUTWARDS.
+      published range x 2; euros rounded OUTWARDS; each fuel's price = its department median when published, else the national
+      one; no car estimate when the sea or a border lies between the two points (a table of real places).
   TR3 page text (node): every stored string escaped; no figure for carpooling, bus or plane; the plane only from 500 km; tolls and
       parking said not counted; the estimation label on the car; ODbL and Licence Ouverte credited; https links with noopener;
       vouvoiement; never a guaranteed price; a town at the formation says so; no town = a link to Mon profil.
@@ -113,6 +115,11 @@ FUEL = [  # id, gazole, maj, e10, maj
     ("5", "1.90", "2026-11-16T10:00:00+01:00", "", ""),
     ("6", "2.40", "2026-11-15T10:00:00+01:00", "", ""),                                # a median, not a mean
 ]
+# department 13: 12 recent diesel prices (a department median), 1 old one (out), 3 e10 prices (too few: the national e10)
+FUEL13 = [(f"13{i:02d}", f"{1.60 + 0.01 * i:.2f}", "2026-11-1{0}T10:00:00+01:00".format(i % 8 + 1), "1.85" if i < 3 else "",
+           "2026-11-17T10:00:00+01:00" if i < 3 else "") for i in range(12)] + [("1399", "1.20", "2026-09-01T10:00:00+01:00", "", "")]
+for _i in (1, 4):                                       # one more price far from the others: a median is not a mean
+    FUEL13[_i] = (FUEL13[_i][0], "2.30", *FUEL13[_i][2:])
 
 
 def make_dir(base: Path) -> Path:
@@ -123,8 +130,9 @@ def make_dir(base: Path) -> Path:
     (d / "gares.csv.gz").write_bytes(gz(csvtext([{"nom": n, "uic": u, "position": p, "commune": ""} for n, u, p in GARES],
                                                 ["nom", "uic", "position", "commune"])))
     fcols = ["id", "departement", "gazole", "gazole_maj", "e10", "e10_maj", "sp95", "sp95_maj"]
-    (d / "carburants.csv.gz").write_bytes(gz(csvtext([{"id": i, "departement": "75", "gazole": g, "gazole_maj": gm, "e10": e, "e10_maj": em,
-                                                       "sp95": "", "sp95_maj": ""} for i, g, gm, e, em in FUEL], fcols)))
+    (d / "carburants.csv.gz").write_bytes(gz(csvtext([{"id": i, "departement": dep, "gazole": g, "gazole_maj": gm, "e10": e, "e10_maj": em,
+                                                       "sp95": "", "sp95_maj": ""} for dep, rows in (("75", FUEL), ("13", FUEL13))
+                                                      for i, g, gm, e, em in rows], fcols)))
     (d / "versions.csv").write_text(csvtext([{"fichier": "tarifs_tgv.csv.gz", "lu_le": "2026-11-18", "url": "x", "lignes": "8", "sha256": "x"}],
                                             ["fichier", "lu_le", "url", "lignes", "sha256"]))
     return d
@@ -151,15 +159,20 @@ def oracle_read():
         e = od.setdefault(k, [lo, hi, set()])
         e[0], e[1] = min(e[0], lo), max(e[1], hi)
         e[2].add("OUIGO" if "OUIGO" in car else "TGV INOUI")
-    fuel = {}
+    fuel, dep = {}, {}
     for col, idx in (("gazole", (1, 2)), ("e10", (3, 4))):
-        vals = [(float(r[idx[0]]), r[idx[1]][:10]) for r in FUEL if r[idx[0]] and 0.5 <= float(r[idx[0]]) <= 5]
-        newest = max(t for _, t in vals)
+        vals = [(float(r[idx[0]]), r[idx[1]][:10], dp) for dp, rows in (("75", FUEL), ("13", FUEL13)) for r in rows
+                if r[idx[0]] and 0.5 <= float(r[idx[0]]) <= 5]
+        newest = max(t for _, t, _d in vals)
         from datetime import date, timedelta
         cut = (date.fromisoformat(newest) - timedelta(days=30)).isoformat()
-        rec = [v for v, t in vals if t >= cut]
-        fuel[col] = {"prix": round(statistics.median(rec), 3), "n": len(rec), "date": newest}
-    return {k: [v[0], v[1], sorted(v[2])] + (etu[k] if k in etu else []) for k, v in od.items()}, fuel
+        rec = [(v, dp) for v, t, dp in vals if t >= cut]
+        fuel[col] = {"prix": round(statistics.median([v for v, _ in rec]), 3), "n": len(rec), "date": newest}
+        for dp in ("75", "13"):
+            vs = [v for v, d2 in rec if d2 == dp]
+            if len(vs) >= 10:
+                dep.setdefault(dp, {})[col] = {"prix": round(statistics.median(vs), 3), "n": len(vs)}
+    return {k: [v[0], v[1], sorted(v[2])] + (etu[k] if k in etu else []) for k, v in od.items()}, fuel, dep
 
 
 @check("TR1 reading: 2nd class normal fare, both directions pooled, stations with a position, fuel medians of the last 30 days")
@@ -170,8 +183,12 @@ def tr1(c: Ctx):
         got = T.read(make_dir(tmp))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    od, fuel = oracle_read()
+    od, fuel, dep = oracle_read()
     bad = []
+    if got.get("carburant_dep") != dep or set(dep) != {"13"} or set(dep["13"]) != {"gazole"}:
+        bad.append(f"department fuels {got.get('carburant_dep')} != {dep}")
+    if T.MIN_STATIONS_DEP != 10:
+        bad.append("the department threshold moved")
     if got["od"] != od:
         bad.append(f"fares {got['od']} != {od}")
     if got["carburant"] != fuel:
@@ -216,7 +233,22 @@ const estimTag = () => '<span class="estim">estimation</span>';
 const frDate = (iso) => iso;
 const villeLabel = (c) => `${c.nom} (${c.dep})`;
 """
-NAMES = ("haversineKm", "trNear", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS", "transportsHtml")
+NAMES = ("haversineKm", "trNear", "TR_FUEL_NAMES", "trFuel", "trLand", "trSea", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS",
+         "transportsHtml")
+# real places (lat, lon) and whether a car can go between them: the sea or a border = no car estimate
+PLACES = {"Paris": (48.8566, 2.3522), "Lyon": (45.764, 4.8357), "Brest": (48.3904, -4.4861), "Strasbourg": (48.5734, 7.7521),
+          "Nice": (43.7102, 7.262), "Perpignan": (42.6887, 2.8948), "Lille": (50.6292, 3.0573), "Bruxelles": (50.8503, 4.3517),
+          "Ajaccio": (41.9192, 8.7386), "Bastia": (42.6973, 9.4509), "Berlin": (52.52, 13.405), "Madrid": (40.4168, -3.7038),
+          "Fort-de-France": (14.6161, -61.0588), "Pointe-à-Pitre": (16.2411, -61.5331), "Basse-Terre": (15.9985, -61.7255),
+          "Saint-Denis (Réunion)": (-20.8821, 55.4507), "Saint-Pierre (Réunion)": (-21.3393, 55.4781), "Cayenne": (4.9224, -52.3135),
+          "Saint-Laurent-du-Maroni": (5.4985, -54.0325), "Nouméa": (-22.2758, 166.458), "Koné": (-21.0595, 164.8658),
+          "Mamoudzou": (-12.7806, 45.2279), "Papeete": (-17.5516, -149.5585)}
+SEA = {("Paris", "Lyon"): False, ("Brest", "Strasbourg"): False, ("Nice", "Perpignan"): False, ("Lille", "Bruxelles"): False,
+       ("Ajaccio", "Bastia"): False, ("Pointe-à-Pitre", "Basse-Terre"): False, ("Saint-Denis (Réunion)", "Saint-Pierre (Réunion)"): False,
+       ("Cayenne", "Saint-Laurent-du-Maroni"): False, ("Nouméa", "Koné"): False,
+       ("Nice", "Ajaccio"): True, ("Paris", "Bastia"): True, ("Paris", "Berlin"): True, ("Perpignan", "Madrid"): True,
+       ("Fort-de-France", "Pointe-à-Pitre"): True, ("Paris", "Saint-Denis (Réunion)"): True, ("Cayenne", "Fort-de-France"): True,
+       ("Mamoudzou", "Saint-Denis (Réunion)"): True, ("Papeete", "Nouméa"): True, ("Lyon", "Cayenne"): True}
 
 
 def hav(a, b, c, d):
@@ -244,21 +276,27 @@ def tr2(c: Ctx):
     H = P["hypotheses"]
     homes = [{"nom": "A", "dep": "75", "lat": 48.85 + i * 0.4, "lon": 2.35 + i * 0.3} for i in range(-3, 9)] \
         + [{"nom": "Villeurbanne", "dep": "69", "lat": 45.77, "lon": 4.88},          # the same station serves both
-           {"nom": "Paris 10e", "dep": "75", "lat": 48.8809, "lon": 2.3553}]           # the nearest station is the dearer one
+           {"nom": "Paris 10e", "dep": "75", "lat": 48.8809, "lon": 2.3553},           # the nearest station is the dearer one
+           {"nom": "Marseille", "dep": "13", "lat": 43.2965, "lon": 5.3698},           # department diesel, national e10
+           {"nom": "Aix", "dep": "13", "lat": 43.5297, "lon": 5.4474}]
     dest = (45.76, 4.86)
     prog = STUB + "\n".join(top(c.js, n) for n in NAMES) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       const out = D.homes.map((h) => { const km = haversineKm(h.lat, h.lon, D.dest[0], D.dest[1]);
-        return { km, car: trCar(km, D.P.hypotheses, D.P.carburant), tr: trTrain(D.P, h, D.dest[0], D.dest[1]) }; });
-      out.push({ eur: [trEuros([19.4, 79.2]), trEuros([40, 40]), trHours(59.6), trHours(125), trHours(119.7)] });
+        return { km, car: trCar(km, D.P.hypotheses, trFuel(D.P, h.dep).fuel), tr: trTrain(D.P, h, D.dest[0], D.dest[1]) }; });
+      out.push({ eur: [trEuros([19.4, 79.2]), trEuros([40, 40]), trHours(59.6), trHours(125), trHours(119.7)],
+                 sea: D.sea.map(([a, b]) => { const p = D.places[a], q = D.places[b];
+                   return trSea({ lat: p[0], lon: p[1] }, q[0], q[1], haversineKm(p[0], p[1], q[0], q[1])) === trSea({ lat: q[0], lon: q[1] }, p[0], p[1], haversineKm(p[0], p[1], q[0], q[1]))
+                     ? trSea({ lat: p[0], lon: p[1] }, q[0], q[1], haversineKm(p[0], p[1], q[0], q[1])) : "asymmetric"; }) });
       process.stdout.write(JSON.stringify(out));"""
-    out = node(prog, {"homes": homes, "dest": dest, "P": P})
+    out = node(prog, {"homes": homes, "dest": dest, "P": P, "places": PLACES, "sea": [list(k) for k in SEA]})
     if out is None:
         return True, "node absent: not run"
     bad = []
-    prices = [x["prix"] for x in P["carburant"].values()]
     st = {s[0]: (s[2], s[3]) for s in P["stations"]}
     for h, o in zip(homes, out):
+        D = P["carburant_dep"].get(h["dep"], {})
+        prices = [(D.get(k) or x)["prix"] for k, x in P["carburant"].items()]
         km = hav(h["lat"], h["lon"], *dest)
         if abs(o["km"] - km) > 1e-6:
             bad.append("haversine")
@@ -290,6 +328,9 @@ def tr2(c: Ctx):
             break
     if out[-1]["eur"] != ["19 à 80 €", "40 €", "1 h", "2 h 05", "2 h"]:
         bad.append(("formatting", out[-1]["eur"]))
+    wrong = [(k, got) for k, got in zip(SEA, out[-1]["sea"]) if got != SEA[k]]
+    if wrong:
+        bad.append(("sea or border", wrong[:4]))
     covered = sum(1 for o in out[:-1] if o["tr"].get("price"))
     if not covered:
         bad.append("no trip with a TGV price (vacuous)")
@@ -308,16 +349,30 @@ def tr3(c: Ctx):
       const far = transportsHtml(D.P, { nom: "Brest", dep: "29", lat: 48.39, lon: -4.49 }, 43.3, 5.37);
       const same = transportsHtml(D.P, { nom: "Lyon", dep: "69", lat: 45.7606, lon: 4.8595 }, 45.7606, 4.8595);
       const noTown = transportsCard({ lat: 45.7, lon: 4.8 }); VD = { nom: "x", dep: "1", lat: 1, lon: 1 };
-      process.stdout.write(JSON.stringify([near, far, same, noTown, transportsCard({ lat: null })]));"""
+      const dep13 = transportsHtml(D.P, { nom: "Marseille", dep: "13", lat: 43.2965, lon: 5.3698 }, 45.7606, 4.8595);
+      const sea = transportsHtml(D.P, { nom: "Ajaccio", dep: "2A", lat: 41.9192, lon: 8.7386 }, 43.2965, 5.3698);
+      process.stdout.write(JSON.stringify([near, far, same, noTown, transportsCard({ lat: null }), dep13, sea]));"""
     o = node(prog, {"P": P, "H": HOSTILE})
     if o is None:
         return True, "node absent: not run"
-    near, far, same, no_town, none = o
+    near, far, same, no_town, none, dep13, sea = o
     bad = []
+    fr = lambda x: f"{x:.2f}".replace(".", ",")
+    nat = [x["prix"] for x in P["carburant"].values()]
+    loc = [(P["carburant_dep"].get("13", {}).get(k) or x)["prix"] for k, x in P["carburant"].items()]
+    if f"{fr(min(nat))} à {fr(max(nat))} € le litre (gazole, SP95-E10 : prix médians en France" not in near:
+        bad.append("a town of a department without its own medians does not use and name the national ones")
+    if (f"{fr(min(loc))} à {fr(max(loc))} € le litre (gazole, SP95-E10 : prix médians des stations de votre département (13) ; "
+            "en France pour le SP95-E10") not in dep13:
+        bad.append("the department medians are not used, or not named fuel by fuel")
+    if "la mer ou une frontière" not in sea or "carburant seul" in sea or "pour traverser la mer" not in sea:
+        bad.append("a car trip estimated across the sea, or no plane row there")
+    if "Covoiturage" in sea or "<td>Bus</td>" in sea or "TER" in sea or "<td>Bateau</td>" not in sea or "Bateau" in near + far:
+        bad.append("carpooling, bus or a TER suggested across the sea, or the ferry row misplaced")
     if "<img" in near + far:
         bad.append("a stored string is not escaped")
-    rows = dict(re.findall(r"<tr><td>([^<]*)</td><td class=\"num\" data-label=\"Aller-retour\">([^<]*)</td>", near + far))
-    for mode in ("Covoiturage", "Bus", "Avion"):
+    rows = dict(re.findall(r"<tr><td>([^<]*)</td><td class=\"num\" data-label=\"Aller-retour\">([^<]*)</td>", near + far + sea))
+    for mode in ("Covoiturage", "Bus", "Avion", "Bateau"):
         if mode in rows and rows[mode] != "pas de prix public":
             bad.append(f"a figure for {mode}")
     if "Avion" in near or "Avion" not in far:
@@ -430,7 +485,23 @@ def tr7(c: Ctx):
     rows = con.execute("""SELECT DISTINCT lat, lon FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
                           AND lat IS NOT NULL AND lon IS NOT NULL""").fetchall()
     near = sum(1 for la, lo in rows if any(hav(la, lo, a, b) <= T.HYPOTHESES["gare_km"] for a, b in st))
-    return True, f"{len(served['stations'])} stations, {len(served['od'])} fares, fuels {sorted(served['carburant'])}; {near} of {len(rows)} formations within {T.HYPOTHESES['gare_km']} km of a fare station"
+    # every formation's land (page's trLand) agrees with its department: a metropolitan department on the continent, Corsica on
+    # Corsica, French Guiana and New Caledonia on their own land, the other overseas places apart
+    pts = con.execute("SELECT DISTINCT departement, lat, lon FROM core.cartographie WHERE lat IS NOT NULL AND departement IS NOT NULL").fetchall()
+    lands = node(top(c.js, "trLand") + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8')); process.stdout.write(JSON.stringify(D.map(([a, b]) => trLand(a, b))));""",
+                 [[la, lo] for _d, la, lo in pts])
+    OVERSEAS = {"Guadeloupe", "Martinique", "La Réunion", "Mayotte", "Polynésie française", "Saint-Martin", "Saint-Barthélemy",
+                "Saint-Pierre-et-Miquelon", "Wallis et Futuna", "Wallis-et-Futuna"}
+    if lands is not None:
+        def want(dep):
+            return ({"Corse-du-Sud": {"corse"}, "Haute-Corse": {"corse"}, "Guyane": {"guyane"}, "Nouvelle-Calédonie": {"grande-terre", "autre"}}
+                    .get(dep) or ({"autre"} if dep in OVERSEAS else {"continent"}))
+        wrong = [(d, la, lo, got) for (d, la, lo), got in zip(pts, lands) if got not in want(d)]
+        if wrong:
+            return False, f"{len(wrong)} formation positions on the wrong land: {wrong[:4]}"
+    deps = served.get("carburant_dep", {})
+    return True, f"{len(pts)} positions on their land; fuel medians of {len(deps)} departments; {len(served['stations'])} stations, {len(served['od'])} fares, fuels {sorted(served['carburant'])}; {near} of {len(rows)} formations within {T.HYPOTHESES['gare_km']} km of a fare station"
 
 
 SOURCE_MUTANTS = [
@@ -441,9 +512,9 @@ SOURCE_MUTANTS = [
     ("tr", "directions not pooled", 'k = "-".join(sorted((a, b)))', 'k = f"{a}-{b}"', "TR1"),
     ("tr", "reversed range kept", "if not a or not b or a == b or lo is None or hi is None or hi < lo:", "if not a or not b or a == b or lo is None or hi is None:", "TR1"),
     ("tr", "stations without position kept", "            if a not in pos or b not in pos:\n                continue", "            if False:\n                continue", "TR1"),
-    ("tr", "old fuel prices counted", "recent = [v for v, t in vals if t >= newest - timedelta(days=PRICE_DAYS)]", "recent = [v for v, t in vals]", "TR1"),
+    ("tr", "old fuel prices counted", "recent = [(v, dep) for v, t, dep in vals if t >= newest - timedelta(days=PRICE_DAYS)]", "recent = [(v, dep) for v, t, dep in vals]", "TR1"),
     ("tr", "absurd prices counted", "if v is None or not 0.5 <= v <= 5:", "if v is None:", "TR1"),
-    ("tr", "mean instead of median", '"prix": round(statistics.median(recent), 3)', '"prix": round(statistics.mean(recent), 3)', "TR1"),
+    ("tr", "mean instead of median", '"prix": round(statistics.median([v for v, _d in recent]), 3)', '"prix": round(statistics.mean([v for v, _d in recent]), 3)', "TR1"),
     ("js", "one way instead of a round trip", "  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2],", "  return { a, b, price: [od[0], od[1]], carriers: od[2],", "TR2"),
     ("js", "detour ignored", "  const road = [km * H.detour[0], km * H.detour[1]];", "  const road = [km, km];", "TR2"),
     ("js", "prices crossed", "* H.conso_l_100km[0] / 100 * Math.min(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.max(...prices)]",
@@ -455,7 +526,18 @@ SOURCE_MUTANTS = [
     ("tr", "student fare mixed with the normal one", "            if prof == PROFIL_ETUDIANT:\n", "            if False:\n", "TR1"),
     ("js", "euros rounded inwards", "Math.floor(x[0]))}${x[0] === x[1] ? \"\" : ` à ${fmt(Math.ceil(x[1]))}`}", "Math.round(x[0]))}${x[0] === x[1] ? \"\" : ` à ${fmt(Math.round(x[1]))}`}", "TR2"),
     ("js", "station name unescaped", "entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}", "entre les gares de ${tr.a.nom} et ${tr.b.nom}", "TR3"),
-    ("js", "plane always shown", "  if (km >= H.avion_km) rows.push(", "  if (true) rows.push(", "TR3"),
+    ("js", "plane always shown", "  if (km >= H.avion_km || sea) rows.push(", "  if (true) rows.push(", "TR3"),
+    ("js", "national fuel only", "  const car = sea ? null : trCar(km, H, F.fuel), tr", "  const car = sea ? null : trCar(km, H, T.carburant), tr", "TR3"),
+    ("js", "carpooling across the sea", "  if (!sea) rows.push(row(\"Covoiturage\"", "  if (true) rows.push(row(\"Covoiturage\"", "TR3"),
+    ("js", "car across the sea", "  const car = sea ? null : trCar(km, H, F.fuel), tr", "  const car = trCar(km, H, F.fuel), tr", "TR3"),
+    ("js", "department ignored", "  const D = (T.carburant_dep || {})[String(dep || \"\").toUpperCase()] || {}, fuel = {}, local = [];",
+     "  const D = {}, fuel = {}, local = [];", "TR2"),
+    ("js", "Corsica on the continent", '  if (lat >= 41.3 && lat <= 43.1 && lon >= 8.45 && lon <= 9.65) return "corse";\n', "", "TR2"),
+    ("js", "islands joined", 'return a !== b || (a === "autre" && km > 100); };', "return a !== b; };", "TR2"),
+    ("js", "Guiana split", '  if (lat >= 2 && lat <= 6 && lon >= -55 && lon <= -51) return "guyane";\n', "", "TR2"),
+    ("tr", "department threshold ignored", "                if len(vs) >= MIN_STATIONS_DEP:", "                if vs:", "TR1"),
+    ("tr", "department window ignored", "            for v, dep in recent:\n", "            for v, _t, dep in vals:\n", "TR1"),
+    ("tr", "department mean", '{"prix": round(statistics.median(vs), 3), "n": len(vs)}', '{"prix": round(statistics.mean(vs), 3), "n": len(vs)}', "TR1"),
     ("js", "tolls not said", " Péages et parking non compris.", "", "TR3"),
     ("js", "credits dropped", "« Gares de voyageurs » (licence ODbL)", "« Gares de voyageurs »", "TR3"),
     ("js", "town sent", 'api("/api/transports")', 'api(`/api/transports?ville=${encodeURIComponent((villeDepart() || {}).nom || "")}`)', "TR4"),

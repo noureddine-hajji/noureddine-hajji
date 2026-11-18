@@ -8,7 +8,9 @@ Sources (fetched by the `suptracker-transports` workflow into data/transports/, 
   - SNCF « Gares de voyageurs »: the position of the stations those fares name (by UIC code); a station without a position is
     left out (counted);
   - « Prix des carburants en France » (Ministère de l'Économie): the MEDIAN price of each fuel over the stations that updated it
-    in the last PRICE_DAYS days before the newest update, with its count and date.
+    in the last PRICE_DAYS days before the newest update, with its count and date; the same median PER DEPARTMENT (owner,
+    2026-11-18: « au plus proche ») when at least MIN_STATIONS_DEP stations of the department updated it in that window. The
+    page uses the student's department and falls back on the national median, fuel by fuel, and says which one it used.
 
 The car estimate needs hypotheses no open dataset gives per trip; they are FIXED here (HYPOTHESES), sent with the data and
 printed on the page: the road is 1.2 to 1.3 times the distance as the crow flies, a car burns 5 to 7 litres per 100 km, the
@@ -29,6 +31,7 @@ DIR = Path(__file__).resolve().parent.parent / "data" / "transports"
 CLASSE, PROFIL = "2", "tarif normal"
 PROFIL_ETUDIANT = "tarif eleve - etudiant - apprenti"     # folded: the SNCF's « Tarif Elève - Etudiant - Apprenti »
 PRICE_DAYS = 30
+MIN_STATIONS_DEP = 10            # fewer stations in the department: the national median of that fuel
 FUELS = ("gazole", "e10", "sp95")
 HYPOTHESES = {
     "detour": [1.2, 1.3],            # road distance / distance as the crow flies
@@ -73,7 +76,7 @@ def position(p: str) -> tuple[float, float] | None:
 
 def read(d: Path = DIR) -> dict:
     audit = []
-    out = {"stations": [], "od": {}, "carburant": {}, "lu_le": {}, "hypotheses": HYPOTHESES, "audit": audit}
+    out = {"stations": [], "od": {}, "carburant": {}, "carburant_dep": {}, "lu_le": {}, "hypotheses": HYPOTHESES, "audit": audit}
     vf = d / "versions.csv"
     if vf.exists():
         with open(vf, encoding="utf-8", newline="") as f:
@@ -132,14 +135,21 @@ def read(d: Path = DIR) -> dict:
                 if v is None or not 0.5 <= v <= 5:          # euros per litre: a typo (0, 1000…) is never a price
                     continue
                 try:
-                    vals.append((v, date.fromisoformat(m)))
+                    vals.append((v, date.fromisoformat(m), (r.get("departement") or "").strip().upper()))
                 except ValueError:
                     continue
             if not vals:
                 continue
-            newest = max(t for _, t in vals)
-            recent = [v for v, t in vals if t >= newest - timedelta(days=PRICE_DAYS)]
-            out["carburant"][fuel] = {"prix": round(statistics.median(recent), 3), "n": len(recent), "date": newest.isoformat()}
+            newest = max(t for _, t, _d in vals)
+            recent = [(v, dep) for v, t, dep in vals if t >= newest - timedelta(days=PRICE_DAYS)]
+            out["carburant"][fuel] = {"prix": round(statistics.median([v for v, _d in recent]), 3), "n": len(recent), "date": newest.isoformat()}
+            per = {}
+            for v, dep in recent:
+                if dep:
+                    per.setdefault(dep, []).append(v)
+            for dep, vs in sorted(per.items()):
+                if len(vs) >= MIN_STATIONS_DEP:
+                    out["carburant_dep"].setdefault(dep, {})[fuel] = {"prix": round(statistics.median(vs), 3), "n": len(vs)}
     else:
         audit.append("carburants.csv.gz missing")
     return out
@@ -148,7 +158,7 @@ def read(d: Path = DIR) -> dict:
 def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
     """One compressed JSON value (`transports_data`) in the file beside the warehouse (like the communes: 95 MB budget); in the
     warehouse when that file does not exist (tests)."""
-    data = read(d) if d.exists() else {"stations": [], "od": {}, "carburant": {}, "lu_le": {}, "hypotheses": HYPOTHESES,
+    data = read(d) if d.exists() else {"stations": [], "od": {}, "carburant": {}, "carburant_dep": {}, "lu_le": {}, "hypotheses": HYPOTHESES,
                                         "audit": ["data/transports missing"]}
     blob = zlib.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"), 9)
 
@@ -169,7 +179,8 @@ def build(con, d: Path = DIR, textes: Path | None = None) -> dict:
             tc.execute("CHECKPOINT")
         finally:
             tc.close()
-    return {"stations": len(data["stations"]), "od": len(data["od"]), "carburants": sorted(data["carburant"]), "audit": data["audit"]}
+    return {"stations": len(data["stations"]), "od": len(data["od"]), "carburants": sorted(data["carburant"]),
+            "departements": len(data.get("carburant_dep", {})), "audit": data["audit"]}
 
 
 def payload(con) -> dict:
@@ -189,7 +200,7 @@ def payload(con) -> dict:
         except Exception:  # noqa: BLE001  (a file built before the transports)
             r = None
     if not r or r[0] is None:
-        return {"stations": [], "od": {}, "carburant": {}, "lu_le": {}, "hypotheses": HYPOTHESES}   # before the first build
+        return {"stations": [], "od": {}, "carburant": {}, "carburant_dep": {}, "lu_le": {}, "hypotheses": HYPOTHESES}   # before the first build
     data = json.loads(zlib.decompress(bytes(r[0])).decode("utf-8"))
     data.pop("audit", None)
     return data
