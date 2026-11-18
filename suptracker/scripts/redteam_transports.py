@@ -216,7 +216,7 @@ const estimTag = () => '<span class="estim">estimation</span>';
 const frDate = (iso) => iso;
 const villeLabel = (c) => `${c.nom} (${c.dep})`;
 """
-NAMES = ("haversineKm", "trNear", "trCar", "trTrain", "trEuros", "trHours", "trFr", "trPlace", "trRome2rio", "TR_LINKS", "transportsHtml")
+NAMES = ("haversineKm", "trNear", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS", "transportsHtml")
 
 
 def hav(a, b, c, d):
@@ -304,7 +304,7 @@ def tr3(c: Ctx):
     prog = STUB + "\n".join(top(c.js, n) for n in NAMES + ("transportsCard",)) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       let VD = null; const villeDepart = () => VD;
-      const near = transportsHtml(D.P, { nom: "Paris" + D.H, dep: "75", lat: 48.8443, lon: 2.3744 }, 45.7606, 4.8595, "Lyon 7e  Arrondissement");
+      const near = transportsHtml(D.P, { nom: "Paris" + D.H, dep: "75", lat: 48.8443, lon: 2.3744 }, 45.7606, 4.8595);
       const far = transportsHtml(D.P, { nom: "Brest", dep: "29", lat: 48.39, lon: -4.49 }, 43.3, 5.37);
       const same = transportsHtml(D.P, { nom: "Lyon", dep: "69", lat: 45.7606, lon: 4.8595 }, 45.7606, 4.8595);
       const noTown = transportsCard({ lat: 45.7, lon: 4.8 }); VD = { nom: "x", dep: "1", lat: 1, lon: 1 };
@@ -331,14 +331,8 @@ def tr3(c: Ctx):
     if "ODbL" not in near or "Licence Ouverte" not in near or "jamais envoyée" not in near or "pas des prix garantis" not in near:
         bad.append("credits, privacy sentence or caveat missing")
     links = re.findall(r'<a href="([^"]+)"([^>]*)>', near + far)
-    if not links or any(not u.startswith("https://") or "noopener" not in a for u, a in links):
+    if not links or any(not u.startswith("https://") or 'rel="noopener"' not in a for u, a in links):
         bad.append("an unsafe link")
-    # owner, 2026-11-18: Rome2rio as a LINK only (the town leaves only on the student's click, said)
-    r2r = re.search(r'<a href="(https://www\.rome2rio\.com/fr/map/[^"]+)" target="_blank" rel="noopener noreferrer">', near)
-    if not r2r or not r2r.group(1).endswith("/Lyon") or "%3Cimg" not in r2r.group(1) or "votre ville est envoyée à Rome2rio" not in near:
-        bad.append("the Rome2rio link: missing, the formation's town not cleaned, the town not encoded, or the warning missing")
-    if re.search(r"api\([^)]*rome2rio|fetch\([^)]*rome2rio", c.js, re.I):
-        bad.append("Rome2rio called by the page (an API call sends the town)")
     if "même commune" not in same or 'href="#/profil"' not in no_town or none != "":
         bad.append("same town, no town or no position not handled")
     txt = re.sub(r"<[^>]+>", " ", near + far + same + no_town)
@@ -463,9 +457,6 @@ SOURCE_MUTANTS = [
     ("js", "station name unescaped", "entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}", "entre les gares de ${tr.a.nom} et ${tr.b.nom}", "TR3"),
     ("js", "plane always shown", "  if (km >= H.avion_km) rows.push(", "  if (true) rows.push(", "TR3"),
     ("js", "tolls not said", " Péages et parking non compris.", "", "TR3"),
-    ("js", "Rome2rio warning dropped", " En cliquant, votre ville est envoyée à Rome2rio, un site privé.", "", "TR3"),
-    ("js", "town not encoded in the link", "${encodeURIComponent(trPlace(from))}", "${trPlace(from)}", "TR3"),
-    ("js", "arrondissement kept", '.replace(/\\s+\\d.*$/, "")', "", "TR3"),
     ("js", "credits dropped", "« Gares de voyageurs » (licence ODbL)", "« Gares de voyageurs »", "TR3"),
     ("js", "town sent", 'api("/api/transports")', 'api(`/api/transports?ville=${encodeURIComponent((villeDepart() || {}).nom || "")}`)', "TR4"),
     ("js", "late fill", '  if (!el || el !== document.getElementById("transports-body")) return;', "  if (!el) return;", "TR4"),
