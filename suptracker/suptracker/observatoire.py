@@ -161,4 +161,4 @@ def build(con) -> dict:
     return {"sessions": sessions, "session": last, "tendances": tendances, "academies": academies, "demande": demande,
             "ile_de_france": {"academies": list(IDF), "demande": idf}, "proximite": proximite, "tous": TOUS, "prudence": TE.PRUDENCE,
             "seuils": {"type": MIN_TYPE, "academie_formations": MIN_ACAD_FORMATIONS, "academie_places": MIN_ACAD_PLACES,
-                       "neobac": MIN_NEOBAC, "proximite_formations": MIN_PROX_FORMATIONS}}
+                       "min_neobac": MIN_NEOBAC, "proximite_formations": MIN_PROX_FORMATIONS}}

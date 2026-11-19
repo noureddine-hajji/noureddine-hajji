@@ -222,7 +222,7 @@ def crafted() -> duckdb.DuckDBPyConnection:
     for s, n in ((2024, 20), (2025, 22)):
         for i in range(n):
             aca = ("Besançon" if s == 2024 else "Besancon") if i < 8 else ("Paris", "Créteil", "Versailles")[i % 3] if i < 14 else "Lyon"
-            rows.append((s, *bts, aca, 300 + i, 0 if (s == 2025 and i == 0) else 30, 50.0 + i, 20, 10, 47.2 if i < 8 else 48.8, 6.0 if i < 8 else 2.4))
+            rows.append((s, *bts, aca, 300 + i, 0 if (s == 2025 and i == 0) else 30, 30.0 if i < 10 else 80.0 + i, 20, 10, 47.2 if i < 8 else 48.8, 6.0 if i < 8 else 2.4))
     for i in range(25):
         rows.append((2025, *but, "Guyane" if i < 6 else "Lyon", 900, 40, None if i == 3 else 40.0, 30, 40 if i == 7 else 15,
                      4.9 if i < 6 else 45.7, -52.3 if i < 6 else 4.8))
@@ -252,7 +252,7 @@ def ob4(c: Ctx):
         "overseas not placed": ga.get("guyane", {}).get("metropole") is False and ga["guyane"]["lat"] is None,
         "incoherent row out": next(p for p in got["proximite"] if p["diplome"] == BUT)["formations"] == 24,
         "académie without a position listed": ga.get("mayotte", {}).get("metropole") is False and ga["mayotte"]["lat"] is None,
-        "median rate": got["tendances"] and got["tendances"][0]["serie"][0]["taux_median"] == 59.5,
+        "median rate": got["tendances"] and got["tendances"][0]["serie"][0]["taux_median"] == 60.0,   # skewed: the mean is 60.25
     }
     miss = [k for k, v in facts.items() if not v]
     return not bad and not miss, f"re-derivation problems {bad[:3]}; facts failing {miss}"
@@ -260,7 +260,7 @@ def ob4(c: Ctx):
 
 SAMPLE = {
     "sessions": [2022, 2025], "session": 2025, "tous": "Toutes les formations", "prudence": "Beaucoup de vœux par place ne veut pas dire peu de chances.",
-    "seuils": {"type": 20, "academie_formations": 5, "academie_places": 100, "neobac": 100, "proximite_formations": 5},
+    "seuils": {"type": 20, "academie_formations": 5, "academie_places": 100, "min_neobac": 100, "proximite_formations": 5},
     "tendances": [{"diplome": HOSTILE, "serie": [{"session": 2022, "formations": 30, "voeux_par_place": 10.0, "taux_median": 50.0},
                                                 {"session": 2025, "formations": 35, "voeux_par_place": 12.5, "taux_median": 45.0}]}]
     + [{"diplome": f"Type {i}", "serie": [{"session": 2022, "formations": 30, "voeux_par_place": 9.0 - i, "taux_median": 60.0},

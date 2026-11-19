@@ -91,6 +91,7 @@ class Ctx:
             "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/chiffres": f"/api/carte/chiffres?{bg}&codes={c}",
             "/api/comprendre": "/api/comprendre",
+            "/api/observatoire": "/api/observatoire",                              # owner, 2026-11-19: national overviews
             "/api/selectivite": "/api/selectivite?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation": "/api/reorientation?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation/voeux": f"/api/reorientation/voeux?ids={c}",

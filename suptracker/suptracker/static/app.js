@@ -4793,7 +4793,7 @@ async function viewObservatoire() {
       ${tous && tous.part_meme_academie != null ? `<p><strong>${pct(tous.part_meme_academie)}</strong> des admis néo-bacheliers venaient de l'académie de leur formation (${fmt(tous.meme_academie)} sur ${fmt(tous.admis_neobac)}).</p>` : ""}
       <ul class="obs-bars">${big.map(bar).join("")}</ul>
       ${small.length ? `<details><summary>Les types de moins de ${fmt(d.seuils.type)} formations (${fmt(small.length)})</summary><ul class="obs-bars">${small.map(bar).join("")}</ul></details>` : ""}
-      <p class="muted small">Part des admis néo-bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.neobac)} admis néo-bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
+      <p class="muted small">Part des admis néo-bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.min_neobac)} admis néo-bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
     ${nextSteps("observatoire")}`;
   $view.dataset.rendered = "observatoire";
   $view.querySelectorAll("[data-obs-type]").forEach((b) => { b.onclick = () => {

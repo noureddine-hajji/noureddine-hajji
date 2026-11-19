@@ -853,7 +853,7 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
   background: var(--surface); color: var(--ink); font: inherit; }
 .obs-map { display: block; width: 100%; max-width: 420px; height: auto; margin: 0 auto; }
 .obs-land { fill: var(--tint); stroke: var(--line); stroke-width: 1; stroke-linejoin: round; }
-.obs-name { font-size: 11px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.obs-name { font-size: var(--fs-xs); font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .obs-choose { margin-top: 8px; }
 .obs-choose > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .obs-legend svg { width: 16px; height: 16px; flex: none; }
