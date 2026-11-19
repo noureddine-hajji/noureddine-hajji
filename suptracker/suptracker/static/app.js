@@ -692,9 +692,14 @@ async function viewGuide() {
 }
 // the home card: where the student stands (no request: the reading of the list is only on the guide's own page)
 function guideCard() {
+  // style B (owner, 2026-11-19): the five steps as a line of stops, each with its status read in this browser only
   const G = guideState(store.get("profile", null), voeux.get(), null, guideFlags());
-  return `<div class="card guide-card"><p><strong>Construire ma liste en 5 étapes.</strong> Profil, exploration, vœux, un vœu de sécurité sûr, partage : le site pas à pas.</p>
-    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."}</p><a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></div>`;
+  const label = (x) => (x.statut === "lecture" ? "À lire dans Mes vœux" : GUIDE_STATUT[x.statut] || "");
+  return `<section class="card guide-card" aria-labelledby="gc-h"><h2 id="gc-h">Construire ma liste en 5 étapes</h2>
+    <ol class="trajet">${G.steps.map((x) => `<li class="tj-${x.statut}${x.key === G.next ? " tj-next" : ""}"><a href="${esc(x.href)}"${x.key === G.next ? ' aria-current="step"' : ""}><span class="tj-dot" aria-hidden="true"></span>
+      <span><strong>${esc(x.titre)}</strong><br><span class="small">${esc(label(x))}</span></span></a></li>`).join("")}</ol>
+    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."} Le site pas à pas, à votre rythme.</p>
+    <a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></section>`;
 }
 
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----

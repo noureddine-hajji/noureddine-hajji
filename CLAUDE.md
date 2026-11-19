@@ -299,7 +299,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters (the
   dropdown bar, sprint H) folded under "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
-- **Design (lot 2, Claude design guidelines).** Accent = prune (`#8e2a6b`, dark `#e590c4`), owner-confirmed 2026-11-07. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
+- **Design (lot 2, Claude design guidelines; style B since 2026-11-19).** Owner, 2026-11-19: style B « appli bento » (rounded tiles on a
+  warm ground, ink bands, pill menus, a floating tab bar on a phone; fonts Plus Jakarta Sans (display) + Atkinson Hyperlegible (body)).
+  ONE lime call to action per page (`--cta` `#c8f169`, ink text; red team MB counts the controls filled with `--cta`); `--accent` = links and
+  selected states (`#3a1fa0`, dark `#c8f169`), >= 60 apart from the zones, the bac routes and the ramp. « L'essentiel » (and every
+  `.summary`) is an ink band whose tiles keep the paper tokens (`--paper-*`, scoped). Only the look changed: no block, rule or text removed. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
   colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
