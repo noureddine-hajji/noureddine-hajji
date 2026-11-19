@@ -876,7 +876,7 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 .obs-dumb .obs-a, .obs-a-key { background: var(--ink); }
 .obs-key { margin: 6px 0 2px; }
 .obs-key span { display: inline-flex; align-items: center; gap: 5px; }
-.obs-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.obs-key i { display: inline-block; width: 11px; height: 11px; flex: none; }
 .obs-key .obs-v-key, .obs-key .obs-a-key { border-radius: var(--r-pill); box-sizing: border-box; }
 @media (max-width: 720px) { .obs-bars li { grid-template-columns: minmax(0, 1fr) 4.2em; } .obs-bar, .obs-stack, .obs-dumb { grid-column: 1 / -1; grid-row: 2; } .obs-bars li:has(.obs-stack), .obs-bars li:has(.obs-dumb) { grid-template-columns: minmax(0, 1fr) auto; } }
 
