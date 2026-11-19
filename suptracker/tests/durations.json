@@ -65,5 +65,5 @@
  "tests/test_voeux.py": 540,
  "tests/test_voiepro.py": 6.0,
  "tests/test_voies.py": 100.0,
- "tests/test_zone_paire.py": 120
+ "tests/test_zone_paire.py": 60
 }

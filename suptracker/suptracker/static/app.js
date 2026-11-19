@@ -189,7 +189,7 @@ function vxQuery(ids, prof) {
 const ZONE_RULES = { hors_profil_cdf: 0.02, ambitieux_access: 30.0, ambitieux_cdf: 0.15, securite_access: 70.0, securite_cdf: 0.50, large_access: 85.0, large_cdf_lo: 0.60 };
 const MIN_BOUNDS_N = 10;                                                // journey.MIN_BG_FOR_BOUNDS
 const ZONE_RANK = { hors_profil: 0, ambitieux: 1, cible: 2, securite: 3 };
-const SAME_ZONE_ACCESS_GAIN = 15.0, MAX_PER_ETABLISSEMENT = 2;          // planb.py
+const SAME_ZONE_ACCESS_GAIN = 15.0, MAX_PER_ETABLISSEMENT = 2, POS_EPS = 1e-9;          // planb.py (POS_EPS: equal positions up to float noise)
 const VX_SITUATED = ["securite", "cible", "ambitieux", "hors_profil"];
 function wilsonCI(k, n) {
   const z = 1.959964;
@@ -324,7 +324,7 @@ function whyBetter(t, c) {
   const zt = ZONE_RANK[t.zone], zc = ZONE_RANK[c.zone];
   if (zt === undefined) return null;
   if (zc > zt && !c.uncertain) return "zone";
-  if (zc >= zt && tauxZone(c) >= (tauxZone(t) || 0) + SAME_ZONE_ACCESS_GAIN && (c.position || 0) >= (t.position || 0)) return "acces";
+  if (zc >= zt && tauxZone(c) >= (tauxZone(t) || 0) + SAME_ZONE_ACCESS_GAIN && (c.position || 0) >= (t.position || 0) - POS_EPS) return "acces";
   return null;
 }
 // the order of planb.plan_b and voeux.completer: the student's académie first, then the distance, (Plan B: the better zone),

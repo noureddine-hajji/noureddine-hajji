@@ -250,6 +250,14 @@ def sample_types(con, n: int = 5) -> list[str]:
     return (mid or [k for k, _ in sorted(rows, key=lambda r: -r[1])])[:n]
 
 
+def zone_rate(f: dict) -> float | None:
+    """The rate the zone is read on (owner, 2026-11-19): the pair line of the formation's own report when served
+    (re-derived by redteam_zone_paire ZP1), else the official access rate."""
+    src = f.get("taux_zone_source")
+    return src["taux"] if src else f["taux_acces_ens"]
+
+
+
 def stage2_ok(con, Jm) -> tuple[bool, str]:
     cur = con.cursor()
     bad, rows_n, edges_n = [], 0, 0
@@ -305,7 +313,7 @@ def stage2_ok(con, Jm) -> tuple[bool, str]:
             for f in Jm.stage2(cur, dk, "ab", tk, None, serie=serie, moyenne=g)["formations"]:
                 if f["zone"] in ("non_ouvert", "indetermine") or f.get("rate_fragile") or f["position"] is None:
                     continue
-                z_n = Jm.classify_zone(f["taux_acces_ens"], f["spos"]["cdf_used"] if f.get("spos") else f["cdf"],
+                z_n = Jm.classify_zone(zone_rate(f), f["spos"]["cdf_used"] if f.get("spos") else f["cdf"],
                                        *(f["spos"]["ci"] if f.get("spos") else f["cdf_ci"]))
                 if z_n["zone"] != f["zone"]:
                     bad.append((tk, f["cod_aff_form"], "zone not from the reading", z_n, f["zone"]))
@@ -731,7 +739,7 @@ def unc_ok(con, Jm) -> bool:
                     continue
                 n = f["n_known"]
                 rd = Jm.zone_reading("bg", band, f["position"]["uniforme"] * n, n, margins_of(cur, f["cod_aff_form"]), w_u)
-                alt = Jm.classify_zone(f["taux_acces_ens"], rd["cdf_zone"], *rd["ci_zone"])["zone"]
+                alt = Jm.classify_zone(zone_rate(f), rd["cdf_zone"], *rd["ci_zone"])["zone"]
                 if alt != f["zone"]:
                     seen += 1
                     if not f["uncertain"]:

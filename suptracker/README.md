@@ -3974,4 +3974,6 @@ report of year N-1 against the zone of year N read on that year's pair line) and
 
 Red team `redteam_zone_paire.py` (ZP1-ZP8): the rate re-derived from an independent read of the reports, the zone re-read on it
 with the real `classify_zone`, the page twin for averages, Plan B (server and page), the pair stability re-derived and served,
-the guard (server, report card, page), the note, plumbing and docs, a mutation test (16 seeded bugs).
+the guard (server, report card, page), the note, plumbing and docs, a mutation test (18 seeded bugs). Plan B's « same
+or better position » compares positions with a 1e-9 tolerance on both sides (`planb.POS_EPS`, page `POS_EPS`): the server
+and the page compute the same share with different libm, and a 1-ulp difference must never decide a proposal.

@@ -196,15 +196,20 @@ def pb_cases():
     c1 = {"zone": "cible", "uncertain": False, "taux_acces_ens": 70.0, "taux_zone": 62.0, "position": 0.6}   # official +30, zone +2
     c2 = {"zone": "cible", "uncertain": False, "taux_acces_ens": 45.0, "taux_zone": 80.0, "position": 0.6}   # official +5, zone +20
     c3 = {"zone": "cible", "uncertain": False, "taux_acces_ens": 70.0, "taux_zone": None, "position": 0.6}    # no pair rate: official
-    return [(t, c1, None), (t, c2, "acces"), ({**t, "taux_zone": None}, c3, "acces")]
+    # a tie up to floating-point noise (1 ulp: Python and the page's libm round the same share differently) is a tie
+    tt = {**t, "position": 0.062423143136910615}
+    c4 = {**c2, "position": 0.06242314313691061}
+    c5 = {**c2, "position": 0.0624}                                                                          # really lower
+    return [(t, c1, None), (t, c2, "acces"), ({**t, "taux_zone": None}, c3, "acces"), (tt, c4, "acces"), (tt, c5, None)]
 
 
-@check("ZP4 Plan B: why_better / whyBetter compare the rate the zones are read on")
+@check("ZP4 Plan B: why_better / whyBetter compare the rate the zones are read on; a float-noise tie is a tie")
 def zp4(c: Ctx):
     PB = c.mod("planb")
     bad = []
     for t, cand, w in pb_cases():
-        got = PB.why_better({**t, "bounds": None}, {**cand, "bounds": None})
+        # the server reads the position from the row's series reading (spos) or its share (cdf); the page view carries it as such
+        got = PB.why_better({**t, "bounds": None, "cdf": t.get("position")}, {**cand, "bounds": None, "cdf": cand.get("position")})
         if got != w:
             bad.append(("python", cand, got, w))
     prog_cases = [{"fn": "whyBetter", "args": [t, cand]} for t, cand, _ in pb_cases()]
@@ -389,6 +394,8 @@ MUTANTS = [
     ("rapports", "report card claims the bucket", '    if any(x["key"] is None and not x["autres"] for x in rows):\n        return None', '    if False:\n        return None', "ZP6"),
     ("js", "page twin on the official rate", "const tauxZone = (f) => (isNum(f.taux_zone) ? f.taux_zone : f.taux_acces_ens);", "const tauxZone = (f) => f.taux_acces_ens;", "ZP3"),
     ("js", "page Plan B on the official rate", "if (zc >= zt && tauxZone(c) >= (tauxZone(t) || 0) + SAME_ZONE_ACCESS_GAIN", "if (zc >= zt && c.taux_acces_ens >= (t.taux_acces_ens || 0) + SAME_ZONE_ACCESS_GAIN", "ZP4"),
+    ("planb", "Plan B decided by float noise", "(_pos(c) or 0) >= (_pos(target) or 0) - POS_EPS:", "(_pos(c) or 0) >= (_pos(target) or 0):", "ZP4"),
+    ("js", "page Plan B decided by float noise", "(c.position || 0) >= (t.position || 0) - POS_EPS) return", "(c.position || 0) >= (t.position || 0)) return", "ZP4"),
     ("js", "page claims the bucket", "  if (rows.some((x) => x.key == null && !x.autres)) return null;", "", "ZP6"),
     ("js", "note unescaped", "(rapport public ${esc(s.session)})", "(rapport public ${s.session})", "ZP7"),
     ("js", "note on a spot missing", "${zoneBadge(f.zone, f.uncertain, f.large)}${zoneAxisNote(f)}", "${zoneBadge(f.zone, f.uncertain, f.large)}", "ZP7"),

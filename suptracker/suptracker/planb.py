@@ -47,6 +47,11 @@ def usable(f: dict) -> bool:
             and f.get("taux_acces_ens") is not None and _pos(f) is not None)
 
 
+# two positions equal up to floating-point noise are equal: the page's twin (whyBetter) computes the same share with another
+# libm, and a 1-ulp difference must never decide whether a formation is proposed
+POS_EPS = 1e-9
+
+
 def _tz(f: dict):
     """The access rate the zone was read on (owner, 2026-11-19: the student's pair rate when the formation's own report
     publishes it, else the official rate): Plan B compares the same figure the zones are read on."""
@@ -62,7 +67,7 @@ def why_better(target: dict, c: dict) -> str | None:
     if zc > zt and not c["uncertain"]:
         return "zone"
     if zc >= zt and _tz(c) >= (_tz(target) or 0) + SAME_ZONE_ACCESS_GAIN \
-            and (_pos(c) or 0) >= (_pos(target) or 0):
+            and (_pos(c) or 0) >= (_pos(target) or 0) - POS_EPS:
         return "acces"
     return None
 
