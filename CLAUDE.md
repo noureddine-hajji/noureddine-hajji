@@ -494,7 +494,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   announces or shows its error (Codex). Every page has exactly one h1, headings
   in order. A skip link is the first Tab stop. `.scroll` tables become focusable named regions (`a11yScrollRegions`, unique names).
   Tooltips: the text is the button's `aria-label`, Escape hides it. Form fields use `--line-input` (>= 3:1); text and links >= 4.5:1;
-  no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. `seo.page` fills the shell's
+  no empty `<th>` (sr-only label); a field error sets `aria-invalid`; a link's accessible name CONTAINS its visible text (WCAG 2.5.3:
+  never an `aria-label` replacing it, the explanation as `sr-only` text; axe-core runs nightly). Nothing may overflow 320 px. `seo.page` fills the shell's
   `<main id="view" ...>` whatever its attributes (it raises rather than serve a page without content). Red team `redteam_a11y.py` (A1-A6;
   A4 runs axe-core when installed).
 - **Searching from the map (sprint R9, owner 2026-11-12).** Wide screen: filters + map left, list middle, chosen formation right;

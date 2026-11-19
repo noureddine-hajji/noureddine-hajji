@@ -4009,7 +4009,8 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
   Chromium or warehouse fails the run (exit 1). It writes a Markdown report.
 - `.github/workflows/suptracker-browser.yml` runs it every night at 02:23 UTC on `main`, and by hand (Actions >
   suptracker-browser > Run workflow). It installs Node 22, Playwright 1.56.1 (the version the checks were written with,
-  found by `require` from any folder through `NODE_PATH`) and Chromium with its system libraries.
+  found by `require` from any folder through `NODE_PATH`), axe-core 4.14.0 (red team A4's WCAG audit of every page) and
+  Chromium with its system libraries.
   - On failure it opens the issue « Contrôles navigateur en échec » (or comments on it) with the report: GitHub e-mails the owner.
   - When the checks are green again, it closes that issue with a comment.
 - Red team `redteam_navigateur.py` (BN1-BN5):
@@ -4018,3 +4019,14 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
   - the verdict (failure, skip, absence, crash) and the setup failures;
   - the workflow's triggers, pinned version, `NODE_PATH`, issue steps, permissions and time limit;
   - a mutation test (14/14).
+- First full run (2026-11-19), all fixed before shipping:
+  - CR8 waited a fixed 5 s on a cold server, clicked a mention box hidden in its dropdown since sprint H, and still expected
+    three columns: it now waits for the map and the cards, opens the dropdown first and checks today's layout (filter bar
+    above, list then map).
+  - A4 had never run axe: the site's CSP (sprint Q2) refuses the injected script. Only the test browser bypasses it
+    (`bypassCSP`), the site is unchanged.
+  - axe then found a real WCAG 2.5.3 (« label in name ») failure on every page. The profile bar's two links and the header
+    chip had an `aria-label` that replaced their visible text. They now keep their visible text as their name, with the
+    explanation as hidden text (`sr-only`). Red team U3 checks it, with one more mutant (U8 45/45). axe finds nothing on
+    any page, on a phone in light mode and on a wide screen in dark mode.
+

@@ -243,7 +243,8 @@ const PAGES = ["#/", "#/s/bts%20informatique", "#/f/" + cod, "#/parcours", "#/pr
 (async () => {
   const b = await chromium.launch(); const o = { axe: [], h1: [], title: [], reflow: [], errs: [] };
   for (const [mode, vp, scheme] of [["phone-light", { width: 390, height: 844 }, "light"], ["wide-dark", { width: 1280, height: 900 }, "dark"]]) {
-    const ctx = await b.newContext({ viewport: vp, colorScheme: scheme });
+    // the site's CSP refuses inline scripts (sprint Q2): only this test browser lets axe-core in (bypassCSP), the site is unchanged
+    const ctx = await b.newContext({ viewport: vp, colorScheme: scheme, bypassCSP: !!AXE });
     await ctx.addInitScript((c) => { localStorage.setItem("profile", JSON.stringify({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", moyenne: 12.6, statut: "terminale", academie: "Paris" })); localStorage.setItem("voeux", JSON.stringify([c])); }, cod);
     const p = await ctx.newPage(); p.on("pageerror", (e) => o.errs.push(e.message));
     for (const h of PAGES) {

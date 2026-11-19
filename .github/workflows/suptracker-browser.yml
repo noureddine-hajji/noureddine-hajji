@@ -33,10 +33,10 @@ jobs:
           node-version: "22"
       - run: pip install -r requirements-pipeline.txt
       # the red teams run `node -e "require('playwright')"` from any folder: a global install, found through NODE_PATH;
-      # the version is the one the checks were written with
+      # the version is the one the checks were written with. axe-core (global, read by red team A4) audits every page (WCAG 2.1 AA)
       - name: Install Playwright and Chromium
         run: |
-          npm install -g playwright@1.56.1
+          npm install -g playwright@1.56.1 axe-core@4.14.0
           echo "NODE_PATH=$(npm root -g)" >> "$GITHUB_ENV"
           npx -y playwright@1.56.1 install --with-deps chromium
       - name: Browser checks

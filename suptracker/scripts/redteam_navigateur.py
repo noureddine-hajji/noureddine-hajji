@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 SCRIPT = ROOT / "scripts" / "browser_nightly.py"
 WORKFLOW = REPO / ".github" / "workflows" / "suptracker-browser.yml"
 PW_VERSION = "1.56.1"            # the Playwright the checks were written with (the sandbox's), typed here on purpose
+AXE_VERSION = "4.14.0"           # axe-core for red team A4 (WCAG audit of every page): without it A4 skips its audit
 CHECKS = []
 
 
@@ -147,7 +148,7 @@ def bn4(c: Ctx):
         "by hand": "workflow_dispatch:" in on,
         "never on push": "push:" not in on and "pull_request" not in on,
         "issues permission": re.search(r"(?m)^\s+issues: write$", wf),
-        "pinned global install": f"npm install -g playwright@{PW_VERSION}" in wf,
+        "pinned global install": f"npm install -g playwright@{PW_VERSION} axe-core@{AXE_VERSION}" in wf,
         "found by require from anywhere": 'echo "NODE_PATH=$(npm root -g)" >> "$GITHUB_ENV"' in wf,
         "chromium with its libraries": f"playwright@{PW_VERSION} install --with-deps chromium" in wf,
         "the script": "python scripts/browser_nightly.py --report" in wf,
@@ -174,6 +175,7 @@ MUTANTS = [
     ("wf", "issues not writable", "  issues: write\n", ""),
     ("wf", "no issue on failure", "if: failure()", "if: false"),
     ("wf", "Playwright unpinned", f"npm install -g playwright@{PW_VERSION}", "npm install -g playwright"),
+    ("wf", "no axe audit", f" axe-core@{AXE_VERSION}", ""),
     ("wf", "require cannot find Playwright", 'echo "NODE_PATH=$(npm root -g)" >> "$GITHUB_ENV"', "true"),
     ("wf", "run on every push", "  workflow_dispatch:\n", "  workflow_dispatch:\n  push:\n"),
     ("wf", "never closed", "gh issue close", "echo close"),
