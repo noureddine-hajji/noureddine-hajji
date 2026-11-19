@@ -116,8 +116,12 @@ def code_ok(js: str) -> tuple[bool, str]:
         if not re.search(r'(?m)^\s*(?:if \(\$view\.dataset\.rendered !== "carte"\) )?\$view\.innerHTML = `[^`]*<h1>', head) \
                 or "document.title = " not in head:
             bad.append((name, "no heading or tab title before the first request"))
-    if 'if (!$view.querySelector("[data-seo]"))' not in top(js, "viewFormation"):
-        bad.append("the formation page's loading heading would replace the server's summary")
+    vf = top(js, "viewFormation")
+    if 'if (!refresh && !$view.querySelector("[data-seo]"))' not in vf:
+        bad.append("the formation page's loading heading would replace the server's summary or a fiche being refreshed")
+    # Codex (PR #88): « Comparer » / « Ajouter à mes vœux » refresh the fiche IN PLACE: it stays on screen, a failure is said above it
+    if "viewFormation(cod, session, true).catch(" not in vf or re.search(r"\bviewFormation\(cod, session\)", vf):
+        bad.append("an in-place refresh blanks the fiche or loses its failure")
     after = top(js, "a11yAfterRoute")
     for need, why in (('$view.querySelector("h1")', "the heading"),
                       ("document.title = name ? `${name} — SupCompass`", "the tab title from the heading"),
@@ -368,7 +372,9 @@ MUTANTS = [
     ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
     ("js", "the fiche has no heading while it loads", "    $view.innerHTML = `<div class=\"card fhead\"><h1>Fiche formation</h1>", "    $view.innerHTML = `<div class=\"card fhead\"><p>Fiche formation</p>"),
     ("js", "the search heading after the first answer", "  if ($view.dataset.rendered !== \"carte\") $view.innerHTML = `${explorerViews(\"carte\")}<div class=\"card carte-head\"><h1>Rechercher une formation</h1>", "  if (false) $view.innerHTML = `${explorerViews(\"carte\")}<div class=\"card carte-head\"><h1>Rechercher une formation</h1>"),
-    ("js", "the loading heading over the server's summary", 'if (!$view.querySelector("[data-seo]")) {', "if (true) {"),
+    ("js", "the loading heading over the server's summary", 'if (!refresh && !$view.querySelector("[data-seo]")) {', "if (!refresh) {"),
+    ("js", "an in-place refresh blanks the fiche", "const refreshFiche = () => viewFormation(cod, session, true).catch(", "const refreshFiche = () => viewFormation(cod, session).catch("),
+    ("js", "the loading heading on an in-place refresh", 'if (!refresh && !$view.querySelector("[data-seo]")) {', 'if (!$view.querySelector("[data-seo]")) {'),
     ("js", "no search landmark", ' role="search" aria-label="Rechercher une formation"', ' aria-label="Rechercher une formation"'),
     ("html", "the 'Plus' menu not a landmark", '<nav id="more-menu" class="more-menu" aria-label="Plus de pages" hidden>', '<div id="more-menu" class="more-menu" hidden>'),
     ("html", "no page language", '<html lang="fr">', "<html>"),

@@ -2581,10 +2581,11 @@ function apprentiInsertionCard(a) {
     <p class="muted small">Le taux d'emploi compte les jeunes qui ont quitté les études ; les petits effectifs ne sont pas publiés. Source : Inserjeunes (ministère de l'Éducation nationale), sortants de dernière année. Ce sont des résultats passés, pas une promesse d'emploi.</p></div>`;
 }
 
-async function viewFormation(cod, session) {
+async function viewFormation(cod, session, refresh) {
   // the page is never without its heading while the fiche loads (~4 s on a cold server, red team A4); the server's own summary
-  // of an indexable page ([data-seo]) is kept as it is: showError relies on it (Codex)
-  if (!$view.querySelector("[data-seo]")) {
+  // of an indexable page ([data-seo]) is kept as it is: showError relies on it (Codex). An in-place refresh (« Comparer »,
+  // « Ajouter à mes vœux ») keeps the fiche on screen until the new one is ready (Codex, PR #88)
+  if (!refresh && !$view.querySelector("[data-seo]")) {
     $view.innerHTML = `<div class="card fhead"><h1>Fiche formation</h1><p class="small muted" role="status">Chargement de la fiche…</p></div>`;
     document.title = "Fiche formation — SupCompass";               // the tab names the page while it loads (R8 rule)
   }
@@ -2681,8 +2682,13 @@ async function viewFormation(cod, session) {
   fillTransports(d.vie);
   document.getElementById("sess").onchange = (e) => { location.hash = `#/f/${r.cod_aff_form}/${e.target.value}`; };
   loadPlanB(r.cod_aff_form);
-  document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); viewFormation(cod, session); };
-  bindVoeuButton(() => viewFormation(cod, session));
+  // an in-place refresh: the fiche stays on screen; a failed reload says so above it, never a blank page (Codex, PR #88)
+  const refreshFiche = () => viewFormation(cod, session, true).catch((e) => {
+    $view.querySelectorAll(":scope > .warn").forEach((w) => w.remove());
+    $view.insertAdjacentHTML("afterbegin", `<div class="warn">${esc(e.message)}</div>`);
+  });
+  document.getElementById("bask").onclick = () => { basket.toggle(r.cod_aff_form); refreshFiche(); };
+  bindVoeuButton(refreshFiche);
 }
 
 // ---- Plan B: same programme elsewhere, more accessible for the student's profile -------------
