@@ -147,6 +147,10 @@ def run(con, persona=PERSONA) -> Report:
                 if any(a is not None and b is not None and a > b + 1e-12 for a, b in zip(seq, seq[1:])):
                     probs.append(f"cdf not monotone in mention: {seq}")
                 if f["zone"] != "non_ouvert":
+                    # owner, 2026-11-19: the zone reads the student's pair line of the formation's OWN report when it is
+                    # published (taux_zone_source), else the official rate
+                    src = f.get("taux_zone_source")
+                    rate = src["taux"] if src else f["taux_acces_ens"]
                     # A3: the zone uses the bac-général position when it can be bounded
                     b = f.get("bg")
                     if b:
@@ -155,9 +159,9 @@ def run(con, persona=PERSONA) -> Report:
                             probs.append("bac-général position outside its bounds")
                         if not (b["ci"][0] <= lo_b + 1e-12 and hi_b <= b["ci"][1] + 1e-12):
                             probs.append("sampling margin does not contain the bounds")
-                        expect = J.classify_zone(f["taux_acces_ens"], b["cdf_used"], *b["ci"])["zone"]
+                        expect = J.classify_zone(rate, b["cdf_used"], *b["ci"])["zone"]
                     else:
-                        expect = J.classify_zone(f["taux_acces_ens"], f["cdf"], lo, hi)["zone"]
+                        expect = J.classify_zone(rate, f["cdf"], lo, hi)["zone"]
                     if expect != f["zone"]:
                         probs.append(f"zone {f['zone']} != rules {expect}")
             if probs:
@@ -165,10 +169,15 @@ def run(con, persona=PERSONA) -> Report:
     rep.check("maths invariants on every formation of the checked types", not bad, bad[:10])
 
     # ---- no ecological inference
-    keys = ("cdf", "cdf_ci", "exact_share", "taux_acces_ens", "pct_bg", "pct_boursiers", "zone")
-    a = {f["cod_aff_form"]: tuple(json.dumps(f[k]) for k in keys) for f in s2(STRATIFY)}
-    b = {f["cod_aff_form"]: tuple(json.dumps(f[k]) for k in keys) for f in s2(STRATIFY, dk="HGGSP+LLCER")}
-    rep.check("stage2 indicators do not depend on the national doublette table", a == b)
+    # the zone may change with the pair ONLY through the formation's own published report line (taux_zone_source), never
+    # through the national doublette table: a row read on the official rate in both readings keeps its zone
+    keys = ("cdf", "cdf_ci", "exact_share", "taux_acces_ens", "pct_bg", "pct_boursiers")
+    ra = {f["cod_aff_form"]: f for f in s2(STRATIFY)}
+    rb = {f["cod_aff_form"]: f for f in s2(STRATIFY, dk="HGGSP+LLCER")}
+    same = set(ra) == set(rb) and all(tuple(json.dumps(ra[c][k]) for k in keys) == tuple(json.dumps(rb[c][k]) for k in keys) for c in ra)
+    zone_moves = [c for c in ra if c in rb and ra[c]["zone"] != rb[c]["zone"]
+                  and not (ra[c].get("taux_zone_source") or rb[c].get("taux_zone_source"))]
+    rep.check("stage2 indicators do not depend on the national doublette table", same and not zone_moves, zone_moves[:5])
 
     def walk(o):
         if isinstance(o, dict):
