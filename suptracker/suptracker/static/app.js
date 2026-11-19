@@ -37,9 +37,18 @@ function zoneHelp(z) {
   }[z] || "";
 }
 const ZONE_NOT_CHANCE = "Votre niveau, c'est votre mention, ou votre moyenne si vous l'avez indiquée. Une zone décrit les admis des années passées : ce n'est jamais une chance d'admission.";
+// owner, 2026-11-19: the rate a zone is read on
+const ZONE_AXIS = "Le taux lu est celui de vos deux spécialités quand le rapport public de la formation le publie, pour au moins 20 candidats. Sinon, c'est le taux d'accès officiel.";
+// what the zone was read on, said beside it when it is the student's pair rate (journey.pick_pair), never a figure of our own
+function zoneAxisNote(f) {
+  const s = f && f.taux_zone_source;
+  if (!s) return "";
+  const what = s.source === "autres" ? "la ligne « autres paires de spécialités »" : "vos deux spécialités";
+  return `<div class="muted small zaxis">lue sur ${what} : ${pct1(s.taux)} (rapport public ${esc(s.session)})</div>`;
+}
 function zoneLegend() {
   return `<details class="zone-legend"><summary>Que veulent dire les zones ?</summary><ul>${["securite", "cible", "ambitieux", "hors_profil"].map((z) =>
-    `<li>${zonePillHtml(z)} ${esc(zoneHelp(z))}</li>`).join("")}<li>${zonePillHtml("securite", false, true)} ${esc(zoneHelp("securite_large"))}</li></ul><p class="small muted">${esc(ZONE_NOT_CHANCE)}</p></details>`;
+    `<li>${zonePillHtml(z)} ${esc(zoneHelp(z))}</li>`).join("")}<li>${zonePillHtml("securite", false, true)} ${esc(zoneHelp("securite_large"))}</li></ul><p class="small muted">${esc(ZONE_AXIS)}</p><p class="small muted">${esc(ZONE_NOT_CHANCE)}</p></details>`;
 }
 // "Et maintenant ?": a few next actions, always ending with a person to talk to. Links only (no figure, no ranking).
 const AIDE_STEP = { href: "#/info/aide", text: "En parler à quelqu'un : professeur principal, psychologue de l'Éducation nationale, CIO, Mon orientation en ligne" };
@@ -247,10 +256,13 @@ function lire(L, taux, band, g, bg) {
   return { ...r, w, wu, zone, uncertain, large,
     position: !n ? null : { normale: r.k / n, uniforme: (L.kt - (1 - wu) * L.kb) / n, bornes: [(L.kt - L.kb) / n, L.kt / n] } };
 }
+// owner, 2026-11-19: the rate the zone is read on: the student's pair rate when the formation's own report publishes it (the
+// server's taux_zone), else the official one (journey.stage2, planb._tz)
+const tauxZone = (f) => (isNum(f.taux_zone) ? f.taux_zone : f.taux_acces_ens);
 // a stage-2 row (Mon parcours, the map), read for the average
 function relire(f, band, g) {
   if (!f || !f.lec || g === null) return f;
-  const r = lire(f.lec, f.taux_acces_ens, band, g, f.serie === "bg");
+  const r = lire(f.lec, tauxZone(f), band, g, f.serie === "bg");
   return { ...f, zone: r.zone, uncertain: r.uncertain, large: r.large, cdf: r.cdf, cdf_ci: [r.lo, r.hi], spos: r.sp, position: r.position,
     trend: Array.isArray(f.trend) ? f.trend.map((t) => (isNum(t.kt) ? { ...t, cdf: t.n ? (t.kt - (1 - r.w) * t.kb) / t.n : null } : t)) : f.trend,
     // calibration.attach(continuous): the share's ranges and the zone's stability were measured on the band's reading
@@ -259,7 +271,7 @@ function relire(f, band, g) {
 // a Plan B / Mes vœux view (planb._view): the position is the series reading when it exists, else the all-series share
 function relireVue(v, band, g) {
   if (!v || !v.lec || g === null) return v;
-  const r = lire(v.lec, v.taux_acces_ens, band, g, v.serie === "bg");
+  const r = lire(v.lec, tauxZone(v), band, g, v.serie === "bg");
   return { ...v, zone: r.zone, uncertain: r.uncertain, large: r.large, position: r.sp ? r.sp.cdf_used : r.cdf, bounds: r.sp ? r.sp.bounds : null,
     _pm: r.position };
 }
@@ -312,7 +324,7 @@ function whyBetter(t, c) {
   const zt = ZONE_RANK[t.zone], zc = ZONE_RANK[c.zone];
   if (zt === undefined) return null;
   if (zc > zt && !c.uncertain) return "zone";
-  if (zc >= zt && c.taux_acces_ens >= (t.taux_acces_ens || 0) + SAME_ZONE_ACCESS_GAIN && (c.position || 0) >= (t.position || 0)) return "acces";
+  if (zc >= zt && tauxZone(c) >= (tauxZone(t) || 0) + SAME_ZONE_ACCESS_GAIN && (c.position || 0) >= (t.position || 0)) return "acces";
   return null;
 }
 // the order of planb.plan_b and voeux.completer: the student's académie first, then the distance, (Plan B: the better zone),
@@ -387,7 +399,7 @@ function carteZonesLocal(z, p) {
   if (!z || g === null || !z.lectures) return z;
   const zones = {}, larges = [], bg = vxProfile(p).serie === "bg";
   for (const [cod, x] of Object.entries(z.lectures)) {
-    const r = lire(x.lec, x.taux_acces_ens, band, g, bg);
+    const r = lire(x.lec, tauxZone(x), band, g, bg);
     zones[cod] = r.zone;
     if (r.large) larges.push(cod);
   }
@@ -949,6 +961,7 @@ function pickRapport(rp, dkey) {
   const { bg: rows = [] } = rp.doublettes || {};      // destructured: redteam_scale S4 watches stage-2 field reads by name
   const mine = rows.find((x) => x.key === dkey);
   if (mine) return { ...mine, source: "doublette" };
+  if (rows.some((x) => x.key == null && !x.autres)) return null;     // a pair label no rule knows may be the student's (arts)
   const other = rows.find((x) => x.autres);
   return other ? { ...other, source: "autres" } : null;
 }
@@ -2057,6 +2070,8 @@ function fillZoneTile(target) {
   const z = target && ZONES[target.zone];
   el.querySelector(".sum-value").innerHTML = z ? zonePillHtml(target.zone, false, target.large && !target.uncertain) : "—";
   if (target && target.uncertain) el.querySelector(".sum-note").textContent = "lecture incertaine : peu de données";
+  else if (target && target.taux_zone_source) el.querySelector(".sum-note").textContent = target.taux_zone_source.source === "autres"
+    ? "lue sur la ligne « autres paires de spécialités » du rapport" : "lue sur le taux de vos deux spécialités (rapport public)";
 }
 // tabbed: one tab per non-empty group; the first is open; a tile with data-goto opens its tab
 function tabbed(id, groups) {
@@ -2715,7 +2730,7 @@ async function loadPlanB(cod, opts = {}) {
     body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : ${zoneBadge(d.target.zone, false, d.target.large && !d.target.uncertain)} · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
     <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}</th><th class="num">Distance de la formation visée</th>${opts.onPin ? '<th><span class="sr-only">Actions</span></th>' : ""}</tr>
     ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(a.academie)})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
-      <td>${zoneBadge(a.zone, false, a.large && !a.uncertain)}<div class="muted small">${WHY[a.why] || ""}</div></td>
+      <td>${zoneBadge(a.zone, false, a.large && !a.uncertain)}${zoneAxisNote(a)}<div class="muted small">${WHY[a.why] || ""}</div></td>
       <td class="num">${fmt(a.taux_acces_ens)} %</td>
       <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
       <td class="num">${a.km != null ? `${fmt(a.km)} km` : "—"}</td>${opts.onPin ? `<td><button type="button" class="small" data-pbpin="${esc(a.cod_aff_form)}">${W.includes(a.cod_aff_form) ? "dans mes vœux" : "ajouter à mes vœux"}</button></td>` : ""}</tr>`).join("")}</table></div>
@@ -3692,7 +3707,7 @@ async function viewParcours() {
     ${scatter(F, (f) => pin(f))}
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : `Accès estimé ${SERIE_SHORT[serie]} ${tip("serie_offer")}`}</th><th class="num">${serie === "bg" ? "Bacs généraux" : serie === "bt" ? "Bacs technos" : "Bacs pros"} admis ${vp.moyenne !== null ? "sous votre moyenne (estimation)" : "avec votre mention ou moins"} ${tip("journey_bg")}</th><th class="num">Mention exacte</th><th class="num">${serie === "bg" ? "Bac général" : `Part ${SERIE_SHORT[serie]}`}</th><th class="num">${p.boursier ? "<strong>Boursiers</strong>" : "Boursiers"}</th><th>Votre groupe d'appel ${tip("journey_groups")}</th>${s2.calibration ? `<th>Repère ${esc(s2.calibration.target)} ${tip("repere")}</th>` : ""}<th>Évolution</th><th><span class="sr-only">Actions</span></th></tr>
     ${F.slice().sort((a, b) => (pos(b) ?? -1) - (pos(a) ?? -1)).slice(0, allPos ? 80 : 20).map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.filiere)} · ${esc(f.ville)}${f.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${p.lycee && f.cod_uai === p.lycee.uai ? ` · <span class="badge exact">dans votre lycée${f.pct_etab_orig != null ? ` · ${fmt(f.pct_etab_orig)} % des admis en venaient` : ""}</span>` : ""}${f.non_selective && f.home_academie ? ` · ${fmt(f.pct_aca_orig)} % d'admis de l'académie` : ""}</div>${offerBadges(f, true)}</td>
-      <td data-label="Zone">${zoneBadge(f.zone, f.uncertain, f.large)}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
+      <td data-label="Zone">${zoneBadge(f.zone, f.uncertain, f.large)}${zoneAxisNote(f)}${f.small_cohort ? ` <span class="badge warnb">n&lt;10 ${serie === "bg" ? "bac G" : serie === "bt" ? "bac techno" : "bac pro"}</span>` : ""}${f.rate_fragile ? ' <span class="badge warnb" title="Moins de 20 candidats de votre série : taux fragile">peu de candidats</span>' : ""}${f.rare_for_serie ? ` <span class="badge warnb" title="Moins de 5 % des admis 2022–2025 viennent de votre série">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${f.limited_comparability && !f.spos ? ' <span class="badge warnb" title="Moins de 50 % de bacheliers généraux parmi les admis : la distribution des mentions mêle surtout d\'autres séries">comparabilité limitée</span>' : ""}</td>
       <td class="num" data-label="${serie === "bg" ? "Taux d'accès" : "Accès estimé"}">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}${serie !== "bg" ? `<div class="muted small" title="Estimation. Taux de proposition des candidats de votre série : ${f.serie_proposal_rate != null ? `${fmt(f.serie_proposal_rate)} %` : "—"} ; taux d'accès officiel (tous candidats) : ${fmt(f.taux_acces_all)} %">${estimTag(`officiel tous candidats ${fmt(f.taux_acces_all)} %`)}</div>` : ""}</td><td class="num" data-label="${vp.moyenne !== null ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}">${bgCell(f)}${moyRange(f.position)}</td>
       <td class="num" data-label="Mention exacte">${pc1(f.exact_share)}</td><td class="num" data-label="${serie === "bg" ? "Bac général" : "Part de votre série"}">${pc1(serie === "bg" ? f.pct_bg : f.pct_serie)}</td><td class="num" data-label="Boursiers">${pc1(f.pct_boursiers)}</td>
       <td class="small" data-label="Groupe d'appel">${f.group && !f.group.ambiguous ? `${esc(f.group.label)}<div class="muted">dernier appelé : rang ${fmt(f.group.last_called_rank)}</div>` : '<span class="muted">non déterminé</span>'}</td>
@@ -4048,7 +4063,7 @@ async function viewVoeux() {
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
     const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
-    return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain, v.large)}${flags}</td>
+    return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain, v.large)}${v.status === "ok" ? zoneAxisNote(v) : ""}${flags}</td>
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
       <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>

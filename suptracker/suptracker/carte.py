@@ -613,7 +613,7 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
             larges.append(f["cod_aff_form"])
         if lecture:      # R6: what the page needs to read the zone with the average it keeps (journey.stage2's `lec`)
             lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "large": f["large"],
-                                      "taux_acces_ens": f["taux_acces_ens"], "lec": f["lec"]}
+                                      "taux_acces_ens": f["taux_acces_ens"], "taux_zone": f["taux_zone"], "lec": f["lec"]}
     # owner, 2026-11-19: the « sécurité large » nuance, apart (the zone map keeps its plain zone codes)
     return {"zones": out, "larges": sorted(larges), **({"lectures": lec} if lecture else {})}
 

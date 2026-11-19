@@ -236,6 +236,13 @@ def k5(c: Ctx):
                                                       f"{sure_lt_unsure}; sécurité large measured and more stable {large_ok}")
 
 
+def own_key(x: dict) -> tuple:
+    """The stability row of a displayed zone: « sécurité large » apart, and a zone read on the pair rate (owner, 2026-11-19)
+    on the rows measured with that method (« paire: »)."""
+    p = "paire:" if x.get("taux_zone_source") else ""
+    return (p + "securite_large", False) if x.get("large") else (p + x["zone"], bool(x["uncertain"]))
+
+
 @check("K6 the API attaches the forecast of the student's mention and the stability of the row's own zone")
 def k6(c: Ctx):
     con = duckdb.connect(str(c.db), read_only=True)
@@ -255,7 +262,7 @@ def k6(c: Ctx):
             continue
         n += 1
         row = f.loc[x["cod_aff_form"]]
-        if abs(r["taux_lo"] - row.taux_lo) > 1e-9 or abs(r["cdf_hi"] - row.cdf_hi) > 1e-9 or r["zone_confirmed"] != pub.get(("securite_large", False) if x.get("large") else (x["zone"], bool(x["uncertain"]))):
+        if abs(r["taux_lo"] - row.taux_lo) > 1e-9 or abs(r["cdf_hi"] - row.cdf_hi) > 1e-9 or r["zone_confirmed"] != pub.get(own_key(x)):
             bad.append(x["cod_aff_form"])
     head = res.get("calibration") or {}
     con.close()
@@ -401,7 +408,9 @@ def k9(c: Ctx):
                 if x["zone"] not in C.ZONES_WITH_REPERE:
                     continue
                 years = by_cod[x["cod_aff_form"]]
-                z = C.zone_of(years, sorted(years), m, years[latest]["taux"])
+                # the rate the zone is read on: the pair line of the formation's own report when served (checked by ZP1), else official
+                src = x.get("taux_zone_source")
+                z = C.zone_of(years, sorted(years), m, src["taux"] if src else years[latest]["taux"])
                 n += 1
                 if z is None or (z["zone"], z["uncertain"]) != (x["zone"], x["uncertain"]):
                     bad.append((x["cod_aff_form"], m, x["zone"], z and z["zone"]))

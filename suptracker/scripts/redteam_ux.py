@@ -487,7 +487,7 @@ let PROFILE = null;
 const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--zone-autre)" } };
 const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
-""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
 const out = {};
 out.noProfile = summaryBand(P.r, P.d);
 PROFILE = { serie: "bg" };
@@ -664,7 +664,7 @@ def lot3_ui(js: str, css: str) -> tuple[bool, str]:
 const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
 let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
-""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "MENTION_CODES", "BANDS",
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "MENTION_CODES", "BANDS",
                                          "validMoyenne", "bandOf", "moyenneText", "MENTION_SHORT")) + "\n" + blk + """
 const out = {};
 out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);

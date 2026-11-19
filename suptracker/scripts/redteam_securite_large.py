@@ -96,8 +96,8 @@ def top(js: str, name: str) -> str:
 
 JS_NAMES = ("esc", "fmt", "MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "erf", "withinBand", "bandParam",
             "localAverage", "vxProfile", "ZONE_RULES", "MIN_BOUNDS_N", "ZONE_RANK", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum",
-            "classifyZone", "isLarge", "seriesPos", "lire", "relire", "relireVue", "lectureOf", "readList", "carteZonesLocal",
-            "zoneHelp", "ZONE_NOT_CHANCE", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
+            "classifyZone", "isLarge", "seriesPos", "tauxZone", "lire", "relire", "relireVue", "lectureOf", "readList", "carteZonesLocal",
+            "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
             "zoneBadge", "zoneLegend", "VX_MSG", "zoneTiles")
 DISPATCH = r"""
 const F = { lire, relire, relireVue, readList, carteZonesLocal, zonePillHtml, zoneBadge, zoneLegend, zoneHelp, zoneTiles,
@@ -124,7 +124,8 @@ def node(js: str, cases: list[dict]):
 # ------------------------------------------------------------------------------------------------------------ oracle
 def oracle_large(row: dict, band: str, moyenne: float | None, serie: str) -> bool:
     """The stated rule, from the row's own reading ingredients and the REAL zone_reading: never the code under test."""
-    if serie != "bg" or row["zone"] != "securite" or row["uncertain"] or row["taux_acces_ens"] is None:
+    # the rate the zone is read on (taux_zone: the pair rate or the official one; checked by redteam_zone_paire)
+    if serie != "bg" or row["zone"] != "securite" or row["uncertain"] or row["taux_zone"] is None:
         return False
     L = row["lec"]
     w = JR.within(moyenne, band) if moyenne is not None else 1.0
@@ -133,7 +134,7 @@ def oracle_large(row: dict, band: str, moyenne: float | None, serie: str) -> boo
     for ww in {w, wu}:
         rd = JR.zone_reading("bg", band, L["kt"] - (1.0 - ww) * L["kb"], L["n"], [], ww, L["s"])
         los.append(rd["ci_zone"][0])
-    return row["taux_acces_ens"] >= LARGE_ACCESS and all(lo is not None and lo >= LARGE_LO for lo in los)
+    return row["taux_zone"] >= LARGE_ACCESS and all(lo is not None and lo >= LARGE_LO for lo in los)
 
 
 def sample_types(c: Ctx) -> list[str]:
@@ -200,7 +201,7 @@ def sl2(c: Ctx):
             want.append(("relire", oracle_large(f, band, g, "bg"), f["cod_aff_form"]))
             cases.append({"fn": "relireVue", "args": [{**b, "serie": "bg"}, band, g]})
             want.append(("relireVue", oracle_large(f, band, g, "bg"), f["cod_aff_form"]))
-            cases.append({"fn": "lire", "args": [f["lec"], f["taux_acces_ens"], band, g, False]})
+            cases.append({"fn": "lire", "args": [f["lec"], f["taux_zone"], band, g, False]})
             want.append(("lire bt", False, f["cod_aff_form"]))
         elif serie == "bt":
             cases.append({"fn": "relire", "args": [{**f, "serie": "bt"}, band, 15.5]})
@@ -211,7 +212,8 @@ def sl2(c: Ctx):
         if serie == "bg" and g is not None:
             groups.setdefault((tk, band, g), []).append(f)
     for (tk, band, g), fs in list(groups.items())[:6]:
-        lec = {"zones": {}, "lectures": {f["cod_aff_form"]: {"lec": f["lec"], "taux_acces_ens": f["taux_acces_ens"], "zone": f["zone"]} for f in fs}}
+        lec = {"zones": {}, "lectures": {f["cod_aff_form"]: {"lec": f["lec"], "taux_acces_ens": f["taux_acces_ens"], "taux_zone": f["taux_zone"], "zone": f["zone"]}
+                                         for f in fs}}
         cases.append({"fn": "carteZonesLocal", "args": [lec, {"serie": "bg", "spe1": "MATHS", "spe2": "SES", "mention": band, "moyenne": g}]})
         want.append(("carte", sorted(f["cod_aff_form"] for f in fs if oracle_large(f, band, g, "bg")), tk))
     out = node(c.js, cases)
@@ -305,7 +307,8 @@ def sl4(c: Ctx):
         for f in res["formations"]:
             if f.get("repere") and f.get("large"):
                 att += 1
-                ok_att += f["repere"]["zone_confirmed"] == zp.get(("securite_large", False), (None, None))[1]
+                pre = "paire:" if f.get("taux_zone_source") else ""          # a zone read on the pair rate reads its own rows
+                ok_att += f["repere"]["zone_confirmed"] == zp.get((pre + "securite_large", False), (None, None))[1]
     except duckdb.Error:
         zp = {}
     typed = re.findall(r"9 sur 10|90 ?%|90\.\d ?%", _page_text(c.js))
@@ -342,7 +345,7 @@ DISPLAY_SPOTS = (
     r"zoneBadge\(d\.target\.zone, false, d\.target\.large && !d\.target\.uncertain\)",
     r"zoneBadge\(a\.zone, false, a\.large && !a\.uncertain\)",
     r"zoneBadge\(f\.zone, f\.uncertain, f\.large\)",
-    r"zoneBadge\(v\.zone, v\.uncertain, v\.large\)\}\$\{flags\}",
+    r"zoneBadge\(v\.zone, v\.uncertain, v\.large\)\}\$\{v\.status === \"ok\" \? zoneAxisNote\(v\) : \"\"\}\$\{flags\}",
     r"robVoeuxCard\(d\.voeux, \(v\) => \(v\.status === \"ok\" \? zoneBadge\(v\.zone, v\.uncertain, v\.large\)",
     r"zoneBadge\(\"securite\", false, f\.large\)",
     r"zoneBadge\(z, false, f\.large\)",
@@ -453,10 +456,10 @@ def sl7(c: Ctx):
 
 # ------------------------------------------------------------------------------------------------------------ SL8 mutants
 MUTANTS = [
-    ("journey", "the point instead of the lower bound", """        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_acces_ens"], lo_zone)
-                      and is_large(x["zone"], x["uncertain"], x["taux_acces_ens"], lo_u))""",
-     """        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_acces_ens"], cdf_zone))""", "SL1"),
-    ("journey", "uniform hypothesis ignored", "                      and is_large(x[\"zone\"], x[\"uncertain\"], x[\"taux_acces_ens\"], lo_u))",
+    ("journey", "the point instead of the lower bound", """        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_zone"], lo_zone)
+                      and is_large(x["zone"], x["uncertain"], x["taux_zone"], lo_u))""",
+     """        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_zone"], cdf_zone))""", "SL1"),
+    ("journey", "uniform hypothesis ignored", "                      and is_large(x[\"zone\"], x[\"uncertain\"], x[\"taux_zone\"], lo_u))",
      "                      and True)", "SL1"),
     ("journey", "bac techno read large", '        x["large"] = (serie == "bg" and is_large(', '        x["large"] = (is_large(', "SL1"),
     ("journey", "uncertain safeties large", '    return (zone == "securite" and not uncertain and taux is not None', '    return (zone == "securite" and taux is not None', "SL1"),
@@ -468,11 +471,11 @@ MUTANTS = [
     ("voeux", "information for bac techno", '        if sure_bg and not large:', '        if sure and not large:', "SL3"),
     ("js", "twin information for bac techno", 'if (sureBg && !large) msgs.push', 'if (sure && !large) msgs.push', "SL3"),
     ("voeux", "information as an alert", '            msgs.append(("info", "aucune_securite_large"))', '            msgs.append(("warn", "aucune_securite_large"))', "SL3"),
-    ("calibration", "stability not measured apart", '    return ("securite_large", False) if z.get("large") else (z["zone"], bool(z.get("uncertain")))',
-     '    return (z["zone"], bool(z.get("uncertain")))', "SL4"),
+    ("calibration", "stability not measured apart", '    return (p + "securite_large", False) if z.get("large") else (p + z["zone"], bool(z.get("uncertain")))',
+     '    return (p + z["zone"], bool(z.get("uncertain")))', "SL4"),
     ("calibration", "large read on the point", '    return {**z, "large": J.is_large(z["zone"], z["uncertain"], taux, rd["ci_zone"][0])}',
      '    return {**z, "large": J.is_large(z["zone"], z["uncertain"], taux, rd["cdf_zone"])}', "SL4"),
-    ("planb", "Plan B view drops the flag", '"zone", "uncertain", "large",\n            "taux_acces_ens", "taux_acces_all", "serie"', '"zone", "uncertain",\n            "taux_acces_ens", "taux_acces_all", "serie"', "SL6"),
+    ("planb", "Plan B view drops the flag", '"zone", "uncertain", "large",\n            "taux_acces_ens", "taux_zone"', '"zone", "uncertain",\n            "taux_acces_ens", "taux_zone"', "SL6"),
     ("carte", "map answer drops the flag", '    return {"zones": out, "larges": sorted(larges), **', '    return {"zones": out, **', "SL6"),
     ("js", "page twin ignores the uniform hypothesis", "const large = !!bg && isLarge(zone, uncertain, taux, r.ciz[0]) && isLarge(zone, uncertain, taux, loU);",
      "const large = !!bg && isLarge(zone, uncertain, taux, r.ciz[0]);", "SL2"),

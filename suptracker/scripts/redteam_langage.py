@@ -192,7 +192,7 @@ def kandel_moles(t: str) -> float:
 def short_texts(c: Ctx) -> dict[str, str]:
     out = {f"glossaire[{k}]": d for k, (_t, d) in c.glossary.items()}
     out["aide"] = c.AI.page()
-    z = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ESTIM_DEF", "AIDE_STEP", "NEXT_STEPS"],
+    z = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "ESTIM_DEF", "AIDE_STEP", "NEXT_STEPS"],
                   "{zones: ['securite','cible','ambitieux','hors_profil'].map(zoneHelp), nc: ZONE_NOT_CHANCE, est: ESTIM_DEF, "
                   "steps: [AIDE_STEP, ...Object.values(NEXT_STEPS).flat()].map((x) => x.text)}")
     if z is not None:
@@ -257,7 +257,7 @@ def la2(c: Ctx):
 def la3(c: Ctx):
     from suptracker import journey as J
     probs = []
-    r = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
+    r = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
                          "zoneBadge", "zoneLegend"],
                   "{rules: ZONE_RULES, help: Object.fromEntries(['securite','cible','ambitieux','hors_profil'].map((z) => [z, zoneHelp(z)])), "
                   "legend: zoneLegend(), pill: zonePillHtml('cible'), badge: zoneBadge('ambitieux'), nc: ZONE_NOT_CHANCE, "

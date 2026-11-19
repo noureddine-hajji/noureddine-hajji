@@ -86,7 +86,10 @@ def b1(con, real):
             c = v[a["cod_aff_form"]]
             cp = c["spos"]["cdf_used"] if c.get("spos") else c["cdf"]
             zone_up = rank[c["zone"]] > rank[t["zone"]] and not c["uncertain"]
-            access_up = rank[c["zone"]] >= rank[t["zone"]] and c["taux_acces_ens"] >= t["taux_acces_ens"] + 15 and cp >= tp
+            # the rate the zones are read on (owner, 2026-11-19): the pair line of the formation's own report, else the official rate
+            def tz(x):
+                return x["taux_zone_source"]["taux"] if x.get("taux_zone_source") else x["taux_acces_ens"]
+            access_up = rank[c["zone"]] >= rank[t["zone"]] and tz(c) >= tz(t) + 15 and cp >= tp
             if not (zone_up or access_up):
                 bad.append((cod, a["cod_aff_form"], t["zone"], c["zone"]))
     return not bad, f"{len(bad)} not more accessible {bad[:2]}" if bad else f"{n} suggestions verified"

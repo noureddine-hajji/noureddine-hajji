@@ -47,6 +47,13 @@ def usable(f: dict) -> bool:
             and f.get("taux_acces_ens") is not None and _pos(f) is not None)
 
 
+def _tz(f: dict):
+    """The access rate the zone was read on (owner, 2026-11-19: the student's pair rate when the formation's own report
+    publishes it, else the official rate): Plan B compares the same figure the zones are read on."""
+    v = f.get("taux_zone")
+    return v if v is not None else f.get("taux_acces_ens")
+
+
 def why_better(target: dict, c: dict) -> str | None:
     """Why `c` is more accessible than `target` for this profile, or None if it is not."""
     zt, zc = ZONE_RANK.get(target["zone"]), ZONE_RANK[c["zone"]]
@@ -54,7 +61,7 @@ def why_better(target: dict, c: dict) -> str | None:
         return None
     if zc > zt and not c["uncertain"]:
         return "zone"
-    if zc >= zt and c["taux_acces_ens"] >= (target["taux_acces_ens"] or 0) + SAME_ZONE_ACCESS_GAIN \
+    if zc >= zt and _tz(c) >= (_tz(target) or 0) + SAME_ZONE_ACCESS_GAIN \
             and (_pos(c) or 0) >= (_pos(target) or 0):
         return "acces"
     return None
@@ -151,7 +158,7 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
 
 def _view(f: dict, reason: str | None, km: float | None = None) -> dict:
     keys = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain", "large",
-            "taux_acces_ens", "taux_acces_all", "serie", "internat", "distance", "apprentissage")
+            "taux_acces_ens", "taux_zone", "taux_zone_source", "taux_acces_all", "serie", "internat", "distance", "apprentissage")
     v = {k: f.get(k) for k in keys}
     v["complement"] = clean_complement({"lib_comp_voe_ins": f.get("complement"), "g_ea_lib_vx": f.get("etablissement"),
                                         "fili": f.get("fili"), "fil_lib_voe_acc": f.get("filiere"),

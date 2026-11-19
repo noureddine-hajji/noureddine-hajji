@@ -755,6 +755,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   Shown wherever a zone shows (pill/badge third argument, never on an uncertain one), its own mark and help from ZONE_RULES;
   Mes vœux counts it and informs (never alerts) when no sure safety is large; the « aucune sécurité » alert and Compléter are
   unchanged. Red team `redteam_securite_large.py` (SL1-SL8); LE compares the flag, K re-derives the split.
+- **Zone read on the pair rate (owner, 2026-11-19).** Bac général: the zone's access axis (`taux_zone`, twin `tauxZone`) is the
+  formation's OWN cross-checked report of the latest campaign, bac général table: the student's pair line, else its « Autres »
+  line; never « Autres » beside an unknown pair label (arts), never < 20 confirmed or en_position > confirmed (`journey.pick_pair`,
+  same guard in `rapports.pick` / `pickRapport`); else the official rate. The official rate is still the one DISPLAYED as such;
+  zone, incertain, large and Plan B's +15 read `taux_zone`; a note (`zoneAxisNote`) says what it was read on at every zone spot.
+  Pair-read zones have their own back-test rows (« paire:… », `calibration.pair_persistence`). Red team `redteam_zone_paire.py` (ZP1-ZP8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

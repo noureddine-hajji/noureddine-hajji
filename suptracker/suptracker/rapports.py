@@ -283,5 +283,7 @@ def pick(block: dict | None, dkey: str | None) -> dict | None:
     mine = next((x for x in rows if x["key"] == dkey), None)
     if mine:
         return {**mine, "source": "doublette"}
+    if any(x["key"] is None and not x["autres"] for x in rows):
+        return None                      # owner, 2026-11-19: a pair label no rule knows may be the student's (arts): never the bucket
     other = next((x for x in rows if x["autres"]), None)
     return {**other, "source": "autres"} if other else None

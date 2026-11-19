@@ -58,7 +58,7 @@ GRID = (8.0, 9.2, 9.9, 10.0, 11.0, 11.9, 12.0, 12.6, 13.0, 13.9, 14.4, 15.3, 16.
 GRID_SHORT = (9.2, 11.0, 12.6, 13.9, 15.3, 17.2)
 TWINS = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "erf", "withinBand", "bandParam", "localAverage",
          "vxProfile", "ZONE_RULES", "MIN_BOUNDS_N", "ZONE_RANK", "SAME_ZONE_ACCESS_GAIN", "VX_SITUATED", "wilsonCI", "zoneOf",
-         "isNum", "classifyZone", "isLarge", "seriesPos", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
+         "isNum", "classifyZone", "isLarge", "seriesPos", "tauxZone", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
          "pbUsable", "whyBetter", "pbOrder", "capPerEtab", "POOL_KEYS", "unpool", "planBLocal", "completerLocal", "carteZonesLocal")
 DISPATCH = r"""
 const F = { stage2Local, voeuxLocal, planBLocal, completerLocal, carteZonesLocal, readList, seriesPos };

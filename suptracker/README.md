@@ -3948,3 +3948,30 @@ Red team `redteam_securite_large.py` (SL1-SL8): an independent oracle of the rul
 real `zone_reading`), the page twin, the list's reading, the stability re-derived and served, the page texts and every zone
 spot, the plumbing, the real-data coverage and published stability, a mutation test. Red team LE (the twins) compares the flag
 in every row, view and map answer; red team K (calibration) re-derives the split.
+
+## The zone read on your pair of specialties (owner, 2026-11-19)
+
+**Why.** The same zone analysis showed that the official access rate mixes every candidate, while a bac général student is
+compared with candidates of the same pair of specialties when the formation's own report publishes that line: on the 2024 →
+2025 back-test the pair rate predicted the next campaign's pair rate better (median error 4.9 points against 7.5 for the
+official rate) and changed about a quarter of the zones where it exists.
+
+**Rule** (`journey.pick_pair`, `journey.pair_rates`, served as `taux_zone` + `taux_zone_source`): bac général only, the
+formation's OWN cross-checked report (`recoupe`) of the latest campaign, its bac général table. The student's pair line, else
+the report's « Autres » line (the formation's own bucket); never the « Autres » line when the detail carries a pair label no
+rule knows (arts specialties are one code in the profile but named in the reports: the unknown line may be the student's);
+never a line with fewer than 20 confirmed candidates or more candidates « en position » than confirmed. Otherwise the zone
+reads the official rate, which stays displayed as it is everywhere. The zone, « incertain », « sécurité large » and Plan B's
+« +15 points » read `taux_zone` (twin `tauxZone`); the rate is rounded at the source so the page and the server read the very
+same number. The report card's own pick (`rapports.pick`, twin `pickRapport`) follows the same guard.
+
+**Stability.** Pair-read zones are back-tested with their own method (`calibration.pair_persistence`: the pair line of the
+report of year N-1 against the zone of year N read on that year's pair line) and served from their own rows (« paire:… »,
+`persistence_key`), never mixed with the official-rate rows.
+
+**Page.** Beside every zone (Où je me situe, Mes vœux, Plan B, L'essentiel), a short note says what the zone was read on:
+« lue sur vos deux spécialités : x % (rapport public 2025) », or « lue sur la ligne « autres paires de spécialités » ». The legend says the rule; the method text (`journey_zones`) too.
+
+Red team `redteam_zone_paire.py` (ZP1-ZP8): the rate re-derived from an independent read of the reports, the zone re-read on it
+with the real `classify_zone`, the page twin for averages, Plan B (server and page), the pair stability re-derived and served,
+the guard (server, report card, page), the note, plumbing and docs, a mutation test (16 seeded bugs).
