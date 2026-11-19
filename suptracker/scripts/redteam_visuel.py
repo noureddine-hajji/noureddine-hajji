@@ -260,7 +260,7 @@ def vi3(c: Ctx):
 def base_defs(js: str) -> str:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("ZONE_RULES", "zoneHelp", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml",
+    parts = [top(js, n) for n in ("ZONE_RULES", "zoneHelp", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
                                   "zoneBadge")]                     # sprint Q4: zone titles and the estimation label
     return helpers + "\n" + zones + "\n" + "\n".join(parts)
 
@@ -628,8 +628,8 @@ MUTANTS = [
      'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="${col}" stroke="var(--surface)" stroke-width="2.5"`)', (vi4,)),
     ("css", "a colour literal in a rule", ".cbacs sup.est { color: var(--muted); }", ".cbacs sup.est { color: #333333; }", (vi1,)),
     ("js", "every zone a circle", 'return z === "cible" ? `<rect', 'return z === "nope" ? `<rect', (vi4,)),
-    ("js", "the pill without its mark", '` title="${esc(h)}"` : ""}>${zoneMark(z)}${esc(zz.label.replace(', '` title="${esc(h)}"` : ""}>${esc(zz.label.replace(', (vi4,)),
-    ("js", "the badge without its name", '${zoneMark(z)}${esc(zz.label)}</span>', "${zoneMark(z)}</span>", (vi4,)),
+    ("js", "the pill without its mark", '` title="${esc(h)}"` : ""}>${zoneMark(z, L)}${esc(zz.label.replace(', '` title="${esc(h)}"` : ""}>${esc(zz.label.replace(', (vi4,)),
+    ("js", "the badge without its name", '${zoneMark(z, L)}${esc(zz.label)}${L ? " large" : ""}</span>', '${zoneMark(z, L)}${L ? " large" : ""}</span>', (vi4,)),
     ("js", "the scatter in circles only", "g += zoneShape(f.zone, x(f.taux_acces_ens)", 'g += zoneShape("securite", x(f.taux_acces_ens)', (vi4,)),
     ("js", "a card title unescaped", '<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>',
      '<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a>', (vi5,)),

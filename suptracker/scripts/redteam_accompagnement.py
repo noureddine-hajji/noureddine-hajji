@@ -382,7 +382,7 @@ def page_prog(c: Ctx) -> str:
                                   "BAND_SIGMA", "erf", "withinBand", "bandParam", "localAverage", "ZONE_RULES", "MIN_BOUNDS_N",
                                   "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue",
                                   "lectureOf", "readList", "voeuxLocal",
-                                  "zoneShape", "ZONE_FILLED", "zoneMark", "zoneBadge",   # R4: zones drawn through the shared helpers
+                                  "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zoneBadge",   # R4: zones drawn through the shared helpers
                                   # sprint Q4: zone titles, the estimation label and "Et maintenant ?"
                                   "zoneHelp", "ESTIM_DEF", "estimTag", "AIDE_STEP", "NEXT_STEPS", "nextSteps")]
     return HARNESS + "\n".join(parts) + block(js, BLOCK_START, BLOCK_END)

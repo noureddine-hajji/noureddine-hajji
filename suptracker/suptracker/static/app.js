@@ -177,8 +177,7 @@ function vxQuery(ids, prof) {
 // ---- R6: the zone read in the browser, twin of journey.stage2 for an average (journey.zone_reading, series_position, wilson,
 // classify_zone; the uniform reading that makes a zone uncertain), of planb.plan_b, of voeux.read_list and voeux.completer.
 // The server's own reading with `moyenne` stays the reference the red team compares every twin with (redteam_lecture.py).
-const ZONE_RULES = { hors_profil_cdf: 0.02, ambitieux_access: 30.0, ambitieux_cdf: 0.15, securite_access: 70.0, securite_cdf: 0.50,
-  large_access: 85.0, large_cdf_lo: 0.60 };
+const ZONE_RULES = { hors_profil_cdf: 0.02, ambitieux_access: 30.0, ambitieux_cdf: 0.15, securite_access: 70.0, securite_cdf: 0.50, large_access: 85.0, large_cdf_lo: 0.60 };
 const MIN_BOUNDS_N = 10;                                                // journey.MIN_BG_FOR_BOUNDS
 const ZONE_RANK = { hors_profil: 0, ambitieux: 1, cible: 2, securite: 3 };
 const SAME_ZONE_ACCESS_GAIN = 15.0, MAX_PER_ETABLISSEMENT = 2;          // planb.py
@@ -279,6 +278,7 @@ function readList(vx) {
   n.non_situe = vx.filter((v) => v.status !== "ok").length;
   const sure = vx.filter((v) => v.zone === "securite" && !v.uncertain).length;
   const large = vx.filter((v) => v.zone === "securite" && !v.uncertain && v.large).length;
+  const sureBg = vx.filter((v) => v.zone === "securite" && !v.uncertain && v.serie === "bg").length;
   const situated = VX_SITUATED.reduce((a, k) => a + n[k], 0);
   const msgs = [];
   if (vx.length) {
@@ -289,7 +289,7 @@ function readList(vx) {
     if (n.indetermine + n.non_situe) msgs.push(["info", "non_situe"]);
     if (situated && !n.cible) msgs.push(["info", "aucune_cible"]);
     if (!msgs.length) msgs.push(["info", "equilibree"]);
-    if (sure && !large) msgs.push(["info", "aucune_securite_large"]);
+    if (sureBg && !large) msgs.push(["info", "aucune_securite_large"]);
   }
   return { n: vx.length, zones: n, securite_sure: sure, securite_large: large, situes: situated, messages: msgs.map(([niveau, code]) => ({ niveau, code })) };
 }
@@ -743,7 +743,7 @@ const cartePage = () => (narrow() ? 10 : 40);
 function zoneTiles(counts, other, large) {
   const tile = (k, n, note) => `<div class="sum-tile">${zonePillHtml(k)}
       <span class="sum-value">${fmt(n)}</span><span class="sum-note">vœu${n > 1 ? "x" : ""}${note || ""}</span></div>`;
-  const lg = isNum(large) && large > 0 && counts.securite ? `, dont ${fmt(large)} « sécurité large »` : "";   // none: the information says so
+  const lg = large > 0 && counts.securite ? `, dont ${fmt(large)} « sécurité large »` : "";   // none (or not read): the information says so
   return `<div class="sum-grid">${tile("securite", counts.securite || 0, lg)}${tile("cible", counts.cible || 0)}${tile("ambitieux", counts.ambitieux || 0)}
     <div class="sum-tile"><span class="sum-label">Autres</span><span class="sum-value">${fmt(other)}</span><span class="sum-note">hors-profil, non ouverts ou non situés</span></div></div>`;
 }

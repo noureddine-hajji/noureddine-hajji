@@ -470,7 +470,8 @@ def voeux_ok(c: Ctx, js: str, evaluate=VX.evaluate) -> tuple[bool, str]:
     zl = []
     for _ in range(200):
         vx = [{"status": rng.choice(["ok", "ok", "ok", "absente"]), "zone": rng.choice([*VX.SITUATED, "indetermine", "non_ouvert", None]),
-               "uncertain": rng.random() < 0.3, "large": rng.random() < 0.5} for _ in range(rng.randint(0, 10))]
+               "uncertain": rng.random() < 0.3, "large": rng.random() < 0.5, "serie": rng.choice(["bg", "bg", "bt"])}
+              for _ in range(rng.randint(0, 10))]
         zl.append(vx)
     out = run_node(js, cases + [{"fn": "readList", "args": [v]} for v in zl])
     if out is None:

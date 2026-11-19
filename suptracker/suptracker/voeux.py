@@ -145,6 +145,7 @@ def read_list(voeux: list[dict]) -> dict:
     n["non_situe"] = sum(1 for v in voeux if v["status"] != "ok")
     sure = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain"))
     large = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain") and v.get("large"))
+    sure_bg = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain") and v.get("serie") == "bg")
     situated = sum(n[k] for k in SITUATED)
     msgs = []
     if voeux:
@@ -162,8 +163,9 @@ def read_list(voeux: list[dict]) -> dict:
             msgs.append(("info", "aucune_cible"))
         if not msgs:
             msgs.append(("info", "equilibree"))
-        if sure and not large:
-            # owner, 2026-11-19: a sure safety exists, but none is « large » (information, never an alert)
+        if sure_bg and not large:
+            # owner, 2026-11-19: a sure safety of the bac général exists, but none is « large » (information, never an alert;
+            # the nuance is read for the bac général only)
             msgs.append(("info", "aucune_securite_large"))
     return {"n": len(voeux), "zones": n, "securite_sure": sure, "securite_large": large, "situes": situated,
             "messages": [{"niveau": a, "code": b} for a, b in msgs]}

@@ -257,7 +257,7 @@ def la2(c: Ctx):
 def la3(c: Ctx):
     from suptracker import journey as J
     probs = []
-    r = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml",
+    r = node_eval(c.js, ["ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONES", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
                          "zoneBadge", "zoneLegend"],
                   "{rules: ZONE_RULES, help: Object.fromEntries(['securite','cible','ambitieux','hors_profil'].map((z) => [z, zoneHelp(z)])), "
                   "legend: zoneLegend(), pill: zonePillHtml('cible'), badge: zoneBadge('ambitieux'), nc: ZONE_NOT_CHANCE, "

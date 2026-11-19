@@ -230,15 +230,16 @@ def sl2(c: Ctx):
 
 
 def lists():
-    sure_l = {"status": "ok", "zone": "securite", "uncertain": False, "large": True}
-    sure = {"status": "ok", "zone": "securite", "uncertain": False, "large": False}
+    sure_l = {"status": "ok", "zone": "securite", "uncertain": False, "large": True, "serie": "bg"}
+    sure = {"status": "ok", "zone": "securite", "uncertain": False, "large": False, "serie": "bg"}
+    sure_bt = {"status": "ok", "zone": "securite", "uncertain": False, "large": False, "serie": "bt"}   # no nuance outside the bac général
     unc_l = {"status": "ok", "zone": "securite", "uncertain": True, "large": True}            # never counted (forged flag)
     cible_l = {"status": "ok", "zone": "cible", "uncertain": False, "large": True}            # never counted (forged flag)
     cible = {"status": "ok", "zone": "cible", "uncertain": False, "large": False}
     amb = {"status": "ok", "zone": "ambitieux", "uncertain": False, "large": False}
     return [([sure_l, cible, amb], 1, False), ([sure, cible, amb], 0, True), ([sure, unc_l, cible_l, cible], 0, True),
             ([unc_l, cible], 0, False), ([], 0, False), ([sure_l, sure, cible], 1, False), ([cible_l, amb], 0, False),
-            ([sure], 0, True)]
+            ([sure], 0, True), ([sure_bt, cible], 0, False), ([sure_bt], 0, False)]
 
 
 @check("SL3 the list's reading: read_list = readList; a sure sécurité only counts; « aucune_securite_large » only with a sure safety and none large")
@@ -463,7 +464,9 @@ MUTANTS = [
     ("journey", "bound threshold moved", '    "large_cdf_lo": 0.60,', '    "large_cdf_lo": 0.50,', "SL1"),
     ("voeux", "uncertain large counted", 'large = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain") and v.get("large"))',
      'large = sum(1 for v in voeux if v.get("large"))', "SL3"),
-    ("voeux", "information missing", '        if sure and not large:', '        if False:', "SL3"),
+    ("voeux", "information missing", '        if sure_bg and not large:', '        if False:', "SL3"),
+    ("voeux", "information for bac techno", '        if sure_bg and not large:', '        if sure and not large:', "SL3"),
+    ("js", "twin information for bac techno", 'if (sureBg && !large) msgs.push', 'if (sure && !large) msgs.push', "SL3"),
     ("voeux", "information as an alert", '            msgs.append(("info", "aucune_securite_large"))', '            msgs.append(("warn", "aucune_securite_large"))', "SL3"),
     ("calibration", "stability not measured apart", '    return ("securite_large", False) if z.get("large") else (z["zone"], bool(z.get("uncertain")))',
      '    return (z["zone"], bool(z.get("uncertain")))', "SL4"),
@@ -485,7 +488,7 @@ MUTANTS = [
     ("js", "legend without the nuance", '<li>${zonePillHtml("securite", false, true)} ${esc(zoneHelp("securite_large"))}</li>', "", "SL5"),
     ("js", "typed threshold in the help", "taux d'accès d'au moins ${R.large_access} %.", "taux d'accès d'au moins 85 %.", "SL5"),
     ("js", "a spot without the flag", "zoneBadge(\"securite\", false, f.large)", "zoneBadge(\"securite\")", "SL5"),
-    ("js", "JS rules differ", "  large_access: 85.0, large_cdf_lo: 0.60 };", "  large_access: 85.0, large_cdf_lo: 0.55 };", "SL6"),
+    ("js", "JS rules differ", "securite_cdf: 0.50, large_access: 85.0, large_cdf_lo: 0.60 };", "securite_cdf: 0.50, large_access: 85.0, large_cdf_lo: 0.55 };", "SL6"),
 ]
 
 
