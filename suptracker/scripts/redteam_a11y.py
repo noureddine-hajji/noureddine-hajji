@@ -238,7 +238,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
 const base = process.argv[2], cod = process.argv[3], axePath = process.argv[4];
 const AXE = axePath ? fs.readFileSync(axePath, 'utf8') : null;
 const PAGES = ["#/", "#/s/bts%20informatique", "#/f/" + cod, "#/parcours", "#/profil", "#/voeux", "#/guide", "#/carte", "#/metiers",
-  "#/compare", "#/comprendre", "#/selectivite", "#/specialites", "#/qualite", "#/glossaire", "#/calendrier", "#/accompagner",
+  "#/compare", "#/comprendre", "#/selectivite", "#/observatoire", "#/specialites", "#/qualite", "#/glossaire", "#/calendrier", "#/accompagner",
   "#/premiere", "#/reorientation", "#/liste/" + cod, "#/evolution/" + cod];
 (async () => {
   const b = await chromium.launch(); const o = { axe: [], h1: [], title: [], reflow: [], errs: [] };

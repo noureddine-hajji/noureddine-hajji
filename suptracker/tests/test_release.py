@@ -68,6 +68,7 @@ FEATURE_ENTRY_POINTS = {
     "voie_pro_apprentissage": ("app.js", "function apprentiCard("),
     "financer_etudes": ("app.js", "function aidesCard("),
     "recherche_unique": ("app.js", "async function doSearch("),
+    "observatoire": ("app.js", "async function viewObservatoire("),
 }
 
 

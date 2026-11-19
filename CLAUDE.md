@@ -776,6 +776,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`), opens/comments the issue
   « Contrôles navigateur en échec » on failure, closes it when green. A NEW browser check goes in `SUITE` (red team
   `redteam_navigateur.py` BN1 fails otherwise: title says « browser », body skips without one).
+- **Observatoire (owner, 2026-11-19).** `observatoire.py`, `#/observatoire` (Comprendre / Plus), `/api/observatoire` (no parameter,
+  shared cache, app-only page, not in the sitemap). Per `carte.diplome_of` type: vœux par place = SUM(nb_voe_pp) / SUM(capa_fin)
+  over rows with places > 0 (vœux, not people; `tension.PRUDENCE`), the MEDIAN official rate, formation counts; followed only with
+  >= 20 formations in every campaign. Per académie (latest campaign, labels FOLDED: Besançon/Besancon): same ratio, none under 5
+  formations or 100 places; Paris + Créteil + Versailles = one map bubble (server sums); overseas listed apart. Same-académie share =
+  SUM(acc_aca_orig) / SUM(acc_neobac), néo-bacheliers only (said), none under 100 admits or 5 formations. Académies and types may be
+  ranked, never formations; never a chance. Chart: <= 5 series, own dash + shade >= 3:1 (never --c5/--c6). Red team OB1-OB8.
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
