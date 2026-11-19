@@ -359,7 +359,7 @@ def _bar(c: Ctx, profile, ids, answer):
     prog = helpers + """
 const [profile, ids, answer] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const el = { hidden: true, innerHTML: "" };
-const chip = { hidden: true, innerHTML: "", classList: { toggle() {} }, setAttribute() {} };   // R1: the header chip, its own element
+const chip = { hidden: true, innerHTML: "", classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} };   // R1: the header chip, its own element
 const ICONS = { edit: "", profile: "" };
 const document = { getElementById: (id) => (id === "profile-chip" ? chip : el) };
 const store = { get: (k, d) => (k === "profile" ? profile : d) };

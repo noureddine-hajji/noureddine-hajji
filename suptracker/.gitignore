@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/analytics/
+# red-team scratch probes (written and removed by each run)
+.*_probe.js

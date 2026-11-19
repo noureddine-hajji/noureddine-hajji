@@ -19,7 +19,8 @@ admits as a range, never an access rate or a chance).
   CR6 position: the page's cartePosition (Node) = the server's stage 2 `position` read with the average (oracle); without an
       average, the published bounds of the band
   CR7 wording: no chance or access rate for the average, the estimation and "pas de taux d'accès par moyenne" said, vouvoiement
-  CR8 browser (--browser / --real): three columns in order on a wide screen, the map on the first screen (owner), one column
+  CR8 browser (--browser / --real): the filter bar above, the list then the map on a wide screen (sprint H), the map on the
+      first screen (owner), one column
       without horizontal scroll on a phone
       (390 and 320 px), multi-select and mention filter in the page, CPES placed in a zone, 0 JS errors
   CR9 mutation test: Python and page mutants, each must be caught
@@ -391,23 +392,29 @@ const base = process.argv[2];
   const ctx = await b.newContext({ viewport: { width: 1440, height: 950 } }); await ctx.addInitScript(prof);
   const p = await ctx.newPage(); p.on("pageerror", (e) => o.errs.push(e.message));
   await p.route(/tile\.openstreetmap\.org/, (r) => r.abort());
-  await p.goto(base + "/#/carte"); await p.waitForTimeout(5000);
+  // a cold server takes longer than any fixed delay (nightly run): wait for the map and the first cards themselves
+  await p.goto(base + "/#/carte"); await p.waitForSelector("#carte-osm", { timeout: 60000 });
+  await p.waitForFunction(() => document.querySelectorAll(".carte-results .carte-rc").length > 0, null, { timeout: 60000 }); await p.waitForTimeout(2000);
   o.layout = await p.evaluate(() => { const x = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().left : null; };
     const m = document.getElementById("carte-osm").getBoundingClientRect();
+    const top = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().top : null; };
     return { mapSeen: Math.round(innerHeight - m.top), side: x("#cfilters"), map: x("#carte-osm"), list: x(".carte-results"), mapcol: x(".carte-mapcol"),
+      sideTop: top("#cfilters"), listTop: top(".carte-results"),
       cpes: [...document.querySelectorAll('.carte-rc[data-rdip="CPES"]')].map((e) => e.classList.contains("rc-z")),
       dips: [...document.querySelectorAll("[data-dip]:checked")].map((e) => e.dataset.dip),
       figs: [...document.querySelectorAll(".carte-results .carte-rc")].filter((e) => !/apprentissage/.test(e.querySelector(".rc-badges").innerText)).every((e) => e.querySelector(".cofficiel") && e.querySelectorAll(".cbacs li").length === 3 && e.querySelectorAll(".cfigs .cf").length === 2 && e.querySelector("[data-cmp]")) }; });
   // tick one mention group of Double licence: only that group stays among the double licences
   const box = await p.$('[data-mdip="Double licence"]');
-  if (box) { const label = await box.getAttribute("data-men"); await box.check(); await p.waitForTimeout(1500);
+  // sprint H: the mention boxes sit in a dropdown (<details class="dd">); a student opens it first
+  if (box) await box.evaluate((e) => { const d = e.closest("details"); if (d) d.open = true; });
+  if (box) { const label = await box.getAttribute("data-men"); await box.click(); await p.waitForTimeout(1500);   // the page re-draws the filters: click, never check() (it re-reads a replaced box)
     o.multi = await p.evaluate((l) => ({ label: l, dips: [...new Set([...document.querySelectorAll(".carte-rc")].map((e) => e.dataset.rdip))],
       off: [...document.querySelectorAll('.carte-rc[data-rdip="Double licence"]')].filter((e) => e.dataset.groupe !== l).length, hash: location.hash }), label); }
   await ctx.close();
   for (const w of [390, 320]) {
     const c2 = await b.newContext({ viewport: { width: w, height: 800 } }); await c2.addInitScript(prof);
     const q = await c2.newPage(); q.on("pageerror", (e) => o.errs.push(e.message)); await q.route(/tile\.openstreetmap\.org/, (r) => r.abort());
-    await q.goto(base + "/#/carte"); await q.waitForTimeout(4000);
+    await q.goto(base + "/#/carte"); await q.waitForSelector("#carte-osm", { timeout: 60000 }); await q.waitForTimeout(1500);
     o.phone.push([w, await q.evaluate(() => document.documentElement.scrollWidth)]); await c2.close();
   }
   process.stdout.write(JSON.stringify(o)); await b.close();
@@ -415,7 +422,7 @@ const base = process.argv[2];
 """
 
 
-@check("CR8 browser: three columns in order, phone without horizontal scroll, multi-select and mention filter, CPES placed, 0 JS errors")
+@check("CR8 browser: filter bar above, list then map, phone without horizontal scroll, multi-select and mention filter, CPES placed, 0 JS errors")
 def cr8(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
@@ -439,8 +446,9 @@ def cr8(c: Ctx):
         return False, r.stderr[-400:]
     o = json.loads(r.stdout)
     L = o["layout"] or {}
-    # R10 (owner): filters on the left, the list in the middle, the map on the right
-    order = None not in (L.get("side"), L.get("list"), L.get("mapcol")) and L["side"] <= L["list"] < L["mapcol"] and L.get("map") is not None and L["map"] >= L["mapcol"] - 1
+    # sprint H (owner, 2026-11-15): the filters are a bar of dropdowns ABOVE the results; the list on the left, the map on the right
+    order = (None not in (L.get("sideTop"), L.get("listTop"), L.get("list"), L.get("mapcol"), L.get("map"))
+             and L["sideTop"] < L["listTop"] and L["list"] < L["mapcol"] and L["map"] >= L["mapcol"] - 1)
     phone = all(w2 <= w for w, w2 in o["phone"])
     m = o.get("multi") or {}
     multi = L.get("dips") == ["CPES", "Double licence"] and (not c.real or (bool(m) and m.get("off") == 0 and "CPES" in (m.get("dips") or [])))
@@ -449,7 +457,7 @@ def cr8(c: Ctx):
     figs = L.get("figs") is True
     seen = (L.get("mapSeen") or 0) >= 250          # owner (2026-11-12): "je ne vois pas la carte": it shows on the first screen
     ok = order and phone and multi and cpes and figs and seen and not o["errs"]
-    return ok, f"map on the first screen {seen} ({L.get('mapSeen')} px); columns in order {order} {L and {k: L.get(k) for k in ('side', 'map', 'list', 'detail')}}; phone {o['phone']}; multi {multi} {m.get('hash')}; CPES zoned {cpes} ({sum(cp)}/{len(cp)}); 3 figures per card {figs}; errors {o['errs'][:2]}"
+    return ok, f"map on the first screen {seen} ({L.get('mapSeen')} px); columns in order {order} {L and {k: L.get(k) for k in ('side', 'sideTop', 'list', 'listTop', 'map', 'mapcol')}}; phone {o['phone']}; multi {multi} {m.get('hash')}; CPES zoned {cpes} ({sum(cp)}/{len(cp)}); 3 figures per card {figs}; errors {o['errs'][:2]}"
 
 
 # ------------------------------------------------------------------ CR11-CR13 (sprint R10, owner 2026-11-13)

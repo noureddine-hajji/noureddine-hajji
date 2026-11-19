@@ -299,7 +299,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters (the
   dropdown bar, sprint H) folded under "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
-- **Design (lot 2, Claude design guidelines).** Accent = prune (`#8e2a6b`, dark `#e590c4`), owner-confirmed 2026-11-07. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
+- **Design (lot 2, Claude design guidelines; style B since 2026-11-19).** Owner, 2026-11-19: style B « appli bento » (rounded tiles on a
+  warm ground, ink bands, pill menus, a floating tab bar on a phone; fonts Plus Jakarta Sans (display) + Atkinson Hyperlegible (body)).
+  ONE lime call to action per page (`--cta` `#c8f169`, ink text; red team MB counts the controls filled with `--cta`); `--accent` = links and
+  selected states (`#3a1fa0`, dark `#c8f169`), >= 60 apart from the zones, the bac routes and the ramp. « L'essentiel » (and every
+  `.summary`) is an ink band whose tiles keep the paper tokens (`--paper-*`, scoped). Only the look changed: no block, rule or text removed. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
   colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
   no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
@@ -494,7 +498,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   announces or shows its error (Codex). Every page has exactly one h1, headings
   in order. A skip link is the first Tab stop. `.scroll` tables become focusable named regions (`a11yScrollRegions`, unique names).
   Tooltips: the text is the button's `aria-label`, Escape hides it. Form fields use `--line-input` (>= 3:1); text and links >= 4.5:1;
-  no empty `<th>` (sr-only label); a field error sets `aria-invalid`. Nothing may overflow 320 px. `seo.page` fills the shell's
+  no empty `<th>` (sr-only label); a field error sets `aria-invalid`; a link's accessible name CONTAINS its visible text (WCAG 2.5.3:
+  never an `aria-label` replacing it, the explanation as `sr-only` text; axe-core runs nightly). Nothing may overflow 320 px. `seo.page` fills the shell's
   `<main id="view" ...>` whatever its attributes (it raises rather than serve a page without content). Red team `redteam_a11y.py` (A1-A6;
   A4 runs axe-core when installed).
 - **Searching from the map (sprint R9, owner 2026-11-12).** Wide screen: filters + map left, list middle, chosen formation right;
@@ -765,6 +770,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   page « Fiche formation » while loading; never over a `[data-seo]` summary): red team A2. The phone spacing of the formation
   page lives in ONE block at the end of style.css (tabs within two screens, MB5; page <= 13 screens, X7). Browser checks wait
   for what loads after the list (the cards' rates per bac, VI8), never a fixed delay.
+- **Nightly browser checks (owner, 2026-11-19).** CI has no browser: browser checks skip there. `scripts/browser_nightly.py` runs
+  them all (`SUITE`: 17 red teams) on the committed warehouse and FAILS on any skip; `.github/workflows/suptracker-browser.yml`
+  runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`), opens/comments the issue
+  « Contrôles navigateur en échec » on failure, closes it when green. A NEW browser check goes in `SUITE` (red team
+  `redteam_navigateur.py` BN1 fails otherwise: title says « browser », body skips without one).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

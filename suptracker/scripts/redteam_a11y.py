@@ -243,7 +243,8 @@ const PAGES = ["#/", "#/s/bts%20informatique", "#/f/" + cod, "#/parcours", "#/pr
 (async () => {
   const b = await chromium.launch(); const o = { axe: [], h1: [], title: [], reflow: [], errs: [] };
   for (const [mode, vp, scheme] of [["phone-light", { width: 390, height: 844 }, "light"], ["wide-dark", { width: 1280, height: 900 }, "dark"]]) {
-    const ctx = await b.newContext({ viewport: vp, colorScheme: scheme });
+    // the site's CSP refuses inline scripts (sprint Q2): only this test browser lets axe-core in (bypassCSP), the site is unchanged
+    const ctx = await b.newContext({ viewport: vp, colorScheme: scheme, bypassCSP: !!AXE });
     await ctx.addInitScript((c) => { localStorage.setItem("profile", JSON.stringify({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", moyenne: 12.6, statut: "terminale", academie: "Paris" })); localStorage.setItem("voeux", JSON.stringify([c])); }, cod);
     const p = await ctx.newPage(); p.on("pageerror", (e) => o.errs.push(e.message));
     for (const h of PAGES) {
@@ -393,9 +394,9 @@ MUTANTS = [
     ("js", "the average's error not on its field", '      el.setAttribute("aria-invalid", "true");', ""),
     ("js", "an empty header back", '<th><span class="sr-only">Effectif</span></th>', "<th></th>"),
     ("js", "the skip link read as a route", "{ e.preventDefault(); $view.focus(); }", "{ $view.focus(); }"),
-    ("css", "pale field edges", "--line-input: #857f8d;", "--line-input: #c9c4cf;"),
-    ("css", "pale field edges in the dark", "--line-input: #7a7482;", "--line-input: #4a4550;"),
-    ("css", "a pale secondary text", "--muted: #625d69;", "--muted: #9a95a0;"),
+    ("css", "pale field edges", "--line-input: #847d91;", "--line-input: #c9c4cf;"),
+    ("css", "pale field edges in the dark", "--line-input: #7d768a;", "--line-input: #4a4550;"),
+    ("css", "a pale secondary text", "--muted: #5b556a;", "--muted: #9a95a0;"),
     ("css", "no focus ring", ":focus-visible { outline: 3px solid var(--accent);", ":focus-visible { outline: 0 solid var(--accent);"),
     ("css", "fields keep the pale edge", 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-color: var(--line-input); }', ""),
     ("css", "the skip link never shows", ".skip:focus { top: 8px; }", ""),

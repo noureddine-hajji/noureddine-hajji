@@ -544,7 +544,7 @@ DESIGN_MUTANTS = [
     ("zone colour = accent", 'cible: { label: "Vœu cible", color: "var(--zone-cible)" }', 'cible: { label: "Vœu cible", color: "var(--accent)" }', ("js", (x9,))),
     ("reduced motion dropped", "@media (prefers-reduced-motion: reduce) {", "@media (min-width: 9999px) {", ("css", (x9,))),
     ("Google Fonts back", "<head>", '<head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">', ("html", (x10,))),
-    ("font file not shipped", "figtree-latin-wght-normal.woff2", "figtree-latin-400.woff2", ("css", (x10,))),
+    ("font file not shipped", "atkinson-hyperlegible-latin-700-normal.woff2", "atkinson-hyperlegible-latin-700.woff2", ("css", (x10,))),
     ("emoji marker back", "internat: ICONS.internat,", 'internat: "🛏️",', ("js", (x11,))),
     ("summary dropped before the tabs", "  ${summaryBand(r, d)}\n  <p class=\"small fhead-links\">", "  <p class=\"small fhead-links\">", ("js", (x12,))),
     ("caveat dropped from the summary", "Des résultats des campagnes passées, pas des chances d'admission.", "Des résultats des campagnes passées.", ("js", (x12,))),

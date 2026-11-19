@@ -230,7 +230,8 @@ const ICONS = { edit: "<svg edit></svg>", profile: "<svg prof></svg>" };
 const JV = null;
 for (const [tab, raw] of cases) {
   const el = { hidden: false, innerHTML: "", attrs: {}, cls: new Set(),
-    classList: { toggle(k, on) { on ? el.cls.add(k) : el.cls.delete(k); } }, setAttribute(k, v) { el.attrs[k] = v; } };
+    classList: { toggle(k, on) { on ? el.cls.add(k) : el.cls.delete(k); } }, setAttribute(k, v) { el.attrs[k] = v; },
+    removeAttribute(k) { delete el.attrs[k]; } };
   const document = { getElementById: (id) => (id === "profile-chip" ? el : null) };
   globalThis.document = document;
   profileChip(tab, raw);
@@ -260,8 +261,11 @@ def chip_ok(r) -> tuple[bool, str]:
     o = json.loads(r)
     bad = []
     none, bg, bt, inval, reo, stats, liste, arr = o
-    if none["hidden"] or not none["empty"] or "Créer mon profil" not in none["html"] or none["label"] != "Créer mon profil":
+    # WCAG 2.5.3 (axe, 2026-11-19): no aria-label replacing the visible text; the explanation is hidden text inside the link
+    if none["hidden"] or not none["empty"] or "Créer mon profil" not in none["html"] or none["label"]:
         bad.append(("no profile", none))
+    if bg["label"] or '<span class="sr-only">Votre profil : </span>' not in bg["html"]:
+        bad.append(("the chip's name does not contain its visible text", bg))
     if "<img" in bg["html"] or "&lt;img" not in bg["html"] or "bac général" not in bg["html"] or "bien" not in bg["html"] or bg["empty"]:
         bad.append(("bac général", bg["html"]))
     if "<img" in bt["html"] or "bac techno" not in bt["html"] or "très bien" not in bt["html"]:
@@ -621,6 +625,7 @@ MUTANTS = [
     ("html", "Mon profil dropped from the phone bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', "u1"),
     ("html", "glossary missing from Comprendre", '        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n      </div>', "      </div>", "u1"),
     ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n  <a href="#/info/aide"', '  <a href="#/info/aide"', "u1"),
+    ("js", "the chip's name replaces its visible text", 'el.removeAttribute("aria-label");', 'el.setAttribute("aria-label", "Votre profil, le modifier");', "u3"),
     ("js", "map unreachable from Explorer", 'carte: "#/carte", metiers', 'carte: "#/", metiers', "u1"),
     ("js", "an old search link loses its keyword", 'carteUI.pendingQ = q;\n  location.replace("#/carte");', 'location.replace("#/carte");', "u1"),
     ("js", "the views switch back on the home", '  ${homeProfile()}\n', '  ${explorerViews("carte")}${homeProfile()}\n', "u1"),

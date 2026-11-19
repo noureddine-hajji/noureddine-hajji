@@ -763,9 +763,10 @@ state shown by form and semantic colour, no emoji as markers, one type scale, se
 - **Design tokens** (`style.css`): five font sizes (`--fs-xs` 12 to `--fs-xl` 28 px), three radii (`--r-sm`, `--r-md`,
   `--r-pill`), a "prune" accent with neutrals biased toward it, light and dark. The zone colours are their own tokens
   (`--zone-securite`, `--zone-cible`, `--zone-ambitieux`), never the accent, so a zone never reads as a link.
-- **Fonts, self-hosted** (`static/fonts/`, SIL OFL): Bricolage Grotesque for titles and key figures, Figtree for text.
-  No request to a font host, so no visitor's address leaves the site. (Atkinson Hyperlegible was tried first and dropped:
-  its slashed zero made "2025" read as "2Ø25".)
+- **Fonts, self-hosted** (`static/fonts/`, SIL OFL): Plus Jakarta Sans for titles and key figures, Atkinson Hyperlegible for text (style B, 2026-11-19; before: Bricolage Grotesque and Figtree).
+  No request to a font host, so no visitor's address leaves the site. (Atkinson Hyperlegible was tried first in lot 2 and
+  dropped: its slashed zero made "2025" read as "2Ø25". Style B keeps it for letters and takes the digits 0-9 from Plus Jakarta
+  Sans through a `unicode-range` face declared last.)
 - **Formation page:** one highlighted card first, **"L'essentiel"**, with four tiles: the official access rate, **your
   zone** (a coloured pill filled from the same Plan B answer as "Mon parcours"; without a profile, a link to it), admits
   and places, and the number of jobs of the Onisep sheet. It says "pas des chances d'admission". Then four tabs named
@@ -3996,3 +3997,58 @@ Three browser-only checks (they need Playwright and are not run in CI) failed on
   summary card, its tiles and the admits bar is tightened (one block at the END of style.css, so it wins over the base
   rules). The access tile's sentence no longer repeats « pas des chances »: the summary's own last line says it. Tabs now at
   1,376-1,444 px, X7 passes.
+
+## Style B, « appli bento » (owner, 2026-11-19)
+
+The owner chose, among nine directions drawn on a canvas, the recommendation in style B: the same reading levels, a new look.
+Only the appearance changed; every block, rule, text and check of the earlier sprints stays.
+
+- **Type.** Plus Jakarta Sans (titles, key figures, menus; weight 800) and Atkinson Hyperlegible (body; drawn by the Braille
+  Institute for legibility, it also helps dyslexic readers). Both are self-hosted in `static/fonts/` with their OFL licences:
+  no font host is contacted (red team X10).
+- **Colour.** A warm ground (`--bg`), white tiles, ink bands (`--hero`). ONE lime call to action per page (`--cta`, ink text):
+  red team MB now counts the controls filled with `--cta` (one on the home, one on a formation page). `--accent` is the
+  links' and the selected states' colour (deep violet, lime in the dark theme), kept at least 60 apart from the zones, the bac
+  routes and the data ramp (red teams X9, VI2, D5). The zones keep their tokens, shapes and names.
+- **Shapes.** Three radii only (`--r-sm` 12 px, `--r-md` 24 px, pill) and five sizes (X9). Menus are pills: the chosen page in
+  ink and lime; on a phone the tab bar floats as an ink pill above the page.
+- **« L'essentiel ».** An ink band; its tiles keep the paper's colours through scoped tokens (`--paper-*`), so every pill, badge
+  and note inside a tile reads as before (contrast checked by axe, red team A4). The same band carries Mes vœux's zone tiles.
+- **Home.** The ink hero with the one lime action, then « Construire ma liste » drawn as a line of five stops (statuses read in
+  this browser only, `guideCard`), then the four doors as tinted tiles.
+- **Search page.** Every filter of sprint H is kept (red team RS9); the dropdowns are pills, the chosen ones in ink; result cards
+  are white tiles keeping the zone's edge (never the accent); the map and the list are unchanged.
+
+## Nightly browser checks (owner, 2026-11-19)
+
+The CI runners have no browser, so every red-team check that opens the site in Chromium (phone screens, dark mode,
+headings, page lengths, the map, the speed budgets) **skips itself** in the `suptracker` workflow. Three of them failed on
+`main` without anyone seeing it.
+
+- `scripts/browser_nightly.py` runs the browser checks of the 17 red teams that have one (`SUITE`), on the committed
+  warehouse, each through the red team's own `run()` (real warehouse, browser on, restricted to those checks when the red team
+  allows it). Any failure, any SKIPPED browser check, any browser check that did not run, a crash, or a missing Playwright,
+  Chromium or warehouse fails the run (exit 1). It writes a Markdown report.
+- `.github/workflows/suptracker-browser.yml` runs it every night at 02:23 UTC on `main`, and by hand (Actions >
+  suptracker-browser > Run workflow). It installs Node 22, Playwright 1.56.1 (the version the checks were written with,
+  found by `require` from any folder through `NODE_PATH`), axe-core 4.14.0 (red team A4's WCAG audit of every page) and
+  Chromium with its system libraries.
+  - On failure it opens the issue « Contrôles navigateur en échec » (or comments on it) with the report: GitHub e-mails the owner.
+  - When the checks are green again, it closes that issue with a comment.
+- Red team `redteam_navigateur.py` (BN1-BN5):
+  - every red team with a `--browser` switch is in the suite, and every listed check is a browser check (its title says
+    « browser », its body skips without one);
+  - the verdict (failure, skip, absence, crash) and the setup failures;
+  - the workflow's triggers, pinned version, `NODE_PATH`, issue steps, permissions and time limit;
+  - a mutation test (14/14).
+- First full run (2026-11-19), all fixed before shipping:
+  - CR8 waited a fixed 5 s on a cold server, clicked a mention box hidden in its dropdown since sprint H, and still expected
+    three columns: it now waits for the map and the cards, opens the dropdown first and checks today's layout (filter bar
+    above, list then map).
+  - A4 had never run axe: the site's CSP (sprint Q2) refuses the injected script. Only the test browser bypasses it
+    (`bypassCSP`), the site is unchanged.
+  - axe then found a real WCAG 2.5.3 (« label in name ») failure on every page. The profile bar's two links and the header
+    chip had an `aria-label` that replaced their visible text. They now keep their visible text as their name, with the
+    explanation as hidden text (`sr-only`). Red team U3 checks it, with one more mutant (U8 45/45). axe finds nothing on
+    any page, on a phone in light mode and on a wide screen in dark mode.
+

@@ -608,10 +608,14 @@ def gr8(c: Ctx):
               "data/rapports/live data/fiches"):
         if w not in wf:
             bad.append(f"rapports workflow: {w[:50]}")
-    dw = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
+    # the build fingerprint (in the workflow) and the harvest fingerprint (scripts/harvest_fingerprint.sh, read by the workflow for its
+    # check AND the value it writes) both take the grids' content files and only (code, status) of etat.csv
+    wf_only = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
+    dw = wf_only + (ROOT / "scripts" / "harvest_fingerprint.sh").read_text()
     content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/textes.csv.gz"
-    proj = "cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true;"
-    if dw.count(content) != 3 or dw.count(proj) != 3 or dw.count("data/fiches/etat.csv") != 3 or re.search(r"data/fiches(?:/)?[ ;|]", dw):
+    proj = "cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true"
+    if (dw.count(content) != 2 or dw.count(proj) != 2 or dw.count("data/fiches/etat.csv") != 2 or re.search(r"data/fiches(?:/)?[ ;|]", dw)
+            or wf_only.count("bash scripts/harvest_fingerprint.sh") != 2):
         bad.append("data workflow fingerprint")
     bad += fingerprint_follows_status(c, proj)
     if "**/data/fiches/" not in (ROOT / ".vercelignore").read_text().splitlines():

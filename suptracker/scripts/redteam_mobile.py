@@ -14,7 +14,7 @@ profile card, with a discreet "Créer mon profil"; the formation page was long, 
       tab down a long panel brings the new panel's start just under the bar.
   MB5 phone layout (browser, Pixel 5): the home's main action is on the first screen, with and without a profile; the
       formation pages' tab bar starts within two screens (the longest titles of the latest campaign); inside <main>, exactly
-      one control is filled with the accent colour on the home and on a formation page; the tab bar sticks at 0 and a tab
+      one control is filled with the call-to-action colour (--cta, style B) on the home and on a formation page; the tab bar sticks at 0 and a tab
       opened down the page shows its panel just under it; the map never covers the bottom tab bar; no horizontal scroll; no JS error.
   MB6 screen-reader reading (browser, Chromium's accessibility tree; not a real screen reader, see the README protocol):
       the skip link is the first Tab stop and leads to <main>; one banner, one main, one contentinfo, every navigation named;
@@ -146,7 +146,8 @@ const MUT = __MUTANTS__;
 // page checks, run in the page; each returns a list of problems
 const LAYOUT = () => {
   const p = [], main = document.querySelector('main#view');
-  const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  // style B (owner, 2026-11-19): the one main action is filled with the call-to-action colour (--cta), never another control
+  const acc = getComputedStyle(document.documentElement).getPropertyValue('--cta').trim();
   const probe = document.createElement('i'); probe.style.color = acc; document.body.appendChild(probe);
   const accRgb = getComputedStyle(probe).color; probe.remove();
   const filled = [...main.querySelectorAll('a, button')].filter((e) => e.offsetParent !== null && getComputedStyle(e).backgroundColor === accRgb);

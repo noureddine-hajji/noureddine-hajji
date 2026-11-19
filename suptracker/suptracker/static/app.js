@@ -450,10 +450,11 @@ const profileBar = {
         if (other) parts.push(`<span class="pb-zone">${fmt(other)} autre${other > 1 ? "s" : ""}</span>`);
         const alert = d.lecture.messages.some((m) => m.code === "aucune_securite")
           ? `<a class="pb-alert" href="#/voeux">Aucun vœu de sécurité sûr</a>` : "";
-        list = `<a class="pb-list" href="#/voeux" aria-label="Mes vœux, zones pour votre profil">Mes vœux : ${parts.join(" · ")}</a>${alert}`;
+        // WCAG 2.5.3 (axe, 2026-11-19): the accessible name CONTAINS the visible text; the explanation is hidden text, never an aria-label
+        list = `<a class="pb-list" href="#/voeux">Mes vœux : ${parts.join(" · ")}<span class="sr-only"> (zones pour votre profil)</span></a>${alert}`;
       }
     }
-    el.innerHTML = `<a class="pb-who" href="#/profil" aria-label="Votre profil, le modifier dans Mon profil">${profileLine(prof, prof.serie)}</a>${list}`;
+    el.innerHTML = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a>${list}`;
   },
 };
 // R1 (owner, 2026-11-11): the profile chip of the wide-screen header, read from the same stored profile as the bar (escaped,
@@ -472,8 +473,9 @@ function profileChip(tab, raw) {
   el.hidden = false;
   const has = !!raw && typeof raw === "object" && !Array.isArray(raw);
   el.classList.toggle("empty", !has);
-  el.setAttribute("aria-label", has ? "Votre profil, le modifier" : "Créer mon profil");
-  el.innerHTML = has ? `<span>${chipLine(vxProfile(raw))}</span>${ICONS.edit}` : `${ICONS.profile}<span>Créer mon profil</span>`;
+  el.removeAttribute("aria-label");                               // WCAG 2.5.3: the name is the visible text + hidden words
+  el.innerHTML = has ? `<span class="sr-only">Votre profil : </span><span>${chipLine(vxProfile(raw))}</span><span class="sr-only"> (le modifier)</span>${ICONS.edit}`
+    : `${ICONS.profile}<span>Créer mon profil</span>`;
 }
 
 // ---- SVG primitives --------------------------------------------------------
@@ -690,9 +692,14 @@ async function viewGuide() {
 }
 // the home card: where the student stands (no request: the reading of the list is only on the guide's own page)
 function guideCard() {
+  // style B (owner, 2026-11-19): the five steps as a line of stops, each with its status read in this browser only
   const G = guideState(store.get("profile", null), voeux.get(), null, guideFlags());
-  return `<div class="card guide-card"><p><strong>Construire ma liste en 5 étapes.</strong> Profil, exploration, vœux, un vœu de sécurité sûr, partage : le site pas à pas.</p>
-    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."}</p><a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></div>`;
+  const label = (x) => (x.statut === "lecture" ? "À lire dans Mes vœux" : GUIDE_STATUT[x.statut] || "");
+  return `<section class="card guide-card" aria-labelledby="gc-h"><h2 id="gc-h">Construire ma liste en 5 étapes</h2>
+    <ol class="trajet">${G.steps.map((x) => `<li class="tj-${x.statut}${x.key === G.next ? " tj-next" : ""}"><a href="${esc(x.href)}"${x.key === G.next ? ' aria-current="step"' : ""}><span class="tj-dot" aria-hidden="true"></span>
+      <span><strong>${esc(x.titre)}</strong><br><span class="small">${esc(label(x))}</span></span></a></li>`).join("")}</ol>
+    <p class="small">${G.faites ? `${fmt(G.faites)} étape${G.faites > 1 ? "s" : ""} sur 5 faite${G.faites > 1 ? "s" : ""}.` : "Aucune étape faite pour l'instant."} Le site pas à pas, à votre rythme.</p>
+    <a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></section>`;
 }
 
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----

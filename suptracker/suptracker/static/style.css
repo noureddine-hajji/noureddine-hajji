@@ -1,22 +1,35 @@
-/* ---- design tokens (lot 2, Claude design guidelines) ----
-   Layout: phone-first single column; a summary band first, details in tabs; only the summary is set off as a card.
-   Type: Bricolage Grotesque (display, titles and key figures) + Figtree (body: open shapes, plain zeros in figures),
-   both self-hosted (no request to a font host: no visitor's address leaves the site). */
-@font-face { font-family: "Bricolage Grotesque"; src: url("/static/fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2");
+/* ---- design tokens (style B, owner 2026-11-19: « appli bento », the recommendation's reading levels) ----
+   Layout: phone-first single column; a summary band first, details in tabs; rounded tiles on a warm ground.
+   Type: Plus Jakarta Sans (display: titles and key figures, 800) + Atkinson Hyperlegible (body: drawn for legibility, helps
+   dyslexic readers), both self-hosted (no request to a font host: no visitor's address leaves the site).
+   Colour: ink and one lime call to action (--cta, the page's ONE filled main action); --accent is the links' and the
+   selected states' colour (deep violet, lime in the dark theme), apart from the zones, the bac routes and the data ramp. */
+@font-face { font-family: "Plus Jakarta Sans"; src: url("/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
   font-weight: 200 800; font-style: normal; font-display: swap; }
-@font-face { font-family: "Figtree"; src: url("/static/fonts/figtree-latin-wght-normal.woff2") format("woff2");
-  font-weight: 300 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/static/fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/static/fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
+  font-weight: 600 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/static/fonts/atkinson-hyperlegible-latin-400-italic.woff2") format("woff2");
+  font-weight: 400; font-style: italic; font-display: swap; }
+/* the digits come from Plus Jakarta Sans: Atkinson's slashed zero made "2025" read as "2Ø25" (it was dropped for that in lot 2).
+   Declared LAST with the SAME weights as the Atkinson faces, so for 0-9 they win inside the body family (unicode-range); a number reads the same in text and in titles */
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0030-0039; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 600 800; font-style: normal; font-display: swap; unicode-range: U+0030-0039; }
 :root {
-  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
   --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px;   /* the only five sizes */
-  --r-sm: 8px; --r-md: 12px; --r-pill: 999px;                                   /* the only three radii */
+  --r-sm: 12px; --r-md: 24px; --r-pill: 999px;                                  /* the only three radii */
 }
 :root {
-  --bg: #f7f6f8; --surface: #ffffff; --ink: #1e1b22; --muted: #625d69; --line: #e2dfe6;
-  --line-input: #857f8d;                                                      /* R8: form fields' edge, >= 3:1 (1.4.11) */
-  --accent: #8e2a6b;
-  --zone-securite: #1e7a46; --zone-cible: #2b5fd9; --zone-ambitieux: #b9460f; --voie-bg: #00838f; --voie-bt: #8a6d00; --voie-bp: #6b4bb8; --accent-soft: #f6e8f1; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
+  --bg: #f3f0ea; --surface: #ffffff; --ink: #1b1726; --muted: #5b556a; --line: #e4dfe9;
+  --line-input: #847d91;                                                      /* R8: form fields' edge, >= 3:1 (1.4.11) */
+  --accent: #3a1fa0;
+  --cta: #c8f169; --cta-ink: #1b1726; --hero: #1b1726; --hero-ink: #ffffff; --hero-muted: #d9d4e6; --hero-tile: #2a2438; --tint: #ece6da;
+  --zone-securite: #1e7a46; --zone-cible: #2b5fd9; --zone-ambitieux: #b9460f; --voie-bg: #00838f; --voie-bt: #8a6d00; --voie-bp: #6b4bb8; --accent-soft: #ebe6f8; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
   --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb;   /* R4: neutral data ramp, dark to light */
   --zone-autre: #6f6977; --shadow-tip: 0 4px 14px rgba(0,0,0,.12); --shadow-pop: 0 8px 24px rgba(0,0,0,.18);
   --box: #c9d6f5; --range: #e6ebf7;
@@ -25,9 +38,10 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d; --line-input: #7a7482;
-    --accent: #e590c4;
-    --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
+    --bg: #141118; --surface: #201c27; --ink: #eeeaf4; --muted: #aba4b8; --line: #352f3f; --line-input: #7d768a;
+    --accent: #c8f169;
+    --cta: #c8f169; --cta-ink: #1b1726; --hero: #2b2340; --hero-ink: #ffffff; --hero-muted: #d9d4e6; --hero-tile: #3a3150; --tint: #2a2530;
+    --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 0 4px 14px rgba(0,0,0,.45); --shadow-pop: 0 8px 24px rgba(0,0,0,.55);
     --box: #3a4f86; --range: #283247;
@@ -36,9 +50,10 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #17151a; --surface: #211e25; --ink: #ebe8ee; --muted: #a39dab; --line: #37333d; --line-input: #7a7482;
-  --accent: #e590c4;
-  --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #3a2232; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
+  --bg: #141118; --surface: #201c27; --ink: #eeeaf4; --muted: #aba4b8; --line: #352f3f; --line-input: #7d768a;
+  --accent: #c8f169;
+    --cta: #c8f169; --cta-ink: #1b1726; --hero: #2b2340; --hero-ink: #ffffff; --hero-muted: #d9d4e6; --hero-tile: #3a3150; --tint: #2a2530;
+  --zone-securite: #6fd39c; --zone-cible: #7ea2ff; --zone-ambitieux: #f2a46b; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
   --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 0 4px 14px rgba(0,0,0,.45); --shadow-pop: 0 8px 24px rgba(0,0,0,.55);
   --box: #3a4f86; --range: #283247;
@@ -731,6 +746,118 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
   .dd[open] { flex-basis: 100%; }                   /* on a phone the open dropdown takes the row and unfolds in the page */
   .dd-panel { position: static; width: auto; max-width: none; min-width: 0; margin-top: 6px; box-shadow: none; max-height: 55vh; }
   .cs-km { flex: 1 1 120px; }
+}
+
+/* ---- style B (owner, 2026-11-19): « appli bento ». Rounded tiles on a warm ground, an ink band for what matters first,
+   ONE lime call to action per page (--cta), pill menus. Only the look changes: every block, rule and text stays. ---- */
+:root { --paper-ink: var(--ink); --paper-muted: var(--muted); --paper-accent: var(--accent); --paper-line: var(--line); --paper-surface: var(--surface); }
+h1, h2, .hero h1, .big, .brand, .sum-value, .door strong, .tabs button, .topnav > a, .drop > button, .dd > summary, .rc-title, .cf-big {
+  font-family: var(--font-display); }
+h1, h2, .hero h1, .brand, .sum-value, .big { font-weight: 800; letter-spacing: -0.02em; }
+.card h2 { font-weight: 800; }
+/* shell: the brand tile, the menu in a white pill, the chosen page in ink and lime */
+.top { background: var(--bg); border-bottom: 0; padding: 14px 20px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-size: var(--fs-lg); }
+.brand::before { content: ""; flex: none; width: 34px; height: 34px; border-radius: var(--r-sm);
+  background: radial-gradient(circle, var(--cta) 0 5px, transparent 6px), conic-gradient(from 45deg, var(--hero) 0 25%, var(--hero-tile) 0 50%, var(--hero) 0 75%, var(--hero-tile) 0); }
+.topnav { gap: 2px; padding: 4px; background: var(--surface); border-radius: var(--r-pill); }
+.topnav > a, .drop > button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: var(--r-pill);
+  color: var(--ink); font-weight: 700; text-decoration: none; }
+.topnav > a:hover, .drop > button:hover { background: var(--accent-soft); }
+.topnav > a[aria-current="page"], .drop > button.current { background: var(--hero); color: var(--cta); }
+.profile-chip { background: var(--surface); border-color: var(--surface); min-height: 40px; }
+/* buttons: pills; the ONE main action of a page is lime with ink text; a secondary one is outlined in ink */
+button, .btnlink { border-radius: var(--r-pill); }
+select { border-radius: var(--r-sm); }
+button.primary, .btnlink.primary, .search button { background: var(--cta); border-color: var(--cta); color: var(--cta-ink); font-weight: 800; }
+.btnlink { border: 2px solid var(--ink); font-weight: 700; }
+.btn-sec { border: 2px solid var(--ink); }
+/* cards are rounded tiles without a border; inside a tab each section is its own tile */
+.card { border: 0; border-radius: var(--r-md); padding: 18px 20px; }
+.tabpanel .card { background: var(--surface); border: 0; border-radius: var(--r-md); padding: 18px 20px; margin: 0 0 12px; }
+.tabpanel .card:last-child { margin-bottom: 0; }
+.more-card > summary, details.profile > summary { border: 0; background: var(--surface); border-radius: var(--r-md); }
+/* the home: an ink hero with the one lime action, the five steps as a line of stops, the four doors as tinted tiles */
+.hero { background: var(--hero); color: var(--hero-ink); border-radius: var(--r-md); padding: 24px 20px; margin-bottom: 14px; }
+.hero p, .hero .small { color: var(--hero-muted); }
+.hero a:not(.btnlink) { color: var(--cta); }
+.hero-cta .btnlink.primary { min-height: 54px; padding: 0 28px; }
+.doors { gap: 12px; }
+.door { border: 0; background: var(--surface); border-radius: var(--r-md); }
+.doors .door:nth-child(4n+1), .doors .door:nth-child(4n) { background: var(--accent-soft); }
+.doors .door:nth-child(4n+2), .doors .door:nth-child(4n+3) { background: var(--tint); }
+.door span:not(.door-ico) { color: var(--ink); }
+.door:hover, .door:focus-visible { border-color: transparent; box-shadow: 0 0 0 3px var(--accent); }
+.door-ico .ico { color: var(--ink); }
+.guide-card h2 { margin: 0 0 12px; }
+.trajet { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; position: relative; }
+.trajet::before { content: ""; position: absolute; left: 10%; right: 10%; top: 15px; height: 4px; border-radius: var(--r-pill); background: var(--line); }
+.trajet li { position: relative; min-width: 0; }
+.trajet a { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: var(--ink); text-decoration: none; min-height: 44px; }
+.trajet a:hover strong, .trajet a:focus-visible strong { text-decoration: underline; }
+.tj-dot { width: 30px; height: 30px; border-radius: var(--r-pill); border: 4px solid var(--line-input); background: var(--surface); }
+.tj-fait .tj-dot, .tj-sans_objet .tj-dot { border-color: var(--ink); background: var(--ink); }
+.tj-next .tj-dot { border-color: var(--ink); background: var(--cta); }
+.trajet strong { font-size: var(--fs-sm); line-height: 1.25; }
+.trajet .small { color: var(--muted); }
+@media (max-width: 720px) {
+  .trajet { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .trajet::before { left: 13px; right: auto; top: 22px; bottom: 22px; width: 4px; height: auto; }
+  .trajet a { flex-direction: row; text-align: left; gap: 12px; padding: 4px 0; }
+  .trajet strong { font-size: var(--fs-md); }
+}
+/* « L'essentiel »: the ink band; its tiles keep the paper's own colours (the scoped tokens below), so every pill, badge and
+   note inside a tile reads exactly as before; what sits on the band itself is light (the same tokens, re-pointed) */
+.card.summary { background: var(--hero); color: var(--hero-ink); border: 0;
+  --ink: var(--hero-ink); --muted: var(--hero-muted); --accent: var(--cta); --line: var(--hero-tile); --surface: var(--hero-tile); }
+.summary > h2 { color: var(--cta); }
+/* a light box set ON the band (an info or a warning line) reads with the paper's tokens, like the tiles (axe, A4) */
+.summary :is(.info, .warn, .dbl-est) { --ink: var(--paper-ink); --muted: var(--paper-muted); --accent: var(--paper-accent); --line: var(--paper-line);
+  --surface: var(--paper-surface); }
+.summary .info { color: var(--paper-ink); }
+.summary .zone-pill { color: var(--paper-surface); }   /* a zone pill on the band (the zone legend) keeps its white text on the zone fill */
+.summary .sum-tile, .summary .sum-tile:hover { --ink: var(--paper-ink); --muted: var(--paper-muted); --accent: var(--paper-accent); --line: var(--paper-line);
+  --surface: var(--paper-surface); background: var(--paper-surface); color: var(--paper-ink); }
+.summary .sum-tile:hover, .summary .sum-tile:focus-visible { box-shadow: inset 0 0 0 3px var(--paper-accent); }
+.summary .sum-tile.sum-acces:hover { background: var(--paper-surface); }
+.sum-tile { border-radius: var(--r-sm); }
+.sum-label { text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--fs-xs); }
+/* the formation's tabs: a pill bar, the open one in ink and lime */
+.tabs { gap: 6px; padding: 8px 0; border-bottom: 0; }
+.tabs button { border: 0; border-radius: var(--r-pill); background: var(--surface); color: var(--ink); padding: 0 16px; }
+.tabs button[aria-selected="true"] { background: var(--hero); color: var(--cta); border-bottom-color: transparent; }
+/* the Explorer switch and the search page: pill filters, the chosen ones in ink; result cards as tiles */
+.views { border: 0; }
+.views a[aria-current="true"] { background: var(--hero); color: var(--cta); box-shadow: none; }
+.dd > summary, .dd-fold > summary { background: var(--bg); border-color: var(--bg); }
+@media (min-width: 721px) and (max-width: 1439px) { .topnav > a, .drop > button { padding: 0 10px; font-size: var(--fs-sm); } .top { gap: 8px; } }
+.dd.on > summary, .dd[open] > summary, .dd-fold[open] > summary { background: var(--hero); border-color: var(--hero); color: var(--cta); }
+.dd.on > summary .dd-n, .dd[open] > summary .dd-n { background: var(--cta); color: var(--cta-ink); }
+.result.rc.carte-rc { background: var(--surface); border-radius: var(--r-sm); border-bottom: 0; border-left-width: 6px; padding: 14px 16px; margin-bottom: 10px; }
+.carte-results .result.rc.carte-rc:last-child { border-bottom: 0; }
+.carte-rc[aria-current] { box-shadow: inset 0 0 0 2px var(--accent); background: var(--surface); }
+.carte-box { border: 0; }
+.cs-field input, .cs-field select, .cs-share-link, .dd-panel input[type=search] { border-radius: var(--r-sm); }
+/* profile bar: a white pill on wide screens */
+@media (min-width: 721px) {
+  .profile-bar { background: var(--surface); border-radius: var(--r-pill); padding: 6px 18px; }
+}
+/* phone: the menu is a floating ink pill, the open page in lime */
+@media (max-width: 720px) {
+  body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); line-height: 1.5; }   /* WCAG 1.4.12's 1.5; Atkinson's tall x-height reads well at it */   /* the floating bar: 62 px + its 10 px gap */
+  .tabbar { left: 8px; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)); padding: 4px; border: 0; border-radius: var(--r-pill);
+    background: var(--hero); box-shadow: var(--shadow-pop); }
+  .tabbar a, .tabbar button { border-radius: var(--r-pill); color: var(--hero-muted); min-height: 54px; }
+  .tabbar a[aria-current="page"], .tabbar button.current, .tabbar button[aria-expanded="true"] { background: var(--cta); color: var(--cta-ink); }
+  .more-menu:not([hidden]) { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .top { padding: 12px 16px; }
+  .brand::before { width: 30px; height: 30px; }
+  .hero { padding: 20px 18px; }
+  /* the formation page stays within 13 phone screens (red team X7): the tiles keep the earlier cards' spacing */
+  .card { padding: 12px 14px; margin-bottom: 10px; }
+  .tabpanel .card { padding: 12px 8px; margin-bottom: 6px; }   /* narrow side padding: the long tables keep their width (X7) */
+  .tabs { padding: 6px 0; }
+  .result.rc.carte-rc { padding: 10px 12px; margin-bottom: 8px; }   /* the search list stays within 12 phone screens (X7) */
 }
 
 /* phone: the formation page's tabs within two screens even under the longest official titles (red team MB5). Nothing is
