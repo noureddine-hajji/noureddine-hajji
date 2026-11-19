@@ -61,6 +61,7 @@ POLICY = [
     (r"/api/carte/chiffres", PUBLIC, "map (R9): doublette / line figures of one page of the list for a coarse profile (no average)"),
     (r"/api/carte/zones", PUBLIC, "map: zones of Mon parcours for a coarse profile (the audience count is sent by the page)"),
     (r"/api/comprendre", PUBLIC, "how far the lists were called and when the offers came, per type of diploma (no parameter)"),
+    (r"/api/observatoire", PUBLIC, "observatoire: national trends, demand per académie, same-académie admits (no parameter)"),
     (r"/api/selectivite", PUBLIC, "selectivity matrix of a type of diploma (no profile)"),
     (r"/api/reorientation", PUBLIC, "sprint 21: formations of a type for a candidate outside terminale (no profile, no position)"),
     (r"/api/reorientation/voeux", NO_STORE, "sprint 21: the student's list read outside terminale (a personal list: never shared-cached)"),

@@ -64,6 +64,8 @@ const NEXT_STEPS = {
     { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
   metier: [{ href: "#/metiers", text: "Comparer avec d'autres métiers" },
     { href: "#/carte", text: "Voir les formations sur la carte" }],
+  observatoire: [{ href: "#/carte", text: "Chercher une formation, avec son taux d'accès officiel" },
+    { href: "#/selectivite", text: "Voir la vraie sélectivité d'un type de formation" }],
   premiere: [{ href: "#/specialites", text: "Voir quelles spécialités ont les admis de chaque type de formation" },
     { href: "#/calendrier", text: "Noter les dates de Parcoursup" }],
 };
@@ -4682,6 +4684,131 @@ async function viewComprendre() {
     <p class="muted small">Part des admis qui avaient déjà reçu leur proposition à chaque étape, publiée pour chaque formation ; médiane sur les formations du type qui ont des admis.</p></div>`;
   $view.dataset.rendered = "comprendre";
 }
+// ---- Observatoire (owner, 2026-11-19): three national overviews of the published figures, read for nobody ----
+// Vœux par place = the vœux / the places SUMMED over a type (vœux, never people); the access rate is the MEDIAN of the
+// official rates (never recomputed); the same-académie share counts néo-bachelier admits (people) only. Never a chance: the
+// académies and the types are ranked, never the formations. Île-de-France's three académies are ONE bubble on the map (their
+// centres are a few km apart: `ile_de_france`, summed by the server), each keeps its row in the table.
+const OBS_DEFAULT = ["BTS - BTSA - BTSM", "Licence", "BUT", "Écoles d'ingénieurs", "CPGE scientifique"];
+const OBS_MAX = 5;
+// five series at most, each with its own dash AND a shade of the ramp that keeps 3:1 on the card (--c5/--c6 are too light)
+const OBS_SERIES = [["var(--c1)", ""], ["var(--c2)", "6 4"], ["var(--c3)", "2 3"], ["var(--c4)", "8 3 2 3"], ["var(--c2)", "1 3"]];
+const obsUI = { types: null, type: null };
+const obsArrow = (a, b, f) => `${f(a)} → ${f(b)}`;
+// four classes from the quartiles of the values shown (fixed rule): radius AND shade, never the shade alone
+function obsClasses(values) {
+  const v = values.filter((x) => x != null).sort((a, b) => a - b);
+  if (!v.length) return { cuts: [], of: () => 0 };
+  const q = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
+  const cuts = [q(0.25), q(0.5), q(0.75)];
+  return { cuts, of: (x) => cuts.filter((c) => x >= c).length };
+}
+const OBS_R = [6, 8, 10.5, 13], OBS_FILL = ["var(--c5)", "var(--c4)", "var(--c2)", "var(--c1)"];
+// a light silhouette of metropolitan France and Corsica (coarse coastline and borders, [lat, lon]): a landmark only, never data
+const OBS_FRANCE = [[[51.05, 2.37], [50.7, 3.2], [50.3, 4.1], [50.14, 4.83], [49.8, 4.9], [49.52, 5.8], [49.1, 6.7], [48.97, 8.23], [48.58, 7.8],
+  [47.59, 7.59], [47.0, 6.9], [46.4, 6.1], [46.2, 6.1], [45.83, 6.86], [45.1, 7.0], [44.1, 7.7], [43.78, 7.5], [43.55, 7.0], [43.1, 5.9], [43.3, 5.37],
+  [43.45, 4.6], [43.4, 3.7], [43.0, 3.05], [42.5, 3.13], [42.45, 2.4], [42.7, 1.8], [42.8, 0.6], [43.0, -0.8], [43.37, -1.78], [44.0, -1.4],
+  [44.66, -1.25], [45.6, -1.2], [46.15, -1.15], [46.5, -1.8], [47.27, -2.2], [47.5, -3.1], [47.85, -4.3], [48.4, -4.79], [48.75, -3.5],
+  [48.65, -2.0], [48.64, -1.5], [49.7, -1.9], [49.65, -1.3], [49.3, -0.3], [49.5, 0.1], [49.93, 1.08], [50.2, 1.6], [50.73, 1.6], [50.95, 1.85]],
+  [[43.0, 9.4], [42.7, 9.45], [42.0, 9.55], [41.4, 9.2], [41.6, 8.8], [42.0, 8.6], [42.5, 8.65], [42.97, 9.35]]];
+function obsMap(d, typ) {
+  const dem = d.demande[typ] || {}, idf = d.ile_de_france, idfRow = idf.demande[typ];
+  const pts = d.academies.filter((a) => a.metropole && !idf.academies.includes(a.cle) && dem[a.cle] && dem[a.cle].voeux_par_place != null)
+    .map((a) => ({ name: a.academie, lat: a.lat, lon: a.lon, v: dem[a.cle].voeux_par_place }));
+  if (idfRow && idfRow.voeux_par_place != null) {
+    const ia = d.academies.filter((a) => idf.academies.includes(a.cle) && a.lat != null);
+    if (ia.length) pts.push({ name: "Île-de-France (Paris, Créteil, Versailles)", lat: ia.reduce((s, a) => s + a.lat, 0) / ia.length,
+      lon: ia.reduce((s, a) => s + a.lon, 0) / ia.length, v: idfRow.voeux_par_place });
+  }
+  const cls = obsClasses(pts.map((p) => p.v));
+  const X = (lon) => 16 + (lon + 5.2) * 0.688 * 32, Y = (lat) => 16 + (51.3 - lat) * 32;
+  const land = OBS_FRANCE.map((ring) => `<path class="obs-land" d="${ring.map(([la, lo], i) => `${i ? "L" : "M"}${X(lo).toFixed(1)},${Y(la).toFixed(1)}`).join("")}Z"/>`).join("");
+  const named = new Set([...pts].sort((a, b) => b.v - a.v).filter((_, i, a) => i < 3 || i >= a.length - 3).map((p) => p.name));
+  const dots = pts.sort((a, b) => a.v - b.v).map((p) => { const k = cls.of(p.v);
+    return `<circle cx="${X(p.lon).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="${OBS_R[k]}" fill="${OBS_FILL[k]}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(p.name)} : ${fmt(p.v, 1)} vœux par place</title></circle>`; }).join("")
+    + pts.filter((p) => named.has(p.name)).map((p) => { const left = p.lon > 5.5;
+      return `<text class="obs-name" x="${(X(p.lon) + (left ? -16 : 16)).toFixed(1)}" y="${(Y(p.lat) + 4).toFixed(1)}" text-anchor="${left ? "end" : "start"}">${esc(p.name.startsWith("Île-de-France") ? "Île-de-France" : p.name)} ${fmt(p.v, 1)}</text>`; }).join("");
+  const bounds = cls.cuts.length ? [`moins de ${fmt(cls.cuts[0], 1)}`, `${fmt(cls.cuts[0], 1)} à ${fmt(cls.cuts[1], 1)}`, `${fmt(cls.cuts[1], 1)} à ${fmt(cls.cuts[2], 1)}`, `${fmt(cls.cuts[2], 1)} et plus`] : [];
+  return `<svg class="obs-map" viewBox="0 0 360 340" role="img" aria-label="Carte des académies de métropole : vœux par place, ${esc(typ)}, campagne ${esc(d.session)}">${land}${dots}</svg>
+    <div class="legend obs-legend">${bounds.map((b, k) => `<span><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="${OBS_R[k]}" fill="${OBS_FILL[k]}"/></svg>${b}</span>`).join("")}<span class="muted">vœux par place</span></div>`;
+}
+function obsDemande(d) {
+  const typ = obsUI.type, dem = d.demande[typ] || {};
+  const rows = d.academies.map((a) => ({ a, x: dem[a.cle] })).filter((r) => r.x);
+  const known = rows.filter((r) => r.x.voeux_par_place != null).sort((p, q) => q.x.voeux_par_place - p.x.voeux_par_place);
+  const apart = d.academies.filter((a) => !a.metropole && dem[a.cle]);
+  const hi = known[0], lo = known[known.length - 1];
+  const line = (r) => `<tr><td data-label="Académie">${esc(r.a.academie)}</td><td class="num" data-label="Vœux par place">${r.x.voeux_par_place == null ? "trop peu de formations" : fmt(r.x.voeux_par_place, 1)}</td>
+    <td class="num" data-label="Vœux">${fmt(r.x.voeux)}</td><td class="num" data-label="Places">${fmt(r.x.places)}</td><td class="num" data-label="Formations">${fmt(r.x.formations)}</td></tr>`;
+  return `${hi && lo && hi !== lo ? `<p>De <strong>${fmt(lo.x.voeux_par_place, 1)}</strong> vœux par place (${esc(lo.a.academie)}) à <strong>${fmt(hi.x.voeux_par_place, 1)}</strong> (${esc(hi.a.academie)}).</p>` : ""}
+    ${obsMap(d, typ)}
+    ${apart.length ? `<p class="small">Pas sur la carte (outre-mer, étranger) : ${apart.map((a) => `${esc(a.academie)} ${dem[a.cle].voeux_par_place == null ? "(trop peu de formations)" : fmt(dem[a.cle].voeux_par_place, 1)}`).join(" · ")}.</p>` : ""}
+    <details><summary>Toutes les académies (${fmt(rows.length)})</summary>
+      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Académie</th><th class="num">Vœux par place</th><th class="num">Vœux</th><th class="num">Places</th><th class="num">Formations</th></tr>
+      ${[...known, ...rows.filter((r) => r.x.voeux_par_place == null)].map(line).join("")}</table></div></details>`;
+}
+function obsTrend(d) {
+  const sel = d.tendances.filter((t) => obsUI.types.includes(t.diplome));
+  const series = sel.map((t, i) => ({ name: t.diplome, color: OBS_SERIES[i][0], dash: OBS_SERIES[i][1], values: t.serie.map((x) => x.voeux_par_place) }));
+  const max = Math.max(1, ...series.flatMap((x) => x.values.filter((v) => v != null)));
+  return lineChart(d.sessions, series, { yMax: 4 * Math.ceil(max / 4), unit: "" }) + lineLegend(series);
+}
+async function viewObservatoire() {
+  $view.innerHTML = `<div class="card"><h1>Observatoire des formations</h1><p class="muted">Chargement des chiffres…</p></div>`;
+  const d = await api("/api/observatoire");
+  if (!/^#\/observatoire/.test(location.hash)) return;
+  const first = d.sessions[0], last = d.session, T = d.tendances;
+  if (!obsUI.types) obsUI.types = OBS_DEFAULT.filter((t) => T.some((x) => x.diplome === t));
+  const types = [d.tous, ...T.map((t) => t.diplome), ...Object.keys(d.demande).filter((k) => k !== d.tous && !T.some((t) => t.diplome === k)).sort((a, b) => a.localeCompare(b, "fr"))]
+    .filter((k) => d.demande[k] && Object.values(d.demande[k]).some((x) => x.voeux_par_place != null));
+  if (!types.includes(obsUI.type)) obsUI.type = types.includes("BUT") ? "BUT" : types[0];
+  const up = T.filter((t) => t.serie[t.serie.length - 1].voeux_par_place > t.serie[0].voeux_par_place).length;
+  const tous = d.proximite.find((p) => p.diplome === d.tous);
+  const prox = d.proximite.filter((p) => p.diplome !== d.tous && p.part_meme_academie != null);
+  const bar = (p) => `<li><span class="obs-lab">${esc(p.diplome)}</span><span class="obs-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, p.part_meme_academie))}%"></i></span><strong>${pct(p.part_meme_academie)}</strong></li>`;
+  const big = prox.filter((p) => p.formations >= d.seuils.type), small = prox.filter((p) => p.formations < d.seuils.type);
+  const noProx = d.proximite.filter((p) => p.part_meme_academie == null).length;
+  $view.innerHTML = `<section class="hero obs-hero"><h1>Observatoire des formations</h1>
+      <p>Trois regards sur toutes les formations, à partir des chiffres publiés par le ministère (SIES) pour les campagnes ${esc(first)} à ${esc(last)}.</p>
+      <p class="small">Ces chiffres décrivent les années passées pour l'ensemble des candidats. Ce ne sont pas vos chances.</p></section>
+    <section class="card" aria-labelledby="obs-t"><h2 id="obs-t">Les vœux par place, de ${esc(first)} à ${esc(last)}</h2>
+      <p>Les vœux par place ont augmenté dans <strong>${fmt(up)}</strong> types de formation sur ${fmt(T.length)}.</p>
+      <div id="obs-trend">${obsTrend(d)}</div>
+      <details class="obs-choose"><summary>Choisir les types du graphique (${OBS_MAX} au plus)</summary>
+      <div class="obs-pills" role="group" aria-label="Types de formation sur le graphique (${OBS_MAX} au plus)">${T.map((t) =>
+        `<button type="button" data-obs-type="${esc(t.diplome)}" aria-pressed="${obsUI.types.includes(t.diplome)}">${esc(t.diplome)}</button>`).join("")}</div>
+      <p class="small muted" id="obs-max" hidden>${OBS_MAX} types au plus sur le graphique : retirez-en un d'abord.</p></details>
+      <details><summary>Le tableau de tous les types (${fmt(T.length)})</summary>
+      <div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de formation</th><th class="num">Formations</th><th class="num">Vœux par place</th><th class="num">Taux d'accès médian</th></tr>
+      ${T.map((t) => { const a = t.serie[0], b = t.serie[t.serie.length - 1];
+        return `<tr><td data-label="Type de formation">${esc(t.diplome)}</td><td class="num" data-label="Formations">${obsArrow(a.formations, b.formations, fmt)}</td>
+        <td class="num" data-label="Vœux par place">${obsArrow(a.voeux_par_place, b.voeux_par_place, (v) => fmt(v, 1))}</td><td class="num" data-label="Taux d'accès médian">${obsArrow(a.taux_median, b.taux_median, pct)}</td></tr>`; }).join("")}</table></div></details>
+      <p class="muted small">Vœux par place : les vœux de la phase principale divisés par les places, additionnés sur toutes les formations du type. Ce sont des vœux, pas des personnes. ${esc(d.prudence)}</p>
+      <p class="muted small">Taux d'accès médian : la moitié des formations du type ont un taux d'accès officiel plus haut, l'autre moitié plus bas. Le nombre de formations change d'une année à l'autre. Types d'au moins ${fmt(d.seuils.type)} formations chaque année.</p></section>
+    <section class="card" aria-labelledby="obs-d"><h2 id="obs-d">Où la demande est la plus forte (${esc(last)})</h2>
+      <label class="obs-select">Type de formation <select id="obs-type">${types.map((k) => `<option value="${esc(k)}"${k === obsUI.type ? " selected" : ""}>${esc(k)}</option>`).join("")}</select></label>
+      <div id="obs-dem">${obsDemande(d)}</div>
+      <p class="muted small">Vœux par place de chaque académie : vœux et places additionnés sur ses formations du type. Pas de chiffre sous ${fmt(d.seuils.academie_formations)} formations ou ${fmt(d.seuils.academie_places)} places. Une demande forte ne dit pas qu'une formation est difficile : regardez son taux d'accès.</p></section>
+    <section class="card" aria-labelledby="obs-p"><h2 id="obs-p">Rester près de chez soi ou partir loin (${esc(last)})</h2>
+      ${tous && tous.part_meme_academie != null ? `<p><strong>${pct(tous.part_meme_academie)}</strong> des admis néo-bacheliers venaient de l'académie de leur formation (${fmt(tous.meme_academie)} sur ${fmt(tous.admis_neobac)}).</p>` : ""}
+      <ul class="obs-bars">${big.map(bar).join("")}</ul>
+      ${small.length ? `<details><summary>Les types de moins de ${fmt(d.seuils.type)} formations (${fmt(small.length)})</summary><ul class="obs-bars">${small.map(bar).join("")}</ul></details>` : ""}
+      <p class="muted small">Part des admis néo-bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.neobac)} admis néo-bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
+    ${nextSteps("observatoire")}`;
+  $view.dataset.rendered = "observatoire";
+  $view.querySelectorAll("[data-obs-type]").forEach((b) => { b.onclick = () => {
+    const t = b.dataset.obsType, on = obsUI.types.includes(t);
+    const note = document.getElementById("obs-max");
+    if (!on && obsUI.types.length >= OBS_MAX) { if (note) note.hidden = false; return; }
+    if (note) note.hidden = true;
+    obsUI.types = on ? obsUI.types.filter((x) => x !== t) : [...obsUI.types, t];
+    b.setAttribute("aria-pressed", String(!on));
+    const box = document.getElementById("obs-trend");
+    if (box) box.innerHTML = obsTrend(d);
+  }; });
+  const s = document.getElementById("obs-type");
+  if (s) s.onchange = () => { obsUI.type = s.value; const box = document.getElementById("obs-dem"); if (box) box.innerHTML = obsDemande(d); };
+}
 // the selectivity matrix: official access rate x share of néo-bachelier admits with "Bien" or better; the quadrant lines
 // are the medians of the selection (fixed rule); names describe a position, never a cause or a chance
 const SEL_Q = ["Plus accessible", "Très demandée", "Admis souvent mentionnés", "Très sélective"];
@@ -5241,9 +5368,9 @@ function contactForm(code) {
 // formation page; "Mon profil" holds the profile, "Où je me situe", "Je me réoriente" and the seconde/première page.
 const TAB_OF = { info: "info", s: "home", recherche: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
-  comprendre: "comprendre", selectivite: "selectivite", reorientation: "profil",
+  comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "profil",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
-const COMP_TABS = ["compare", "comprendre", "selectivite", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
+const COMP_TABS = ["compare", "comprendre", "selectivite", "observatoire", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];                                                   // "Plus" on a phone
 function markTab(tab) {
   document.querySelectorAll("[data-tab]").forEach((el) => {
@@ -5267,7 +5394,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 // ---- router ----------------------------------------------------------------
 const ROUTE_NAME = { info: "info", s: "search", recherche: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
-  comprendre: "comprendre", selectivite: "selectivite", reorientation: "reorientation",
+  comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "reorientation",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
@@ -5366,6 +5493,7 @@ async function routeView(a, b, c) {
     if (a === "carte") return await viewCarte(b || "", c || "");
     if (a === "comprendre") return await viewComprendre();
     if (a === "selectivite") return await viewSelectivite(b || "", c || "");
+    if (a === "observatoire") return await viewObservatoire();
     if (a === "reorientation") return await viewReorientation(b || "", c || "");
     if (a === "calendrier") return await viewCalendrier();
     if (a === "accompagner") return viewAccompagner();

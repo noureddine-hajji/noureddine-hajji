@@ -4066,3 +4066,31 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
     explanation as hidden text (`sr-only`). Red team U3 checks it, with one more mutant (U8 45/45). axe finds nothing on
     any page, on a phone in light mode and on a wide screen in dark mode.
 
+
+## Observatoire (owner, 2026-11-19)
+
+`#/observatoire` (menu « Comprendre » on a wide screen, « Plus » on a phone) gives three national overviews of the published
+SIES figures, read for nobody: `GET /api/observatoire` takes no parameter and is shared-cached (`observatoire.py`).
+
+- **Les vœux par place, 2022 → 2025.** Per type of diploma (the map's types, `carte.diplome_of`) and campaign: the main-phase
+  vœux SUMMED / the places SUMMED over the formations that publish both (places > 0), the MEDIAN of the official access rates
+  (never recomputed) and the number of formations, since the offer changes (FCIL 117 → 480). A type is followed only with at
+  least 20 formations in every campaign (27 types). The chart shows five types at most, each with its own dash and a ramp shade
+  that keeps 3:1 on the card; the table lists them all. Vœux are not people, and many vœux per place is not a low chance (the
+  page reuses `tension.PRUDENCE`). Real data: the vœux per place rose in 21 types of 27 (BUT 17.8 → 22.0, engineering schools
+  29.5 → 36.2; BTS 13.7 → 12.4).
+- **Où la demande est la plus forte (latest campaign).** The same ratio per académie and type (or all types), with its counts;
+  no figure under 5 formations or 100 places. SIES spells Besançon two ways (« Besançon » 2022, « Besancon » 2023-2025): labels
+  are folded, the accented spelling is shown. On the map, a metropolitan académie sits at the mean position of its
+  formations; Paris, Créteil and Versailles are one Île-de-France bubble (the ratio of their summed counts, from the server),
+  each keeps its table row; overseas académies and « Etranger » are listed apart. Bubbles: four classes from the quartiles of
+  the shown values, radius AND shade; the coastline is a coarse landmark, never data.
+- **Rester près de chez soi ou partir loin (latest campaign).** The néo-bachelier admits from the formation's académie
+  (`acc_aca_orig`) / all néo-bachelier admits (`acc_neobac`), both summed (people). SIES publishes it for néo-bacheliers only:
+  the page says so. No figure under 100 admits or 5 formations; a row with more same-académie admits than néo-bacheliers would
+  be left out (none in 2022-2025; `pct_aca_orig` = their ratio on every row). Types under 20 formations are folded.
+
+The page is app-only (no indexable twin, not in the sitemap), like « Comprendre l'appel ». Red team
+`scripts/redteam_observatoire.py` (OB1-OB8): SQL re-derivation of every figure, a crafted warehouse (two spellings, Île-de-France,
+places 0, an incoherent row, a type missing a campaign, overseas, an académie without a position), the page in Node on hostile
+data, wording, wiring, and 27 mutants, all caught.

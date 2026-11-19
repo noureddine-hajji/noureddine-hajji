@@ -842,6 +842,30 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 @media (min-width: 721px) {
   .profile-bar { background: var(--surface); border-radius: var(--r-pill); padding: 6px 18px; }
 }
+/* ---- Observatoire (owner, 2026-11-19): national overviews; the neutral ramp only (no zone, route or accent colour on data) ---- */
+.obs-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.obs-pills button { min-height: 44px; padding: 0 14px; border: 1px solid var(--line-input); border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.obs-pills button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent); }
+.obs-select { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 12px; font-weight: 600; }
+.obs-select select { min-height: 44px; max-width: 100%; padding: 0 10px; border: 1px solid var(--line-input); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); font: inherit; }
+.obs-map { display: block; width: 100%; max-width: 420px; height: auto; margin: 0 auto; }
+.obs-land { fill: var(--tint); stroke: var(--line); stroke-width: 1; stroke-linejoin: round; }
+.obs-name { font-size: 11px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.obs-choose { margin-top: 8px; }
+.obs-choose > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.obs-legend svg { width: 16px; height: 16px; flex: none; }
+.obs-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.obs-bars { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.obs-bars li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 4.2em; align-items: center; gap: 10px; font-size: var(--fs-sm); }
+.obs-lab { min-width: 0; overflow-wrap: anywhere; }
+.obs-bar { height: 12px; border-radius: var(--r-pill); background: var(--c6); overflow: hidden; }
+.obs-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--c2); }
+.obs-bars strong { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .obs-bars li { grid-template-columns: minmax(0, 1fr) 4.2em; } .obs-bar { grid-column: 1 / -1; grid-row: 2; } }
+
 /* phone: the menu is a floating ink pill, the open page in lime */
 @media (max-width: 720px) {
   body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); line-height: 1.5; }   /* WCAG 1.4.12's 1.5; Atkinson's tall x-height reads well at it */   /* the floating bar: 62 px + its 10 px gap */

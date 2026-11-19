@@ -53,13 +53,14 @@ BANNED = re.compile(r"\bdoublettes?\b|\ben position de\b|\bvotre ligne\b|\bvos l
 ALLOWED = re.compile(r"(?:on dit aussi |\()« doublette »", re.I)
 PY_TEXT = ["voeux.py", "planb.py", "journey.py", "reorientation.py", "voies.py", "metiers.py", "licence_master.py", "insertion.py",
            "passerelles.py", "success.py", "poursuite.py", "cereq.py", "onisep.py", "evidence.py", "prevision.py", "calendrier.py",
-           "seo.py", "semblables.py", "rapports.py", "carte.py", "filtres.py", "admis.py", "appel.py", "selectivite.py"]
+           "seo.py", "semblables.py", "rapports.py", "carte.py", "filtres.py", "admis.py", "appel.py", "selectivite.py", "observatoire.py", "tension.py"]
 CODE_STRING = re.compile(r"\b(?:SELECT|CREATE|INSERT|FROM|WHERE|JOIN)\b|^[\w.:/-]*$")
 # every renderer of a computed figure, with its number of computed figures (each one labelled by estimTag)
 ESTIMATE_RENDERERS = {"doubletteCard": 3, "cartePosFigure": 2, "PR_SOURCE": 2, "stage1Matrix": 1, "moyRange": 1,
                       "viewParcours": 1, "dblFigure": 2, "reoCell": 1, "tensionCard": 1, "distanceText": 1, "apprentiInsertionCard": 1, "aidesCard": 1}
 NEXT_PAGES = {"formation": ("viewFormation",), "parcours": ("viewParcours",), "voeux": ("viewVoeux", "viewVoeuxReo"),
-              "reorientation": ("viewReorientation",), "metier": ("viewMetier",), "premiere": ("viewPremiere",)}
+              "reorientation": ("viewReorientation",), "metier": ("viewMetier",), "premiere": ("viewPremiere",),
+              "observatoire": ("viewObservatoire",)}
 ZONE_PAGES = ("summaryBand", "viewVoeux", "viewParcours")
 # the red team's own copy of what the services publish (checked on their sites, 2026-11-13), never read from aide.py
 PHONES = {"moel": "01 77 77 12 25", "parcoursup": "0 800 400 070", "ecoute": "0 800 235 236"}

@@ -106,7 +106,7 @@ def tabs(html: str, opener: str) -> list[str]:
 
 
 MAIN = ["#/", "#/profil", "#/voeux", "#/calendrier"]
-COMP = ["#/compare", "#/comprendre", "#/selectivite", "#/specialites", "#/qualite", "#/glossaire"]
+COMP = ["#/compare", "#/comprendre", "#/selectivite", "#/observatoire", "#/specialites", "#/qualite", "#/glossaire"]
 
 
 @check("U1 menus: phone bar and wide-screen menu follow the journey, every page reachable from both, map and jobs via Explorer")

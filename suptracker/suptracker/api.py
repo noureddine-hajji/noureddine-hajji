@@ -60,6 +60,7 @@ from . import rapports as RP
 from . import carte as CA
 from . import appel as AP
 from . import selectivite as SEL
+from . import observatoire as OBS
 from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
@@ -991,6 +992,12 @@ def comprendre():
     return AP.by_type(_con().cursor())
 
 
+@app.get("/api/observatoire")
+def observatoire():
+    """Observatoire (owner, 2026-11-19): trends per type of diploma, demand per académie, same-académie admits (no parameter)."""
+    return OBS.build(_con().cursor())
+
+
 @app.get("/api/selectivite")
 def selectivite(diplome: str, mention: str | None = None):
     """The "vraie sélectivité" matrix of a type of diploma (and mention): access rate x share of admits with "Bien" or better."""
@@ -1373,7 +1380,7 @@ def legal_page(slug: str):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes", "recherche_unique"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes", "recherche_unique", "observatoire"]
 
 
 @lru_cache(maxsize=1)
