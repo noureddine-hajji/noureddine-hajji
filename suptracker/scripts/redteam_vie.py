@@ -629,7 +629,9 @@ def v8(c: Ctx):
     if not {"crous_logement", "crous_restauration", "loyers_app12_2025"} <= ds:
         bad.append("datasets")
     wf = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
-    if wf.count("data/fiches/identite.csv data/fiches/frais.csv") != 3:
+    # the build fingerprint and the harvest one (scripts/harvest_fingerprint.sh, used twice by the workflow) both take them
+    hfp = (ROOT / "scripts" / "harvest_fingerprint.sh").read_text()
+    if (wf + hfp).count("data/fiches/identite.csv data/fiches/frais.csv") != 2 or wf.count("bash scripts/harvest_fingerprint.sh") != 2:
         bad.append("data workflow fingerprints")
     if '"reconnaissance_vie"' not in (ROOT / "tests" / "test_release.py").read_text():
         bad.append("release feature")
