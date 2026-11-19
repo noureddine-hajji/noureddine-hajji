@@ -638,7 +638,7 @@ ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof
            "stage2Local(await api(`/api/journey/stage2?",
            "if (local) d = planBLocal(d, pbProf, prof.academie || null);",
            "if (local) d = completerLocal(d, prof, prof.academie || null);",
-           "Object.assign(zone, carteZonesLocal(Zraw, VP).zones);",
+           "const Z = carteZonesLocal(Zraw, VP);\n      Object.assign(zone, Z.zones);",
            'if (local) q.set("pool", "true");', 'if (local) qs.set("pool", "true");')
 
 
@@ -758,7 +758,7 @@ def js_mutants():
          'const sure = vx.filter((v) => v.zone === "securite").length;', "vx"),
         ("the majority rule with >=", "n.ambitieux + n.hors_profil > situated / 2", "n.ambitieux + n.hors_profil >= situated / 2", "vx"),
         ("the list's reading not redone", "return { ...d, moyenne: given, voeux: vx, lecture: readList(vx) };", "return { ...d, moyenne: given, voeux: vx };", "vx"),
-        ("the map's zones kept from the band", "zones[cod] = lire(x.lec, x.taux_acces_ens, band, g).zone;", "zones[cod] = x.zone;", "map"),
+        ("the map's zones kept from the band", "    zones[cod] = r.zone;", "    zones[cod] = x.zone;", "map"),
         ("the average sent again", '  qs.set("mention", bandParam(p));\n  return qs;',
          '  qs.set("mention", bandParam(p));\n  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));\n  return qs;', "wire"),
         ("the raw rattrapage sent", 'function bandParam(p) { return p.mention === "rattrapage" ? "sansmention" : p.mention; }',

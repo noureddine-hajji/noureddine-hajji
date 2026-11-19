@@ -88,7 +88,7 @@ def node(prog: str, data) -> object:
 def zone_shape(js: str) -> str:
     """R4: the markers are drawn by the shared zone shape helper (rond, carré, triangle), defined outside the map section."""
     out = []
-    for pat in (r"^function zoneShape\(.*?^\}", r"^const ZONE_FILLED = .*?$", r"^function zoneMark\(.*?^\}", r"^function zoneBadge\(.*?^\}"):
+    for pat in (r"^function zoneShape\(.*?^\}", r"^const ZONE_FILLED = .*?$", r"^function zoneMark\(.*?^\}", r"^const isLargeShown = .*?$", r"^function zoneBadge\(.*?^\}"):
         m = re.search(pat, js, re.M | re.S)
         out.append(m.group(0) if m else "")
     rules = "" if re.search(r"^const ZONE_RULES = ", "\n".join(out), re.M) else "rules"

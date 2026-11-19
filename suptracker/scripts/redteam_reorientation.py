@@ -610,7 +610,7 @@ def e6(c: Ctx):
                                        "ACCES_EXPLAIN", "accesTile", "ROB_SUM", "robNum", "formationRobTile"))
     pre = r2 + page_prog(c)
     zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
-    draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
+    draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "ZONE_AXIS", "zoneAxisNote") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))
     harness = r2 + jstext.q4_defs(js, present=pre) + zones + draw \
         + top(js, "admisBar") + top(js, "summaryBand") \
         + "".join(top(js, n) for n in ("villeLabel", "villeDepart", "haversineKm", "localIso", "frDate", "jpoUrl", "jpoNext", "jpoWhen", "jpoLine")
