@@ -4753,6 +4753,53 @@ function obsTrend(d) {
   const max = Math.max(1, ...series.flatMap((x) => x.values.filter((v) => v != null)));
   return lineChart(d.sessions, series, { yMax: 4 * Math.ceil(max / 4), unit: "" }) + lineLegend(series);
 }
+// ---- Observatoire: who the admits are (owner, 2026-11-19). Published counts summed by the server over coherent rows; the
+// rows of types under d.seuils.type formations are folded; the girls' share among the vœux sits beside the admits' (vœux, not
+// people); bac routes keep their --voie-* token AND their name; mentions use the neutral ramp. Never a chance or a requirement.
+// the OBS_SHOWN types with the most formations are shown (in the section's own order), the others folded: a fixed rule, never a figure
+const OBS_SHOWN = 10;
+function obsSplit(rows, d, line) {
+  const top = new Set([...rows].sort((a, b) => b.formations - a.formations || a.diplome.localeCompare(b.diplome, "fr")).slice(0, OBS_SHOWN).map((r) => r.diplome));
+  const big = rows.filter((r) => top.has(r.diplome)), small = rows.filter((r) => !top.has(r.diplome));
+  return `<ul class="obs-bars">${big.map(line).join("")}</ul>`
+    + (small.length ? `<details><summary>Les autres types de formation (${fmt(small.length)})</summary><ul class="obs-bars">${small.map(line).join("")}</ul></details>` : "");
+}
+const obsKnown = (rows, key) => rows.filter((r) => r.diplome !== OBS_TOUS && key(r) != null);
+const OBS_TOUS = "Toutes les formations";
+function obsFilles(d) {
+  const rows = obsKnown(d.filles, (r) => r.part_admis), tous = d.filles.find((r) => r.diplome === d.tous);
+  const big = rows.filter((r) => r.formations >= d.seuils.type);   // the gap is read on the types followed elsewhere on the page
+  const gap = big.length ? Math.max(...big.map((r) => Math.abs(r.part_admis - r.part_voeux))) : null;
+  const line = (r) => `<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-dumb" aria-hidden="true"><i class="obs-mid"></i><i class="obs-v" style="left:${r.part_voeux}%"></i><i class="obs-a" style="left:${r.part_admis}%"></i></span><span class="obs-val"><strong>${pct(r.part_admis)}</strong><span class="small muted">vœux ${pct(r.part_voeux)}</span></span></li>`;
+  return `<section class="card" aria-labelledby="obs-f"><h2 id="obs-f">Filles et garçons (${esc(d.session)})</h2>
+    ${tous && tous.part_admis != null ? `<p>Les filles font <strong>${pct(tous.part_admis)}</strong> des admis (${fmt(tous.admises)} sur ${fmt(tous.admis)}).</p>` : ""}
+    <div class="legend obs-key"><span><i class="obs-v-key"></i>parmi les vœux</span><span><i class="obs-a-key"></i>parmi les admis</span><span class="muted">trait : 50 %</span></div>
+    ${obsSplit(rows, d, line)}
+    ${gap != null ? `<p class="small">Dans les types d'au moins ${fmt(d.seuils.type)} formations, la part de filles parmi les admis est à ${fmt(gap, 1)} points au plus de leur part parmi les vœux.</p>` : ""}
+    <p class="muted small">Filles parmi tous les admis, et vœux de filles parmi tous les vœux confirmés : des vœux, pas des personnes. Calcul sur les effectifs publiés, additionnés par type.</p></section>`;
+}
+function obsBacs(d) {
+  const rows = obsKnown(d.bacs, (r) => r.part_general), tous = d.bacs.find((r) => r.diplome === d.tous);
+  const seg = (r) => [["general", "bg"], ["techno", "bt"], ["pro", "bp"]].map(([k, v]) => `<i style="width:${r[`part_${k}`]}%;background:var(--voie-${v})"></i>`).join("");
+  const line = (r) => `<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-stack" aria-hidden="true">${seg(r)}</span><span class="obs-val"><strong>${pct(r.part_techno)} · ${pct(r.part_pro)}</strong><span class="sr-only">bac techno, bac pro ; bac général ${pct(r.part_general)}</span></span></li>`;
+  return `<section class="card" aria-labelledby="obs-b"><h2 id="obs-b">Bac général, techno ou pro : le bac des admis (${esc(d.session)})</h2>
+    ${tous && tous.part_techno != null ? `<p>Parmi les admis néo-bacheliers, <strong>${pct(tous.part_techno)}</strong> ont un bac techno et <strong>${pct(tous.part_pro)}</strong> un bac pro.</p>` : ""}
+    <div class="legend obs-key"><span><i style="background:var(--voie-bg)"></i>bac général</span><span><i style="background:var(--voie-bt)"></i>bac techno</span><span><i style="background:var(--voie-bp)"></i>bac pro</span><span class="muted">à droite : techno · pro</span></div>
+    ${obsSplit(rows, d, line)}
+    <p class="small">Une part faible veut dire « rare », jamais « fermé ». Chaque fiche formation donne aussi le chiffre de votre bac, dans « Y entrer ».</p>
+    <p class="muted small">Admis néo-bacheliers seulement (ceux qui viennent d'avoir leur bac), calcul sur les effectifs publiés, additionnés par type.</p></section>`;
+}
+const OBS_MENTIONS = [["sansmention", "sans mention", "var(--c6)"], ["ab", "assez bien", "var(--c5)"], ["b", "bien", "var(--c4)"], ["tb", "très bien", "var(--c2)"], ["tbf", "félicitations", "var(--c1)"]];
+function obsMentions(d) {
+  const rows = d.mentions.filter((r) => r.diplome !== d.tous && r.lecture), tous = d.mentions.find((r) => r.diplome === d.tous);
+  const line = (r) => `<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-stack" aria-hidden="true">${OBS_MENTIONS.map(([k, , c]) => `<i style="width:${r.lecture.parts[k]}%;background:${c}"></i>`).join("")}</span><span class="obs-val"><strong>${r.avant.tb_plus == null ? "" : `${pct(r.avant.tb_plus)} → `}${pct(r.lecture.tb_plus)}</strong><span class="sr-only">très bien ou plus${r.avant.tb_plus == null ? "" : `, ${esc(d.mentions_avant)} puis ${esc(d.session)}`} ; ${OBS_MENTIONS.map(([k, lab]) => `${lab} ${pct(r.lecture.parts[k])}`).join(", ")}</span></span></li>`;
+  return `<section class="card" aria-labelledby="obs-m"><h2 id="obs-m">Les mentions au bac des admis (${esc(d.mentions_avant)} → ${esc(d.session)})</h2>
+    ${tous && tous.lecture ? `<p><strong>${pct(tous.lecture.tb_plus)}</strong> des admis néo-bacheliers avaient « très bien » ou « très bien avec félicitations » en ${esc(d.session)}${tous.avant.tb_plus != null ? ` (${pct(tous.avant.tb_plus)} en ${esc(d.mentions_avant)})` : ""}.</p>` : ""}
+    <div class="legend obs-key">${OBS_MENTIONS.map(([, lab, c]) => `<span><i style="background:${c}"></i>${lab}</span>`).join("")}<span class="muted">à droite : très bien ou plus, ${esc(d.mentions_avant)} → ${esc(d.session)}</span></div>
+    ${obsSplit(rows, d, line)}
+    <p class="small">Une mention fréquente chez les admis ne dit pas qu'elle est exigée : ce sont les admis passés, ni le niveau demandé ni vos chances.</p>
+    <p class="muted small">Admis néo-bacheliers seulement. Les mentions ne sont pas publiées par série de bac. Calcul sur les effectifs publiés, additionnés par type ; le nombre de formations d'un type change d'une année à l'autre.</p></section>`;
+}
 async function viewObservatoire() {
   $view.innerHTML = `<div class="card"><h1>Observatoire des formations</h1><p class="muted">Chargement des chiffres…</p></div>`;
   const d = await api("/api/observatoire");
@@ -4769,7 +4816,7 @@ async function viewObservatoire() {
   const big = prox.filter((p) => p.formations >= d.seuils.type), small = prox.filter((p) => p.formations < d.seuils.type);
   const noProx = d.proximite.filter((p) => p.part_meme_academie == null).length;
   $view.innerHTML = `<section class="hero obs-hero"><h1>Observatoire des formations</h1>
-      <p>Trois regards sur toutes les formations, à partir des chiffres publiés par le ministère (SIES) pour les campagnes ${esc(first)} à ${esc(last)}.</p>
+      <p>Six regards sur toutes les formations, à partir des chiffres publiés par le ministère (SIES) pour les campagnes ${esc(first)} à ${esc(last)}.</p>
       <p class="small">Ces chiffres décrivent les années passées pour l'ensemble des candidats. Ce ne sont pas vos chances.</p></section>
     <section class="card" aria-labelledby="obs-t"><h2 id="obs-t">Les vœux par place, de ${esc(first)} à ${esc(last)}</h2>
       <p>Les vœux par place ont augmenté dans <strong>${fmt(up)}</strong> types de formation sur ${fmt(T.length)}.</p>
@@ -4794,6 +4841,9 @@ async function viewObservatoire() {
       <ul class="obs-bars">${big.map(bar).join("")}</ul>
       ${small.length ? `<details><summary>Les types de moins de ${fmt(d.seuils.type)} formations (${fmt(small.length)})</summary><ul class="obs-bars">${small.map(bar).join("")}</ul></details>` : ""}
       <p class="muted small">Part des admis néo-bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.min_neobac)} admis néo-bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
+    ${obsFilles(d)}
+    ${obsBacs(d)}
+    ${obsMentions(d)}
     ${nextSteps("observatoire")}`;
   $view.dataset.rendered = "observatoire";
   $view.querySelectorAll("[data-obs-type]").forEach((b) => { b.onclick = () => {

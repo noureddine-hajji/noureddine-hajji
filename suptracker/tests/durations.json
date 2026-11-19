@@ -34,7 +34,7 @@
  "tests/test_navigateur.py": 5,
  "tests/test_navigation.py": 40.0,
  "tests/test_nomenclatures.py": 342,
- "tests/test_observatoire.py": 180,
+ "tests/test_observatoire.py": 260,
  "tests/test_offer.py": 146,
  "tests/test_onisep.py": 65,
  "tests/test_parcours.py": 60.0,

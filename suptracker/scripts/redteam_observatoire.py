@@ -16,6 +16,10 @@
   OB6 wording: no chance / probability / promise, vouvoiement, no sort of formations
   OB7 wiring: route, both menus, TAB_OF / ROUTE_NAME, shared cache with no parameter, analytics route, release guard, feature
   OB8 mutation test (in memory)
+  OB9 who the admits are, re-derived in SQL: girls among the admits and among the vœux, bac routes, mentions (first and latest
+      campaigns, SIES's own denominator; 2022's one-admit gaps kept), coherent rows only, thresholds, order
+  OB10 a crafted table: incoherent girls / routes / mentions rows left out, the one-admit gap kept, thresholds, first campaign
+  OB11 the page's three new sections in Node: escaped, 10 types shown then folded, route colours named, caveats, the gap computed
 """
 from __future__ import annotations
 
@@ -42,7 +46,8 @@ FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
 HOSTILE = '<img src=x onerror=alert(1)>'
 M = {"OBS": OBS}
 COLS = ("session", "fili", "form_lib_voe_acc", "fil_lib_voe_acc", "lib_for_voe_ins", "acad_mies", "nb_voe_pp", "capa_fin",
-        "taux_acces_ens", "acc_neobac", "acc_aca_orig", "lat", "lon")
+        "taux_acces_ens", "acc_neobac", "acc_aca_orig", "lat", "lon", "acc_tot", "acc_tot_f", "voe_tot", "voe_tot_f", "acc_bg", "acc_bt",
+        "acc_bp", "acc_sansmention", "acc_ab", "acc_b", "acc_tb", "acc_tbf", "acc_mention_non_renseignee")
 
 
 def check(name):
@@ -60,7 +65,10 @@ def mem_of(con) -> duckdb.DuckDBPyConnection:
     m.register("src", src)
     m.execute("""CREATE TABLE f AS SELECT session::INT AS session, fili, form_lib_voe_acc AS form, fil_lib_voe_acc AS fil,
         lib_for_voe_ins AS lib, acad_mies AS acad, nb_voe_pp::BIGINT AS voe, capa_fin::BIGINT AS capa, taux_acces_ens::DOUBLE AS taux,
-        acc_neobac::BIGINT AS neo, acc_aca_orig::BIGINT AS aca, lat::DOUBLE AS lat, lon::DOUBLE AS lon FROM src""")
+        acc_neobac::BIGINT AS neo, acc_aca_orig::BIGINT AS aca, lat::DOUBLE AS lat, lon::DOUBLE AS lon, acc_tot::BIGINT AS tot,
+        acc_tot_f::BIGINT AS tot_f, voe_tot::BIGINT AS vt, voe_tot_f::BIGINT AS vt_f, acc_bg::BIGINT AS bg, acc_bt::BIGINT AS bt,
+        acc_bp::BIGINT AS bp, acc_sansmention::BIGINT AS sm, acc_ab::BIGINT AS ab, acc_b::BIGINT AS b, acc_tb::BIGINT AS tb,
+        acc_tbf::BIGINT AS tbf, acc_mention_non_renseignee::BIGINT AS nr FROM src""")
     m.unregister("src")
     keys = m.execute("SELECT DISTINCT fili, form, fil, lib FROM f").fetchall()
     m.execute("CREATE TABLE ty (fili VARCHAR, form VARCHAR, fil VARCHAR, lib VARCHAR, typ VARCHAR)")
@@ -111,6 +119,40 @@ def derive(m, o=None) -> dict:
     return {"sessions": sessions, "last": last, "followed": followed, "demande": dem, "idf": idf, "prox": prox, "pos": pos, "keys": keys}
 
 
+def derive_profils(m, o=None) -> dict:
+    """Girls, bac routes and mentions per type re-derived in SQL from the same published counts (people)."""
+    o = o or M["OBS"]
+    first, last = m.execute("SELECT min(session), max(session) FROM r").fetchone()
+    ok = lambda n, tot: tot >= o.MIN_NEOBAC and n >= o.MIN_PROX_FORMATIONS  # noqa: E731
+    pc = lambda a, b: round(100 * a / b, 1) if b else None  # noqa: E731
+    fil, bac, men = {}, {}, {}
+    for scope in ("typ", f"'{o.TOUS}'"):
+        for typ, n, tot, f, vt, vf in m.execute(f"""SELECT {scope}, count(*), sum(tot), sum(tot_f), sum(vt), sum(vt_f) FROM r
+                WHERE session = {last} AND tot > 0 AND tot_f BETWEEN 0 AND tot AND vt > 0 AND vt_f BETWEEN 0 AND vt GROUP BY ALL""").fetchall():
+            fil[typ] = {"diplome": typ, "formations": n, "admis": tot, "admises": f, "voeux": vt, "voeux_filles": vf,
+                        "part_admis": pc(f, tot) if ok(n, tot) else None, "part_voeux": pc(vf, vt) if ok(n, tot) else None}
+        for typ, n, neo, g, t, p in m.execute(f"""SELECT {scope}, count(*), sum(neo), sum(bg), sum(bt), sum(bp) FROM r
+                WHERE session = {last} AND neo > 0 AND bg + bt + bp = neo GROUP BY ALL""").fetchall():
+            good = ok(n, neo)
+            bac[typ] = {"diplome": typ, "formations": n, "admis_neobac": neo, "general": g, "techno": t, "pro": p,
+                        "part_general": pc(g, neo) if good else None, "part_techno": pc(t, neo) if good else None,
+                        "part_pro": pc(p, neo) if good else None}
+        for typ, ses, n, neo, sm, ab, b, tb, tbf in m.execute(f"""SELECT {scope}, session, count(*), sum(neo), sum(sm), sum(ab), sum(b),
+                sum(tb), sum(tbf) FROM r WHERE session IN ({first}, {last}) AND neo > 0 AND sm + ab + b + tb + tbf + coalesce(nr, 0) <= neo
+                GROUP BY ALL""").fetchall():
+            men.setdefault(typ, {})[ses] = {"formations": n, "admis_neobac": neo, "parts": dict(zip(o.MENTIONS, (pc(x, neo) for x in (sm, ab, b, tb, tbf)))),
+                                            "tb_plus": pc(tb + tbf, neo)} if ok(n, neo) else {"n": n, "neo": neo, "none": True}
+    mentions = {}
+    for typ, by in men.items():
+        if last not in by:
+            continue
+        now, old = by[last], by.get(first)
+        mentions[typ] = {"diplome": typ, "formations": now.get("formations", now.get("n")), "admis_neobac": now.get("admis_neobac", now.get("neo")),
+                         "lecture": None if now.get("none") else now,
+                         "avant": {"session": first, **({"tb_plus": None} if not old or old.get("none") else old)}}
+    return {"filles": fil, "bacs": bac, "mentions": mentions, "first": first}
+
+
 class Ctx:
     def __init__(self, db: Path, real: bool = False):
         self.db, self.real = db, real
@@ -119,6 +161,7 @@ class Ctx:
         self.html = (STATIC / "index.html").read_text()
         self.mem = mem_of(self.con)
         self.want = derive(self.mem)
+        self.want_p = derive_profils(self.mem)
 
 
 def node(prog: str, data=None):
@@ -230,6 +273,8 @@ def crafted() -> duckdb.DuckDBPyConnection:
         rows.append((2024, *but, "Lyon", 900, 40, 40.0, 30, 15, 45.7, 4.8))
     rows.append((2025, "Licence", "Licence", "Droit", "Licence - Droit", "Mayotte", 100, 20, 80.0, 10, 9, None, None))   # no position
     m.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    for col in COLS[13:]:                       # the profile counts are crafted apart (OB10): NULL here, every row left out
+        m.execute(f"ALTER TABLE core.formation_year ADD COLUMN {col} BIGINT")
     return m
 
 
@@ -258,6 +303,86 @@ def ob4(c: Ctx):
     return not bad and not miss, f"re-derivation problems {bad[:3]}; facts failing {miss}"
 
 
+def compare_profils(got: dict, want: dict) -> list:
+    bad = []
+    for key in ("filles", "bacs", "mentions"):
+        g = {r["diplome"]: r for r in got[key]}
+        if g != want[key]:
+            bad.append((key, [t for t in set(g) | set(want[key]) if g.get(t) != want[key].get(t)][:3]))
+    if got.get("mentions_avant") != want["first"]:
+        bad.append("first campaign")
+    for r in got["filles"] + got["bacs"]:
+        if any(v is not None and not 0 <= v <= 100 for k, v in r.items() if k.startswith("part_")):
+            bad.append(("share outside 0-100", r["diplome"]))
+    order = [r["part_general"] for r in got["bacs"] if r["part_general"] is not None]
+    if order != sorted(order) or [r["part_admis"] for r in got["filles"] if r["part_admis"] is not None] != sorted(
+            [r["part_admis"] for r in got["filles"] if r["part_admis"] is not None], reverse=True):
+        bad.append("order")
+    return bad
+
+
+@check("OB9 who the admits are: girls (admits and vœux), bac routes, mentions re-derived in SQL over coherent rows, thresholds")
+def ob9(c: Ctx):
+    got = M["OBS"].build(c.con)
+    bad = compare_profils(got, c.want_p)
+    real = ""
+    if c.real:
+        t = next(r for r in got["mentions"] if r["diplome"] == got["tous"])
+        # 2022: 356 rows publish one admit fewer in their mentions than in acc_neobac; they stay in (SIES's own denominator)
+        kept = t["avant"]["admis_neobac"] == c.con.execute(f"SELECT sum(acc_neobac) FROM core.formation_year WHERE session = {got['sessions'][0]}").fetchone()[0]
+        real = f"; every 2022 row kept in the mentions {kept}"
+        if not kept:
+            bad.append("2022 rows dropped from the mentions")
+    return not bad, f"{len(got['filles'])} / {len(got['bacs'])} / {len(got['mentions'])} types{real}; problems {bad[:3]}"
+
+
+def crafted_profils() -> duckdb.DuckDBPyConnection:
+    m = duckdb.connect(":memory:")
+    m.execute("CREATE SCHEMA core")
+    m.execute("""CREATE TABLE core.formation_year (session INT, fili VARCHAR, form_lib_voe_acc VARCHAR, fil_lib_voe_acc VARCHAR,
+        lib_for_voe_ins VARCHAR, acc_tot BIGINT, acc_tot_f BIGINT, voe_tot BIGINT, voe_tot_f BIGINT, acc_neobac BIGINT, acc_bg BIGINT,
+        acc_bt BIGINT, acc_bp BIGINT, acc_sansmention BIGINT, acc_ab BIGINT, acc_b BIGINT, acc_tb BIGINT, acc_tbf BIGINT,
+        acc_mention_non_renseignee BIGINT)""")
+    bts = ("BTS", "BTS - Services", "Comptabilité", "BTS - Comptabilité")
+    rows = []
+    for s in (2022, 2025):
+        for i in range(8):
+            # 2022 row 0: its mentions count one admit fewer than acc_neobac (kept); row 1: one more (left out)
+            sm = (10 if i == 0 else 12 if i == 1 else 11) if s == 2022 else 10
+            rows.append((s, *bts, 40, 10, 400, 120, 30, 5, 10, 15, sm, 10, 5, 4 if s == 2025 else 3, 1, 0))
+    rows += [(2025, *bts, 40, 50, 400, 120, 30, 5, 10, 15, 10, 10, 5, 4, 1, 0),      # more girls than admits: out of the girls
+             (2025, *bts, 0, 0, 400, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),              # no admit: out
+             (2025, *bts, 40, 10, 400, 120, 30, 5, 10, 16, 10, 10, 5, 4, 1, 0)]       # routes add to 31 != 30: out of the bacs
+    for i in range(4):                                                               # 4 formations: under the threshold
+        rows.append((2025, "BUT", "BUT - Service", "Informatique", "BUT - Informatique", 100, 30, 900, 200, 80, 40, 38, 2, 20, 30, 20, 8, 2, 0))
+    m.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    return m
+
+
+@check("OB10 crafted counts: incoherent girls / routes / mentions rows out, the 2022 one-admit gap kept, thresholds, first campaign")
+def ob10(c: Ctx):
+    m = crafted_profils()
+    got = M["OBS"].profils(m, [2022, 2025])
+    BTS = CA.diplome_of("BTS", "BTS - Services", "Comptabilité", "BTS - Comptabilité")[0]
+    BUT = CA.diplome_of("BUT", "BUT - Service", "Informatique", "BUT - Informatique")[0]
+    f = {r["diplome"]: r for r in got["filles"]}
+    b = {r["diplome"]: r for r in got["bacs"]}
+    mn = {r["diplome"]: r for r in got["mentions"]}
+    facts = {
+        "girls: incoherent and zero-admit rows out": f[BTS]["formations"] == 9 and f[BTS]["admis"] == 360 and f[BTS]["part_admis"] == 25.0
+        and f[BTS]["part_voeux"] == 30.0,
+        "girls: under the threshold": f[BUT]["part_admis"] is None and f[BUT]["admis"] == 400,
+        "bacs: routes not adding up out": b[BTS]["formations"] == 9 and b[BTS]["admis_neobac"] == 270 and b[BTS]["part_techno"] == round(100 * 90 / 270, 1),
+        "mentions 2022: one fewer kept, one more out": mn[BTS]["avant"]["formations"] == 7 and mn[BTS]["avant"]["admis_neobac"] == 210
+        and mn[BTS]["avant"]["tb_plus"] == round(100 * 7 * 4 / 210, 1),
+        "mentions 2025 over acc_neobac": mn[BTS]["lecture"]["tb_plus"] == round(100 * 5 / 30, 1) and mn[BTS]["lecture"]["parts"]["sansmention"] == round(100 * 10 / 30, 1),
+        "mentions: under the threshold": mn[BUT]["lecture"] is None,
+        "first campaign named": got["mentions_avant"] == 2022 and mn[BTS]["avant"]["session"] == 2022,
+    }
+    miss = [k for k, v in facts.items() if not v]
+    return not miss, f"facts failing {miss}"
+
+
 SAMPLE = {
     "sessions": [2022, 2025], "session": 2025, "tous": "Toutes les formations", "prudence": "Beaucoup de vœux par place ne veut pas dire peu de chances.",
     "seuils": {"type": 20, "academie_formations": 5, "academie_places": 100, "min_neobac": 100, "proximite_formations": 5},
@@ -283,6 +408,17 @@ SAMPLE = {
                   {"diplome": HOSTILE, "formations": 40, "admis_neobac": 500, "meme_academie": 410, "part_meme_academie": 82.0},
                   {"diplome": "Petit", "formations": 6, "admis_neobac": 300, "meme_academie": 30, "part_meme_academie": 10.0},
                   {"diplome": "Rare", "formations": 2, "admis_neobac": 50, "meme_academie": 5, "part_meme_academie": None}],
+    "mentions_avant": 2022,
+    "filles": [{"diplome": "Toutes les formations", "formations": 99, "admis": 1000, "admises": 563, "voeux": 9000, "voeux_filles": 5000, "part_admis": 56.3, "part_voeux": 55.6},
+               {"diplome": HOSTILE, "formations": 40, "admis": 500, "admises": 400, "voeux": 900, "voeux_filles": 700, "part_admis": 80.0, "part_voeux": 77.8},
+               {"diplome": "Écoles X", "formations": 30, "admis": 500, "admises": 140, "voeux": 900, "voeux_filles": 270, "part_admis": 28.0, "part_voeux": 30.0}]
+    + [{"diplome": f"F{i}", "formations": 10 - i, "admis": 200, "admises": 100, "voeux": 900, "voeux_filles": 450, "part_admis": 50.0, "part_voeux": 50.0} for i in range(9)]
+    + [{"diplome": "Rare", "formations": 2, "admis": 50, "admises": 10, "voeux": 90, "voeux_filles": 20, "part_admis": None, "part_voeux": None}],
+    "bacs": [{"diplome": "Toutes les formations", "formations": 99, "admis_neobac": 1000, "general": 683, "techno": 195, "pro": 122, "part_general": 68.3, "part_techno": 19.5, "part_pro": 12.2},
+             {"diplome": HOSTILE, "formations": 40, "admis_neobac": 500, "general": 90, "techno": 185, "pro": 225, "part_general": 18.0, "part_techno": 37.0, "part_pro": 45.0}],
+    "mentions": [{"diplome": "Toutes les formations", "formations": 99, "admis_neobac": 1000, "lecture": {"parts": {"sansmention": 30, "ab": 33, "b": 24, "tb": 11, "tbf": 1.3}, "tb_plus": 12.3}, "avant": {"session": 2022, "tb_plus": 12.8}},
+                 {"diplome": HOSTILE, "formations": 40, "admis_neobac": 500, "lecture": {"parts": {"sansmention": 3, "ab": 14, "b": 35, "tb": 39, "tbf": 9}, "tb_plus": 48.0}, "avant": {"session": 2022, "tb_plus": 52.4}},
+                 {"diplome": "Nouveau", "formations": 9, "admis_neobac": 139, "lecture": {"parts": {"sansmention": 53, "ab": 39, "b": 7, "tb": 1, "tbf": 0}, "tb_plus": 1.0}, "avant": {"session": 2022, "tb_plus": None}}],
 }
 
 
@@ -326,11 +462,37 @@ def ob5(c: Ctx):
     named = 'role="img" aria-label="Carte des académies de métropole' in dem and 'role="img" aria-label="Graphique' in h
     shades = all(col not in ("var(--c5)", "var(--c6)") for col, _ in o["series"]) and len({tuple(x) for x in o["series"]}) == len(o["series"])
     count = len(o["defaults"]) <= o["max"] == len(o["series"])
-    small = "Les types de moins de 20 formations (1)" in h and h.count("<li><span class=\"obs-lab\">") == 2
+    sec = h[h.index('id="obs-p"'):h.index('id="obs-f"')] if 'id="obs-f"' in h else h[h.index('id="obs-p"'):]
+    small = "Les types de moins de 20 formations (1)" in sec and sec.count("<li><span class=\"obs-lab\">") == 2
     range_ = "De <strong>5</strong> vœux par place (Guyane) à <strong>50</strong> (Paris)" in dem
     ok = not raw and not unlabelled and caveat and under and idf and apart and named and shades and count and small and o["rendered"] == "observatoire" and range_
     return ok, (f"raw tag {raw}; unlabelled cells {len(unlabelled)}; caveats {caveat}; under threshold said {under}; one IdF bubble {idf}; "
                 f"overseas apart {apart}; named {named}; chart shades {shades}; series cap {count}; small types folded {small}; range {range_}")
+
+
+@check("OB11 page sections (Node): girls, bac routes, mentions escaped, sorted as served, 10 shown, routes named, caveats, gap computed")
+def ob11(c: Ctx):
+    o = page(c, SAMPLE)
+    if o is None:
+        return True, "node not installed"
+    if "error" in o:
+        return False, o["error"]
+    h = o["html"]
+    f, b, mn = (h[h.index(f'id="obs-{k}"'):] for k in ("f", "b", "m"))
+    f, b = f[:f.index("</section>")], b[:b.index("</section>")]
+    mn = mn[:mn.index("</section>")]
+    raw = "<img" in f + b + mn
+    girls = ("Les filles font <strong>56,3 %</strong> des admis (563 sur 1 000)" in f.replace("\u202f", " ")
+             and f.count('<li><span class="obs-lab">') == 11 and "Les autres types de formation (1)" in f
+             and "à 2,2 points au plus" in f and "vœux 77,8 %" in f and "des vœux, pas des personnes" in f)
+    routes = (all(f'<i style="background:var(--voie-{v})"></i>bac {n}' in b for v, n in (("bg", "général"), ("bt", "techno"), ("bp", "pro")))
+              and "« rare », jamais « fermé »" in b and "Admis néo-bacheliers seulement" in b and "<strong>37 % · 45 %</strong>" in b
+              and "bac général 18 %" in b)
+    ments = ("<strong>12,3 %</strong> des admis néo-bacheliers" in mn and "(12,8 % en 2022)" in mn and "<strong>52,4 % → 48 %</strong>" in mn
+             and "<strong>1 %</strong>" in mn and "ni le niveau demandé ni vos chances" in mn and "pas publiées par série de bac" in mn)
+    hero = "Six regards" in h
+    ok = not raw and girls and routes and ments and hero
+    return ok, f"raw tag {raw}; girls {girls}; routes named and caveat {routes}; mentions {ments}; hero {hero}"
 
 
 @check("OB6 wording: no chance, probability or promise; vouvoiement")
@@ -363,6 +525,15 @@ def ob7(c: Ctx):
 
 
 PY_MUTANTS = [
+    ("girls more than admits kept", "if tot and f is not None and 0 <= f <= tot and voe and voef is not None and 0 <= voef <= voe:",
+     "if tot and f is not None and voe and voef is not None:"),
+    ("routes not adding up kept", "if neo and None not in (bg, bt, bp) and bg + bt + bp == neo:", "if neo and None not in (bg, bt, bp):"),
+    ("2022 one-admit gap dropped", "sum(m5) + (nr or 0) <= neo:", "sum(m5) + (nr or 0) == neo:"),
+    ("mentions over their own sum", 'parts = {m: _part(x[m], x["neo"]) for m in MENTIONS}', 'parts = {m: _part(x[m], sum(x[k] for k in MENTIONS)) for m in MENTIONS}'),
+    ("TB without félicitations", '"tb_plus": _part(x["tb"] + x["tbf"], x["neo"])', '"tb_plus": _part(x["tb"], x["neo"])'),
+    ("girls among vœux = among admits", '"part_voeux": _part(x["voeux_filles"], x["voeux"])', '"part_voeux": _part(x["admises"], x["admis"])'),
+    ("profiles threshold dropped", '        return total >= MIN_NEOBAC and x["n"] >= MIN_PROX_FORMATIONS', '        return total > 0'),
+    ("before = latest campaign", '"avant": {"session": first, **(reading(by.get(first)) or {"tb_plus": None})}', '"avant": {"session": first, **(reading(by.get(last)) or {"tb_plus": None})}'),
     ("mean of ratios instead of summed counts", 't["voeux"] += voe\n', 't["voeux"] += voe * 1.1\n'),
     ("places 0 kept", "usable = voe is not None and capa is not None and capa > 0", "usable = voe is not None and capa is not None"),
     ("mean instead of median", 'round(median(x["taux"]), 1)', 'round(sum(x["taux"]) / len(x["taux"]), 1)'),
@@ -379,6 +550,14 @@ PY_MUTANTS = [
     ("earlier campaign mixed into the académies", "        if ses != last:\n            continue\n", ""),
 ]
 JS_MUTANTS = [
+    ("girls type unescaped", '`<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-dumb"', '`<li><span class="obs-lab">${r.diplome}</span><span class="obs-dumb"'),
+    ("route colour without its name", '<i style="background:var(--voie-bt)"></i>bac techno', '<i style="background:var(--voie-bt)"></i>'),
+    ("rare caveat dropped", "Une part faible veut dire « rare », jamais « fermé ».", ""),
+    ("mention caveat dropped", "ni le niveau demandé ni vos chances", "voilà"),
+    ("vœux called girls", "des vœux, pas des personnes. Calcul", "des filles. Calcul"),
+    ("all types shown", "const OBS_SHOWN = 10;", "const OBS_SHOWN = 99;"),
+    ("gap hard-coded", "est à ${fmt(gap, 1)} points au plus", "est à 5 points au plus"),
+    ("félicitations left out of the before figure", '`${pct(r.avant.tb_plus)} → `}${pct(r.lecture.tb_plus)}', '`${pct(r.avant.tb_plus)} → `}${pct(r.lecture.parts.tb)}'),
     ("académie unescaped", '<td data-label="Académie">${esc(r.a.academie)}</td>', '<td data-label="Académie">${r.a.academie}</td>'),
     ("type label unescaped", '<span class="obs-lab">${esc(p.diplome)}</span>', '<span class="obs-lab">${p.diplome}</span>'),
     ("figure without its label", '<td class="num" data-label="Vœux par place">${r.x.voeux_par_place', '<td class="num">${r.x.voeux_par_place'),
@@ -410,7 +589,7 @@ def mutated(old: str, new: str):
 
 @check("OB8 mutation test: aggregation, threshold, folding, Île-de-France, escaping, wording and wiring bugs are each caught")
 def ob8(c: Ctx):
-    fns = [ob1, ob2, ob3, ob4, ob5, ob6, ob7]
+    fns = [ob1, ob2, ob3, ob4, ob5, ob6, ob7, ob9, ob10, ob11]
     missed = []
 
     def caught():

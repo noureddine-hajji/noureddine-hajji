@@ -864,7 +864,21 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 .obs-bar { height: 12px; border-radius: var(--r-pill); background: var(--c6); overflow: hidden; }
 .obs-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--c2); }
 .obs-bars strong { text-align: right; font-variant-numeric: tabular-nums; }
-@media (max-width: 720px) { .obs-bars li { grid-template-columns: minmax(0, 1fr) 4.2em; } .obs-bar { grid-column: 1 / -1; grid-row: 2; } }
+.obs-val { display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.obs-bars li:has(.obs-stack), .obs-bars li:has(.obs-dumb) { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 9.5em; }
+.obs-stack { display: flex; height: 12px; border-radius: var(--r-pill); overflow: hidden; background: var(--line); }
+.obs-stack i { display: block; height: 100%; }
+.obs-dumb { position: relative; height: 16px; }
+.obs-dumb .obs-mid { position: absolute; left: 50%; top: 1px; width: 1px; height: 14px; background: var(--line-input); }
+.obs-dumb::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--line); }
+.obs-dumb .obs-v, .obs-dumb .obs-a { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; border-radius: var(--r-pill); box-sizing: border-box; }
+.obs-dumb .obs-v, .obs-v-key { border: 2px solid var(--accent); background: var(--surface); }
+.obs-dumb .obs-a, .obs-a-key { background: var(--ink); }
+.obs-key { margin: 6px 0 2px; }
+.obs-key span { display: inline-flex; align-items: center; gap: 5px; }
+.obs-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.obs-key .obs-v-key, .obs-key .obs-a-key { border-radius: var(--r-pill); box-sizing: border-box; }
+@media (max-width: 720px) { .obs-bars li { grid-template-columns: minmax(0, 1fr) 4.2em; } .obs-bar, .obs-stack, .obs-dumb { grid-column: 1 / -1; grid-row: 2; } .obs-bars li:has(.obs-stack), .obs-bars li:has(.obs-dumb) { grid-template-columns: minmax(0, 1fr) auto; } }
 
 /* phone: the menu is a floating ink pill, the open page in lime */
 @media (max-width: 720px) {
