@@ -25,7 +25,7 @@
  "tests/test_jpo.py": 150,
  "tests/test_langage.py": 5.0,
  "tests/test_lecture.py": 600,
- "tests/test_licence_master.py": 503,
+ "tests/test_licence_master.py": 900,
  "tests/test_lycee.py": 162,
  "tests/test_mentions.py": 170,
  "tests/test_metiers.py": 97,
@@ -37,7 +37,7 @@
  "tests/test_onisep.py": 65,
  "tests/test_parcours.py": 60.0,
  "tests/test_passerelles.py": 291,
- "tests/test_pipeline.py": 564,
+ "tests/test_pipeline.py": 1300,
  "tests/test_poursuite.py": 560,
  "tests/test_prevision.py": 278,
  "tests/test_probe.py": 0,
@@ -50,6 +50,7 @@
  "tests/test_robustesse_formations.py": 70,
  "tests/test_scale.py": 129,
  "tests/test_securite.py": 165,
+ "tests/test_securite_large.py": 240,
  "tests/test_semblables.py": 264,
  "tests/test_seo.py": 177,
  "tests/test_series.py": 164,
@@ -63,5 +64,6 @@
  "tests/test_vitesse.py": 170,
  "tests/test_voeux.py": 540,
  "tests/test_voiepro.py": 6.0,
- "tests/test_voies.py": 100.0
+ "tests/test_voies.py": 100.0,
+ "tests/test_zone_paire.py": 60
 }

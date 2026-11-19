@@ -593,7 +593,7 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
     else:
         lay = formations(con, diplome, mention)
         if lay is None:
-            return {"zones": {}}
+            return {"zones": {}, "larges": []}
         items = lay["formations"]
     by_type: dict = {}
     for f in items:
@@ -602,16 +602,20 @@ def zones(con, diplome: str, mention: str | None, dkey: str | None, mention_bac:
     out, lec = {}, {}
     cods = [c for cs in by_type.values() for c in cs]
     if not cods:
-        return {"zones": {}, **({"lectures": {}} if lecture else {})}
+        return {"zones": {}, "larges": [], **({"lectures": {}} if lecture else {})}
     # sprint Q3: every type of the diploma in one stage-2 query (each row is read from its own lineage, the same row)
     rows = J.stage2(con, dkey, mention_bac, next(iter(by_type)), None, serie=serie, only=cods, moyenne=moyenne,
                     types=list(by_type), limit=len(cods) + 1)["formations"]
+    larges = []
     for f in rows:
         out[f["cod_aff_form"]] = f["zone"]
+        if f.get("large"):
+            larges.append(f["cod_aff_form"])
         if lecture:      # R6: what the page needs to read the zone with the average it keeps (journey.stage2's `lec`)
-            lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"],
-                                      "lec": f["lec"]}
-    return {"zones": out, **({"lectures": lec} if lecture else {})}
+            lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "large": f["large"],
+                                      "taux_acces_ens": f["taux_acces_ens"], "taux_zone": f["taux_zone"], "lec": f["lec"]}
+    # owner, 2026-11-19: the « sécurité large » nuance, apart (the zone map keeps its plain zone codes)
+    return {"zones": out, "larges": sorted(larges), **({"lectures": lec} if lecture else {})}
 
 
 CHIFFRES_MAX = 40          # one page of the map's list (searchPage: 20 on a phone, 40 on a wide screen)

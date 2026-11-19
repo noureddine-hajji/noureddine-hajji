@@ -185,12 +185,15 @@ def zones_reference(con, diplome, dkey, mb, serie, moyenne):
     for f in lay["formations"]:
         if f.get("stats", True) is not False:
             by.setdefault(f["type_key"] or J.SANS_TYPE, []).append(f["cod_aff_form"])
-    out, lec = {}, {}
+    out, lec, larges = {}, {}, []
     for tk, cods in by.items():
         for f in J.stage2(con, dkey, mb, tk, None, serie=serie, only=cods, moyenne=moyenne)["formations"]:
             out[f["cod_aff_form"]] = f["zone"]
-            lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "taux_acces_ens": f["taux_acces_ens"], "lec": f["lec"]}
-    return {"zones": out, "lectures": lec}
+            if f["large"]:                                   # owner, 2026-11-19: « sécurité large » and the zone's rate
+                larges.append(f["cod_aff_form"])
+            lec[f["cod_aff_form"]] = {"zone": f["zone"], "uncertain": f["uncertain"], "large": f["large"],
+                                      "taux_acces_ens": f["taux_acces_ens"], "taux_zone": f["taux_zone"], "lec": f["lec"]}
+    return {"zones": out, "larges": sorted(larges), "lectures": lec}
 
 
 @check("VT2 the zones read in one query = the zones read type by type (4 profiles, every diploma), and diplome=* = their union")

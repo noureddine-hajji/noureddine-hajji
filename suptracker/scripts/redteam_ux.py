@@ -487,7 +487,7 @@ let PROFILE = null;
 const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 const ZONES = { cible: { label: "Vœu cible", color: "var(--zone-cible)" }, indetermine: { label: "Indéterminé", color: "var(--zone-autre)" } };
 const els = {}, document = { getElementById: (id) => els[id] || null, querySelectorAll: () => [] };
-""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml")) + "\n" + r2_defs(js) + blk + """
 const out = {};
 out.noProfile = summaryBand(P.r, P.d);
 PROFILE = { serie: "bg" };
@@ -548,7 +548,7 @@ DESIGN_MUTANTS = [
     ("emoji marker back", "internat: ICONS.internat,", 'internat: "🛏️",', ("js", (x11,))),
     ("summary dropped before the tabs", "  ${summaryBand(r, d)}\n  <p class=\"small fhead-links\">", "  <p class=\"small fhead-links\">", ("js", (x12,))),
     ("caveat dropped from the summary", "Des résultats des campagnes passées, pas des chances d'admission.", "Des résultats des campagnes passées.", ("js", (x12,))),
-    ("zone pill unescaped", "${zoneMark(z)}${esc(zz.label.replace(/^Vœu /, \"\"))}", "${zoneMark(z)}${zz.label}", ("js", (x12,))),
+    ("zone pill unescaped", "${zoneMark(z, L)}${esc(zz.label.replace(/^Vœu /, \"\"))}", "${zoneMark(z, L)}${zz.label}", ("js", (x12,))),
     ("empty tab kept", 'const kept = groups.filter(([, , html]) => html.replace(/<div id="planb"><\\/div>/, "x").trim());', "const kept = groups;", ("js", (x12,))),
     ("every panel shown", '${n ? " hidden" : ""}>${html}</div>', ">${html}</div>", ("js", (x12,))),
     ("job summary counts a formation once per diploma", "const nForm = d.n_formations;",
@@ -664,7 +664,7 @@ def lot3_ui(js: str, css: str) -> tuple[bool, str]:
 const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-securite)" }, cible: { label: "Vœu cible", color: "var(--zone-cible)" },
   ambitieux: { label: "Vœu ambitieux", color: "var(--zone-ambitieux)" } };
 let WIDE = false; globalThis.matchMedia = () => ({ matches: !WIDE });
-""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "zonePillHtml", "MENTION_CODES", "BANDS",
+""" + "\n".join(top_def(js, n) for n in ("ZONE_RULES", "zoneHelp", "ZONE_NOT_CHANCE", "ZONE_AXIS", "zoneLegend", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "MENTION_CODES", "BANDS",
                                          "validMoyenne", "bandOf", "moyenneText", "MENTION_SHORT")) + "\n" + blk + """
 const out = {};
 out.tiles = zoneTiles({ securite: 1, cible: 0, ambitieux: 2 }, 3);
@@ -694,7 +694,7 @@ process.stdout.write(JSON.stringify(out));"""
             return False
         cells = re.findall(r"<td(?![^>]*data-label)(?![^>]*class=\"acts\")[^>]*>", rows.group(0))
         return len(cells) == 1                                 # only the formation cell has no label
-    vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe)}" in vx
+    vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large)}" in vx
     pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(vp, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
              and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
     vs_ok = ("const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);" in vs and 'data-cpage="1"' in vs

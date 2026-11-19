@@ -1,4 +1,4 @@
 fichier,lu_le,url,lignes,sha256
-carburants.csv.gz,2026-11-18,https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/exports/csv?use_labels=true,9826,d796df0503256816cb24d9e8852712948c0e5e90bfd691f07648818b340a6dab
+carburants.csv.gz,2026-11-18,https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/exports/csv?use_labels=true,9824,9813f359f541437aad4ceee5fa466ed364afe875c46a7bec9559373b78306470
 gares.csv.gz,2026-11-18,https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/gares-de-voyageurs/exports/csv?use_labels=true,2792,777c6e4b084ead88339fb4318fcc36356ae59caf4ef8a058145d14397ae11ee9
 tarifs_tgv.csv.gz,2026-11-18,https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/tarifs-tgv-inoui-ouigo/exports/csv?use_labels=true,36349,cce45d334257125c93a68bcccb1e8ebf882e0b6bf7063db97e3ffae3cb7a12c7

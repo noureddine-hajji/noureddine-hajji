@@ -584,6 +584,11 @@ ZONE_RULES = {
     "ambitieux_cdf": 0.15,       # expected mention in the bottom 15 % of the admitted cohort
     "securite_access": 70.0,     # taux d'accès >= 70 %
     "securite_cdf": 0.50,        # >= half the admits at or below the expected mention
+    # owner, 2026-11-19: « sécurité large », a nuance of a SURE sécurité (never a zone of its own): a very high access rate AND,
+    # even at the LOWER end of the 95 % interval of the share, a clear majority of admits at or below the student's level.
+    # Chosen on the 2024-2025 back-test before use (README): 60 % of the sure safeties, 90 % still « sécurité » the next campaign
+    "large_access": 85.0,        # taux d'accès >= 85 %
+    "large_cdf_lo": 0.60,        # lower bound of the share's interval >= 60 %
 }
 
 
@@ -596,6 +601,64 @@ def _zone(taux: float, cdf: float) -> str:
     if taux >= z["securite_access"] and cdf >= z["securite_cdf"]:
         return "securite"
     return "cible"
+
+
+# owner, 2026-11-19: the zone's access axis read on the student's own pair of specialties (bac général), when the formation's
+# own cross-checked report of the campaign publishes it: the pair's line, else the report's « Autres » line; never a line of
+# fewer than PAIR_MIN_CONFIRMED candidates, never the « Autres » line when the detail carries a pair label no rule knows (it
+# could be the student's: arts specialties are named by the report, « Art » in the profile). Otherwise the official rate.
+PAIR_MIN_CONFIRMED = 20
+
+
+def pick_pair(rows: list, dkey: str | None) -> dict | None:
+    """rows: (doublette_key, autres, confirmes, en_position) of ONE report's bac général table. The student's line, or None."""
+    if not dkey or not rows:
+        return None
+    mine = next((r for r in rows if not r[1] and r[0] == dkey), None)
+    if mine is not None:
+        chosen, source = mine, "paire"
+    elif any(not r[1] and r[0] is None for r in rows):
+        return None                                  # an unknown label may be the student's pair: never claim the bucket
+    else:
+        chosen = next((r for r in rows if r[1]), None)
+        source = "autres"
+        if chosen is None:
+            return None
+    _key, _autres, conf, pos = chosen
+    if not conf or conf < PAIR_MIN_CONFIRMED or pos is None or pos > conf:
+        return None
+    # rounded at the source: the page reads the served value, the zone must be read on the very same number
+    return {"taux": round(100.0 * pos / conf, 6), "source": source, "confirmes": int(conf), "en_position": int(pos)}
+
+
+def pair_rates(con, codes: list[str], session: int, dkey: str | None) -> dict:
+    """{cod: pick_pair(...) + session} for the formations' own cross-checked reports of `session` (bac général tables)."""
+    if not dkey or not codes:
+        return {}
+    try:
+        rows = con.execute("""SELECT d.cod_aff_form, d.doublette_key, d.autres, d.confirmes, d.en_position
+            FROM core.rapport_doublette d JOIN core.rapport r USING (cod_aff_form, session)
+            WHERE d.session = ? AND d.bac = 'bg' AND r.recoupe AND list_contains(?, d.cod_aff_form)""",
+                           [session, list(codes)]).fetchall()
+    except duckdb.CatalogException:                  # a warehouse built without the reports
+        return {}
+    by: dict = {}
+    for cod, key, autres, conf, pos in rows:
+        by.setdefault(cod, []).append((key, bool(autres), conf, pos))
+    out = {}
+    for cod, rs in by.items():
+        x = pick_pair(rs, dkey)
+        if x is not None:
+            out[cod] = {**x, "session": session}
+    return out
+
+
+def is_large(zone: str, uncertain: bool, taux: float | None, ci_lo: float | None) -> bool:
+    """« Sécurité large »: a sure sécurité (not uncertain) whose access rate and the LOWER bound of whose share both clear the
+    large thresholds. The bound, not the point: the nuance must hold in the least favourable reading the interval allows."""
+    z = ZONE_RULES
+    return (zone == "securite" and not uncertain and taux is not None and ci_lo is not None
+            and taux >= z["large_access"] and ci_lo >= z["large_cdf_lo"])
 
 
 def classify_zone(taux: float | None, cdf: float | None, lo: float | None, hi: float | None) -> dict:
@@ -826,9 +889,14 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "internat", "distance", "apprentissage", "contrat_etab", "fili", "form_lib_voe_acc", "detail_forma",
             "cod_uai", "pct_etab_orig",
             "n_known", "k_cum", "k_exact", "neobac", "bg", "brs", "years", "trend", "bg_margins", "s_sum"]
+    # owner, 2026-11-19: the zone reads the student's pair rate when the formation's own report publishes it (bac général)
+    prates = pair_rates(con, [r[0] for r in rows], latest, dkey) if serie == "bg" and dkey else {}
     out = []
     for r in rows:
         x = dict(zip(cols, r))
+        pr = prates.get(x["cod_aff_form"])
+        x["taux_zone"] = pr["taux"] if pr else x["taux_acces_ens"]
+        x["taux_zone_source"] = pr
         n, k_top = x["n_known"] or 0, x["k_cum"] or 0
         k_band = x["k_exact"] or 0
         k = k_top - (1.0 - w) * k_band                      # R5: the average inside its band (w = 1: the band's top)
@@ -864,7 +932,7 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
             "limited_comparability": bool(x["neobac"]) and (pct_serie or 0) < 0.5,
             "home_academie": bool(academie) and x["academie"] == academie,
             "non_selective": x["select_form"] == "formation non sélective",
-            **(classify_zone(x["taux_acces_ens"], cdf_zone, lo_zone, hi_zone) if eligible is not False
+            **(classify_zone(x["taux_zone"], cdf_zone, lo_zone, hi_zone) if eligible is not False
                else {"zone": "non_ouvert", "uncertain": False}),
             "rate_fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES,
             "rare_for_serie": serie != "bg" and pct_serie is not None and pct_serie < MIN_GENERAL_SHARE,
@@ -876,13 +944,19 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
                     "ferme": eligible is False, "fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES},
         })
         x.pop("s_sum")
+        lo_u = lo_zone
         if moyenne is not None and w_u != w and x["zone"] not in ("non_ouvert", "indetermine") and not x["uncertain"]:
             rd_u = zone_reading(serie, mention, k_top - (1.0 - w_u) * k_band, n, margins, w_u, camps)
-            alt = classify_zone(x["taux_acces_ens"], rd_u["cdf_zone"], *rd_u["ci_zone"])["zone"]
+            alt = classify_zone(x["taux_zone"], rd_u["cdf_zone"], *rd_u["ci_zone"])["zone"]
             x["uncertain"] = alt != x["zone"]                # R5: the within-band hypothesis decides the zone
+            lo_u = rd_u["ci_zone"][0]
         if x["rate_fragile"] and x["zone"] != "non_ouvert":
             # 2 techno candidates, 2 proposals = "100 %": a handful of candidates cannot set a zone
             x["zone"], x["uncertain"] = "indetermine", True
+        # « sécurité large » (owner, 2026-11-19): read under BOTH within-band hypotheses, like « incertain »; bac général only
+        # (its thresholds were chosen on the bac général back-test; bac techno / pro read an ESTIMATED access rate)
+        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_zone"], lo_zone)
+                      and is_large(x["zone"], x["uncertain"], x["taux_zone"], lo_u))
         for g in (1, 2, 3):
             x.pop(f"lib_grp{g}"), x.pop(f"ran_grp{g}")
         out.append(x)

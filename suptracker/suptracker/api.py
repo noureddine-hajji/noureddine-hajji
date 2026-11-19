@@ -172,7 +172,10 @@ METHODOLOGY = {
         "inférieur à 30 %, ou votre mention se situe dans les 15 % inférieurs de la cohorte admise. "
         "Sécurité : taux d'accès d'au moins 70 % et au moins la moitié des admis avec votre mention ou "
         "moins. Cible : tous les autres cas. Une formation est marquée « incertaine » quand une valeur "
-        "comprise dans l'intervalle à 95 % la placerait dans une autre zone."),
+        "comprise dans l'intervalle à 95 % la placerait dans une autre zone. Sécurité large : une sécurité sûre, "
+        "avec un taux d'accès d'au moins 85 % et, même au bas de l'intervalle à 95 %, au moins 60 % des admis "
+        "avec votre mention ou moins (bac général). Le taux lu est celui de vos deux spécialités quand le "
+        "rapport public de la formation le publie pour au moins 20 candidats, sinon le taux d'accès officiel."),
     "journey_groups": (
         "Groupe d'appel : le groupe de classement Parcoursup qui s'applique à un bachelier "
         "général, avec le rang du dernier candidat appelé dans ce groupe. Dans les données SIES 2022–2025, "

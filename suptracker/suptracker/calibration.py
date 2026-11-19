@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+import duckdb
+
 from . import journey as J
 
 LEVEL = 0.80                       # nominal coverage of the ranges
@@ -177,7 +179,54 @@ def zone_of(years: dict, sessions: list[int], mention: str, taux: float | None) 
     if neo and bg / neo < J.MIN_GENERAL_SHARE:
         return None                       # stage 2 marks it "non ouvert": no repère, no stability
     rd = J.zone_reading("bg", mention, k, n, [r["margins"] for r in rows])
-    return J.classify_zone(taux, rd["cdf_zone"], *rd["ci_zone"])
+    z = J.classify_zone(taux, rd["cdf_zone"], *rd["ci_zone"])
+    return {**z, "large": J.is_large(z["zone"], z["uncertain"], taux, rd["ci_zone"][0])}
+
+
+def persistence_key(z: dict) -> tuple[str, bool]:
+    """The stability row a zone reads: a « sécurité large » (owner, 2026-11-19) has its own, measured apart from the other
+    sure safeties; every other zone, its (zone, incertain) row. A zone read on the student's pair rate (its own report,
+    owner 2026-11-19) reads the rows measured with that method, prefixed « paire: »."""
+    p = "paire:" if z.get("taux_zone_source") else ""
+    return (p + "securite_large", False) if z.get("large") else (p + z["zone"], bool(z.get("uncertain")))
+
+
+def pair_persistence(con, data: dict, targets=(2024, 2025)) -> dict:
+    """The same next-campaign confirmation for zones read on a pair rate: per lineage with the formation's own cross-checked
+    reports in both campaigns, per pair detailed in either (journey.pick_pair: its line, else the « Autres » line), the zone of
+    the campaigns before (the pair rate of the campaign before) against the next campaign's alone (its pair rate)."""
+    try:
+        rows = con.execute("""SELECT d.cod_aff_form, d.session, d.doublette_key, d.autres, d.confirmes, d.en_position
+            FROM core.rapport_doublette d JOIN core.rapport r USING (cod_aff_form, session) WHERE d.bac = 'bg' AND r.recoupe""").fetchall()
+    except duckdb.CatalogException:
+        return {}
+    rep = defaultdict(list)
+    for cod, s, key, autres, conf, pos in rows:
+        rep[(cod, s)].append((key, bool(autres), conf, pos))
+    out = defaultdict(lambda: [0, 0])
+    for t in targets:
+        for years in data.values():
+            if t not in years or (t - 1) not in years:
+                continue
+            r0, r1 = rep.get((years[t - 1]["cod"], t - 1)), rep.get((years[t]["cod"], t))
+            if not r0 or not r1:
+                continue
+            hist = [s for s in sorted(years) if s < t]
+            for key in sorted({k for k, a, _, _ in r0 + r1 if k and not a}):
+                p0, p1 = J.pick_pair(r0, key), J.pick_pair(r1, key)
+                if p0 is None or p1 is None:
+                    continue
+                for m in MENTIONS:
+                    z = zone_of(years, hist, m, p0["taux"])
+                    if z is None or z["zone"] not in ZONES_WITH_REPERE:
+                        continue
+                    o = zone_of(years, [t], m, p1["taux"])
+                    if o is None:
+                        continue
+                    k = persistence_key({**z, "taux_zone_source": p0})
+                    out[k][0] += 1
+                    out[k][1] += o["zone"] == z["zone"]
+    return {k: (n, c / n) for k, (n, c) in out.items() if n}
 
 
 def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
@@ -197,7 +246,7 @@ def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
                 o = zone_of(years, [t], m, nxt["taux"])
                 if o is None:
                     continue
-                key = (z["zone"], bool(z["uncertain"]))
+                key = persistence_key(z)
                 out[key][0] += 1
                 out[key][1] += o["zone"] == z["zone"]
     return {k: (n, c / n) for k, (n, c) in out.items() if n}
@@ -261,7 +310,7 @@ def build_calibration(con) -> dict:
                 c_lo = c_hi = used_c = None
             fc.append((lid, cur["cod"], latest + 1, m, t_hat, t_lo, t_hi, used_t, c_hat, c_lo, c_hi, used_c, known, len(hist), predictor))
     con.executemany("INSERT INTO mart.forecast VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", fc)
-    zp = zone_persistence(data)
+    zp = {**zone_persistence(data), **pair_persistence(con, data)}
     con.executemany("INSERT INTO mart.zone_persistence VALUES (?, ?, ?, ?)", [(z, u, n, r) for (z, u), (n, r) in zp.items()])
     return {m: bt["coverage"][m]["*"] for m in ("taux", "cdf")}
 
@@ -306,7 +355,7 @@ def attach(con, res: dict, mention: str, continuous: bool = False) -> dict:
         if r is None or f.get("zone") not in ZONES_WITH_REPERE:
             f["repere"] = None
             continue
-        n, rate = zp.get((f["zone"], bool(f.get("uncertain"))), (None, None))
+        n, rate = zp.get(persistence_key(f), (None, None))
         f["repere"] = {**r, "zone_confirmed": rate, "zone_n": n}
         if continuous:
             f["repere"].update({"cdf_hat": None, "cdf_lo": None, "cdf_hi": None, "zone_confirmed": None, "zone_n": None,

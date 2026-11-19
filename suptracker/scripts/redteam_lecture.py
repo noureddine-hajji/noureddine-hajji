@@ -58,7 +58,7 @@ GRID = (8.0, 9.2, 9.9, 10.0, 11.0, 11.9, 12.0, 12.6, 13.0, 13.9, 14.4, 15.3, 16.
 GRID_SHORT = (9.2, 11.0, 12.6, 13.9, 15.3, 17.2)
 TWINS = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "erf", "withinBand", "bandParam", "localAverage",
          "vxProfile", "ZONE_RULES", "MIN_BOUNDS_N", "ZONE_RANK", "SAME_ZONE_ACCESS_GAIN", "VX_SITUATED", "wilsonCI", "zoneOf",
-         "isNum", "classifyZone", "seriesPos", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
+         "isNum", "classifyZone", "isLarge", "seriesPos", "tauxZone", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
          "pbUsable", "whyBetter", "pbOrder", "capPerEtab", "POOL_KEYS", "unpool", "planBLocal", "completerLocal", "carteZonesLocal")
 DISPATCH = r"""
 const F = { stage2Local, voeuxLocal, planBLocal, completerLocal, carteZonesLocal, readList, seriesPos };
@@ -186,7 +186,7 @@ def close(a, b) -> bool:
     return a == b
 
 
-ROW_KEYS = ("zone", "uncertain", "cdf", "cdf_ci", "spos", "position", "repere")
+ROW_KEYS = ("zone", "uncertain", "large", "cdf", "cdf_ci", "spos", "position", "repere")
 
 
 def diff_rows(js_rows, py_rows, keys, key="cod_aff_form"):
@@ -359,7 +359,7 @@ def planb_targets(c: Ctx) -> list[tuple[str, str, str | None]]:
 
 
 PB_KEYS = ("status", "reason", "n_candidates", "hidden_paid", "include_paid")
-VIEW_KEYS = ("cod_aff_form", "zone", "uncertain", "position", "bounds", "why", "km", "paid", "taux_acces_ens")
+VIEW_KEYS = ("cod_aff_form", "zone", "uncertain", "large", "position", "bounds", "why", "km", "paid", "taux_acces_ens")
 
 
 def amplified(fn):
@@ -450,7 +450,7 @@ def lists(c: Ctx) -> list[list[str]]:
     return c.memo(("lists", c.quick), build)
 
 
-VX_ROW = ("status", "zone", "uncertain", "position", "bounds", "position_moyenne")
+VX_ROW = ("status", "zone", "uncertain", "large", "position", "bounds", "position_moyenne")
 
 
 def voeux_ok(c: Ctx, js: str, evaluate=VX.evaluate) -> tuple[bool, str]:
@@ -470,7 +470,8 @@ def voeux_ok(c: Ctx, js: str, evaluate=VX.evaluate) -> tuple[bool, str]:
     zl = []
     for _ in range(200):
         vx = [{"status": rng.choice(["ok", "ok", "ok", "absente"]), "zone": rng.choice([*VX.SITUATED, "indetermine", "non_ouvert", None]),
-               "uncertain": rng.random() < 0.3} for _ in range(rng.randint(0, 10))]
+               "uncertain": rng.random() < 0.3, "large": rng.random() < 0.5, "serie": rng.choice(["bg", "bg", "bt"])}
+              for _ in range(rng.randint(0, 10))]
         zl.append(vx)
     out = run_node(js, cases + [{"fn": "readList", "args": [v]} for v in zl])
     if out is None:
@@ -577,6 +578,8 @@ def carte_ok(c: Ctx, js: str, zones=CA.zones) -> tuple[bool, str]:
         if got.get("zones") != want["zones"]:
             diff = [k for k in want["zones"] if (got.get("zones") or {}).get(k) != want["zones"][k]][:3]
             bad.append((dip, serie, prof, diff))
+        elif got.get("larges") != want.get("larges"):           # owner, 2026-11-19: the « sécurité large » nuance, the same
+            bad.append((dip, serie, prof, "larges", sorted(set(got.get("larges") or []) ^ set(want.get("larges") or []))[:3]))
     return not bad and n > 0, f"{len(oracles)} map answers, {n} zones compared; problems {bad[:3]}"
 
 
@@ -635,7 +638,7 @@ ANCHORS = ("const d = this.data && !this.data.error ? voeuxLocal(this.data, prof
            "stage2Local(await api(`/api/journey/stage2?",
            "if (local) d = planBLocal(d, pbProf, prof.academie || null);",
            "if (local) d = completerLocal(d, prof, prof.academie || null);",
-           "Object.assign(zone, carteZonesLocal(Zraw, VP).zones);",
+           "const Z = carteZonesLocal(Zraw, VP);\n      Object.assign(zone, Z.zones);",
            'if (local) q.set("pool", "true");', 'if (local) qs.set("pool", "true");')
 
 
@@ -743,8 +746,8 @@ def js_mutants():
         ("the repère's share range kept", "cdf_hat: null, cdf_lo: null, cdf_hi: null, zone_confirmed: null,", "zone_confirmed: null,", "s2"),
         ("the rattrapage read at the band's top", 'p.mention === "rattrapage" ? 10 : null', "null", "s2"),
         ("the target's own zone kept for Plan B", "const t = relireVue(d.target, band, g);", "const t = d.target;", "pb"),
-        ("a same-zone formation proposed without the access gain", "c.taux_acces_ens >= (t.taux_acces_ens || 0) + SAME_ZONE_ACCESS_GAIN",
-         "c.taux_acces_ens >= (t.taux_acces_ens || 0)", "pb"),
+        ("a same-zone formation proposed without the access gain", "tauxZone(c) >= (tauxZone(t) || 0) + SAME_ZONE_ACCESS_GAIN",
+         "tauxZone(c) >= (tauxZone(t) || 0)", "pb"),
         ("an uncertain better zone accepted", "if (zc > zt && !c.uncertain) return \"zone\";", "if (zc > zt) return \"zone\";", "pb"),
         ("paid formations shown", "if (why && c.paid && !d.include_paid) { hidden += 1; continue; }", "", "pb"),
         ("the académie not first", "academie && c.academie === academie ? 0 : 1,", "0,", "pb"),
@@ -755,7 +758,7 @@ def js_mutants():
          'const sure = vx.filter((v) => v.zone === "securite").length;', "vx"),
         ("the majority rule with >=", "n.ambitieux + n.hors_profil > situated / 2", "n.ambitieux + n.hors_profil >= situated / 2", "vx"),
         ("the list's reading not redone", "return { ...d, moyenne: given, voeux: vx, lecture: readList(vx) };", "return { ...d, moyenne: given, voeux: vx };", "vx"),
-        ("the map's zones kept from the band", "zones[cod] = lire(x.lec, x.taux_acces_ens, band, g).zone;", "zones[cod] = x.zone;", "map"),
+        ("the map's zones kept from the band", "    zones[cod] = r.zone;", "    zones[cod] = x.zone;", "map"),
         ("the average sent again", '  qs.set("mention", bandParam(p));\n  return qs;',
          '  qs.set("mention", bandParam(p));\n  if (p.moyenne !== null && p.moyenne !== undefined) qs.set("moyenne", String(p.moyenne));\n  return qs;', "wire"),
         ("the raw rattrapage sent", 'function bandParam(p) { return p.mention === "rattrapage" ? "sansmention" : p.mention; }',
