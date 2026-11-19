@@ -107,6 +107,17 @@ def code_ok(js: str) -> tuple[bool, str]:
         bad.append("the page is not announced after every navigation (errors included), or a page left early still takes the focus")
     if "const seq = ++routeSeq;" not in route or not re.search(r"(?m)^let routeSeq = 0;$", js):
         bad.append("a navigation gets no number of its own")
+    # a page is never without its heading while its first answer loads (~3-4 s on a cold server): the search page and the
+    # formation page write their h1 (and name the tab) BEFORE their first request; the server's summary is kept
+    for name, first in (("viewCarte", 'await api("/api/carte")'), ("viewFormation", "await api(`/api/formation/")):
+        body = top(js, name)
+        head = body[: body.find(first)] if first in body else ""
+        # the heading is WRITTEN (an unconditional statement, or the search page's own « not yet drawn » guard) before the request
+        if not re.search(r'(?m)^\s*(?:if \(\$view\.dataset\.rendered !== "carte"\) )?\$view\.innerHTML = `[^`]*<h1>', head) \
+                or "document.title = " not in head:
+            bad.append((name, "no heading or tab title before the first request"))
+    if 'if (!$view.querySelector("[data-seo]"))' not in top(js, "viewFormation"):
+        bad.append("the formation page's loading heading would replace the server's summary")
     after = top(js, "a11yAfterRoute")
     for need, why in (('$view.querySelector("h1")', "the heading"),
                       ("document.title = name ? `${name} — SupCompass`", "the tab title from the heading"),
@@ -355,6 +366,9 @@ MUTANTS = [
     ("html", "<main> a live region again", '<main id="view" tabindex="-1"></main>', '<main id="view" tabindex="-1" aria-live="polite"></main>'),
     ("html", "no status line", '<div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>', ""),
     ("html", "a search bar back in the shell", '<a class="skip" href="#view">Aller au contenu</a>\n', '<a class="skip" href="#view">Aller au contenu</a>\n<form id="search" role="search"></form>\n'),
+    ("js", "the fiche has no heading while it loads", "    $view.innerHTML = `<div class=\"card fhead\"><h1>Fiche formation</h1>", "    $view.innerHTML = `<div class=\"card fhead\"><p>Fiche formation</p>"),
+    ("js", "the search heading after the first answer", "  if ($view.dataset.rendered !== \"carte\") $view.innerHTML = `${explorerViews(\"carte\")}<div class=\"card carte-head\"><h1>Rechercher une formation</h1>", "  if (false) $view.innerHTML = `${explorerViews(\"carte\")}<div class=\"card carte-head\"><h1>Rechercher une formation</h1>"),
+    ("js", "the loading heading over the server's summary", 'if (!$view.querySelector("[data-seo]")) {', "if (true) {"),
     ("js", "no search landmark", ' role="search" aria-label="Rechercher une formation"', ' aria-label="Rechercher une formation"'),
     ("html", "the 'Plus' menu not a landmark", '<nav id="more-menu" class="more-menu" aria-label="Plus de pages" hidden>', '<div id="more-menu" class="more-menu" hidden>'),
     ("html", "no page language", '<html lang="fr">', "<html>"),

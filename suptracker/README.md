@@ -3979,3 +3979,20 @@ is read on (its axis says « votre paire de spécialités, sinon officiel » whe
 always sits in the shaded region of its own zone (Codex). Plan B's « same
 or better position » compares positions with a 1e-9 tolerance on both sides (`planb.POS_EPS`, page `POS_EPS`): the server
 and the page compute the same share with different libm, and a 1-ulp difference must never decide a proposal.
+
+## Browser checks on a phone and a cold server (2026-11-19)
+
+Three browser-only checks (they need Playwright and are not run in CI) failed on `main`; each was diagnosed before any change.
+
+- **VI8 (search cards).** Not a site bug: the check counted the cards' rates per bac before they arrived. Since sprint
+  Vitesse they load just after the zones (« chargement… »). The check now waits for them; 9 estimated lines are starred on
+  the first 40 cards, as intended.
+- **A4 (one h1 per page).** A real gap on a cold server: the search page waited for `/api/carte` (~2.8 s) and the formation
+  page for its fiche (~3.8 s) before writing ANY heading. Both now write their heading and name the tab before their first
+  request (« Rechercher une formation », « Fiche formation » + « Chargement de la fiche… »). The server's own summary of an
+  indexable page (`[data-seo]`) is never replaced (`showError` keeps it). Red team A2 checks the order; three mutants (31/31).
+- **MB5 / X7 (formation page on a phone).** The tabs started at up to 1,552 px (limit: two screens of 727 px) and the page
+  measured 13.03 screens (limit 13). Nothing is removed. On a phone, the spacing of the profile bar, the header card, the
+  summary card, its tiles and the admits bar is tightened (one block at the END of style.css, so it wins over the base
+  rules). The access tile's sentence no longer repeats « pas des chances »: the summary's own last line says it. Tabs now at
+  1,376-1,444 px, X7 passes.

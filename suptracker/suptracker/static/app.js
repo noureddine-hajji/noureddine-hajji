@@ -1578,6 +1578,10 @@ async function viewCarte(dArg, mArg) {
   const loadCouche = () => cached("couche", () => api("/api/carte/couche").then(coucheDecode));
   loadCouche().catch(() => {});
   const recoP = recoLoad();                                          // V1: the State-label badges of the cards, beside the layer
+  // R10: the page's heading and a loading line at once, BEFORE the first answer (a cold server takes ~3 s: the page must
+  // never be without its heading meanwhile, WCAG 2.4.6; red team A4 on a fresh server)
+  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
   if (dArg === "t") { const d = FAC.types[mArg]; location.replace(`#/carte/${encodeURIComponent(d || "")}`); return; }
@@ -1586,9 +1590,6 @@ async function viewCarte(dArg, mArg) {
   carteUI.pendingShare = null;
   const sel = shareRaw != null ? carteShareRead(shareRaw, FAC).sel : carteSelection(FAC, dArg, mArg, store.get("carteSel", null));
   store.set("carteSel", sel);
-  // R10: the page's heading and a loading line at once (every diploma takes a few seconds the first time)
-  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
-  document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const P = bacProfile();                                                // sprint 21: no zone outside terminale
   const serie = P && ["bg", "bt", "bp"].includes(P.serie) ? P.serie : "bg";
   // R5: the profile's own codes ("sm" was never a profile value: a sans-mention student got no zone on the map)
@@ -2021,7 +2022,7 @@ function accesTile(r, d, prof, pr) {
     : profileRateTile(pr);
   const why = reo ? "Hors terminale : une estimation pour les candidats qui ne sont pas en terminale."
     : "Pour votre profil : le même taux, pour les candidats qui ont votre bac ou vos deux spécialités.";
-  return `<div class="sum-tile sum-acces">${off}${second}<p class="sum-explain">${ACCES_EXPLAIN} ${why} Des résultats passés, pas des chances.</p></div>`;
+  return `<div class="sum-tile sum-acces">${off}${second}<p class="sum-explain">${ACCES_EXPLAIN} ${why}</p></div>`;   // « pas des chances » closes the summary (its own last line)
 }
 // owner, 2026-11-18: the robustesse 2035 of the formation in L'essentiel: its score (median of the three scenarios) and its two
 // repères (within its filière, among all formations), always an estimation of the model; the detail stays in « Emploi et métiers »
@@ -2581,6 +2582,12 @@ function apprentiInsertionCard(a) {
 }
 
 async function viewFormation(cod, session) {
+  // the page is never without its heading while the fiche loads (~4 s on a cold server, red team A4); the server's own summary
+  // of an indexable page ([data-seo]) is kept as it is: showError relies on it (Codex)
+  if (!$view.querySelector("[data-seo]")) {
+    $view.innerHTML = `<div class="card fhead"><h1>Fiche formation</h1><p class="small muted" role="status">Chargement de la fiche…</p></div>`;
+    document.title = "Fiche formation — SupCompass";               // the tab names the page while it loads (R8 rule)
+  }
   const d = await api(`/api/formation/${encodeURIComponent(cod)}${session ? `?session=${session}` : ""}`);
   store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);

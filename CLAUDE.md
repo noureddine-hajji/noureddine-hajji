@@ -761,6 +761,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   same guard in `rapports.pick` / `pickRapport`); else the official rate. The official rate is still the one DISPLAYED as such;
   zone, incertain, large and Plan B's +15 read `taux_zone`; a note (`zoneAxisNote`) says what it was read on at every zone spot.
   Pair-read zones have their own back-test rows (« paire:… », `calibration.pair_persistence`). Red team `redteam_zone_paire.py` (ZP1-ZP8).
+- **Cold server and phone (2026-11-19).** A page writes its h1 and names the tab BEFORE its first request (search page, formation
+  page « Fiche formation » while loading; never over a `[data-seo]` summary): red team A2. The phone spacing of the formation
+  page lives in ONE block at the end of style.css (tabs within two screens, MB5; page <= 13 screens, X7). Browser checks wait
+  for what loads after the list (the cards' rates per bac, VI8), never a fixed delay.
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
