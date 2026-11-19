@@ -1,0 +1,70 @@
+# Owner, 2026-11-19: the BROWSER checks of every red team, every night, on main. The CI runners have no browser, so
+# these checks skip themselves in the "suptracker" workflow: phone screens, dark mode, headings, page lengths, the map,
+# the speed budgets. Here Chromium is installed and a skipped check is a FAILURE (scripts/browser_nightly.py).
+# On failure an issue « Contrôles navigateur en échec » is opened (or commented): GitHub e-mails the owner. When the
+# checks are green again, the issue is closed with a comment. Run it by hand: Actions > suptracker-browser > Run workflow.
+name: suptracker-browser
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+concurrency:
+  group: suptracker-browser
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: suptracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: suptracker/requirements-pipeline.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements-pipeline.txt
+      # the red teams run `node -e "require('playwright')"` from any folder: a global install, found through NODE_PATH;
+      # the version is the one the checks were written with
+      - name: Install Playwright and Chromium
+        run: |
+          npm install -g playwright@1.56.1
+          echo "NODE_PATH=$(npm root -g)" >> "$GITHUB_ENV"
+          npx -y playwright@1.56.1 install --with-deps chromium
+      - name: Browser checks
+        id: run
+        run: python scripts/browser_nightly.py --report "$RUNNER_TEMP/report.md"
+      - name: Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-report
+          path: ${{ runner.temp }}/report.md
+          if-no-files-found: ignore
+      - name: Open or update the issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Contrôles navigateur en échec"
+          body="$RUNNER_TEMP/body.md"
+          { echo "Les contrôles navigateur de la nuit ont échoué : $RUN_URL"; echo; cat "$RUNNER_TEMP/report.md" 2>/dev/null || echo "(pas de rapport : l'installation a échoué)"; } > "$body"
+          num=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$num" ]; then gh issue comment "$num" --body-file "$body"; else gh issue create --title "$title" --body-file "$body"; fi
+      - name: Close the issue when green again
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          num=$(gh issue list --state open --search "in:title \"Contrôles navigateur en échec\"" --json number --jq '.[0].number')
+          if [ -n "$num" ]; then gh issue close "$num" --comment "De nouveau vert : $RUN_URL"; fi

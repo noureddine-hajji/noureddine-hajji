@@ -3996,3 +3996,25 @@ Three browser-only checks (they need Playwright and are not run in CI) failed on
   summary card, its tiles and the admits bar is tightened (one block at the END of style.css, so it wins over the base
   rules). The access tile's sentence no longer repeats « pas des chances »: the summary's own last line says it. Tabs now at
   1,376-1,444 px, X7 passes.
+
+## Nightly browser checks (owner, 2026-11-19)
+
+The CI runners have no browser, so every red-team check that opens the site in Chromium (phone screens, dark mode,
+headings, page lengths, the map, the speed budgets) **skips itself** in the `suptracker` workflow. Three of them failed on
+`main` without anyone seeing it.
+
+- `scripts/browser_nightly.py` runs the browser checks of the 17 red teams that have one (`SUITE`), on the committed
+  warehouse, each through the red team's own `run()` (real warehouse, browser on, restricted to those checks when the red team
+  allows it). Any failure, any SKIPPED browser check, any browser check that did not run, a crash, or a missing Playwright,
+  Chromium or warehouse fails the run (exit 1). It writes a Markdown report.
+- `.github/workflows/suptracker-browser.yml` runs it every night at 02:23 UTC on `main`, and by hand (Actions >
+  suptracker-browser > Run workflow). It installs Node 22, Playwright 1.56.1 (the version the checks were written with,
+  found by `require` from any folder through `NODE_PATH`) and Chromium with its system libraries.
+  - On failure it opens the issue « Contrôles navigateur en échec » (or comments on it) with the report: GitHub e-mails the owner.
+  - When the checks are green again, it closes that issue with a comment.
+- Red team `redteam_navigateur.py` (BN1-BN5):
+  - every red team with a `--browser` switch is in the suite, and every listed check is a browser check (its title says
+    « browser », its body skips without one);
+  - the verdict (failure, skip, absence, crash) and the setup failures;
+  - the workflow's triggers, pinned version, `NODE_PATH`, issue steps, permissions and time limit;
+  - a mutation test (14/14).

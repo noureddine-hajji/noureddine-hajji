@@ -765,6 +765,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   page « Fiche formation » while loading; never over a `[data-seo]` summary): red team A2. The phone spacing of the formation
   page lives in ONE block at the end of style.css (tabs within two screens, MB5; page <= 13 screens, X7). Browser checks wait
   for what loads after the list (the cards' rates per bac, VI8), never a fixed delay.
+- **Nightly browser checks (owner, 2026-11-19).** CI has no browser: browser checks skip there. `scripts/browser_nightly.py` runs
+  them all (`SUITE`: 17 red teams) on the committed warehouse and FAILS on any skip; `.github/workflows/suptracker-browser.yml`
+  runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`), opens/comments the issue
+  « Contrôles navigateur en échec » on failure, closes it when green. A NEW browser check goes in `SUITE` (red team
+  `redteam_navigateur.py` BN1 fails otherwise: title says « browser », body skips without one).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
