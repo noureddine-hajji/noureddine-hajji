@@ -527,7 +527,8 @@ const AXE_PATH = __AXE__; const AXE = AXE_PATH ? require('fs').readFileSync(AXE_
   const b = await chromium.launch(); const problems = []; const hosts = new Set();
   const base = 'http://127.0.0.1:__PORT__', slugs = __SLUGS__;
   for (const [name, opts] of [['phone', { ...devices['Pixel 5'] }], ['wide-dark', { viewport: { width: 1280, height: 900 }, colorScheme: 'dark' }], ['w320', { viewport: { width: 320, height: 640 } }]]) {
-    const ctx = await b.newContext(opts); const p = await ctx.newPage();
+    // the site's CSP (script-src 'self') refuses the injected axe script: bypassed in THIS test context only, when axe runs
+    const ctx = await b.newContext({ ...opts, bypassCSP: !!AXE }); const p = await ctx.newPage();
     p.on('pageerror', (e) => problems.push(`${name} js ${e}`));
     p.on('request', (q) => { const h = new URL(q.url()).hostname; if (h !== '127.0.0.1') hosts.add(h); });
     for (const s of slugs) {
