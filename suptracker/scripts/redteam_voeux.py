@@ -112,6 +112,10 @@ def ref_reading(voeux: list[dict]) -> dict:
         if situated > 0 and cnt("cible") == 0:
             codes.append("aucune_cible")
         codes = codes or ["equilibree"]
+        # owner, 2026-11-19: a sure safety of the bac général and none « large » -> an information, after the others
+        sure_bg = [v for v in voeux if v["zone"] == "securite" and v["uncertain"] is False and v.get("serie") == "bg"]
+        if sure_bg and not any(v.get("large") for v in sure_bg):
+            codes.append("aucune_securite_large")
     return {"codes": codes, "sure": sure, "situated": situated}
 
 
@@ -257,14 +261,14 @@ def ui(js: str) -> tuple[bool, str]:
     trusted = all(x in store_ for x in ("/^\\d{1,9}$/", ".slice(0, this.MAX)", "new Set("))
     race = "if ($view.dataset.rendered !== marker) return;" in b
     # R4: the zone is drawn by zoneBadge, which guards an unknown zone ("non situé")
-    zone_guard = "${zoneBadge(v.zone, v.uncertain)}" in b and "if (!zz) return '<span class=\"badge\">non situé</span>';" in js
+    zone_guard = "${zoneBadge(v.zone, v.uncertain, v.large)}" in b and "if (!zz) return '<span class=\"badge\">non situé</span>';" in js
     rate_label = bool(re.search(r'const rate = serie === "bg" \? "Taux d\'accès" : "Accès estimé pour votre série";', b))
     words = all(w in b for w in ("pas des chances d'admission", "les vœux ne sont pas classés", "ne se combinent pas en une probabilité",
                                  "rien n'en est enregistré sur le serveur", "sans savoir de quelle formation il s'agit",
                                  "Accès estimé pour votre série"))
     msg = re.search(r"const VX_MSG = \{(.*?)\n\};", b, re.S)
     codes_ok = bool(msg) and all(f"{k}:" in msg.group(1) for k in ("aucune_securite", "majorite_ambitieuse", "hors_profil", "non_ouvert",
-                                                                  "non_situe", "aucune_cible", "equilibree"))
+                                                                  "non_situe", "aucune_cible", "equilibree", "aucune_securite_large"))
     no_chance = bool(msg) and not re.search(r"(?i)\bchances? de\b|probabilit|\d+\s*% de chances", msg.group(1))
     wired = all(x in js for x in ('if (a === "voeux") return await viewVoeux()', "${voeuButton(r.cod_aff_form, true)}", "voeux.render(); route();"))
     ok = not raw and trusted and race and zone_guard and rate_label and words and codes_ok and no_chance and wired
