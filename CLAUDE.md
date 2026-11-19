@@ -198,15 +198,16 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Four shard runners
-    (`pytest -n auto --dist loadfile --shard=i/4`, four since 2026-11-17 when two shards reached 41-45 min, files spread by `tests/durations.json`; a new test file goes in that table, with its
+  - CI: push on `main` only, branches through their PR, stale runs cancelled. Five shard runners
+    (`pytest -n auto --dist loadfile --shard=i/5`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way.
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
-  - Monitor: `suptracker-monitor.yml` every 6 h on `vars.SUPTRACKER_URL`, `DNT: 1` + robot UA (never counted).
+  - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every hour from January to March (the vœux peak), every 6 h
+    otherwise (red team S6), `DNT: 1` + robot UA (never counted).
 - **Du métier aux formations (sprint 12).**
   - The job page is the formation jobs card read backwards (same sheets, same link, same flag): red team M3 checks both ways.
   - The diploma level is the matched Onisep sheet's (`onisep.sheet_level`; 3-year BTS orthoprothésiste / podo-orthésiste are bac+3);
