@@ -301,7 +301,9 @@ def ci_ok(ci: str, mon: str) -> tuple[bool, str]:
     ser = re.search(r"^\s*- run: python -m pytest -q (tests/\S+(?: tests/\S+)*)\s*$", ci, re.M)
     timed = timed_test_files()
     serial = bool(par and ser) and all(f"--ignore={t}" in par.group(1) and t in ser.group(1).split() for t in timed)
-    sched = re.search(r"schedule:\s*\n\s*- cron:", mon) is not None and "vars.SUPTRACKER_URL" in mon and "scripts/monitor.py" in mon
+    # every hour from January to March (the vœux peak: a failure is known within the hour), every 6 hours otherwise
+    sched = (re.search(r"schedule:\s*\n\s*- cron:", mon) is not None and "vars.SUPTRACKER_URL" in mon and "scripts/monitor.py" in mon
+             and '- cron: "41 * * 1-3 *"' in mon and '- cron: "41 */6 * 4-12 *"' in mon)
     # CI speed-up: every shard 1..n of the matrix runs with --shard=i/n, and the "test" check fails when any job fails
     m = re.search(r"shard:\s*\[([\d, ]+)\]", ci)
     shards = [int(x) for x in m.group(1).split(",")] if m else []
@@ -370,11 +372,12 @@ CI_MUTANTS = [
     ("timing check run in parallel", " --ignore=tests/test_analytics.py", ""),
     ("Plan B latency check run in parallel", " --ignore=tests/test_planb.py", ""),
     ("a shard left out of the matrix", "shard: [1, 2, 3, 4]", "shard: [1, 2, 3]"),
-    ("shards split for another count", "--shard=${{ matrix.shard }}/4", "--shard=${{ matrix.shard }}/3"),
+    ("shards split for another count", "--shard=${{ matrix.shard }}/5", "--shard=${{ matrix.shard }}/3"),
     ("test check ignores the timed job", ' && test "${{ needs.timed.result }}" = success', ""),
     ("test check skipped when a shard fails", "    if: always()\n    needs: [shard, timed]", "    needs: [shard, timed]"),
 ]
-MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 */6 * * *\"\n", "")]
+MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 * * 1-3 *\"", "  manual:\n    - cron: \"41 * * 1-3 *\""),
+               ("no hourly check during the vœux peak", "    - cron: \"41 * * 1-3 *\"", "    - cron: \"41 */6 * 1-3 *\"")]
 
 
 @check("S7 mutation test: policy, slim view, audience count, workflows and monitor bugs are each caught")

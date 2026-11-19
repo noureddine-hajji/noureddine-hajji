@@ -3998,6 +3998,20 @@ Three browser-only checks (they need Playwright and are not run in CI) failed on
   rules). The access tile's sentence no longer repeats « pas des chances »: the summary's own last line says it. Tabs now at
   1,376-1,444 px, X7 passes.
 
+## Ready for the vœux peak (owner, 2026-11-19)
+
+From January to March the students create their vœux on Parcoursup: the traffic peak. Measured on 2026-11-19, then prepared:
+
+- **Server.** A fresh process imports the API in 0.4-0.7 s; its first formation page costs 0.65 s (of which 0.5 s builds the
+  apprenticeship offers once per process, `carte.apprentissage`, then cached), the next ones 0.3 s; `/readyz` 0.04 s,
+  `/api/meta` 0.5 s on a cold process, the keyword search 0.06 s. The live site answers formation pages from the CDN (0.1 s)
+  and was 2.8 s on a cold `/readyz`. No bottleneck worth a risky change: nothing was precomputed further.
+- **Monitoring.** `suptracker-monitor.yml` checks the live site **every hour from January to March** (`41 * * 1-3 *`) and every
+  6 hours the rest of the year (`41 */6 * 4-12 *`): a failure is known within the hour during the peak (red team S6 requires
+  both schedules; mutant « no hourly check during the vœux peak »).
+- **CI.** Five shard runners instead of four: the slowest of four took 34 of its 45 minutes; five bring each to about 27
+  (same greedy plan from `tests/durations.json`, `tests/test_shards.py` unchanged).
+
 ## Style B, « appli bento » (owner, 2026-11-19)
 
 The owner chose, among nine directions drawn on a canvas, the recommendation in style B: the same reading levels, a new look.
