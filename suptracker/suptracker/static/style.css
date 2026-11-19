@@ -732,3 +732,16 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
   .dd-panel { position: static; width: auto; max-width: none; min-width: 0; margin-top: 6px; box-shadow: none; max-height: 55vh; }
   .cs-km { flex: 1 1 120px; }
 }
+
+/* phone: the formation page's tabs within two screens even under the longest official titles (red team MB5). Nothing is
+   removed: the spacing of the profile bar and of the summary tiles is tightened. Kept LAST so it wins over the base rules of these blocks. */
+@media (max-width: 720px) {
+  .profile-bar { margin-top: 2px; padding-top: 0; padding-bottom: 0; row-gap: 0; }
+  .summary .sum-grid { gap: 8px; margin-top: 8px; }
+  .summary .sum-tile { padding: 10px; }
+  .summary .sum-note, .summary .sum-explain { line-height: 1.4; }
+  .summary .adm { gap: 4px; margin-top: 8px; }
+  .card.fhead { margin-bottom: 10px; }
+  .card.fhead, .card.summary { padding-top: 12px; padding-bottom: 12px; }
+  .summary > h2 { margin-bottom: 4px; }
+}

@@ -532,6 +532,9 @@ const PROFILES = { bg: { serie: "bg", spe1: "MATHS", spe2: "SES", mention: "b", 
       // owner, 2026-11-15: the list search is the map page; its cards are the search results
       await p.goto(base + "/#/s/bts");
       await p.waitForFunction(() => document.querySelectorAll("#carte-items .result.rc.rc-z").length > 0, null, { timeout: 60000 });
+      // sprint Vitesse: the cards' rates per bac arrive AFTER the zones (« chargement… »); count the lines once they are there
+      await p.waitForFunction(() => document.querySelectorAll("#carte-items .cbacs-wait").length === 0
+        && document.querySelectorAll("#carte-items .cb").length > 0, null, { timeout: 60000 });
       o[`${name}/${prof}`] = await p.evaluate(() => {
         const cards = [...document.querySelectorAll("#carte-items .result.rc")];
         const zoned = cards.filter((c) => c.classList.contains("rc-z"));
