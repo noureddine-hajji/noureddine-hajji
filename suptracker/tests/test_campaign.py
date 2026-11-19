@@ -95,7 +95,22 @@ def test_live_harvest_reads_first_the_fiches_without_the_newest_report(tmp_path)
 
 def test_a_harvest_reaches_the_site():
     wf = DATA_WF.read_text()
-    assert re.search(r"workflow_run:\n\s+workflows: \[suptracker-rapports\]\n\s+types: \[completed\]\n\s+branches: \[main\]", wf)
+    m = re.search(r"workflow_run:\n\s+workflows: \[([^\]]+)\]\n\s+types: \[completed\]\n\s+branches: \[main\]", wf)
+    assert m, "the data workflow must rebuild after the scheduled fetches"
+    rebuilt_after = {w.strip() for w in m.group(1).split(",")}
+    # every workflow that pushes a BUILD input to main is followed by a rebuild (open days were not: J9 red on every PR),
+    # and the harvest fingerprint covers what each one writes (else its fetch never triggers the build)
+    hfp = (ROOT / "scripts" / "harvest_fingerprint.sh").read_text()
+    for name, paths in {"suptracker-rapports": ["data/rapports/harvest", "data/fiches/criteres.csv"],
+                        "suptracker-jpo": ["data/jpo/onisep", "data/jpo/sites/extraits.csv.gz", "data/jpo/concours/extraits.csv.gz"],
+                        "suptracker-aides": ["data/aides"], "suptracker-transports": ["data/transports/tarifs_tgv.csv.gz"],
+                        "suptracker-rncp": ["data/rncp/export-fiches-csv.zip"]}.items():
+        assert name in rebuilt_after, name
+        assert all(p in hfp for p in paths), name
+    for f in DATA_WF.parent.glob("suptracker-*.yml"):
+        if "git push" in f.read_text() and f.stem not in ("suptracker-data", "suptracker-calendrier"):
+            assert f.stem in rebuilt_after, f"{f.stem} pushes to main but no rebuild follows it"
+    assert wf.count("bash scripts/harvest_fingerprint.sh") == 2            # the check and the value written read ONE list
     assert "github.event.workflow_run.conclusion == 'success'" in wf
     fp = re.search(r"fp=\$\( \{ jq.*?\| sha256sum", wf, re.S).group(0)
     assert "data/rapports/harvest" in fp                                  # new reports alone publish a new warehouse
