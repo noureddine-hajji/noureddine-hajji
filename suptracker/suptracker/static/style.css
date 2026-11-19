@@ -815,6 +815,7 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 .summary :is(.info, .warn, .dbl-est) { --ink: var(--paper-ink); --muted: var(--paper-muted); --accent: var(--paper-accent); --line: var(--paper-line);
   --surface: var(--paper-surface); }
 .summary .info { color: var(--paper-ink); }
+.summary .zone-pill { color: var(--paper-surface); }   /* a zone pill on the band (the zone legend) keeps its white text on the zone fill */
 .summary .sum-tile, .summary .sum-tile:hover { --ink: var(--paper-ink); --muted: var(--paper-muted); --accent: var(--paper-accent); --line: var(--paper-line);
   --surface: var(--paper-surface); background: var(--paper-surface); color: var(--paper-ink); }
 .summary .sum-tile:hover, .summary .sum-tile:focus-visible { box-shadow: inset 0 0 0 3px var(--paper-accent); }
