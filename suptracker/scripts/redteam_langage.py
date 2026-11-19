@@ -453,7 +453,8 @@ const { chromium, devices } = require('playwright');
     if (name === 'fiche') {
       await page.click('.zone-legend summary');
       const open = await page.evaluate(() => document.querySelector('.zone-legend').open && document.querySelectorAll('.zone-legend li').length);
-      if (open !== 4) problems.push('fiche: zone legend does not open on four zones');
+      // the four zones, then the « sécurité large » nuance (owner, 2026-11-19)
+      if (open !== 5) problems.push(`fiche: zone legend opens on ${open} items, expected the four zones and « sécurité large »`);
     }
   }
   await b.close();

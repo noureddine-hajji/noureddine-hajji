@@ -336,7 +336,7 @@ SPOTS = (r"zoneBadge\(f\.zone, f\.uncertain, f\.large\)\}\$\{zoneAxisNote\(f\)\}
          r"else if \(target && target\.taux_zone_source\) el\.querySelector\(\"\.sum-note\"\)\.textContent")
 
 
-@check("ZP7 page and plumbing: the note (escaped, served rate, session) at every zone spot, L'essentiel, legend, method; views; docs; tests")
+@check("ZP7 page and plumbing: the note (escaped, served rate, session) at every zone spot, L'essentiel, legend, method, the chart on the zone's rate; views; docs; tests")
 def zp7(c: Ctx):
     import shutil
     import subprocess
@@ -359,6 +359,12 @@ process.stdout.write(JSON.stringify([zoneAxisNote({ taux_zone_source: { taux: 62
     missing = [p for p in SPOTS if not re.search(p, c.js)]
     if missing:
         bad.append(f"spots {missing}")
+    # Codex (PR #87): the positioning chart places each point on the rate its zone is read on, else a point sits in the
+    # shaded region of another zone; its axis says which rate it is
+    sc = SL.top(c.js, "scatter")
+    if ("const tx = tauxZone(f);" not in sc or "zoneShape(f.zone, x(tx)," not in sc or "x(f.taux_acces_ens)" in sc
+            or "Taux d'accès de votre paire de spécialités, sinon officiel" not in sc):
+        bad.append("the positioning chart does not place the points on the zone's rate")
     if "${esc(ZONE_AXIS)}" not in SL.top(c.js, "zoneLegend"):
         bad.append("the legend does not say what the zone reads")
     api = (ROOT / "suptracker" / "api.py").read_text()
@@ -399,6 +405,7 @@ MUTANTS = [
     ("js", "page claims the bucket", "  if (rows.some((x) => x.key == null && !x.autres)) return null;", "", "ZP6"),
     ("js", "note unescaped", "(rapport public ${esc(s.session)})", "(rapport public ${s.session})", "ZP7"),
     ("js", "note on a spot missing", "${zoneBadge(f.zone, f.uncertain, f.large)}${zoneAxisNote(f)}", "${zoneBadge(f.zone, f.uncertain, f.large)}", "ZP7"),
+    ("js", "chart on the official rate", "const tx = tauxZone(f);", "const tx = f.taux_acces_ens;", "ZP7"),
     ("js", "legend silent", "<p class=\"small muted\">${esc(ZONE_AXIS)}</p>", "", "ZP7"),
 ]
 

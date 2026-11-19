@@ -3630,14 +3630,16 @@ function scatter(F, onPick) {
     g += `<text x="${x(k * 25)}" y="${H - B + 16}" text-anchor="middle">${k * 25}</text>`;
   }
   const se = (F[0] && F[0].serie) || "bg";
-  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">${se === "bg" ? "Taux d'accès officiel (phase principale, %)" : `Accès estimé pour les ${SERIE_SHORT[se]} (%)`}</text>`;
+  // owner, 2026-11-19 (Codex): the x axis is the rate the zone is read on, so a point always sits in the region of its own zone
+  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">${se === "bg" ? (F.some((f) => f.taux_zone_source) ? "Taux d'accès de votre paire de spécialités, sinon officiel (%)" : "Taux d'accès officiel (phase principale, %)") : `Accès estimé pour les ${SERIE_SHORT[se]} (%)`}</text>`;
   g += `<text transform="translate(12 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">Part des ${SERIE_SHORT[se]} admis ${avg ? "sous votre moyenne (estim.)" : "avec votre mention ou moins"}</text>`;
   F.forEach((f, i) => {
-    if (f.taux_acces_ens == null || pos(f) == null) return;
+    const tx = tauxZone(f);
+    if (tx == null || pos(f) == null) return;
     // R4 (review): the three zones are filled shapes (paler when uncertain or under 10 admits), every other reading an empty ring
     const c = ZONES[f.zone].color, filled = ZONE_FILLED.includes(f.zone), weak = f.uncertain || f.small_cohort;
-    if (f.spos && f.spos.width >= 0.01) g += `<line x1="${x(f.taux_acces_ens)}" x2="${x(f.taux_acces_ens)}" y1="${y(f.spos.bounds[0])}" y2="${y(f.spos.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
-    g += zoneShape(f.zone, x(f.taux_acces_ens), y(pos(f)), f.home_academie ? 6 : 4.5, `data-i="${i}" fill="${filled ? c : "var(--surface)"}"${filled && weak ? ' fill-opacity=".35"' : ""} stroke="${c}" stroke-width="${filled ? (f.home_academie ? 3 : 1.5) : 2}" style="cursor:pointer"`).replace(/\/>$/, () => `><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} % · ${f.position && avg ? "sous votre moyenne (estim.)" : "avec votre mention ou moins"} ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></${f.zone === "cible" ? "rect" : f.zone === "ambitieux" ? "path" : "circle"}>`);
+    if (f.spos && f.spos.width >= 0.01) g += `<line x1="${x(tx)}" x2="${x(tx)}" y1="${y(f.spos.bounds[0])}" y2="${y(f.spos.bounds[1])}" stroke="${c}" stroke-width="2" opacity=".55"/>`;
+    g += zoneShape(f.zone, x(tx), y(pos(f)), f.home_academie ? 6 : 4.5, `data-i="${i}" fill="${filled ? c : "var(--surface)"}"${filled && weak ? ' fill-opacity=".35"' : ""} stroke="${c}" stroke-width="${filled ? (f.home_academie ? 3 : 1.5) : 2}" style="cursor:pointer"`).replace(/\/>$/, () => `><title>${esc(f.etablissement)} — ${esc(f.filiere)}\nTaux d'accès ${fmt(f.taux_acces_ens)} %${f.taux_zone_source ? ` · ${f.taux_zone_source.source === "autres" ? "ligne « autres paires »" : "votre paire"} ${pct1(f.taux_zone_source.taux)}` : ""} · ${f.position && avg ? "sous votre moyenne (estim.)" : "avec votre mention ou moins"} ${f.spos ? `${pc1(f.spos.bounds[0])}–${pc1(f.spos.bounds[1])} des ${SERIE_SHORT[f.serie || "bg"]}` : `${pc1(f.cdf)} (tous bacs)`}\n${ZONES[f.zone].label}${f.uncertain ? " (incertain)" : ""}${f.small_cohort ? " · moins de 10 admis bac général" : ""}</title></${f.zone === "cible" ? "rect" : f.zone === "ambitieux" ? "path" : "circle"}>`);
   });
   setTimeout(() => document.querySelectorAll("svg.positioning [data-i]").forEach((el) => { el.onclick = () => onPick(F[+el.dataset.i]); }));
   return `<svg class="chart positioning" viewBox="0 0 ${W} ${H}" style="max-width:760px" role="img" aria-label="Où je me situe : chaque formation selon son taux d'accès et la part des admis avec votre mention ou moins, sa forme et sa couleur donnent sa zone">${g}</svg>`;
