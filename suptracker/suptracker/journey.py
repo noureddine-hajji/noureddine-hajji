@@ -584,6 +584,11 @@ ZONE_RULES = {
     "ambitieux_cdf": 0.15,       # expected mention in the bottom 15 % of the admitted cohort
     "securite_access": 70.0,     # taux d'accès >= 70 %
     "securite_cdf": 0.50,        # >= half the admits at or below the expected mention
+    # owner, 2026-11-19: « sécurité large », a nuance of a SURE sécurité (never a zone of its own): a very high access rate AND,
+    # even at the LOWER end of the 95 % interval of the share, a clear majority of admits at or below the student's level.
+    # Chosen on the 2024-2025 back-test before use (README): 60 % of the sure safeties, 90 % still « sécurité » the next campaign
+    "large_access": 85.0,        # taux d'accès >= 85 %
+    "large_cdf_lo": 0.60,        # lower bound of the share's interval >= 60 %
 }
 
 
@@ -596,6 +601,14 @@ def _zone(taux: float, cdf: float) -> str:
     if taux >= z["securite_access"] and cdf >= z["securite_cdf"]:
         return "securite"
     return "cible"
+
+
+def is_large(zone: str, uncertain: bool, taux: float | None, ci_lo: float | None) -> bool:
+    """« Sécurité large »: a sure sécurité (not uncertain) whose access rate and the LOWER bound of whose share both clear the
+    large thresholds. The bound, not the point: the nuance must hold in the least favourable reading the interval allows."""
+    z = ZONE_RULES
+    return (zone == "securite" and not uncertain and taux is not None and ci_lo is not None
+            and taux >= z["large_access"] and ci_lo >= z["large_cdf_lo"])
 
 
 def classify_zone(taux: float | None, cdf: float | None, lo: float | None, hi: float | None) -> dict:
@@ -876,13 +889,19 @@ def stage2(con, dkey: str | None, mention: str, type_key_: str, academie: str | 
                     "ferme": eligible is False, "fragile": serie != "bg" and (x["serie_candidates"] or 0) < MIN_SERIES_CANDIDATES},
         })
         x.pop("s_sum")
+        lo_u = lo_zone
         if moyenne is not None and w_u != w and x["zone"] not in ("non_ouvert", "indetermine") and not x["uncertain"]:
             rd_u = zone_reading(serie, mention, k_top - (1.0 - w_u) * k_band, n, margins, w_u, camps)
             alt = classify_zone(x["taux_acces_ens"], rd_u["cdf_zone"], *rd_u["ci_zone"])["zone"]
             x["uncertain"] = alt != x["zone"]                # R5: the within-band hypothesis decides the zone
+            lo_u = rd_u["ci_zone"][0]
         if x["rate_fragile"] and x["zone"] != "non_ouvert":
             # 2 techno candidates, 2 proposals = "100 %": a handful of candidates cannot set a zone
             x["zone"], x["uncertain"] = "indetermine", True
+        # « sécurité large » (owner, 2026-11-19): read under BOTH within-band hypotheses, like « incertain »; bac général only
+        # (its thresholds were chosen on the bac général back-test; bac techno / pro read an ESTIMATED access rate)
+        x["large"] = (serie == "bg" and is_large(x["zone"], x["uncertain"], x["taux_acces_ens"], lo_zone)
+                      and is_large(x["zone"], x["uncertain"], x["taux_acces_ens"], lo_u))
         for g in (1, 2, 3):
             x.pop(f"lib_grp{g}"), x.pop(f"ran_grp{g}")
         out.append(x)

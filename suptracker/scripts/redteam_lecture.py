@@ -58,7 +58,7 @@ GRID = (8.0, 9.2, 9.9, 10.0, 11.0, 11.9, 12.0, 12.6, 13.0, 13.9, 14.4, 15.3, 16.
 GRID_SHORT = (9.2, 11.0, 12.6, 13.9, 15.3, 17.2)
 TWINS = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "erf", "withinBand", "bandParam", "localAverage",
          "vxProfile", "ZONE_RULES", "MIN_BOUNDS_N", "ZONE_RANK", "SAME_ZONE_ACCESS_GAIN", "VX_SITUATED", "wilsonCI", "zoneOf",
-         "isNum", "classifyZone", "seriesPos", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
+         "isNum", "classifyZone", "isLarge", "seriesPos", "lire", "relire", "relireVue", "lectureOf", "stage2Local", "readList", "voeuxLocal",
          "pbUsable", "whyBetter", "pbOrder", "capPerEtab", "POOL_KEYS", "unpool", "planBLocal", "completerLocal", "carteZonesLocal")
 DISPATCH = r"""
 const F = { stage2Local, voeuxLocal, planBLocal, completerLocal, carteZonesLocal, readList, seriesPos };
@@ -186,7 +186,7 @@ def close(a, b) -> bool:
     return a == b
 
 
-ROW_KEYS = ("zone", "uncertain", "cdf", "cdf_ci", "spos", "position", "repere")
+ROW_KEYS = ("zone", "uncertain", "large", "cdf", "cdf_ci", "spos", "position", "repere")
 
 
 def diff_rows(js_rows, py_rows, keys, key="cod_aff_form"):
@@ -359,7 +359,7 @@ def planb_targets(c: Ctx) -> list[tuple[str, str, str | None]]:
 
 
 PB_KEYS = ("status", "reason", "n_candidates", "hidden_paid", "include_paid")
-VIEW_KEYS = ("cod_aff_form", "zone", "uncertain", "position", "bounds", "why", "km", "paid", "taux_acces_ens")
+VIEW_KEYS = ("cod_aff_form", "zone", "uncertain", "large", "position", "bounds", "why", "km", "paid", "taux_acces_ens")
 
 
 def amplified(fn):
@@ -450,7 +450,7 @@ def lists(c: Ctx) -> list[list[str]]:
     return c.memo(("lists", c.quick), build)
 
 
-VX_ROW = ("status", "zone", "uncertain", "position", "bounds", "position_moyenne")
+VX_ROW = ("status", "zone", "uncertain", "large", "position", "bounds", "position_moyenne")
 
 
 def voeux_ok(c: Ctx, js: str, evaluate=VX.evaluate) -> tuple[bool, str]:
@@ -470,7 +470,7 @@ def voeux_ok(c: Ctx, js: str, evaluate=VX.evaluate) -> tuple[bool, str]:
     zl = []
     for _ in range(200):
         vx = [{"status": rng.choice(["ok", "ok", "ok", "absente"]), "zone": rng.choice([*VX.SITUATED, "indetermine", "non_ouvert", None]),
-               "uncertain": rng.random() < 0.3} for _ in range(rng.randint(0, 10))]
+               "uncertain": rng.random() < 0.3, "large": rng.random() < 0.5} for _ in range(rng.randint(0, 10))]
         zl.append(vx)
     out = run_node(js, cases + [{"fn": "readList", "args": [v]} for v in zl])
     if out is None:
@@ -577,6 +577,8 @@ def carte_ok(c: Ctx, js: str, zones=CA.zones) -> tuple[bool, str]:
         if got.get("zones") != want["zones"]:
             diff = [k for k in want["zones"] if (got.get("zones") or {}).get(k) != want["zones"][k]][:3]
             bad.append((dip, serie, prof, diff))
+        elif got.get("larges") != want.get("larges"):           # owner, 2026-11-19: the « sécurité large » nuance, the same
+            bad.append((dip, serie, prof, "larges", sorted(set(got.get("larges") or []) ^ set(want.get("larges") or []))[:3]))
     return not bad and n > 0, f"{len(oracles)} map answers, {n} zones compared; problems {bad[:3]}"
 
 

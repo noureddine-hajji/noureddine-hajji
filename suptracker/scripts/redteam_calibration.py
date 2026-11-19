@@ -195,7 +195,11 @@ def ref_zone(years, sessions, m, taux):
     if g >= 10:
         p = min(max(p, k_lo / g), k_hi / g)
         lo, hi = J.wilson(k_lo, g)[0], J.wilson(k_hi, g)[1]
-    return J.classify_zone(taux, p, lo, hi)
+    z = J.classify_zone(taux, p, lo, hi)
+    # owner, 2026-11-19: « sécurité large », re-derived here from its stated rule (a sure sécurité, access >= 85 %, the LOWER
+    # bound of the share >= 60 %), not by calling journey.is_large
+    z["large"] = z["zone"] == "securite" and not z["uncertain"] and taux >= 85.0 and lo is not None and lo >= 0.60
+    return z
 
 
 def ref_persistence(data):
@@ -212,7 +216,7 @@ def ref_persistence(data):
                 o = ref_zone(years, [t], m, years[t]["taux"])
                 if o is None:
                     continue
-                k = (z["zone"], bool(z["uncertain"]))
+                k = ("securite_large", False) if z["large"] else (z["zone"], bool(z["uncertain"]))
                 out[k][0] += 1
                 out[k][1] += o["zone"] == z["zone"]
     return {k: (n, cc / n) for k, (n, cc) in out.items()}
@@ -226,7 +230,10 @@ def k5(c: Ctx):
             or ref[k][0] != got[k][0] or abs(ref[k][1] - got[k][1]) > 1e-9}
     pub = {(z, u): r for z, u, n, r in c.persist}
     sure_lt_unsure = all(pub[(z, False)] > pub[(z, True)] for z in ("securite", "cible", "ambitieux") if (z, False) in pub and (z, True) in pub) if c.real else True
-    return not diff and sure_lt_unsure, f"differ {list(diff.items())[:2]}; published {pub}; uncertain zones less stable {sure_lt_unsure}"
+    # the « sécurité large » nuance must be measured, and (real data) more stable than the other sure safeties: else it says nothing
+    large_ok = (("securite_large", False) in pub and pub[("securite_large", False)] > pub.get(("securite", False), 1.0)) if c.real else True
+    return not diff and sure_lt_unsure and large_ok, (f"differ {list(diff.items())[:2]}; published {pub}; uncertain zones less stable "
+                                                      f"{sure_lt_unsure}; sécurité large measured and more stable {large_ok}")
 
 
 @check("K6 the API attaches the forecast of the student's mention and the stability of the row's own zone")
@@ -248,7 +255,7 @@ def k6(c: Ctx):
             continue
         n += 1
         row = f.loc[x["cod_aff_form"]]
-        if abs(r["taux_lo"] - row.taux_lo) > 1e-9 or abs(r["cdf_hi"] - row.cdf_hi) > 1e-9 or r["zone_confirmed"] != pub.get((x["zone"], bool(x["uncertain"]))):
+        if abs(r["taux_lo"] - row.taux_lo) > 1e-9 or abs(r["cdf_hi"] - row.cdf_hi) > 1e-9 or r["zone_confirmed"] != pub.get(("securite_large", False) if x.get("large") else (x["zone"], bool(x["uncertain"]))):
             bad.append(x["cod_aff_form"])
     head = res.get("calibration") or {}
     con.close()

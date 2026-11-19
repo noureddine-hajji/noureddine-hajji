@@ -150,7 +150,7 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
 
 
 def _view(f: dict, reason: str | None, km: float | None = None) -> dict:
-    keys = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain",
+    keys = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain", "large",
             "taux_acces_ens", "taux_acces_all", "serie", "internat", "distance", "apprentissage")
     v = {k: f.get(k) for k in keys}
     v["complement"] = clean_complement({"lib_comp_voe_ins": f.get("complement"), "g_ea_lib_vx": f.get("etablissement"),

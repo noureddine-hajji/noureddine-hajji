@@ -748,6 +748,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   néo-bacheliers" = counts add up, >= 10 admits, `acc_at > acc_neobac` (tie = no label), one rule in `admis.py`, added to NEW dicts
   (search results are shared index documents: never modify them). Apprenticeship offers and non-situated vœux are never labelled.
   Own tokens `--adm-*`. Red team `redteam_admis.py` (H1-H6).
+- **« Sécurité large » (owner, 2026-11-19).** A NUANCE of a sure sécurité, never a zone (five zones were tested and rejected:
+  less stable, little information). Bac général only: access >= `large_access` (85) AND the LOWER bound of the share's 95 %
+  interval >= `large_cdf_lo` (0.60), under both within-band hypotheses with an average (`journey.is_large`, twin `isLarge` in
+  `lire`). Its stability is measured on its own back-test row (`calibration.persistence_key`, « securite_large »), never typed.
+  Shown wherever a zone shows (pill/badge third argument, never on an uncertain one), its own mark and help from ZONE_RULES;
+  Mes vœux counts it and informs (never alerts) when no sure safety is large; the « aucune sécurité » alert and Compléter are
+  unchanged. Red team `redteam_securite_large.py` (SL1-SL8); LE compares the flag, K re-derives the split.
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

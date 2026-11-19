@@ -50,6 +50,7 @@
  "tests/test_robustesse_formations.py": 70,
  "tests/test_scale.py": 129,
  "tests/test_securite.py": 165,
+ "tests/test_securite_large.py": 240,
  "tests/test_semblables.py": 264,
  "tests/test_seo.py": 177,
  "tests/test_series.py": 164,

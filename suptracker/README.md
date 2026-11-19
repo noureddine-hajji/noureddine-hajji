@@ -3917,3 +3917,34 @@ real data check prints the share of formations with a fare station nearby and ch
 station). Data refresh: the transports workflow runs on the 3rd of every month; the data workflow rebuilds the
 warehouse when the fetched files changed (they are in its fingerprint). Fuel medians on the 2026-11-18 file: gazole 2.139 € (9,331
 stations), SP95-E10 1.977 € (7,521), SP95 2.020 € (2,637).
+
+## Sécurité large (owner, 2026-11-19)
+
+**Why.** A zone analysis on the real warehouse (bac général, 12,660 formations, 2024 and 2025 back-tests) showed that five
+zones instead of three would cost stability (77 % of zones confirmed by the next campaign → 67-69 %) for little information
+(+3 points of the next campaign's zone explained), because the access rate moves 6 points a year (median), 15 at the 80th
+percentile. One split was robust: the safest safeties. The owner chose a NUANCE of « sécurité » rather than a new zone.
+
+**Rule** (`journey.is_large`, `ZONE_RULES.large_access` / `large_cdf_lo`, twin `isLarge`): a SURE sécurité (not uncertain),
+bac général only (the thresholds were chosen on its back-test; bac techno / pro read an estimated access rate), with an
+access rate >= 85 % AND the LOWER bound of the share's 95 % interval >= 60 % (the share of admits at or below the student's
+level, read on the series bounds when they exist). With an average, the bound must hold under both within-band hypotheses,
+as « incertain » does. Variants tested before the choice (share of sure safeties covered / still « sécurité » the next
+campaign): point 85/75 64 % / 89.9 %, bound 85/75 45 % / 90.0 %, bound 90/75 37 % / 92.9 %, **bound 85/60 60 % / 90.1 %**,
+bound 80/75 53 % / 87.4 %. The other sure safeties: 64-65 %.
+
+**Stability, measured apart.** The back-test (`calibration.zone_persistence`) keys a large safety on its own row
+(`persistence_key`: « securite_large »), so the stability the page prints beside a large safety is its own: 90.3 % of 12,762
+readings stayed « sécurité » the next campaign, against 65.6 % of 9,038 for the other sure safeties (2026-11-19 warehouse).
+No rate is typed in the page: it is read from `mart.zone_persistence`.
+
+**Page.** The pill and the badge say « sécurité large » (the sécurité circle inside a ring: shape and name, never the colour
+alone) with their own help (written from `ZONE_RULES`), on every place a zone shows: Où je me situe, Mes vœux (and the
+comparator), Plan B, Compléter ma liste, L'essentiel, the search and map cards, the shared list. The legend explains it. Mes
+vœux counts them in the sécurité tile; when a sure safety exists and none is large, an INFORMATION (never an alert) says so.
+The « aucune sécurité sûre » alert and « Compléter ma liste » are unchanged.
+
+Red team `redteam_securite_large.py` (SL1-SL8): an independent oracle of the rule on real stage-2 rows (both hypotheses, the
+real `zone_reading`), the page twin, the list's reading, the stability re-derived and served, the page texts and every zone
+spot, the plumbing, the real-data coverage and published stability, a mutation test. Red team LE (the twins) compares the flag
+in every row, view and map answer; red team K (calibration) re-derives the split.

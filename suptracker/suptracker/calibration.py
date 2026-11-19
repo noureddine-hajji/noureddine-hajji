@@ -177,7 +177,14 @@ def zone_of(years: dict, sessions: list[int], mention: str, taux: float | None) 
     if neo and bg / neo < J.MIN_GENERAL_SHARE:
         return None                       # stage 2 marks it "non ouvert": no repère, no stability
     rd = J.zone_reading("bg", mention, k, n, [r["margins"] for r in rows])
-    return J.classify_zone(taux, rd["cdf_zone"], *rd["ci_zone"])
+    z = J.classify_zone(taux, rd["cdf_zone"], *rd["ci_zone"])
+    return {**z, "large": J.is_large(z["zone"], z["uncertain"], taux, rd["ci_zone"][0])}
+
+
+def persistence_key(z: dict) -> tuple[str, bool]:
+    """The stability row a zone reads: a « sécurité large » (owner, 2026-11-19) has its own, measured apart from the other
+    sure safeties; every other zone, its (zone, incertain) row."""
+    return ("securite_large", False) if z.get("large") else (z["zone"], bool(z.get("uncertain")))
 
 
 def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
@@ -197,7 +204,7 @@ def zone_persistence(data: dict, targets=(2024, 2025)) -> dict:
                 o = zone_of(years, [t], m, nxt["taux"])
                 if o is None:
                     continue
-                key = (z["zone"], bool(z["uncertain"]))
+                key = persistence_key(z)
                 out[key][0] += 1
                 out[key][1] += o["zone"] == z["zone"]
     return {k: (n, c / n) for k, (n, c) in out.items() if n}
@@ -306,7 +313,7 @@ def attach(con, res: dict, mention: str, continuous: bool = False) -> dict:
         if r is None or f.get("zone") not in ZONES_WITH_REPERE:
             f["repere"] = None
             continue
-        n, rate = zp.get((f["zone"], bool(f.get("uncertain"))), (None, None))
+        n, rate = zp.get(persistence_key(f), (None, None))
         f["repere"] = {**r, "zone_confirmed": rate, "zone_n": n}
         if continuous:
             f["repere"].update({"cdf_hat": None, "cdf_lo": None, "cdf_hi": None, "zone_confirmed": None, "zone_n": None,

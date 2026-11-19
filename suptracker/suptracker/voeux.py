@@ -22,7 +22,7 @@ from . import planb as PB
 MAX_VOEUX = 10                         # Parcoursup: 10 vœux (sub-vœux aside)
 CODE = re.compile(r"^\d{1,9}$")
 SITUATED = ("securite", "cible", "ambitieux", "hors_profil")
-ROW_KEYS = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain",
+ROW_KEYS = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain", "large",
             "taux_acces_ens", "taux_acces_all", "serie", "select_form", "rate_fragile", "rare_for_serie",
             "small_cohort", "home_academie", "internat", "apprentissage", "distance", "fiche_url",
             "lat", "lon")                      # owner, 2026-11-15: the distance from the profile's town, computed in the browser
@@ -144,6 +144,7 @@ def read_list(voeux: list[dict]) -> dict:
     n = {k: z.count(k) for k in (*SITUATED, "indetermine", "non_ouvert")}
     n["non_situe"] = sum(1 for v in voeux if v["status"] != "ok")
     sure = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain"))
+    large = sum(1 for v in voeux if v.get("zone") == "securite" and not v.get("uncertain") and v.get("large"))
     situated = sum(n[k] for k in SITUATED)
     msgs = []
     if voeux:
@@ -161,7 +162,10 @@ def read_list(voeux: list[dict]) -> dict:
             msgs.append(("info", "aucune_cible"))
         if not msgs:
             msgs.append(("info", "equilibree"))
-    return {"n": len(voeux), "zones": n, "securite_sure": sure, "situes": situated,
+        if sure and not large:
+            # owner, 2026-11-19: a sure safety exists, but none is « large » (information, never an alert)
+            msgs.append(("info", "aucune_securite_large"))
+    return {"n": len(voeux), "zones": n, "securite_sure": sure, "securite_large": large, "situes": situated,
             "messages": [{"niveau": a, "code": b} for a, b in msgs]}
 
 
