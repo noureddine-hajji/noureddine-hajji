@@ -3895,6 +3895,20 @@ A borrowed block keeps its later studies (a CMI's licence scored through its mas
 notice names the neighbour and gives the reason in two sentences (<= 30 words with a long label). Red team RF16 (crafted rule,
 real: the rule names only unscored formations; 7 mutants), RF15.
 
+**Apprenticeship offers read through their RNCP certification (owner, 2026-11-20; model 2027.7-f).** The 476 cartographie offers
+« FP - … » left without a block are titres professionnels of the Ministère du Travail and private RNCP certifications (Onisep
+publishes 91 titre professionnel sheets and none for the private ones). `robustesse_formation.cert_blocks` reads such an offer
+through the RNCP fiche of the SAME title in the France Compétences export (`cert_title`: the closed prefix « FP - », then « Titre
+professionnel - » / « Formation professionnelle - », brackets and level dropped; `cert_key` = format only, never fuzzy), only when
+EVERY ACTIVE fiche of that title carries the SAME ROME codes (`cert_fiches`): 20 titles have several certifiers with other codes
+(« Gestionnaire de paie »: four) and get no figure, an expired fiche alone neither. Its jobs are the Onisep jobs of those ROME codes
+(`core.onisep_metier_rome`): method « certification », observed links x 0.5 like a family route (a ROME sheet groups more jobs than
+a diploma's own list), skills from the fiche's ROME codes, no filière repère, the national repère PLACED among the SIES formations'
+own scores (never added), `certification` = the fiches, codes and title; the fiche is linked only when the title has one. Read
+after the offers' own Onisep sheets. The search card says « Métiers lus par les codes de la certification du même intitulé (France
+Compétences) : lien moins sûr ». 296 offers (281 with a score). Red team RF17 (crafted titles, ambiguity, expired fiches, real
+re-derivation with its own title reading, order, card; 7 mutants, RF8 104/104).
+
 **Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
 ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five

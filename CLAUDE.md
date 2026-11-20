@@ -759,6 +759,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   block (another diploma, the engineering cycle is not automatic); `absent` (`ABSENT_RULES`) sends the reason, the card and
   L'essentiel say it, never a figure; only « Formation Bac + 3 / + 4 » (never + 5). A borrowed block keeps its national repère's
   `apres_etudes`; the neighbour notice is two sentences (<= 30 words). RF15, RF16.
+  RNCP certification (owner, 2026-11-20, model 2027.7-f): an offer « FP - … » with no Onisep sheet is read through the RNCP fiche
+  of the SAME title (`cert_title` / `cert_key`, format only), only when every ACTIVE fiche of that title has the SAME ROME codes
+  (several certifiers with other codes = no figure; expired alone = none); jobs = Onisep jobs of those codes, method « certification »
+  (x 0.5), no filière repère, national repère placed, said on the search card (« lien moins sûr »). RF17.
 - **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in
