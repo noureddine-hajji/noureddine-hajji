@@ -572,13 +572,20 @@ def g12(c: Ctx):
     if r.status_code != 200:
         return False, f"status {r.status_code}"
     ok, detail = observatoire_ok(r.text, "https://supcompass.test/observatoire", api_d)
-    # hostile labels in every table
+    # hostile labels in every table: rows built here, so every table has one whatever the warehouse holds (a synthetic one
+    # follows no type over every campaign)
     evil = json.loads(json.dumps(api_d))
-    for key in ("tendances", "proximite", "filles", "bacs", "mentions"):
-        for x in evil.get(key, [])[:1]:
-            x["diplome"] = HOSTILE
-    for a in evil["academies"][:1]:
-        a["academie"] = HOSTILE
+    s0, s1 = evil["sessions"][0], evil["session"]
+    evil["tendances"] = [{"diplome": HOSTILE, "serie": [{"session": s0, "formations": 30, "voeux_par_place": 9.5, "taux_median": 60.0},
+                                                       {"session": s1, "formations": 31, "voeux_par_place": 10.5, "taux_median": 58.0}]}]
+    evil["academies"] = [{"cle": "x", "academie": HOSTILE, "lat": 45.0, "lon": 4.0, "metropole": True}]
+    evil["demande"] = {evil["tous"]: {"x": {"formations": 9, "voeux": 900, "places": 100, "voeux_par_place": 9.0}}}
+    evil["proximite"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "meme_academie": 300, "part_meme_academie": 60.0}]
+    evil["filles"] = [{"diplome": HOSTILE, "formations": 9, "admis": 500, "admises": 250, "voeux": 900, "voeux_filles": 450, "part_admis": 50.0, "part_voeux": 50.0}]
+    evil["bacs"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "general": 300, "techno": 150, "pro": 50,
+                     "part_general": 60.0, "part_techno": 30.0, "part_pro": 10.0}]
+    evil["mentions"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "lecture": {"parts": {}, "tb_plus": 20.0},
+                         "avant": {"session": s0, "tb_plus": 25.0}}]
     raw = "<script>alert" in (SEO.observatoire_body(evil) + SEO.json_ld(SEO.observatoire_ld(evil, "u", "s")))
     view = c.js[c.js.index("async function viewObservatoire("):]
     keep = ('if (!$view.querySelector("[data-seo]")) $view.innerHTML = ' in view
