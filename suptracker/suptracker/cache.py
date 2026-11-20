@@ -39,6 +39,7 @@ POLICY = [
     (r"/docs|/docs/oauth2-redirect|/redoc|/openapi\.json", SHORT, "FastAPI's API documentation"),
     (r"/formation/[^/]+", PAGE, "indexable formation page (sprint 17): kept by the CDN for one deployment, revalidated by browsers"),
     (r"/metier/[^/]+", PAGE, "indexable job page (sprint 17)"),
+    (r"/observatoire", PAGE, "indexable Observatoire page (owner, 2026-11-20): the national overviews, no parameter"),
     (r"/sitemap\.xml", PAGE, "sitemap (sprint 17)"),
     (r"/robots\.txt", PAGE, "robots.txt (sprint 17)"),
     (r"/api/lycees", None, "sets its own day-long public cache"),

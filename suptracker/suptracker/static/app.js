@@ -4804,9 +4804,11 @@ function obsMentions(d) {
     <p class="muted small">Admis néo-bacheliers seulement. Les mentions ne sont pas publiées par série de bac. Calcul sur les effectifs publiés, additionnés par type ; le nombre de formations d'un type change d'une année à l'autre.</p></section>`;
 }
 async function viewObservatoire() {
-  $view.innerHTML = `<div class="card"><h1>Observatoire des formations</h1><p class="muted">Chargement des chiffres…</p></div>`;
+  // owner, 2026-11-20: opened at /observatoire, the server's summary ([data-seo]) stays until the page replaces it
+  if (!$view.querySelector("[data-seo]")) $view.innerHTML = `<div class="card"><h1>Observatoire des formations</h1><p class="muted">Chargement des chiffres…</p></div>`;
   const d = await api("/api/observatoire");
-  if (!/^#\/observatoire/.test(location.hash)) return;
+  // still on this page: the hash route, or the indexable address /observatoire (no hash yet)
+  if (!/^#\/observatoire/.test(location.hash) && !(!location.hash.slice(1) && /^\/observatoire\/?$/.test(location.pathname))) return;
   const first = d.sessions[0], last = d.session, T = d.tendances;
   if (!obsUI.types) obsUI.types = OBS_DEFAULT.filter((t) => T.some((x) => x.diplome === t));
   const types = [d.tous, ...T.map((t) => t.diplome), ...Object.keys(d.demande).filter((k) => k !== d.tous && !T.some((t) => t.diplome === k)).sort((a, b) => a.localeCompare(b, "fr"))]
@@ -5457,6 +5459,7 @@ function pathRoute(pathname, hash) {
   if (f) return `/f/${f[1]}`;
   const m = /^\/metier\/(MET\.\d{1,6})\/?$/.exec(pathname);
   if (m) return `/metiers/${m[1]}`;
+  if (/^\/observatoire\/?$/.test(pathname)) return "/observatoire";                     // owner, 2026-11-20: indexable
   const i = /^\/(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres|robustesse)\/?$/.exec(pathname);   // sprint Q1, Q4
   if (i) return `/info/${i[1]}`;
   return null;
