@@ -227,7 +227,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Jobs without a usable Onisep ROME code are linked by NAME (Dares title, else France Travail appellation, only ROME codes
     the Dares tables know): the Onisep code always wins, one method per job, flagged "moins sûr" with the method's check
     (right code for n of N jobs whose Onisep code is known) measured at build, never hard-coded. Red team N8.
-  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None).
+  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None; several
+    codes as a tuple, `override_codes`). Owner, 2026-11-20: MET.942 → H3402+H3403, MET.8064 and MET.117 → H1210, MET.402 → H1209,
+    MET.442 (conseiller énergie) stays None.
 - **Employment to 2030 (sprint 14).**
   - "Les métiers en 2030" annex 4 tables A/B, per FAP-2009 87-group (79 published): values as published, the
     imbalance as the RANGE of the 5 scenarios plus the reference; a fixed sign rule reads it; never a chance or a promise.

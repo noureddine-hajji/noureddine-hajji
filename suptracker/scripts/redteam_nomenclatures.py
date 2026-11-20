@@ -351,9 +351,10 @@ def ref_title_links(c: Ctx):
         for m in jobs:
             if not mine[m] and hits[m] and m not in OWNER_OVERRIDES and not any(r[0] == m for r in rows):
                 rows |= {(m, r, method, None) for r in hits[m]}
-    for m, (rome, why) in OWNER_OVERRIDES.items():      # the owner's list is an input, applied as written
-        if m in jobs and not (own.get(m, set()) & usable) and rome in usable:
-            rows.add((m, rome, "analogie", why))
+    for m, (codes, why) in OWNER_OVERRIDES.items():     # the owner's list is an input, applied as written
+        for rome in ((codes,) if isinstance(codes, str) else tuple(codes or ())):
+            if m in jobs and not (own.get(m, set()) & usable) and rome in usable:
+                rows.add((m, rome, "analogie", why))
     if not app:
         check = check[:1]
     return rows, check, usable, own
@@ -364,8 +365,9 @@ def n8(c: Ctx):
     exp_rows, exp_check, usable, own = ref_title_links(c)
     got_rows = c.table("SELECT met_id, rome, methode, motif FROM core.nomen_metier_rome_titre")
     # every owner override is applied as written: a code replaces the name link, None leaves the job unlinked
-    over_bad = [m for m, (rome, _) in OWNER_OVERRIDES.items()
-                if c.real and {(r, x) for mm, r, x, _ in got_rows if mm == m} != ({(rome, "analogie")} if rome else set())]
+    over_bad = [m for m, (codes, _) in OWNER_OVERRIDES.items()
+                if c.real and {(r, x) for mm, r, x, _ in got_rows if mm == m}
+                != {(r, "analogie") for r in ((codes,) if isinstance(codes, str) else tuple(codes or ()))}]
     got_check = sorted(c.table("SELECT * FROM core.nomen_titre_controle"))
     override = sorted({r[0] for r in got_rows if own.get(r[0], set()) & usable})
     unusable = sorted({r[1] for r in got_rows if r[1] not in usable})
@@ -422,7 +424,7 @@ def n7(c: Ctx):
 
     def rebuilt(apply):
         """Build the reference with a seeded bug into a copy of the warehouse, then run the data checks on it."""
-        saved = {k: getattr(NM, k) for k in ("TITLE_LINK_OVERRIDES", "title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
+        saved = {k: getattr(NM, k) for k in ("TITLE_LINK_OVERRIDES", "override_codes", "title_links", "read_rome_appellations", "for_metier", "ENCODING", "QUALIF_STATUS", "fold", "read_rome_fap2009", "precision", "for_romes", "_qualifs", "read_fap2021")}
         import tempfile
         tmp = Path(tempfile.gettempdir()) / f"nomen_mutant_{c.db.stem}.duckdb"   # never inside the repository
         try:
@@ -491,6 +493,9 @@ def n7(c: Ctx):
         ("'toutes qualifications' from 9 classes", lambda: setattr(NM, "_qualifs", lambda qs, lab: {**orig_q(qs, lab), "toutes": len(qs) >= 9})),
         ("FAP-2021 families with a lowercase suffix dropped", lambda: setattr(NM, "read_fap2021", lambda p, f=NM.read_fap2021: [r for r in f(p) if not r[0][-1].islower()])),
     ]
+    if c.real:   # the owner's multi-code overrides exist only on real jobs (MET.942: H3402 + H3403)
+        data_mutants.append(("several override codes cut to the first", lambda: setattr(
+            NM, "override_codes", lambda codes, f=NM.override_codes: f(codes)[:1])))
     for name, apply in data_mutants:
         if not rebuilt(apply):
             missed.append(name)

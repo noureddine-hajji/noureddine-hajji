@@ -223,7 +223,24 @@ TITLE_LINK_OVERRIDES = {
     "MET.301": ("K1405", "même corps diplomatique que « diplomate » et « ambassadeur », que l'Onisep relie à cette fiche ROME"),
     "MET.60": (None, "les intitulés trouvés sont des homonymes (flux logistiques, bien-être) ; le ROME 4.0 classe ce métier "
                      "dans une fiche que les tables de la Dares ne relient pas encore"),
+    # Owner-confirmed (2026-11-20): jobs with no Onisep ROME code and no exact title anywhere, whose ROME 4.0 sheet is a new
+    # one the Dares tables do not link yet; the nearest linked sheet, by analogy (several codes = every one shown)
+    "MET.942": (("H3402", "H3403"), "le répertoire de France Travail range « technicien traitement de surface » et « technicien "
+                                    "traitement thermique » dans la fiche H3402 ; le métier contrôle aussi des traitements thermiques (H3403)"),
+    "MET.8064": ("H1210", "fiche des techniciens de laboratoire et d'expérimentation en recherche ; la fiche plus précise des "
+                          "techniciens biologistes en recherche (H1224) n'est pas encore reliée par la Dares"),
+    "MET.117": ("H1210", "le métier fait le lien entre le bureau d'études et la fabrication et construit puis teste des prototypes : "
+                         "fiche des techniciens d'études, de recherche et développement"),
+    "MET.402": ("H1209", "conception d'appareils miniaturisés mêlant micromécanique et microélectronique : fiche des techniciens "
+                         "d'études et développement en électronique"),
+    "MET.442": (None, "sa fiche « Conseiller énergie habitat » (F1114) n'est pas encore reliée par la Dares et aucune fiche "
+                      "voisine ne convient"),
 }
+
+
+def override_codes(codes) -> tuple:
+    """An override's code(s): one code, several (a tuple) or None (the job stays unlinked)."""
+    return () if codes is None else (codes,) if isinstance(codes, str) else tuple(codes)
 
 
 def find_sources(data_dir: Path | None = None) -> dict:
@@ -273,9 +290,10 @@ def title_links(jobs: dict, own: dict, usable: set, dares: dict, appellations: d
         if own.get(mid, set()) & usable:
             continue                                   # the Onisep code always wins
         if mid in TITLE_LINK_OVERRIDES:                # owner-confirmed correction of a homonym
-            rome, why = TITLE_LINK_OVERRIDES[mid]
-            if rome in usable:
-                rows.append((mid, rome, "analogie", why))
+            codes, why = TITLE_LINK_OVERRIDES[mid]
+            for rome in override_codes(codes):
+                if rome in usable:
+                    rows.append((mid, rome, "analogie", why))
             continue
         for method, index in zip(METHODS, (dares, appellations)):
             found = set().union(*[index.get(fold(x), set()) for x in labels]) if labels else set()

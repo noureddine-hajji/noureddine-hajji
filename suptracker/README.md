@@ -3855,11 +3855,14 @@ payload lists it (`herite`), so the search card prints the repères on an appren
 mêmes pour toutes les formations qui y préparent. » The offer still has no zone, no rate and no SIES figure. Red team RF13
 (crafted cases, the real offers re-derived, the order, the card; 8 mutants).
 
-**Jobs without data (not changed).** The five jobs behind most of the 328 (conseiller énergie, technicien de recherche en
-biologie, prototypiste en agroéquipement, microtechnicien, technicien en traitement des matériaux) have no ROME code at Onisep and
-no exact title in the Dares tables or the ROME appellations; their closest ROME 4.0 sheets (F1114, H1224…) are new ones the
-official Dares tables do not link to FAP or ISCO yet. A code by analogy needs the owner's confirmation
-(`nomenclatures.TITLE_LINK_OVERRIDES`).
+**Jobs without data: four codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
+code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
+ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for four of them
+(`nomenclatures.TITLE_LINK_OVERRIDES`, method « analogie », the reason printed on the job page): technicien/ne en traitement des
+matériaux → H3402 + H3403 (an override may now carry several codes, `override_codes`), technicien/ne de recherche en biologie →
+H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209. Conseiller/ère énergie stays unlinked
+(no neighbouring sheet fits; its only diploma, the BTS ESF, keeps no score). Red team N8 checks every override as written,
+several codes included; N7 seeds « several override codes cut to the first » on real data.
 
 ## The formation page, tidied (owner, 2026-11-18)
 
