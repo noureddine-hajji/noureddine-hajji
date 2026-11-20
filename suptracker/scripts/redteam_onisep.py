@@ -304,6 +304,22 @@ def spelling_problems(c: Ctx, table: dict) -> list:
 
 @check("O6 BTS spelling rules: each names ONE real BTS sheet, is needed, is used on real data, keeps its own option")
 def o6(c: Ctx):
+    # on a fixture (not the real files), the rules' sheets and the one a dead-rule mutant needs are crafted, removed after
+    crafted = []
+    if not c.real:
+        have = {rfold(v[0]) for v in c.ref["forms"].values()}
+        for i, t in enumerate(sorted(set(ON.BTS_SPELLING.values()) | {"BTS management commercial opérationnel"})):
+            if rfold(t) not in have:
+                c.ref["forms"][f"FOR.RTS{i}"] = (t, "brevet de technicien supérieur", None)
+                crafted.append(f"FOR.RTS{i}")
+    try:
+        return _o6(c)
+    finally:
+        for k in crafted:
+            del c.ref["forms"][k]
+
+
+def _o6(c: Ctx):
     bad = spelling_problems(c, ON.BTS_SPELLING)
     used = Counter(rule for (_f, _p, fids, rule) in c.links.values() if fids)
     # mutants of the table: two options swapped, a rule pointing to a missing sheet, a rule the general rules make dead
@@ -331,7 +347,17 @@ def o5(c: Ctx):
             ("RT-3", "BUT", "Gestion des entreprises et des administrations parcours démonstration"), ("RT-4", "Licence", "Droit"),
             ("RT-5", "Licence", "Agencement"), ("RT-6", "BTS", "Métiers de l'audio-visuel opt : métiers du son")]
     rows = c.latest_forms + edge
-    want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
+    # RT-6 needs its spelling rule's sheet: a fixture without it gets a crafted one (removed after the test)
+    t6 = REF_SPELLING["Métiers de l'audio-visuel opt : métiers du son"]
+    added = not any(rfold(f[1]) == rfold(t6) for f in forms)
+    if added:
+        forms = forms + [("FOR.RT6", t6, "brevet de technicien supérieur", None, None)]
+        c.ref["forms"]["FOR.RT6"] = (t6, "brevet de technicien supérieur", None)
+    try:
+        want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
+    finally:
+        if added:
+            del c.ref["forms"]["FOR.RT6"]
     saved = {k: getattr(ON, k) for k in ("match", "index", "level_rank", "LEVEL", "key", "sheet_level")}
 
     def links_now():
