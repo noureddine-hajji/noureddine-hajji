@@ -429,7 +429,7 @@ def page(c: Ctx, data):
     prog = helpers + "\n" + svg + "\n" + view + """
 const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 global.location = { hash: "#/observatoire" };
-const $view = { innerHTML: "", dataset: {}, querySelectorAll: () => [] };
+const $view = { innerHTML: "", dataset: {}, querySelectorAll: () => [], querySelector: () => null };
 global.document = { getElementById: () => null };
 const api = async () => data;
 const nextSteps = (k) => `<section data-next="${k}"></section>`;
