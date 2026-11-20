@@ -590,7 +590,7 @@ ABSENT_RULES = ("bachelor_ecole_ingenieur",)
 
 def absent(rec: dict) -> dict | None:
     """The reason a formation has no block when a fixed rule names it, else None (the page then says « pas d'estimation »)."""
-    if (rec.get("fili") or "") == "Ecole d'Ingénieur" and re.match(r"Formation Bac \+ \d", rec.get("fil_lib_voe_acc") or ""):
+    if (rec.get("fili") or "") == "Ecole d'Ingénieur" and re.match(r"Formation Bac \+ [34]\b", rec.get("fil_lib_voe_acc") or ""):
         return {"absent": "bachelor_ecole_ingenieur"}
     return None
 
@@ -632,8 +632,9 @@ def neighbours(sies: list[tuple], rows: dict) -> dict:
             b["score"], b["score_national"] = None, None
         b["repere"] = None
         v = b.get("score_national")
+        apres = (b.get("repere_national") or {}).get("apres_etudes")      # the borrowed score keeps its later studies (a master)
         b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),
-                                                                    "part": REPERE_SHARE, "apres_etudes": None}
+                                                                    "part": REPERE_SHARE, "apres_etudes": apres}
         b["voisine"] = {"regle": rule, "code": src if rule == "cmi_licence" else None, "formations": len(cands),
                         "libelle": next((l for c, *_r, l in sies if c == src), None)}
         out[cod] = b

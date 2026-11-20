@@ -3870,6 +3870,8 @@ four explicit rules for labels Onisep writes otherwise: the two « Techn. en én
 BPJEPS mention « activités physiques pour tous » (replaced by « multi-activités physiques ou sportives pour tous », which Onisep
 says succeeds it) and « Judo-Jujitsu » (« activités de judo-jujitsu »): 62 more SIES formations (rule `titre_national_ecriture_*`).
 Red team O8 (one sheet of its type, needed, used, its own option; 3 table mutants); O7 seeds « title folded before its brackets ».
+A CS, BPJEPS or DEUST with no national sheet keeps its own rule (`cs_sans_fiche`, `bpjeps_sans_fiche`, `deust_sans_fiche`), so its
+page shows the jobs card « L'Onisep ne publie pas de fiche pour ce diplôme », like a BTS without a sheet (owner, 2026-11-20: kept).
 
 **Neighbour formations (owner, 2026-11-20; model 2027.6-f).** A formation with no outlets of its own that leads DIRECTLY to a
 scored one borrows its block (`robustesse_formation.neighbours`), one explicit rule each (`NEIGHBOUR_RULES`), validated by the owner:
@@ -3888,7 +3890,10 @@ bachelor (32 of the 77 labels name a specialty at all). Every scored engineering
 shares ONE family block (66.8), and a bachelor is another diploma whose route to the engineering cycle is not automatic: it borrows
 nothing. `robustesse_formation.absent` (one rule per case, `ABSENT_RULES`, no warehouse change) sends `{"absent": rule}` in place of
 the block, and the formation card and L'essentiel say why (« Onisep ne publie pas les métiers de ce bachelor »), never a figure; an
-unknown reason reads « pas d'estimation ». Red team RF16 (crafted rule, real: the rule names only unscored formations; 6 mutants).
+unknown reason reads « pas d'estimation ». Only « Formation Bac + 3 » and « + 4 » are bachelors (a « Bac + 5 » is not: review).
+A borrowed block keeps its later studies (a CMI's licence scored through its masters still says « après un master »), and the
+notice names the neighbour and gives the reason in two sentences (<= 30 words with a long label). Red team RF16 (crafted rule,
+real: the rule names only unscored formations; 7 mutants), RF15.
 
 **Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new

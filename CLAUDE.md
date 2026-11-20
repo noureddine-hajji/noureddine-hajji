@@ -196,7 +196,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - National titles (owner, 2026-11-20): CS, DEUST, BPJEPS (« Autre formation ») and the apprenticeship offers' CS/CSA, DEUST,
     BPJEPS and titres professionnels (`match_offer`) take the Onisep sheet of the SAME type and exact title (`national_key`: format
     only, brackets dropped on the RAW title); a FCIL never; `NATIONAL_SPELLING` = explicit rules for renamed/abbreviated titles
-    (rule `titre_national_ecriture_*`). Red teams O7, O8.
+    (rule `titre_national_ecriture_*`); one with no sheet keeps `<type>_sans_fiche` and shows the « pas de fiche » jobs card
+    (owner, 2026-11-20: kept). Red teams O7, O8.
   - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
 - **Scale (sprint 10).**
   - Every route has a policy in `cache.py` (red team S1). A route that records an audience event or carries a personal list is
@@ -756,7 +757,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   ENS D1/D2 were refused (weak links). RF15.
   No score on purpose (owner, 2026-11-20): an engineering school's bachelor (« Formation Bac + 3 / 4 ») never borrows the engineer's
   block (another diploma, the engineering cycle is not automatic); `absent` (`ABSENT_RULES`) sends the reason, the card and
-  L'essentiel say it, never a figure. RF16.
+  L'essentiel say it, never a figure; only « Formation Bac + 3 / + 4 » (never + 5). A borrowed block keeps its national repère's
+  `apres_etudes`; the neighbour notice is two sentences (<= 30 words). RF15, RF16.
 - **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in

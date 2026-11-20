@@ -1115,12 +1115,15 @@ SOURCE_MUTANTS = [
     ("js", "card line reads unknown levels", "const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];", "const a = R && (ROB_CARD[R.filiere[cod]] || R.filiere[cod]), b = R && ROB_CARD[R.national[cod]];", "RF11"),
     ("js", "card line without estimation", 'Robustesse 2035 des métiers visés ${estimTag("", false, true)} :', "Robustesse 2035 des métiers visés :", "RF11"),
     ("robf", "neighbour confidence not lowered", 'k["valeur"] = round(k["valeur"] * VOISIN_WEIGHT, 3)', 'k["valeur"] = round(k["valeur"], 3)', "RF15"),
-    ("robf", "neighbour kept in its filière ranking", '        b["repere"] = None\n        v = b.get("score_national")\n        b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),\n                                                                    "part": REPERE_SHARE, "apres_etudes": None}\n        b["voisine"]',
-     '        v = b.get("score_national")\n        b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),\n                                                                    "part": REPERE_SHARE, "apres_etudes": None}\n        b["voisine"]', "RF15"),
+    ("robf", "neighbour kept in its filière ranking", '        b["repere"] = None\n        v = b.get("score_national")\n        apres =',
+     '        v = b.get("score_national")\n        apres =', "RF15"),
     ("robf", "CMI linked to any licence of the mention", "fi == \"Licence\" and u and u == uai and fold(fl) == fold(fil)", "fi == \"Licence\" and fold(fl) == fold(fil)", "RF15"),
     ("robf", "disagreeing neighbours tolerated", "        if len(dumped) != 1:\n            continue\n        b = json.loads(dumped.pop())", "        b = json.loads(dumped.pop())", "RF15"),
     ("js", "borrowed block not said on the card", "  const vois = v ? `<p", "  const vois = false ? `<p", "RF15"),
-    ("robf", "engineering diploma counted as a bachelor", 're.match(r"Formation Bac \\+ \\d"', 're.match(r"Formation"', "RF16"),
+    ("robf", "engineering diploma counted as a bachelor", 're.match(r"Formation Bac \\+ [34]\\b"', 're.match(r"Formation"', "RF16"),
+    ("robf", "bac + 5 counted as a bachelor", 're.match(r"Formation Bac \\+ [34]\\b"', 're.match(r"Formation Bac \\+ \\d"', "RF16"),
+    ("robf", "borrowed block loses its later studies", '"part": REPERE_SHARE, "apres_etudes": apres}', '"part": REPERE_SHARE, "apres_etudes": None}', "RF15"),
+    ("js", "neighbour notice in one long sentence", '"}. ${ROBF_VOISINE[v.regle] ? `Pourquoi : ', '"} : ${ROBF_VOISINE[v.regle] ? `', "RF15"),
     ("robf", "bachelor rule on every filière", '(rec.get("fili") or "") == "Ecole d\'Ingénieur" and ', "", "RF16"),
     ("api", "reason not sent", ' or ROBF.absent(rec),', ',', "RF16"),
     ("js", "card silent on the reason", "    return a ? `<div", "    return false ? `<div", "RF16"),
@@ -1356,7 +1359,8 @@ def oracle_neighbours(sies, rows):
         v = round(src["confiance"]["valeur"] * 0.8, 3)
         nat = src.get("score_national") if v >= 0.4 else None
         out[cod] = {"valeur": v, "score": src["score"] if v >= 0.4 else None,
-                    "national": None if nat is None else oracle_place(nat, pool)}
+                    "national": None if nat is None else oracle_place(nat, pool),
+                    "apres": None if nat is None else (src.get("repere_national") or {}).get("apres_etudes")}
     return out
 
 
@@ -1377,7 +1381,8 @@ def rf15(c: Ctx):
             ("C4", "Autre formation", "C.M.I - Cursus Master en Ingénierie", "Physique", "U7", "CMI faible"),
             ("L4", "Licence", "Licence", "Physique", "U7", "Licence faible"),
             ("X1", "Autre formation", "FCIL", "Hôtellerie restauration", "U4", "FCIL")]                         # no rule
-    rows = {"L1": blk(60), "L3": blk(70), "B1": blk(55), "B2": blk(55), "L4": blk(50, conf=0.45)}
+    rows = {"L1": dict(blk(60), repere_national={"niveau": "moyen", "apres_etudes": "master"}), "L3": blk(70), "B1": blk(55),
+            "B2": blk(55), "L4": blk(50, conf=0.45)}
     for i in range(30):
         rows[f"P{i}"] = blk(40 + i)
     got = F.neighbours(sies, rows)
@@ -1390,6 +1395,8 @@ def rf15(c: Ctx):
             bad.append(f"crafted {k}: {g.get('confiance')}, {g.get('score')}, {g.get('repere_national')} vs {e}")
         if g.get("repere") is not None or not (g.get("voisine") or {}).get("regle"):
             bad.append(f"crafted {k}: filière repère or rule")
+        if (g.get("repere_national") or {}).get("apres_etudes") != e["apres"]:
+            bad.append(f"crafted {k}: the borrowed block's later studies (« après un master ») are lost")
     if (got.get("C1") or {}).get("voisine", {}).get("code") != "L1":
         bad.append("the CMI does not name its licence")
     rows2 = dict(rows, B2=blk(56))                     # two BTS MHR blocks differ: the mise à niveau borrows nothing
@@ -1406,10 +1413,15 @@ def rf15(c: Ctx):
     vb = dict(full, repere=None, voisine={"regle": "cmi_licence", "code": "123", "libelle": "Licence " + HOSTILE, "formations": 1})
     prog = RB.STUB + "const H = 18;\n" + "\n".join(RB.top(c.js, n) for n in NAMES) + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-      process.stdout.write(JSON.stringify([formationRobustesseCard(D.v), formationRobustesseCard(D.f)]));"""
-    out = RB.node(prog, {"v": vb, "f": full})
+      process.stdout.write(JSON.stringify([formationRobustesseCard(D.v), formationRobustesseCard(D.f), formationRobustesseCard(D.l)]));"""
+    longue = dict(vb, voisine=dict(vb["voisine"], libelle="Université Paris-Saclay - Faculté des sciences d'Orsay · Informatique"))
+    out = RB.node(prog, {"v": vb, "f": full, "l": longue})
     if out is not None:
-        cv, cf = out
+        cv, cf, cl = out
+        notice = re.sub(r"<[^>]+>", "", re.search(r'<p class="small warn">(.*?)</p>', cl, re.S).group(1)) if '<p class="small warn">' in cl else ""
+        longest = max((len(x.split()) for x in re.split(r"[.!?;]\s", notice) if x.strip()), default=99)
+        if longest > 30:
+            bad.append(f"the neighbour notice has a sentence of {longest} words with a long label (CLAUDE.md: <= 30)")
         if "Repère emprunté à la formation voisine" not in cv or "Trop peu de formations comparables" in cv or HOSTILE in cv \
                 or "#/f/123" not in cv or "emprunté" in cf:
             bad.append("the formation card does not say (or wrongly says) the block is borrowed, or leaks the label unescaped")
@@ -1436,8 +1448,9 @@ def rf15(c: Ctx):
             bad.append(f"real: {len(got_r)} borrowed vs {len(exp_r)} expected, e.g. {sorted(set(got_r) ^ set(exp_r))[:3]}")
         for k, e in exp_r.items():
             g = got_r.get(k) or {}
-            if g.get("confiance", {}).get("valeur") != e["valeur"] or g.get("score") != e["score"]:
-                bad.append(f"real {k}: confidence or score")
+            if g.get("confiance", {}).get("valeur") != e["valeur"] or g.get("score") != e["score"] \
+                    or (g.get("repere_national") or {}).get("apres_etudes") != e["apres"]:
+                bad.append(f"real {k}: confidence, score or later studies")
                 break
         real = f"; real: {len(got_r)} formations borrow a neighbour's block ({sum(1 for v in got_r.values() if v.get('score'))} with a score)"
     return not bad, f"differences {bad[:4]}{real}"
@@ -1450,6 +1463,7 @@ def rf16(c: Ctx):
     cases = [({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation Bac + 3"}, "bachelor_ecole_ingenieur"),
              ({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation Bac + 4"}, "bachelor_ecole_ingenieur"),
              ({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation d'ingénieur Bac + 5"}, None),
+             ({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation Bac + 5"}, None),        # not a bachelor (review)
              ({"fili": "Ecole de Commerce", "fil_lib_voe_acc": "Formation Bac + 3"}, None),
              ({"fili": "Licence", "fil_lib_voe_acc": "Informatique"}, None), ({}, None)]
     for rec, exp in cases:

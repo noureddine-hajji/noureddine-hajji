@@ -4499,7 +4499,7 @@ function formationRobustesseCard(r, pub) {
   const qn = r.repere_national;
   // owner, 2026-11-20: a borrowed block names its neighbour and why, before anything else
   const v = r.voisine;
-  const vois = v ? `<p class="small warn">Repère emprunté à la formation voisine${v.libelle ? ` « ${esc(v.libelle)} »` : ""}${v.code ? ` (<a href="#/f/${esc(v.code)}">voir sa fiche</a>)` : ""} : ${esc(ROBF_VOISINE[v.regle] || "")}. Cette formation n'a pas de métiers propres dans les sources ; la confiance est abaissée et elle n'est pas classée dans sa filière.</p>` : "";
+  const vois = v ? `<p class="small warn">Repère emprunté à la formation voisine${v.libelle ? ` « ${esc(v.libelle)} »` : ""}${v.code ? ` (<a href="#/f/${esc(v.code)}">voir sa fiche</a>)` : ""}. ${ROBF_VOISINE[v.regle] ? `Pourquoi : ${esc(ROBF_VOISINE[v.regle])}. ` : ""}Cette formation n'a pas de métiers propres dans les sources ; la confiance est abaissée et elle n'est pas classée dans sa filière.</p>` : "";
   const nat = s && qn && qn.niveau ? `<p><strong>${esc(ROBF_REPERE_NATIONAL[qn.niveau] || "")}</strong> ${estimTag(`parmi ${robNum(qn.n_formations)} formations, sur les métiers visés et leur diversité`)}${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}</p>` : "";
   const list = (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const seul = r.diplome_seul && r.diplome_seul.n ? `<h3>Avec ce diplôme seul</h3><p class="small">${esc(robJobs(r.diplome_seul))}${r.diplome_seul.mediane != null ? ` (score médian de ces métiers : ${robNum(r.diplome_seul.mediane)} sur 100)` : ""}. Ce sont les métiers de la fiche Onisep du diplôme, sans études de plus.</p>` : "";
