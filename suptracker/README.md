@@ -3871,9 +3871,9 @@ ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the ne
 (`nomenclatures.TITLE_LINK_OVERRIDES`, method « analogie », the reason printed on the job page): technicien/ne en traitement des
 matériaux → H3402 + H3403 (an override may now carry several codes, `override_codes`), technicien/ne de recherche en biologie →
 H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209, conseiller/ère énergie → F1103 (« Contrôle et diagnostic technique du bâtiment », where
-France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). Three more after the national titles linked new BTS and CS: chargé/e de post-production → L1302
-(France Travail's « chargé de postproduction », written without the hyphen), technicien/ne plasturgiste and régleur/euse
-plasturgie → H3201 (their own sheet H3202 has no ISCO code in the tables). Red team N8 checks every override as written,
+France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). One more after the national titles linked new BTS: chargé/e de post-production → L1302 (France
+Travail's « chargé de postproduction », written without the hyphen). Technicien/ne plasturgiste and régleur/euse plasturgie
+keep their own Onisep code H3202 (the Onisep code always wins), which has a FAP family but no ISCO code in the tables: no score. Red team N8 checks every override as written,
 several codes included; N7 seeds « several override codes cut to the first » on real data.
 
 ## The formation page, tidied (owner, 2026-11-18)

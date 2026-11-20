@@ -238,10 +238,6 @@ TITLE_LINK_OVERRIDES = {
                          "« conseiller énergie habitat » (F1114) n'est pas encore reliée par la Dares"),
     "MET.7984": ("L1302", "le répertoire de France Travail range « chargé de postproduction » dans cette fiche (écrit sans trait "
                           "d'union, d'où l'absence de lien par le nom)"),
-    "MET.666": ("H3201", "le répertoire de France Travail range « plasturgiste » dans cette fiche ; la fiche plus précise des "
-                         "techniciens plasturgistes en production (H3202) n'a pas de code international dans les tables"),
-    "MET.684": ("H3201", "fiche des équipements de formage des plastiques ; la fiche du réglage de ces équipements (H3202) n'a pas "
-                         "de code international dans les tables"),
 }
 
 
