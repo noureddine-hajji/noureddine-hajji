@@ -3,7 +3,8 @@
 Files are spread by their measured duration (tests/durations.json, seconds per file), heaviest first onto the
 lightest shard. A file missing from durations.json still runs: it gets DEFAULT seconds and a shard like any other.
 Every shard collects the same files (same command), so the plan is the same on every runner and each file runs in
-exactly one shard (tests/test_shards.py checks it).
+exactly one shard (tests/test_shards.py checks it). Each CI shard prints a "measured-durations {...}" line (seconds per
+file, every phase summed, workers together): the table is refreshed from those lines.
 """
 from __future__ import annotations
 
@@ -12,6 +13,21 @@ from pathlib import Path
 
 DURATIONS = Path(__file__).with_name("durations.json")
 DEFAULT = 120.0
+
+
+_SECONDS: dict[str, float] = {}
+
+
+def pytest_runtest_logreport(report):
+    """Every phase's duration (setup with its module fixtures, call, teardown), summed per test file."""
+    f = report.nodeid.split("::")[0]
+    _SECONDS[f] = _SECONDS.get(f, 0.0) + (report.duration or 0.0)
+
+
+def pytest_terminal_summary(terminalreporter, config):
+    """With --shard (the CI): one line of measured seconds per file, read back to refresh tests/durations.json."""
+    if config.getoption("--shard", None) and _SECONDS:
+        terminalreporter.write_line("measured-durations " + json.dumps({k: round(v) for k, v in sorted(_SECONDS.items())}))
 
 
 def pytest_addoption(parser):

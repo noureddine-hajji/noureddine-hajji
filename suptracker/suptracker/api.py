@@ -1470,6 +1470,16 @@ for _slug in LG.SLUGS:
     app.api_route(f"/{_slug}", methods=["GET", "HEAD"], include_in_schema=False)(_legal_route(_slug))
 
 
+@app.api_route("/observatoire", methods=["GET", "HEAD"], include_in_schema=False)
+def observatoire_page(request: Request):
+    """Owner, 2026-11-20: the Observatoire readable by a search engine (the same figures as /api/observatoire)."""
+    d = OBS.build(_con().cursor())
+    url = f"{_base(request)}/observatoire"
+    src = next(x["url"] for x in SRC.SOURCES if x["key"] == "parcoursup")
+    head = SEO.head_tags(SEO.observatoire_title(d), SEO.observatoire_description(d), url, True, SEO.observatoire_ld(d, url, src))
+    return Response(SEO.page(_shell(), head, SEO.observatoire_body(d)), media_type="text/html")
+
+
 @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
 def sitemap_xml(request: Request):
     paths = [] if SEO.is_preview() else SEO.sitemap_entries(_con().cursor())
