@@ -54,11 +54,11 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.6-f"
+MODEL_VERSION = "2027.7-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
-METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5}
+METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5, "certification": 0.5}
 PORTABLE_SHEETS = 20
 REPERE_SHARE = RJ.REPERE_SHARE
 MIN_FILIERE = 20                   # fewer scored formations in a filière: the repère is read among all formations
@@ -512,6 +512,19 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                     rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
                                                    "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
             rows.update(extra)
+        offers = offer_list(con, rows)                     # after the offers' own Onisep sheets: the RNCP certification
+        if offers and rncp and "onisep_metier_rome" in have:
+            rome_jobs: dict = {}
+            for mid, code in con.execute("SELECT met_id, rome FROM core.onisep_metier_rome").fetchall():
+                rome_jobs.setdefault(code, set()).add(mid)
+            cert = cert_blocks(offers, cert_index(rncp), rncp, rome_jobs, jobs, rome, rows)
+            for b in cert.values():
+                fiche = (b.get("rncp") or {}).get("fiche")
+                if fiche and fiche not in rncp_rows:
+                    f = rncp[fiche]
+                    rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
+                                                   "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
+            rows.update(cert)
     out_rows = [(c, json.dumps(v, ensure_ascii=False, sort_keys=True)) for c, v in sorted(rows.items())]
 
     def write(c, p):
@@ -541,7 +554,8 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
             "methodes": {m: sum(1 for v in rows.values() if v["methode"] == m) for m in METHOD_WEIGHT},
             "herites": sum(1 for v in rows.values() if v.get("herite")),
             "offres_fiche": sum(1 for v in rows.values() if v.get("diplome_offre")),
-            "voisines": sum(1 for v in rows.values() if v.get("voisine"))}
+            "voisines": sum(1 for v in rows.values() if v.get("voisine")),
+            "certifications": sum(1 for v in rows.values() if v.get("certification"))}
 
 
 # the cartographie writes some apprenticeship mentions with the diploma's acronym first (« BTS - Management en hôtellerie
@@ -677,6 +691,73 @@ def offer_blocks(offers: list[tuple], idx: dict, sheet_jobs: dict, jobs: dict, s
     return out
 
 
+# owner, 2026-11-20 (model 2027.7-f): an apprenticeship offer « FP - … » with no Onisep sheet is read through the RNCP
+# certification of the SAME title (France Compétences export): only when every ACTIVE fiche of that title carries the SAME ROME
+# codes (several certifiers of one title with other codes = ambiguous, no figure; an expired fiche alone = no figure). Its jobs
+# are the Onisep jobs of those ROME codes (method « certification », observed links x 0.5 like a family route: a ROME sheet groups
+# more jobs than a diploma's own list); no filière repère; the national repère is PLACED among the SIES formations' own scores.
+CERT_PREFIX = re.compile(r"^\s*FP\s*-\s*")
+CERT_KIND = re.compile(r"^(?:titre professionnel|formation professionnelle)\s*-?\s*", re.I)
+
+
+def cert_key(title: str | None) -> str:
+    """A certification title compared on its words only: brackets (« Administrateur(trice) ») dropped, then tight()."""
+    return tight(re.sub(r"\([^)]*\)", " ", (title or "").replace("\xa0", " ")))
+
+
+def cert_title(mention: str | None) -> str | None:
+    """The certification title of a cartographie mention « FP - [Titre professionnel - ]X (Bac +n) », else None (closed prefix)."""
+    s = (mention or "").replace("\xa0", " ")
+    if not CERT_PREFIX.match(s):
+        return None
+    s = CERT_KIND.sub("", CERT_PREFIX.sub("", s))           # the level « (Bac +2) » goes with the brackets (cert_key)
+    return cert_key(re.sub(r"\s*-\s*$", "", s)) or None
+
+
+def cert_index(rncp: dict) -> dict:
+    idx: dict = {}
+    for k, v in rncp.items():
+        idx.setdefault(cert_key(v["intitule"]), []).append(k)
+    return idx
+
+
+def cert_fiches(key: str | None, cidx: dict, rncp: dict) -> tuple[list, str]:
+    """(fiches, reason): the ACTIVE fiches of the title when they all carry the same ROME codes."""
+    fs = cidx.get(key or "", [])
+    if not fs:
+        return [], "sans_fiche"
+    act = sorted(f for f in fs if rncp[f]["actif"] and rncp[f]["rome"])
+    if not act:
+        return [], "fiche_inactive"
+    if len({frozenset(rncp[f]["rome"]) for f in act}) != 1:
+        return [], "intitule_ambigu"
+    return act, "ok"
+
+
+def cert_blocks(offers: list[tuple], cidx: dict, rncp: dict, rome_jobs: dict, jobs: dict, rome: dict, rows: dict) -> dict:
+    """The block of each offer (code, mention) read through its RNCP certification (see CERT_PREFIX)."""
+    nat = sorted(d["score_national"] for d in rows.values() if d.get("score_national") is not None
+                 and not (d.get("herite") or d.get("voisine") or d.get("diplome_offre") or d.get("certification")))
+    out = {}
+    for cod, mention in offers:
+        fs, why = cert_fiches(cert_title(mention), cidx, rncp)
+        if not fs:
+            continue
+        codes = sorted(rncp[fs[0]]["rome"])
+        ids = sorted(set().union(*(rome_jobs.get(c, set()) for c in codes)))
+        if not ids:
+            continue
+        b = formation({m: 1.0 for m in ids}, "certification", jobs, None, skills(rncp[fs[0]], rome) if rome else None)
+        b["repere"] = None
+        v = b.get("score_national")
+        b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),
+                                                                    "part": REPERE_SHARE, "apres_etudes": None}
+        b["certification"] = {"fiches": fs, "rome": codes, "intitule": rncp[fs[0]]["intitule"]}
+        b["rncp"] = {"fiche": fs[0], "lien": "certification", "apprentissage": rncp[fs[0]]["apprentissage"]} if len(fs) == 1 else None
+        out[cod] = b
+    return out
+
+
 def inherit(con, rows: dict, session: int) -> dict:
     """Blocks for the apprenticeship offers SIES does not publish (carte.apprentissage, not attached to an initial formation)."""
     from . import carte as CA
@@ -717,7 +798,7 @@ def compact(con) -> dict:
     {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
     Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
     c, p = _src(con)
-    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}, "voisine": {}}
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}, "voisine": {}, "certification": {}}
     if c is None:
         return out
     acc = {k: {} for k in out}
@@ -732,6 +813,8 @@ def compact(con) -> dict:
             acc["herite"].setdefault("diplome", []).append(cod)
         if d.get("voisine"):
             acc["voisine"].setdefault("emprunte", []).append(cod)
+        if d.get("certification"):
+            acc["certification"].setdefault("rncp", []).append(cod)
         if n.get("niveau"):
             acc["national"].setdefault(n["niveau"], []).append(cod)
             if n.get("apres_etudes"):

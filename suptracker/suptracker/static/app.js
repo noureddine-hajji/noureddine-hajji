@@ -1530,7 +1530,9 @@ function robCardLine(cod) {
   // owner, 2026-11-20: an apprenticeship offer SIES does not publish carries the repères of its DIPLOMA (the same for every
   // formation of that diploma), said in words; never a figure of the establishment
   const dip = R.herite && R.herite[cod] ? " Repères du diplôme : les mêmes pour toutes les formations qui y préparent."
-    : R.voisine && R.voisine[cod] ? " Repère emprunté à la formation voisine, à laquelle celle-ci mène directement." : "";
+    : R.voisine && R.voisine[cod] ? " Repère emprunté à la formation voisine, à laquelle celle-ci mène directement."
+    // owner, 2026-11-20: an offer read through the RNCP certification of the same title says so (a less sure link)
+    : R.certification && R.certification[cod] ? " Métiers lus par les codes de la certification du même intitulé (France Compétences) : lien moins sûr." : "";
   return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.${esc(dip)}</p>`;
 }
 function carteList(rows, ctx) {
@@ -2149,7 +2151,7 @@ function recoLoad() {
   return RECO_P;
 }
 function robDecode(r) {
-  const out = { filiere: {}, national: {}, raison: {}, apres: {}, herite: {}, voisine: {} };
+  const out = { filiere: {}, national: {}, raison: {}, apres: {}, herite: {}, voisine: {}, certification: {} };
   for (const k of Object.keys(out)) {
     for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
   }
@@ -4439,12 +4441,13 @@ const ROBF_METHODE = {
   direct: "les métiers de la fiche Onisep du diplôme",
   poursuite: "les métiers des masters de la même université et de la même discipline, pesés par leurs admis (MonMaster)",
   famille: "les métiers auxquels cette formation mène, souvent après d'autres études (lien moins sûr)",
+  certification: "les métiers des codes de la certification RNCP du même intitulé (France Compétences ; lien moins sûr)",
 };
 const ROBF_VOISINE = {
   cmi_licence: "le Cursus Master en Ingénierie s'appuie sur la licence de même mention du même établissement",
   mise_a_niveau_bts_mhr: "cette année de mise à niveau prépare l'entrée en BTS Management en hôtellerie-restauration",
 };
-const ROBF_LIEN = { onisep: "lien donné par la fiche Onisep du diplôme", titre: "fiche du titre national du diplôme" };
+const ROBF_LIEN = { onisep: "lien donné par la fiche Onisep du diplôme", titre: "fiche du titre national du diplôme", certification: "fiche RNCP du même intitulé" };
 const robJobs = (j) => `${robNum(j.n)} métier${j.n > 1 ? "s" : ""}${j.n_notes < j.n ? ` (${robNum(j.n_notes)} estimé${j.n_notes > 1 ? "s" : ""})` : ""} : ${robNum(j.n_haut)} parmi les 20 % de métiers les plus robustes, ${robNum(j.n_bas)} parmi les 20 % les moins robustes`;
 function robfFaits(r) {
   const out = [], m = r.metiers || {}, c = r.competences, k = r.rncp || {};

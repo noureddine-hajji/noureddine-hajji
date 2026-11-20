@@ -16,6 +16,10 @@ from . import robustesse_formation as RF
 
 # every version of the model, newest first: (version, date, what changed). The modules' MODEL_VERSION must be listed.
 CHANGELOG = (
+    ("2027.7-f", "20 novembre 2026",
+     "Les offres en apprentissage sans fiche Onisep sont lues par la certification RNCP du même intitulé. "
+     "Il faut que toutes ses fiches actives visent les mêmes codes métiers. Leurs métiers sont ceux de ces codes : "
+     "le lien est moins sûr, la confiance est abaissée et l'offre n'est pas classée dans sa filière."),
     ("2027.6-f", "20 novembre 2026",
      "Une formation sans métiers propres qui mène directement à une formation notée lui emprunte sa note, en le disant : le "
      "Cursus Master en Ingénierie prend celle de la licence de même mention du même établissement, l'année de mise à niveau "

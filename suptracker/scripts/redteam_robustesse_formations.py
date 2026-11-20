@@ -331,7 +331,7 @@ def oracle_formation(omega: dict, method: str, jobs: dict, ins, comp) -> dict:
         nat[s] = round((0.6 * a + 0.15 * div) / 0.75, 1) if a is not None and div is not None else None
     wm = lambda key: sum(v / st * jobs[m]["confiance"][key] for m, v in sc.items()) if st else 0.0  # noqa: E731
     cover = 0.6 * st + sum(y for x, y in ((ins, 0.1), (div, 0.15), (cterm, 0.15)) if x is not None)
-    conf = min(wm("fraicheur"), {"direct": 1, "poursuite": 0.8, "famille": 0.5}[method] * wm("donnees_observees"), wm("accord_sources"), cover)
+    conf = min(wm("fraicheur"), {"direct": 1, "poursuite": 0.8, "famille": 0.5, "certification": 0.5}[method] * wm("donnees_observees"), wm("accord_sources"), cover)
     vals = [v for v in scen.values() if v is not None]
     ok = len(vals) == 3 and conf >= CONF_LOW
     return {"median": statistics.median(vals) if ok else None, "min": min(vals) if ok else None, "max": max(vals) if ok else None,
@@ -647,8 +647,8 @@ def rf7(c: Ctx):
     finally:
         con.close()
     bad = []
-    inh = {k: v for k, v in rows.items() if v.get("herite") or v.get("diplome_offre") or v.get("voisine")}
-    rows = {k: v for k, v in rows.items() if k not in inh}       # borrowed blocks: RF13 (inherited), RF14 (own sheet), RF15 (neighbour)
+    inh = {k: v for k, v in rows.items() if v.get("herite") or v.get("diplome_offre") or v.get("voisine") or v.get("certification")}
+    rows = {k: v for k, v in rows.items() if k not in inh}       # borrowed blocks: RF13 (inherited), RF14 (own sheet), RF15 (neighbour), RF17 (certification)
     inh = {k: v for k, v in inh.items() if not v.get("voisine")}  # a neighbour-borrowing formation is a SIES formation
     if set(rows) - set(fili):
         bad.append(f"{len(set(rows) - set(fili))} blocks outside the latest campaign")
@@ -749,15 +749,16 @@ def rf9(c: Ctx):
             "3": {"repere": {"niveau": None, "raison": "trop_peu"}, "repere_national": None},
             "4": {"repere": None, "repere_national": None},
             "5": {"repere": {"niveau": "moyen"}, "repere_national": {"niveau": "moyen", "apres_etudes": None}},
-            "6": {"repere": {"niveau": "moyen"}, "repere_national": {"niveau": "haut", "apres_etudes": None}, "herite": {"source": "diplome", "formations": 2}}}
+            "6": {"repere": {"niveau": "moyen"}, "repere_national": {"niveau": "haut", "apres_etudes": None}, "herite": {"source": "diplome", "formations": 2}},
+            "7": {"repere": None, "repere_national": {"niveau": "bas", "apres_etudes": None}, "certification": {"fiches": ["RNCP1"], "rome": ["A1"]}}}
     con = duckdb.connect()
     con.execute("CREATE SCHEMA core")
     con.execute("CREATE TABLE core.r35_formation (cod_aff_form VARCHAR, data VARCHAR)")
     con.executemany("INSERT INTO core.r35_formation VALUES (?, ?)", [(k, json.dumps(v)) for k, v in rows.items()])
     got = F.compact(con)
-    exp = {"filiere": {"haut": "1", "moyen": "5,6"}, "national": {"bas": "1", "haut": "2,6", "moyen": "5"},
+    exp = {"filiere": {"haut": "1", "moyen": "5,6"}, "national": {"bas": "1,7", "haut": "2,6", "moyen": "5"},
            "raison": {"memes_debouches": "2", "trop_peu": "3"}, "apres": {"autres": "2", "master": "1"}, "herite": {"diplome": "6"},
-           "voisine": {}}
+           "voisine": {}, "certification": {"rncp": "7"}}
     if got != exp:
         bad.append(f"compact {got} != {exp}")
     pc_src = (ROOT / "suptracker" / "precomp.py").read_text()
@@ -1060,7 +1061,7 @@ SOURCE_MUTANTS = [
     ("robf", "options kept", 'return re.split(r" options? | parcours | specialite ", " " + fold(title) + " ")[0].strip()', "return fold(title)", "RF2"),
     ("robf", "insertion weight 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15", "W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.15, 0.15, 0.15", "RF3"),
     ("robf", "entropy over 9 groups", "ISCO_GROUPS = 10", "ISCO_GROUPS = 9", "RF3"),
-    ("robf", "famille as sure as direct", '"famille": 0.5}', '"famille": 1.0}', "RF3"),
+    ("robf", "famille as sure as direct", '"famille": 0.5, ', '"famille": 1.0, ', "RF3"),
     ("robf", "score with low confidence", "shown = len(vals) == 3 and conf >= RJ.CONF_LOW", "shown = len(vals) == 3", "RF3"),
     ("robf", "unscored jobs count", "scored = {m: w for m, w in omega.items() if (jobs.get(m) or {}).get(\"score\")}", "scored = dict(omega)", "RF3"),
     ("robf", "arbitrary main jobs", "return ranked[:TOP_JOBS] if ranked[TOP_JOBS - 1][1] > ranked[TOP_JOBS][1] else []", "return ranked[:TOP_JOBS]", "RF3"),
@@ -1120,6 +1121,14 @@ SOURCE_MUTANTS = [
     ("robf", "CMI linked to any licence of the mention", "fi == \"Licence\" and u and u == uai and fold(fl) == fold(fil)", "fi == \"Licence\" and fold(fl) == fold(fil)", "RF15"),
     ("robf", "disagreeing neighbours tolerated", "        if len(dumped) != 1:\n            continue\n        b = json.loads(dumped.pop())", "        b = json.loads(dumped.pop())", "RF15"),
     ("js", "borrowed block not said on the card", "  const vois = v ? `<p", "  const vois = false ? `<p", "RF15"),
+    ("robf", "ambiguous titles read", "    if len({frozenset(rncp[f][\"rome\"]) for f in act}) != 1:\n        return [], \"intitule_ambigu\"", "    if False:\n        return [], \"intitule_ambigu\"", "RF17"),
+    ("robf", "expired fiches read", 'act = sorted(f for f in fs if rncp[f]["actif"] and rncp[f]["rome"])', 'act = sorted(f for f in fs if rncp[f]["rome"])', "RF17"),
+    ("robf", "any mention read as a certification", "    if not CERT_PREFIX.match(s):\n        return None", "    if False:\n        return None", "RF17"),
+    ("robf", "certification as sure as a diploma's list", '"certification": 0.5}', '"certification": 1.0}', "RF17"),
+    ("robf", "certification blocks in the national pool", 'd.get("diplome_offre") or d.get("certification")))\n    out = {}\n    for cod, mention in offers:\n        fs, why',
+     'd.get("diplome_offre")))\n    out = {}\n    for cod, mention in offers:\n        fs, why', "RF17"),
+    ("robf", "fiche linked when several", '"apprentissage": rncp[fs[0]]["apprentissage"]} if len(fs) == 1 else None', '"apprentissage": rncp[fs[0]]["apprentissage"]}', "RF17"),
+    ("js", "certification not said on the card", ': R.certification && R.certification[cod] ? " Métiers', ': false ? " Métiers', "RF17"),
     ("robf", "engineering diploma counted as a bachelor", 're.match(r"Formation Bac \\+ [34]\\b"', 're.match(r"Formation"', "RF16"),
     ("robf", "bac + 5 counted as a bachelor", 're.match(r"Formation Bac \\+ [34]\\b"', 're.match(r"Formation Bac \\+ \\d"', "RF16"),
     ("robf", "borrowed block loses its later studies", '"part": REPERE_SHARE, "apres_etudes": apres}', '"part": REPERE_SHARE, "apres_etudes": None}', "RF15"),
@@ -1313,7 +1322,7 @@ def rf14(c: Ctx):
             con.close()
         own = {k: v for k, v in stored.items() if v.get("diplome_offre")}
         pool_r = sorted(v["score_national"] for v in stored.values() if v.get("score_national") is not None
-                        and not v.get("herite") and not v.get("diplome_offre") and not v.get("voisine"))
+                        and not v.get("herite") and not v.get("diplome_offre") and not v.get("voisine") and not v.get("certification"))
         exp = {k for k, m in mentions.items() if not (stored.get(k) or {}).get("herite")
                and set().union(*(sj.get(f, set()) for f in ON.match_offer(idx, m)[0] or [None]))}
         if set(own) != exp:
@@ -1341,7 +1350,7 @@ def rt_fold(x):
 def oracle_neighbours(sies, rows):
     """The red team's own reading of the two owner rules (CMI -> licence of the same mention and UAI; mise à niveau
     hôtellerie-restauration -> every BTS MHR), every neighbour scored and identical, confidence x 0.8."""
-    own = {c: d for c, d in rows.items() if d.get("score") and not (d.get("herite") or d.get("diplome_offre") or d.get("voisine"))}
+    own = {c: d for c, d in rows.items() if d.get("score") and not (d.get("herite") or d.get("diplome_offre") or d.get("voisine") or d.get("certification"))}
     pool = sorted(d["score_national"] for d in own.values() if d.get("score_national") is not None)
     out = {}
     for cod, fili, form, fil, uai, lib in sies:
@@ -1441,7 +1450,7 @@ def rf15(c: Ctx):
                 any_value(cod_uai), '' FROM core.formation_year WHERE session = ? GROUP BY 1 ORDER BY 1""", [session]).fetchall()]
         finally:
             con.close()
-        own = {k: v for k, v in stored.items() if not v.get("voisine") and not v.get("herite") and not v.get("diplome_offre")}
+        own = {k: v for k, v in stored.items() if not v.get("voisine") and not v.get("herite") and not v.get("diplome_offre") and not v.get("certification")}
         exp_r = oracle_neighbours(sies_r, own)
         got_r = {k: v for k, v in stored.items() if v.get("voisine")}
         if set(got_r) != set(exp_r):
@@ -1510,6 +1519,147 @@ def rf16(c: Ctx):
         if not named:
             bad.append("real: the rule names no formation")
         real = f"; real: {len(named)} bachelors say why they have no score"
+    return not bad, f"differences {bad[:4]}{real}"
+
+
+def rt_cert_key(t):
+    """The red team's own reading of a certification title: no brackets, accents, case, spaces or punctuation."""
+    t = re.sub(r"\([^)]*\)", " ", t or "").replace("œ", "oe").replace("Œ", "oe").replace("æ", "ae").replace("Æ", "ae")
+    return re.sub(r"[^a-z0-9]", "", rt_fold(t))
+
+
+def rt_cert_title(mention):
+    m = re.match(r"\s*FP\s*-\s*(.*)$", (mention or "").replace("\xa0", " "))
+    if not m:
+        return None
+    s = re.sub(r"^(?:titre professionnel|formation professionnelle)\s*-?\s*", "", m.group(1), flags=re.I)
+    s = re.sub(r"\s*\((?:bac|niveau)[^)]*\)\s*$", "", s, flags=re.I)
+    return rt_cert_key(re.sub(r"\s*-\s*$", "", s)) or None
+
+
+def oracle_cert(mention, rncp):
+    """The ACTIVE fiches (with ROME codes) of the same title, when they all carry the same codes; else []."""
+    k = rt_cert_title(mention)
+    if not k:
+        return []
+    act = sorted(f for f, v in rncp.items() if v["actif"] and v["rome"] and rt_cert_key(v["intitule"]) == k)
+    return act if len({frozenset(rncp[f]["rome"]) for f in act}) == 1 else []
+
+
+@check("RF17 offers read through the RNCP certification of the same title (owner, 2026-11-20): non-ambiguous active fiches, said")
+def rf17(c: Ctx):
+    F = c.F()
+    bad = []
+    cases = {"FP - Titre professionnel - Gestionnaire de Paie (Bac +2)": "gestionnairedepaie",
+             "FP - Titre Professionnel - Chef de Chantier Gros-Oeuvre (Bac + 2)": "chefdechantiergrosoeuvre",
+             "FP - Formation professionnelle - Administrateur(trice) systèmes et réseaux (Bac +3)": "administrateursystemesetreseaux",
+             "FP - Gestionnaire en maintenance et support informatique - (Bac +2)": "gestionnaireenmaintenanceetsupportinformatique",
+             "FP - Titre Professionnel - Formateur Professionnel d'Adultes (Bac + 2)": "formateurprofessionneldadultes",
+             "BTS - Management en hôtellerie restauration": None, "Métiers du bar": None, "": None}
+    for m, e in cases.items():
+        if F.cert_title(m) != e or rt_cert_title(m) != e:
+            bad.append(f"title of {m!r}: {F.cert_title(m)} / {rt_cert_title(m)} vs {e}")
+    rncp = {"R1": {"intitule": "Gestionnaire de paie", "actif": True, "rome": {"M1501"}, "apprentissage": True, "blocs": []},
+            "R2": {"intitule": "Gestionnaire de Paie", "actif": True, "rome": {"M1501"}, "apprentissage": False, "blocs": []},
+            "R3": {"intitule": "Chargé RH", "actif": True, "rome": {"M1502"}, "apprentissage": True, "blocs": []},
+            "R4": {"intitule": "Chargé RH", "actif": True, "rome": {"M1503"}, "apprentissage": True, "blocs": []},
+            "R5": {"intitule": "Assistant juridique", "actif": False, "rome": {"K1902"}, "apprentissage": True, "blocs": []},
+            "R6": {"intitule": "Graphiste", "actif": True, "rome": {"E1205"}, "apprentissage": True, "blocs": []},
+            "R7": {"intitule": "Graphiste", "actif": True, "rome": set(), "apprentissage": True, "blocs": ["b"]},
+            "R8": {"intitule": "Sans métier", "actif": True, "rome": {"Z9999"}, "apprentissage": True, "blocs": []},
+            "R9": {"intitule": "Développeur " + HOSTILE, "actif": True, "rome": {"M1805"}, "apprentissage": True, "blocs": []}}
+    offers = [("O1", "FP - Titre professionnel - Gestionnaire de paie (Bac +2)"), ("O2", "FP - Chargé RH (Bac +3)"),
+              ("O3", "FP - Assistant juridique (Bac +2)"), ("O4", "FP - Graphiste (Bac +2)"), ("O5", "FP - Sans métier (Bac +2)"),
+              ("O6", "FP - Inconnu (Bac +2)"), ("O7", "Graphiste"), ("O8", "FP - Développeur " + HOSTILE)]
+    rome_jobs = {"M1501": {"m1", "m2"}, "E1205": {"m3"}, "M1805": {"m4"}, "M1502": {"m1"}, "M1503": {"m2"}, "K1902": {"m3"}}
+    sies = {f"S{i}": {"score_national": float(v), "score": {"median": float(v)}} for i, v in enumerate(range(40, 80, 2))}
+    for i in range(60):                     # borrowed blocks never enter the pool
+        sies[f"C{i}"] = {"score_national": 99.0, "score": {"median": 99.0}, "certification": {"fiches": ["X"]}}
+    before = copy.deepcopy(sies)
+    got = F.cert_blocks(offers, F.cert_index(rncp), rncp, rome_jobs, JOBS, {}, sies)
+    exp = {k: oracle_cert(m, rncp) for k, m in offers}
+    exp = {k: v for k, v in exp.items() if v and set().union(*(rome_jobs.get(x, set()) for f in v for x in rncp[f]["rome"]))}
+    if set(got) != set(exp) or set(exp) != {"O1", "O4", "O8"}:
+        bad.append(f"offers with a block {sorted(got)} vs {sorted(exp)}")
+    pool = sorted(v["score_national"] for k, v in sies.items() if k.startswith("S"))
+    for k, fs in exp.items():
+        b = got.get(k) or {}
+        om = {m: 1.0 for m in set().union(*(rome_jobs.get(x, set()) for x in rncp[fs[0]]["rome"]))}
+        e = oracle_formation(om, "certification", JOBS, None, None)
+        sc = b.get("score") or {}
+        if (sc.get("median"), b.get("score_national")) != (e["median"], e["nat"]):
+            bad.append(f"{k}: formula")
+        if b.get("methode") != "certification" or b.get("repere") is not None or (b.get("certification") or {}).get("fiches") != fs:
+            bad.append(f"{k}: method, filière repère or fiches")
+        n = b.get("repere_national")
+        if (e["nat"] is None) != (n is None) or (n and n["niveau"] != oracle_place(e["nat"], pool)):
+            bad.append(f"{k}: national repère")
+        if (b.get("rncp") is None) != (len(fs) > 1):
+            bad.append(f"{k}: one fiche link only when the title has one fiche")
+    if sies != before:
+        bad.append("the SIES blocks were modified")
+    body = c.src["robf"]
+    i_off, i_cert = body.find("rows.update(extra)"), body.find("rows.update(cert)")
+    if not (0 <= i_off < i_cert):
+        bad.append("the certification is read before the offers' own Onisep sheets (order)")
+    if F.METHOD_WEIGHT.get("certification") != 0.5:
+        bad.append("the certification link is as sure as a diploma's own list")
+    if 'acc["certification"].setdefault("rncp", []).append(cod)' not in body:
+        bad.append("the compact payload drops the certification")
+    line = RB.top(c.js, "robCardLine")
+    if "certification du même intitulé" not in line or "moins sûr" not in line or ": R.certification && R.certification[cod] ?" not in line:
+        bad.append("the search card does not say the jobs come from the certification")
+    if "certification" not in RB.top(c.js, "ROBF_METHODE"):
+        bad.append("the formation card has no words for the method")
+    real = ""
+    if c.real and c.db:
+        import duckdb
+        from suptracker import rapports as RP
+        tc = duckdb.connect(str(RP.textes_path(c.db)), read_only=True)
+        try:
+            stored = {k: json.loads(v) for k, v in tc.execute("SELECT cod_aff_form, data FROM r35_formation").fetchall()}
+            jobs = {k: json.loads(v) for k, v in tc.execute("SELECT met_id, data FROM r35_metier").fetchall()}
+        finally:
+            tc.close()
+        con = duckdb.connect(str(c.db), read_only=True)
+        try:
+            from suptracker import carte as CA
+            mentions = {a["cod_aff_form"]: a["mention"] for a in CA.apprentissage(con) if not a["rattachee"]}
+            rj: dict = {}
+            for mid, code in con.execute("SELECT met_id, rome FROM core.onisep_metier_rome").fetchall():
+                rj.setdefault(code, set()).add(mid)
+        finally:
+            con.close()
+        rn = F.read_rncp(F.DIR / F.RNCP_ZIP)
+        byk: dict = {}
+        for f, v in rn.items():
+            if v["actif"] and v["rome"]:
+                byk.setdefault(rt_cert_key(v["intitule"]), []).append(f)
+        own = {k: v for k, v in stored.items() if v.get("certification")}
+        exp_r = {}
+        for k, m in mentions.items():
+            if k in stored and not stored[k].get("certification"):
+                continue                                    # read another way first (inherited, own Onisep sheet)
+            t = rt_cert_title(m)
+            act = sorted(byk.get(t, [])) if t else []
+            if act and len({frozenset(rn[f]["rome"]) for f in act}) == 1 and set().union(*(rj.get(x, set()) for x in rn[act[0]]["rome"])):
+                exp_r[k] = act
+        if set(own) != set(exp_r):
+            bad.append(f"real: {len(own)} certification blocks vs {len(exp_r)} expected, e.g. {sorted(set(own) ^ set(exp_r))[:3]}")
+        pool_r = sorted(v["score_national"] for v in stored.values() if v.get("score_national") is not None
+                        and not (v.get("herite") or v.get("diplome_offre") or v.get("voisine") or v.get("certification")))
+        for k in sorted(own)[:: max(1, len(own) // 150)]:
+            b, fs = own[k], exp_r.get(k) or []
+            om = {m: 1.0 for m in set().union(*(rj.get(x, set()) for x in rn[fs[0]]["rome"]))} if fs else {}
+            e = oracle_formation(om, "certification", jobs, None, b["competences"])
+            if b["certification"]["fiches"] != fs or ((b["score"] or {}).get("median"), b.get("score_national")) != (e["median"], e["nat"]):
+                bad.append(f"real {k}: fiches or formula")
+                break
+            n = b.get("repere_national")
+            if e["nat"] is not None and (not n or n["niveau"] != oracle_place(e["nat"], pool_r)) or b.get("repere") is not None:
+                bad.append(f"real {k}: repères")
+                break
+        real = f"; real: {len(own)} offers read through their certification ({sum(1 for v in own.values() if v.get('score'))} with a score)"
     return not bad, f"differences {bad[:4]}{real}"
 
 
