@@ -4094,3 +4094,29 @@ The page is app-only (no indexable twin, not in the sitemap), like « Comprendre
 `scripts/redteam_observatoire.py` (OB1-OB8): SQL re-derivation of every figure, a crafted warehouse (two spellings, Île-de-France,
 places 0, an incoherent row, a type missing a campaign, overseas, an académie without a position), the page in Node on hostile
 data, wording, wiring, and 27 mutants, all caught.
+
+### Who the admits are (owner, 2026-11-19)
+
+Three more sections on `#/observatoire`, from `observatoire.profils` (same answer, same cache, no parameter). Published counts are
+summed per type over coherent rows; they count people.
+
+- **Filles et garçons.** Girls among all admits (`acc_tot_f / acc_tot`) beside girls among the confirmed vœux
+  (`voe_tot_f / voe_tot`: vœux, not people), latest campaign. Each row is a dumbbell: a hollow mark for the vœux, a filled one
+  for the admits. The page computes the largest gap among the types with at least 20 formations (7 points on real data) and
+  prints it, never a typed figure. Real data: 56.3 % of admits are girls; 28.6 % in engineering schools, 85.4 % in health.
+- **Bac général, techno ou pro.** `acc_bg|bt|bp / acc_neobac` (néo-bachelier admits only, said), rows whose three counts add up
+  (all of them), sorted by the general share. Route colours are the `--voie-*` tokens, named in the legend. « Rare », never
+  « fermé ». BTS: 37.3 % techno, 44.7 % pro.
+- **Les mentions au bac des admis.** Five mentions over `acc_neobac`, SIES's own denominator, first and latest campaigns. In
+  2022, 356 rows publish one admit fewer in their mentions than in `acc_neobac` (456 admits). They are kept: leaving them out
+  moved engineering schools from 30.7 % to 27.0 % « très bien ou plus ». A row whose mentions exceed `acc_neobac` is left out.
+  Each mention is a shade of the neutral ramp. The page says this is neither the level required nor a chance, and that no
+  mention is published per bac series.
+
+Every section shows the 10 types with the most formations (a fixed rule, never a figure), in its own order, and folds the
+rest. No figure appears under 100 admits or 5 formations. Red team OB9 to OB11:
+- OB9: SQL re-derivation, and on real data every 2022 row is kept;
+- OB10: a crafted table checks the incoherent rows and the one-admit gap;
+- OB11: the page runs in Node on hostile data.
+
+The mutation test catches 43/43 mutants.

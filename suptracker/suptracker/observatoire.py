@@ -21,6 +21,17 @@ Every figure is either PUBLISHED per formation by SIES or a sum / median of publ
     bachelier admits, or fewer than MIN_PROX_FORMATIONS formations, = no figure. A row without the count, or with more
     same-académie admits than néo-bacheliers (none in 2022-2025), is left out of both sums.
 
+  * Profils des admis (owner, 2026-11-19), per type, from PUBLISHED counts summed over coherent rows (people):
+      - filles: girls among the admits (`acc_tot_f` / `acc_tot`) beside girls among the confirmed vœux (`voe_tot_f` / `voe_tot`,
+        vœux not people), latest campaign; a row whose girls exceed its total is left out of that pair;
+      - bacs: bac général / techno / pro among the néo-bachelier admits (`acc_bg|bt|bp` / `acc_neobac`), latest campaign, only
+        rows whose three counts add up to `acc_neobac` (all of 2022-2025); a low share is "rare", never "closed";
+      - mentions: sans mention, AB, B, TB, TBF among the néo-bachelier admits (`acc_neobac`, SIES's own denominator of `pct_tb`...),
+        first and latest campaigns. In 2022, 356 rows publish one admit fewer in their mentions than in `acc_neobac` (456 admits):
+        they are KEPT (leaving them out would move a type by up to 4 points); a row whose mentions exceed `acc_neobac` is left out.
+        Never the level required or a chance, and no mention is published per bac series.
+    Same thresholds as the same-académie share: under MIN_NEOBAC admits (all admits for the girls) or MIN_PROX_FORMATIONS
+    formations, no figure.
 Nothing here is read for a student: no profile, no parameter, one shared-cached answer. Never a probability of admission.
 """
 from __future__ import annotations
@@ -37,6 +48,7 @@ MIN_ACAD_PLACES = 100       # places of a type in an académie to give its ratio
 MIN_NEOBAC = 100            # néo-bachelier admits of a type to give its same-académie share
 MIN_PROX_FORMATIONS = 5     # ... spread over at least this many formations (one formation's share is its own fiche's)
 TOUS = "Toutes les formations"
+MENTIONS = ("sansmention", "ab", "b", "tb", "tbf")      # acc_<m>; "non renseignée" counts in the total only
 # Île-de-France's three académies are one bubble on the page's map (their centres are a few kilometres apart): the ratio of
 # their SUMMED counts, with the same thresholds; each académie keeps its own row in the table
 IDF = ("paris", "creteil", "versailles")
@@ -75,6 +87,76 @@ def _rows(con):
     return con.execute("""SELECT session, fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins, acad_mies, nb_voe_pp,
                                  capa_fin, taux_acces_ens, acc_neobac, acc_aca_orig, lat, lon
                           FROM core.formation_year""").fetchall()
+
+
+def _part(num, den):
+    return round(100 * num / den, 1) if den else None
+
+
+def profils(con, sessions: list) -> dict:
+    """Girls, bac routes and mentions of the admits per type (see the module text): published counts summed, coherent rows."""
+    first, last = sessions[0], sessions[-1]
+    rows = con.execute("""SELECT session, fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins, acc_tot, acc_tot_f, voe_tot,
+               voe_tot_f, acc_neobac, acc_bg, acc_bt, acc_bp, acc_sansmention, acc_ab, acc_b, acc_tb, acc_tbf,
+               acc_mention_non_renseignee FROM core.formation_year WHERE session IN (?, ?)""", [first, last]).fetchall()
+    fil: dict = {}
+    bac: dict = {}
+    men: dict = {}
+    for ses, fili, form, fl, lib, tot, f, voe, voef, neo, bg, bt, bp, *ments in rows:
+        typ = CA.diplome_of(fili, form, fl, lib)[0]
+        m5, nr = ments[:5], ments[5]
+        for key in (typ, TOUS):
+            if ses == last:
+                if tot and f is not None and 0 <= f <= tot and voe and voef is not None and 0 <= voef <= voe:
+                    x = fil.setdefault(key, {"n": 0, "admis": 0, "admises": 0, "voeux": 0, "voeux_filles": 0})
+                    x["n"] += 1
+                    x["admis"] += tot
+                    x["admises"] += f
+                    x["voeux"] += voe
+                    x["voeux_filles"] += voef
+                if neo and None not in (bg, bt, bp) and bg + bt + bp == neo:
+                    x = bac.setdefault(key, {"n": 0, "neo": 0, "general": 0, "techno": 0, "pro": 0})
+                    x["n"] += 1
+                    x["neo"] += neo
+                    x["general"] += bg
+                    x["techno"] += bt
+                    x["pro"] += bp
+            if neo and None not in m5 and sum(m5) + (nr or 0) <= neo:
+                x = men.setdefault(key, {}).setdefault(ses, {"n": 0, "neo": 0, **{m: 0 for m in MENTIONS}})
+                x["n"] += 1
+                x["neo"] += neo
+                for m, v in zip(MENTIONS, m5):
+                    x[m] += v
+
+    def enough(x, total):
+        return total >= MIN_NEOBAC and x["n"] >= MIN_PROX_FORMATIONS
+    filles = [{"diplome": k, "formations": x["n"], "admis": x["admis"], "admises": x["admises"], "voeux": x["voeux"],
+               "voeux_filles": x["voeux_filles"],
+               "part_admis": _part(x["admises"], x["admis"]) if enough(x, x["admis"]) else None,
+               "part_voeux": _part(x["voeux_filles"], x["voeux"]) if enough(x, x["admis"]) else None} for k, x in fil.items()]
+    filles.sort(key=lambda r: (r["part_admis"] is None, -(r["part_admis"] or 0), r["diplome"]))
+    bacs = []
+    for k, x in bac.items():
+        ok = enough(x, x["neo"])
+        bacs.append({"diplome": k, "formations": x["n"], "admis_neobac": x["neo"], "general": x["general"], "techno": x["techno"],
+                     "pro": x["pro"], **{f"part_{r}": _part(x[r], x["neo"]) if ok else None for r in ("general", "techno", "pro")}})
+    bacs.sort(key=lambda r: (r["part_general"] is None, (r["part_general"] if r["part_general"] is not None else 0), r["diplome"]))
+
+    def reading(x):
+        if not x or not enough(x, x["neo"]):
+            return None
+        parts = {m: _part(x[m], x["neo"]) for m in MENTIONS}
+        return {"formations": x["n"], "admis_neobac": x["neo"], "parts": parts, "tb_plus": _part(x["tb"] + x["tbf"], x["neo"])}
+    mentions = []
+    for k, by in men.items():
+        now = by.get(last)
+        if not now:
+            continue
+        r = reading(now)
+        mentions.append({"diplome": k, "formations": now["n"], "admis_neobac": now["neo"], "lecture": r,
+                         "avant": {"session": first, **(reading(by.get(first)) or {"tb_plus": None})}})
+    mentions.sort(key=lambda r: (r["lecture"] is None, -((r["lecture"] or {}).get("tb_plus") or 0), r["diplome"]))
+    return {"filles": filles, "bacs": bacs, "mentions": mentions, "mentions_avant": first}
 
 
 def build(con) -> dict:
@@ -160,5 +242,6 @@ def build(con) -> dict:
     proximite.sort(key=lambda p: (p["part_meme_academie"] is None, -(p["part_meme_academie"] or 0), p["diplome"]))
     return {"sessions": sessions, "session": last, "tendances": tendances, "academies": academies, "demande": demande,
             "ile_de_france": {"academies": list(IDF), "demande": idf}, "proximite": proximite, "tous": TOUS, "prudence": TE.PRUDENCE,
+            **profils(con, sessions),
             "seuils": {"type": MIN_TYPE, "academie_formations": MIN_ACAD_FORMATIONS, "academie_places": MIN_ACAD_PLACES,
                        "min_neobac": MIN_NEOBAC, "proximite_formations": MIN_PROX_FORMATIONS}}
