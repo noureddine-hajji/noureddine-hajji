@@ -3857,11 +3857,11 @@ mêmes pour toutes les formations qui y préparent. » The offer still has no zo
 
 **Jobs without data: four codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
-ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for four of them
+ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five
 (`nomenclatures.TITLE_LINK_OVERRIDES`, method « analogie », the reason printed on the job page): technicien/ne en traitement des
 matériaux → H3402 + H3403 (an override may now carry several codes, `override_codes`), technicien/ne de recherche en biologie →
-H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209. Conseiller/ère énergie stays unlinked
-(no neighbouring sheet fits; its only diploma, the BTS ESF, keeps no score). Red team N8 checks every override as written,
+H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209, conseiller/ère énergie → F1103 (« Contrôle et diagnostic technique du bâtiment », where
+France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). Red team N8 checks every override as written,
 several codes included; N7 seeds « several override codes cut to the first » on real data.
 
 ## The formation page, tidied (owner, 2026-11-18)

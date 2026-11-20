@@ -233,8 +233,9 @@ TITLE_LINK_OVERRIDES = {
                          "fiche des techniciens d'études, de recherche et développement"),
     "MET.402": ("H1209", "conception d'appareils miniaturisés mêlant micromécanique et microélectronique : fiche des techniciens "
                          "d'études et développement en électronique"),
-    "MET.442": (None, "sa fiche « Conseiller énergie habitat » (F1114) n'est pas encore reliée par la Dares et aucune fiche "
-                      "voisine ne convient"),
+    "MET.442": ("F1103", "technicien qui conseille sur la consommation d'énergie des logements : le répertoire de France Travail "
+                         "range « diagnostiqueur performance énergétique bâtiment » dans cette fiche ; la fiche plus précise "
+                         "« conseiller énergie habitat » (F1114) n'est pas encore reliée par la Dares"),
 }
 
 
