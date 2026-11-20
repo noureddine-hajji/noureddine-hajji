@@ -3829,6 +3829,38 @@ formation model never reads Inserjeunes or the BUT insertion, every filter optio
 level), the counts equal to the other groups' selection, no filter without the repères, card lines without unknown levels, no sort by
 a repère; 64/64 mutants caught.
 
+## Robustesse 2035: more formations scored (owner, 2026-11-20)
+
+An analysis of the formations with no robustesse score (10,935 of the 23,120 the search page lists, paid private ones included)
+found three causes: apprenticeship offers SIES does not publish (8,868, never built), SIES formations with no Onisep sheet linked
+(1,739), and formations whose jobs have no usable data (328). Two of them are addressed here; model 2027.5-f.
+
+**BTS labels Onisep spells otherwise.** `onisep.BTS_SPELLING` holds one explicit rule per SIES label (20 rules, checked one by one
+on the real files): a renamed option (« Territoires métropolitains » is now « transition agricole dans les territoires
+métropolitains »; the renovated BTS MV calls option A « véhicules légers »), an abbreviation (« Métiers de l'audio-visuel opt :
+techn. d'ingeniérie… »), « Spécialité » where Onisep writes « option » (BTSA technico-commercial), a missing word (« maritime »).
+It is read only after the title, options and no-option rules failed (rule `bts_ecriture`), never fuzzy: 383 more formations of
+the latest campaign reach their sheet, hence their jobs card, the job pages and a robustesse score. Métiers de la coiffure and
+Edition have no BTS sheet at Onisep and stay without one. Red team O6: every rule names ONE real BTS sheet, is needed (the
+general rules do not already match it), is used on real data, and keeps its own option (another sheet of the same BTS never fits
+the label better; swapped options, a missing sheet and a dead rule are mutants); O5 seeds « rules ignored ».
+
+**Apprenticeship offers take their diploma's score.** The score of a formation read through its diploma's jobs belongs to the
+DIPLOMA (the same Onisep sheet, the same RNCP fiche), not to the establishment. An apprenticeship offer of the cartographie that
+SIES does not publish (`carte.apprentissage`, not attached to an initial formation) now carries the block of its diploma
+(`robustesse_formation.inherited`) when EVERY formation of the latest campaign with the same type and mention has a scored block
+and all those blocks are identical; the cartographie's acronym prefix (« BTS - … ») is dropped before comparing, from a closed
+list. The block carries `herite` (how many formations share it), is added AFTER the repères (never ranked), and the compact
+payload lists it (`herite`), so the search card prints the repères on an apprenticeship card too, with « Repères du diplôme : les
+mêmes pour toutes les formations qui y préparent. » The offer still has no zone, no rate and no SIES figure. Red team RF13
+(crafted cases, the real offers re-derived, the order, the card; 8 mutants).
+
+**Jobs without data (not changed).** The five jobs behind most of the 328 (conseiller énergie, technicien de recherche en
+biologie, prototypiste en agroéquipement, microtechnicien, technicien en traitement des matériaux) have no ROME code at Onisep and
+no exact title in the Dares tables or the ROME appellations; their closest ROME 4.0 sheets (F1114, H1224…) are new ones the
+official Dares tables do not link to FAP or ISCO yet. A code by analogy needs the owner's confirmation
+(`nomenclatures.TITLE_LINK_OVERRIDES`).
+
 ## The formation page, tidied (owner, 2026-11-18)
 
 **L'essentiel.** The official access rate and the figure for the profile are ONE cell (`accesTile`), two halves side by side and

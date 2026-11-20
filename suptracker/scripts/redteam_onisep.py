@@ -39,6 +39,18 @@ TRUTH = {
     ("EFTS", "D.E Assistant de Service Social"): "diplôme d'État d'assistant de service social",
     ("Licence", "Droit"): "licence mention droit",
 }
+# the module's explicit BTS spelling rules, copied at import: O2's reference uses this copy, O6 checks the table itself
+REF_SPELLING = dict(ON.BTS_SPELLING)
+# O6's own reading of a few rules (written apart from the module's table): the option a careful reader expects
+SPELLING_TRUTH = {
+    "Métiers de l'audio-visuel opt : métiers du son": "BTS métiers de l'audiovisuel option métiers du son",
+    "Métiers de l'audio-visuel opt : métiers de l'image": "BTS métiers de l'audiovisuel option métiers de l'image",
+    "Technico-commercial - Spécialité vins, bières et spiritueux": "BTSA technico-commercial option vins, bières et spiritueux",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) produits laitiers":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option produits laitiers",
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires ultra-marins":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires ultramarins",
+}
 
 
 def check(name):
@@ -133,6 +145,10 @@ class Ctx:
                 k = rkey(prog)
                 fids = idx["BTS"].get(k) or {f for kk, v in idx["BTS"].items() if kk.startswith(k + " option") for f in v} \
                     or (idx["BTS"].get(k.split(" option")[0], set()) if " option" in k else set())
+                if not fids and (prog or "").strip() in REF_SPELLING:      # explicit spelling rule: the sheet of that exact title
+                    t = rfold(REF_SPELLING[(prog or "").strip()])
+                    fids = {fid for fid, (lib, typ, _l) in self.ref["forms"].items()
+                            if rfold(lib) == t and (typ or "").startswith("brevet de technicien sup")}
             elif fili == "BUT":
                 fids = idx["BUT"].get(rkey(re.sub(r"(?i) parcours .*$", "", prog or "")), set())
             elif fili in ("Licence", "Licence_Las"):
@@ -254,6 +270,52 @@ UI_MUTANTS = [
 ]
 
 
+def spelling_problems(c: Ctx, table: dict) -> list:
+    """What is wrong with a BTS spelling table: a target that is not ONE BTS sheet, a source the general rules already
+    match (a dead rule), a source absent from the latest campaign (real data), a target that shares fewer words with its
+    source than another target of the same BTS does (swapped options), a reading of SPELLING_TRUTH contradicted."""
+    bts = {}
+    for fid, (lib, typ, _l) in c.ref["forms"].items():
+        if (typ or "").startswith("brevet de technicien sup"):
+            bts.setdefault(rfold(lib), []).append(fid)
+    saved = dict(REF_SPELLING)
+    REF_SPELLING.clear()
+    try:
+        plain = c.ref_links([(src, "BTS", src) for src in table])
+    finally:
+        REF_SPELLING.update(saved)
+    progs = {p for _, fili, p in c.latest_forms if fili == "BTS"}
+    bad = []
+    for src, tgt in table.items():
+        words = set(rkey(src).split())
+        if len(bts.get(rfold(tgt), [])) != 1:
+            bad.append(("not one BTS sheet", tgt))
+        if plain[src][1]:
+            bad.append(("dead rule: the general rules already match", src))
+        if c.real and src not in progs:
+            bad.append(("absent from the latest campaign", src))
+        rivals = [t for s2, t in table.items() if t != tgt and rkey(s2).split()[:2] == rkey(src).split()[:2]]
+        if any(len(words & set(rkey(t).split())) > len(words & set(rkey(tgt).split())) for t in rivals):
+            bad.append(("another sheet of this BTS fits the label better", src))
+        if src in SPELLING_TRUTH and SPELLING_TRUTH[src] != tgt:
+            bad.append(("truth", src))
+    return bad
+
+
+@check("O6 BTS spelling rules: each names ONE real BTS sheet, is needed, is used on real data, keeps its own option")
+def o6(c: Ctx):
+    bad = spelling_problems(c, ON.BTS_SPELLING)
+    used = Counter(rule for (_f, _p, fids, rule) in c.links.values() if fids)
+    # mutants of the table: two options swapped, a rule pointing to a missing sheet, a rule the general rules make dead
+    a, b = "Métiers de l'audio-visuel opt : métiers du son", "Métiers de l'audio-visuel opt : métiers de l'image"
+    mutants = {"options swapped": {**ON.BTS_SPELLING, a: ON.BTS_SPELLING[b], b: ON.BTS_SPELLING[a]},
+               "missing sheet": {**ON.BTS_SPELLING, a: "BTS métiers de l'audiovisuel option métiers du bruit"},
+               "dead rule": {**ON.BTS_SPELLING, "Management Commercial Opérationnel": "BTS management commercial opérationnel"}}
+    missed = [n for n, t in mutants.items() if not spelling_problems(c, t)]
+    ok = not bad and not missed and (not c.real or used["bts_ecriture"] > 0)
+    return ok, f"{len(ON.BTS_SPELLING)} rules, {used['bts_ecriture']} formations linked by them; problems {bad[:3]}; mutants missed {missed}"
+
+
 @check("O5 mutation test: cross-family link, options or parcours ignored, access flag inverted, wrong level, unparsed 'bac', UI bugs")
 def o5(c: Ctx):
     missed = []
@@ -267,7 +329,7 @@ def o5(c: Ctx):
     # first word is a BUT's, a BTS with an abbreviated option, a BUT with a parcours, a licence named like a licence pro
     edge = [("RT-1", "BTS", "Gestion forestière de démonstration"), ("RT-2", "BTS", "Systèmes numériques opt A"),
             ("RT-3", "BUT", "Gestion des entreprises et des administrations parcours démonstration"), ("RT-4", "Licence", "Droit"),
-            ("RT-5", "Licence", "Agencement")]
+            ("RT-5", "Licence", "Agencement"), ("RT-6", "BTS", "Métiers de l'audio-visuel opt : métiers du son")]
     rows = c.latest_forms + edge
     want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
     saved = {k: getattr(ON, k) for k in ("match", "index", "level_rank", "LEVEL", "key", "sheet_level")}
@@ -298,6 +360,10 @@ def o5(c: Ctx):
         fids, rule = saved["match"](idx, fili, prog)
         return ([], rule) if rule == "bts_options" else (fids, rule)
 
+    def no_spelling(idx, fili, prog):
+        fids, rule = saved["match"](idx, fili, prog)
+        return ([], rule) if rule == "bts_ecriture" else (fids, rule)
+
     def keep_parcours(forms_):
         idx = saved["index"](forms_)
         idx["BUT"] = {}
@@ -309,7 +375,8 @@ def o5(c: Ctx):
     link_mutants = [("BTS linked to a BUT or licence sheet", lambda: setattr(ON, "match", cross_family)),
                     ("licence professionnelle linked to a licence", lambda: setattr(ON, "index", with_lpro)),
                     ("BTS options ignored", lambda: setattr(ON, "match", no_options)),
-                    ("BUT parcours kept in the key", lambda: setattr(ON, "index", keep_parcours))]
+                    ("BUT parcours kept in the key", lambda: setattr(ON, "index", keep_parcours)),
+                    ("BTS spelling rules ignored", lambda: setattr(ON, "match", no_spelling))]
     for name, apply in link_mutants:
         try:
             apply()

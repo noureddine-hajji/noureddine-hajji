@@ -1514,7 +1514,7 @@ function carteCard(f, ctx, pinned) {
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
-    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
+    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
     ${carteMajo(f)}
     ${carteFigures(f, { ...ctx, compact: true })}
     ${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}
@@ -1527,7 +1527,10 @@ function robCardLine(cod) {
   const R = RECO && RECO.rob;
   const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];      // a known level only
   if (!a && !b) return "";
-  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.</p>`;
+  // owner, 2026-11-20: an apprenticeship offer SIES does not publish carries the repères of its DIPLOMA (the same for every
+  // formation of that diploma), said in words; never a figure of the establishment
+  const dip = R.herite && R.herite[cod] ? " Repères du diplôme : les mêmes pour toutes les formations qui y préparent." : "";
+  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.${esc(dip)}</p>`;
 }
 function carteList(rows, ctx) {
   const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
@@ -2142,7 +2145,7 @@ function recoLoad() {
   return RECO_P;
 }
 function robDecode(r) {
-  const out = { filiere: {}, national: {}, raison: {}, apres: {} };
+  const out = { filiere: {}, national: {}, raison: {}, apres: {}, herite: {} };
   for (const k of Object.keys(out)) {
     for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
   }

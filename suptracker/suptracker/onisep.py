@@ -13,7 +13,8 @@ opendata.onisep.fr and commits them under data/sources/: the site rejected the d
 No Onisep file carries a Parcoursup code. The jobs belong to the DIPLOMA, not to the establishment, so a
 Parcoursup formation is linked to the national Onisep diploma by a fixed rule per filière:
 * BTS: the same title (normalised: accents, small words, plural, "opt" = "option", "1re année commune"),
-  else the options of that BTS (several sheets), else the BTS without its option;
+  else the options of that BTS (several sheets), else the BTS without its option, else BTS_SPELLING (one explicit
+  rule per SIES label that Onisep writes otherwise: a renamed option, an abbreviation, "Spécialité" for "option");
 * BUT: the same specialty, without its "parcours";
 * licence (and LAS): the same mention;
 * IFSI: the state nursing diploma; EFTS: the state social-work diploma of the same title;
@@ -45,6 +46,43 @@ BTS_TYPES = ("brevet de technicien supérieur", "brevet de technicien supérieur
 BUT_TYPE = "bachelor universitaire de technologie"
 LICENCE_TYPE = "licence"
 NURSE = "diplome etat infirmier"
+# SIES BTS labels that Onisep spells otherwise (checked one by one on the real files, 2026-11-20): label as SIES publishes
+# it -> the Onisep sheet's title. Never fuzzy: a label absent from this table and from the rules above has no sheet
+# (Métiers de la coiffure and Edition have no BTS sheet; a double BTS + DE keeps none).
+BTS_SPELLING = {
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires métropolitains":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires métropolitains",
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires ultra-marins":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires ultramarins",
+    "Europlastics et composites à référentiel commun européen - option Conception d'Outillage":
+        "BTS europlastics et composites option conception outillage",
+    "Europlastics et composites à référentiel commun européen - option Pilotage et Optimisation de la production":
+        "BTS europlastics et composites option pilotage et optimisation de la production",
+    "Maintenance des systèmes - option D:  maintenance des ascenseurs et élévateurs":
+        "BTS maintenance des systèmes option D systèmes ascenseurs et élévateurs",
+    "Maintenance des systèmes électro-navals": "BTS maritime maintenance des systèmes électro-navals",
+    "Pêche et gestion de l'environnement marin": "BTS maritime pêche et gestion de l'environnement marin",
+    # the renovated BTS calls its option A "véhicules légers" (Onisep has no "voitures particulières" sheet any more)
+    "Maintenance des véhicules option voitures particulières": "BTS maintenance des véhicules option véhicules légers",
+    "Métiers de l'audio-visuel opt : gestion de la production": "BTS métiers de l'audiovisuel option gestion de production",
+    "Métiers de l'audio-visuel opt : montage et post-production":
+        "BTS métiers de l'audiovisuel option métiers du montage et de la postproduction",
+    "Métiers de l'audio-visuel opt : métiers de l'image": "BTS métiers de l'audiovisuel option métiers de l'image",
+    "Métiers de l'audio-visuel opt : métiers du son": "BTS métiers de l'audiovisuel option métiers du son",
+    "Métiers de l'audio-visuel opt : techn. d'ingeniérie et exploit. équipements":
+        "BTS métiers de l'audiovisuel option techniques d'ingénierie et exploitation des équipements",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) aliments et processus technologiques":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option aliments et processus technologiques",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) produits laitiers":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option produits laitiers",
+    "Technico-commercial - Spécialité alimentation et boisson": "BTSA technico-commercial option alimentation et boissons",
+    "Technico-commercial - Spécialité biens et services pour l'agriculture":
+        "BTSA technico-commercial option biens et services pour l'agriculture",
+    "Technico-commercial - Spécialité produit de la filière bois": "BTSA technico-commercial option produits de la filière forêt-bois",
+    "Technico-commercial - Spécialité univers jardins et animaux de compagnie":
+        "BTSA technico-commercial option univers jardins et animaux de compagnie",
+    "Technico-commercial - Spécialité vins, bières et spiritueux": "BTSA technico-commercial option vins, bières et spiritueux",
+}
 
 
 def fold(s: str | None) -> str:
@@ -164,6 +202,8 @@ def index(forms) -> dict:
         else:
             continue
         idx[fam].setdefault(key(spec), []).append(fid)
+        if fam == "BTS":
+            idx.setdefault("BTS_TITLE", {}).setdefault(fold(lib), []).append(fid)
     return idx
 
 
@@ -179,6 +219,9 @@ def match(idx: dict, fili: str | None, programme: str | None) -> tuple[list[str]
         base = k.split(" option")[0]
         if base != k and base in idx["BTS"]:
             return idx["BTS"][base], "bts_sans_option"
+        title = BTS_SPELLING.get((programme or "").strip())
+        if title and fold(title) in idx.get("BTS_TITLE", {}):
+            return idx["BTS_TITLE"][fold(title)], "bts_ecriture"
         return [], "bts_sans_fiche"
     if fili == "BUT":
         k = key(re.sub(r"(?i)\s+parcours\b.*$", "", programme or ""))

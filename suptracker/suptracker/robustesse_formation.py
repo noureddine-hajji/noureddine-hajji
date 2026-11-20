@@ -26,6 +26,11 @@ Comp = 100 x portable share. Shown: the median of the three scenarios, min-max u
 observed links (method x the jobs' own), agreement (the jobs' own) and coverage; < 0.4 = « données insuffisantes ».
 The page leads with a REPÈRE among the formations of the same filière (decision 1; top / bottom 20 %, cut points measured at
 build) and three plain facts; the score is in « Détail du calcul » only.
+
+Apprenticeship offers (owner, 2026-11-20): an offer of the cartographie that SIES does not publish takes the block of its DIPLOMA
+(`inherit`) only when every formation of the latest campaign with the same type and mention (`carte.diplome_of`, the offer's own
+voted pair) has a block and all those blocks are identical: the score then belongs to the diploma, not to an establishment.
+It carries `herite` (how many formations share it) and never enters a repère's ranking (computed before, among SIES rows only).
 """
 from __future__ import annotations
 
@@ -42,7 +47,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.4-f"
+MODEL_VERSION = "2027.5-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -475,6 +480,7 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
                                                "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
         with_repere(rows, fili)
+        rows.update(inherit(con, rows, session))
     out_rows = [(c, json.dumps(v, ensure_ascii=False, sort_keys=True)) for c, v in sorted(rows.items())]
 
     def write(c, p):
@@ -501,7 +507,51 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
             tc.close()
     return {"formations": len(rows), "formations_score": sum(1 for v in rows.values() if v["score"]),
             "avec_competences": sum(1 for v in rows.values() if v["competences"]), "fiches_rncp": len(rncp_rows),
-            "methodes": {m: sum(1 for v in rows.values() if v["methode"] == m) for m in METHOD_WEIGHT}}
+            "methodes": {m: sum(1 for v in rows.values() if v["methode"] == m) for m in METHOD_WEIGHT},
+            "herites": sum(1 for v in rows.values() if v.get("herite"))}
+
+
+# the cartographie writes some apprenticeship mentions with the diploma's acronym first (« BTS - Management en hôtellerie
+# restauration »): that prefix alone is dropped before comparing with the SIES mention (a closed list of acronyms)
+MENTION_PREFIX = re.compile(r"^(?:BTSA|BTSM|BTS|BUT|DCG|DEUST|DE|D\.E)\s+-\s+")
+
+
+def diploma_key(diplome: str | None, mention: str | None) -> tuple[str, str]:
+    return (diplome or "", fold(MENTION_PREFIX.sub("", mention or "")))
+
+
+def inherited(offers: list[tuple], sies: dict, rows: dict) -> dict:
+    """The rule alone. offers: (code, type, mention) of the apprenticeship offers; sies: code -> (type, mention) of every
+    formation of the latest campaign; rows: their blocks. An offer gets its diploma's block when EVERY SIES formation of the
+    same (type, mention) has a scored block and all those blocks are identical; `herite` says how many share it."""
+    groups: dict = {}
+    for cod, (d, m) in sies.items():
+        groups.setdefault(diploma_key(d, m), []).append(cod)
+    out = {}
+    for cod, d, m in offers:
+        cods = groups.get(diploma_key(d, m), [])
+        blocks = [rows.get(c) for c in cods]
+        if not cods or any(b is None or not b.get("score") for b in blocks):
+            continue
+        dumped = {json.dumps(b, ensure_ascii=False, sort_keys=True) for b in blocks}
+        if len(dumped) == 1:
+            out[cod] = {**json.loads(dumped.pop()), "herite": {"source": "diplome", "formations": len(cods)}}
+    return out
+
+
+def inherit(con, rows: dict, session: int) -> dict:
+    """Blocks for the apprenticeship offers SIES does not publish (carte.apprentissage, not attached to an initial formation)."""
+    from . import carte as CA
+    try:
+        offers = [(a["cod_aff_form"], a["diplome"], a["mention"]) for a in CA.apprentissage(con) if not a["rattachee"]]
+    except Exception:  # noqa: BLE001 - no cartographie: nothing to inherit
+        return {}
+    if not offers:
+        return {}
+    sies = {cod: CA.diplome_of(fl, form, fil, lib) for cod, fl, form, fil, lib in con.execute(
+        """SELECT cod_aff_form, any_value(fili), any_value(form_lib_voe_acc), any_value(fil_lib_voe_acc), any_value(lib_for_voe_ins)
+           FROM core.formation_year WHERE session = ? GROUP BY 1""", [session]).fetchall()}
+    return inherited(offers, sies, rows)
 
 
 def _src(con):
@@ -529,7 +579,7 @@ def compact(con) -> dict:
     {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
     Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
     c, p = _src(con)
-    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}}
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}}
     if c is None:
         return out
     acc = {k: {} for k in out}
@@ -540,6 +590,8 @@ def compact(con) -> dict:
             acc["filiere"].setdefault(q["niveau"], []).append(cod)
         elif q.get("raison"):
             acc["raison"].setdefault(q["raison"], []).append(cod)
+        if d.get("herite"):
+            acc["herite"].setdefault("diplome", []).append(cod)
         if n.get("niveau"):
             acc["national"].setdefault(n["niveau"], []).append(cod)
             if n.get("apres_etudes"):
