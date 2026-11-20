@@ -363,7 +363,7 @@ def local_ok(js: str, analytics: str) -> tuple[bool, str]:
     vg = top(js, "viewGuide") + top(js, "guideHtml") + top(js, "guideState") + top(js, "guideCard")
     if "track(" in vg or "guideVu" in re.sub(r"guideFlags\(\)", "", vg):
         bad.append("the guide records an event or reads a flag outside guideFlags")
-    if '"guide")' not in re.search(r"ROUTES = \((.*?)\)\n", analytics, re.S).group(0) or 'guide: "guide" }' not in js:
+    if '"guide"' not in re.search(r"ROUTES = \((.*?)\)\n", analytics, re.S).group(1) or not re.search(r'\bguide: "guide"[ ,}]', js):
         bad.append("the page view is not in the closed route lists")
     return not bad, f"{len(uses)} flag uses; problems {bad[:3]}"
 
@@ -380,7 +380,7 @@ def entries_ok(js: str, release: str, readme: str, claude: str) -> tuple[bool, s
         bad.append("the home card (before the four doors)")
     if '<a href="#/guide">Construire ma liste : les 5 étapes</a>' not in top(js, "viewVoeux"):
         bad.append("the Mes vœux link")
-    if 'if (a === "guide") return await viewGuide();' not in js or 'guide: "voeux" };' not in js:
+    if 'if (a === "guide") return await viewGuide();' not in js or not re.search(r'\bguide: "voeux"[ ,}]', js):
         bad.append("the route or its tab")
     if '"construire_ma_liste": ("app.js", "async function viewGuide(")' not in release:
         bad.append("the release guard")
@@ -522,7 +522,7 @@ MUTANTS = [
     ("the guide records an event", "  draw(null);\n", '  draw(null);\n  track("action", { a: "guide" });\n', "gu4"),
     ("the share flag only on copy", '() => { store.set("guidePartage", true); window.print(); }', "() => window.print()", "gu4"),
     ("the home card dropped", "  ${guideCard()}\n", "", "gu5"),
-    ("the Mes vœux link dropped", '<p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a></p>', "", "gu5"),
+    ("the Mes vœux link dropped", '<p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a> · ', '<p class="small no-print">', "gu5"),
     ("outside terminale: a safety step to do", 'securite: reo ? "sans_objet"', 'securite: false ? "sans_objet"', "gu7"),
     ("outside terminale: Mes vœux instead of Je me réoriente", 'href: x.key === "securite" && reo ? "#/reorientation" : x.href', "href: x.href", "gu7"),
 ]
