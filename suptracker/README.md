@@ -3864,6 +3864,12 @@ same way through their mention's acronym (`onisep.match_offer`, titres professio
 (`robustesse_formation.offer_blocks`): no filière repère (no SIES formation of its filière), its national repère PLACED among the
 SIES formations' national scores (never added to them), `diplome_offre` saying the rule; the search card prints « Repères du
 diplôme ». Red teams O7 (crafted truth, the real offers re-derived, 4 mutants) and RF14 (crafted, real, order; 4 mutants).
+Follow-up (owner, 2026-11-20): an Onisep title's brackets (« CS technicien(ne) ascensoriste (service et modernisation) ») are now
+dropped on the RAW title, before folding turned them into words (23 more SIES formations); and `onisep.NATIONAL_SPELLING` holds
+four explicit rules for labels Onisep writes otherwise: the two « Techn. en énergies renouvelables opt. a / b » certificats, the
+BPJEPS mention « activités physiques pour tous » (replaced by « multi-activités physiques ou sportives pour tous », which Onisep
+says succeeds it) and « Judo-Jujitsu » (« activités de judo-jujitsu »): 62 more SIES formations (rule `titre_national_ecriture_*`).
+Red team O8 (one sheet of its type, needed, used, its own option; 3 table mutants); O7 seeds « title folded before its brackets ».
 
 **Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new

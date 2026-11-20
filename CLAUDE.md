@@ -195,7 +195,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     abbreviation, « Spécialité » for « option »), read after the general rules, never fuzzy (rule `bts_ecriture`). Red team O6.
   - National titles (owner, 2026-11-20): CS, DEUST, BPJEPS (« Autre formation ») and the apprenticeship offers' CS/CSA, DEUST,
     BPJEPS and titres professionnels (`match_offer`) take the Onisep sheet of the SAME type and exact title (`national_key`: format
-    only); a FCIL never. Red team O7.
+    only, brackets dropped on the RAW title); a FCIL never; `NATIONAL_SPELLING` = explicit rules for renamed/abbreviated titles
+    (rule `titre_national_ecriture_*`). Red teams O7, O8.
   - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
 - **Scale (sprint 10).**
   - Every route has a policy in `cache.py` (red team S1). A route that records an audience event or carries a personal list is

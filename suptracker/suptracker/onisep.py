@@ -73,6 +73,34 @@ def national_key(label: str | None) -> str:
     return key(re.sub(r"\([^)]*\)", " ", s))
 
 
+# national titles Onisep spells otherwise (checked one by one, 2026-11-20): label as SIES or the cartographie publishes it
+# (read through `national_key`, so the offers' « CS - » prefix does not matter) -> the Onisep sheet's title. Never fuzzy.
+NATIONAL_SPELLING = {
+    "cs": {
+        "Techn. en énergies renouvelables opt. a énergie électrique": "CS technicien en énergies renouvelables option A énergie électrique",
+        "Techn. en énergies renouvelables opt. b énergie thermique": "CS technicien en énergies renouvelables option B énergie thermique",
+    },
+    "bpjeps": {
+        # the mention « activités physiques pour tous » was replaced by « multi-activités physiques ou sportives pour tous »
+        # (Onisep: the new BPJEPS succeeds the old one; France Compétences: RNCP 40480 replaces it)
+        "Spécialité Educateur sportif - Mention Activités physiques pour tous":
+            "BPJEPS spécialité éducateur sportif mention multi-activités physiques ou sportives pour tous",
+        "Spécialité Educateur sportif - Mention Judo-Jujitsu": "BPJEPS spécialité éducateur sportif mention activités de judo-jujitsu",
+    },
+}
+
+
+def _national_sheet(idx: dict, nat: str, label: str | None) -> tuple[list[str], str | None]:
+    """The sheet(s) of a national title: same exact title (national_key), else an explicit spelling rule (NATIONAL_SPELLING)."""
+    fids = idx.get("NAT_" + nat, {}).get(national_key(label), [])
+    if fids:
+        return sorted(fids), "titre_national_" + nat
+    rules = {national_key(k): v for k, v in NATIONAL_SPELLING.get(nat, {}).items()}
+    title = rules.get(national_key(label))
+    fids = idx.get("NATT_" + nat, {}).get(fold(title), []) if title else []
+    return (sorted(fids), "titre_national_ecriture_" + nat) if fids else ([], None)
+
+
 # SIES BTS labels that Onisep spells otherwise (checked one by one on the real files, 2026-11-20): label as SIES publishes
 # it -> the Onisep sheet's title. Never fuzzy: a label absent from this table and from the rules above has no sheet
 # (Métiers de la coiffure and Edition have no BTS sheet; a double BTS + DE keeps none).
@@ -228,8 +256,10 @@ def index(forms) -> dict:
             fam, spec = "DE", f
         else:
             nat = next((k for k, (ty, _) in NATIONAL.items() if t == ty), None)
-            if nat:
-                idx.setdefault("NAT_" + nat, {}).setdefault(national_key(re.sub(NATIONAL[nat][1], "", f)), []).append(fid)
+            if nat:      # the raw title: its brackets (« technicien(ne) ») must go before folding turns them into words
+                raw = re.sub(NATIONAL[nat][1], "", (lib or "").strip(), flags=re.I)
+                idx.setdefault("NAT_" + nat, {}).setdefault(national_key(raw), []).append(fid)
+                idx.setdefault("NATT_" + nat, {}).setdefault(f, []).append(fid)
             continue
         idx[fam].setdefault(key(spec), []).append(fid)
         if fam == "BTS":
@@ -241,8 +271,7 @@ def match_offer(idx: dict, mention: str | None) -> tuple[list[str], str | None]:
     """(Onisep sheet ids, rule) of an apprenticeship offer, by its mention's acronym and exact title; ([], None) otherwise."""
     for nat, pre in OFFER_PREFIX:
         if re.match(pre, (mention or "").replace("\xa0", " "), flags=re.I):
-            fids = idx.get("NAT_" + nat, {}).get(national_key(mention), [])
-            return (sorted(fids), "titre_national_" + nat) if fids else ([], None)
+            return _national_sheet(idx, nat, mention)
     return [], None
 
 
@@ -250,8 +279,8 @@ def match(idx: dict, fili: str | None, programme: str | None, form: str | None =
     """(Onisep diploma ids, rule) of a Parcoursup formation."""
     if fili == "Autre formation" and form in NATIONAL_FORM:
         nat = NATIONAL_FORM[form]
-        fids = idx.get("NAT_" + nat, {}).get(national_key(programme), [])
-        return (sorted(fids), "titre_national_" + nat) if fids else ([], nat + "_sans_fiche")
+        fids, rule = _national_sheet(idx, nat, programme)
+        return (fids, rule) if fids else ([], nat + "_sans_fiche")
     if fili == "BTS":
         k = key(programme)
         if k in idx["BTS"]:
