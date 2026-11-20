@@ -2046,7 +2046,8 @@ function formationRobTile(rb) {
   const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : "";
   // owner, 2026-11-20: a formation that leads directly to a scored one borrows its block, said in words
   const vois = rb && rb.voisine ? "emprunté à la formation voisine" : "";
-  const note = !rb ? "pas d'estimation pour cette formation" : !s ? "données insuffisantes pour une estimation sûre"
+  const note = !rb ? "pas d'estimation pour cette formation" : rb.absent ? esc((ROBF_ABSENT[rb.absent] || {}).court || "pas d'estimation pour cette formation")
+    : !s ? "données insuffisantes pour une estimation sûre"
     : `${[vois, fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
   return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
@@ -4473,8 +4474,20 @@ function robInsPublie(ins, but) {
   return `<div class="rob-pub"><h3>À côté : l'insertion publiée</h3>${body}
     <p class="muted small">Ces chiffres publiés restent à côté de la robustesse, jamais dedans : ils décrivent des promotions passées, quelques mois après le diplôme, alors que la robustesse porte sur les métiers entre 2030 et 2035. Ce ne sont pas des chances d'emploi. Le détail est dans la carte « Insertion professionnelle »${ins && ins.rows && ins.rows.length ? " plus bas" : ", onglet « Réussir et poursuivre »"}.</p></div>`;
 }
+// owner, 2026-11-20: a formation left without a block on purpose says why (robustesse_formation.ABSENT_RULES), never a figure
+const ROBF_ABSENT = {
+  bachelor_ecole_ingenieur: {
+    court: "pas d'estimation : Onisep ne publie pas les métiers de ce bachelor",
+    long: "Pas d'estimation pour ce bachelor. Onisep ne publie pas les métiers auxquels il mène. Le diplôme d'ingénieur de l'école est un autre diplôme, en cinq ans après le bac. Nous ne lui empruntons pas sa note : le passage en cycle ingénieur n'est pas automatique.",
+  },
+};
 function formationRobustesseCard(r, pub) {
   if (!r) return "";
+  if (r.absent) {
+    const a = ROBF_ABSENT[r.absent];
+    return a ? `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2><p class="muted">${esc(a.long)}</p>
+      <p class="small"><a href="#/info/robustesse">Comment on calcule la robustesse</a></p></div>` : "";
+  }
   const s = r.score, q = r.repere, cp = r.composantes || {}, k = r.confiance || {}, faits = robfFaits(r);
   const fil = q && q.filiere ? ` (${esc(q.filiere.replace("_", " "))})` : "";
   const head = !s ? `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer cette formation.</p>`

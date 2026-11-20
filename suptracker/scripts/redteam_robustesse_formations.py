@@ -70,6 +70,7 @@ class Ctx:
         self.db = db if db and db.exists() else None
         self.real = real
         self.src = {"robf": (ROOT / "suptracker" / "robustesse_formation.py").read_text(),
+                    "api": (ROOT / "suptracker" / "api.py").read_text(),
                     "methode": (ROOT / "suptracker" / "methode_robustesse.py").read_text()}
         self.js = (ROOT / "suptracker" / "static" / "app.js").read_text()
 
@@ -493,7 +494,7 @@ def rf4(c: Ctx):
 
 
 # ------------------------------------------------------------------------------------------------------------- page
-NAMES = ("pc1d", "promoTxt", "robPc", "robInsPublie", "ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_VOISINE", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
+NAMES = ("pc1d", "promoTxt", "robPc", "robInsPublie", "ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_VOISINE", "ROBF_ABSENT", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
 
 
 def page_data():
@@ -1119,6 +1120,12 @@ SOURCE_MUTANTS = [
     ("robf", "CMI linked to any licence of the mention", "fi == \"Licence\" and u and u == uai and fold(fl) == fold(fil)", "fi == \"Licence\" and fold(fl) == fold(fil)", "RF15"),
     ("robf", "disagreeing neighbours tolerated", "        if len(dumped) != 1:\n            continue\n        b = json.loads(dumped.pop())", "        b = json.loads(dumped.pop())", "RF15"),
     ("js", "borrowed block not said on the card", "  const vois = v ? `<p", "  const vois = false ? `<p", "RF15"),
+    ("robf", "engineering diploma counted as a bachelor", 're.match(r"Formation Bac \\+ \\d"', 're.match(r"Formation"', "RF16"),
+    ("robf", "bachelor rule on every filière", '(rec.get("fili") or "") == "Ecole d\'Ingénieur" and ', "", "RF16"),
+    ("api", "reason not sent", ' or ROBF.absent(rec),', ',', "RF16"),
+    ("js", "card silent on the reason", "    return a ? `<div", "    return false ? `<div", "RF16"),
+    ("js", "tile ignores the reason", ": rb.absent ? esc(", ": false ? esc(", "RF16"),
+    ("js", "unknown reason shown raw", '|| "pas d\'estimation pour cette formation")', '|| rb.absent)', "RF16"),
     ("robf", "offers counted in the national pool", "\n                 and not (d.get(\"herite\") or d.get(\"voisine\")))", ")", "RF14"),
     ("robf", "offer given a filière repère", '        b["rncp"] = None\n        b["repere"] = None', '        b["rncp"] = None\n        b["repere"] = {"niveau": "moyen"}', "RF14"),
     ("robf", "offer rule not said", "        b[\"diplome_offre\"] = rule", "        b[\"diplome_offre\"] = 1", "RF14"),
@@ -1433,6 +1440,62 @@ def rf15(c: Ctx):
                 bad.append(f"real {k}: confidence or score")
                 break
         real = f"; real: {len(got_r)} formations borrow a neighbour's block ({sum(1 for v in got_r.values() if v.get('score'))} with a score)"
+    return not bad, f"differences {bad[:4]}{real}"
+
+
+@check("RF16 no block on purpose (owner, 2026-11-20): an engineering school's bachelor says why, never borrows the engineer's score")
+def rf16(c: Ctx):
+    F = c.F()
+    bad = []
+    cases = [({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation Bac + 3"}, "bachelor_ecole_ingenieur"),
+             ({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation Bac + 4"}, "bachelor_ecole_ingenieur"),
+             ({"fili": "Ecole d'Ingénieur", "fil_lib_voe_acc": "Formation d'ingénieur Bac + 5"}, None),
+             ({"fili": "Ecole de Commerce", "fil_lib_voe_acc": "Formation Bac + 3"}, None),
+             ({"fili": "Licence", "fil_lib_voe_acc": "Informatique"}, None), ({}, None)]
+    for rec, exp in cases:
+        got = (F.absent(rec) or {}).get("absent")
+        if got != exp:
+            bad.append(f"{rec}: {got} vs {exp}")
+    if set(F.ABSENT_RULES) != {"bachelor_ecole_ingenieur"}:
+        bad.append(f"rules {F.ABSENT_RULES}")
+    if 'ROBF.for_formation(_con().cursor(), rec["cod_aff_form"]) or ROBF.absent(rec)' not in c.src["api"]:
+        bad.append("the formation answer does not carry the reason when there is no block")
+    prog = RB.STUB + "\n".join(RB.top(c.js, n) for n in NAMES + ("ROB_SUM", "formationRobTile")) + """
+      const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      process.stdout.write(JSON.stringify([formationRobustesseCard(D.a), formationRobustesseCard(D.u), formationRobTile(D.a), formationRobTile(D.u)]));"""
+    out = RB.node(prog, {"a": {"absent": "bachelor_ecole_ingenieur"}, "u": {"absent": "inconnu" + HOSTILE}})
+    if out is not None:
+        ca, cu, ta, tu = out
+        if "Onisep ne publie pas les métiers" not in ca or "cycle ingénieur" not in ca or "/ 100" in ca or "Score" in ca or 'id="robustesse"' not in ca:
+            bad.append("the card does not say why, or shows a figure")
+        ta, tu = (x.replace("&#39;", "'") for x in (ta, tu))
+        if cu or HOSTILE in tu or "pas d'estimation" not in tu:
+            bad.append("an unknown reason is shown, or leaks")
+        if "Onisep ne publie pas les métiers de ce bachelor" not in ta or "/ 100" in ta or "données insuffisantes" in ta:
+            bad.append("the L'essentiel tile does not say why")
+    real = ""
+    if c.real and c.db:
+        import duckdb
+        from suptracker import rapports as RP
+        tc = duckdb.connect(str(RP.textes_path(c.db)), read_only=True)
+        try:
+            stored = {k for (k,) in tc.execute("SELECT cod_aff_form FROM r35_formation").fetchall()}
+        finally:
+            tc.close()
+        con = duckdb.connect(str(c.db), read_only=True)
+        try:
+            session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+            recs = con.execute("""SELECT cod_aff_form, any_value(fili), any_value(fil_lib_voe_acc) FROM core.formation_year
+                                  WHERE session = ? GROUP BY 1""", [session]).fetchall()
+        finally:
+            con.close()
+        named = [k for k, fi, fl in recs if F.absent({"fili": fi, "fil_lib_voe_acc": fl})]
+        hidden = [k for k in named if k in stored]
+        if hidden:
+            bad.append(f"real: the rule names {len(hidden)} formations that have a block, e.g. {hidden[:3]}")
+        if not named:
+            bad.append("real: the rule names no formation")
+        real = f"; real: {len(named)} bachelors say why they have no score"
     return not bad, f"differences {bad[:4]}{real}"
 
 

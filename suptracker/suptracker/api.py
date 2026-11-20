@@ -735,7 +735,7 @@ def formation(cod: str, session: int | None = None):
             "aides": AID.for_formation(_con().cursor(), rec["cod_aff_form"], vie),
             "tension": TS.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # robustesse 2035 per formation (owner, 2026-11-17): outlets, skills, insertion, an estimation of the model
-            "robustesse": ROBF.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "robustesse": ROBF.for_formation(_con().cursor(), rec["cod_aff_form"]) or ROBF.absent(rec),
             "apprenti": APP.for_formation(_con().cursor(), rec["cod_aff_form"], rec["session"]),
             # the apprenticeship offers of the same establishment for the same diploma (cartographie, no statistics)
             "apprentissage": CA.for_formation(_con().cursor(), rec["cod_aff_form"]),

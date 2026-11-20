@@ -3881,6 +3881,15 @@ them; `voisine` names the neighbour. The formation card opens with « Repère em
 CMI), L'essentiel and the search card say it. Literary CPGE and ENS D1/D2 prépas were proposed and left out (weak links). 116
 formations; 1,745 formations of the search page still have no score. Red team RF15 (crafted, real re-derivation, order, page; 5 mutants).
 
+**No score on purpose, said (owner, 2026-11-20).** The 77 bachelors of engineering schools (« Formation Bac + 3 / 4 »,
+grade de licence; 59 in fee-charging private schools) have no Onisep jobs: Onisep publishes six « bachelor en sciences et
+ingénierie » sheets, school-specific (cybersécurité, IA, agro) with one to four jobs, and none carries the exact title of a SIES
+bachelor (32 of the 77 labels name a specialty at all). Every scored engineering diploma (508, « Formation d'ingénieur Bac + 5 »)
+shares ONE family block (66.8), and a bachelor is another diploma whose route to the engineering cycle is not automatic: it borrows
+nothing. `robustesse_formation.absent` (one rule per case, `ABSENT_RULES`, no warehouse change) sends `{"absent": rule}` in place of
+the block, and the formation card and L'essentiel say why (« Onisep ne publie pas les métiers de ce bachelor »), never a figure; an
+unknown reason reads « pas d'estimation ». Red team RF16 (crafted rule, real: the rule names only unscored formations; 6 mutants).
+
 **Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
 ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five

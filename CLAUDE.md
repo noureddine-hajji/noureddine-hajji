@@ -754,6 +754,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   (`NEIGHBOUR_RULES`: CMI -> licence of the same mention and UAI; mise à niveau hôtellerie-restauration -> BTS MHR), every neighbour
   scored and identical, confidence x 0.8, no filière repère, national repère placed, `voisine` said on the card. Literary CPGE and
   ENS D1/D2 were refused (weak links). RF15.
+  No score on purpose (owner, 2026-11-20): an engineering school's bachelor (« Formation Bac + 3 / 4 ») never borrows the engineer's
+  block (another diploma, the engineering cycle is not automatic); `absent` (`ABSENT_RULES`) sends the reason, the card and
+  L'essentiel say it, never a figure. RF16.
 - **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in

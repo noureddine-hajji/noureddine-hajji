@@ -582,6 +582,19 @@ NEIGHBOUR_RULES = {
 }
 
 
+# owner, 2026-11-20: a formation left WITHOUT a block on purpose says why on its page, by one fixed rule per case; it never
+# borrows a figure. A bachelor of an engineering school (« Formation Bac + 3 / 4 », grade de licence) is not the school's
+# engineering diploma (bac + 5): Onisep publishes no jobs for it, so it gets no score and the page says so.
+ABSENT_RULES = ("bachelor_ecole_ingenieur",)
+
+
+def absent(rec: dict) -> dict | None:
+    """The reason a formation has no block when a fixed rule names it, else None (the page then says « pas d'estimation »)."""
+    if (rec.get("fili") or "") == "Ecole d'Ingénieur" and re.match(r"Formation Bac \+ \d", rec.get("fil_lib_voe_acc") or ""):
+        return {"absent": "bachelor_ecole_ingenieur"}
+    return None
+
+
 def neighbour_of(rule: str, form, fil) -> bool:
     return (rule == "cmi_licence" and (form or "").startswith("C.M.I")) or \
         (rule == "mise_a_niveau_bts_mhr" and fold(form) == "mise a niveau" and fold(fil) == "hotellerie restauration")
