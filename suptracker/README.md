@@ -3871,6 +3871,16 @@ BPJEPS mention « activités physiques pour tous » (replaced by « multi-activi
 says succeeds it) and « Judo-Jujitsu » (« activités de judo-jujitsu »): 62 more SIES formations (rule `titre_national_ecriture_*`).
 Red team O8 (one sheet of its type, needed, used, its own option; 3 table mutants); O7 seeds « title folded before its brackets ».
 
+**Neighbour formations (owner, 2026-11-20; model 2027.6-f).** A formation with no outlets of its own that leads DIRECTLY to a
+scored one borrows its block (`robustesse_formation.neighbours`), one explicit rule each (`NEIGHBOUR_RULES`), validated by the owner:
+a Cursus Master en Ingénierie takes the block of the licence of the same mention at the same establishment (same UAI; 59 of the 70
+CMI), the « mise à niveau » hôtellerie-restauration year takes the BTS Management en hôtellerie restauration's (every one of the 82
+shares one block; 57 formations). Every neighbour must be scored and identical; the confidence is multiplied by 0.8 (below 0.4 =
+« données insuffisantes »); no filière repère; the national repère is PLACED among the SIES formations' own scores, never added to
+them; `voisine` names the neighbour. The formation card opens with « Repère emprunté à la formation voisine … » (a link to it for a
+CMI), L'essentiel and the search card say it. Literary CPGE and ENS D1/D2 prépas were proposed and left out (weak links). 116
+formations; 1,745 formations of the search page still have no score. Red team RF15 (crafted, real re-derivation, order, page; 5 mutants).
+
 **Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
 ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five

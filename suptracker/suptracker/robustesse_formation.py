@@ -35,6 +35,9 @@ An offer whose diploma SIES never publishes (titres professionnels, most CSA, th
 its OWN national Onisep sheet (`onisep.match_offer`: acronym + exact title) like a « direct » formation (`offer_blocks`); its
 national repère is PLACED among the SIES formations' national scores (never added to them), it has no filière repère (no SIES
 formation of its filière), and it carries `diplome_offre` (the rule).
+A few formations with no outlets of their own lead DIRECTLY to a scored one (owner, 2026-11-20, one explicit rule each in
+NEIGHBOUR_RULES): they BORROW its block (`voisine` names it), with the confidence x VOISIN_WEIGHT (below the floor = no score), no
+filière repère and a national repère PLACED among the SIES formations' own scores, never added to them.
 """
 from __future__ import annotations
 
@@ -51,7 +54,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.5-f"
+MODEL_VERSION = "2027.6-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -484,7 +487,10 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                 rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
                                                "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
         with_repere(rows, fili)
-        rows.update(inherit(con, rows, session))
+        rows.update(neighbours([tuple(r) for r in con.execute("""SELECT cod_aff_form, any_value(fili), any_value(form_lib_voe_acc),
+            any_value(fil_lib_voe_acc), any_value(cod_uai), any_value(g_ea_lib_vx || ' · ' || fil_lib_voe_acc) FROM core.formation_year
+            WHERE session = ? GROUP BY 1 ORDER BY 1""", [session]).fetchall()], rows))
+        rows.update(inherit(con, rows, session))          # after the neighbours: an offer of a borrowing diploma inherits it too
         def skills_of(fids):
             for f in fids:
                 fiche, lien = rncp_of(f, labels.get(f), on_link, idx, rncp)
@@ -534,7 +540,8 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
             "avec_competences": sum(1 for v in rows.values() if v["competences"]), "fiches_rncp": len(rncp_rows),
             "methodes": {m: sum(1 for v in rows.values() if v["methode"] == m) for m in METHOD_WEIGHT},
             "herites": sum(1 for v in rows.values() if v.get("herite")),
-            "offres_fiche": sum(1 for v in rows.values() if v.get("diplome_offre"))}
+            "offres_fiche": sum(1 for v in rows.values() if v.get("diplome_offre")),
+            "voisines": sum(1 for v in rows.values() if v.get("voisine"))}
 
 
 # the cartographie writes some apprenticeship mentions with the diploma's acronym first (« BTS - Management en hôtellerie
@@ -565,6 +572,61 @@ def inherited(offers: list[tuple], sies: dict, rows: dict) -> dict:
     return out
 
 
+# owner, 2026-11-20: the formations that lead directly to another one, which they borrow the block of (one explicit rule each)
+VOISIN_WEIGHT = 0.8
+NEIGHBOUR_RULES = {
+    # a Cursus Master en Ingénierie is built on the licence of the same mention at the same establishment (same UAI)
+    "cmi_licence": "le CMI s'appuie sur la licence de même mention du même établissement",
+    # the « mise à niveau » year prepares the entry into the BTS Management en hôtellerie restauration (every one shares its block)
+    "mise_a_niveau_bts_mhr": "l'année de mise à niveau prépare l'entrée en BTS Management en hôtellerie-restauration",
+}
+
+
+def neighbour_of(rule: str, form, fil) -> bool:
+    return (rule == "cmi_licence" and (form or "").startswith("C.M.I")) or \
+        (rule == "mise_a_niveau_bts_mhr" and fold(form) == "mise a niveau" and fold(fil) == "hotellerie restauration")
+
+
+def neighbours(sies: list[tuple], rows: dict) -> dict:
+    """sies: (code, fili, form_lib_voe_acc, fil_lib_voe_acc, cod_uai, label) of the latest campaign; rows: their blocks.
+    A formation of a NEIGHBOUR_RULES rule with no block borrows its neighbour's (every neighbour scored and identical)."""
+    own = {c: d for c, d in rows.items() if d.get("score") and not (d.get("herite") or d.get("diplome_offre") or d.get("voisine"))}
+    nat = sorted(d["score_national"] for d in own.values() if d.get("score_national") is not None)
+    out = {}
+    for cod, fili, form, fil, uai, lib in sies:
+        if cod in rows:
+            continue
+        rule = next((r for r in NEIGHBOUR_RULES if neighbour_of(r, form, fil)), None)
+        if rule == "cmi_licence":
+            cands = [c for c, fi, fo, fl, u, _ in sies if fi == "Licence" and u and u == uai and fold(fl) == fold(fil)]
+        elif rule == "mise_a_niveau_bts_mhr":
+            cands = [c for c, fi, fo, fl, u, _ in sies if fi == "BTS" and fold(fl) == "management en hotellerie restauration"]
+        else:
+            continue
+        blocks = [rows.get(c) for c in sorted(cands)]
+        if not cands or any(b is None or not b.get("score") for b in blocks):
+            continue
+        dumped = {json.dumps(b, ensure_ascii=False, sort_keys=True) for b in blocks}
+        if len(dumped) != 1:
+            continue
+        b = json.loads(dumped.pop())
+        src = sorted(cands)[0]
+        k = dict(b["confiance"])
+        k["valeur"] = round(k["valeur"] * VOISIN_WEIGHT, 3)
+        k["niveau"], k["voisine"] = RJ.level(k["valeur"]), VOISIN_WEIGHT
+        b["confiance"] = k
+        if k["valeur"] < RJ.CONF_LOW:
+            b["score"], b["score_national"] = None, None
+        b["repere"] = None
+        v = b.get("score_national")
+        b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),
+                                                                    "part": REPERE_SHARE, "apres_etudes": None}
+        b["voisine"] = {"regle": rule, "code": src if rule == "cmi_licence" else None, "formations": len(cands),
+                        "libelle": next((l for c, *_r, l in sies if c == src), None)}
+        out[cod] = b
+    return out
+
+
 def offer_list(con, rows: dict) -> list[tuple]:
     """(code, mention) of the apprenticeship offers listed apart (not attached) that have no block yet."""
     from . import carte as CA
@@ -578,7 +640,8 @@ def offer_blocks(offers: list[tuple], idx: dict, sheet_jobs: dict, jobs: dict, s
     """The block of each offer read through its OWN national Onisep sheet (`onisep.match_offer`), as a « direct » formation;
     its national repère placed among the SIES formations' national scores (`rows`, never changed), no filière repère."""
     from . import onisep as ON
-    nat = sorted(d["score_national"] for d in rows.values() if d.get("score_national") is not None and not d.get("herite"))
+    nat = sorted(d["score_national"] for d in rows.values() if d.get("score_national") is not None
+                 and not (d.get("herite") or d.get("voisine")))
     out = {}
     for cod, mention in offers:
         fids, rule = ON.match_offer(idx, mention)
@@ -640,7 +703,7 @@ def compact(con) -> dict:
     {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
     Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
     c, p = _src(con)
-    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}}
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}, "voisine": {}}
     if c is None:
         return out
     acc = {k: {} for k in out}
@@ -653,6 +716,8 @@ def compact(con) -> dict:
             acc["raison"].setdefault(q["raison"], []).append(cod)
         if d.get("herite") or d.get("diplome_offre"):
             acc["herite"].setdefault("diplome", []).append(cod)
+        if d.get("voisine"):
+            acc["voisine"].setdefault("emprunte", []).append(cod)
         if n.get("niveau"):
             acc["national"].setdefault(n["niveau"], []).append(cod)
             if n.get("apres_etudes"):

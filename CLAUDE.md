@@ -750,6 +750,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the repères (never ranked), the search card says « Repères du diplôme ». Still no zone, rate or SIES figure. RF13.
   An offer whose diploma SIES never publishes is scored on its OWN national sheet (`offer_blocks`, « direct »): no filière repère,
   the national repère PLACED among SIES rows only (never added), `diplome_offre` = the rule. RF14.
+  Neighbours (owner, 2026-11-20, model 2027.6-f): a formation with no outlets that leads DIRECTLY to a scored one borrows its block
+  (`NEIGHBOUR_RULES`: CMI -> licence of the same mention and UAI; mise à niveau hôtellerie-restauration -> BTS MHR), every neighbour
+  scored and identical, confidence x 0.8, no filière repère, national repère placed, `voisine` said on the card. Literary CPGE and
+  ENS D1/D2 were refused (weak links). RF15.
 - **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in
