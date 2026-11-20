@@ -1135,9 +1135,12 @@ def rt_key(d, m):
 
 
 def oracle_inherited(offers, sies, rows):
+    by: dict = {}
+    for c, (d2, m2) in sorted(sies.items()):
+        by.setdefault(rt_key(d2, m2), []).append(c)
     out = {}
     for cod, d, m in offers:
-        same = [c for c, (d2, m2) in sies.items() if rt_key(d2, m2) == rt_key(d, m)]
+        same = by.get(rt_key(d, m), [])
         if not same or any(not (rows.get(c) or {}).get("score") for c in same):
             continue
         if all(rows[c] == rows[same[0]] for c in same):
