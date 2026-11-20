@@ -16,6 +16,15 @@ from . import robustesse_formation as RF
 
 # every version of the model, newest first: (version, date, what changed). The modules' MODEL_VERSION must be listed.
 CHANGELOG = (
+    ("2027.6-f", "20 novembre 2026",
+     "Une formation sans métiers propres qui mène directement à une formation notée lui emprunte sa note, en le disant : le "
+     "Cursus Master en Ingénierie prend celle de la licence de même mention du même établissement, l'année de mise à niveau "
+     "hôtellerie-restauration celle du BTS MHR. La confiance est abaissée et ces formations ne sont pas classées dans leur filière."),
+    ("2027.5-f", "20 novembre 2026",
+     "Les offres en apprentissage sans statistiques reprennent la note de leur diplôme quand toutes les formations de ce diplôme "
+     "ont la même. Une vingtaine d'intitulés de BTS sont maintenant reliés à leur fiche Onisep (option renommée, abréviation). "
+     "Six métiers sans code reçoivent celui d'une fiche voisine, validé à la main. Les certificats de spécialisation, DEUST, "
+     "BPJEPS et titres professionnels sont reliés à leur fiche Onisep par leur intitulé exact."),
     ("2027.4-f", "18 novembre 2026",
      "Seuil revu : une licence est notée par les masters de son université dès qu'au moins un master documenté par l'Onisep "
      "mène à un métier. Sinon, elle est notée sur ses propres métiers, ou à défaut sur ceux de sa famille de formations."),

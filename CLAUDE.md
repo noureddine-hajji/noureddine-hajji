@@ -191,6 +191,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - The list is NATIONAL and belongs to the diploma, never to the establishment; never a promise of a job.
   - Link by national title: BTS same title or all its options; BUT specialty without parcours; licence mention (never a
     licence pro); IFSI = DE infirmier; EFTS = the named DE. Other filières: no card.
+  - `onisep.BTS_SPELLING` (owner, 2026-11-20): one explicit rule per SIES BTS label Onisep spells otherwise (renamed option,
+    abbreviation, « Spécialité » for « option »), read after the general rules, never fuzzy (rule `bts_ecriture`). Red team O6.
+  - National titles (owner, 2026-11-20): CS, DEUST, BPJEPS (« Autre formation ») and the apprenticeship offers' CS/CSA, DEUST,
+    BPJEPS and titres professionnels (`match_offer`) take the Onisep sheet of the SAME type and exact title (`national_key`: format
+    only, brackets dropped on the RAW title); a FCIL never; `NATIONAL_SPELLING` = explicit rules for renamed/abbreviated titles
+    (rule `titre_national_ecriture_*`); one with no sheet keeps `<type>_sans_fiche` and shows the « pas de fiche » jobs card
+    (owner, 2026-11-20: kept). Red teams O7, O8.
   - Access flag: job minimum level vs diploma level (BTS 2, BUT/licence/IFSI/EFTS 3); unknown level = no flag.
 - **Scale (sprint 10).**
   - Every route has a policy in `cache.py` (red team S1). A route that records an audience event or carries a personal list is
@@ -225,7 +232,10 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Jobs without a usable Onisep ROME code are linked by NAME (Dares title, else France Travail appellation, only ROME codes
     the Dares tables know): the Onisep code always wins, one method per job, flagged "moins sûr" with the method's check
     (right code for n of N jobs whose Onisep code is known) measured at build, never hard-coded. Red team N8.
-  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None).
+  - Homonym corrections are owner-confirmed only (`TITLE_LINK_OVERRIDES`: a code by analogy with its reason, or None; several
+    codes as a tuple, `override_codes`). Owner, 2026-11-20: MET.942 → H3402+H3403, MET.8064 and MET.117 → H1210, MET.402 → H1209,
+    MET.442 (conseiller énergie) → F1103 (diagnostic de performance énergétique, nearest linked sheet); MET.7984 → L1302
+    (MET.666 and MET.684 keep their Onisep code H3202, which has no ISCO code: no score).
 - **Employment to 2030 (sprint 14).**
   - "Les métiers en 2030" annex 4 tables A/B, per FAP-2009 87-group (79 published): values as published, the
     imbalance as the RANGE of the 5 scenarios plus the reference; a fixed sign rule reads it; never a chance or a promise.
@@ -735,6 +745,20 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   Owner, 2026-11-18: L'essentiel carries a « Robustesse 2035 » tile (`formationRobTile`): the median score « / 100 » with both repères
   in words and the estimation label (the owner's choice: the score leaves « Détail du calcul » for this tile only); no score =
   « données insuffisantes ». RF12.
+  Owner, 2026-11-20 (model 2027.5-f): an apprenticeship offer SIES does not publish takes its DIPLOMA's block
+  (`robustesse_formation.inherited`) only when EVERY latest-campaign formation of the same type and mention (`carte.diplome_of`,
+  acronym prefix « BTS - » dropped from a closed list) has a scored block and all are identical; `herite` says it, it is added after
+  the repères (never ranked), the search card says « Repères du diplôme ». Still no zone, rate or SIES figure. RF13.
+  An offer whose diploma SIES never publishes is scored on its OWN national sheet (`offer_blocks`, « direct »): no filière repère,
+  the national repère PLACED among SIES rows only (never added), `diplome_offre` = the rule. RF14.
+  Neighbours (owner, 2026-11-20, model 2027.6-f): a formation with no outlets that leads DIRECTLY to a scored one borrows its block
+  (`NEIGHBOUR_RULES`: CMI -> licence of the same mention and UAI; mise à niveau hôtellerie-restauration -> BTS MHR), every neighbour
+  scored and identical, confidence x 0.8, no filière repère, national repère placed, `voisine` said on the card. Literary CPGE and
+  ENS D1/D2 were refused (weak links). RF15.
+  No score on purpose (owner, 2026-11-20): an engineering school's bachelor (« Formation Bac + 3 / 4 ») never borrows the engineer's
+  block (another diploma, the engineering cycle is not automatic); `absent` (`ABSENT_RULES`) sends the reason, the card and
+  L'essentiel say it, never a figure; only « Formation Bac + 3 / + 4 » (never + 5). A borrowed block keeps its national repère's
+  `apres_etudes`; the neighbour notice is two sentences (<= 30 words). RF15, RF16.
 - **Travel costs (owner, 2026-11-18).** `transports.py`, workflow `suptracker-transports` (monthly; `transports_fetch.py`, official
   hosts only: SNCF « Tarifs TGV INOUI et OUIGO » + « Gares de voyageurs », ODbL; « Prix des carburants », Licence Ouverte) into
   data/transports (fingerprint, out of the bundle); ONE parameter-less answer `/api/transports` (shared-cached, a zlib JSON value in

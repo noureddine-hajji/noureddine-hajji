@@ -1514,7 +1514,7 @@ function carteCard(f, ctx, pinned) {
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
-    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
+    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
     ${carteMajo(f)}
     ${carteFigures(f, { ...ctx, compact: true })}
     ${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}
@@ -1527,7 +1527,11 @@ function robCardLine(cod) {
   const R = RECO && RECO.rob;
   const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];      // a known level only
   if (!a && !b) return "";
-  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.</p>`;
+  // owner, 2026-11-20: an apprenticeship offer SIES does not publish carries the repères of its DIPLOMA (the same for every
+  // formation of that diploma), said in words; never a figure of the establishment
+  const dip = R.herite && R.herite[cod] ? " Repères du diplôme : les mêmes pour toutes les formations qui y préparent."
+    : R.voisine && R.voisine[cod] ? " Repère emprunté à la formation voisine, à laquelle celle-ci mène directement." : "";
+  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.${esc(dip)}</p>`;
 }
 function carteList(rows, ctx) {
   const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
@@ -2040,8 +2044,11 @@ function formationRobTile(rb) {
   const s = rb && rb.score, q = (rb && rb.repere) || {}, n = (rb && rb.repere_national) || {};
   const fil = q.niveau ? `${ROB_SUM[q.niveau]} de sa filière` : q.raison === "memes_debouches" ? "non classée dans sa filière (mêmes métiers)" : q.raison ? "trop peu de formations comparables dans sa filière" : "";
   const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : "";
-  const note = !rb ? "pas d'estimation pour cette formation" : !s ? "données insuffisantes pour une estimation sûre"
-    : `${[fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
+  // owner, 2026-11-20: a formation that leads directly to a scored one borrows its block, said in words
+  const vois = rb && rb.voisine ? "emprunté à la formation voisine" : "";
+  const note = !rb ? "pas d'estimation pour cette formation" : rb.absent ? esc((ROBF_ABSENT[rb.absent] || {}).court || "pas d'estimation pour cette formation")
+    : !s ? "données insuffisantes pour une estimation sûre"
+    : `${[vois, fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
   return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
 function summaryBand(r, d) {
@@ -2142,7 +2149,7 @@ function recoLoad() {
   return RECO_P;
 }
 function robDecode(r) {
-  const out = { filiere: {}, national: {}, raison: {}, apres: {} };
+  const out = { filiere: {}, national: {}, raison: {}, apres: {}, herite: {}, voisine: {} };
   for (const k of Object.keys(out)) {
     for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
   }
@@ -4433,6 +4440,10 @@ const ROBF_METHODE = {
   poursuite: "les métiers des masters de la même université et de la même discipline, pesés par leurs admis (MonMaster)",
   famille: "les métiers auxquels cette formation mène, souvent après d'autres études (lien moins sûr)",
 };
+const ROBF_VOISINE = {
+  cmi_licence: "le Cursus Master en Ingénierie s'appuie sur la licence de même mention du même établissement",
+  mise_a_niveau_bts_mhr: "cette année de mise à niveau prépare l'entrée en BTS Management en hôtellerie-restauration",
+};
 const ROBF_LIEN = { onisep: "lien donné par la fiche Onisep du diplôme", titre: "fiche du titre national du diplôme" };
 const robJobs = (j) => `${robNum(j.n)} métier${j.n > 1 ? "s" : ""}${j.n_notes < j.n ? ` (${robNum(j.n_notes)} estimé${j.n_notes > 1 ? "s" : ""})` : ""} : ${robNum(j.n_haut)} parmi les 20 % de métiers les plus robustes, ${robNum(j.n_bas)} parmi les 20 % les moins robustes`;
 function robfFaits(r) {
@@ -4463,16 +4474,32 @@ function robInsPublie(ins, but) {
   return `<div class="rob-pub"><h3>À côté : l'insertion publiée</h3>${body}
     <p class="muted small">Ces chiffres publiés restent à côté de la robustesse, jamais dedans : ils décrivent des promotions passées, quelques mois après le diplôme, alors que la robustesse porte sur les métiers entre 2030 et 2035. Ce ne sont pas des chances d'emploi. Le détail est dans la carte « Insertion professionnelle »${ins && ins.rows && ins.rows.length ? " plus bas" : ", onglet « Réussir et poursuivre »"}.</p></div>`;
 }
+// owner, 2026-11-20: a formation left without a block on purpose says why (robustesse_formation.ABSENT_RULES), never a figure
+const ROBF_ABSENT = {
+  bachelor_ecole_ingenieur: {
+    court: "pas d'estimation : Onisep ne publie pas les métiers de ce bachelor",
+    long: "Pas d'estimation pour ce bachelor. Onisep ne publie pas les métiers auxquels il mène. Le diplôme d'ingénieur de l'école est un autre diplôme, en cinq ans après le bac. Nous ne lui empruntons pas sa note : le passage en cycle ingénieur n'est pas automatique.",
+  },
+};
 function formationRobustesseCard(r, pub) {
   if (!r) return "";
+  if (r.absent) {
+    const a = ROBF_ABSENT[r.absent];
+    return a ? `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2><p class="muted">${esc(a.long)}</p>
+      <p class="small"><a href="#/info/robustesse">Comment on calcule la robustesse</a></p></div>` : "";
+  }
   const s = r.score, q = r.repere, cp = r.composantes || {}, k = r.confiance || {}, faits = robfFaits(r);
   const fil = q && q.filiere ? ` (${esc(q.filiere.replace("_", " "))})` : "";
   const head = !s ? `<p class="muted">Données insuffisantes pour une estimation sûre : nous préférons ne pas situer cette formation.</p>`
+    : r.voisine ? ""
     : q && q.niveau ? `<p><strong>${esc(ROBF_REPERE[q.niveau] || "")}</strong>${fil} ${estimTag(`parmi ${robNum(q.n_formations)} formations comparables`)}</p>`
     : q && q.raison === "memes_debouches" ? `<p>Les formations de cette filière${fil} mènent aux mêmes métiers : nous ne les classons pas entre elles. ${estimTag("")}</p>`
     : `<p>Trop peu de formations comparables dans cette filière${fil} pour situer celle-ci. ${estimTag("")}</p>`;
   // owner, 2026-11-17: a second repère among EVERY formation, on the terms all of them have (their jobs and the diversity)
   const qn = r.repere_national;
+  // owner, 2026-11-20: a borrowed block names its neighbour and why, before anything else
+  const v = r.voisine;
+  const vois = v ? `<p class="small warn">Repère emprunté à la formation voisine${v.libelle ? ` « ${esc(v.libelle)} »` : ""}${v.code ? ` (<a href="#/f/${esc(v.code)}">voir sa fiche</a>)` : ""}. ${ROBF_VOISINE[v.regle] ? `Pourquoi : ${esc(ROBF_VOISINE[v.regle])}. ` : ""}Cette formation n'a pas de métiers propres dans les sources ; la confiance est abaissée et elle n'est pas classée dans sa filière.</p>` : "";
   const nat = s && qn && qn.niveau ? `<p><strong>${esc(ROBF_REPERE_NATIONAL[qn.niveau] || "")}</strong> ${estimTag(`parmi ${robNum(qn.n_formations)} formations, sur les métiers visés et leur diversité`)}${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}</p>` : "";
   const list = (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const seul = r.diplome_seul && r.diplome_seul.n ? `<h3>Avec ce diplôme seul</h3><p class="small">${esc(robJobs(r.diplome_seul))}${r.diplome_seul.mediane != null ? ` (score médian de ces métiers : ${robNum(r.diplome_seul.mediane)} sur 100)` : ""}. Ce sont les métiers de la fiche Onisep du diplôme, sans études de plus.</p>` : "";
@@ -4497,7 +4524,7 @@ function formationRobustesseCard(r, pub) {
       <p class="muted small">Sources : Onisep, Idéo (licence ODbL) ; France Compétences, RNCP (Licence Ouverte) ; France Travail, ROME 4.0 (Licence Ouverte) ; MonMaster et InserSup (MESR) ; et les sources de la robustesse des métiers (OIT, Anthropic Economic Index, Cedefop, Dares, France Travail).</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : les métiers auxquels mène cette formation et les compétences qu'elle développe garderont-ils de la valeur entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse d'emploi.</p>
-    ${head}${nat}${list}${robInsPublie(pub && pub.ins, pub && pub.but)}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
+    ${vois}${head}${nat}${list}${robInsPublie(pub && pub.ins, pub && pub.but)}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----

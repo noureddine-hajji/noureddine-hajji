@@ -39,6 +39,58 @@ TRUTH = {
     ("EFTS", "D.E Assistant de Service Social"): "diplôme d'État d'assistant de service social",
     ("Licence", "Droit"): "licence mention droit",
 }
+# the module's explicit BTS spelling rules, copied at import: O2's reference uses this copy, O6 checks the table itself
+REF_SPELLING = dict(ON.BTS_SPELLING)
+# national diplomas by exact title (owner, 2026-11-20): the red team's own reading of the types, the SIES labels and the format
+REF_NATIONAL_TYPE = {"certificat de spécialisation": "cs", "diplôme d'études universitaires scientifiques et techniques": "deust",
+                     "brevet professionnel de la jeunesse, de l'éducation populaire et du sport": "bpjeps", "titre professionnel": "tp"}
+REF_NATIONAL_FORM = {"Certificat de Spécialisation": "cs", "DEUST": "deust", "BPJEPS": "bpjeps"}
+
+
+def rnational(label):
+    """Own normalisation: acronyms (Onisep's own « cs / csa / deust / bpjeps / tp » first word, the cartographie's « FP - Titre
+    professionnel - », « CS - »...), brackets, « - en apprentissage », then the red team's key."""
+    s = (label or "").replace("\xa0", " ")
+    s = re.sub(r"(?i)^\s*(fp\s*-\s*titre professionnel\s*-?|csa?\s*-|deust\s*-|bpjeps\s*-)\s*", "", s)
+    s = re.sub(r"(?i)\s*-\s*en apprentissage\s*$", "", s)
+    s = re.sub(r"\([^)]*\)", " ", s)
+    s = re.sub(r"^(csa?|deust|bpjeps|tp) ", "", rfold(s))
+    return rkey(s)
+
+
+# the module's explicit national spelling rules, copied at import (O8 checks the table itself)
+REF_NATIONAL_SPELLING = {k: dict(v) for k, v in ON.NATIONAL_SPELLING.items()}
+
+
+def ref_national(idx, nat, label):
+    """Same exact title, else the copied spelling rule's sheet (its exact folded title, same type)."""
+    fids = set(idx.get("NAT", {}).get((nat, rnational(label)), set()))
+    if not fids:
+        rules = {rnational(k): v for k, v in REF_NATIONAL_SPELLING.get(nat, {}).items()}
+        if rnational(label) in rules:
+            fids = set(idx.get("NATT", {}).get((nat, rfold(rules[rnational(label)])), set()))
+    return fids
+
+
+def ref_offer(idx, mention):
+    m = (mention or "").replace("\xa0", " ")
+    for nat, pre in (("tp", r"(?i)^\s*fp\s*-\s*titre professionnel"), ("cs", r"(?i)^\s*csa?\s*-"), ("deust", r"(?i)^\s*deust\s*-"),
+                     ("bpjeps", r"(?i)^\s*bpjeps\s*-")):
+        if re.match(pre, m):
+            return ref_national(idx, nat, m)
+    return set()
+
+
+# O6's own reading of a few rules (written apart from the module's table): the option a careful reader expects
+SPELLING_TRUTH = {
+    "Métiers de l'audio-visuel opt : métiers du son": "BTS métiers de l'audiovisuel option métiers du son",
+    "Métiers de l'audio-visuel opt : métiers de l'image": "BTS métiers de l'audiovisuel option métiers de l'image",
+    "Technico-commercial - Spécialité vins, bières et spiritueux": "BTSA technico-commercial option vins, bières et spiritueux",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) produits laitiers":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option produits laitiers",
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires ultra-marins":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires ultramarins",
+}
 
 
 def check(name):
@@ -92,7 +144,8 @@ class Ctx:
         for cod, fili, prog, fid, rule in con.execute("SELECT cod_aff_form, fili, programme, for_id, regle FROM core.onisep_link").fetchall():
             self.links.setdefault(cod, [fili, prog, set(), rule])[2].update({fid} if fid else set())
         latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
-        self.latest_forms = con.execute("SELECT cod_aff_form, fili, fil_lib_voe_acc FROM core.formation_year WHERE session = ?", [latest]).fetchall()
+        self.latest_forms = con.execute("""SELECT cod_aff_form, fili, fil_lib_voe_acc, form_lib_voe_acc FROM core.formation_year
+                                           WHERE session = ?""", [latest]).fetchall()
         con.close()
         self.ref = self._ref_tables()
 
@@ -119,6 +172,10 @@ class Ctx:
                 fam, spec = "LIC", re.sub(r"^licence (mention )?", "", f)
             elif f.startswith("diplome d etat d"):
                 fam, spec = "DE", f
+            elif t in REF_NATIONAL_TYPE:
+                idx.setdefault("NAT", {}).setdefault((REF_NATIONAL_TYPE[t], rnational(lib)), set()).add(fid)
+                idx.setdefault("NATT", {}).setdefault((REF_NATIONAL_TYPE[t], f), set()).add(fid)
+                continue
             else:
                 continue
             idx[fam].setdefault(rkey(spec), set()).add(fid)
@@ -127,12 +184,19 @@ class Ctx:
     def ref_links(self, rows=None):
         idx = self.ref_index()
         out = {}
-        for cod, fili, prog in self.latest_forms if rows is None else rows:
+        for cod, fili, prog, *form in self.latest_forms if rows is None else rows:
             fids = set()
-            if fili == "BTS":
+            form = form[0] if form else None
+            if fili == "Autre formation" and form in REF_NATIONAL_FORM:     # same national title, same diploma type
+                fids = ref_national(idx, REF_NATIONAL_FORM[form], prog)
+            elif fili == "BTS":
                 k = rkey(prog)
                 fids = idx["BTS"].get(k) or {f for kk, v in idx["BTS"].items() if kk.startswith(k + " option") for f in v} \
                     or (idx["BTS"].get(k.split(" option")[0], set()) if " option" in k else set())
+                if not fids and (prog or "").strip() in REF_SPELLING:      # explicit spelling rule: the sheet of that exact title
+                    t = rfold(REF_SPELLING[(prog or "").strip()])
+                    fids = {fid for fid, (lib, typ, _l) in self.ref["forms"].items()
+                            if rfold(lib) == t and (typ or "").startswith("brevet de technicien sup")}
             elif fili == "BUT":
                 fids = idx["BUT"].get(rkey(re.sub(r"(?i) parcours .*$", "", prog or "")), set())
             elif fili in ("Licence", "Licence_Las"):
@@ -254,6 +318,247 @@ UI_MUTANTS = [
 ]
 
 
+def spelling_problems(c: Ctx, table: dict) -> list:
+    """What is wrong with a BTS spelling table: a target that is not ONE BTS sheet, a source the general rules already
+    match (a dead rule), a source absent from the latest campaign (real data), a target that shares fewer words with its
+    source than another target of the same BTS does (swapped options), a reading of SPELLING_TRUTH contradicted."""
+    bts = {}
+    for fid, (lib, typ, _l) in c.ref["forms"].items():
+        if (typ or "").startswith("brevet de technicien sup"):
+            bts.setdefault(rfold(lib), []).append(fid)
+    saved = dict(REF_SPELLING)
+    REF_SPELLING.clear()
+    try:
+        plain = c.ref_links([(src, "BTS", src) for src in table])
+    finally:
+        REF_SPELLING.update(saved)
+    progs = {p for _, fili, p, *_ in c.latest_forms if fili == "BTS"}
+    bad = []
+    for src, tgt in table.items():
+        words = set(rkey(src).split())
+        if len(bts.get(rfold(tgt), [])) != 1:
+            bad.append(("not one BTS sheet", tgt))
+        if plain[src][1]:
+            bad.append(("dead rule: the general rules already match", src))
+        if c.real and src not in progs:
+            bad.append(("absent from the latest campaign", src))
+        rivals = [t for s2, t in table.items() if t != tgt and rkey(s2).split()[:2] == rkey(src).split()[:2]]
+        if any(len(words & set(rkey(t).split())) > len(words & set(rkey(tgt).split())) for t in rivals):
+            bad.append(("another sheet of this BTS fits the label better", src))
+        if src in SPELLING_TRUTH and SPELLING_TRUTH[src] != tgt:
+            bad.append(("truth", src))
+    return bad
+
+
+@check("O6 BTS spelling rules: each names ONE real BTS sheet, is needed, is used on real data, keeps its own option")
+def o6(c: Ctx):
+    # on a fixture (not the real files), the rules' sheets and the one a dead-rule mutant needs are crafted, removed after
+    crafted = []
+    if not c.real:
+        have = {rfold(v[0]) for v in c.ref["forms"].values()}
+        for i, t in enumerate(sorted(set(ON.BTS_SPELLING.values()) | {"BTS management commercial opérationnel"})):
+            if rfold(t) not in have:
+                c.ref["forms"][f"FOR.RTS{i}"] = (t, "brevet de technicien supérieur", None)
+                crafted.append(f"FOR.RTS{i}")
+    try:
+        return _o6(c)
+    finally:
+        for k in crafted:
+            del c.ref["forms"][k]
+
+
+def _o6(c: Ctx):
+    bad = spelling_problems(c, ON.BTS_SPELLING)
+    used = Counter(rule for (_f, _p, fids, rule) in c.links.values() if fids)
+    # mutants of the table: two options swapped, a rule pointing to a missing sheet, a rule the general rules make dead
+    a, b = "Métiers de l'audio-visuel opt : métiers du son", "Métiers de l'audio-visuel opt : métiers de l'image"
+    mutants = {"options swapped": {**ON.BTS_SPELLING, a: ON.BTS_SPELLING[b], b: ON.BTS_SPELLING[a]},
+               "missing sheet": {**ON.BTS_SPELLING, a: "BTS métiers de l'audiovisuel option métiers du bruit"},
+               "dead rule": {**ON.BTS_SPELLING, "Management Commercial Opérationnel": "BTS management commercial opérationnel"}}
+    missed = [n for n, t in mutants.items() if not spelling_problems(c, t)]
+    ok = not bad and not missed and (not c.real or used["bts_ecriture"] > 0)
+    return ok, f"{len(ON.BTS_SPELLING)} rules, {used['bts_ecriture']} formations linked by them; problems {bad[:3]}; mutants missed {missed}"
+
+
+NAT_FORMS = [("FOR.N1", "CS cybersécurité", "certificat de spécialisation"), ("FOR.N2", "CSA conduite de l'élevage porcin", "certificat de spécialisation"),
+             ("FOR.N3", "TP technicien supérieur en méthodes et exploitation logistique", "titre professionnel"),
+             ("FOR.N4", "DEUST préparateur technicien en pharmacie", "diplôme d'études universitaires scientifiques et techniques"),
+             ("FOR.N5", "BPJEPS spécialité éducateur sportif mention activités du vélo",
+              "brevet professionnel de la jeunesse, de l'éducation populaire et du sport"),
+             ("FOR.N6", "TP cybersécurité", "titre professionnel"),                  # same words, another diploma: never crossed
+             ("FOR.N7", "FCIL métiers du bar", "formation complémentaire d'initiative locale"),
+             ("FOR.N8", "CS métiers du bar", "certificat de spécialisation"),       # a FCIL of that title never takes the CS sheet
+             ("FOR.N9", "CS technicien(ne) ascensoriste (service et modernisation)", "certificat de spécialisation")]   # brackets
+NAT_SIES = [("N-1", "Autre formation", "Cybersécurité", "Certificat de Spécialisation"),
+            ("N-2", "Autre formation", "Métiers du bar", "FCIL"),                           # FCIL: local, never a sheet
+            ("N-3", "Autre formation", "Préparateur/Technicien en pharmacie", "DEUST"),     # a slash is a separator
+            ("N-4", "Autre formation", "Cybersécurité <b>", "Certificat de Spécialisation"),   # another title: none
+            ("N-5", "Autre formation", "Spécialité Educateur sportif - Mention Activités du vélo", "BPJEPS"),   # « - » a separator
+            ("N-6", "Licence", "Cybersécurité", None),
+            ("N-7", "Autre formation", "Technicien(ne) ascensoriste (service et modernisation)", "Certificat de Spécialisation")]
+NAT_OFFERS = ["FP - Titre professionnel - Technicien(ne) supérieur(e) en méthodes et exploitation logistique (bac +2)",
+              "CSA - Conduite de l'élevage porcin - en apprentissage", "CS - Cybersécurité", "DEUST - Préparateur/Technicien en pharmacie",
+              "BPJEPS - Spécialité Educateur sportif - Mention Activités du vélo", "Métiers du bar", "FP - Responsable de chantier",
+              "TP - Cybersécurité"]
+
+
+def national_problems(index, match, match_offer) -> list:
+    """The module's national-title link (index, match, match_offer) against the red team's reading of a crafted fixture."""
+    forms = [(f, lib, typ, None, None) for f, lib, typ in NAT_FORMS]
+    ref = {"NAT": {}, "NATT": {}}
+    for fid, lib, typ in NAT_FORMS:
+        if typ in REF_NATIONAL_TYPE:
+            ref["NAT"].setdefault((REF_NATIONAL_TYPE[typ], rnational(lib)), set()).add(fid)
+            ref["NATT"].setdefault((REF_NATIONAL_TYPE[typ], rfold(lib)), set()).add(fid)
+    idx = index(forms)
+    bad = []
+    for cod, fili, prog, form in NAT_SIES:
+        want = ref_national(ref, REF_NATIONAL_FORM.get(form), prog) if fili == "Autre formation" and form in REF_NATIONAL_FORM else set()
+        got = set(match(idx, fili, prog, form)[0])
+        if got != want:
+            bad.append((cod, sorted(got), sorted(want)))
+    for m in NAT_OFFERS:
+        got, want = set(match_offer(idx, m)[0]), ref_offer(ref, m)
+        if got != want:
+            bad.append((m[:30], sorted(got), sorted(want)))
+    # the crafted truth: what a careful reader expects, written apart
+    truth = {"N-1": {"FOR.N1"}, "N-2": set(), "N-3": {"FOR.N4"}, "N-4": set(), "N-5": {"FOR.N5"}, "N-6": set(), "N-7": {"FOR.N9"}}
+    for cod, fili, prog, form in NAT_SIES:
+        if set(match(idx, fili, prog, form)[0]) != truth[cod]:
+            bad.append(("truth", cod))
+    if set(match_offer(idx, NAT_OFFERS[0])[0]) != {"FOR.N3"} or set(match_offer(idx, NAT_OFFERS[1])[0]) != {"FOR.N2"} \
+            or set(match_offer(idx, NAT_OFFERS[2])[0]) != {"FOR.N1"} or match_offer(idx, NAT_OFFERS[5])[0]:
+        bad.append(("truth", "offers"))
+    return bad
+
+
+@check("O7 national titles (CS, DEUST, BPJEPS, titres professionnels): the same type and exact title, FCIL never, offers read alike")
+def o7(c: Ctx):
+    bad = national_problems(ON.index, ON.match, ON.match_offer)
+    orig_key, orig_match, orig_offer = ON.national_key, ON.match, ON.match_offer
+
+    def types_mixed(forms):                 # a TP sheet answers for a CS of the same words
+        idx = ON.index(forms)
+        for k in ("NAT_cs", "NAT_tp"):
+            idx.setdefault(k, {})
+        for kk, v in list(idx["NAT_tp"].items()):
+            idx["NAT_cs"].setdefault(kk, []).extend(v)
+        return idx
+
+    def fcil(idx, fili, prog, form=None):
+        return orig_match(idx, fili, prog, "Certificat de Spécialisation" if form == "FCIL" else form)
+
+    def folded_first(forms):                # the Onisep title folded before its brackets go: « technicien(ne) » kept as words
+        idx = orig_index(forms)
+        for fid, lib, typ, *_ in forms:
+            nat = next((k for k, (ty, _) in ON.NATIONAL.items() if typ == ty), None)
+            if nat:
+                for v in idx["NAT_" + nat].values():
+                    if fid in v:
+                        v.remove(fid)
+                idx["NAT_" + nat].setdefault(ON.national_key(re.sub(ON.NATIONAL[nat][1], "", ON.fold(lib))), []).append(fid)
+        return idx
+
+    orig_index = ON.index
+    mutants = {"brackets kept": lambda: setattr(ON, "national_key", lambda l: ON.key((l or "").replace("\xa0", " "))),
+               "Onisep title folded before its brackets": lambda: setattr(ON, "index", folded_first),
+               "diploma types mixed": lambda: setattr(ON, "index", types_mixed),
+               "FCIL read as a certificat": lambda: setattr(ON, "match", fcil),
+               "offers ignored": lambda: setattr(ON, "match_offer", lambda idx, m: ([], None))}
+    saved = {k: getattr(ON, k) for k in ("national_key", "index", "match", "match_offer")}
+    missed = []
+    for name, apply in mutants.items():
+        try:
+            apply()
+            caught = bool(national_problems(ON.index, ON.match, ON.match_offer))
+        except Exception:  # noqa: BLE001
+            caught = True
+        finally:
+            for k, v in saved.items():
+                setattr(ON, k, v)
+        if not caught:
+            missed.append(name)
+    real = ""
+    if c.real:
+        from suptracker import carte as CA
+        con = duckdb.connect(str(c.db), read_only=True)
+        try:
+            offers = [a["mention"] for a in CA.apprentissage(con) if not a["rattachee"]]
+        finally:
+            con.close()
+        forms, _ = ON.read_formations(Path(c.sources["formations"]))
+        idx, ref = ON.index(forms), c.ref_index()
+        diff = [m for m in offers if set(ON.match_offer(idx, m)[0]) != ref_offer(ref, m)]
+        n = sum(1 for m in offers if ON.match_offer(idx, m)[0])
+        used = Counter(rule for (_f, _p, fids, rule) in c.links.values() if fids and (rule or "").startswith("titre_national"))
+        if diff:
+            bad.append(f"real offers differ: {len(diff)}, e.g. {diff[:2]}")
+        if not used:
+            bad.append("no SIES formation linked by its national title")
+        real = f"; real: {dict(used)} SIES formations, {n} of {len(offers)} apprenticeship offers"
+    return not bad and not missed, f"problems {bad[:3]}; mutants missed {missed}{real}"
+
+
+def national_spelling_problems(c: Ctx, table: dict) -> list:
+    """What is wrong with a national spelling table (O6's rules for CS / DEUST / BPJEPS / titres professionnels)."""
+    sheets = {}
+    for fid, (lib, typ, _l) in c.ref["forms"].items():
+        if typ in REF_NATIONAL_TYPE:
+            sheets.setdefault((REF_NATIONAL_TYPE[typ], rfold(lib)), []).append(fid)
+    plain = {"NAT": {}}
+    for fid, (lib, typ, _l) in c.ref["forms"].items():
+        if typ in REF_NATIONAL_TYPE:
+            plain["NAT"].setdefault((REF_NATIONAL_TYPE[typ], rnational(lib)), set()).add(fid)
+    labels = {(REF_NATIONAL_FORM.get(form), rnational(p)) for _, fili, p, form in c.latest_forms if form in REF_NATIONAL_FORM}
+    bad = []
+    for nat, rules in table.items():
+        for src, tgt in rules.items():
+            if len(sheets.get((nat, rfold(tgt)), [])) != 1:
+                bad.append(("not one sheet of this type", tgt))
+            if plain["NAT"].get((nat, rnational(src))):
+                bad.append(("dead rule: the exact title already matches", src))
+            if c.real and (nat, rnational(src)) not in labels:
+                bad.append(("absent from the latest campaign", src))
+            words = set(rkey(src).split())
+            rivals = [t for t in rules.values() if t != tgt]
+            if any(len(words & set(rkey(t).split())) > len(words & set(rkey(tgt).split())) for t in rivals):
+                bad.append(("another rule's sheet fits the label better", src))
+    truth = {("cs", "Techn. en énergies renouvelables opt. b énergie thermique"):
+             "CS technicien en énergies renouvelables option B énergie thermique",
+             ("bpjeps", "Spécialité Educateur sportif - Mention Judo-Jujitsu"):
+             "BPJEPS spécialité éducateur sportif mention activités de judo-jujitsu"}
+    bad += [("truth", s) for (n, s), t in truth.items() if table.get(n, {}).get(s) != t]
+    return bad
+
+
+@check("O8 national spelling rules: each names ONE sheet of its type, is needed, is used on real data, keeps its own option")
+def o8(c: Ctx):
+    crafted = []
+    if not c.real:      # a fixture lacks the rules' sheets: crafted in the reference, removed after
+        have = {rfold(v[0]) for v in c.ref["forms"].values()}
+        types = {v: k for k, v in REF_NATIONAL_TYPE.items()}
+        for nat, rules in ON.NATIONAL_SPELLING.items():
+            for i, t in enumerate(sorted(set(rules.values()))):
+                if rfold(t) not in have:
+                    c.ref["forms"][f"FOR.RTN{nat}{i}"] = (t, types[nat], None)
+                    crafted.append(f"FOR.RTN{nat}{i}")
+    try:
+        t = ON.NATIONAL_SPELLING
+        bad = national_spelling_problems(c, t)
+        a, b = "Techn. en énergies renouvelables opt. a énergie électrique", "Techn. en énergies renouvelables opt. b énergie thermique"
+        mutants = {"options swapped": {**t, "cs": {**t["cs"], a: t["cs"][b], b: t["cs"][a]}},
+                   "missing sheet": {**t, "cs": {**t["cs"], a: "CS technicien en énergies renouvelables option C énergie lunaire"}},
+                   "dead rule": {**t, "cs": {**t["cs"], "Cybersécurité": "CS cybersécurité"}} if any(
+                       rfold(v[0]) == rfold("CS cybersécurité") for v in c.ref["forms"].values()) else {**t, "cs": {**t["cs"], a: "x"}}}
+        missed = [n for n, m in mutants.items() if not national_spelling_problems(c, m)]
+        used = Counter(rule for (_f, _p, fids, rule) in c.links.values() if fids and (rule or "").startswith("titre_national_ecriture"))
+        ok = not bad and not missed and (not c.real or sum(used.values()) > 0)
+        return ok, f"{sum(len(v) for v in t.values())} rules, {dict(used)} formations; problems {bad[:3]}; mutants missed {missed}"
+    finally:
+        for k in crafted:
+            del c.ref["forms"][k]
+
+
 @check("O5 mutation test: cross-family link, options or parcours ignored, access flag inverted, wrong level, unparsed 'bac', UI bugs")
 def o5(c: Ctx):
     missed = []
@@ -267,16 +572,26 @@ def o5(c: Ctx):
     # first word is a BUT's, a BTS with an abbreviated option, a BUT with a parcours, a licence named like a licence pro
     edge = [("RT-1", "BTS", "Gestion forestière de démonstration"), ("RT-2", "BTS", "Systèmes numériques opt A"),
             ("RT-3", "BUT", "Gestion des entreprises et des administrations parcours démonstration"), ("RT-4", "Licence", "Droit"),
-            ("RT-5", "Licence", "Agencement")]
+            ("RT-5", "Licence", "Agencement"), ("RT-6", "BTS", "Métiers de l'audio-visuel opt : métiers du son")]
     rows = c.latest_forms + edge
-    want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
+    # RT-6 needs its spelling rule's sheet: a fixture without it gets a crafted one (removed after the test)
+    t6 = REF_SPELLING["Métiers de l'audio-visuel opt : métiers du son"]
+    added = not any(rfold(f[1]) == rfold(t6) for f in forms)
+    if added:
+        forms = forms + [("FOR.RT6", t6, "brevet de technicien supérieur", None, None)]
+        c.ref["forms"]["FOR.RT6"] = (t6, "brevet de technicien supérieur", None)
+    try:
+        want = {cod: w[1] for cod, w in c.ref_links(rows).items()}
+    finally:
+        if added:
+            del c.ref["forms"]["FOR.RT6"]
     saved = {k: getattr(ON, k) for k in ("match", "index", "level_rank", "LEVEL", "key", "sheet_level")}
 
     def links_now():
         idx = ON.index(forms)
         out = {}
-        for cod, fili, prog in rows:
-            out[cod] = set(ON.match(idx, fili, prog)[0])
+        for cod, fili, prog, *form in rows:
+            out[cod] = set(ON.match(idx, fili, prog, form[0] if form else None)[0])
         return out
 
     def cross_family(idx, fili, prog):
@@ -298,6 +613,10 @@ def o5(c: Ctx):
         fids, rule = saved["match"](idx, fili, prog)
         return ([], rule) if rule == "bts_options" else (fids, rule)
 
+    def no_spelling(idx, fili, prog):
+        fids, rule = saved["match"](idx, fili, prog)
+        return ([], rule) if rule == "bts_ecriture" else (fids, rule)
+
     def keep_parcours(forms_):
         idx = saved["index"](forms_)
         idx["BUT"] = {}
@@ -309,7 +628,8 @@ def o5(c: Ctx):
     link_mutants = [("BTS linked to a BUT or licence sheet", lambda: setattr(ON, "match", cross_family)),
                     ("licence professionnelle linked to a licence", lambda: setattr(ON, "index", with_lpro)),
                     ("BTS options ignored", lambda: setattr(ON, "match", no_options)),
-                    ("BUT parcours kept in the key", lambda: setattr(ON, "index", keep_parcours))]
+                    ("BUT parcours kept in the key", lambda: setattr(ON, "index", keep_parcours)),
+                    ("BTS spelling rules ignored", lambda: setattr(ON, "match", no_spelling))]
     for name, apply in link_mutants:
         try:
             apply()

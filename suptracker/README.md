@@ -3829,6 +3829,83 @@ formation model never reads Inserjeunes or the BUT insertion, every filter optio
 level), the counts equal to the other groups' selection, no filter without the repères, card lines without unknown levels, no sort by
 a repère; 64/64 mutants caught.
 
+## Robustesse 2035: more formations scored (owner, 2026-11-20)
+
+An analysis of the formations with no robustesse score (10,935 of the 23,120 the search page lists, paid private ones included)
+found three causes: apprenticeship offers SIES does not publish (8,868, never built), SIES formations with no Onisep sheet linked
+(1,739), and formations whose jobs have no usable data (328). Two of them are addressed here; model 2027.5-f.
+
+**BTS labels Onisep spells otherwise.** `onisep.BTS_SPELLING` holds one explicit rule per SIES label (20 rules, checked one by one
+on the real files): a renamed option (« Territoires métropolitains » is now « transition agricole dans les territoires
+métropolitains »; the renovated BTS MV calls option A « véhicules légers »), an abbreviation (« Métiers de l'audio-visuel opt :
+techn. d'ingeniérie… »), « Spécialité » where Onisep writes « option » (BTSA technico-commercial), a missing word (« maritime »).
+It is read only after the title, options and no-option rules failed (rule `bts_ecriture`), never fuzzy: 383 more formations of
+the latest campaign reach their sheet, hence their jobs card, the job pages and a robustesse score. Métiers de la coiffure and
+Edition have no BTS sheet at Onisep and stay without one. Red team O6: every rule names ONE real BTS sheet, is needed (the
+general rules do not already match it), is used on real data, and keeps its own option (another sheet of the same BTS never fits
+the label better; swapped options, a missing sheet and a dead rule are mutants); O5 seeds « rules ignored ».
+
+**Apprenticeship offers take their diploma's score.** The score of a formation read through its diploma's jobs belongs to the
+DIPLOMA (the same Onisep sheet, the same RNCP fiche), not to the establishment. An apprenticeship offer of the cartographie that
+SIES does not publish (`carte.apprentissage`, not attached to an initial formation) now carries the block of its diploma
+(`robustesse_formation.inherited`) when EVERY formation of the latest campaign with the same type and mention has a scored block
+and all those blocks are identical; the cartographie's acronym prefix (« BTS - … ») is dropped before comparing, from a closed
+list. The block carries `herite` (how many formations share it), is added AFTER the repères (never ranked), and the compact
+payload lists it (`herite`), so the search card prints the repères on an apprenticeship card too, with « Repères du diplôme : les
+mêmes pour toutes les formations qui y préparent. » The offer still has no zone, no rate and no SIES figure. Red team RF13
+(crafted cases, the real offers re-derived, the order, the card; 8 mutants).
+
+**National titles (owner, 2026-11-20).** Certificats de spécialisation, DEUST and BPJEPS (SIES files them under « Autre
+formation ») are now linked to the national Onisep sheet of the SAME title and type (`onisep.NATIONAL`, `NATIONAL_FORM`, rule
+`titre_national_*`): format only (the acronym, a bracketed gender or level, « - en apprentissage »), never fuzzy; a FCIL is local
+and never takes a sheet. 330 SIES formations (255 CS, 52 DEUST, 23 BPJEPS). The cartographie's apprenticeship offers are read the
+same way through their mention's acronym (`onisep.match_offer`, titres professionnels included: « FP - Titre professionnel - »):
+544 offers reach their sheet. An offer whose diploma SIES never publishes is scored on its OWN sheet as a « direct » formation
+(`robustesse_formation.offer_blocks`): no filière repère (no SIES formation of its filière), its national repère PLACED among the
+SIES formations' national scores (never added to them), `diplome_offre` saying the rule; the search card prints « Repères du
+diplôme ». Red teams O7 (crafted truth, the real offers re-derived, 4 mutants) and RF14 (crafted, real, order; 4 mutants).
+Follow-up (owner, 2026-11-20): an Onisep title's brackets (« CS technicien(ne) ascensoriste (service et modernisation) ») are now
+dropped on the RAW title, before folding turned them into words (23 more SIES formations); and `onisep.NATIONAL_SPELLING` holds
+four explicit rules for labels Onisep writes otherwise: the two « Techn. en énergies renouvelables opt. a / b » certificats, the
+BPJEPS mention « activités physiques pour tous » (replaced by « multi-activités physiques ou sportives pour tous », which Onisep
+says succeeds it) and « Judo-Jujitsu » (« activités de judo-jujitsu »): 62 more SIES formations (rule `titre_national_ecriture_*`).
+Red team O8 (one sheet of its type, needed, used, its own option; 3 table mutants); O7 seeds « title folded before its brackets ».
+A CS, BPJEPS or DEUST with no national sheet keeps its own rule (`cs_sans_fiche`, `bpjeps_sans_fiche`, `deust_sans_fiche`), so its
+page shows the jobs card « L'Onisep ne publie pas de fiche pour ce diplôme », like a BTS without a sheet (owner, 2026-11-20: kept).
+
+**Neighbour formations (owner, 2026-11-20; model 2027.6-f).** A formation with no outlets of its own that leads DIRECTLY to a
+scored one borrows its block (`robustesse_formation.neighbours`), one explicit rule each (`NEIGHBOUR_RULES`), validated by the owner:
+a Cursus Master en Ingénierie takes the block of the licence of the same mention at the same establishment (same UAI; 59 of the 70
+CMI), the « mise à niveau » hôtellerie-restauration year takes the BTS Management en hôtellerie restauration's (every one of the 82
+shares one block; 57 formations). Every neighbour must be scored and identical; the confidence is multiplied by 0.8 (below 0.4 =
+« données insuffisantes »); no filière repère; the national repère is PLACED among the SIES formations' own scores, never added to
+them; `voisine` names the neighbour. The formation card opens with « Repère emprunté à la formation voisine … » (a link to it for a
+CMI), L'essentiel and the search card say it. Literary CPGE and ENS D1/D2 prépas were proposed and left out (weak links). 116
+formations; 1,745 formations of the search page still have no score. Red team RF15 (crafted, real re-derivation, order, page; 5 mutants).
+
+**No score on purpose, said (owner, 2026-11-20).** The 77 bachelors of engineering schools (« Formation Bac + 3 / 4 »,
+grade de licence; 59 in fee-charging private schools) have no Onisep jobs: Onisep publishes six « bachelor en sciences et
+ingénierie » sheets, school-specific (cybersécurité, IA, agro) with one to four jobs, and none carries the exact title of a SIES
+bachelor (32 of the 77 labels name a specialty at all). Every scored engineering diploma (508, « Formation d'ingénieur Bac + 5 »)
+shares ONE family block (66.8), and a bachelor is another diploma whose route to the engineering cycle is not automatic: it borrows
+nothing. `robustesse_formation.absent` (one rule per case, `ABSENT_RULES`, no warehouse change) sends `{"absent": rule}` in place of
+the block, and the formation card and L'essentiel say why (« Onisep ne publie pas les métiers de ce bachelor »), never a figure; an
+unknown reason reads « pas d'estimation ». Only « Formation Bac + 3 » and « + 4 » are bachelors (a « Bac + 5 » is not: review).
+A borrowed block keeps its later studies (a CMI's licence scored through its masters still says « après un master »), and the
+notice names the neighbour and gives the reason in two sentences (<= 30 words with a long label). Red team RF16 (crafted rule,
+real: the rule names only unscored formations; 7 mutants), RF15.
+
+**Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
+code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
+ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five
+(`nomenclatures.TITLE_LINK_OVERRIDES`, method « analogie », the reason printed on the job page): technicien/ne en traitement des
+matériaux → H3402 + H3403 (an override may now carry several codes, `override_codes`), technicien/ne de recherche en biologie →
+H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209, conseiller/ère énergie → F1103 (« Contrôle et diagnostic technique du bâtiment », where
+France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). One more after the national titles linked new BTS: chargé/e de post-production → L1302 (France
+Travail's « chargé de postproduction », written without the hyphen). Technicien/ne plasturgiste and régleur/euse plasturgie
+keep their own Onisep code H3202 (the Onisep code always wins), which has a FAP family but no ISCO code in the tables: no score. Red team N8 checks every override as written,
+several codes included; N7 seeds « several override codes cut to the first » on real data.
+
 ## The formation page, tidied (owner, 2026-11-18)
 
 **L'essentiel.** The official access rate and the figure for the profile are ONE cell (`accesTile`), two halves side by side and

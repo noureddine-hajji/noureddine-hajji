@@ -13,11 +13,16 @@ opendata.onisep.fr and commits them under data/sources/: the site rejected the d
 No Onisep file carries a Parcoursup code. The jobs belong to the DIPLOMA, not to the establishment, so a
 Parcoursup formation is linked to the national Onisep diploma by a fixed rule per filière:
 * BTS: the same title (normalised: accents, small words, plural, "opt" = "option", "1re année commune"),
-  else the options of that BTS (several sheets), else the BTS without its option;
+  else the options of that BTS (several sheets), else the BTS without its option, else BTS_SPELLING (one explicit
+  rule per SIES label that Onisep writes otherwise: a renamed option, an abbreviation, "Spécialité" for "option");
 * BUT: the same specialty, without its "parcours";
 * licence (and LAS): the same mention;
 * IFSI: the state nursing diploma; EFTS: the state social-work diploma of the same title;
-* other filières (CPGE, schools, PASS...): no sheet.
+* certificats de spécialisation, DEUST and BPJEPS (owner, 2026-11-20; SIES files them under « Autre formation »): the national
+  sheet of the SAME title (NATIONAL: one Onisep type and its acronym per SIES label; format only: the acronym, a gender in
+  brackets, « - en apprentissage » are dropped), never fuzzy; FCIL (local) and every other filière (CPGE, schools, PASS...): no sheet.
+  The apprenticeship offers of the cartographie read the same way through their mention's acronym (`match_offer`, titres
+  professionnels included).
 
 Each job is compared with the diploma's level: "accessible avec ce diplôme" when the job's minimum level
 is at most the diploma's, else "après une poursuite d'études (bac + n)". The list is Onisep's, national,
@@ -45,6 +50,94 @@ BTS_TYPES = ("brevet de technicien supérieur", "brevet de technicien supérieur
 BUT_TYPE = "bachelor universitaire de technologie"
 LICENCE_TYPE = "licence"
 NURSE = "diplome etat infirmier"
+# national diplomas read by their exact title (owner, 2026-11-20): key -> (Onisep type, acronym the Onisep title starts with)
+NATIONAL = {
+    "cs": ("certificat de spécialisation", r"^csa? "),
+    "deust": ("diplôme d'études universitaires scientifiques et techniques", r"^deust "),
+    "bpjeps": ("brevet professionnel de la jeunesse, de l'éducation populaire et du sport", r"^bpjeps "),
+    "tp": ("titre professionnel", r"^tp "),
+}
+NATIONAL_FORM = {"Certificat de Spécialisation": "cs", "DEUST": "deust", "BPJEPS": "bpjeps"}   # SIES form_lib_voe_acc
+# an apprenticeship offer's mention starts with its diploma's acronym (cartographie labels): the closed list, in this order
+OFFER_PREFIX = (("tp", r"^\s*FP\s*-\s*Titre professionnel\s*-?\s*"), ("cs", r"^\s*CSA?\s*-\s*"), ("deust", r"^\s*DEUST\s*-\s*"),
+                ("bpjeps", r"^\s*BPJEPS\s*-\s*"))
+
+
+def national_key(label: str | None) -> str:
+    """A national title compared on its words only: the acronym prefix (OFFER_PREFIX), a bracketed gender or level
+    (« Technicien(ne) », « (bac +2) »), « - en apprentissage » and non-breaking spaces go; then `key`."""
+    s = (label or "").replace("\xa0", " ")
+    for _, pre in OFFER_PREFIX:
+        s = re.sub(pre, "", s, flags=re.I)
+    s = re.sub(r"\s*-\s*en apprentissage\s*$", "", s, flags=re.I)
+    return key(re.sub(r"\([^)]*\)", " ", s))
+
+
+# national titles Onisep spells otherwise (checked one by one, 2026-11-20): label as SIES or the cartographie publishes it
+# (read through `national_key`, so the offers' « CS - » prefix does not matter) -> the Onisep sheet's title. Never fuzzy.
+NATIONAL_SPELLING = {
+    "cs": {
+        "Techn. en énergies renouvelables opt. a énergie électrique": "CS technicien en énergies renouvelables option A énergie électrique",
+        "Techn. en énergies renouvelables opt. b énergie thermique": "CS technicien en énergies renouvelables option B énergie thermique",
+    },
+    "bpjeps": {
+        # the mention « activités physiques pour tous » was replaced by « multi-activités physiques ou sportives pour tous »
+        # (Onisep: the new BPJEPS succeeds the old one; France Compétences: RNCP 40480 replaces it)
+        "Spécialité Educateur sportif - Mention Activités physiques pour tous":
+            "BPJEPS spécialité éducateur sportif mention multi-activités physiques ou sportives pour tous",
+        "Spécialité Educateur sportif - Mention Judo-Jujitsu": "BPJEPS spécialité éducateur sportif mention activités de judo-jujitsu",
+    },
+}
+
+
+def _national_sheet(idx: dict, nat: str, label: str | None) -> tuple[list[str], str | None]:
+    """The sheet(s) of a national title: same exact title (national_key), else an explicit spelling rule (NATIONAL_SPELLING)."""
+    fids = idx.get("NAT_" + nat, {}).get(national_key(label), [])
+    if fids:
+        return sorted(fids), "titre_national_" + nat
+    rules = {national_key(k): v for k, v in NATIONAL_SPELLING.get(nat, {}).items()}
+    title = rules.get(national_key(label))
+    fids = idx.get("NATT_" + nat, {}).get(fold(title), []) if title else []
+    return (sorted(fids), "titre_national_ecriture_" + nat) if fids else ([], None)
+
+
+# SIES BTS labels that Onisep spells otherwise (checked one by one on the real files, 2026-11-20): label as SIES publishes
+# it -> the Onisep sheet's title. Never fuzzy: a label absent from this table and from the rules above has no sheet
+# (Métiers de la coiffure and Edition have no BTS sheet; a double BTS + DE keeps none).
+BTS_SPELLING = {
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires métropolitains":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires métropolitains",
+    "Analyse, conduite et stratégie de l'entreprise agricole, option Territoires ultra-marins":
+        "BTSA analyse, conduite et stratégie de l'entreprise agricole option transition agricole dans les territoires ultramarins",
+    "Europlastics et composites à référentiel commun européen - option Conception d'Outillage":
+        "BTS europlastics et composites option conception outillage",
+    "Europlastics et composites à référentiel commun européen - option Pilotage et Optimisation de la production":
+        "BTS europlastics et composites option pilotage et optimisation de la production",
+    "Maintenance des systèmes - option D:  maintenance des ascenseurs et élévateurs":
+        "BTS maintenance des systèmes option D systèmes ascenseurs et élévateurs",
+    "Maintenance des systèmes électro-navals": "BTS maritime maintenance des systèmes électro-navals",
+    "Pêche et gestion de l'environnement marin": "BTS maritime pêche et gestion de l'environnement marin",
+    # the renovated BTS calls its option A "véhicules légers" (Onisep has no "voitures particulières" sheet any more)
+    "Maintenance des véhicules option voitures particulières": "BTS maintenance des véhicules option véhicules légers",
+    "Métiers de l'audio-visuel opt : gestion de la production": "BTS métiers de l'audiovisuel option gestion de production",
+    "Métiers de l'audio-visuel opt : montage et post-production":
+        "BTS métiers de l'audiovisuel option métiers du montage et de la postproduction",
+    "Métiers de l'audio-visuel opt : métiers de l'image": "BTS métiers de l'audiovisuel option métiers de l'image",
+    "Métiers de l'audio-visuel opt : métiers du son": "BTS métiers de l'audiovisuel option métiers du son",
+    "Métiers de l'audio-visuel opt : techn. d'ingeniérie et exploit. équipements":
+        "BTS métiers de l'audiovisuel option techniques d'ingénierie et exploitation des équipements",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) aliments et processus technologiques":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option aliments et processus technologiques",
+    "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) produits laitiers":
+        "BTSA qualité, alimentation, innovation et maîtrise sanitaire option produits laitiers",
+    "Technico-commercial - Spécialité alimentation et boisson": "BTSA technico-commercial option alimentation et boissons",
+    "Technico-commercial - Spécialité biens et services pour l'agriculture":
+        "BTSA technico-commercial option biens et services pour l'agriculture",
+    "Technico-commercial - Spécialité produit de la filière bois": "BTSA technico-commercial option produits de la filière forêt-bois",
+    "Technico-commercial - Spécialité univers jardins et animaux de compagnie":
+        "BTSA technico-commercial option univers jardins et animaux de compagnie",
+    "Technico-commercial - Spécialité vins, bières et spiritueux": "BTSA technico-commercial option vins, bières et spiritueux",
+}
 
 
 def fold(s: str | None) -> str:
@@ -162,13 +255,32 @@ def index(forms) -> dict:
         elif f.startswith("diplome d etat d"):
             fam, spec = "DE", f
         else:
+            nat = next((k for k, (ty, _) in NATIONAL.items() if t == ty), None)
+            if nat:      # the raw title: its brackets (« technicien(ne) ») must go before folding turns them into words
+                raw = re.sub(NATIONAL[nat][1], "", (lib or "").strip(), flags=re.I)
+                idx.setdefault("NAT_" + nat, {}).setdefault(national_key(raw), []).append(fid)
+                idx.setdefault("NATT_" + nat, {}).setdefault(f, []).append(fid)
             continue
         idx[fam].setdefault(key(spec), []).append(fid)
+        if fam == "BTS":
+            idx.setdefault("BTS_TITLE", {}).setdefault(fold(lib), []).append(fid)
     return idx
 
 
-def match(idx: dict, fili: str | None, programme: str | None) -> tuple[list[str], str]:
+def match_offer(idx: dict, mention: str | None) -> tuple[list[str], str | None]:
+    """(Onisep sheet ids, rule) of an apprenticeship offer, by its mention's acronym and exact title; ([], None) otherwise."""
+    for nat, pre in OFFER_PREFIX:
+        if re.match(pre, (mention or "").replace("\xa0", " "), flags=re.I):
+            return _national_sheet(idx, nat, mention)
+    return [], None
+
+
+def match(idx: dict, fili: str | None, programme: str | None, form: str | None = None) -> tuple[list[str], str]:
     """(Onisep diploma ids, rule) of a Parcoursup formation."""
+    if fili == "Autre formation" and form in NATIONAL_FORM:
+        nat = NATIONAL_FORM[form]
+        fids, rule = _national_sheet(idx, nat, programme)
+        return (fids, rule) if fids else ([], nat + "_sans_fiche")
     if fili == "BTS":
         k = key(programme)
         if k in idx["BTS"]:
@@ -179,6 +291,9 @@ def match(idx: dict, fili: str | None, programme: str | None) -> tuple[list[str]
         base = k.split(" option")[0]
         if base != k and base in idx["BTS"]:
             return idx["BTS"][base], "bts_sans_option"
+        title = BTS_SPELLING.get((programme or "").strip())
+        if title and fold(title) in idx.get("BTS_TITLE", {}):
+            return idx["BTS_TITLE"][fold(title)], "bts_ecriture"
         return [], "bts_sans_fiche"
     if fili == "BUT":
         k = key(re.sub(r"(?i)\s+parcours\b.*$", "", programme or ""))
@@ -229,9 +344,9 @@ def build(con, sources: dict | None = None) -> dict:
     idx = index(forms)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     rows = []
-    for cod, fili, prog in con.execute("SELECT cod_aff_form, fili, fil_lib_voe_acc FROM core.formation_year WHERE session = ?",
-                                       [latest]).fetchall():
-        fids, rule = match(idx, fili, prog)
+    for cod, fili, prog, form in con.execute("""SELECT cod_aff_form, fili, fil_lib_voe_acc, form_lib_voe_acc FROM core.formation_year
+                                                WHERE session = ?""", [latest]).fetchall():
+        fids, rule = match(idx, fili, prog, form)
         for fid in fids or [None]:
             rows.append((latest, cod, fili, prog, fid, rule))
     _insert(con, "core.onisep_link", rows)
