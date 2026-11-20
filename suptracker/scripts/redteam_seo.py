@@ -184,6 +184,11 @@ def fr_num(x) -> str:
     return f"{int(x):,}".replace(",", " ")
 
 
+def fr_ratio(x) -> str:
+    """A ratio with one decimal, a whole value without it (22.0 -> "22", 13.7 -> "13,7")."""
+    return fr_num(x) if float(x).is_integer() else f"{x:.1f}".replace(".", ",")
+
+
 def fr_pct(x) -> str:
     return f"{fr_num(x)} %" if float(x).is_integer() else f"{x:.1f}".replace(".", ",") + " %"
 
@@ -200,7 +205,7 @@ def sitemap_ok(xml_text: str, robots: str, base: str, latest: list[str], jobs: l
     # sprint Q4: plus the help page (Se faire aider)
     want = ({f"{base}/formation/{c}" for c in latest} | {f"{base}/metier/{m}" for m in jobs}
             | {f"{base}/{s}" for s in ("a-propos", "contact", "mentions-legales", "confidentialite", "accessibilite", "aide", "nos-chiffres",
-                                      "robustesse")})
+                                      "robustesse", "observatoire")})
     got = set(locs)
     ok = (root.tag == f"{ns}urlset" and len(locs) == len(got) and got == want and len(locs) <= 50000
           and all(u.startswith("https://") for u in locs))
@@ -401,12 +406,12 @@ const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(cases.map(([p, h]) => pathRoute(p, h))));"""
     cases = [["/formation/2882", ""], ["/formation/2882/", ""], ["/metier/MET.798", ""], ["/formation/2882", "#/parcours"],
              ["/formation/abc", ""], ["/formation/12345678901", ""], ["/metier/MET.1<x>", ""], ["/", ""], ["/formation/2882", "#"],
-             ["/x/formation/2882", ""]]
+             ["/x/formation/2882", ""], ["/observatoire", ""], ["/observatoire/", ""], ["/observatoires", ""], ["/observatoire", "#/carte"]]
     r = subprocess.run([node, "-e", prog], input=json.dumps(cases), capture_output=True, text=True, timeout=60)
     if r.returncode:
         return False, r.stderr[-300:]
     got = json.loads(r.stdout)
-    want = ["/f/2882", "/f/2882", "/metiers/MET.798", None, None, None, None, None, "/f/2882", None]
+    want = ["/f/2882", "/f/2882", "/metiers/MET.798", None, None, None, None, None, "/f/2882", None, "/observatoire", "/observatoire", None, None]
     rt = js[js.index("async function route()"):js.index("window.addEventListener(\"hashchange\", route);")]   # owner, 2026-11-15: no top bar
     wired = ("(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")" in rt
              and 'history.replaceState(null, "", "/" + location.hash)' in rt and "document.title = " in rt)
@@ -481,8 +486,15 @@ MUTANTS = [
     ("canonical from the visitor's host", '    prod = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")', "    prod = None"),
     ("robots blocks the data the pages render from", 'ROBOTS_OFF = ("/api/search",', 'ROBOTS_OFF = ("/api/", "/api/search",'),
     ("robots lets crawlers into search", 'ROBOTS_OFF = ("/api/search", ', 'ROBOTS_OFF = ('),
+    ("observatoire out of the sitemap", 'for s in legal.SLUGS] + ["/observatoire"]', 'for s in legal.SLUGS]'),
+    ("observatoire type unescaped", '    t = [[esc(x["diplome"]), _arrow(', '    t = [[x["diplome"], _arrow('),
+    ("observatoire académie unescaped", '    a = [[esc(lab.get(k, k)),', '    a = [[lab.get(k, k),'),
+    ("observatoire caveat dropped", "<p class=\"small\">{esc(CAVEAT)} <a href=\"/#/observatoire\">", "<p class=\"small\"><a href=\"/#/observatoire\">"),
+    ("observatoire vœux shown as the ratio", 'a = [[esc(lab.get(k, k)), esc(num(v["voeux_par_place"]))', 'a = [[esc(lab.get(k, k)), esc(num(v["voeux"]))'),
+    ("observatoire girls among vœux dropped", 'esc(pct(x["part_admis"])), esc(pct(x["part_voeux"]))]', 'esc(pct(x["part_admis"])), esc(pct(x["part_admis"]))]'),
 ]
 API_MUTANTS = [
+    ("observatoire noindex", "url, True, SEO.observatoire_ld(d, url, src))", "url, False, SEO.observatoire_ld(d, url, src))"),
     ("unknown code answers 200", '        return _html_404(request, "Cette formation n\'existe pas dans les données Parcoursup 2022–2025.")',
      '        return Response("introuvable", media_type="text/html")'),
     # sprint Q2: HEAD is answered for every GET route by the security middleware
@@ -492,6 +504,9 @@ JS_MUTANTS = [
     ("router ignores the path", "(pathRoute(location.pathname, location.hash) || location.hash.slice(1) || \"/\")", "(location.hash.slice(1) || \"/\")"),
     ("job path not mapped", "if (m) return `/metiers/${m[1]}`;", "if (m) return null;"),
     ("a failed data load erases the server summary", "  } catch (e) {\n    if (seq === routeSeq) showError(e);\n  }", "  } catch (e) {\n    if (seq === routeSeq) $view.innerHTML = `<div class=\"warn\">${esc(e.message)}</div>`;\n  }"),
+    ("observatoire path not mapped", 'if (/^\\/observatoire\\/?$/.test(pathname)) return "/observatoire";', ""),
+    ("observatoire never rendered at its address", "&& !(!location.hash.slice(1) && /^\\/observatoire\\/?$/.test(location.pathname))) return;", ") return;"),
+    ("observatoire summary erased while loading", 'if (!$view.querySelector("[data-seo]")) $view.innerHTML = `<div class="card"><h1>Observatoire', '$view.innerHTML = `<div class="card"><h1>Observatoire'),
     ("letters accepted as a code", "const f = /^\\/formation\\/(\\d{1,9})\\/?$/.exec(pathname);", "const f = /^\\/formation\\/([^/]+)\\/?$/.exec(pathname);"),
 ]
 HTML_MUTANTS = [
@@ -516,6 +531,69 @@ def mutated(modname: str, path: Path, old: str, new: str):
     return m
 
 
+def observatoire_ok(html: str, url: str, api: dict) -> tuple[bool, str]:
+    h = parse(html)
+    title = h.titles[0] if len(h.titles) == 1 else ""
+    desc = h.meta.get("description") or ""
+    try:
+        ld = [json.loads(x) for x in h.ld]
+    except json.JSONDecodeError:
+        ld = None
+    body = html[html.index('data-seo="observatoire"'):html.index("</article>")] if 'data-seo="observatoire"' in html else ""
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body)).replace("&#x27;", "'")
+    head = (h.links.get("canonical") == url and h.meta.get("og:url") == url and h.meta.get("robots") == "index, follow"
+            and title.endswith("| SupCompass") and str(api["session"]) in title and 50 <= len(desc) <= 320)
+    ld_ok = bool(ld) and ld[0].get("@type") == "Dataset" and ld[0].get("url") == url and ld[0].get("temporalCoverage") == f"{api['sessions'][0]}/{api['session']}"
+    # every followed type with its two published-count ratios, every académie with a figure, the same as /api/observatoire
+    trends = all(f"{x['diplome']} " in text and f"{fr_ratio(x['serie'][0]['voeux_par_place'])} → {fr_ratio(x['serie'][-1]['voeux_par_place'])}" in text
+                 for x in api["tendances"])
+    lab = {a["cle"]: a["academie"] for a in api["academies"]}
+    acads = all(re.sub(r"\s+", " ", f"{lab[k]} {fr_ratio(v['voeux_par_place'])} {fr_num(v['voeux'])} {fr_num(v['places'])}") in text
+                for k, v in api["demande"][api["tous"]].items() if v["voeux_par_place"] is not None)
+    girls = all(f"{x['diplome']} {fr_pct(x['part_admis'])} {fr_pct(x['part_voeux'])}" in text
+                for x in api["filles"] if x["part_admis"] is not None and x["diplome"] != api["tous"])
+    hero = re.sub(r"<[^>]+>", " ", body.split('<section class="card">')[0]).replace("&#x27;", "'")
+    words = ("pas des chances d'admission" in desc and "pas des chances d'admission" in hero and "Des vœux, pas des personnes" in text
+             and "« rare », jamais « fermé »" in text and "ni le niveau demandé ni vos chances" in text and not CHANCE.search(text + desc))
+    cells = re.findall(r'<td class="num"([^>]*)>', body)
+    labelled = bool(cells) and all("data-label" in x for x in cells) and body.count("<h1") == 1
+    shell = '<script src="/static/app.js?v=' in html and '<main id="view" tabindex="-1"><article class="seo" data-seo="observatoire">' in html
+    ok = head and ld_ok and trends and acads and girls and words and labelled and shell
+    return ok, (f"head {head}; JSON-LD {ld_ok}; trends = API {trends}; académies = API {acads}; girls = API {girls}; caveats {words}; "
+                f"cells labelled, one h1 {labelled}; app shell {shell}")
+
+
+@check("G12 /observatoire: indexable server summary = /api/observatoire (every table), caveats, Dataset JSON-LD, escaped, the app keeps it")
+def g12(c: Ctx):
+    with client(c.db) as (cl, _):
+        r = cl.get("/observatoire", headers={"host": "supcompass.test"})
+        api_d = cl.get("/api/observatoire").json()
+        cache = r.headers.get("cache-control")
+    if r.status_code != 200:
+        return False, f"status {r.status_code}"
+    ok, detail = observatoire_ok(r.text, "https://supcompass.test/observatoire", api_d)
+    # hostile labels in every table: rows built here, so every table has one whatever the warehouse holds (a synthetic one
+    # follows no type over every campaign)
+    evil = json.loads(json.dumps(api_d))
+    s0, s1 = evil["sessions"][0], evil["session"]
+    evil["tendances"] = [{"diplome": HOSTILE, "serie": [{"session": s0, "formations": 30, "voeux_par_place": 9.5, "taux_median": 60.0},
+                                                       {"session": s1, "formations": 31, "voeux_par_place": 10.5, "taux_median": 58.0}]}]
+    evil["academies"] = [{"cle": "x", "academie": HOSTILE, "lat": 45.0, "lon": 4.0, "metropole": True}]
+    evil["demande"] = {evil["tous"]: {"x": {"formations": 9, "voeux": 900, "places": 100, "voeux_par_place": 9.0}}}
+    evil["proximite"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "meme_academie": 300, "part_meme_academie": 60.0}]
+    evil["filles"] = [{"diplome": HOSTILE, "formations": 9, "admis": 500, "admises": 250, "voeux": 900, "voeux_filles": 450, "part_admis": 50.0, "part_voeux": 50.0}]
+    evil["bacs"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "general": 300, "techno": 150, "pro": 50,
+                     "part_general": 60.0, "part_techno": 30.0, "part_pro": 10.0}]
+    evil["mentions"] = [{"diplome": HOSTILE, "formations": 9, "admis_neobac": 500, "lecture": {"parts": {}, "tb_plus": 20.0},
+                         "avant": {"session": s0, "tb_plus": 25.0}}]
+    raw = "<script>alert" in (SEO.observatoire_body(evil) + SEO.json_ld(SEO.observatoire_ld(evil, "u", "s")))
+    view = c.js[c.js.index("async function viewObservatoire("):]
+    keep = ('if (!$view.querySelector("[data-seo]")) $view.innerHTML = ' in view
+            and "/^\\/observatoire\\/?$/.test(location.pathname)" in view[:view.index("$view.dataset.rendered")])   # the page renders at /observatoire
+    ok = ok and not raw and keep and cache == CACHE.PAGE
+    return ok, f"{detail}; hostile label raw {raw}; the app keeps the server summary while loading {keep}; cache {cache == CACHE.PAGE}"
+
+
 @check("G10 mutation test: escaping, figures, caveat, indexing rules, sitemap, canonical, robots, router, name, cache bugs are each caught")
 def g10(c: Ctx):
     global API, SEO, CACHE
@@ -523,7 +601,7 @@ def g10(c: Ctx):
     from suptracker import cache as cache0
     from suptracker import seo as seo0
     missed = []
-    fns = [g1, g2, g3, g4, g5, g6, g7, g8, g9]
+    fns = [g1, g2, g3, g4, g5, g6, g7, g8, g9, g12]
 
     def caught() -> bool:
         for fn in fns:

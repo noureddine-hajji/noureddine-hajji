@@ -200,7 +200,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
   - CI: push on `main` only, branches through their PR, stale runs cancelled. Five shard runners
     (`pytest -n auto --dist loadfile --shard=i/5`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), files spread by `tests/durations.json`; a new test file goes in that table, with its
-    measured seconds) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
+    measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
+    of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way.
@@ -788,6 +789,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   never « fermé »); mentions over `acc_neobac` (SIES's denominator), first and latest campaigns, 2022's 356 one-admit gaps
   KEPT, rows exceeding left out; never the required level or a chance. 10 types with the most formations shown, the rest
   folded; no figure under 100 admits or 5 formations; the girls' vœux/admits gap is computed, never typed. Red team OB9-OB11.
+  Indexable (owner, 2026-11-20): `/observatoire` = `seo.observatoire_body` (every table, the /api/observatoire figures, same caveats,
+  Dataset JSON-LD), sitemap, PAGE cache, `pathRoute`; the app keeps the `[data-seo]` summary while loading. Red team G12.
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

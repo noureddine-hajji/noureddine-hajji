@@ -5,6 +5,8 @@ was invisible. This module serves, for each one, a real page at a clean address:
 
   /formation/<code>   one Parcoursup formation (latest campaign record)
   /metier/<MET.id>    one Onisep job
+  /observatoire       the national overviews of `observatoire.build` (owner, 2026-11-20): every table of the app page,
+                      readable without the script, the same figures as /api/observatoire
 
 Each page is the normal app shell with, already inside `<main id="view">`, a short server-rendered summary (the same
 official figures the app shows, never recomputed) plus a <title>, a meta description, a canonical address, Open Graph
@@ -118,7 +120,86 @@ def sitemap_entries(con) -> list[str]:
     if has:
         paths += [f"/metier/{m}" for (m,) in con.execute("SELECT met_id FROM core.onisep_metier ORDER BY 1").fetchall()]
     from . import legal                                   # sprint Q1: the trust and compliance pages are indexable too
-    return paths + [f"/{s}" for s in legal.SLUGS]
+    return paths + [f"/{s}" for s in legal.SLUGS] + ["/observatoire"]
+
+
+# ------------------------------------------------------------------------- observatoire (owner, 2026-11-20)
+OBS_NOTE = ("Calcul SupCompass sur les effectifs publiés par le ministère (SIES), additionnés par type de formation. "
+            "Des résultats des campagnes passées, pas des chances d'admission.")
+
+
+def _obs_table(caption: str, heads: list[str], rows: list[list[str]]) -> str:
+    """A stacked table (every figure cell labelled): the server twin of the app's tables."""
+    head = "".join(f'<th{" class=\"num\"" if i else ""}>{esc(h)}</th>' for i, h in enumerate(heads))
+    body = "".join("<tr>" + "".join(f'<td{" class=\"num\"" if i else ""} data-label="{esc(heads[i])}">{v}</td>'
+                                    for i, v in enumerate(r)) + "</tr>" for r in rows)
+    return f'<div class="scroll"><table class="stack"><caption class="sr-only">{esc(caption)}</caption><tr class="stack-head">{head}</tr>{body}</table></div>'
+
+
+def _arrow(a, b, f) -> str:
+    return f"{esc(f(a))} → {esc(f(b))}"
+
+
+def observatoire_title(d: dict) -> str:
+    return f"Observatoire des formations post-bac {d['sessions'][0]}–{d['session']} : vœux par place, admis, filles et garçons | {SITE}"
+
+
+def observatoire_description(d: dict) -> str:
+    s = (f"Vœux par place et taux d'accès par type de formation de {d['sessions'][0]} à {d['session']}, demande par académie, "
+         "admis restés dans leur académie, filles et garçons, bacs techno et pro, mentions des admis : chiffres officiels du SIES. "
+         "Ce ne sont pas des chances d'admission.")
+    return s if len(s) <= 300 else s[:299].rstrip() + "…"
+
+
+def observatoire_body(d: dict) -> str:
+    first, last, tous = d["sessions"][0], d["session"], d["tous"]
+    t = [[esc(x["diplome"]), _arrow(x["serie"][0]["formations"], x["serie"][-1]["formations"], num),
+          _arrow(x["serie"][0]["voeux_par_place"], x["serie"][-1]["voeux_par_place"], num),
+          _arrow(x["serie"][0]["taux_median"], x["serie"][-1]["taux_median"], pct)] for x in d["tendances"]]
+    lab = {a["cle"]: a["academie"] for a in d["academies"]}
+    dem = sorted(((k, v) for k, v in d["demande"].get(tous, {}).items() if v["voeux_par_place"] is not None),
+                 key=lambda kv: (-kv[1]["voeux_par_place"], lab.get(kv[0], kv[0])))
+    a = [[esc(lab.get(k, k)), esc(num(v["voeux_par_place"])), esc(num(v["voeux"])), esc(num(v["places"]))] for k, v in dem]
+    p = [[esc(x["diplome"]), esc(pct(x["part_meme_academie"])), esc(num(x["admis_neobac"]))]
+         for x in d["proximite"] if x["part_meme_academie"] is not None and x["diplome"] != tous]
+    f = [[esc(x["diplome"]), esc(pct(x["part_admis"])), esc(pct(x["part_voeux"]))]
+         for x in d.get("filles", []) if x["part_admis"] is not None and x["diplome"] != tous]
+    b = [[esc(x["diplome"]), esc(pct(x["part_general"])), esc(pct(x["part_techno"])), esc(pct(x["part_pro"]))]
+         for x in d.get("bacs", []) if x["part_general"] is not None and x["diplome"] != tous]
+    m = [[esc(x["diplome"]), _arrow(x["avant"]["tb_plus"], x["lecture"]["tb_plus"], pct) if x["avant"]["tb_plus"] is not None
+          else esc(pct(x["lecture"]["tb_plus"]))] for x in d.get("mentions", []) if x["lecture"] and x["diplome"] != tous]
+    sec = lambda h, intro, table, note="": (f'<section class="card"><h2>{h}</h2><p>{intro}</p>{table}'   # noqa: E731
+                                           f'{f"<p class=\"muted small\">{note}</p>" if note else ""}</section>')
+    return f"""<article class="seo" data-seo="observatoire">
+<section class="hero obs-hero"><h1>Observatoire des formations</h1>
+<p>Six regards sur toutes les formations de Parcoursup, à partir des chiffres publiés par le ministère (SIES) pour les campagnes {esc(first)} à {esc(last)}.</p>
+<p class="small">{esc(CAVEAT)} <a href="/#/observatoire">Voir les graphiques et la carte</a></p></section>
+{sec(f"Les vœux par place, de {esc(first)} à {esc(last)}", "Vœux de la phase principale divisés par les places, et taux d'accès officiel médian, par type de formation.",
+     _obs_table("Vœux par place et taux d'accès médian par type de formation", ["Type de formation", "Formations", "Vœux par place", "Taux d'accès médian"], t),
+     "Ce sont des vœux, pas des personnes : chaque candidat fait plusieurs vœux. " + esc(d.get("prudence", "")))}
+{sec(f"Où la demande est la plus forte ({esc(last)})", "Vœux par place de toutes les formations de chaque académie.",
+     _obs_table("Vœux par place par académie", ["Académie", "Vœux par place", "Vœux", "Places"], a),
+     f"Pas de chiffre sous {esc(num(d['seuils']['academie_formations']))} formations ou {esc(num(d['seuils']['academie_places']))} places.")}
+{sec(f"Rester près de chez soi ou partir loin ({esc(last)})", "Part des admis néo-bacheliers venus de l'académie de leur formation.",
+     _obs_table("Admis venus de la même académie", ["Type de formation", "Même académie", "Admis néo-bacheliers"], p),
+     "Cette part n'est publiée que pour les néo-bacheliers.")}
+{sec(f"Filles et garçons ({esc(last)})", "Part de filles parmi les admis, et parmi les vœux.",
+     _obs_table("Part de filles", ["Type de formation", "Parmi les admis", "Parmi les vœux"], f), "Des vœux, pas des personnes.")}
+{sec(f"Bac général, techno ou pro ({esc(last)})", "Le bac des admis néo-bacheliers. Une part faible veut dire « rare », jamais « fermé ».",
+     _obs_table("Bac des admis", ["Type de formation", "Bac général", "Bac techno", "Bac pro"], b))}
+{sec(f"Les mentions au bac des admis ({esc(d.get('mentions_avant', first))} → {esc(last)})",
+     "Part des admis néo-bacheliers avec « très bien » ou « très bien avec félicitations ».",
+     _obs_table("Mentions très bien ou plus", ["Type de formation", "Très bien ou plus"], m),
+     "Ce sont les admis passés : ni le niveau demandé ni vos chances.")}
+<p class="muted small">{esc(OBS_NOTE)}</p>
+</article>"""
+
+
+def observatoire_ld(d: dict, url: str, source_url: str) -> dict:
+    return {"@context": "https://schema.org", "@type": "Dataset", "name": f"Observatoire des formations post-bac {d['sessions'][0]}–{d['session']}",
+            "description": observatoire_description(d), "url": url, "isAccessibleForFree": True, "inLanguage": "fr",
+            "temporalCoverage": f"{d['sessions'][0]}/{d['session']}", "spatialCoverage": "France",
+            "creator": {"@type": "Organization", "name": SITE}, "isBasedOn": source_url}
 
 
 # ------------------------------------------------------------------------- rendering

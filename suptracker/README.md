@@ -4120,3 +4120,34 @@ rest. No figure appears under 100 admits or 5 formations. Red team OB9 to OB11:
 - OB11: the page runs in Node on hostile data.
 
 The mutation test catches 43/43 mutants.
+
+### The Observatoire on search engines (owner, 2026-11-20)
+
+`/observatoire` is a real page, like `/formation/<code>`. It has its own title, meta description, canonical address and a
+schema.org `Dataset` JSON-LD (2022/2025, France, based on the SIES dataset of `sources.py`). Inside `<main id="view">`, the server
+renders every table of the app page: vœux par place, demand per académie, same-académie admits, girls, bac routes and
+mentions. These are the figures of `/api/observatoire`, so the page reads without JavaScript. The caveats are the same as on the
+app page:
+- past campaigns, never chances;
+- vœux are not people;
+- « rare », never « fermé »;
+- neither the level required nor a chance.
+
+The address is in the sitemap and has the `PAGE` cache policy. The app boots on it (`pathRoute`) and keeps the server summary
+while its data loads.
+
+Red team `redteam_seo.py` G12 checks that the page equals the API table by table, along with the head tags, the JSON-LD, the
+caveats, labelled cells, one h1, hostile labels escaped, the cache and the loading rule. Eight new mutants are caught, and G1
+and G7 cover the sitemap and the router.
+
+### CI timings measured on every run (2026-11-20)
+
+With `--shard`, `tests/conftest.py` prints a line `measured-durations {...}` for each CI shard. The line gives the seconds per
+test file, setup with its module fixtures plus call plus teardown, summed over the workers. `tests/durations.json` is refreshed
+from these lines rather than guessed, so the five shards stay balanced. On 2026-11-19 one shard took 43 of its 45 minutes.
+Refresh rule: take each file's MINIMUM over several CI runs, never one run. A file's measured time includes the shared synthetic
+warehouse when that file happens to be the first of its shard to need it: about 400 to 600 seconds that land on a different file
+in each run. Examples: `test_securite_large` measured 17 then 529 seconds, `test_recherche` 411 then 42. A table from a single run
+therefore moves those seconds around. On 2026-11-20 the first single-run refresh still left one shard at 38 minutes (shards
+19 to 38 minutes). The minimum over three runs removes that build time from every file. Every shard then plans the same 3,970
+seconds of its own work plus one warehouse build.
