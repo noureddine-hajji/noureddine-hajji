@@ -4242,3 +4242,27 @@ in each run. Examples: `test_securite_large` measured 17 then 529 seconds, `test
 therefore moves those seconds around. On 2026-11-20 the first single-run refresh still left one shard at 38 minutes (shards
 19 to 38 minutes). The minimum over three runs removes that build time from every file. Every shard then plans the same 3,970
 seconds of its own work plus one warehouse build.
+
+## Préparer mes projets de formation motivés (owner, 2026-11-20)
+
+Sprint 1 of the 2026-2027 plan: the « projet de formation motivé » is the most stressful part of the vœux. The page `#/projet`
+(tab « Mes vœux », linked from the list) shows, for each vœu of the stored list, what the formation itself publishes on its live
+Parcoursup fiche (`projet.py`, `/api/projet/<code>`, read through `grilles.for_formation`):
+
+- its expectations (« attendus » nationaux, then the formation's own), split on the fiche's line breaks, words untouched;
+- what its jury examines: every criterion of the detailed grid with its field and the field's weight, from the most important to
+  the least (importance as printed, then the fiche's own order): reordered only, never merged, scored or rewritten;
+- its advice to candidates; the campaign of the fiche, the day it was read, « la fiche fait foi » and its link.
+
+A formation whose fiche could not be read says so and links its Parcoursup fiche (an https parcoursup.fr address only). The site
+never writes the project: no model text. The student ticks the criteria the draft covers and writes the draft in a text field;
+both stay in this browser (localStorage key `projet`, read back through `projetLoad`, which drops any hostile shape and cuts a
+draft at 20,000 characters) and are NEVER sent: the page requests `/api/projet/<code>` per vœu and nothing else. The counter
+counts characters as a person does (an accent or an emoji is one) against 1,500 characters, spaces included, the usual limit
+per Parcoursup's and Onisep's guidance, and says that the limit Parcoursup shows for each vœu prevails; a warning appears only
+beyond it. The answer is the same for everyone (one code, no profile): publicly cached, no audience event; the page view is in
+the closed route lists. The privacy page says the drafts and ticks stay in the browser.
+
+Measured on the warehouse: 94.5 % of a sample of 1,000 latest-campaign formations show their fiche with the jury's criteria; all
+have at least a link to their fiche. Red team `redteam_projet.py` (PJ1-PJ8: an independent re-derivation of the answer, the
+route, the card's escaping and wording, browser-only storage, the counter, entry points; 26 mutants).

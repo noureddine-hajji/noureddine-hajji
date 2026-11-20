@@ -86,6 +86,7 @@ def test_every_feature_is_wired():
     # R1: the jobs are one of the Explorer views (list, map, jobs), no longer a menu entry of their own
     assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'carte: "#/carte", metiers: "#/metiers"' in js
     assert 'if (a === "metiers") return await viewMetiers(' in js
+    assert 'if (a === "projet") return await viewProjet(b || "")' in js and '<a href="#/projet">Préparer mes projets de formation motivés</a>' in js
     assert "${codesCard(d.codes)}" in js and "${emploi2030Card(d.emploi2030)}" in js and "${bmoCard(d.bmo)}" in js and "${iaCard(d.ia)}" in js and "${licenceMasterCard(d.licence_master)}" in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()
 

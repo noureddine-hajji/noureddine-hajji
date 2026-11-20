@@ -74,7 +74,7 @@ class Ctx:
         c, bg = self.cod, "spe1=MATHS&spe2=SES"
         return {
             "/healthz": "/healthz", "/readyz": "/readyz", "/api/meta": "/api/meta",
-            "/api/search": "/api/search?q=licence", "/api/search/codes": "/api/search/codes?q=licence", "/api/formation/{cod}": f"/api/formation/{c}",
+            "/api/search": "/api/search?q=licence", "/api/search/codes": "/api/search/codes?q=licence", "/api/formation/{cod}": f"/api/formation/{c}", "/api/projet/{cod}": f"/api/projet/{c}",
             "/api/lineage/{lineage_id}": f"/api/lineage/{self.lineage}", "/api/compare": f"/api/compare?ids={c}",
             "/api/specialites": "/api/specialites", "/api/filiere": "/api/filiere?" + __import__("urllib.parse").parse.urlencode({"fil": self.fil}),
             "/api/verification": "/api/verification", "/api/journey/persona": "/api/journey/persona",

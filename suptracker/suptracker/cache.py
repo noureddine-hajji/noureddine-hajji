@@ -45,6 +45,7 @@ POLICY = [
     (r"/api/lycees", None, "sets its own day-long public cache"),
     (r"/api/meta", PUBLIC, "warehouse metadata"),
     (r"/api/formation/[^/]+", PUBLIC, "formation page data"),
+    (r"/api/projet/[^/]+", PUBLIC, "« projet de formation motivé »: one formation's fiche texts (no profile, the draft stays in the browser)"),
     (r"/api/lineage/[^/]+", PUBLIC, "lineage"),
     (r"/api/compare", PUBLIC, "comparator (formation codes only)"),
     (r"/api/specialites", PUBLIC, "specialties"),

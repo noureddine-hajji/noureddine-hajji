@@ -704,6 +704,112 @@ function guideCard() {
     <a class="btnlink" href="#/guide">${G.faites ? "Reprendre les étapes" : "Suivre les étapes"}</a></section>`;
 }
 
+// ---- Sprint 1 (owner, 2026-11-20): « Préparer mon projet de formation motivé » ----
+// For each vœu of the list, what the formation publishes on its own Parcoursup fiche (/api/projet/<code>, projet.py):
+// its expectations, what its jury examines from the most important to the least, its advice, verbatim and escaped.
+// The site never writes the project: the student ticks the criteria the draft covers and writes the draft; both stay in this
+// browser (store "projet", read back through projetLoad, never trusted) and are NEVER sent to the server.
+const PROJET_MAX = 20000;                                  // a draft longer than this is cut before it is kept
+const projetCount = (t) => [...String(t || "")].length;    // characters as a person counts them (an emoji is one)
+function projetLoad() {
+  const raw = store.get("projet", null), out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (!/^\d{1,9}$/.test(k) || !v || typeof v !== "object" || Array.isArray(v)) continue;
+    const coches = Array.isArray(v.coches) ? [...new Set(v.coches.filter((i) => Number.isInteger(i) && i >= 0 && i < 200))].sort((a, b) => a - b) : [];
+    const brouillon = typeof v.brouillon === "string" ? v.brouillon.slice(0, PROJET_MAX) : "";
+    if (coches.length || brouillon) out[k] = { coches, brouillon };
+  }
+  return out;
+}
+function projetSave(cod, entry) {
+  const all = projetLoad();
+  if (entry && (entry.coches.length || entry.brouillon)) all[cod] = entry; else delete all[cod];
+  store.set("projet", all);
+}
+function projetCounter(n, limite) {
+  return `${fmt(n)} caractère${n > 1 ? "s" : ""} sur ${fmt(limite)}, espaces compris.`;
+}
+function projetOver(n, limite) {
+  return n > limite ? `Votre brouillon dépasse ${fmt(limite)} caractères. Raccourcissez-le, ou vérifiez sur Parcoursup la limite de ce vœu.` : "";
+}
+function projetCard(d, saved, open) {
+  const cod = String(d.cod), f = d.fiche, coches = new Set(saved.coches || []), brouillon = saved.brouillon || "";
+  const list = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  const link = d.fiche_url ? ` <a href="${esc(d.fiche_url)}" target="_blank" rel="noopener">Voir la fiche sur Parcoursup ↗</a>` : "";
+  const body = !f ? `<p class="muted">Nous n'avons pas pu lire la fiche Parcoursup de cette formation. Ses attentes et ses critères y sont publiés.${link}</p>`
+    : `${f.attendus.length ? `<h3>Ce que la formation attend</h3>${list(f.attendus)}` : ""}
+      ${f.complementaires.length ? `<h3>Ce qu'elle attend en plus</h3>${list(f.complementaires)}` : ""}
+      ${f.criteres.length ? `<h3>Ce que son jury regarde, du plus important au moins important</h3>
+        <p class="small">Cochez un point quand votre projet en parle. Vos coches restent dans ce navigateur.</p>
+        <ul class="pj-crit">${f.criteres.map((k, i) => `<li><label><input type="checkbox" data-pj="${esc(cod)}" data-i="${i}"${coches.has(i) ? " checked" : ""}>
+          <span><strong>${esc(k.importance_label)}</strong> · ${esc(k.champ)} (${fmt(k.poids)} % de l'examen) : ${esc(k.critere)}${k.elements ? `<br><span class="small">${esc(k.elements)}</span>` : ""}</span></label></li>`).join("")}</ul>`
+        : `<p class="small">La fiche ne publie pas le détail des critères du jury.</p>`}
+      ${f.conseils.length ? `<h3>Les conseils de la formation</h3>${f.conseils.map((x) => `<p>${esc(x)}</p>`).join("")}` : ""}
+      ${f.info.length ? f.info.map((x) => `<p class="small">${esc(x)}</p>`).join("") : ""}
+      <p class="muted small">D'après la fiche Parcoursup ${esc(f.session)}${f.lu_le ? `, lue le ${esc(frDate(f.lu_le))}` : ""}. La fiche fait foi.${link}</p>`;
+  const n = projetCount(brouillon);
+  return `<details class="card projet" id="pj-${esc(cod)}"${open ? " open" : ""}>
+    <summary><h2>${esc(d.etablissement)}</h2><span class="small">${esc(d.formation)}${d.ville ? ` · ${esc(d.ville)}` : ""}</span></summary>
+    ${body}
+    <h3>Mon brouillon</h3>
+    <label for="pj-txt-${esc(cod)}" class="small">Écrivez ici votre projet pour cette formation. Il reste dans ce navigateur : il n'est jamais envoyé.</label>
+    <textarea id="pj-txt-${esc(cod)}" data-pjt="${esc(cod)}" data-limite="${esc(d.limite)}" rows="8">${esc(brouillon)}</textarea>
+    <p class="small" id="pj-n-${esc(cod)}">${projetCounter(n, d.limite)}</p>
+    <p class="warn" id="pj-over-${esc(cod)}" role="status"${n > d.limite ? "" : " hidden"}>${esc(projetOver(n, d.limite))}</p>
+    <p class="small">Parcoursup limite le plus souvent ce texte à ${fmt(d.limite)} caractères, espaces compris. La limite affichée pour chaque vœu sur Parcoursup fait foi.</p>
+    <p><button type="button" data-pjdel="${esc(cod)}">Effacer ce brouillon et ces coches</button></p></details>`;
+}
+let projetSeq = 0;
+async function viewProjet(cod) {
+  const ids = voeux.get(), mk = `projet:${++projetSeq}`;
+  $view.dataset.rendered = mk;                                        // before any await (navigation race)
+  const head = `<h1>Préparer mes projets de formation motivés</h1>
+    <p>Pour chaque vœu, voici ce que la formation dit attendre et ce que son jury regarde. Appuyez-vous dessus pour écrire votre projet avec vos propres mots.</p>
+    <p class="small">Le site n'écrit pas votre projet à votre place. Ce que vous cochez et écrivez ici reste dans ce navigateur : rien n'est envoyé.</p>`;
+  if (!ids.length) {
+    $view.innerHTML = `${head}<div class="card"><p>Votre liste de vœux est vide : ajoutez d'abord des formations.</p><a class="btnlink" href="#/carte">Chercher des formations</a></div>`;
+    return;
+  }
+  $view.innerHTML = `${head}<p class="muted">Chargement des fiches…</p>`;
+  const res = await Promise.all(ids.map((c) => api(`/api/projet/${encodeURIComponent(c)}`).catch(() => null)));
+  if ($view.dataset.rendered !== mk) return;
+  const saved = projetLoad(), open = cod && ids.includes(cod) ? cod : ids[0];
+  $view.innerHTML = `${head}${res.map((d, i) => d ? projetCard(d, saved[String(d.cod)] || {}, String(d.cod) === open)
+    : `<div class="card"><p class="muted">Impossible de charger la fiche de la formation ${esc(ids[i])} pour l'instant.</p></div>`).join("")}
+    <p><a href="#/voeux">Retour à mes vœux</a></p>`;
+  const entry = (c) => { const e = projetLoad()[c]; return e ? { coches: [...e.coches], brouillon: e.brouillon } : { coches: [], brouillon: "" }; };
+  $view.querySelectorAll("textarea[data-pjt]").forEach((t) => {
+    t.oninput = () => {
+      const c = t.dataset.pjt, lim = Number(t.dataset.limite), e = entry(c);
+      e.brouillon = t.value.slice(0, PROJET_MAX);
+      projetSave(c, e);
+      const n = projetCount(t.value), over = document.getElementById(`pj-over-${c}`);
+      document.getElementById(`pj-n-${c}`).textContent = projetCounter(n, lim);
+      if (over) { const msg = projetOver(n, lim); over.hidden = !msg; if (over.textContent !== msg) over.textContent = msg; }
+    };
+  });
+  $view.querySelectorAll("input[data-pj]").forEach((b) => {
+    b.onchange = () => {
+      const c = b.dataset.pj, i = Number(b.dataset.i), e = entry(c), s2 = new Set(e.coches);
+      if (b.checked) s2.add(i); else s2.delete(i);
+      e.coches = [...s2].sort((x, y) => x - y);
+      projetSave(c, e);
+    };
+  });
+  $view.querySelectorAll("button[data-pjdel]").forEach((b) => {
+    b.onclick = () => {
+      const c = b.dataset.pjdel;
+      projetSave(c, null);
+      const card = document.getElementById(`pj-${c}`);
+      card.querySelectorAll("input[data-pj]").forEach((x) => { x.checked = false; });
+      const t = card.querySelector("textarea[data-pjt]");
+      t.value = "";
+      t.oninput();
+    };
+  });
+}
+
 // ---- lot 1 UI: the home page opens on four doors (a formation, a job, where I stand, sprint 21: I am not in terminale) ----
 const HOME_EXAMPLES = ["BTS NDRC", "prépa HEC Lyon", "IUT informatique Toulouse", "infirmière Bordeaux", "kiné"];
 // R1 (owner, 2026-11-11): "Explorer" is one place with three views of the same offer: the list (search), the map, the jobs
@@ -4068,7 +4174,7 @@ async function viewVoeux() {
   const { serie, mention } = prof;
   const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(p.spe1 || "MATHS")} + ${esc(p.spe2 || "SES")}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, ${mentionWords(p)}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+    <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a> · <a href="#/projet">Préparer mes projets de formation motivés</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -5451,7 +5557,7 @@ function contactForm(code) {
 const TAB_OF = { info: "info", s: "home", recherche: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "profil",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux", projet: "voeux" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "observatoire", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];                                                   // "Plus" on a phone
 function markTab(tab) {
@@ -5477,7 +5583,7 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 const ROUTE_NAME = { info: "info", s: "search", recherche: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "reorientation",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide", projet: "projet" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -5583,6 +5689,7 @@ async function routeView(a, b, c) {
     if (a === "premiere") return await viewPremiere();
     if (a === "liste") return await viewListe(b || "", c || "");
     if (a === "guide") return await viewGuide();
+    if (a === "projet") return await viewProjet(b || "");
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     if (a === "info") return await viewInfo(b || "", c || "");
