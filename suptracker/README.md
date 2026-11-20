@@ -3855,13 +3855,25 @@ payload lists it (`herite`), so the search card prints the repères on an appren
 mêmes pour toutes les formations qui y préparent. » The offer still has no zone, no rate and no SIES figure. Red team RF13
 (crafted cases, the real offers re-derived, the order, the card; 8 mutants).
 
-**Jobs without data: four codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
+**National titles (owner, 2026-11-20).** Certificats de spécialisation, DEUST and BPJEPS (SIES files them under « Autre
+formation ») are now linked to the national Onisep sheet of the SAME title and type (`onisep.NATIONAL`, `NATIONAL_FORM`, rule
+`titre_national_*`): format only (the acronym, a bracketed gender or level, « - en apprentissage »), never fuzzy; a FCIL is local
+and never takes a sheet. 330 SIES formations (255 CS, 52 DEUST, 23 BPJEPS). The cartographie's apprenticeship offers are read the
+same way through their mention's acronym (`onisep.match_offer`, titres professionnels included: « FP - Titre professionnel - »):
+544 offers reach their sheet. An offer whose diploma SIES never publishes is scored on its OWN sheet as a « direct » formation
+(`robustesse_formation.offer_blocks`): no filière repère (no SIES formation of its filière), its national repère PLACED among the
+SIES formations' national scores (never added to them), `diplome_offre` saying the rule; the search card prints « Repères du
+diplôme ». Red teams O7 (crafted truth, the real offers re-derived, 4 mutants) and RF14 (crafted, real, order; 4 mutants).
+
+**Jobs without data: codes by analogy (owner-confirmed, 2026-11-20).** The five jobs behind most of the 328 have no ROME
 code at Onisep and no exact title in the Dares tables or the ROME appellations; their own ROME 4.0 sheets (F1114, H1224…) are new
 ones the Dares tables do not link to FAP or ISCO yet. The owner confirmed the nearest linked sheet for all five
 (`nomenclatures.TITLE_LINK_OVERRIDES`, method « analogie », the reason printed on the job page): technicien/ne en traitement des
 matériaux → H3402 + H3403 (an override may now carry several codes, `override_codes`), technicien/ne de recherche en biologie →
 H1210, technicien/ne prototypiste en agroéquipement → H1210, microtechnicien/ne → H1209, conseiller/ère énergie → F1103 (« Contrôle et diagnostic technique du bâtiment », where
-France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). Red team N8 checks every override as written,
+France Travail files « diagnostiqueur performance énergétique bâtiment »; the owner asked for the nearest sheet). Three more after the national titles linked new BTS and CS: chargé/e de post-production → L1302
+(France Travail's « chargé de postproduction », written without the hyphen), technicien/ne plasturgiste and régleur/euse
+plasturgie → H3201 (their own sheet H3202 has no ISCO code in the tables). Red team N8 checks every override as written,
 several codes included; N7 seeds « several override codes cut to the first » on real data.
 
 ## The formation page, tidied (owner, 2026-11-18)

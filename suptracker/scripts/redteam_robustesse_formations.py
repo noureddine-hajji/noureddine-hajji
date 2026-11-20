@@ -646,8 +646,8 @@ def rf7(c: Ctx):
     finally:
         con.close()
     bad = []
-    inh = {k: v for k, v in rows.items() if v.get("herite")}
-    rows = {k: v for k, v in rows.items() if k not in inh}       # inherited blocks (apprenticeship offers): RF13
+    inh = {k: v for k, v in rows.items() if v.get("herite") or v.get("diplome_offre")}
+    rows = {k: v for k, v in rows.items() if k not in inh}       # apprenticeship offers' blocks: RF13 (inherited), RF14 (own sheet)
     if set(rows) - set(fili):
         bad.append(f"{len(set(rows) - set(fili))} blocks outside the latest campaign")
     if set(inh) & set(fili):
@@ -1111,6 +1111,10 @@ SOURCE_MUTANTS = [
     ("js", "dropdown without its estimation label", '${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} ', '${gr.startsWith("rob") ? `<p class="small"> ', "RF11"),
     ("js", "card line reads unknown levels", "const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];", "const a = R && (ROB_CARD[R.filiere[cod]] || R.filiere[cod]), b = R && ROB_CARD[R.national[cod]];", "RF11"),
     ("js", "card line without estimation", 'Robustesse 2035 des métiers visés ${estimTag("", false, true)} :', "Robustesse 2035 des métiers visés :", "RF11"),
+    ("robf", "offers counted in the national pool", "is not None and not d.get(\"herite\"))", "is not None)", "RF14"),
+    ("robf", "offer given a filière repère", '        b["repere"] = None\n        v = b.get("score_national")', '        b["repere"] = {"niveau": "moyen"}\n        v = b.get("score_national")', "RF14"),
+    ("robf", "offer rule not said", "        b[\"diplome_offre\"] = rule", "        b[\"diplome_offre\"] = 1", "RF14"),
+    ("robf", "offer blocks ranked", "        rows.update(inherit(con, rows, session))\n        def skills_of", "        def skills_of", "RF14"),
     ("robf", "an unscored formation tolerated", 'if not cods or any(b is None or not b.get("score") for b in blocks):', "if not cods:", "RF13"),
     ("robf", "different blocks tolerated", "        if len(dumped) == 1:\n            out[cod]", "        if dumped:\n            out[cod]", "RF13"),
     ("robf", "acronym prefix kept", 'MENTION_PREFIX.sub("", mention or "")', '(mention or "")', "RF13"),
@@ -1223,6 +1227,92 @@ def rf13(c: Ctx):
                 bad.append(f"real {k}: block or count")
                 break
         real = f"; real: {len(got_r)} of {len(offers_r)} offers inherit their diploma's block"
+    return not bad, f"differences {bad[:4]}{real}"
+
+
+def oracle_place(v, pool):
+    lo = sum(x < v for x in pool) / len(pool)
+    hi = sum(x > v for x in pool) / len(pool)
+    return "haut" if lo >= 0.8 else "bas" if hi >= 0.8 else "moyen"
+
+
+@check("RF14 apprenticeship offers on their OWN national sheet: a « direct » block, national repère placed among SIES rows only, said")
+def rf14(c: Ctx):
+    F = c.F()
+    from suptracker import onisep as ON
+    bad = []
+    forms = [("FOR.T1", "TP technicien supérieur en méthodes et exploitation logistique", "titre professionnel", None, None),
+             ("FOR.T2", "CSA conduite de l'élevage porcin", "certificat de spécialisation", None, None),
+             ("FOR.T3", "TP graphiste", "titre professionnel", None, None)]                       # no job on its sheet
+    sheet_jobs = {"FOR.T1": {"m1", "m2"}, "FOR.T2": {"m3", "m4"}}
+    offers = [("O1", "FP - Titre professionnel - Technicien(ne) supérieur(e) en méthodes et exploitation logistique (bac +2)"),
+              ("O2", "CSA - Conduite de l'élevage porcin - en apprentissage"), ("O3", "FP - Titre professionnel - Graphiste (Bac +2)"),
+              ("O4", "Métiers du bar"), ("O5", HOSTILE)]
+    sies = {f"S{i}": {"score_national": float(v), "score": {"median": float(v)}} for i, v in enumerate(range(40, 80, 2))}
+    for i in range(60):                     # inherited blocks (copies of a diploma's) are never in the pool: enough to move a level
+        sies[f"H{i}"] = {"score_national": 99.0, "score": {"median": 99.0}, "herite": {"source": "diplome", "formations": 2}}
+    got = F.offer_blocks(offers, ON.index(forms), sheet_jobs, JOBS, lambda fids: (None, None, SKL), sies)
+    pool = sorted(v["score_national"] for k, v in sies.items() if not k.startswith("H"))
+    if set(got) != {"O1", "O2"}:
+        bad.append(f"offers with a block {sorted(got)}")
+    for cod, om in (("O1", {"m1": 1.0, "m2": 1.0}), ("O2", {"m3": 1.0, "m4": 1.0})):
+        b, e = got.get(cod) or {}, oracle_formation(om, "direct", JOBS, None, SKL)
+        sc = b.get("score") or {}
+        if (sc.get("median"), sc.get("min"), sc.get("max"), b.get("score_national")) != (e["median"], e["min"], e["max"], e["nat"]):
+            bad.append(f"{cod}: formula")
+        if b.get("repere") is not None or b.get("methode") != "direct" or not (b.get("diplome_offre") or "").startswith("titre_national"):
+            bad.append(f"{cod}: filière repère, method or rule")
+        n = b.get("repere_national")
+        if (e["nat"] is None) != (n is None) or (n and n["niveau"] != oracle_place(e["nat"], pool)):
+            bad.append(f"{cod}: national repère {n} vs {e['nat'] and oracle_place(e['nat'], pool)}")
+    if any("diplome_offre" in v for v in sies.values()):
+        bad.append("the SIES blocks were modified")
+    body = c.src["robf"]
+    i_rep, i_inh, i_off = body.find("with_repere(rows, fili)"), body.find("rows.update(inherit(con, rows, session))"), body.find("rows.update(extra)")
+    if not (0 <= i_rep < i_inh < i_off):
+        bad.append("offer blocks enter the repères (order)")
+    if 'if d.get("herite") or d.get("diplome_offre"):' not in body:
+        bad.append("the compact payload drops the offers read on their own sheet")
+    real = ""
+    if c.real and c.db:
+        import duckdb
+        from suptracker import rapports as RP
+        tc = duckdb.connect(str(RP.textes_path(c.db)), read_only=True)
+        try:
+            stored = {k: json.loads(v) for k, v in tc.execute("SELECT cod_aff_form, data FROM r35_formation").fetchall()}
+            jobs = {k: json.loads(v) for k, v in tc.execute("SELECT met_id, data FROM r35_metier").fetchall()}
+        finally:
+            tc.close()
+        con = duckdb.connect(str(c.db), read_only=True)
+        try:
+            idx = ON.index(con.execute("SELECT for_id, libelle, type, niveau_certification, niveau_etudes FROM core.onisep_formation").fetchall())
+            sj: dict = {}
+            for fid, mid in con.execute("SELECT for_id, met_id FROM core.onisep_formation_metier").fetchall():
+                sj.setdefault(fid, set()).add(mid)
+            from suptracker import carte as CA
+            mentions = {a["cod_aff_form"]: a["mention"] for a in CA.apprentissage(con) if not a["rattachee"]}
+        finally:
+            con.close()
+        own = {k: v for k, v in stored.items() if v.get("diplome_offre")}
+        pool_r = sorted(v["score_national"] for v in stored.values() if v.get("score_national") is not None
+                        and not v.get("herite") and not v.get("diplome_offre"))
+        exp = {k for k, m in mentions.items() if not (stored.get(k) or {}).get("herite")
+               and set().union(*(sj.get(f, set()) for f in ON.match_offer(idx, m)[0] or [None]))}
+        if set(own) != exp:
+            bad.append(f"real: {len(own)} offer blocks vs {len(exp)} expected, e.g. {sorted(set(own) ^ exp)[:3]}")
+        for k in sorted(own)[:: max(1, len(own) // 200)]:
+            fids = ON.match_offer(idx, mentions[k])[0]
+            om = {m: 1.0 for m in set().union(*(sj.get(f, set()) for f in fids))}
+            e = oracle_formation(om, "direct", jobs, None, own[k]["competences"])
+            s = own[k]["score"] or {}
+            if (s.get("median"), own[k].get("score_national")) != (e["median"], e["nat"]):
+                bad.append(f"real {k}: formula")
+                break
+            n = own[k].get("repere_national")
+            if e["nat"] is not None and (not n or n["niveau"] != oracle_place(e["nat"], pool_r)):
+                bad.append(f"real {k}: national repère")
+                break
+        real = f"; real: {len(own)} offers scored on their own sheet ({sum(1 for v in own.values() if v.get('score'))} with a score)"
     return not bad, f"differences {bad[:4]}{real}"
 
 

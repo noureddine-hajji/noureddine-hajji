@@ -18,7 +18,11 @@ Parcoursup formation is linked to the national Onisep diploma by a fixed rule pe
 * BUT: the same specialty, without its "parcours";
 * licence (and LAS): the same mention;
 * IFSI: the state nursing diploma; EFTS: the state social-work diploma of the same title;
-* other filières (CPGE, schools, PASS...): no sheet.
+* certificats de spécialisation, DEUST and BPJEPS (owner, 2026-11-20; SIES files them under « Autre formation »): the national
+  sheet of the SAME title (NATIONAL: one Onisep type and its acronym per SIES label; format only: the acronym, a gender in
+  brackets, « - en apprentissage » are dropped), never fuzzy; FCIL (local) and every other filière (CPGE, schools, PASS...): no sheet.
+  The apprenticeship offers of the cartographie read the same way through their mention's acronym (`match_offer`, titres
+  professionnels included).
 
 Each job is compared with the diploma's level: "accessible avec ce diplôme" when the job's minimum level
 is at most the diploma's, else "après une poursuite d'études (bac + n)". The list is Onisep's, national,
@@ -46,6 +50,29 @@ BTS_TYPES = ("brevet de technicien supérieur", "brevet de technicien supérieur
 BUT_TYPE = "bachelor universitaire de technologie"
 LICENCE_TYPE = "licence"
 NURSE = "diplome etat infirmier"
+# national diplomas read by their exact title (owner, 2026-11-20): key -> (Onisep type, acronym the Onisep title starts with)
+NATIONAL = {
+    "cs": ("certificat de spécialisation", r"^csa? "),
+    "deust": ("diplôme d'études universitaires scientifiques et techniques", r"^deust "),
+    "bpjeps": ("brevet professionnel de la jeunesse, de l'éducation populaire et du sport", r"^bpjeps "),
+    "tp": ("titre professionnel", r"^tp "),
+}
+NATIONAL_FORM = {"Certificat de Spécialisation": "cs", "DEUST": "deust", "BPJEPS": "bpjeps"}   # SIES form_lib_voe_acc
+# an apprenticeship offer's mention starts with its diploma's acronym (cartographie labels): the closed list, in this order
+OFFER_PREFIX = (("tp", r"^\s*FP\s*-\s*Titre professionnel\s*-?\s*"), ("cs", r"^\s*CSA?\s*-\s*"), ("deust", r"^\s*DEUST\s*-\s*"),
+                ("bpjeps", r"^\s*BPJEPS\s*-\s*"))
+
+
+def national_key(label: str | None) -> str:
+    """A national title compared on its words only: the acronym prefix (OFFER_PREFIX), a bracketed gender or level
+    (« Technicien(ne) », « (bac +2) »), « - en apprentissage » and non-breaking spaces go; then `key`."""
+    s = (label or "").replace("\xa0", " ")
+    for _, pre in OFFER_PREFIX:
+        s = re.sub(pre, "", s, flags=re.I)
+    s = re.sub(r"\s*-\s*en apprentissage\s*$", "", s, flags=re.I)
+    return key(re.sub(r"\([^)]*\)", " ", s))
+
+
 # SIES BTS labels that Onisep spells otherwise (checked one by one on the real files, 2026-11-20): label as SIES publishes
 # it -> the Onisep sheet's title. Never fuzzy: a label absent from this table and from the rules above has no sheet
 # (Métiers de la coiffure and Edition have no BTS sheet; a double BTS + DE keeps none).
@@ -200,6 +227,9 @@ def index(forms) -> dict:
         elif f.startswith("diplome d etat d"):
             fam, spec = "DE", f
         else:
+            nat = next((k for k, (ty, _) in NATIONAL.items() if t == ty), None)
+            if nat:
+                idx.setdefault("NAT_" + nat, {}).setdefault(national_key(re.sub(NATIONAL[nat][1], "", f)), []).append(fid)
             continue
         idx[fam].setdefault(key(spec), []).append(fid)
         if fam == "BTS":
@@ -207,8 +237,21 @@ def index(forms) -> dict:
     return idx
 
 
-def match(idx: dict, fili: str | None, programme: str | None) -> tuple[list[str], str]:
+def match_offer(idx: dict, mention: str | None) -> tuple[list[str], str | None]:
+    """(Onisep sheet ids, rule) of an apprenticeship offer, by its mention's acronym and exact title; ([], None) otherwise."""
+    for nat, pre in OFFER_PREFIX:
+        if re.match(pre, (mention or "").replace("\xa0", " "), flags=re.I):
+            fids = idx.get("NAT_" + nat, {}).get(national_key(mention), [])
+            return (sorted(fids), "titre_national_" + nat) if fids else ([], None)
+    return [], None
+
+
+def match(idx: dict, fili: str | None, programme: str | None, form: str | None = None) -> tuple[list[str], str]:
     """(Onisep diploma ids, rule) of a Parcoursup formation."""
+    if fili == "Autre formation" and form in NATIONAL_FORM:
+        nat = NATIONAL_FORM[form]
+        fids = idx.get("NAT_" + nat, {}).get(national_key(programme), [])
+        return (sorted(fids), "titre_national_" + nat) if fids else ([], nat + "_sans_fiche")
     if fili == "BTS":
         k = key(programme)
         if k in idx["BTS"]:
@@ -272,9 +315,9 @@ def build(con, sources: dict | None = None) -> dict:
     idx = index(forms)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     rows = []
-    for cod, fili, prog in con.execute("SELECT cod_aff_form, fili, fil_lib_voe_acc FROM core.formation_year WHERE session = ?",
-                                       [latest]).fetchall():
-        fids, rule = match(idx, fili, prog)
+    for cod, fili, prog, form in con.execute("""SELECT cod_aff_form, fili, fil_lib_voe_acc, form_lib_voe_acc FROM core.formation_year
+                                                WHERE session = ?""", [latest]).fetchall():
+        fids, rule = match(idx, fili, prog, form)
         for fid in fids or [None]:
             rows.append((latest, cod, fili, prog, fid, rule))
     _insert(con, "core.onisep_link", rows)

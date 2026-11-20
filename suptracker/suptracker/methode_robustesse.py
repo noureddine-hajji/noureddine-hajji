@@ -19,7 +19,8 @@ CHANGELOG = (
     ("2027.5-f", "20 novembre 2026",
      "Les offres en apprentissage sans statistiques reprennent la note de leur diplôme quand toutes les formations de ce diplôme "
      "ont la même. Une vingtaine d'intitulés de BTS sont maintenant reliés à leur fiche Onisep (option renommée, abréviation). "
-     "Cinq métiers sans code reçoivent celui d'une fiche voisine, validé à la main."),
+     "Huit métiers sans code reçoivent celui d'une fiche voisine, validé à la main. Les certificats de spécialisation, DEUST, "
+     "BPJEPS et titres professionnels sont reliés à leur fiche Onisep par leur intitulé exact."),
     ("2027.4-f", "18 novembre 2026",
      "Seuil revu : une licence est notée par les masters de son université dès qu'au moins un master documenté par l'Onisep "
      "mène à un métier. Sinon, elle est notée sur ses propres métiers, ou à défaut sur ceux de sa famille de formations."),

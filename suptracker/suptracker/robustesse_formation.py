@@ -31,6 +31,10 @@ Apprenticeship offers (owner, 2026-11-20): an offer of the cartographie that SIE
 (`inherit`) only when every formation of the latest campaign with the same type and mention (`carte.diplome_of`, the offer's own
 voted pair) has a block and all those blocks are identical: the score then belongs to the diploma, not to an establishment.
 It carries `herite` (how many formations share it) and never enters a repère's ranking (computed before, among SIES rows only).
+An offer whose diploma SIES never publishes (titres professionnels, most CSA, the DEUST préparateur en pharmacie) is read through
+its OWN national Onisep sheet (`onisep.match_offer`: acronym + exact title) like a « direct » formation (`offer_blocks`); its
+national repère is PLACED among the SIES formations' national scores (never added to them), it has no filière repère (no SIES
+formation of its filière), and it carries `diplome_offre` (the rule).
 """
 from __future__ import annotations
 
@@ -481,6 +485,27 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                                                "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
         with_repere(rows, fili)
         rows.update(inherit(con, rows, session))
+        def skills_of(fids):
+            for f in fids:
+                fiche, lien = rncp_of(f, labels.get(f), on_link, idx, rncp)
+                if fiche:
+                    return fiche, lien, skills(rncp.get(fiche), rome)
+            return None, None, None
+        offers = offer_list(con, rows)
+        if offers:
+            from . import onisep as ON
+            forms_on = con.execute("SELECT for_id, libelle, type, niveau_certification, niveau_etudes FROM core.onisep_formation").fetchall() \
+                if "onisep_formation" in have else []
+            extra = offer_blocks(offers, ON.index(forms_on), sheet_jobs, jobs, skills_of, rows)
+            for cod, b in extra.items():
+                fiche = (b.get("rncp") or {}).get("fiche")
+                if fiche:
+                    b["rncp"]["apprentissage"] = rncp[fiche]["apprentissage"]
+                if fiche and fiche not in rncp_rows:
+                    f = rncp[fiche]
+                    rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
+                                                   "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
+            rows.update(extra)
     out_rows = [(c, json.dumps(v, ensure_ascii=False, sort_keys=True)) for c, v in sorted(rows.items())]
 
     def write(c, p):
@@ -508,7 +533,8 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
     return {"formations": len(rows), "formations_score": sum(1 for v in rows.values() if v["score"]),
             "avec_competences": sum(1 for v in rows.values() if v["competences"]), "fiches_rncp": len(rncp_rows),
             "methodes": {m: sum(1 for v in rows.values() if v["methode"] == m) for m in METHOD_WEIGHT},
-            "herites": sum(1 for v in rows.values() if v.get("herite"))}
+            "herites": sum(1 for v in rows.values() if v.get("herite")),
+            "offres_fiche": sum(1 for v in rows.values() if v.get("diplome_offre"))}
 
 
 # the cartographie writes some apprenticeship mentions with the diploma's acronym first (« BTS - Management en hôtellerie
@@ -536,6 +562,41 @@ def inherited(offers: list[tuple], sies: dict, rows: dict) -> dict:
         dumped = {json.dumps(b, ensure_ascii=False, sort_keys=True) for b in blocks}
         if len(dumped) == 1:
             out[cod] = {**json.loads(dumped.pop()), "herite": {"source": "diplome", "formations": len(cods)}}
+    return out
+
+
+def offer_list(con, rows: dict) -> list[tuple]:
+    """(code, mention) of the apprenticeship offers listed apart (not attached) that have no block yet."""
+    from . import carte as CA
+    try:
+        return [(a["cod_aff_form"], a["mention"]) for a in CA.apprentissage(con) if not a["rattachee"] and a["cod_aff_form"] not in rows]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def offer_blocks(offers: list[tuple], idx: dict, sheet_jobs: dict, jobs: dict, skills_of, rows: dict) -> dict:
+    """The block of each offer read through its OWN national Onisep sheet (`onisep.match_offer`), as a « direct » formation;
+    its national repère placed among the SIES formations' national scores (`rows`, never changed), no filière repère."""
+    from . import onisep as ON
+    nat = sorted(d["score_national"] for d in rows.values() if d.get("score_national") is not None and not d.get("herite"))
+    out = {}
+    for cod, mention in offers:
+        fids, rule = ON.match_offer(idx, mention)
+        direct = sorted(set().union(*(sheet_jobs.get(f, set()) for f in fids))) if fids else []
+        if not direct:
+            continue
+        fiche, lien, sk = skills_of(fids)
+        b = formation({m: 1.0 for m in direct}, "direct", jobs, None, sk)
+        b["diplome_seul"] = facts_jobs(direct, jobs)
+        b["rncp"] = None
+        b["repere"] = None
+        v = b.get("score_national")
+        b["repere_national"] = None if v is None or not nat else {"niveau": place(v, nat), "n_formations": len(nat),
+                                                                    "part": REPERE_SHARE, "apres_etudes": None}
+        b["diplome_offre"] = rule
+        out[cod] = b
+        if fiche:
+            out[cod]["rncp"] = {"fiche": fiche, "lien": lien, "apprentissage": None}
     return out
 
 
@@ -590,7 +651,7 @@ def compact(con) -> dict:
             acc["filiere"].setdefault(q["niveau"], []).append(cod)
         elif q.get("raison"):
             acc["raison"].setdefault(q["raison"], []).append(cod)
-        if d.get("herite"):
+        if d.get("herite") or d.get("diplome_offre"):
             acc["herite"].setdefault("diplome", []).append(cod)
         if n.get("niveau"):
             acc["national"].setdefault(n["niveau"], []).append(cod)
