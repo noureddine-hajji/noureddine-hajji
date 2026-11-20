@@ -200,7 +200,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
   - CI: push on `main` only, branches through their PR, stale runs cancelled. Five shard runners
     (`pytest -n auto --dist loadfile --shard=i/5`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), files spread by `tests/durations.json`; a new test file goes in that table, with its
-    measured seconds, read from the `measured-durations` line each CI shard prints) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
+    measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
+    of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way.

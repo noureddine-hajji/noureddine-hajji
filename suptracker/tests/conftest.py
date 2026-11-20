@@ -4,7 +4,8 @@ Files are spread by their measured duration (tests/durations.json, seconds per f
 lightest shard. A file missing from durations.json still runs: it gets DEFAULT seconds and a shard like any other.
 Every shard collects the same files (same command), so the plan is the same on every runner and each file runs in
 exactly one shard (tests/test_shards.py checks it). Each CI shard prints a "measured-durations {...}" line (seconds per
-file, every phase summed, workers together): the table is refreshed from those lines.
+file, every phase summed, workers together): the table is refreshed from those lines, each file's MINIMUM over several runs
+(the first file of a shard to need the shared synthetic warehouse also carries its build, a different file each run).
 """
 from __future__ import annotations
 

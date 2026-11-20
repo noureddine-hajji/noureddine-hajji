@@ -4145,5 +4145,9 @@ and G7 cover the sitemap and the router.
 With `--shard`, `tests/conftest.py` prints a line `measured-durations {...}` for each CI shard. The line gives the seconds per
 test file, setup with its module fixtures plus call plus teardown, summed over the workers. `tests/durations.json` is refreshed
 from these lines rather than guessed, so the five shards stay balanced. On 2026-11-19 one shard took 43 of its 45 minutes.
-First refresh, 2026-11-20 (run of 326a270): under the old table the measured shard loads were 3,521 / 5,434 / 5,436 / 4,912 /
-8,046 seconds (23 to 36 minutes of wall time). With the measured table, every shard plans 5,470 seconds, about 25 minutes.
+Refresh rule: take each file's MINIMUM over several CI runs, never one run. A file's measured time includes the shared synthetic
+warehouse when that file happens to be the first of its shard to need it: about 400 to 600 seconds that land on a different file
+in each run. Examples: `test_securite_large` measured 17 then 529 seconds, `test_recherche` 411 then 42. A table from a single run
+therefore moves those seconds around. On 2026-11-20 the first single-run refresh still left one shard at 38 minutes (shards
+19 to 38 minutes). The minimum over three runs removes that build time from every file. Every shard then plans the same 3,970
+seconds of its own work plus one warehouse build.
