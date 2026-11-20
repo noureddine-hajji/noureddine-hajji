@@ -1,4 +1,4 @@
-# Persona verification: Mathématiques + SES, mention Assez bien (2026-11-20T11:21:24+00:00)
+# Persona verification: Mathématiques + SES, mention Assez bien (2026-11-20T12:17:59+00:00)
 
 | check | result | detail |
 |---|---|---|
