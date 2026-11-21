@@ -276,11 +276,22 @@ def card_ok(js: str) -> tuple[bool, str]:
              [["3"], {"session": 2025, "carte_session": 2026, "voeux": [f["voeux"][2]]}, None, {"noms": noms, "securite": None, "today": "2027-04-02"},
               {"projet": {"3": {"coches": [1], "brouillon": "projet"}}}],
              [["3"], None, _cal(), {}, {}]]
+    mix = [("10", "Concours Puissance Alpha"), ("11", "Concours SESAME"), ("12", "Concours SESAME"), ("13", "Concours commun"),
+           ("14", "Concours commun")]
+    cases.append([[c for c, _ in mix], {"session": 2025, "carte_session": 2026, "voeux": [
+        {"cod_aff_form": c, "connu": True, "dans_carte": True, "concours": k, "apprentissage": False} for c, k in mix]},
+        _cal(), {"noms": {c: f"F{c}" for c, _ in mix}, "securite": "ok", "today": "2027-02-01"}, {}])
     r = run_node(js, cases)
     if r is None:
         return True, "node not installed"
-    full, unknown, nocal, empty = r
+    full, unknown, nocal, empty, mixed = r
     plain = lambda h: re.sub(r"<[^>]+>", " ", h)  # noqa: E731
+    # Codex (PR #99): one line per named concours; different concours never in one line; « Concours commun » never grouped
+    lines = [plain(x) for x in re.findall(r"<li[^>]*>(.*?)</li>", mixed, re.S) if "concours" in plain(x)]
+    if len(lines) != 4 or any(("F10" in t) + ("F11" in t) + ("F13" in t) + ("F14" in t) > 1 for t in lines) \
+            or not any("F11" in t and "F12" in t and "même concours" in t for t in lines) \
+            or sum("même vœu" in t for t in lines) != 1:
+        bad.append(f"concours lines: {lines}")
     if "<img" in full or "onerror=alert(1)>" in full:
         bad.append("unescaped")
     for need in ("Votre liste compte 3 vœux, dont 1 en apprentissage", "jusqu'à 10 vœux", "jusqu'à 10 vœux en apprentissage en plus",
@@ -306,7 +317,7 @@ def card_ok(js: str) -> tuple[bool, str]:
         t = plain(h)
         if BAN.search(t) or TU.search(t):
             bad.append(f"wording: {(BAN.search(t) or TU.search(t)).group(0)}")
-    return not bad, f"4 renders; {bad[:4]}"
+    return not bad, f"5 renders; {bad[:4]}"
 
 
 @check("LI4 card: statuses in words, escaped, the calendar's numbers and dates only (« 1er »), unknown said, no valid list, vous")
@@ -366,7 +377,10 @@ MUTANTS = [
     ("api", "no 422", "        raise HTTPException(422, str(exc)) from exc\n    return LST.verifier", "        cods = []\n    return LST.verifier", "LI3"),
     ("cache", "shared cache", '(r"/api/liste/verifier", NO_STORE,', '(r"/api/liste/verifier", PUBLIC,', "LI3"),
     ("js", "name unescaped", "const nom = (c) => `« ${esc(noms[c] || `formation ${c}`)} »`;", "const nom = (c) => `« ${noms[c] || `formation ${c}`} »`;", "LI4"),
-    ("js", "concours unescaped", "(${esc(v.concours)})", "(${v.concours})", "LI4"),
+    ("js", "concours unescaped", "(${esc(g.nom)})", "(${g.nom})", "LI4"),
+    ("js", "different concours in one vœu", 'v.concours !== "Concours commun" && groups.find((x) => x.nom === v.concours)',
+     'groups[0]', "LI4"),
+    ("js", "« Concours commun » grouped", 'v.concours !== "Concours commun" && groups.find', 'groups.find', "LI4"),
     ("js", "typed maximum", "const max = Number.isInteger(R.voeux_max) ? R.voeux_max : null,", "const max = Number.isInteger(R.voeux_max) ? R.voeux_max : 10,", "LI4"),
     ("js", "unverified date shown", "return e && e.verifie && typeof e.debut", "return e && typeof e.debut", "LI4"),
     ("js", "no « 1er »", 'frDate(iso).replace(/^(\\S+) 1 /, "$1 1er ")', "frDate(iso)", "LI4"),

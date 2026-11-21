@@ -4323,7 +4323,19 @@ function verifierCard(ids, f, cal, opts) {
     ? ` Vous pouvez ajouter jusqu'à ${fmt(maxApp)} vœux en apprentissage en plus.` : ""}`));
   const conc = f.voeux.filter((v) => typeof v.concours === "string" && v.concours);
   if (conc.length) {
-    items.push(li(look, `${conc.map((v) => `${nom(v.cod_aff_form)} (${esc(v.concours)})`).join(", ")}&nbsp;: ${conc.length > 1 ? "ces formations recrutent" : "cette formation recrute"} par un concours commun. Sur Parcoursup, ${conc.length > 1 ? "elles peuvent" : "elle peut"} compter comme sous-vœu d'un même vœu. Vérifiez sur ${conc.length > 1 ? "leurs fiches" : "sa fiche"}.`));
+    // Codex (PR #99): formations of DIFFERENT concours never share a vœu: one line per NAMED concours; « Concours commun » names
+    // no concours, so each of those formations stands alone
+    const groups = [];
+    for (const v of conc) {
+      const g = v.concours !== "Concours commun" && groups.find((x) => x.nom === v.concours);
+      if (g) g.v.push(v); else groups.push({ nom: v.concours, v: [v] });
+    }
+    for (const g of groups) {
+      const k = g.v.length > 1;
+      items.push(li(look, `${g.v.map((v) => nom(v.cod_aff_form)).join(", ")} (${esc(g.nom)})&nbsp;: ${k
+        ? "ces formations recrutent par le même concours. Sur Parcoursup, elles peuvent compter comme sous-vœux d'un même vœu. Vérifiez sur leurs fiches."
+        : "cette formation recrute par un concours commun. Sur Parcoursup, elle peut compter comme sous-vœu d'un vœu multiple. Vérifiez sur sa fiche."}`));
+    }
   } else if (R.sous_voeux === true) {
     items.push(li(info, "Pour certaines formations, Parcoursup permet aussi des sous-vœux. La fiche de chaque formation le précise."));
   }
