@@ -4374,3 +4374,30 @@ The card never says the list is valid: SupCompass does not see the Parcoursup fi
 Red team `redteam_liste.py` (LI1-LI7): an independent reading of the calendar's rules, an independent re-derivation of the facts
 (crafted and 600 real codes), the route, the card's statuses, escaping and wording, the page's wiring; 20 mutants.
 
+
+## BUT par spécialité, parcours en apprentissage (owner 2026-11-21)
+
+The Parcoursup map of formations writes a BUT's mention as the parcours it opens, then the specialty, each item « BUT - <name> »
+(« BUT - Marketing digital, e-business et entrepreneuriat,BUT - Techniques de commercialisation »). An apprenticeship offer often
+opens only some of the parcours of the IUT's initial formation, so its labels differ from it. Before this change, 2 offers kept the
+raw list as their mention (Auxerre 10802, Aix-en-Provence 2710) and 34 stayed listed apart although their IUT teaches the same
+specialty in initial training.
+
+- **The specialty** (`carte.but_specialite`, one fixed rule): every item starts with « BUT - », exactly one is a BUT specialty SIES
+  publishes in its latest campaign; it becomes the mention, the other items are the parcours (as printed, spaces normalised, order
+  kept). Anything else (no specialty, two, an item of another diploma) keeps the labels as before.
+- **The attachment**: a BUT apprenticeship offer is attached to the initial BUT formation(s) of the SAME specialty at the SAME UAI
+  (the owner's merge rule, 2026-11-09, with the specialty as the mention), never across IUTs; SIES's own apprenticeship rows are
+  not initial. 127 of the 135 BUT offers of the 2026 map are attached (95 before); the 8 left are at an IUT without that specialty
+  in initial training.
+- **The parcours** open in apprenticeship are shown on the CFA line (« Aussi en apprentissage » on the search card, « Et en
+  apprentissage ? » on the formation page) and on an offer listed apart, each name quoted (a parcours name may hold a comma).
+- **The mention filter**: SIES names three specialties with their parcours (Carrières sociales, Génie biologique, Information
+  communication: 15 mentions); `carte.groupe_of` groups them under the specialty (any case of « parcours »), each formation keeping
+  its own label: 24 BUT groups instead of 36.
+- Checked: all 135 offers are apprenticeship ones (their fiche: « les frais sont à la charge de l'employeur »). Three initial BTS
+  formations print BUT parcours in their Parcoursup mention (Laval 6194, 6195; Lempdes 23461): they are classed from SIES, unchanged.
+
+Red team `redteam_but.py` (BU1-BU7): an independent reading of the rule on hostile labels, a crafted warehouse checked against a
+table written by hand, every real BUT offer re-derived (the owner's two examples included), the grouping, the page (Node), the docs;
+17 mutants. The map red team's C9 / C10 re-derive the BUT rule on their own.

@@ -391,6 +391,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     apart: the formation carries both labels ("formation initiale" + "apprentissage"; filter "hors" = `initiale`, "en" =
     `apprentissage`) and lists the CFA with its Parcoursup page (map card and formation page, "Bon à savoir"). Another
     establishment of the same town is NOT merged. Red team C10.
+  - BUT by specialty (owner, 2026-11-21): a BUT's cartographie mention is « BUT - <parcours>,…,BUT - <specialty> »; `carte.but_specialite`
+    takes the ONE item SIES publishes as a BUT specialty as the mention, the others as `parcours` (shown quoted on the CFA lines and on
+    an offer listed apart); a BUT apprenticeship offer is attached to the initial BUT formation of the SAME specialty at the SAME UAI
+    (the specialty is the mention of the merge rule), never across IUTs. `groupe_of("BUT", …)` groups SIES's « X Parcours Y » mentions
+    under X. Red team `redteam_but.py` (BU1-BU7); C9 / C10 re-derive the rule.
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted

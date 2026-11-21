@@ -411,20 +411,41 @@ def app_codes(con) -> set:
         EXCEPT SELECT cod_aff_form FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
 
 
+def rt_but_names(con) -> set:
+    return {r[0] for r in con.execute("""SELECT fil_lib_voe_acc FROM core.formation_year WHERE fili = 'BUT'
+        AND session = (SELECT max(session) FROM core.formation_year)""").fetchall() if r[0]}
+
+
+def rt_but(fl, names) -> tuple | None:
+    """Independent (owner, 2026-11-21): a BUT mention « BUT - a,BUT - b,... »; the specialty = the ONE item SIES publishes as a
+    BUT specialty, the parcours = the others (spaces normalised); anything else: None."""
+    fl = fl or ""
+    if not fl.startswith("BUT - "):
+        return None
+    items = [" ".join(x.split()) for x in fl[len("BUT - "):].split(",BUT - ")]
+    hit = [x for x in items if x in names]
+    return (hit[0], [x for x in items if x != hit[0]]) if len(hit) == 1 else None
+
+
 def attach(con) -> dict:
     """Independent: {apprenticeship offer: initial formations of the latest SIES campaign, same UAI (SIES or cartographie),
-    same cartographie type and mention labels; SIES's own apprenticeship formations are not initial}."""
+    same cartographie type and mention labels; SIES's own apprenticeship formations are not initial}. A BUT offer whose
+    mention reads as a specialty is also attached to the initial BUT formations of that specialty at the same UAI."""
     codes = app_codes(con)
     if not codes:
         return {}
     off = {r[0]: r[1:] for r in con.execute("SELECT cod_aff_form, etab_uai, type_formation, mention_lib FROM core.cartographie").fetchall()}
-    ini = con.execute("""SELECT f.cod_aff_form, f.cod_uai, c.etab_uai, c.type_formation, c.mention_lib FROM core.formation_year f, core.cartographie c
+    ini = con.execute("""SELECT f.cod_aff_form, f.cod_uai, c.etab_uai, c.type_formation, c.mention_lib, f.fili, f.fil_lib_voe_acc
+        FROM core.formation_year f, core.cartographie c
         WHERE c.cod_aff_form = f.cod_aff_form AND f.session = (SELECT max(session) FROM core.formation_year)
         AND f.apprentissage IS NOT TRUE""").fetchall()
+    names = rt_but_names(con)
     out = {}
     for a in codes:
         u, tf, fl = off[a]
-        out[a] = sorted({y for y, u1, u2, tf2, fl2 in ini if u and u in (u1, u2) and (tf2, fl2) == (tf, fl)})
+        sp = rt_but(fl, names) if tf == "BUT" else None
+        out[a] = sorted({y for y, u1, u2, tf2, fl2, fili, fil in ini if u and u in (u1, u2)
+                         and ((tf2, fl2) == (tf, fl) or (sp and fili == "BUT" and fil == sp[0]))})
     return out
 
 
@@ -476,12 +497,18 @@ def c9(c: Ctx):
     zones_seen = set()
     for d in c.sample[:2]:
         zones_seen |= set(M["CA"].zones(c.con, d, None, J.doublette_key("MATHS", "SES"), "ab", "bg")["zones"])
+    but_names = rt_but_names(c.con) if want else set()
     for cod, (dl, a) in by_label.items():
         tc, tf, fl, uai, dep, fiche = info[cod]
         st = STATUT_CARTO.get(tc)
         parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
         typ = pick(tvotes.get(tf, {})) or next((pick(tvotes[x]) for x in parts if x in tvotes), None) or (parts[0] if parts else "Autre formation")
         exp = pick(votes.get((tf, fl), {})) or (typ, fl or "")
+        sp = rt_but(fl, but_names) if exp[0] == "BUT" else None
+        if sp:                              # owner, 2026-11-21: a BUT's mention is its specialty, its parcours listed apart
+            exp = ("BUT", sp[0])
+            if a.get("parcours") != sp[1]:
+                bad.append((cod, "parcours", a.get("parcours"), sp[1]))
         acad = pick(uai_ac.get(uai, {})) or pick(dep_ac.get(_fold(dep), {}))
         if a["zone"] if "zone" in a else None:
             bad.append((cod, "zone"))
@@ -581,7 +608,7 @@ PY_MUTANTS = [
     ("SIES formations listed again as apprenticeship", "AND c.cod_aff_form NOT IN (SELECT", "AND c.cod_aff_form IN (SELECT cod_aff_form FROM core.cartographie) OR c.cod_aff_form IN (SELECT"),
     ("apprenticeship private filed as paid", 'return "prive_app"\n    return None', 'return "prive"\n    return None'),
     ("outside contract read as under contract", 'if "hors contrat" in t:', 'if False:'),
-    ("attached by town, not by establishment", 'sorted(initial.get((uai, tf, fl), ())) if uai else []', 'sorted({y for (u2, t2, f2), ys in initial.items() if (t2, f2) == (tf, fl) for y in ys})[:1] if uai else []'),
+    ("attached by town, not by establishment", 'att = set(initial.get((uai, tf, fl), ())) if uai else set()', 'att = set(sorted({y for (u2, t2, f2), ys in initial.items() if (t2, f2) == (tf, fl) for y in ys})[:1]) if uai else set()'),
     ("attachment ignores the mention", "initial.setdefault((u, tf, fl), set()).add(cod)", "initial.setdefault((u, tf, None), set()).add(cod)"),
     ("attached offers still listed apart", "    for a in apprentissage(con):\n        if not a[\"rattachee\"]:", "    for a in apprentissage(con):\n        if True:"),
     ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),

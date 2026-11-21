@@ -5,6 +5,7 @@
  "tests/test_aides.py": 14,
  "tests/test_appel.py": 39,
  "tests/test_bmo.py": 809,
+ "tests/test_but.py": 40,
  "tests/test_calibration.py": 17,
  "tests/test_campaign.py": 1,
  "tests/test_carte.py": 408,
