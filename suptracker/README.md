@@ -4389,7 +4389,8 @@ specialty in initial training.
 - **The attachment**: a BUT apprenticeship offer is attached to the initial BUT formation(s) of the SAME specialty at the SAME UAI
   (the owner's merge rule, 2026-11-09, with the specialty as the mention), never across IUTs; SIES's own apprenticeship rows are
   not initial. 127 of the 135 BUT offers of the 2026 map are attached (95 before); the 8 left are at an IUT without that specialty
-  in initial training.
+  in initial training. An offer that opens only SOME of the initial formation's parcours is attached all the same (owner,
+  2026-11-21), its parcours named on the CFA line.
 - **The parcours** open in apprenticeship are shown on the CFA line (« Aussi en apprentissage » on the search card, « Et en
   apprentissage ? » on the formation page) and on an offer listed apart, each name quoted (a parcours name may hold a comma).
 - **The mention filter**: SIES names three specialties with their parcours (Carrières sociales, Génie biologique, Information
