@@ -65,6 +65,7 @@ from . import onisep as ON
 from . import prevision as PV
 from . import sources as SRC
 from . import contact as CT
+from . import projet as PRJ
 from . import legal as LG
 from . import securite as SEC
 from .crosswalk import EXACT, INFERRED, continuity_report
@@ -1106,6 +1107,18 @@ def planb(cod: str, mention: str | None = Query(None, pattern=MENTION_PATTERN),
                             include_paid=include_paid, moyenne=moy, pool=pool), "moyenne": moyenne}   # R5 (review): the average given
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
+
+
+@app.get("/api/projet/{cod}")
+def projet(cod: str):
+    """Sprint 1 (owner, 2026-11-20): what one vœu's fiche publishes for the « projet de formation motivé » (projet.py).
+    The same answer for everyone (one code, no profile, no audience event): the draft never leaves the browser."""
+    if not (cod.isascii() and cod.isdigit() and len(cod) <= 9):
+        raise HTTPException(422, "code de formation invalide")
+    d = PRJ.for_formation(_con().cursor(), cod)
+    if d is None:
+        raise HTTPException(404, f"formation {cod} introuvable")
+    return d
 
 
 @app.get("/api/voeux")

@@ -145,6 +145,9 @@ conservé, pendant combien de temps, et à qui.</p>
 <h2>1. Votre profil et votre liste de vœux restent dans votre navigateur</h2>
 <p>Votre situation, votre bac, vos spécialités, votre mention, votre moyenne, votre académie, votre lycée et votre liste de vœux
 sont enregistrés <strong>uniquement dans votre navigateur</strong> (stockage local). {SITE} ne les conserve pas.</p>
+<p>Les brouillons de projet de formation motivé que vous écrivez sur {SITE}, et les points que vous y cochez, restent eux aussi
+dans votre navigateur : ils ne sont jamais envoyés au site. Vous pouvez les effacer formation par formation, ou en vidant les
+données du site dans votre navigateur.</p>
 <p>Pour lire les formations selon votre profil, la page envoie au serveur, dans l'adresse de la demande et sans aucun
 identifiant, ce dont le calcul a besoin :</p>
 <ul class="legal-list">

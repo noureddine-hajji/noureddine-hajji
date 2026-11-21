@@ -622,6 +622,17 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .cform textarea, .cform input[type="email"] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line-input); border-radius: var(--r-sm);
   background: var(--surface); color: var(--ink); box-sizing: border-box; }
 .cform textarea { min-height: 140px; resize: vertical; }
+/* sprint 1 (owner, 2026-11-20): « Préparer mes projets de formation motivés » */
+.projet > summary { cursor: pointer; }
+.projet > summary h2 { display: inline; }
+.projet > summary .small { display: block; }
+.pj-crit { list-style: none; padding-left: 0; }
+.pj-crit li { margin: 8px 0; }
+.pj-crit label { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; }
+.pj-crit input { margin-top: 4px; flex: none; width: 22px; height: 22px; }
+.projet textarea { display: block; width: 100%; box-sizing: border-box; min-height: 180px; resize: vertical; font: inherit; padding: 8px 10px;
+  border: 1px solid var(--line-input); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); }
+.pj-crit input { align-self: flex-start; }
 .cform [aria-invalid="true"] { border-color: var(--bad); outline: 2px solid var(--bad); outline-offset: 1px; }
 .cform button[type="submit"] { justify-self: start; min-height: 44px; padding: 0 20px; }
 .cform .ok { color: var(--good); font-weight: 600; }

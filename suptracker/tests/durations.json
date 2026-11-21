@@ -43,6 +43,7 @@
  "tests/test_poursuite.py": 973,
  "tests/test_prevision.py": 747,
  "tests/test_probe.py": 1,
+ "tests/test_projet.py": 60,
  "tests/test_rapports.py": 131,
  "tests/test_recherche.py": 42,
  "tests/test_referentiel.py": 40,

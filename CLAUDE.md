@@ -819,6 +819,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   folded; no figure under 100 admits or 5 formations; the girls' vœux/admits gap is computed, never typed. Red team OB9-OB11.
   Indexable (owner, 2026-11-20): `/observatoire` = `seo.observatoire_body` (every table, the /api/observatoire figures, same caveats,
   Dataset JSON-LD), sitemap, PAGE cache, `pathRoute`; the app keeps the `[data-seo]` summary while loading. Red team G12.
+- **Préparer mes projets de formation motivés (sprint 1, owner 2026-11-20).** `projet.py`, `/api/projet/<code>` (public cache, no
+  event), page `#/projet` (tab Mes vœux, linked from the list): per vœu, the fiche's attendus, its jury's criteria from the most
+  important (importance as printed, then the fiche's order; reordered only, never merged or scored) and its advice, verbatim and
+  escaped, with the fiche's campaign, « lu le » and « la fiche fait foi »; no fiche = said + its parcoursup.fr link. The site NEVER
+  writes the project (no model text). Ticks and draft live in localStorage (`projet`, validated by `projetLoad`) and are NEVER
+  sent; the counter counts code points against 1,500 characters spaces included and says each vœu's own limit prevails.
+  Red team `redteam_projet.py` (PJ1-PJ8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
