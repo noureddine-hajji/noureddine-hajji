@@ -396,6 +396,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     an offer listed apart); a BUT apprenticeship offer is attached to the initial BUT formation of the SAME specialty at the SAME UAI
     (the specialty is the mention of the merge rule), never across IUTs, even when it opens only some of its parcours (owner, 2026-11-21). `groupe_of("BUT", …)` groups SIES's « X Parcours Y » mentions
     under X. Red team `redteam_but.py` (BU1-BU7); C9 / C10 re-derive the rule.
+  - Types in a list (owner, 2026-11-21): the cartographie files an initial formation under several types (« …,BTS - BTSA - BTSM ») and
+    its offers under one; an offer whose labels no SIES formation carries whole takes `carte.part_votes` (the SIES formations whose
+    type list CONTAINS its type, same mention label, ALL reading the same; split = raw label), and is attached at the SAME UAI to an
+    initial formation of which its type is one part, same mention label and same reading (607 BTS offers read, 153 more attached).
+    Red team `redteam_types_liste.py` (TY1-TY5); C9 / C10 `rt_reading`.
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted
