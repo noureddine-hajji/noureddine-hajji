@@ -60,7 +60,7 @@ CHECKS = []
 STATIC = ROOT / "suptracker" / "static"
 CHANCE = re.compile(r"(?i)probabilit|chances? d'[eê]tre|de chances|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
-PAGE_TWINS = ("cartePosition", "pctRange", "carteSelection", "foldText", "carteHash", "carteKeep", "pickVoie")
+PAGE_TWINS = ("cartePosition", "pctRange", "carteSelection", "foldText", "carteHash", "carteGroupes", "carteKeep", "pickVoie")
 DISPATCH = r"""
 const F = { cartePosition, carteSelection, carteHash, carteKeep, pickVoie, lire };
 let raw = ""; process.stdin.on("data", (x) => (raw += x)); process.stdin.on("end", () => {
@@ -241,7 +241,7 @@ def cr4(c: Ctx):
         allf = CA.formations(c.con, d["label"])["formations"]
         for g in d["mentions"][:6]:
             sub = CA.formations(c.con, d["label"], g["label"])["formations"]
-            want = sorted(f["cod_aff_form"] for f in allf if f["groupe"] == g["label"])
+            want = sorted(f["cod_aff_form"] for f in allf if g["label"] in (f["groupe"], f.get("groupe2")))
             if sorted(f["cod_aff_form"] for f in sub) != want or len(want) != g["n"]:
                 bad.append((d["label"], g["label"]))
     small = {"diplomes": [{"label": d["label"], "n": d["n"], "mentions": [{"label": g["label"], "variantes": g["variantes"]} for g in d["mentions"]]}
@@ -258,12 +258,14 @@ def cr4(c: Ctx):
              {"fn": "carteKeep", "args": [{"diplome": dl["label"], "groupe": "autre"}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}]},
              {"fn": "carteKeep", "args": [{"diplome": "BUT", "groupe": "x"}, {"d": [dl["label"], "BUT"], "m": {dl["label"]: [g0["label"]]}}]},
              {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [dl["label"]], "m": {}}]},
-             {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [], "m": {}}]}]
+             {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [], "m": {}}]},
+             {"fn": "carteKeep", "args": [{"diplome": dl["label"], "groupe": "autre", "groupe2": g0["label"]}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}]}]
     out = node(c.js, cases)
     if out is None:
         return not bad, f"node not installed; API problems {bad[:3]}"
     want = [{"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}},
-            {"d": [], "m": {}}, {"d": [], "m": {}}, None, "#/carte", True, False, True, False, True]   # R10: nothing ticked = all
+            {"d": [], "m": {}}, {"d": [], "m": {}}, None, "#/carte", True, False, True, False, True,   # R10: nothing ticked = all
+            True]                                                    # owner, 2026-11-21: a double licence kept by its 2nd discipline
     page = []
     for k, (o, w) in enumerate(zip(out, want)):
         if k == 4:
@@ -614,18 +616,19 @@ def py_mutants():
     import suptracker.carte as C
     import suptracker.voeux as VX
     from suptracker import journey as JJ
-    orig = {"lines": C.bac_lines, "groupe_of": C.groupe_of, "sort_key": C.sort_key, "zones": C.zones, "figures": VX.figures, "untyped": JJ.untyped_codes,
+    orig = {"lines": C.bac_lines, "groupe_of": C.groupe_of, "groupes_of": C.groupes_of, "sort_key": C.sort_key, "zones": C.zones, "figures": VX.figures, "untyped": JJ.untyped_codes,
             "dl": dict(C.DL_DISCIPLINE), "chmax": C.CHIFFRES_MAX}
 
     def restore():
         C.groupe_of, C.sort_key, C.zones, VX.figures, JJ.untyped_codes = orig["groupe_of"], orig["sort_key"], orig["zones"], orig["figures"], orig["untyped"]
+        C.groupes_of = orig["groupes_of"]
         C.bac_lines = orig["lines"]
         C.DL_DISCIPLINE.clear(); C.DL_DISCIPLINE.update(orig["dl"]); C.CHIFFRES_MAX = orig["chmax"]
 
-    def ordered_pair(d, m):                         # double licence pair kept in the printed order
+    def ordered_pair(d, m, domaines=None):          # double licence kept as a pair label in the printed order
         if d == "Double licence" and "/" in m:
-            return " / ".join(p.strip() for p in m.split(" - ")[0].split("/")[:2])
-        return orig["groupe_of"](d, m)
+            return [" / ".join(p.strip() for p in m.split(" - ")[0].split("/")[:2])]
+        return orig["groupes_of"](d, m, domaines)
 
     def zones_typed_only(con, diplome, mention, dkey, mb, serie, moyenne=None, lecture=False):
         out = orig["zones"](con, diplome, mention, dkey, mb, serie, moyenne, lecture)
@@ -657,7 +660,7 @@ def py_mutants():
         return {k: {**v, "rapport": None, "semblable": None} for k, v in f.items()}
 
     return [
-        ("double licence pair ordered", lambda: setattr(C, "groupe_of", ordered_pair), {"CR2"}),
+        ("double licence pair ordered", lambda: setattr(C, "groupes_of", ordered_pair), {"CR2"}),
         ("Gestion merged with Économie", lambda: C.DL_DISCIPLINE.update({"gestion": "Économie"}), {"CR2"}),
         ("order keeps accents", lambda: setattr(C, "sort_key", lambda x: x.lower()), {"CR3"}),
         ("untyped formations left without a zone", lambda: setattr(C, "zones", zones_typed_only), {"CR1"}),

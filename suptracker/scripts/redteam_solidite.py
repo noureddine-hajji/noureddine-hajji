@@ -405,11 +405,16 @@ def so9(c: Ctx):
 
     def slow():
         calls.append(1)
-        time.sleep(0.2)
+        time.sleep(0.3)
         return {"v": len(calls)}
     cache: dict = {}
     got = []
-    ts = [threading.Thread(target=lambda: got.append(CA.once(cache, "k", slow))) for _ in range(12)]
+    gate = threading.Barrier(12)      # every request arrives at once, however loaded the runner (CI: a thread could start late)
+
+    def visitor():
+        gate.wait()
+        got.append(CA.once(cache, "k", slow))
+    ts = [threading.Thread(target=visitor) for _ in range(12)]
     for t in ts:
         t.start()
     for t in ts:
