@@ -158,6 +158,27 @@ def label_votes(con) -> tuple[dict, dict]:
     return {k: best(v) for k, v in pair.items()}, {k: best(v) for k, v in typ.items()}
 
 
+def _parts(tf: str | None) -> list:
+    return [x.strip() for x in (tf or "").split(",") if x.strip()]
+
+
+def part_votes(con) -> dict:
+    """Owner, 2026-11-21: {(type part, mention_lib): (type, mention)} when EVERY SIES formation of the latest campaign whose
+    cartographie type LIST contains that part, with that mention label, reads the same. The cartographie files an initial
+    formation under several types (« Formations aux métiers de l'hôtellerie restauration,BTS - BTSA - BTSM ») and its
+    apprenticeship offers under one (« BTS - BTSA - BTSM »): the whole-label vote misses them. Read only for an offer whose
+    labels no SIES formation carries as a whole; a split reading = no entry."""
+    rows = con.execute("""SELECT c.type_formation, c.mention_lib, f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.lib_for_voe_ins
+        FROM core.formation_year f JOIN core.cartographie c USING (cod_aff_form)
+        WHERE f.session = (SELECT max(session) FROM core.formation_year) AND c.type_formation IS NOT NULL""").fetchall()
+    seen: dict = {}
+    for tf, fl, *lab in rows:
+        dm = diplome_of(*lab)
+        for p in _parts(tf):
+            seen.setdefault((p, fl), set()).add(dm)
+    return {k: next(iter(v)) for k, v in seen.items() if len(v) == 1}
+
+
 def _type_of(tf: str | None, typ: dict) -> str:
     """A cartographie type no SIES formation carries as a whole: a list "A,B" takes its first part SIES knows, else its
     first part; any other label is kept as published."""
@@ -213,6 +234,7 @@ def _apprentissage(con) -> list[dict]:
     if not rows:
         return []
     pair, typ = label_votes(con)
+    parts = part_votes(con)
     specs = but_specialties(con)
     initial_but: dict = {}                 # (UAI, BUT specialty) -> initial BUT formations of the latest campaign (owner, 2026-11-21)
     for cod, uais, fil in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), f.fil_lib_voe_acc
@@ -223,13 +245,18 @@ def _apprentissage(con) -> list[dict]:
             if u:
                 initial_but.setdefault((u, fil), set()).add(cod)
     initial: dict = {}                     # (UAI, type label, mention label) -> initial formations of the latest campaign
-    for cod, uais, tf, fl in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), c.type_formation, c.mention_lib
+    initial_part: dict = {}                # (UAI, one part of the type label, mention label) -> {(code, its reading)}
+    for cod, uais, tf, fl, *lab in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), c.type_formation,
+                   c.mention_lib, f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.lib_for_voe_ins
             FROM core.formation_year f JOIN core.cartographie c USING (cod_aff_form)
             WHERE f.session = (SELECT max(session) FROM core.formation_year) AND c.type_formation IS NOT NULL
               AND NOT coalesce(f.apprentissage, false)""").fetchall():
+        dm = diplome_of(*lab)
         for u in uais:
             if u:
                 initial.setdefault((u, tf, fl), set()).add(cod)
+                for p in _parts(tf):
+                    initial_part.setdefault((u, p, fl), set()).add((cod, dm))
     acad_rows = con.execute("""SELECT cod_uai, dep_lib, acad_mies FROM core.formation_year
                                WHERE session = (SELECT max(session) FROM core.formation_year) AND acad_mies IS NOT NULL""").fetchall()
     by_uai, by_dep = {}, {}
@@ -239,8 +266,10 @@ def _apprentissage(con) -> list[dict]:
     top = lambda c: sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if c else None  # noqa: E731
     out = []
     for (cod, etab, nom, commune, dep, uai, lat, lon, tc, tf, fl, internat, distance, sport, art, fiche, sess) in rows:
-        d, m = pair.get((tf, fl)) or (_type_of(tf, typ), fl or "")
+        d, m = pair.get((tf, fl)) or parts.get((tf, fl)) or (_type_of(tf, typ), fl or "")
         att = set(initial.get((uai, tf, fl), ())) if uai else set()
+        if uai:                            # owner, 2026-11-21: same UAI, the offer's type is ONE of the formation's types, same
+            att |= {y for y, dm in initial_part.get((uai, tf, fl), ()) if dm == (d, m)}   # mention label, same reading
         bs = but_specialite(fl, specs) if d == "BUT" else None
         if bs:                             # a BUT: its specialty is the mention, attached to the IUT's formation of that specialty
             m = bs[0]

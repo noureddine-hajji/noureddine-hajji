@@ -440,13 +440,47 @@ def attach(con) -> dict:
         WHERE c.cod_aff_form = f.cod_aff_form AND f.session = (SELECT max(session) FROM core.formation_year)
         AND f.apprentissage IS NOT TRUE""").fetchall()
     names = rt_but_names(con)
+    read = rt_reading(con)
+    reading = {y: CA.diplome_of(*lab) for y, *lab in con.execute("""SELECT cod_aff_form, fili, form_lib_voe_acc, fil_lib_voe_acc,
+        lib_for_voe_ins FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
     out = {}
     for a in codes:
         u, tf, fl = off[a]
         sp = rt_but(fl, names) if tf == "BUT" else None
+        mine = read(tf, fl)
+        # owner, 2026-11-21: the offer's type may be ONE of the initial formation's types (same mention label, same reading)
         out[a] = sorted({y for y, u1, u2, tf2, fl2, fili, fil in ini if u and u in (u1, u2)
-                         and ((tf2, fl2) == (tf, fl) or (sp and fili == "BUT" and fil == sp[0]))})
+                         and ((tf2, fl2) == (tf, fl) or (sp and fili == "BUT" and fil == sp[0])
+                              or (fl2 == fl and tf in [x.strip() for x in (tf2 or "").split(",")] and reading.get(y) == mine))})
     return out
+
+
+def rt_reading(con):
+    """Independent: the (type, mention) an offer's cartographie labels read as: the SIES formations carrying both labels
+    (most frequent, ties alphabetical), else those whose type list contains the offer's type with the same mention label when
+    they ALL read the same (owner, 2026-11-21), else the type vote and the raw label."""
+    whole, part, tvotes = {}, {}, {}
+    for tf, fl, *lab in con.execute("""SELECT c.type_formation, c.mention_lib, f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.lib_for_voe_ins
+            FROM core.formation_year f, core.cartographie c WHERE c.cod_aff_form = f.cod_aff_form AND c.type_formation IS NOT NULL
+            AND f.session = (SELECT max(session) FROM core.formation_year)""").fetchall():
+        dm = CA.diplome_of(*lab)
+        whole.setdefault((tf, fl), {}).setdefault(dm, 0)
+        whole[(tf, fl)][dm] += 1
+        tvotes.setdefault(tf, {}).setdefault(dm[0], 0)
+        tvotes[tf][dm[0]] += 1
+        for p in [x.strip() for x in tf.split(",") if x.strip()]:
+            part.setdefault((p, fl), set()).add(dm)
+    pick = lambda d: min(d.items(), key=lambda kv: (-kv[1], kv[0]))[0] if d else None  # noqa: E731
+
+    def read(tf, fl):
+        if (tf, fl) in whole:
+            return pick(whole[(tf, fl)])
+        if len(part.get((tf, fl), ())) == 1:
+            return next(iter(part[(tf, fl)]))
+        parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
+        typ = pick(tvotes.get(tf, {})) or next((pick(tvotes[x]) for x in parts if x in tvotes), None) or (parts[0] if parts else "Autre formation")
+        return (typ, fl or "")
+    return read
 
 
 def _fold(x):
@@ -473,16 +507,7 @@ def c9(c: Ctx):
         bad.append(("real layer too small", len(want)))
     info = {r[0]: r[1:] for r in c.con.execute("""SELECT cod_aff_form, types_etab, type_formation, mention_lib, etab_uai, departement, fiche_url
                                                   FROM core.cartographie""").fetchall()} if want else {}
-    # the vote, written again: SIES formations of the latest campaign carrying the same cartographie labels
-    votes, tvotes = {}, {}
-    for tf, fl, *lab in c.con.execute("""SELECT c.type_formation, c.mention_lib, f.fili, f.form_lib_voe_acc, f.fil_lib_voe_acc, f.lib_for_voe_ins
-            FROM core.formation_year f, core.cartographie c WHERE c.cod_aff_form = f.cod_aff_form
-            AND f.session = (SELECT max(session) FROM core.formation_year)""").fetchall() if want else []:
-        dm = CA.diplome_of(*lab)
-        votes.setdefault((tf, fl), {}).setdefault(dm, 0)
-        votes[(tf, fl)][dm] += 1
-        tvotes.setdefault(tf, {}).setdefault(dm[0], 0)
-        tvotes[tf][dm[0]] += 1
+    # the vote, written again: rt_reading (whole labels, then a part of the type list, then the type vote)
     pick = lambda d: min(d.items(), key=lambda kv: (-kv[1], kv[0]))[0] if d else None  # noqa: E731
     uai_ac, dep_ac = {}, {}
     for uai, dep, ac in c.con.execute("""SELECT cod_uai, dep_lib, acad_mies FROM core.formation_year WHERE acad_mies IS NOT NULL
@@ -498,12 +523,11 @@ def c9(c: Ctx):
     for d in c.sample[:2]:
         zones_seen |= set(M["CA"].zones(c.con, d, None, J.doublette_key("MATHS", "SES"), "ab", "bg")["zones"])
     but_names = rt_but_names(c.con) if want else set()
+    read = rt_reading(c.con) if want else None
     for cod, (dl, a) in by_label.items():
         tc, tf, fl, uai, dep, fiche = info[cod]
         st = STATUT_CARTO.get(tc)
-        parts = [x.strip() for x in (tf or "").split(",") if x.strip()]
-        typ = pick(tvotes.get(tf, {})) or next((pick(tvotes[x]) for x in parts if x in tvotes), None) or (parts[0] if parts else "Autre formation")
-        exp = pick(votes.get((tf, fl), {})) or (typ, fl or "")
+        exp = read(tf, fl)
         sp = rt_but(fl, but_names) if exp[0] == "BUT" else None
         if sp:                              # owner, 2026-11-21: a BUT's mention is its specialty, its parcours listed apart
             exp = ("BUT", sp[0])
@@ -609,9 +633,10 @@ PY_MUTANTS = [
     ("apprenticeship private filed as paid", 'return "prive_app"\n    return None', 'return "prive"\n    return None'),
     ("outside contract read as under contract", 'if "hors contrat" in t:', 'if False:'),
     ("attached by town, not by establishment", 'att = set(initial.get((uai, tf, fl), ())) if uai else set()', 'att = set(sorted({y for (u2, t2, f2), ys in initial.items() if (t2, f2) == (tf, fl) for y in ys})[:1]) if uai else set()'),
-    ("attachment ignores the mention", "initial.setdefault((u, tf, fl), set()).add(cod)", "initial.setdefault((u, tf, None), set()).add(cod)"),
+    ("attachment ignores the mention", "initial.setdefault((u, tf, fl), set()).add(cod)\n                for p in _parts(tf):\n                    initial_part.setdefault((u, p, fl), set())",
+     "initial.setdefault((u, tf, None), set()).add(cod)\n                for p in _parts(tf):\n                    initial_part.setdefault((u, p, None), set())"),
     ("attached offers still listed apart", "    for a in apprentissage(con):\n        if not a[\"rattachee\"]:", "    for a in apprentissage(con):\n        if True:"),
-    ("vote ignores the mention", "d, m = pair.get((tf, fl)) or", "d, m = None or"),
+    ("vote ignores the mention", "d, m = pair.get((tf, fl)) or parts.get((tf, fl)) or", "d, m = None or"),
     ("académie by département only", "top(by_uai.get(uai)) or top(by_dep.get(_fold(dep)))", "top(by_dep.get(_fold(dep)))"),
     ("list types kept whole", 'return next((typ[x] for x in parts if x in typ), parts[0] if parts else "Autre formation")', 'return tf or "Autre formation"'),
     ("any link kept", 'fiche if (fiche or "").startswith(FICHE_PREFIX) else None', "fiche"),

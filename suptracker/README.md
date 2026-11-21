@@ -4402,3 +4402,26 @@ specialty in initial training.
 Red team `redteam_but.py` (BU1-BU7): an independent reading of the rule on hostile labels, a crafted warehouse checked against a
 table written by hand, every real BUT offer re-derived (the owner's two examples included), the grouping, the page (Node), the docs;
 17 mutants. The map red team's C9 / C10 re-derive the BUT rule on their own.
+
+## Types en liste : les offres BTS en apprentissage sous leur spécialité (owner 2026-11-21)
+
+The Parcoursup map of formations files an initial formation under SEVERAL types when it belongs to several families
+(« Formations aux métiers de l'hôtellerie restauration,BTS - BTSA - BTSM »), and its apprenticeship offers under one
+(« BTS - BTSA - BTSM »). The reading of an offer (its type and mention, `carte.label_votes`) and its attachment to the initial
+formation of the same establishment both compared the WHOLE type label, so 607 BTS offers kept their raw label as their mention
+(« BTS - Management en hôtellerie restauration », « BTS - Services et prestations des secteurs sanitaire et social », « BTSA -
+Aménagements paysagers », « BTS - Economie sociale familiale », the five « Métiers de l'audio-visuel » options) and stayed
+apart from the initial formation of their lycée.
+
+- **Reading** (`carte.part_votes`): an offer whose two labels no SIES formation carries as a whole takes the reading of the SIES
+  formations whose type LIST contains its type, with the same mention label, only when they ALL read the same (a split
+  reading keeps the raw label, as before). On the 2026 map: 607 BTS offers, no other type.
+- **Attachment**: same UAI, the offer's type is ONE of the initial formation's types, same mention label and same reading
+  (the owner's merge rule of 2026-11-09, read on each part of the list); SIES's own apprenticeship rows are never initial.
+  153 more offers are attached (2,567 of 11,251).
+- **Filter**: the BTS mention filter has 118 groups instead of 127; every group is a BTS mention SIES publishes.
+- Checked first (owner's question): elsewhere, the offers listed apart are at CFAs without an initial formation of the same
+  kind (DCG, DEUST, CS/CSA, sport, social work), not a label mismatch. Grouping BTS options, prefixes such as « DEUST - » and
+  BPJEPS mentions were proposed and not chosen.
+- Red team `scripts/redteam_types_liste.py` (TY1-TY5): a crafted warehouse against a table written by hand, every real offer
+  re-derived, the filter, docs, 10 mutants. The map red team's C9 / C10 re-derive the rule on their own (`rt_reading`).
