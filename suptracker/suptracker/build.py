@@ -12,7 +12,8 @@ from pathlib import Path
 
 import duckdb
 
-from . import staging, handicap, immersion, aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import handicap, immersion, staging  # sprints 3 and 4 (2026-11-21)
+from . import aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
