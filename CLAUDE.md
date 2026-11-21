@@ -401,6 +401,12 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     type list CONTAINS its type, same mention label, ALL reading the same; split = raw label), and is attached at the SAME UAI to an
     initial formation of which its type is one part, same mention label and same reading (607 BTS offers read, 153 more attached).
     Red team `redteam_types_liste.py` (TY1-TY5); C9 / C10 `rt_reading`.
+  - Lighter mention filter (owner, 2026-11-21): only the GROUP changes, each formation keeps its label. `carte.groupes_of` (fixed
+    rules): professional titles « FP - … » by the NSF domain of their RNCP fiches of the SAME title (`domaines.py`, `core.fp_domaine`
+    built at build: active fiches first, one NSF 3-digit group, several in one sub-domain = its plurivalent X0 code, else « Autres
+    titres : plusieurs domaines / domaine non publié »); BTS / certificate options under the diploma; BPJEPS / DEJEPS under their
+    spécialité; a closed list of acronym prefixes and « - en apprentissage » out of the group name; a double licence under EACH of
+    its two disciplines (`groupe2` in the layer, `carteGroupes` in the page, counted in both). Red team `redteam_filtres_mentions.py` (FM1-FM7).
   - The town and radius filter runs in the browser: no API call carries a position.
   - Each zone has its colour token AND its shape (rond, carré, triangle); every marker names its zone.
   - The base map is OpenStreetMap (owner's choice, 2026-11-08; the site's own drawn map was removed). Leaflet is self-hosted

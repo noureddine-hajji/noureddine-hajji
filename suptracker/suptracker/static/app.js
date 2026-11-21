@@ -1686,7 +1686,9 @@ function carteNameRank(C) {
 const foldText = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const carteHash = (sel) => (sel.d.length === 1 && (sel.m[sel.d[0]] || []).length <= 1
   ? `#/carte/${encodeURIComponent(sel.d[0])}${(sel.m[sel.d[0]] || []).length ? `/${encodeURIComponent(sel.m[sel.d[0]][0])}` : ""}` : "#/carte");
-const carteKeep = (f, sel) => !sel.d.length || (sel.d.includes(f.diplome) && (!(sel.m[f.diplome] || []).length || sel.m[f.diplome].includes(f.groupe)));
+// owner, 2026-11-21: a double licence is listed under each of its two disciplines (carte.groupes_of: groupe + groupe2)
+const carteGroupes = (f) => (f.groupe2 ? [f.groupe, f.groupe2] : [f.groupe]);
+const carteKeep = (f, sel) => !sel.d.length || (sel.d.includes(f.diplome) && (!(sel.m[f.diplome] || []).length || carteGroupes(f).some((g) => sel.m[f.diplome].includes(g))));
 // Leaflet (static/vendor/leaflet, BSD-2) is loaded by this page only, never by the page shell
 function carteLeaflet() {
   if (window.L) return Promise.resolve();
@@ -1861,7 +1863,7 @@ async function viewCarte(dArg, mArg) {
     // (the zone filter aside: the zones are read for the ticked types only); with a keyword or a place, an empty type is not offered
     const pool = carteFilter(C.rows, F, "zones", kw), narrowed = !!(kw || F.lieu || F.autour);
     const nDip = new Map(), nMen = new Map();
-    pool.forEach((f) => { nDip.set(f.diplome, (nDip.get(f.diplome) || 0) + 1); const k = `${f.diplome}\u0000${f.groupe}`; nMen.set(k, (nMen.get(k) || 0) + 1); });
+    pool.forEach((f) => { nDip.set(f.diplome, (nDip.get(f.diplome) || 0) + 1); carteGroupes(f).forEach((g) => { const k = `${f.diplome}\u0000${g}`; nMen.set(k, (nMen.get(k) || 0) + 1); }); });
     const offered = (n, ticked) => !narrowed || n > 0 || ticked;
     const dips = dd("dips", "Type de formation", sel.d.length, `${sel.d.length ? '<button type="button" class="linkish" data-clear-dips>Tout décocher (tous les types)</button>' : '<p class="muted small">Aucun coché : tous les types.</p>'}
       ${FAC.diplomes.filter((d) => offered(nDip.get(d.label) || 0, sel.d.includes(d.label))).map((d) => `<label><input type="checkbox" data-dip="${esc(d.label)}" ${sel.d.includes(d.label) ? "checked" : ""}> <span>${esc(d.label)}</span> <span class="muted">${fmt(nDip.get(d.label) || 0)}</span></label>`).join("") || '<p class="muted small">Aucun type ne correspond à la recherche.</p>'}`);

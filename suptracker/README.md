@@ -4425,3 +4425,27 @@ apart from the initial formation of their lycée.
   BPJEPS mentions were proposed and not chosen.
 - Red team `scripts/redteam_types_liste.py` (TY1-TY5): a crafted warehouse against a table written by hand, every real offer
   re-derived, the filter, docs, 10 mutants. The map red team's C9 / C10 re-derive the rule on their own (`rt_reading`).
+
+## Filtre des mentions allégé (owner 2026-11-21)
+
+The search page's mention filter listed every published label: 134 professional titles (76 with one or two formations), 75
+double-licence pairs, each BTS option apart, BPJEPS mentions one by one, acronyms such as « DEUST - » or « DSP - DSP - » in the
+names. The owner chose to group them (« lance le point 1 », then « ajoute les points 2 et 3 avec tes reco »). Only the GROUP a
+formation is listed under changes: every formation keeps its own label on its card and page.
+
+- **Professional titles by official domain** (`domaines.py`, `core.fp_domaine`, built from the RNCP export already fetched by the
+  `suptracker-rncp` workflow): the NSF code (nomenclature des spécialités de formation) the RNCP fiches of the SAME title print
+  (`robustesse_formation.cert_title`, format only). Active fiches first, else the expired ones; one NSF group (3 digits, letter
+  suffix dropped) = that group; several groups of one sub-domain = the sub-domain's own plurivalent code (230, 310, 320…); else
+  « Autres titres : plusieurs domaines » or « Autres titres : domaine non publié ». The labels are the export's own. On the 2026
+  map: 134 titles in 34 groups (90 one group, 17 plurivalent, 21 several domains, 6 without a fiche).
+- **Options and spécialités**: the options of one BTS or certificate share its group (« Métiers de l'audio-visuel », « Maintenance
+  des systèmes », « Technico-commercial », « Aéronautique »); a BPJEPS / DEJEPS « Spécialité X - Mention Y » is listed under X
+  (sport: 14 groups -> 5). One fixed cut on « option / opt. / opt : / - Spécialité », for these three types only.
+- **Prefixes**: a closed list of acronyms (BTS, BTSA, DEUST, CS, CSA, DSP, BPJEPS, DEJEPS, repeated ones included) and the
+  « - en apprentissage » suffix are left out of the group name, for the types that print them only.
+- **Double licence by discipline**: a double licence is listed under EACH of its two disciplines (`carte.groupes_of`, the layer's
+  `groupe2`, the page's `carteGroupes`): 32 disciplines instead of 75 pairs; its count appears in both.
+- Red team `scripts/redteam_filtres_mentions.py` (FM1-FM7): a table of labels written by hand against an independent reading, a
+  crafted RNCP export for every NSF case, every real title re-derived by an own reader, the filter and the layer counted against
+  each other, the page in Node, docs, 20 mutants.
