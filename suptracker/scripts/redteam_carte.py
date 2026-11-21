@@ -303,7 +303,8 @@ def c4(c: Ctx):
     for d in c.fac["diplomes"]:
         lay = M["CA"].formations(c.con, d["label"])
         codes = [f["cod_aff_form"] for f in (lay or {"formations": []})["formations"]]
-        if len(codes) != d["n"] or sum(m["n"] for m in d["mentions"]) != d["n"]:
+        n_listed = sum(1 + bool(f.get("groupe2")) for f in (lay or {"formations": []})["formations"])   # a double licence: 2 groups
+        if len(codes) != d["n"] or sum(m["n"] for m in d["mentions"]) != n_listed:
             bad.append((d["label"], "counts", len(codes), d["n"]))
         for f in (lay or {"formations": []})["formations"]:
             seen[f["cod_aff_form"]] = seen.get(f["cod_aff_form"], 0) + 1
