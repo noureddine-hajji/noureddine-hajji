@@ -66,6 +66,7 @@ POLICY = [
     (r"/api/observatoire", PUBLIC, "observatoire: national trends, demand per académie, same-académie admits (no parameter)"),
     (r"/api/selectivite", PUBLIC, "selectivity matrix of a type of diploma (no profile)"),
     (r"/api/reorientation", PUBLIC, "sprint 21: formations of a type for a candidate outside terminale (no profile, no position)"),
+    (r"/api/liste/verifier", NO_STORE, "sprint 5: checks on the student's personal list: never kept by a shared cache"),
     (r"/api/reorientation/voeux", NO_STORE, "sprint 21: the student's list read outside terminale (a personal list: never shared-cached)"),
     (r"/api/calendrier", PUBLIC, "sprint 22: the official campaign calendar (no parameter)"),
     (r"/api/calendrier\.ics", PUBLIC, "sprint 22: the same calendar as an .ics file (no parameter)"),

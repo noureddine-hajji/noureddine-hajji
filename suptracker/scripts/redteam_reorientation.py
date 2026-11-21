@@ -339,6 +339,7 @@ def page_prog(c: Ctx) -> str:
 NODE_HARNESS = r"""
 let JV = null, PAGE = 3, CALLS = [], PROFILE = null, VOEUX = [], PARCOURS = 0;
 const viewParcours = () => { PARCOURS++; };
+const loadVerifier = () => {};   // sprint 5's list check (redteam_liste reads it)
 const store = { d: {}, get(k, x) { return (k in this.d ? JSON.parse(JSON.stringify(this.d[k])) : undefined) ?? x; }, set(k, v) { this.d[k] = v; } };
 const voeux = { MAX: 10, get: () => VOEUX.slice(), has: (c) => VOEUX.includes(c), add: (c) => { VOEUX.push(c); return true; }, remove: (c) => { VOEUX = VOEUX.filter((x) => x !== c); } };
 const els = {};

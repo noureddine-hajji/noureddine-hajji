@@ -50,6 +50,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     card, BTS routes compared), API Géo communes in `vie.py` (distance computed in the browser).
   - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
   - **Solidité (sprint 3):** `staging.py` (raw staging rows beside the warehouse in `sources_brutes.duckdb`, final compaction), `scripts/charge.py` (load test).
+  - **Vérifier ma liste (sprint 5):** `liste.py` (what SupCompass can check on the list before the Parcoursup deadlines), `calendrier.regles`.
   - **Accompagnement et découverte (sprint 4):** `handicap.py` (disability support and student ambassador from the fiche's « Contacter » tab),
     `immersion.py` (the fiche's own sentences about immersions and mini-stages).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
@@ -853,6 +854,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
     verbatim, cut only over 420 characters (« … »), with their source; never a date or a promise (« contactez la formation »). Card
     « Découvrir la formation de l'intérieur » right after `jpoCard` in « Y entrer », with the ambassador line (never the contact).
   - Red team `redteam_handicap.py` (HA1-HA8).
+- **Vérifier et confirmer ma liste (sprint 5, owner 2026-11-21).** Card « Avant de confirmer sur Parcoursup » in both Mes vœux views
+  (`verifierCard`, `loadVerifier`; `/api/liste/verifier`, `liste.py`: codes only, no-store, no event). Rules = `calendrier.regles` (fixed
+  rules on the official PDF, every version identical, else None and « vérifiez sur parcoursup.gouv.fr », never a typed number); dates =
+  the calendar's verified steps (« 1er »). Concours = a NAMED common entrance exam in the labels (`jpo.concours_of`) or « concours
+  commun », never harmonize's broad flag or its count-based pools; absent from the latest cartographie = « vérifiez qu'elle existe
+  toujours ». Statuses in words; never « liste valide » (SupCompass does not see the Parcoursup file). Red team `redteam_liste.py` (LI1-LI7).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

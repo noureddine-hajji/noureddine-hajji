@@ -27,6 +27,7 @@
  "tests/test_langage.py": 3,
  "tests/test_lecture.py": 491,
  "tests/test_licence_master.py": 918,
+ "tests/test_liste.py": 30,
  "tests/test_lycee.py": 375.0,
  "tests/test_mentions.py": 431,
  "tests/test_metiers.py": 243,

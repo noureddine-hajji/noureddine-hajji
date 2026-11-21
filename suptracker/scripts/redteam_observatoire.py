@@ -518,7 +518,7 @@ def ob7(c: Ctx):
     no_param = re.search(r'@app\.get\("/api/observatoire"\)\ndef observatoire\(\):', api_src) is not None
     an = "observatoire" in analytics.ROUTES
     rel = '"observatoire": ("app.js", "async function viewObservatoire(")' in (ROOT / "tests" / "test_release.py").read_text()
-    feat = '"observatoire"]' in api_src
+    feat = re.search(r'^FEATURES = \[[^\]]*"observatoire"[,\]]', api_src, re.M) is not None
     nxt = "observatoire: [" in block(c.js, "const NEXT_STEPS = {", "\n};")
     ok = route and menus and tabs and shared and no_param and an and rel and feat and nxt
     return ok, f"route {route}; menus {menus}; tabs {tabs}; shared cache {shared}; no parameter {no_param}; analytics {an}; release {rel}; feature {feat}; next steps {nxt}"
