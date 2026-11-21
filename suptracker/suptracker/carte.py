@@ -111,6 +111,33 @@ def diplome_of(fili: str | None, form: str | None, fil: str | None, lib: str | N
     return form or fili or "Autre formation", fil
 
 
+# ---- owner, 2026-11-21: a BUT is classed by its SPECIALTY, its parcours listed apart ----
+# The cartographie writes a BUT's mention as the parcours it opens then the specialty, each item « BUT - <name> »
+# (« BUT - Marketing digital, e-business et entrepreneuriat,BUT - Techniques de commercialisation »). An apprenticeship offer
+# often opens only some parcours of the IUT's initial formation, so its labels differ from it: without this rule it kept the
+# raw list as its mention and stayed apart from the initial formation of the same specialty at the same IUT.
+BUT_ITEM = re.compile(r",(?=BUT - )")
+
+
+def but_specialties(con) -> set:
+    """The BUT specialties as SIES publishes them in its latest campaign (fil_lib_voe_acc of the BUT rows)."""
+    return {r[0] for r in con.execute("""SELECT DISTINCT fil_lib_voe_acc FROM core.formation_year
+        WHERE fili = 'BUT' AND fil_lib_voe_acc IS NOT NULL AND session = (SELECT max(session) FROM core.formation_year)""").fetchall()}
+
+
+def but_specialite(mention_lib: str | None, specialites: set) -> tuple[str, list] | None:
+    """(specialty, parcours) of a BUT cartographie mention: every item « BUT - <name> », exactly ONE item a specialty SIES
+    publishes, the others its parcours (as printed, spaces normalised, order kept). Anything else: None (labels kept)."""
+    items = [" ".join(x.split()) for x in BUT_ITEM.split(mention_lib or "")]
+    if not items or not all(x.startswith("BUT - ") for x in items):
+        return None
+    names = [x[len("BUT - "):] for x in items]
+    spec = [x for x in names if x in specialites]
+    if len(spec) != 1:
+        return None
+    return spec[0], [x for x in names if x != spec[0]]
+
+
 def _has_labels(con) -> bool:
     return bool(con.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'core'
                                AND table_name = 'cartographie' AND column_name = 'type_formation'""").fetchone()[0])
@@ -186,6 +213,15 @@ def _apprentissage(con) -> list[dict]:
     if not rows:
         return []
     pair, typ = label_votes(con)
+    specs = but_specialties(con)
+    initial_but: dict = {}                 # (UAI, BUT specialty) -> initial BUT formations of the latest campaign (owner, 2026-11-21)
+    for cod, uais, fil in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), f.fil_lib_voe_acc
+            FROM core.formation_year f JOIN core.cartographie c USING (cod_aff_form)
+            WHERE f.session = (SELECT max(session) FROM core.formation_year) AND f.fili = 'BUT'
+              AND NOT coalesce(f.apprentissage, false)""").fetchall():
+        for u in uais:
+            if u:
+                initial_but.setdefault((u, fil), set()).add(cod)
     initial: dict = {}                     # (UAI, type label, mention label) -> initial formations of the latest campaign
     for cod, uais, tf, fl in con.execute("""SELECT f.cod_aff_form, list_distinct([f.cod_uai, c.etab_uai]), c.type_formation, c.mention_lib
             FROM core.formation_year f JOIN core.cartographie c USING (cod_aff_form)
@@ -204,6 +240,11 @@ def _apprentissage(con) -> list[dict]:
     out = []
     for (cod, etab, nom, commune, dep, uai, lat, lon, tc, tf, fl, internat, distance, sport, art, fiche, sess) in rows:
         d, m = pair.get((tf, fl)) or (_type_of(tf, typ), fl or "")
+        att = set(initial.get((uai, tf, fl), ())) if uai else set()
+        bs = but_specialite(fl, specs) if d == "BUT" else None
+        if bs:                             # a BUT: its specialty is the mention, attached to the IUT's formation of that specialty
+            m = bs[0]
+            att |= initial_but.get((uai, m), set()) if uai else set()
         out.append({"cod_aff_form": cod, "etablissement": etab or "", "formation": nom or fl or "", "ville": commune or "",
                     "academie": top(by_uai.get(uai)) or top(by_dep.get(_fold(dep))),
                     "lat": None if lat is None else round(lat, 5), "lon": None if lon is None else round(lon, 5),
@@ -211,7 +252,7 @@ def _apprentissage(con) -> list[dict]:
                     "amenag_art": art, "taux_acces_ens": None, "type_key": None, "diplome": d, "mention": m,
                     "statut": statut_carto(tc), "payant": False, "apprentissage": True, "stats": False, "session_offre": sess,
                     "fiche": fiche if (fiche or "").startswith(FICHE_PREFIX) else None,
-                    "rattachee": sorted(initial.get((uai, tf, fl), ())) if uai else []})
+                    "parcours": bs[1] if bs else [], "rattachee": sorted(att)})
     return out
 
 
@@ -312,7 +353,8 @@ def offres_par_formation(con) -> dict:
     for a in apprentissage(con):
         for cod in a["rattachee"]:
             out.setdefault(cod, []).append({"cod_aff_form": a["cod_aff_form"], "etablissement": a["etablissement"],
-                                            "formation": a["formation"], "ville": a["ville"], "fiche": a["fiche"]})
+                                            "formation": a["formation"], "ville": a["ville"], "fiche": a["fiche"],
+                                            "parcours": a["parcours"]})
     return out
 
 
@@ -380,6 +422,9 @@ def groupe_of(diplome: str, mention: str | None) -> str:
         return next(label for rx, label in FAMILY_RULES[diplome] if re.search(rx, f))
     if diplome in ("Licence", "Licence Accès Santé (L.AS)"):
         return NEAR_DUPLICATES.get(" ".join(_fold(m).split()), m)
+    if diplome == "BUT":                   # owner, 2026-11-21: SIES names some specialties with their parcours: one group
+        bp = re.match(r"(.+?)\s+parcours\s+\S", m, re.I)
+        return bp.group(1) if bp else m
     return m
 
 

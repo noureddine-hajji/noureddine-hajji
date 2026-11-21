@@ -1545,11 +1545,15 @@ const CARTE_APP_NOTE = "Aucune statistique d'admission n'est publiée pour les f
 // the two routes a formation offers (owner, 2026-11-09): both labels when initial training and apprenticeship coexist
 const voieBadges = (f) => (f.initiale && f.apprentissage ? '<span class="badge">formation initiale</span> <span class="badge">apprentissage</span>' : f.apprentissage ? '<span class="badge">en apprentissage</span>' : "");
 const carteFiche = (f) => (f.fiche && /^https:\/\/dossierappel\.parcoursup\.fr\//.test(f.fiche) ? f.fiche : null);
+// owner, 2026-11-21: the parcours a BUT apprenticeship offer opens, as the cartographie lists them (often only some of the
+// IUT's parcours); each name quoted, since a parcours name may hold a comma
+const appParcours = (o) => (o && Array.isArray(o.parcours) && o.parcours.length
+  ? `parcours ${o.parcours.map((x) => `« ${esc(x)} »`).join(", ")}` : "");
 // the apprenticeship offers attached to an initial formation (same establishment, same diploma): the CFA and its page
 function appOffers(list) {
   if (!list || !list.length) return "";
   return `<div class="small"><strong>Aussi en apprentissage</strong> <span class="muted">(pas de statistiques d'admission publiées pour cette voie)</span><ul class="offer-list">${list.map((o) => { const url = carteFiche(o);
-    return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul></div>`;
+    return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul></div>`;
 }
 // R9 (owner, 2026-11-12): three figures per formation, always in the same place: the OFFICIAL access rate; the figure for the
 // student's doublette (or bac techno / pro line), the one Mes vœux and the formation page show (voeux.figures, read per page of
@@ -1617,7 +1621,7 @@ function carteCard(f, ctx, pinned) {
   return `<div class="result rc carte-rc${zc ? " rc-z" : ""}${pinned ? " carte-pinned" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
     <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form) + tensionBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z, false, f.large)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
-      <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>
+      <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
     ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
@@ -2729,7 +2733,7 @@ function apprentiCard(a) {
   if (!a || !a.propose) return "";
   const offres = (a.offres || []).length ? `<p class="small">${a.offres.length > 1 ? "Ces établissements la proposent" : "Cet établissement la propose"} en apprentissage (pas de statistiques d'admission publiées pour cette voie) :</p>
     <ul class="small">${a.offres.map((o) => { const url = carteFiche(o);
-      return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul>` : "";
+      return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul>` : "";
   return `<div class="card app-card"><h2>Et en apprentissage ?</h2>
     <ul class="small">
       <li><strong>Pas de frais de formation</strong> : la formation d'un apprenti est gratuite pour lui (Code du travail, article L6211-1).</li>
