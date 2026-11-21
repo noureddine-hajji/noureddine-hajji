@@ -836,7 +836,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
     through `staging.relation()`, never `ref.<raw>` directly. The site never reads them.
   - The build ends with `staging.compact` (COPY FROM DATABASE into a fresh file: DuckDB never shrinks a file). `mart.peer_rank` keeps
     value + percentile only; the route joins `mart.peer_distribution` (never repeat a group's figures on every row again).
-  - Budget: warehouse < 85 MB (the workflow warns above, fails at 95 MB; ~8 MB per SIES campaign), measured 71 MB.
+  - Budget: warehouse < 85 MB (the workflow warns above, fails at 95 MB; ~8 MB per SIES campaign), measured 71 MB, 72.6 MB once the « Contacter » tab was read (2026-11-21).
   - Campaign switch: the harvest's probe reads the fiches' campaign; a newer one sends every fiche read for an older one to the
     front (once a day). Campaign = « analysent les candidatures en … », else the capacity line « N places en YYYY ».
   - Load test `scripts/charge.py` (127.0.0.1 only, no analytics store, fails on any error); never against the live site. One process:

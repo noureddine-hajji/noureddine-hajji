@@ -4345,6 +4345,11 @@ an independent BeautifulSoup reading of the 9 saved fiches, privacy on hostile f
 built or served), hostile links and « néant », the build round trip, every quote re-derived on the real harvest, the cards'
 escaping and wording, the plumbing; 29 mutants.
 
+First real run (2026-11-21): 15,455 fiches read with the « Contacter » tab (all print a referent line; 4,070 a student ambassador;
+1,680 with the establishment's own disability paragraphs, 882 links, none carrying contact details); immersion quotes for 2,098
+formations. 10,282 fiches still read by version 3 are re-read by the daily runs. The re-derivation matches keywords as whole words,
+like the build: an address « …/stage-dimmersion/ » is not a sentence about an immersion.
+
 ## Vérifier et confirmer ma liste (sprint 5, owner 2026-11-21)
 
 Before the Parcoursup deadlines, « Mes vœux » shows a card « Avant de confirmer sur Parcoursup ». It lists what SupCompass can
