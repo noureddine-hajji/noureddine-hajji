@@ -100,6 +100,19 @@ def older_campaign(r: dict, newest: int | None) -> bool:
             and str(r.get("session") or "").isdigit() and int(r["session"]) < newest)
 
 
+def clean_contact(r: dict) -> dict:
+    """A stored contact row without any link carrying contact information (Codex, PR #98): rows an older reader wrote are cleaned
+    at the next run, before anything is saved again."""
+    from fiche_parse import personal_link
+    try:
+        infos = json.loads(r.get("handicap_infos") or "[]")
+    except ValueError:
+        infos = []
+    for x in infos:
+        x["liens"] = [u for u in x.get("liens") or [] if isinstance(u, str) and not personal_link(u)]
+    return dict(r, handicap_infos=json.dumps(infos, ensure_ascii=False))
+
+
 def tid(t: str | None) -> str:
     return "" if not t else hashlib.sha1(t.encode("utf-8")).hexdigest()[:16]
 
@@ -150,7 +163,7 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
     fees = {}
     for r in read_rows(out / "frais.csv"):
         fees.setdefault(r["cod_aff_form"], []).append(r)
-    contacts = {r["cod_aff_form"]: r for r in read_rows(out / "contact.csv")}
+    contacts = {r["cod_aff_form"]: clean_contact(r) for r in read_rows(out / "contact.csv")}
     ids = known_ids(out / "textes.csv.gz")
     new_texts: list[dict] = []
     old = (datetime.now(timezone.utc) - timedelta(days=refresh_days)).strftime("%Y%m%d%H%M%S")

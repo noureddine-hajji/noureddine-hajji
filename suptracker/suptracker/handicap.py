@@ -12,12 +12,15 @@ Rules:
   * Published texts verbatim, escaped by the page; no rating of the support, never « accessible » or « adapté »: what the fiche
     says, and that the referent is the person to ask.
   * The student is never asked whether they have a disability: the card is the same for everyone (no profile, shared cache).
-  * Links: http(s) only, as the fiche prints them, in a paragraph whose text or address speaks of disability.
+  * Links: http(s) only, as the fiche prints them, in a paragraph whose text or address speaks of disability; a link carrying
+    contact information (an e-mail address, a phone number, even percent-encoded) is dropped whole (Codex, PR #98).
 """
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
+from urllib.parse import unquote
 
 from . import grilles as GR
 from . import rapports as RP
@@ -26,10 +29,23 @@ FICHES = GR.FICHES
 YN = {"oui": True, "non": False}
 
 
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_PHONE = re.compile(r"(?<!\d)(?:\+33|0033|0)[1-9]\d{8}(?!\d)")
+
+
+def _personal(u: str) -> bool:
+    """A link carrying contact information (e-mail, phone, mailto:), even percent-encoded: dropped whole (Codex, PR #98)."""
+    s = u
+    for _ in range(3):
+        s = unquote(s)
+    return "@" in s or "mailto:" in s.lower() or bool(_EMAIL.search(s)) or bool(_PHONE.search(re.sub(r"[\s._()-]", "", s)))
+
+
 def _links(v) -> list[str]:
     out = []
     for u in v or []:
-        if isinstance(u, str) and (u.startswith("https://") or u.startswith("http://")) and not any(ch in u for ch in ' "<>\'`'):
+        if isinstance(u, str) and (u.startswith("https://") or u.startswith("http://")) and not any(ch in u for ch in ' "<>\'`') \
+                and not _personal(u):
             out.append(u)
     return list(dict.fromkeys(out))
 

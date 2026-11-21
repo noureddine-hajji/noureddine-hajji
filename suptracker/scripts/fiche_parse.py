@@ -118,6 +118,17 @@ def _fold(s: str) -> str:
     return "".join(ch for ch in unicodedata.normalize("NFKD", s.lower()) if not unicodedata.combining(ch))
 
 
+def personal_link(u: str) -> bool:
+    """A link that carries contact information (an e-mail address, a phone number, even percent-encoded, or a mailto:):
+    never kept (Codex, PR #98). The link is dropped whole, never masked into a broken address."""
+    from urllib.parse import unquote
+    s = u
+    for _ in range(3):
+        s = unquote(s)
+    return bool("@" in s or re.search(r"(?i)mailto:", s) or EMAIL.search(s) or PHONE.search(s)
+                or PHONE.search(re.sub(r"[\s.+_-]", "", s)))
+
+
 NEANT = re.compile(r"(?:néant|neant|aucun|aucune|non renseigné|non communiqué|-)\.?", re.I)
 
 
@@ -145,7 +156,7 @@ def contact(page: str) -> dict:
     if i:
         out["infos"] = mask(text(i.group(1))) or None
         for p in re.findall(r"<p[^>]*>(.*?)</p>", i.group(1), re.S):
-            links = re.findall(r"""href=["'](https?://[^"'\s<>]+)["']""", p)
+            links = [u for u in re.findall(r"""href=["'](https?://[^"'\s<>]+)["']""", p) if not personal_link(html.unescape(u))]
             t = mask(text(p))
             if "handicap" in _fold(f"{t} {' '.join(links)}"):
                 out["handicap_infos"].append({"texte": t, "liens": list(dict.fromkeys(links))})

@@ -11,7 +11,8 @@ handicapCard and decouvrirCard).
       harvested, built or served carries an e-mail address or a phone number; the referent's contact is never stored, only
       that the fiche gives one.
   HA3 hostile inputs: « néant » referent or ambassador = no contact; no referent line = unknown (never « non »); javascript:,
-      data:, mailto: and quoted links dropped (reading and build); a paragraph that does not speak of disability not kept;
+      data:, mailto: and quoted links dropped (reading and build), and every link carrying an e-mail address or a phone number,
+      even percent-encoded (Codex, PR #98); a paragraph that does not speak of disability not kept;
       markup inside a text stays text; an unknown fiche or one with nothing to say = no card.
   HA4 build round trip: fake harvest -> handicap.build / immersion.build -> for_formation gives back what was read; a missing
       text id drops the formation whole; a fiche no longer read (failed, gone) shows nothing.
@@ -181,7 +182,11 @@ def _hostile_pages(c: Ctx) -> dict:
     pers = "jeanne.martin@univ-exemple.fr"
     p1 = base.replace("[adresse sur la fiche Parcoursup]", pers).replace("[numéro sur la fiche Parcoursup]", "05 61 55 66 77")
     p1 = p1.replace("Informations concernant l'accueil des étudiants en situation de handicap :",
-                    f"Relais handicap : écrire à {pers} ou appeler le 06 12 34 56 78. {HOSTILE} Informations concernant l'accueil des étudiants en situation de handicap :")
+                    f"Relais handicap : écrire à {pers} ou appeler le 06 12 34 56 78. {HOSTILE} "
+                    '<a href="https://univ.example/handicap?contact=jeanne.martin%40univ.example&amp;tel=0612345678">page</a> '
+                    '<a href="https://univ.example/handicap/06-12-34-56-78">tel</a> '
+                    '<a href="https://univ.example/handicap?c=jeanne.martin%2540univ.example">double</a> '
+                    "Informations concernant l'accueil des étudiants en situation de handicap :")
     p2 = re.sub(r"(Référent handicap : ).*?</p>", r"\1néant</p>", base, count=1, flags=re.S).replace("<p>Contact : [adresse sur la fiche Parcoursup]</p>", "<p>Contact : néant</p>")
     p3 = re.sub(r"\s*<p>Référent handicap :.*?</p>", "", base, count=1, flags=re.S)
     p4 = base.replace('href="https://iut.univ-tlse3.fr/sante-handicap"', 'href="javascript:alert(1)//handicap"', 1)
@@ -217,6 +222,20 @@ def _built(c: Ctx, src: Path, ha=None, im=None):
     return con
 
 
+def _decoded(s: str) -> str:
+    """Percent-encoding undone (three times: a double-encoded address too), HTML entities read: an encoded contact is seen."""
+    import html as H
+    from urllib.parse import unquote
+    for _ in range(3):
+        s = unquote(H.unescape(s))
+    return s
+
+
+def _contact_in(s: str) -> bool:
+    d = _decoded(s)
+    return bool(EMAIL.search(d) or PHONE.search(d) or re.search(r"(?<!\d)0[1-9](?:\d{2}){4}(?!\d)", re.sub(r"[\s.+_()-]", "", d)))
+
+
 def _all_text(path: Path) -> str:
     out = []
     for f in sorted(path.rglob("*")):
@@ -232,7 +251,7 @@ def ha2(c: Ctx):
     pages = {"4100": _hostile_pages(c)["pers"]}
     got = fp.contact(pages["4100"])
     blob = json.dumps(got, ensure_ascii=False)
-    if EMAIL.search(blob) or PHONE.search(blob):
+    if _contact_in(blob):
         bad.append(f"read: {blob[:200]}")
     if got["referent"] is not True:
         bad.append("a referent with an address not seen as given")
@@ -240,13 +259,24 @@ def ha2(c: Ctx):
         out = Path(d) / "fiches"
         _fake_harvest(c, out, pages)
         stored = _all_text(out)
-        if "jeanne.martin" in stored or EMAIL.search(stored) or PHONE.search(stored):
+        if "jeanne.martin" in _decoded(stored) or _contact_in(stored):
             bad.append("harvest files carry an address or a phone")
         con = _built(c, out)
         served = json.dumps([c.mod("ha").for_formation(con, "4100"), c.mod("im").for_formation(con, "4100")], ensure_ascii=False)
         tables = json.dumps(con.execute("SELECT * FROM core.fiche_handicap").fetchall(), ensure_ascii=False, default=str)
-        if EMAIL.search(served) or PHONE.search(served) or EMAIL.search(tables) or PHONE.search(tables):
+        if _contact_in(served) or _contact_in(tables):
             bad.append(f"built or served: {served[:200]}")
+        # a row an older reader stored with a link carrying a contact is cleaned at the next run (Codex, PR #98)
+        rows = list(csv.DictReader(open(out / "contact.csv", encoding="utf-8")))
+        rows[0]["handicap_infos"] = json.dumps([{"texte_id": "", "liens": ["https://u.fr/h?c=jeanne.martin%40u.fr", "https://u.fr/handicap"]}])
+        with open(out / "contact.csv", "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        _fake_harvest(c, out, pages)                         # an open site, nothing due: the stored rows are saved again
+        again = (out / "contact.csv").read_text(encoding="utf-8")
+        if _contact_in(again) or "https://u.fr/handicap" not in again:
+            bad.append("a stored link with a contact survives the next run, or a plain one is lost")
         cols = {r[0] for r in con.execute("DESCRIBE core.fiche_handicap").fetchall()}
         if cols & {"contact", "adresse", "email", "mail", "telephone"}:
             bad.append(f"a contact column {cols}")
@@ -268,9 +298,13 @@ def ha3(c: Ctx):
         links = [u for x in fp.contact(hp[k])["handicap_infos"] for u in x["liens"]]
         if any(not re.match(r"https?://[^\s\"'<>]+$", u) for u in links):
             bad.append(f"{k}: link kept {links}")
-    if ha._links(["javascript:alert(1)", "data:x", "mailto:a@b.fr", 'https://a.fr/"x', "https://ok.fr/handicap", "http://ok.fr/h"]) \
-            != ["https://ok.fr/handicap", "http://ok.fr/h"]:
-        bad.append("build-side link filter")
+    if ha._links(["javascript:alert(1)", "data:x", "mailto:a@b.fr", 'https://a.fr/"x', "https://ok.fr/handicap", "http://ok.fr/h",
+                  "https://a.fr/h?m=jeanne.martin%40univ.fr", "https://a.fr/h?m=jeanne%2540univ.fr", "https://a.fr/h/06.12.34.56.78",
+                  "https://a.fr/h?tel=%2B33612345678", "https://a.fr/mailto:x"]) != ["https://ok.fr/handicap", "http://ok.fr/h"]:
+        bad.append("build-side link filter keeps a link with contact information")
+    kept = [u for x in fp.contact(_hostile_pages(c)["pers"])["handicap_infos"] for u in x["liens"]]
+    if any(_contact_in(u) for u in kept) or "https://iut.univ-tlse3.fr/sante-handicap" not in kept:
+        bad.append(f"reader: links with contact information kept, or the plain one dropped: {kept}")
     off = fp.contact(c.pages["4100"])
     if any("Découvrir le campus" in x["texte"] for x in off["handicap_infos"]):
         bad.append("a paragraph off topic kept")
@@ -583,13 +617,16 @@ MUTANTS = [
     ("fp", "paragraphs not masked", "            t = mask(text(p))", "            t = text(p)", "HA2"),
     ("fp", "néant is a contact", '            out["referent"] = bool(rest) and not NEANT.fullmatch(rest)', '            out["referent"] = bool(rest)', "HA3"),
     ("fp", "no line = no referent", '    out = {"handicap": None, "referent": None,', '    out = {"handicap": None, "referent": False,', "HA3"),
-    ("fp", "any link kept", r'''links = re.findall(r"""href=["'](https?://[^"'\s<>]+)["']""", p)''', r'''links = re.findall(r"""href=["']([^"']+)["']""", p)''', "HA3"),
+    ("fp", "any link kept", r'''re.findall(r"""href=["'](https?://[^"'\s<>]+)["']""", p)''', r'''re.findall(r"""href=["']([^"']+)["']""", p)''', "HA3"),
     ("fp", "every paragraph kept", '            if "handicap" in _fold(f"{t} {\' \'.join(links)}"):', "            if True:", "HA1"),
     ("fp", "referent line in the text", '        out["handicap"] = mask("\\n".join(x for x in lines if x and x not in ref)) or None',
      '        out["handicap"] = mask("\\n".join(x for x in lines if x)) or None', "HA1"),
     ("fp", "ambassador never read", '        out["ambassadeur"] = bool(v) and not NEANT.fullmatch(v)', '        out["ambassadeur"] = None', "HA1"),
-    ("ha", "build keeps any link", '        if isinstance(u, str) and (u.startswith("https://") or u.startswith("http://")) and not any(ch in u for ch in \' "<>\\\'`\'):',
-     "        if isinstance(u, str):", "HA3"),
+    ("fp", "reader keeps links with a contact", "if not personal_link(html.unescape(u))]", "]", "HA2"),
+    ("fg", "stored rows not cleaned", '{r["cod_aff_form"]: clean_contact(r) for r in', '{r["cod_aff_form"]: r for r in', "HA2"),
+    ("ha", "build keeps links with a contact", "                and not _personal(u):", "                and True:", "HA3"),
+    ("ha", "encoded contacts not decoded", "    for _ in range(3):\n        s = unquote(s)\n    return \"@\" in s", "    return \"@\" in s", "HA3"),
+    ("ha", "build keeps any link", '(u.startswith("https://") or u.startswith("http://")) and not any(ch in u for ch in \' "<>\\\'`\')', "True", "HA3"),
     ("ha", "half a card", "            continue                                       # a missing text: nothing rather than half a card",
      "            infos = []", "HA4"),
     ("ha", "gone fiches shown", '        if e.get("status") not in ("ok", "sans_grille", "rejetee"):\n            continue                                       # a fiche no longer read',
