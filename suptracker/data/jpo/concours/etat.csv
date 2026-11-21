@@ -1,7 +1,7 @@
 concours,url,status,checked,nomme
-puissance_alpha,https://www.concourspuissancealpha.fr/,error ConnectError,2026-11-20,0
-avenir,https://www.concours-avenir.fr/,error ConnectError,2026-11-20,0
-geipi,https://www.geipi-polytech.org/,ok,2026-11-20,1
-sesame,https://www.concours-sesame.net/,ok,2026-11-20,1
-advance,https://www.concours-advance.fr/,ok,2026-11-20,1
-acces,https://www.concours-acces.com/,ok,2026-11-20,1
+puissance_alpha,https://www.concourspuissancealpha.fr/,error ConnectError,2026-11-21,0
+avenir,https://www.concours-avenir.fr/,error ConnectError,2026-11-21,0
+geipi,https://www.geipi-polytech.org/,ok,2026-11-21,1
+sesame,https://www.concours-sesame.net/,ok,2026-11-21,1
+advance,https://www.concours-advance.fr/,ok,2026-11-21,1
+acces,https://www.concours-acces.com/,ok,2026-11-21,1
