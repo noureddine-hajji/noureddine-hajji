@@ -373,7 +373,7 @@ def rt_fold(s: str) -> str:
     return "".join(ch for ch in unicodedata.normalize("NFD", s) if unicodedata.category(ch) != "Mn")
 
 
-RT_WORDS = [re.compile(p) for p in (r"immersion", r"mini ?-? ?stage", r"\bcours ouverts?\b",
+RT_WORDS = [re.compile(p) for p in (r"\bimmersions?\b", r"\bmini ?-? ?stages?\b", r"\bcours ouverts?\b",  # whole words: « stage-dimmersion »
                                     r"\b(etudiant|etudiante|lyceen|lyceenne|eleve)s?( ?\( ?e ?\))? d.?un jour\b")]
 RT_LABEL = {"conseils": "Conseils aux candidats", "complementaires": "Attendus de la formation", "critere": "Ce que le jury examine",
             "infos": "Informations de l'établissement", "info": "Candidater à la formation"}
