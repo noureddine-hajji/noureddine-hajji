@@ -49,6 +49,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - **Voie pro, demand, distance (sprint V2):** `tension.py` (vœux per place placed among its type), `apprentissage.py` (apprenticeship
     card, BTS routes compared), API Géo communes in `vie.py` (distance computed in the browser).
   - **Plain language (sprint Q4):** `aide.py` (the help page "Se faire aider", served like the legal.py pages).
+  - **Solidité (sprint 3):** `staging.py` (raw staging rows beside the warehouse in `sources_brutes.duckdb`, final compaction), `scripts/charge.py` (load test).
+  - **Accompagnement et découverte (sprint 4):** `handicap.py` (disability support and student ambassador from the fiche's « Contacter » tab),
+    `immersion.py` (the fiche's own sentences about immersions and mini-stages).
   - **Front-end:** `static/` with `app.js` (vanilla SPA, hash router), `stats.js` (the dashboard),
     `style.css` and `index.html`.
 - `scripts/`
@@ -826,6 +829,30 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   writes the project (no model text). Ticks and draft live in localStorage (`projet`, validated by `projetLoad`) and are NEVER
   sent; the counter counts code points against 1,500 characters spaces included and says each vœu's own limit prevails.
   Red team `redteam_projet.py` (PJ1-PJ8).
+- **Solidité avant le pic (sprint 3, owner 2026-11-21).**
+  - The six raw staging tables (MonMaster, InserSup, Inserjeunes x2, IPS, IVAL raw) live in `data/sources_brutes.duckdb` beside the
+    warehouse (`staging.move` at the end of the build), committed by the data workflow, out of the Vercel bundle; a red team reads them
+    through `staging.relation()`, never `ref.<raw>` directly. The site never reads them.
+  - The build ends with `staging.compact` (COPY FROM DATABASE into a fresh file: DuckDB never shrinks a file). `mart.peer_rank` keeps
+    value + percentile only; the route joins `mart.peer_distribution` (never repeat a group's figures on every row again).
+  - Budget: warehouse < 85 MB (the workflow warns above, fails at 95 MB; ~8 MB per SIES campaign), measured 71 MB.
+  - Campaign switch: the harvest's probe reads the fiches' campaign; a newer one sends every fiche read for an older one to the
+    front (once a day). Campaign = « analysent les candidatures en … », else the capacity line « N places en YYYY ».
+  - Load test `scripts/charge.py` (127.0.0.1 only, no analytics store, fails on any error); never against the live site. One process:
+    50 simultaneous visitors without error, ~12 requests/s at saturation. Every answer built once per warehouse goes through
+    `carte.once` (one build under a re-entrant lock: 50 first requests built the map layer at once, red team SO9).
+  - Red team `redteam_solidite.py` (SO1-SO8), grilles GR11.
+- **Handicap, ambassador, immersions (sprint 4, owner 2026-11-21).** Fiche reader version 4 reads the « Contacter » tab
+  (`fiche_parse.contact`, `data/fiches/contact.csv`, in both fingerprints).
+  - `handicap.py`: the disability callout verbatim, whether a referent's contact is printed (oui / néant = non / no line = unknown,
+    never « non »), the establishment's paragraphs on disability with http(s) links. The CONTACT is never stored or shown (it may name a
+    person): « le contact est sur la fiche » + its link. Never « accessible » / « adapté »; the student is never asked about a disability
+    (same card for everyone). Card in « Réussir et poursuivre ».
+  - `immersion.py`: sentences of the formation's OWN texts (conseils, attendus complémentaires, criteria, notice, « Informations
+    supplémentaires »; never the national expectations) naming KEYWORDS (immersion, mini-stage, cours ouverts, étudiant d'un jour),
+    verbatim, cut only over 420 characters (« … »), with their source; never a date or a promise (« contactez la formation »). Card
+    « Découvrir la formation de l'intérieur » right after `jpoCard` in « Y entrer », with the ambassador line (never the contact).
+  - Red team `redteam_handicap.py` (HA1-HA8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

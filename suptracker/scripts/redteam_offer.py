@@ -274,9 +274,20 @@ def o15(con, real):
 def o16(con, real):
     from suptracker.api import METHODOLOGY
     js = (ROOT / "suptracker" / "static" / "app.js").read_text()
-    claims = re.findall(r"handicap", js, re.I)
-    return not claims and "handicap ne figurent pas" in METHODOLOGY["offer"], \
-        f"{len(claims)} disability claim(s) in the UI" if claims else "no claim; methodology points to the référent handicap"
+    # sprint 4 (owner, 2026-11-21): the ONLY disability text is what the live Parcoursup fiche prints (handicap.py), in its own
+    # block and its two call sites; it never reads the SIES offer attributes (amg is distance teaching or sport/art, not disability)
+    a = js.find("// sprint 4 (owner, 2026-11-21): « La formation me plaira-t-elle ? »")
+    b = js.find("// owner, 2026-11-18: a formation recruited through a concours")
+    block = js[a:b] if 0 <= a < b else ""
+    rest = (js[:a] + js[b:]) if block else js
+    for call in ("${decouvrirCard(d.immersion, d.handicap)}", "${handicapCard(d.handicap)}"):
+        rest = rest.replace(call, "", 1)
+    claims = re.findall(r"handicap", rest, re.I)
+    from_sies = re.search(r"\bamg\b|amenag", block)
+    ok = not claims and bool(block) and not from_sies and "handicap ne figurent pas" in METHODOLOGY["offer"]
+    return ok, (f"{len(claims)} disability claim(s) in the UI outside the fiche's own card" if claims else
+                "the disability card reads SIES offer attributes" if from_sies else
+                "no claim from SIES data; the only disability text is the fiche's own (sprint 4); methodology points to the référent handicap")
 
 
 @check("O19 empty cohorts say nothing: zero-admit rows never draw a timing card, row or comparator cell")

@@ -2371,6 +2371,53 @@ function jpoCard(j) {
     ${jpoConcours(j.concours, today)}
     <p class="muted small">Dates retenues entre le ${esc(frDate(j.saison.debut))} et le ${esc(frDate(j.saison.fin))}. Source : Onisep, Idéo-Structures (licence ODbL)${links.length ? ` · ${links.join(" · ")}` : ""}${dates.some((e) => e.fiche) ? ", et la fiche Parcoursup de la formation" : ""}.${sites.length ? ` Site de l'établissement consulté le ${esc(frDate(sites[0].checked))}.` : ""} Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></div>`;
 }
+// sprint 4 (owner, 2026-11-21): « La formation me plaira-t-elle ? ». What the fiche's OWN texts say of immersions and mini-stages
+// (immersion.py: sentences verbatim, with where they were found), and whether it gives a student ambassador's contact
+// (handicap.py: never the contact itself). Never a date computed, never a promise that a day exists: ask the formation.
+const ficheLink = (u) => (typeof u === "string" && /^https:\/\/[a-z0-9.-]*parcoursup\.fr\/[^\s"'<>]*$/.test(u) ? u : null);
+function ficheCredit(x) {
+  return `Lu sur la fiche Parcoursup${x.session ? ` de la campagne ${esc(x.session)}` : ""}${x.lu_le ? `, le ${esc(frDate(x.lu_le))}` : ""}. La fiche fait foi.`;
+}
+function decouvrirCard(im, ha) {
+  const ph = (im && im.phrases) || [];
+  const amb = ha && ha.ambassadeur === true;
+  if (!ph.length && !amb) return "";
+  const q = (x) => `<li><blockquote class="imm-q">« ${esc(x.texte)} »</blockquote><span class="small muted">${esc(x.label)}</span></li>`;
+  const shown = ph.slice(0, 2), rest = ph.slice(2);
+  const src = im || ha;
+  const url = ficheLink(src.url);
+  return `<div class="card" id="decouvrir"><h2>Découvrir la formation de l'intérieur</h2>
+    ${ph.length ? `<h3>Immersions et mini-stages</h3>
+    <p class="small">Voici ce que la fiche de la formation en dit, mot pour mot.</p>
+    <ul class="imm-list">${shown.map(q).join("")}</ul>
+    ${rest.length ? `<details><summary class="small">${rest.length === 1 ? "Une autre phrase de la fiche" : `${rest.length} autres phrases de la fiche`}</summary><ul class="imm-list">${rest.map(q).join("")}</ul></details>` : ""}
+    <p class="small">Pour savoir s'il y en a cette année et comment s'inscrire, contactez la formation : ses coordonnées sont sur sa fiche Parcoursup.</p>` : ""}
+    ${amb ? `<h3>Parler à un étudiant</h3><p class="small">La fiche donne le contact d'un étudiant ambassadeur de la formation. Il peut vous dire comment se passent les cours et la vie sur place.</p>` : ""}
+    <p class="muted small">${ficheCredit(src)}${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">Ouvrir la fiche ↗</a>` : ""}</p></div>`;
+}
+// sprint 4 (owner, 2026-11-21): « Serai-je accompagné ? ». What the fiche prints about disability support (handicap.py): its
+// sentence verbatim, whether it names a disability referent (the contact stays on the fiche: an address may name a person),
+// the establishment's own pages on disability. The site never asks the student about a disability: the card is the same for all.
+function handicapCard(ha) {
+  if (!ha || (!ha.handicap && ha.referent == null && !(ha.infos || []).length)) return "";
+  const url = ficheLink(ha.url);
+  const ref = ha.referent === true
+    ? `<p>La fiche donne le contact d'un <strong>référent handicap</strong>. C'est la personne à qui parler de vos besoins, avant ou après votre admission.</p>`
+    : ha.referent === false ? `<p>La fiche n'indique pas de référent handicap. Les coordonnées de l'établissement sont sur la fiche : vous pouvez lui poser vos questions.</p>` : "";
+  const web = (u) => (typeof u === "string" && /^https?:\/\/[^\s"'<>]+$/.test(u) ? u : null);
+  const lien = (u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, "").slice(0, 60))}${u.length > 68 ? "…" : ""} ↗</a>`;
+  const infos = (ha.infos || []).map((x) => {
+    const ls = (x.liens || []).map(web).filter(Boolean);
+    const t = x.texte && !/^https?:\/\/\S+$/.test(x.texte) ? `« ${esc(x.texte)} »` : "";
+    return t || ls.length ? `<li>${t}${ls.length ? ` ${ls.map(lien).join(" ")}` : ""}</li>` : "";
+  }).join("");
+  return `<div class="card" id="handicap"><h2>Situation de handicap&nbsp;: être accompagné</h2>
+    ${ha.handicap ? `<blockquote class="imm-q">« ${esc(ha.handicap)} »</blockquote>` : ""}
+    ${ref}
+    ${infos ? `<p class="small">L'établissement donne aussi ces informations :</p><ul class="small imm-list">${infos}</ul>` : ""}
+    <p class="small">Le contact est sur la fiche Parcoursup, dans l'onglet « Contacter et échanger avec l'établissement ».${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">Ouvrir la fiche ↗</a>` : ""}</p>
+    <p class="muted small">SupCompass ne vous demande jamais si vous êtes en situation de handicap : cette carte est la même pour tous. ${ficheCredit(ha)}</p></div>`;
+}
 // owner, 2026-11-18: a formation recruited through a concours: the concours's own webinars and information days, read on its
 // OFFICIAL site (jpo.CONCOURS), each with the page read and its day, « à vérifier »; no site read = no link, never a guess
 const JPO_KIND = { en_ligne: "en ligne (webinaire)", information: "journée ou réunion d'information" };
@@ -2747,6 +2794,7 @@ async function viewFormation(cod, session, refresh) {
   ${tabbed("fiche", [
     ["admission", "Y entrer", `
   ${jpoCard(d.jpo)}
+  ${decouvrirCard(d.immersion, d.handicap)}
   <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
     <div class="grid3">
       <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div>${pvLine(d.prevision, "taux_acces_ens")}</div>
@@ -2784,6 +2832,7 @@ async function viewFormation(cod, session, refresh) {
     ["cout", "Combien ça coûte", coutCard(d.vie, r) + transportsCard(d.vie) + aidesCard(d.aides, d.vie) + apprentiCard(d.apprenti)],
     ["reussite", "Réussir et poursuivre", `
   ${recoCard(d.reconnaissance)}
+  ${handicapCard(d.handicap)}
   ${successCard(d.success)}
   ${masterCard(d.master)}
   ${passerellesCard(d.passerelles)}

@@ -124,6 +124,12 @@ jobs:
           tsize=$(stat -c %s data/rapport_textes.duckdb)
           echo "report texts: $tsize bytes"
           test "$tsize" -lt 95000000 || { echo "::error::report texts exceed GitHub's 100 MB file limit"; exit 1; }
+          # sprint 3: the raw staging rows the red teams re-read live beside the warehouse (out of the Vercel bundle)
+          bsize=$(stat -c %s data/sources_brutes.duckdb)
+          echo "raw staging: $bsize bytes"
+          test "$bsize" -lt 95000000 || { echo "::error::raw staging exceeds GitHub's 100 MB file limit"; exit 1; }
+          # a warning well before the limit: each SIES campaign adds about 8 MB to the warehouse
+          test "$size" -lt 85000000 || echo "::warning::warehouse above 85 MB ($size bytes): make room before the next campaign"
       - name: Commit warehouse
         run: |
           # Commit only when the SIES inputs or the pipeline code changed: the warehouse
@@ -133,7 +139,7 @@ jobs:
           # robustesse 2035 per formation: the RNCP export and the ROME 4.0 open data (data/rncp)
           # open days (data/jpo): the Onisep versions, the site extracts and each site's (uai, status), never a check date alone
           fp=$( { jq -r '.[].sha256' data/raw/manifest.json | sort; \
-                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources data/aides data/rncp/export-fiches-csv.zip data/rncp/rome_toutes_donnees.zip data/jpo/onisep data/jpo/sites/extraits.csv.gz data/jpo/concours/extraits.csv.gz data/transports/tarifs_tgv.csv.gz data/transports/gares.csv.gz data/transports/carburants.csv.gz data/rapports/harvest data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/textes.csv.gz; cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true; cut -d, -f1,3 data/jpo/sites/etat.csv 2>/dev/null || true; cut -d, -f1,3,5 data/jpo/concours/etat.csv 2>/dev/null || true; } | sha256sum | cut -d' ' -f1 )
+                  git ls-files -s -- 'suptracker/*.py' scripts 'requirements*.txt' pyproject.toml data/sources data/aides data/rncp/export-fiches-csv.zip data/rncp/rome_toutes_donnees.zip data/jpo/onisep data/jpo/sites/extraits.csv.gz data/jpo/concours/extraits.csv.gz data/transports/tarifs_tgv.csv.gz data/transports/gares.csv.gz data/transports/carburants.csv.gz data/rapports/harvest data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/contact.csv data/fiches/textes.csv.gz; cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true; cut -d, -f1,3 data/jpo/sites/etat.csv 2>/dev/null || true; cut -d, -f1,3,5 data/jpo/concours/etat.csv 2>/dev/null || true; } | sha256sum | cut -d' ' -f1 )
           if [ -f data/fingerprint.txt ] && [ "$(cat data/fingerprint.txt)" = "$fp" ]; then
             echo "SIES exports and pipeline unchanged since the last published warehouse"; exit 0
           fi
@@ -141,7 +147,7 @@ jobs:
           bash scripts/harvest_fingerprint.sh > data/harvest_fingerprint.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/suptracker.duckdb data/rapport_textes.duckdb data/verification data/fingerprint.txt data/harvest_fingerprint.txt
+          git add data/suptracker.duckdb data/rapport_textes.duckdb data/sources_brutes.duckdb data/verification data/fingerprint.txt data/harvest_fingerprint.txt
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Refresh SIES warehouse ($(date -u +%Y-%m-%d))"
           git push

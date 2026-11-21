@@ -949,7 +949,8 @@ SOURCE_MUTANTS += [
     ("js", "online sessions mixed", "const surPlace = dates.filter((e) => !e.virtuel), enLigne = dates.filter((e) => e.virtuel);",
      "const surPlace = dates, enLigne = [];", "J11"),
     ("js", "card left in the cost tab", '    ["cout", "Combien ça coûte", coutCard(d.vie, r)', '    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r)', "J11"),
-    ("js", "card after the SIES indicators", "  ${jpoCard(d.jpo)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES", "  <div class=\"card\"><h2>Indicateurs officiels SIES", "J11"),
+    ("js", "card after the SIES indicators", "  ${jpoCard(d.jpo)}\n  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES",
+     "  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES", "J11"),
     ("js", "summary line opens the cost tab", '<button type="button" class="linkish" data-goto="admission">${txt} →</button>',
      '<button type="button" class="linkish" data-goto="cout">${txt} →</button>', "J11"),
 ]

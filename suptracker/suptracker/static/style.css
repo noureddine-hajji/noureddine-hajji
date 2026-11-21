@@ -633,6 +633,10 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .projet textarea { display: block; width: 100%; box-sizing: border-box; min-height: 180px; resize: vertical; font: inherit; padding: 8px 10px;
   border: 1px solid var(--line-input); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); }
 .pj-crit input { align-self: flex-start; }
+/* sprint 4: quotes of the fiche (immersions, mini-stages, disability support), verbatim */
+.imm-list { list-style: none; padding-left: 0; margin: 6px 0; }
+.imm-list li { margin: 8px 0; }
+.imm-q { margin: 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); font-style: normal; }
 .cform [aria-invalid="true"] { border-color: var(--bad); outline: 2px solid var(--bad); outline-offset: 1px; }
 .cform button[type="submit"] { justify-self: start; min-height: 44px; padding: 0 20px; }
 .cform .ok { color: var(--good); font-weight: 600; }

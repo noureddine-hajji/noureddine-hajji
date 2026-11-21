@@ -24,6 +24,7 @@ Parcoursup page. Only the same UAI counts: another establishment of the same tow
 from __future__ import annotations
 
 import re
+import threading
 import unicodedata
 from collections import Counter
 
@@ -140,6 +141,23 @@ def _type_of(tf: str | None, typ: dict) -> str:
 
 
 _CACHE: dict = {}
+# sprint 3 (load test, 2026-11-21): 50 visitors arriving on a fresh server each built the map layer at once (40 of 50 waited
+# more than 60 s). Every answer built once per warehouse is now built by ONE request; the others wait for it and share it.
+_BUILD_LOCK = threading.RLock()        # re-entrant: the layer's answer builds the per-diploma layer it slices
+_MISSING = object()
+
+
+def once(cache: dict, key, build):
+    """cache[key], built by build() the first time only, by one request at a time (the others wait, then read it)."""
+    v = cache.get(key, _MISSING)
+    if v is not _MISSING:
+        return v
+    with _BUILD_LOCK:
+        if key not in cache:
+            value = build()
+            cache.clear()
+            cache[key] = value
+        return cache[key]
 
 
 def _fingerprint(con) -> tuple:
@@ -154,11 +172,7 @@ def apprentissage(con) -> list[dict]:
     the initial formations it is attached to (`rattachee`: same UAI, same diploma and mention). Cached per warehouse."""
     if not _has_labels(con):
         return []
-    key = _fingerprint(con)
-    if key not in _CACHE:
-        _CACHE.clear()
-        _CACHE[key] = _apprentissage(con)
-    return _CACHE[key]
+    return once(_CACHE, _fingerprint(con), lambda: _apprentissage(con))
 
 
 def _apprentissage(con) -> list[dict]:
@@ -235,9 +249,10 @@ def bac_lines(con) -> dict:
     - Most represented line among the admits (owner): the route with the most admits in the SIES campaign (acc_bg / acc_bt /
       acc_bp; a tie = none), then that route's report line with the most admits (`acceptes`, never the "Autres" bucket); a tie on
       the top = `exaequo`. No report, a masked table or no admits = none."""
-    key = _fingerprint(con)
-    if key in _LINES:
-        return _LINES[key]
+    return once(_LINES, _fingerprint(con), lambda: _bac_lines(con))
+
+
+def _bac_lines(con) -> dict:
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     est = ", ".join(f"{J.series_access_sql(b)}, {J.series_candidates_sql(b)}" for b in BACS)
     fy = con.execute(f"""SELECT fy.cod_aff_form, fy.acc_bg, fy.acc_bt, fy.acc_bp, {est}
@@ -288,8 +303,6 @@ def bac_lines(con) -> dict:
                 majo = {"bac": route[0], "libelle": _line_label(route[0], win[0][1], win[0][6]), "acceptes": best,
                         "exaequo": len(win) > 1, "admis_route": a[route[0]]}
         out[cod] = {"bacs": bacs, "majo": majo}
-    _LINES.clear()
-    _LINES[key] = out
     return out
 
 
@@ -401,11 +414,7 @@ _LAYER: dict = {}
 def formations(con, diplome: str, mention: str | None = None) -> dict | None:
     """The neutral layer of a type of diploma (and mention group). R10: the whole layer is built once per warehouse and sliced
     (34 answers when no diploma is ticked); each answer gets its own dicts (callers add keys to them)."""
-    key = _fingerprint(con)
-    if key not in _LAYER:
-        _LAYER.clear()
-        _LAYER[key] = _layer(con)
-    by_dip, session, offre = _LAYER[key]
+    by_dip, session, offre = once(_LAYER, _fingerprint(con), lambda: _layer(con))
     out = [dict(x) for x in by_dip.get(diplome, []) if not mention or mention in (x["mention"], x["groupe"])]
     if not out:
         return None
@@ -429,11 +438,7 @@ def couche(con, mark=None, partie: str = "base") -> dict:
     """{"json": bytes, "gzip": bytes, "etag": str, "n": int} of the whole layer. `mark` = admis.mark (the list label), applied
     as /api/carte/formations applies it. `partie` "base": every key but DETAIL_KEYS (what the list, the map and the filters
     read); "details": for each formation its code and its DETAIL_KEYS present (the cards). base + details = each formation."""
-    key = _fingerprint(con)
-    if key not in _COUCHE:
-        _COUCHE.clear()
-        _COUCHE[key] = _couche_build(con, mark)
-    return _COUCHE[key][partie]
+    return once(_COUCHE, _fingerprint(con), lambda: _couche_build(con, mark))[partie]
 
 
 def _couche_build(con, mark) -> dict:

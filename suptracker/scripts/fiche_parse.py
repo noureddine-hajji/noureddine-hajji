@@ -32,8 +32,13 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PHONE = re.compile(r"(?<!\d)(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)")
 MASK_EMAIL, MASK_PHONE = "[adresse sur la fiche Parcoursup]", "[numéro sur la fiche Parcoursup]"
 SESSION = re.compile(r"analysent les candidatures en [^.]*?(20\d\d)")
-VERSION = 3          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
+# sprint 3 (2026-11-21): 7,735 fiches read « ok » (apprenticeship offers SIES does not publish) print no « analysent les
+# candidatures » line: the campaign is then read on the capacity line the fiche prints for it (« 359 places en 2026 »)
+SESSION_ALT = re.compile(r"\b\d[\d\s]*\s+places?\s+en\s+(20\d\d)\b")
+VERSION = 4          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
 #                      3 (2026-11-15): the identity badges (State label, establishment, grants) and the tuition fees
+#                      4 (2026-11-21, sprints 3-4): the « Contacter » tab (disability support, student ambassador, the
+#                        establishment's « Informations supplémentaires ») and the campaign read from the capacity line
 
 
 def text(fragment: str) -> str:
@@ -108,17 +113,72 @@ def frais(page: str) -> list[dict]:
     return [r for r in rows if r["rubrique"]]
 
 
+def _fold(s: str) -> str:
+    import unicodedata
+    return "".join(ch for ch in unicodedata.normalize("NFKD", s.lower()) if not unicodedata.combining(ch))
+
+
+def personal_link(u: str) -> bool:
+    """A link that carries contact information (an e-mail address, a phone number, even percent-encoded, or a mailto:):
+    never kept (Codex, PR #98). The link is dropped whole, never masked into a broken address."""
+    from urllib.parse import unquote
+    s = u
+    for _ in range(3):
+        s = unquote(s)
+    return bool("@" in s or re.search(r"(?i)mailto:", s) or EMAIL.search(s) or PHONE.search(s)
+                or PHONE.search(re.sub(r"[\s.+_-]", "", s)))
+
+
+NEANT = re.compile(r"(?:néant|neant|aucun|aucune|non renseigné|non communiqué|-)\.?", re.I)
+
+
+def contact(page: str) -> dict:
+    """The « Contacter et échanger avec l'établissement » tab (version 4, sprint 4, owner 2026-11-21), what it prints for a
+    candidate in a situation of disability and to meet a student. Read on the 9 saved live fiches:
+      * the callout « Sur l'accompagnement pour les situations de handicap » (h4 or h5): its sentences verbatim, and whether a
+        « Référent handicap : » line gives a contact. The contact itself is NEVER kept (an address names a person): only
+        that one is printed on the fiche (True), that the line says « néant » (False), or that there is no such line (None);
+      * « Informations supplémentaires » (the establishment's free text, h4 or h5), masked: kept whole (the immersion days
+        are read from it), and each of its paragraphs whose text or links speak of disability, with its http(s) links;
+      * « Echanger avec un étudiant ambassadeur de la formation »: whether a contact is given (« Contact : néant » = False).
+    Texts are masked (e-mail addresses, phone numbers), like everything read."""
+    out = {"handicap": None, "referent": None, "infos": None, "handicap_infos": [], "ambassadeur": None}
+    m = re.search(r'<h([456]) class="fr-callout__title">\s*Sur l.accompagnement pour les situations de handicap\s*</h\1>(.*?)</div>',
+                  page, re.S)
+    if m:
+        lines = [text(p) for p in re.findall(r"<p[^>]*>(.*?)</p>", m.group(2), re.S)]
+        ref = [x for x in lines if re.match(r"Référent handicap\s*:", x)]
+        out["handicap"] = mask("\n".join(x for x in lines if x and x not in ref)) or None
+        if ref:
+            rest = re.sub(r"^Référent handicap\s*:\s*", "", ref[0]).strip()
+            out["referent"] = bool(rest) and not NEANT.fullmatch(rest)
+    i = re.search(r"<h[45][^>]*>\s*Informations supplémentaires\s*</h[45]>(.*?)(?=</div>)", page, re.S)
+    if i:
+        out["infos"] = mask(text(i.group(1))) or None
+        for p in re.findall(r"<p[^>]*>(.*?)</p>", i.group(1), re.S):
+            links = [u for u in re.findall(r"""href=["'](https?://[^"'\s<>]+)["']""", p) if not personal_link(html.unescape(u))]
+            t = mask(text(p))
+            if "handicap" in _fold(f"{t} {' '.join(links)}"):
+                out["handicap_infos"].append({"texte": t, "liens": list(dict.fromkeys(links))})
+    a = re.search(r"Echanger avec un étudiant ambassadeur de la formation.{0,1500}?<p>\s*Contact\s*:\s*(.*?)</p>", page, re.S)
+    if a:
+        v = text(a.group(1)).strip()
+        out["ambassadeur"] = bool(v) and not NEANT.fullmatch(v)
+    return out
+
+
 def parse(page: str) -> dict:
     out = {"ok": False, "reason": "", "session": None, "champs": [], "criteres": [], "attendus_nationaux": None,
-           "attendus_complementaires": None, "conseils": None, "info": None, "badges": None, "frais": []}
+           "attendus_complementaires": None, "conseils": None, "info": None, "badges": None, "frais": [], "contact": None}
     t = re.search(r"<title>(.*?)</title>", page, re.S)
     if not t or not text(t.group(1)).startswith("Fiche formation"):
         out["reason"] = "pas une fiche"          # "Oups..." or "Mise à jour de données": an error page, read again later
         return out
-    s = SESSION.search(text(page))
+    s = SESSION.search(text(page)) or SESSION_ALT.search(text(page))
     out["session"] = int(s.group(1)) if s else None
     out["badges"] = badges(page)          # read on every fiche, grid or not (version 3)
     out["frais"] = frais(page)
+    out["contact"] = contact(page)        # version 4: read on every fiche, grid or not
     out["attendus_nationaux"] = mask(_section(page, "Les attendus nationaux"))
     out["attendus_complementaires"] = mask(_section(page, "Les attendus complémentaires"))
     # the notice under "Candidater à la formation" (e.g. an apprenticeship formation that examines no application)

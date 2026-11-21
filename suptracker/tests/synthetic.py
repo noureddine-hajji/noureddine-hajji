@@ -952,7 +952,7 @@ def make_onisep_zips(d: Path) -> dict:
 
 # ---- CI speed-up: one synthetic build per set of inputs, shared by the test files of a run --------------------
 _ROOT = Path(__file__).resolve().parents[1]
-_OUTPUTS = {"suptracker.duckdb", "suptracker.duckdb.wal", "suptracker.building", "rapport_textes.duckdb"}
+_OUTPUTS = {"suptracker.duckdb", "suptracker.duckdb.wal", "suptracker.building", "rapport_textes.duckdb", "sources_brutes.duckdb"}
 
 
 def _digest_path(h, p: Path) -> None:
