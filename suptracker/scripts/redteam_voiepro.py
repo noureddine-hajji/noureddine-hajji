@@ -271,12 +271,13 @@ let store = { v: null, get() { return this.v; }, set(k, v) { this.v = v; } };
 
 @check("VP3 page: the cards and badges escape, label computed figures, say demand is not a chance, compute no salary, safe links, no zone colour")
 def vp3(c: Ctx):
-    defs = "\n".join(top(c.js, n) for n in ("tensionCard", "apprentiCard", "apprentiInsertionCard", "tensionBadge", "appBadge"))
-    if not all(top(c.js, n) for n in ("tensionCard", "apprentiCard", "apprentiInsertionCard", "tensionBadge", "appBadge")):
+    names = ("appParcours", "tensionCard", "apprentiCard", "apprentiInsertionCard", "tensionBadge", "appBadge")
+    defs = "\n".join(top(c.js, n) for n in names)
+    if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     t = {"voeux": 300, "places": 10, "par_place": 30, "type": "BTS", "n_type": 5000, "classe": "tres", "libelle": "Forte " + HOSTILE,
          "explication": "Expl " + HOSTILE, "prudence": "Beaucoup de vœux par place ne veut pas dire peu de chances " + HOSTILE}
-    a = {"propose": True, "sies_apprentissage": False, "offres": [{"etablissement": "CFA " + HOSTILE, "ville": HOSTILE, "fiche": "javascript:alert(1)"}],
+    a = {"propose": True, "sies_apprentissage": False, "offres": [{"etablissement": "CFA " + HOSTILE, "ville": HOSTILE, "fiche": "javascript:alert(1)", "parcours": ["Parcours " + HOSTILE]}],
          "national": {"voies": [{"voie": "apprentissage", "libelle": "En apprentissage " + HOSTILE, "annee": HOSTILE, "n_etab": 9, "n_emploi": 7,
                                  "emploi_med": 66, "emploi_q1": 59, "emploi_q3": 73, "poursuite_med": 45}]},
          "liens": {"entreprises": "https://labonnealternance.apprentissage.beta.gouv.fr/", "salaire": "https://labonnealternance.apprentissage.beta.gouv.fr/salaire-alternant",
@@ -527,8 +528,9 @@ SOURCE_MUTANTS = [
     ("js", "demand card unescaped", "${esc(t.libelle)}</span>` : \"\"}</p>", "${t.libelle}</span>` : \"\"}</p>", "VP3"),
     ("js", "ratio without the label", '${fmt(t.par_place)} vœux par place ${estimTag("vœux ÷ places, deux chiffres publiés")}', "${fmt(t.par_place)} vœux par place", "VP3"),
     ("js", "caveat not shown", '<p class="small muted">${esc(t.prudence)}</p></div>`;', "</div>`;", "VP3"),
-    ("js", "CFA name unescaped", 'return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche',
-     'return `<li>${o.etablissement}${o.ville ? ` · ${esc(o.ville)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche', "VP3"),
+    ("js", "CFA name unescaped", 'return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche',
+     'return `<li>${o.etablissement}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche', "VP3"),
+    ("js", "parcours unescaped", "`parcours ${o.parcours.map((x) => `« ${esc(x)} »`)", "`parcours ${o.parcours.map((x) => `« ${x} »`)", "VP3"),
     ("js", "median not labelled", 'le publient ${estimTag("médiane des établissements, pas un taux national")}', "le publient", "VP3"),
     ("js", "badge for every code", "return RECO && RECO.tres && RECO.tres.has(cod) ?", "return RECO && RECO.tres ?", "VP3"),
     ("js", "haversine radius", "return 12742 * Math.asin(Math.sqrt(x));", "return 12000 * Math.asin(Math.sqrt(x));", "VP4"),
