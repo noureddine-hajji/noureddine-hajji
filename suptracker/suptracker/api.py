@@ -66,6 +66,7 @@ from . import prevision as PV
 from . import sources as SRC
 from . import contact as CT
 from . import projet as PRJ
+from . import liste as LST
 from . import handicap as HA
 from . import immersion as IMM
 from . import legal as LG
@@ -1175,6 +1176,18 @@ def calendrier_ics():
                     headers={"Content-Disposition": f'attachment; filename="parcoursup-{CALR.CAMPAGNE}.ics"'})
 
 
+@app.get("/api/liste/verifier")
+def liste_verifier(ids: str = Query("", max_length=200)):
+    """Sprint 5 (owner, 2026-11-21): what SupCompass can check on the list before the Parcoursup deadlines (liste.py): is each
+    vœu in the latest map of formations, does its label name a common entrance exam, is it an apprenticeship formation. The
+    list's codes only: never shared-cached, no analytics event (like /api/voeux)."""
+    try:
+        cods = VX.clean_ids(ids.split(","))
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500
+        raise HTTPException(422, str(exc)) from exc
+    return LST.verifier(_con().cursor(), cods)
+
+
 @app.get("/api/reorientation/voeux")
 def reorientation_voeux(ids: str = Query("", max_length=200)):
     """Sprint 21: the student's list read for a candidate outside terminale (no zone, no Plan B). No analytics event."""
@@ -1399,7 +1412,7 @@ def legal_page(slug: str):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes", "recherche_unique", "observatoire"]
+FEATURES = ["search", "analytics", "offer_timing", "offer_options", "bg_mention_bounds", "series_journey", "plan_b", "plan_b_parcours", "licence_success", "glossary", "reliability", "lycee_profile", "repere", "but_success", "master_success", "passerelles", "insertion", "prevision", "cereq", "metiers", "voeux", "metier_formations", "referentiel_metiers", "emploi_2030", "bmo_2026", "ia_exposition", "licence_master", "seo_pages", "doublettes", "rapports_publics", "carte", "comprendre_appel", "selectivite", "profil_visible", "formations_semblables", "voeux_completer", "admis_neobac", "voie_rapport", "reorientation", "calendrier", "accompagner", "premiere", "liste_partagee", "mon_profil", "navigation_parcours", "taux_profil", "filtres_avances", "cartes_resultats", "moyenne_continue", "moyenne_locale", "construire_ma_liste", "accessibilite", "carte_recherche", "conformite", "parcours_metier", "reconnaissance_vie", "voie_pro_apprentissage", "financer_etudes", "recherche_unique", "observatoire", "verifier_liste"]
 
 
 @lru_cache(maxsize=1)

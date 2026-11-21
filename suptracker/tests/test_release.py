@@ -87,6 +87,7 @@ def test_every_feature_is_wired():
     assert 'href="#/voeux"' in (STATIC / "index.html").read_text() and 'carte: "#/carte", metiers: "#/metiers"' in js
     assert 'if (a === "metiers") return await viewMetiers(' in js
     assert "${decouvrirCard(d.immersion, d.handicap)}" in js and "${handicapCard(d.handicap)}" in js   # sprint 4
+    assert js.count("  loadVerifier(ids, marker, {") == 2                                                # sprint 5, both Mes vœux views
     assert 'if (a === "projet") return await viewProjet(b || "")' in js and '<a href="#/projet">Préparer mes projets de formation motivés</a>' in js
     assert "${codesCard(d.codes)}" in js and "${emploi2030Card(d.emploi2030)}" in js and "${bmoCard(d.bmo)}" in js and "${iaCard(d.ia)}" in js and "${licenceMasterCard(d.licence_master)}" in js
     assert '<script src="/static/stats.js"></script>' in (STATIC / "index.html").read_text()

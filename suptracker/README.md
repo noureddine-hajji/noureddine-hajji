@@ -4344,3 +4344,28 @@ runs reach each fiche (about four days); the immersion quotes are there at once.
 an independent BeautifulSoup reading of the 9 saved fiches, privacy on hostile fiches (no address or phone read, harvested,
 built or served), hostile links and « néant », the build round trip, every quote re-derived on the real harvest, the cards'
 escaping and wording, the plumbing; 29 mutants.
+
+## Vérifier et confirmer ma liste (sprint 5, owner 2026-11-21)
+
+Before the Parcoursup deadlines, « Mes vœux » shows a card « Avant de confirmer sur Parcoursup ». It lists what SupCompass can
+check, each line with its status in words (Fait / À vérifier / À savoir):
+
+- **the number of vœux**, compared with the rules the OFFICIAL calendar prints. `calendrier.regles` reads them with one fixed
+  rule each: « jusqu'à 10 vœux », « 10 vœux supplémentaires pour des formations en apprentissage », sous-vœux for some
+  formations, apprenticeship vœux still possible after the confirmation day. A rule is served only when every version of the
+  PDF prints it identically; otherwise the card says to check parcoursup.gouv.fr;
+- **a common entrance exam**: a vœu whose Parcoursup labels name one (Puissance Alpha, Avenir, Geipi Polytech, SESAME, Advance,
+  ACCÈS, or « concours commun ») may count as a sub-wish on Parcoursup (`liste.concours`, reusing `jpo.concours_of`).
+  « Préparation aux concours » is not an exam. SIES's count-based pools are a deduction and are never used:
+  SupCompass cannot know how Parcoursup groups a vœu multiple;
+- **the map of formations**: a vœu absent from the latest cartographie session is to be checked on Parcoursup
+  (716 latest-campaign formations on 2026-11-21);
+- **a sure safety** (the list's own reading, terminale only), **the motivation drafts** written in this browser (sprint 1);
+- **the two dates**: the last day to formulate and the last day to confirm, from the calendar (« 1er avril »), with the days
+  left and the agenda (.ics) link.
+
+The card never says the list is valid: SupCompass does not see the Parcoursup file, and every vœu is confirmed on Parcoursup.
+`/api/liste/verifier?ids=` (`liste.py`) receives the list's codes only, is never shared-cached and records no audience event.
+Red team `redteam_liste.py` (LI1-LI7): an independent reading of the calendar's rules, an independent re-derivation of the facts
+(crafted and 600 real codes), the route, the card's statuses, escaping and wording, the page's wiring; 20 mutants.
+

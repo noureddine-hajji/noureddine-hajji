@@ -4268,11 +4268,13 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition pour vos deux spécialités (cette formation, estimation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     $view.querySelector(".next-steps").insertAdjacentHTML("beforebegin", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false, prof);
   }
+  loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status !== "absente").map((v) => [v.cod_aff_form, v.etablissement])),
+    securite: L.messages.some((m) => m.code === "aucune_securite") ? "aucune" : "ok" });
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
@@ -4293,6 +4295,68 @@ async function viewVoeux() {
       } });
     };
   });
+}
+
+// ---- sprint 5 (owner, 2026-11-21): « Vérifier et confirmer ma liste » ----
+// Before the Parcoursup deadlines, what SupCompass can check on the list (liste.py, /api/liste/verifier: the list's codes only,
+// no-store, no event) and the rules and dates of the OFFICIAL calendar (/api/calendrier: `regles` and the dated steps, each served
+// only when every version of the PDF agrees). Never « votre liste est valide »: SupCompass does not see the Parcoursup file.
+function listeDate(cal, key) {
+  const e = cal && (cal.evenements || []).find((x) => x.key === key);
+  return e && e.verifie && typeof e.debut === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.debut) ? e.debut : null;
+}
+function listeJours(iso, today) {
+  const d = Math.round((Date.parse(`${iso}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / 86400000);
+  return d > 1 ? `dans ${fmt(d)} jours` : d === 1 ? "demain" : d === 0 ? "aujourd'hui" : "date passée";
+}
+function verifierCard(ids, f, cal, opts) {
+  if (!f || !Array.isArray(f.voeux)) return "";
+  const R = (cal && cal.regles) || {}, noms = opts.noms || {}, today = opts.today || localIso();
+  const nom = (c) => `« ${esc(noms[c] || `formation ${c}`)} »`;
+  const ok = '<span class="vf-st vf-ok">Fait</span>', look = '<span class="vf-st vf-look">À vérifier</span>', info = '<span class="vf-st vf-info">À savoir</span>';
+  const li = (st, html) => `<li>${st}<div>${html}</div></li>`;
+  const items = [];
+  const n = f.voeux.length, nApp = f.voeux.filter((v) => v.apprentissage).length, nSco = n - nApp;
+  const max = Number.isInteger(R.voeux_max) ? R.voeux_max : null, maxApp = Number.isInteger(R.apprentissage_max) ? R.apprentissage_max : null;
+  items.push(li(max !== null && nSco <= max ? ok : info, `Votre liste compte ${fmt(n)} vœu${n > 1 ? "x" : ""}${nApp ? `, dont ${fmt(nApp)} en apprentissage` : ""}. ${max !== null
+    ? `Parcoursup accepte jusqu'à ${fmt(max)} vœux, sans les classer.` : "Vérifiez le nombre de vœux permis sur parcoursup.gouv.fr."}${maxApp !== null
+    ? ` Vous pouvez ajouter jusqu'à ${fmt(maxApp)} vœux en apprentissage en plus.` : ""}`));
+  const conc = f.voeux.filter((v) => typeof v.concours === "string" && v.concours);
+  if (conc.length) {
+    items.push(li(look, `${conc.map((v) => `${nom(v.cod_aff_form)} (${esc(v.concours)})`).join(", ")}&nbsp;: ${conc.length > 1 ? "ces formations recrutent" : "cette formation recrute"} par un concours commun. Sur Parcoursup, ${conc.length > 1 ? "elles peuvent" : "elle peut"} compter comme sous-vœu d'un même vœu. Vérifiez sur ${conc.length > 1 ? "leurs fiches" : "sa fiche"}.`));
+  } else if (R.sous_voeux === true) {
+    items.push(li(info, "Pour certaines formations, Parcoursup permet aussi des sous-vœux. La fiche de chaque formation le précise."));
+  }
+  const gone = f.voeux.filter((v) => v.dans_carte === false);
+  if (gone.length) {
+    items.push(li(look, `${gone.map((v) => nom(v.cod_aff_form)).join(", ")}&nbsp;: absente${gone.length > 1 ? "s" : ""} de la carte des formations Parcoursup ${esc(f.carte_session || "")}. Vérifiez sur Parcoursup qu'${gone.length > 1 ? "elles existent" : "elle existe"} toujours.`));
+  } else if (f.carte_session) {
+    items.push(li(ok, `Tous vos vœux figurent dans la carte des formations Parcoursup ${esc(f.carte_session)}.`));
+  }
+  if (opts.securite === "aucune") items.push(li(look, "Aucun vœu de votre liste n'est une sécurité sûre pour votre profil. Voyez « Compléter ma liste » sur cette page."));
+  else if (opts.securite === "ok") items.push(li(ok, "Votre liste contient au moins une sécurité sûre pour votre profil."));
+  const P = projetLoad(), nDraft = ids.filter((c) => P[c] && P[c].brouillon).length;
+  items.push(li(nDraft === n ? ok : look, `${fmt(nDraft)} vœu${nDraft > 1 ? "x" : ""} sur ${fmt(n)} ${nDraft > 1 ? "ont" : "a"} un brouillon de projet de formation motivé. <a href="#/projet">Préparer mes projets</a>`));
+  const fin = listeDate(cal, "fin_voeux"), conf = listeDate(cal, "confirmation");
+  const jour = (iso) => frDate(iso).replace(/^(\S+) 1 /, "$1 1er ");          // « jeudi 1er avril », as the calendar prints it
+  const when = (iso) => (iso ? `<strong>${esc(jour(iso))}</strong> (${esc(listeJours(iso, today))})` : "date à vérifier sur parcoursup.gouv.fr");
+  items.push(li(info, `Dernier jour pour formuler vos vœux&nbsp;: ${when(fin)}.${R.apprentissage_apres === true ? " En apprentissage, vous pourrez encore en formuler ensuite." : ""}`));
+  items.push(li(info, `Dernier jour pour compléter votre dossier et confirmer vos vœux&nbsp;: ${when(conf)}. Un vœu se confirme sur Parcoursup, pas ici.${fin || conf ? ' <a href="/api/calendrier.ics">Ajouter ces dates à mon agenda</a>' : ""}`));
+  return `<section class="card" id="vx-verifier"><h2>Avant de confirmer sur Parcoursup</h2>
+    <ul class="vf-list">${items.join("")}</ul>
+    <p class="muted small">SupCompass ne voit pas votre dossier Parcoursup&nbsp;: ces repères ne remplacent pas la confirmation de chaque vœu. Règles et dates lues sur le calendrier officiel Parcoursup${cal && cal.campagne ? ` ${esc(cal.campagne)}` : ""}, qui fait foi.</p></section>`;
+}
+async function loadVerifier(ids, marker, opts) {
+  const box = $view.querySelector("#vx-verifier");
+  let f, cal;
+  try {
+    [f, cal] = await Promise.all([api(`/api/liste/verifier?${new URLSearchParams({ ids: ids.join(",") })}`), api("/api/calendrier").catch(() => null)]);
+  } catch (e) {
+    if ($view.dataset.rendered === marker && box && box.isConnected) box.remove();
+    return;
+  }
+  if ($view.dataset.rendered !== marker || !box || !box.isConnected) return;   // the student left or changed the list meanwhile
+  box.outerHTML = verifierCard(ids, f, cal, opts);
 }
 
 // "Compléter ma liste" (owner, 2026-11-10): with no sure safety in the list, safety vœux of the same filières, read by the
@@ -5271,7 +5335,8 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+  loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status === "ok").map((v) => [v.cod_aff_form, v.etablissement])), securite: null });
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
 }

@@ -760,8 +760,8 @@ JS_MUTANTS = [
     ("list race", "  if ($view.dataset.rendered !== marker) return;\n  const rows = d.voeux.map", "  const rows = d.voeux.map"),
     ("list name unescaped", '<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")}',
      '<a href="#/f/${esc(v.cod_aff_form)}">${v.etablissement}</a><div class="muted small">${esc(v.filiere || v.formation || "")}'),
-    ("share card dropped outside terminale", "rien n'en est enregistré sur le serveur.</p>${howto}</div>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get(\"profile\", null))}",
-     "rien n'en est enregistré sur le serveur.</p>${howto}</div>${robVoeuxCard(d.voeux)}"),
+    ("share card dropped outside terminale", "${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get(\"profile\", null))}",
+     "${robVoeuxCard(d.voeux)}"),
     ("chance wording", "Des parts d'admis des campagnes passées, pas des chances d'admission. Les vœux", "Vos chances d'admission. Les vœux"),
     ("tutoiement", "Choisissez trois spécialités de première.", "Choisis tes trois spécialités de première."),
 ]
