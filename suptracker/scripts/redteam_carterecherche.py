@@ -187,8 +187,11 @@ def cr2(c: Ctx):
                     bad.append((d["label"], v, "group"))
         if any(x != 1 for x in seen.values()) or sum(g["n"] for g in d["mentions"]) != d["n"]:
             bad.append((d["label"], "partition"))
-        if d["label"] not in ("Double licence", "CUPGE", "CPES", "Licence", "Licence Accès Santé (L.AS)"):
+        if d["label"] not in ("Double licence", "CUPGE", "CPES", "Licence", "Licence Accès Santé (L.AS)", "BUT"):
             bad += [(d["label"], g["label"], "grouped") for g in d["mentions"] if {" ".join(v.split()) for v in g["variantes"]} != {g["label"]}]
+        if d["label"] == "BUT":         # owner, 2026-11-21: only SIES's « specialty Parcours … » mentions join their specialty
+            bad += [("BUT", g["label"], v, "grouped") for g in d["mentions"] for v in g["variantes"]
+                    if " ".join(v.split()) != g["label"] and not v.lower().startswith(g["label"].lower() + " parcours ")]
         if d["label"] == "Double licence":
             pairs: dict = {}
             for g in d["mentions"]:
