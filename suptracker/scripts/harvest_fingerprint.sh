@@ -7,7 +7,7 @@
 set -euo pipefail
 {
   git ls-files -s -- data/rapports/harvest \
-    data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/textes.csv.gz \
+    data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/contact.csv data/fiches/textes.csv.gz \
     data/jpo/onisep data/jpo/sites/extraits.csv.gz data/jpo/concours/extraits.csv.gz \
     data/transports/tarifs_tgv.csv.gz data/transports/gares.csv.gz data/transports/carburants.csv.gz \
     data/aides data/rncp/export-fiches-csv.zip data/rncp/rome_toutes_donnees.zip

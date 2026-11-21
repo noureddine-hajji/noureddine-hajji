@@ -66,6 +66,8 @@ from . import prevision as PV
 from . import sources as SRC
 from . import contact as CT
 from . import projet as PRJ
+from . import handicap as HA
+from . import immersion as IMM
 from . import legal as LG
 from . import securite as SEC
 from .crosswalk import EXACT, INFERRED, continuity_report
@@ -701,8 +703,10 @@ def _grouped(rec: dict) -> dict:
 def formation(cod: str, session: int | None = None):
     rec = _record(cod, session)
     vie = VIE.for_formation(_con().cursor(), rec["cod_aff_form"])
-    peers = rows("""SELECT metric, value, in_reference, peer_percentile, n_peers, p10, p25, p50, p75, p90,
-                           unstable FROM mart.peer_rank WHERE session = ? AND cod_aff_form = ?""",
+    peers = rows("""SELECT r.metric, r.value, r.in_reference, r.peer_percentile, d.n_peers, d.p10, d.p25, d.p50, d.p75, d.p90,
+                           d.unstable FROM mart.peer_rank r LEFT JOIN mart.peer_distribution d
+                             ON d.session = r.session AND d.metric = r.metric AND d.fil_lib_voe_acc IS NOT DISTINCT FROM r.fil_lib_voe_acc
+                           WHERE r.session = ? AND r.cod_aff_form = ?""",
                  [rec["session"], rec["cod_aff_form"]])
     order = list(PEER_METRICS)
     peers.sort(key=lambda p: order.index(p["metric"]))
@@ -743,7 +747,11 @@ def formation(cod: str, session: int | None = None):
             # how far the list was called, every campaign (published ranks; a share only with one calling group)
             "appel": AP.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # the establishment's open days of the season (Onisep, checked on its own site), else a period from past seasons
-            "jpo": JPO.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "jpo": JPO.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # sprint 4: what the fiche says of disability support and a student ambassador (never the contact itself), and
+            # the sentences of its own texts about immersions and mini-stages, verbatim
+            "handicap": HA.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            "immersion": IMM.for_formation(_con().cursor(), rec["cod_aff_form"])}
 
 
 def _insertion_block(rec: dict) -> dict | None:
@@ -944,12 +952,10 @@ def _reco_body(con) -> dict:
     """/api/reconnaissance as bytes, built and compressed once per warehouse (no parameter: the same for every visitor)."""
     import gzip
     import hashlib
-    key = CA._fingerprint(con)
-    if key not in _RECO:
+    def build():
         raw = PC.json_bytes(PC.reconnaissance_payload(con), sort_keys=True)
-        _RECO.clear()
-        _RECO[key] = {"json": raw, "gzip": gzip.compress(raw, 6, mtime=0), "etag": '"' + hashlib.sha256(raw).hexdigest()[:20] + '"'}
-    return _RECO[key]
+        return {"json": raw, "gzip": gzip.compress(raw, 6, mtime=0), "etag": '"' + hashlib.sha256(raw).hexdigest()[:20] + '"'}
+    return CA.once(_RECO, CA._fingerprint(con), build)        # one request builds it (sprint 3 load test)
 
 
 @app.get("/api/carte/zones")

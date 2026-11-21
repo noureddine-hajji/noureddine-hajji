@@ -65,7 +65,9 @@ class Ctx:
         self.forms = src.execute("""SELECT session, cod_aff_form, g_ea_lib_vx, fil_lib_voe_acc, fili, contrat_etab
                                     FROM core.formation_year WHERE session = ?""", [latest]).fetchall()
         has = lambda s, t: src.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?", [s, t]).fetchone()[0]
-        self.raw = src.execute("SELECT * FROM ref.monmaster_raw").df() if has("ref", "monmaster_raw") else None
+        from suptracker import staging as ST          # the raw rows live beside the warehouse since sprint 3
+        rel = ST.relation(src, "monmaster_raw")
+        self.raw = src.execute(f"SELECT * FROM {rel}").df() if rel else None
         self.stored = {t: src.execute(f"SELECT * FROM core.{t}").df() if has("core", t) else None
                        for t in ("licence_reorientation", "monmaster")}
         self.ids = src.execute("SELECT session, cod_aff_form, id_resolu FROM ref.formation_etablissement WHERE session = ?",

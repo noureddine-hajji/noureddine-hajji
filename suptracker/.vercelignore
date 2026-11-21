@@ -16,3 +16,4 @@ requirements-pipeline.txt
 **/data/jpo/
 **/data/rncp/
 **/data/transports/
+**/data/sources_brutes.duckdb

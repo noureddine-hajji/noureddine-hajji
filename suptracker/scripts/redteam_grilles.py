@@ -30,6 +30,9 @@ the jury tab's grilleCard).
       content moves it, a date-only refresh does not (Codex, run on fake harvests with the workflow's own command);
       .vercelignore; sources.py; the formation API; README, CLAUDE.md, durations.
   GR9 mutation test: mutants of the reader, the harvest, the build and the page, each caught.
+  GR11 (sprint 3, 2026-11-21) campaign switch: a fiche showing a newer campaign than the stored ones sends every fiche read for
+       the older one to the front of the next run (not 20 days later), once a day; the campaign is read from the capacity line
+       when the fiche prints no « analysent les candidatures » line.
   GR10 (owner, 2026-11-18) one jury card: with both the fiche and the jury's own report, ONE card; the fiche's grid replaces the
        report's criteria (said), the fiche's advice the report's; the report adds only what the fiche does not publish, under its
        session; with no grid the report's criteria come back, said; both sources credited; every string escaped.
@@ -612,7 +615,7 @@ def gr8(c: Ctx):
     # check AND the value it writes) both take the grids' content files and only (code, status) of etat.csv
     wf_only = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
     dw = wf_only + (ROOT / "scripts" / "harvest_fingerprint.sh").read_text()
-    content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/textes.csv.gz"
+    content = "data/fiches/champs.csv data/fiches/criteres.csv data/fiches/attendus.csv data/fiches/identite.csv data/fiches/frais.csv data/fiches/contact.csv data/fiches/textes.csv.gz"
     proj = "cut -d, -f1,2 data/fiches/etat.csv 2>/dev/null || true"
     if (dw.count(content) != 2 or dw.count(proj) != 2 or dw.count("data/fiches/etat.csv") != 2 or re.search(r"data/fiches(?:/)?[ ;|]", dw)
             or wf_only.count("bash scripts/harvest_fingerprint.sh") != 2):
@@ -739,6 +742,48 @@ process.stdout.write(JSON.stringify([juryMerged(D.g, D.rp), juryMerged(D.g2, D.r
     return not bad, f"{bad[:4]}"
 
 
+@check("GR11 campaign switch (sprint 3): fiches showing a newer campaign are read again at once; the campaign is read without the « analysent » line")
+def gr11(c: Ctx):
+    """Parcoursup opens the next campaign's fiches in December: every fiche still read for the older campaign is read again
+    at the next run (not when its 20-day refresh comes round), once (a fiche read within 12 hours waits); a fiche that
+    prints no « analysent les candidatures » line (7,735 apprenticeship offers on 2026-11-21) takes its campaign from its
+    capacity line (« 359 places en 2026 »)."""
+    bad = []
+    nxt = {k: v.replace("avril-mai 2026", "avril-mai 2027").replace("places en 2026", "places en 2027") for k, v in c.pages.items()}
+    if any(v == c.pages[k] for k, v in nxt.items()):
+        return False, "a saved page prints no campaign to move to 2027"
+    fp = c.mod("fp")
+    for k, v in c.pages.items():
+        bare = re.sub(r"Les formations analysent les candidatures en[^<]*", "", v)
+        if fp.parse(bare)["session"] != 2026 or fp.parse(nxt[k])["session"] != 2027:
+            bad.append(f"{k}: campaign without the « analysent » line {fp.parse(bare)['session']}, next {fp.parse(nxt[k])['session']}")
+    if fp.parse(next(iter(c.pages.values())).replace("places en 2026", "places offertes").replace("avril-mai 2026", "avril-mai"))["session"] is not None:
+        bad.append("a campaign invented when the fiche prints none")
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "fiches"
+        _fake_harvest(c, out, c.pages)
+        _r, reads = _fake_harvest(c, out, nxt, now_shift_days=1)          # well within the 20-day refresh
+        etat = {r["cod_aff_form"]: r for r in csv.DictReader(open(out / "etat.csv", encoding="utf-8"))}
+        if not set(c.pages) <= set(reads) or {etat[k]["session"] for k in c.pages} != {"2027"}:
+            bad.append(f"the switch to 2027 read {sorted(set(reads))[:5]} of {len(c.pages)}; sessions {sorted({etat[k]['session'] for k in c.pages})}")
+        champs = {r["cod_aff_form"]: r["session"] for r in csv.DictReader(open(out / "champs.csv", encoding="utf-8"))}
+        if set(champs.values()) != {"2027"}:
+            bad.append(f"grids still stored for {sorted(set(champs.values()))}")
+        _r2, reads2 = _fake_harvest(c, out, nxt, now_shift_days=1)
+        if len(reads2) > 3:
+            bad.append(f"fiches already read for 2027 read again: {len(reads2)} reads")
+        # one fiche still printing 2026 after the switch is read again the next day, not at every run of the same day
+        late = dict(nxt, **{"4100": c.pages["4100"]})
+        out2 = Path(d) / "fiches2"
+        _fake_harvest(c, out2, c.pages)
+        _fake_harvest(c, out2, late, now_shift_days=1)
+        _r3, reads3 = _fake_harvest(c, out2, late, now_shift_days=1)
+        _r4, reads4 = _fake_harvest(c, out2, late, now_shift_days=2)
+        if reads3.count("4100") > (1 if "4100" in reads3[:3] else 0) or "4100" not in reads4:
+            bad.append(f"a fiche still on 2026: read again the same day {reads3.count('4100')}, next day {'4100' in reads4}")
+    return not bad, f"{len(c.pages)} fiches switched to 2027 at the next run; campaign read from the capacity line; {bad[:3]}"
+
+
 SOURCE_MUTANTS = [
     ("js", "report criteria beside the grid", "  const crit = grid ? `${G.global}${G.detail}${R.critHtml ? `",
      "  const crit = grid ? `${G.global}${G.detail}${R.critHtml}${R.critHtml ? `", "GR10"),
@@ -769,11 +814,15 @@ SOURCE_MUTANTS = [
     ("fg", "failed fiches wait for the refresh", 'first += [etat[c] for c in order if etat[c]["status"] == "failed" and etat[c]["lu_le"] < yesterday]', "pass", "GR5"),
     ("fg", "a gone formation counted as failed", "if offered is not None and c not in offered:", "if False:", "GR5"),
     ("fg", "closed words refuse a real fiche", 'return resp is not None and resp.status_code == 200 and bool(', 'return resp is not None and resp.status_code == 200 and "indisponible" not in resp.text.lower() and bool(', "GR5"),
-    ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)]', "and False]", "GR5"),
+    ("fg", "older reader's fiches never read again", 'and etat[c].get("version") != str(VERSION)\n', "and False\n", "GR5"),
     ("gr", "grid JSON kept in the warehouse", '    if textes is None or not textes.exists():\n        write(con, "core.")', '    if True:\n        write(con, "core.")', "GR6"),
     ("gr", "notice dropped at build", '"info": tx(a.get("info_id")), "champs"', '"info": None, "champs"', "GR6"),
     ("js", "notice not shown", 'info: g.info ? `<div class="gr-info">${ficheText(g.info)}</div>` : ""', 'info: ""', "GR7"),
-    ("fg", "closed site writes", "if probe and all(fetch_fiche(http, c, pause)[0] is None for c in probe):", "if False:", "GR5"),
+    ("fg", "closed site writes", "if probe and all(u is None for u, _r in probed):", "if False:", "GR5"),
+    ("fg", "no campaign switch", "    first += sorted((etat[c] for c in order if older_campaign(etat[c], newest) and etat[c][\"lu_le\"] < yesterday),", "    first += sorted((etat[c] for c in order if False),", "GR11"),
+    ("fg", "probe's campaign ignored", '[parse(r.text)["session"] for u, r in probed if u is not None]', "[]", "GR11"),
+    ("fg", "switch read again all day", 'if older_campaign(etat[c], newest) and etat[c]["lu_le"] < yesterday),', "if older_campaign(etat[c], newest)),", "GR11"),
+    ("fp", "no capacity-line campaign", " or SESSION_ALT.search(text(page))", "", "GR11"),
     ("fg", "texts stored again", "if i and i not in ids:", "if i:", "GR5"),
     ("fg", "no refresh", 'and etat[c]["lu_le"] < old and id(etat[c]) not in seen),', 'and False and id(etat[c]) not in seen),', "GR5"),
     ("fg", "a rejected fiche keeps an old grid", "        champs.pop(c, None)\n        crits.pop(c, None)\n", "", "GR5"),

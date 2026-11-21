@@ -59,8 +59,9 @@ class Ctx:
         import pandas as pd
         self.db, self.real = db, real
         src = duckdb.connect(str(db), read_only=True)
-        self.ips = src.execute("SELECT * FROM ref.lycee_ips_raw").df()
-        self.ival = src.execute("SELECT * FROM ref.lycee_ival_raw").df()
+        from suptracker import staging as ST          # the raw rows live beside the warehouse since sprint 3
+        self.ips = src.execute(f"SELECT * FROM {ST.relation(src, 'lycee_ips_raw')}").df()
+        self.ival = src.execute(f"SELECT * FROM {ST.relation(src, 'lycee_ival_raw')}").df()
         self.fy = src.execute("SELECT session, cod_aff_form, cod_uai, acad_mies, pct_etab_orig, fili FROM core.formation_year").df()
         src.close()
         self.pd = pd

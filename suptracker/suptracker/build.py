@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 
-from . import aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import staging, handicap, immersion, aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -42,6 +42,8 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         rapports.build(con, textes=rapports.textes_path(db_path))
         semblables.build(con, rapports.textes_path(db_path))
         grilles.build(con, textes=rapports.textes_path(db_path))
+        handicap.build(con)                # sprint 4: disability support and a student ambassador, as the fiche prints them
+        immersion.build(con)               # sprint 4: what the fiche's own texts say of immersions and mini-stages
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
         vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         aides.build(con)                   # sprint F: student aids read from the official pages (data/aides)
@@ -83,9 +85,12 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
             src.name if src else "",
             json.dumps({k: Path(v).name for k, v in sorted(pou.items())}),
         ])
+        # sprint 3 (owner 2026-11-21): the raw staging rows only the red teams re-read go beside the warehouse (95 MB budget)
+        staging.move(con, db_path)
         con.execute("CHECKPOINT")
     finally:
         con.close()
+    staging.compact(tmp)   # a dropped table leaves its blocks in the file: copied into a fresh one (3 s, 16+ MB less)
     tmp.replace(db_path)  # atomic swap: the API never sees a half-built warehouse
     return db_path
 

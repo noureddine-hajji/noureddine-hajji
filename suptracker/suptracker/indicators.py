@@ -48,6 +48,8 @@ def build_peers(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE OR REPLACE TABLE mart.peer_distribution AS SELECT session, fil_lib_voe_acc, metric, "
                 "n_peers, q[1] AS p10, q[2] AS p25, q[3] AS p50, q[4] AS p75, q[5] AS p90, "
                 f"n_peers < {config.MIN_PEERS} AS unstable FROM (" + " UNION ALL ".join(dist_parts) + ")")
+    # One row per (campaign, formation, metric): its value and its percentile only. The distribution of its group (n, p10..p90,
+    # unstable) is read from mart.peer_distribution at serve time (sprint 3: repeated on 446,752 rows it took 6 MB).
     # Rank a formation inside the reference set with a mid-rank percentile (ties share the
     # average position). Formations outside it (low n) get NULL, so the UI shows a warning
     # instead of a misleading percentile.
@@ -60,7 +62,7 @@ def build_peers(con: duckdb.DuckDBPyConnection) -> None:
       FROM mart._peer_long WHERE in_reference
       WINDOW w AS (PARTITION BY session, metric, fil_lib_voe_acc ORDER BY value)
     )
-    SELECT l.*, d.n_peers, d.p10, d.p25, d.p50, d.p75, d.p90, d.unstable,
+    SELECT l.*,
       CASE WHEN l.in_reference AND d.n_peers > 1
            THEN round(100.0 * (r.n_below + 0.5 * (r.n_tied - 1)) / (d.n_peers - 1), 1) END AS peer_percentile
     FROM mart._peer_long l
@@ -68,5 +70,6 @@ def build_peers(con: duckdb.DuckDBPyConnection) -> None:
     LEFT JOIN mart.peer_distribution d
       ON d.session = l.session AND d.metric = l.metric
      AND d.fil_lib_voe_acc IS NOT DISTINCT FROM l.fil_lib_voe_acc
+    ORDER BY l.session, l.cod_aff_form, l.metric
     """)
     con.execute("DROP TABLE mart._peer_long")

@@ -4266,3 +4266,81 @@ the closed route lists. The privacy page says the drafts and ticks stay in the b
 Measured on the warehouse: 94.5 % of a sample of 1,000 latest-campaign formations show their fiche with the jury's criteria; all
 have at least a link to their fiche. Red team `redteam_projet.py` (PJ1-PJ8: an independent re-derivation of the answer, the
 route, the card's escaping and wording, browser-only storage, the counter, entry points; 26 mutants).
+
+## Solidité avant le pic (sprint 3, owner 2026-11-21)
+
+Three things that would break during the January-March vœux peak, made solid before it.
+
+**Room in the warehouse.** `data/suptracker.duckdb` was 93.9 MB for a 95 MB budget (GitHub refuses a file over 100 MB), and each
+SIES campaign adds about 8 MB. Two changes bring it to about 71 MB:
+
+- the six raw staging tables only the red teams re-read (MonMaster, InserSup, Inserjeunes lycées and CFA, IPS, IVAL: 16 MB) are
+  moved at the end of the build into `data/sources_brutes.duckdb` beside the warehouse (`staging.py`): same names, same rows,
+  committed by the data workflow, kept out of the Vercel bundle (`.vercelignore`); the red teams read them through
+  `staging.relation()`, which also reads an older warehouse that still holds them;
+- `mart.peer_rank` no longer repeats its group's distribution (n, p10 to p90, unstable) on each of its 446,752 rows: the
+  formation route joins `mart.peer_distribution` when it reads them (6 MB less, the same answer);
+- DuckDB never shrinks a file, so the blocks of every table dropped during a build stayed in it: the build now ends by copying
+  the warehouse into a fresh file (`staging.compact`, `COPY FROM DATABASE`, 3 s).
+
+The data workflow checks the side file's size and warns as soon as the warehouse goes above 85 MB.
+
+**The 2027 fiches.** Parcoursup opens the next campaign's fiches in December. The harvest reads three fiches first to check the site is open; it
+now also reads their campaign. As soon as one shows a newer campaign than the stored readings, every fiche still read for
+the older one goes to the front of the next runs (oldest reading first, once a day), instead of waiting for its 20-day refresh
+(`fiches_grilles.newest_session`, `older_campaign`). A third of the fiches (7,735 apprenticeship offers SIES does not publish)
+print no « analysent les candidatures en … » line: their campaign is now read from their capacity line (« 359 places en 2026 »).
+
+**Hundreds of visitors at once.** `scripts/charge.py` starts one server process on the committed warehouse (127.0.0.1 only,
+no analytics store) and sends N virtual visitors at once, each running a real visit: home, the search page's layer, a keyword,
+a formation page and its indexable page, its zones for a profile, Mes vœux, the motivation page, a job page. It prints the
+median, 95th percentile and slowest time per route and fails on any error:
+
+    python scripts/charge.py --visiteurs 50
+
+What it found (2026-11-21, one process, every request reaching it):
+
+- the map layer and the badges were built once per warehouse, but not under a lock. On a fresh server, every first request
+  built them at the same time: with 50 visitors, 40 layer requests waited more than 60 s. They are now built by ONE request
+  (`carte.once`, a re-entrant lock); the others wait and share it;
+- after the fix, 50 simultaneous visitors (500 requests): no error, 39 s in all; the map layer 3.4 s at the 95th percentile,
+  « Où je me situe » 9.8 s, Mes vœux 14.4 s;
+- 300 simultaneous visitors on ONE process (3,000 requests): 12 requests a second, 168 answers later than 60 s (650 before the
+  fix). One request alone takes 0.7 s (« Où je me situe »), 0.4 s (Mes vœux), 0.3 s (a formation page).
+
+On Vercel each instance runs such a process and new instances start with the load; the shared-cached answers (the map layer,
+a formation page, a profile's zones without an average) are served by the CDN without reaching them. Mes vœux and the search
+words are never shared-cached (personal list, audience event): they are the load that always reaches a server.
+
+Red team `redteam_solidite.py` (SO1-SO8): staging moved and read back, compaction keeps every row, the size budget, the
+benchmark re-derived independently in pandas (crafted and on the warehouse), the Vercel bundle, the load test's safety, docs,
+one build per warehouse under concurrency (SO9); 22 mutants. Red team `redteam_grilles.py` GR11 covers the campaign switch.
+
+## Serai-je accompagné ? La formation me plaira-t-elle ? (sprint 4, owner 2026-11-21)
+
+Two worries the site said nothing about. Both answers come from what each formation prints on its live Parcoursup fiche.
+
+**Disability support** (`handicap.py`, card « Situation de handicap : être accompagné » in « Réussir et poursuivre »). The fiche's
+tab « Contacter et échanger avec l'établissement » is now read too (reader version 4, `fiche_parse.contact`):
+
+- the callout « Sur l'accompagnement pour les situations de handicap », verbatim;
+- whether a « Référent handicap » line gives a contact: yes, « néant » (no), or no line (not said);
+- the paragraphs of the establishment's « Informations supplémentaires » that speak of disability, with their http(s) links.
+
+The contact itself is never stored or shown: an address may name a person. The card says the fiche gives one and links the
+fiche. It never says the place is « accessible » or « adapté ». The site never asks the student about a disability: the card is
+the same for everyone.
+
+**Immersions and mini-stages** (`immersion.py`, card « Découvrir la formation de l'intérieur » right after the open days in
+« Y entrer »). No open data lists immersion days, but 1,893 formations write of them in their own fiche texts (2,213
+sentences, 2026-11-21): their advice, their own expectations, their jury's criteria, their notice and the establishment's
+information. The national expectations are left out: they are shared by every formation of a mention. Each sentence naming an
+immersion, a mini-stage, « cours ouverts » or « étudiant d'un jour » is quoted verbatim with where it was found (two shown,
+the others folded). The card never computes a date or promises a day: it says to ask the formation. It also says when the fiche
+gives a student ambassador's contact, never the contact itself.
+
+The reader's version change makes the harvest read every fiche again: the disability and ambassador parts appear as the daily
+runs reach each fiche (about four days); the immersion quotes are there at once. Red team `redteam_handicap.py` (HA1-HA8):
+an independent BeautifulSoup reading of the 9 saved fiches, privacy on hostile fiches (no address or phone read, harvested,
+built or served), hostile links and « néant », the build round trip, every quote re-derived on the real harvest, the cards'
+escaping and wording, the plumbing; 29 mutants.
