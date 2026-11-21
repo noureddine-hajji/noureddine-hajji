@@ -412,6 +412,20 @@ def ha5(c: Ctx):
         bad.append("a sentence quoted twice")
     if im.matches("Le ministère organise un séminaire") or not im.matches("MINI STAGE en BTS"):
         bad.append("keywords")
+    # the harvest's own files: a national expectation naming an immersion is never quoted, the formation's advice is
+    with tempfile.TemporaryDirectory() as d:
+        src = Path(d)
+        nat, own = "Les candidats ont fait une immersion en entreprise.", "Venez à nos journées d'immersion."
+        with open(src / "etat.csv", "w", encoding="utf-8") as f:
+            f.write("cod_aff_form,status,lu_le,session,raison,url,version\n77,ok,20261121000000,2026,,,4\n")
+        with open(src / "attendus.csv", "w", encoding="utf-8") as f:
+            f.write("cod_aff_form,session,nationaux_id,complementaires_id,conseils_id,info_id\n77,2026,n1,,c1,\n")
+        with gzip.open(src / "textes.csv.gz", "wt", encoding="utf-8", newline="") as f:
+            w = csv.writer(f)
+            w.writerows([("id", "texte"), ("n1", nat), ("c1", own)])
+        rows = im.assemble(src)
+        if [r[3] for r in rows] != [own]:
+            bad.append(f"harvest files: quoted {[r[3] for r in rows]}")
     real = 0
     if c.real and (FICHES / "etat.csv").exists():
         from suptracker import grilles as GR
