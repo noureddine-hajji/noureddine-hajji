@@ -62,6 +62,30 @@ SUR_SUPCOMPASS = {
 }
 
 
+# sprint 5 « Vérifier et confirmer ma liste » (owner, 2026-11-21): the rules of the list the official calendar prints, read like
+# the dates (one fixed rule each, on the folded text) and served only when EVERY version prints the same value; else None
+REGLES = (
+    ("voeux_max", r"jusqu'a (\d{1,2}) voeux sans obligation de les classer"),
+    ("apprentissage_max", r"ajouter (\d{1,2}) voeux supplementaires\b.{0,60}?\bpour des formations en apprentissage"),
+    ("sous_voeux", r"pour certaines formations vous pouvez egalement faire des sous-voeux"),
+    ("apprentissage_apres", r"pour les formations en apprentissage,? vous pouvez toujours formuler des voeux apres"),
+)
+
+
+def regles(base: Path = DIR) -> dict:
+    """{rule: value} — an int (a number of vœux) or True (the sentence is printed) — when every version prints it identically,
+    else None (the page then says to check parcoursup.gouv.fr, never a typed default)."""
+    vs = versions(base)
+    out = {}
+    for key, pat in REGLES:
+        found = []
+        for v in vs:
+            m = re.search(pat, _fold_keep_dash(v["text"]))
+            found.append(None if not m else (int(m.group(1)) if m.groups() else True))
+        out[key] = found[0] if vs and None not in found and len(set(found)) == 1 else None
+    return out
+
+
 def _fold_keep_dash(s: str) -> str:
     """Accents and case off, œ → oe, ’ → ', every run of spaces one space (the PDF text wraps lines); the dashes are kept."""
     s = s.replace("—", " — ").replace("–", " – ").replace("\u2019", "'").replace("œ", "oe").replace("Œ", "OE")
@@ -132,7 +156,7 @@ def calendar(base: Path = DIR) -> dict:
              "verifie": ok}
         events.append(e)
     fetched = max((v["fetched"] for v in vs if v.get("fetched")), default=None)
-    return {"campagne": CAMPAGNE, "etapes": STEPS, "evenements": events, "lu_le": fetched[:10] if fetched else None,
+    return {"campagne": CAMPAGNE, "etapes": STEPS, "evenements": events, "regles": regles(base), "lu_le": fetched[:10] if fetched else None,
             "sources": [{"url": v["url"], "sha256": v["sha256"]} for v in vs], "n_versions": len(vs)}
 
 
