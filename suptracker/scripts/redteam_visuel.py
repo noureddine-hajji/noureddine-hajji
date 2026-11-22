@@ -617,7 +617,7 @@ MUTANTS = [
     ("css", "a chart colour equal to a zone's", "--c2: #4d4655;", "--c2: #2b5fd9;", (vi2,)),
     ("css", "the dark ramp out of order", "--c1: #f0ecf3; --c2: #cdc6d4;", "--c1: #cdc6d4; --c2: #f0ecf3;", (vi2,)),
     ("css", "a coloured data ramp", "--c3: #71697a;", "--c3: #2e9e6a;", (vi2,)),
-    ("css", "the old ambitieux (pill text below 4.5)", "--zone-ambitieux: #b9460f; --voie-bg", "--zone-ambitieux: #c4581f; --voie-bg", (vi3,)),
+    ("css", "the old ambitieux (pill text below 4.5)", "--zone-ambitieux: #c2410c; --voie-bg", "--zone-ambitieux: #e06a2a; --voie-bg", (vi3,)),
     ("css", "a pale 'autre' zone", "--zone-autre: #6f6977;", "--zone-autre: #b8b2bf;", (vi3,)),
     ("css", "zone-autre missing from a dark block", "--zone-autre: #a39dab; --shadow-tip", "--shadow-tip", (vi1,)),
     ("css", "a gear glyph as the filter marker", ".dd-fold > summary .ico { width: 18px; height: 18px; }",
