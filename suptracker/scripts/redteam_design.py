@@ -25,8 +25,10 @@ dark). Without a browser (CI) the static part must be complete; the nightly brow
       yellow main action on the home, the search and a formation page, at most one elsewhere (6); Space Grotesk loaded and used
       (3); dark parity: the cards' edge and shadow in the cream edge colour, the ground dark (3). The press effect moves a
       button and stops under reduced motion (part of the 6 JS points: a failure there removes them)
-  DE9 score: static 56/56 (CI), total >= 90 with --browser; the independent screenshot review (scripts/design_review.json, done
-      by a reviewer who saw only the screenshots and classic UX heuristics) scores >= 90 and names the stylesheet it saw
+  DE9 score (owner, 2026-11-22): 0.6 x the measured score + 0.4 x the independent screenshot review >= 90, the review alone
+      >= 80, static 56/56. The review (scripts/design_review.json) is done by a reviewer who saw only the screenshots, scores 10
+      classic UX criteria out of 10 with a reason each, and names the stylesheet it saw; CI reads the measured score recorded with
+      it, the nightly browser run measures it again
   DE10 mutation test of DE1-DE7 (mutants built in memory)
 """
 from __future__ import annotations
@@ -49,7 +51,7 @@ REVIEW = ROOT / "scripts" / "design_review.json"
 CHECKS = []
 WEIGHTS = {"DE1": 15, "DE2": 8, "DE3": 7, "DE4": 8, "DE5": 6, "DE6": 6, "DE7": 6}
 BROWSER_WEIGHTS = {"errors": 6, "overflow": 8, "contrast": 10, "targets": 8, "cta": 6, "font": 3, "dark": 3}
-ROTATE_OK = {".dd > summary::after", ".dd[open] > summary::after", ".brand::before", ".rc-badges .badge:nth-child(odd)",
+ROTATE_OK = {".dd > summary::after", ".dd[open] > summary::after", ".pb-chev", ".pb-open .pb-chev", ".brand::before", ".rc-badges .badge:nth-child(odd)",
              ".rc-badges .badge:nth-child(even)"}
 UPPER_OK = {".stage h3", ".sum-label", ".badge.statut", ".badge.sel", ".hero-cta .btnlink.primary", ".door strong"}
 CTA_OK = {"button.primary", ".btnlink.primary", ".search button", ".cs-go"}
@@ -155,7 +157,7 @@ def selectors(head: str) -> list[str]:
 def tokens_ok(css: str) -> tuple[bool, str]:
     t, bad = themes(css), []
     L = t["light"]
-    need = ("edge", "cta", "cta-ink", "select", "select-ink", "tile-coral", "tile-yellow", "tile-violet", "paper-ink", "paper-muted",
+    need = ("edge", "cta", "cta-ink", "select", "select-ink", "tile-peach", "tile-yellow", "tile-violet", "paper-ink", "paper-muted",
             "paper-surface", "paper-securite", "paper-cible", "paper-ambitieux", "accent", "bg", "surface", "ink", "muted")
     miss = [k for k in need if k not in L]
     if miss:
@@ -177,7 +179,7 @@ def tokens_ok(css: str) -> tuple[bool, str]:
         for a, b, lim in pairs:
             if contrast(T[a], T[b]) < lim:
                 low.append((name, a, b, round(contrast(T[a], T[b]), 2)))
-        for tile in ("tile-coral", "tile-yellow", "tile-violet"):        # tiles keep the paper reading tokens in both themes
+        for tile in ("tile-peach", "tile-yellow", "tile-violet"):        # tiles keep the paper reading tokens in both themes
             for txt in ("paper-ink", "paper-muted"):
                 if contrast(L[txt], T[tile]) < 4.5:
                     low.append((name, txt, tile, round(contrast(L[txt], T[tile]), 2)))
@@ -497,36 +499,48 @@ def de8(c: Ctx):
     return total >= sum(BROWSER_WEIGHTS.values()) - 4, f"{round(total, 1)}/44 {({k: round(v, 1) for k, v in pts.items()})}; problems {bad[:4]}"
 
 
-def review_ok(css: str) -> tuple[bool, str]:
+def review(css: str) -> tuple[dict | None, str]:
+    """The recorded independent review, or why it is unusable."""
     if not REVIEW.exists():
-        return False, "no independent review"
+        return None, "no independent review"
     r = json.loads(REVIEW.read_text())
     crit = r.get("criteria", {})
-    total = sum(v["score"] for v in crit.values())
-    seen = r.get("style_sha256", "")
-    now = hashlib.sha256(css.encode()).hexdigest()
-    ok = total >= 90 and len(crit) >= 8 and all("why" in v for v in crit.values()) and bool(r.get("screenshots"))
-    return ok, f"review {total}/100 over {len(crit)} criteria on {r.get('date')}; stylesheet {'the current one' if seen == now else 'an earlier version'}"
+    if len(crit) < 8 or not all("why" in v and 0 <= v.get("score", -1) <= 10 for v in crit.values()) or not r.get("screenshots"):
+        return None, "the review lacks its criteria, reasons or screenshots"
+    if sum(v["score"] for v in crit.values()) != r.get("total"):
+        return None, "the review's total is not the sum of its criteria"
+    seen = "the current one" if r.get("style_sha256") == hashlib.sha256(css.encode()).hexdigest() else "an earlier version"
+    return r, f"review {r['total']}/100 over {len(crit)} criteria on {r.get('date')} (stylesheet: {seen})"
 
 
-@check("DE9 score: static 56/56, total >= 90 with the browser; the independent screenshot review >= 90")
+def combined(measured: float, review_total: float) -> float:
+    """Owner, 2026-11-22: 60 % measured, 40 % the independent review."""
+    return 0.6 * measured + 0.4 * review_total
+
+
+@check("DE9 score: static 56/56; 0.6 x measured + 0.4 x independent review >= 90, the review alone >= 80 (owner, 2026-11-22)")
 def de9(c: Ctx):
     static = sum(WEIGHTS[fn.check_name.split()[0]] for fn in CHECKS if fn.check_name.split()[0] in WEIGHTS and fn(c)[0])
-    rok, rdet = review_ok(c.css)
-    if not c.browser:
-        return static == 56 and rok, f"static {static}/56; {rdet}"
-    d = measure(c)
-    if isinstance(d, str):
-        return static == 56 and rok and d.startswith("skipped"), f"static {static}/56; {d}; {rdet}"
-    total = static + sum(browser_points(d)[0].values())
-    return total >= 90 and rok, f"design score {round(total, 1)}/100 (static {static}/56); {rdet}"
+    r, rdet = review(c.css)
+    if r is None:
+        return False, f"static {static}/56; {rdet}"
+    measured, how = r.get("measured_score"), "recorded at the review"
+    if c.browser:
+        d = measure(c)
+        if not isinstance(d, str):
+            measured, how = static + sum(browser_points(d)[0].values()), "measured now"
+    if measured is None:
+        return False, f"static {static}/56; no measured score; {rdet}"
+    score = combined(measured, r["total"])
+    ok = static == 56 and r["total"] >= 80 and score >= 90
+    return ok, f"design score {round(score, 1)}/100 = 0.6 x {round(measured, 1)} ({how}) + 0.4 x {r['total']} (review); static {static}/56; {rdet}"
 
 
 # ------------------------------------------------------------------ DE10 mutation test
 MUTANTS = [
     ("the dark ground drifts in one block", ":root[data-theme=\"dark\"] {\n    --bg: #121212;", ":root[data-theme=\"dark\"] {\n    --bg: #161616;", tokens_ok),
     ("the call to action another yellow", "--cta: #ffd93d; --cta-ink: #000000; --tint: #f1eee2;", "--cta: #ffe680; --cta-ink: #000000; --tint: #f1eee2;", tokens_ok),
-    ("a pale coral tile under ink", "--tile-coral: #ff6b6b; --tile-yellow: #fff1a8;", "--tile-coral: #b03030; --tile-yellow: #fff1a8;", tokens_ok),
+    ("a dark peach tile under ink", "--tile-peach: #ffb38a; --tile-yellow: #fff1a8;", "--tile-peach: #b03030; --tile-yellow: #fff1a8;", tokens_ok),
     ("a pale edge", "--edge: #000000;", "--edge: #d0d0d0;", tokens_ok),
     ("a faint focus ring in the dark", "--accent: #e033ff;", "--accent: #2a2a2a;", tokens_ok),
     ("a grey paper muted text", "--paper-muted: #2b2a30;", "--paper-muted: #6a6870;", tokens_ok),

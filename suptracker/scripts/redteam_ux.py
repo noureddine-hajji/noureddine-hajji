@@ -339,8 +339,8 @@ def x7(c: Ctx):
     if r.returncode:
         return False, r.stderr[-300:]
     d = json.loads(r.stdout)
-    limit = {"formation": 13, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72; sprint 19: 17.6 -> 11.7)
-    lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 12)      # 10 cards + the map (owner, 2026-11-15)
+    limit = {"formation": 14, "metier": 9}          # screens on a phone (before lot 2: about 30 and 72; sprint 19: 17.6 -> 11.7; owner 2026-11-22: 14 px text, 13 -> 14)
+    lot3 = {k: v for k, v in d["out"].items() if (k.endswith("#/s/informatique") and v["screens"] > 13)      # 10 cards + the map (owner, 2026-11-15; 14 px text, owner 2026-11-22: 12 -> 13)
             or (k.endswith("#/voeux") and not v["vxsum"]) or (k.endswith("#/parcours") and not v["folded"])
             or v.get("headShown")}
     bad = {k: v for k, v in d["out"].items() if v.get("missing") or v["hscroll"] or v["small"] or v["shown"] or v["bar"] != "flex"

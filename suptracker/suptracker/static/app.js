@@ -409,7 +409,7 @@ function carteZonesLocal(z, p) {
 }
 const PB_ZONES = ["securite", "cible", "ambitieux"];
 const profileBar = {
-  key: "", data: null, tab: "home",
+  key: "", data: null, tab: "home", open: false,
   render(tab) {
     if (tab) this.tab = tab;
     const el = document.getElementById("profile-bar");
@@ -428,7 +428,7 @@ const profileBar = {
     }
     const prof = vxProfile(raw);
     const ids = voeux.get();
-    let list;
+    let list, short = "";
     if (isReo(prof)) {                                                   // sprint 21: no zone for this group, no zone request
       this.key = ""; this.data = null;
       list = `<a class="pb-link" href="#/voeux">Mes vœux : ${ids.length ? `${fmt(ids.length)}, accès estimé hors terminale` : "aucun pour l'instant"}</a>`;
@@ -454,9 +454,16 @@ const profileBar = {
           ? `<a class="pb-alert" href="#/voeux">Aucun vœu de sécurité sûr</a>` : "";
         // WCAG 2.5.3 (axe, 2026-11-19): the accessible name CONTAINS the visible text; the explanation is hidden text, never an aria-label
         list = `<a class="pb-list" href="#/voeux">Mes vœux : ${parts.join('<span class="pb-sep"> · </span>')}<span class="sr-only"> (zones pour votre profil)</span></a>${alert}`;
+        // owner, 2026-11-22: on a phone the bar folds to one line, the counts by their marks (each zone's name read aloud) and a "!"
+        short = PB_ZONES.map((k2) => `<span class="pb-c"><span style="color:${ZONES[k2].color}">${zoneMark(k2)}</span>${fmt(z[k2] || 0)}<span class="sr-only"> ${esc(ZONES[k2].label.replace(/^Vœu (de )?/, ""))}</span></span>`).join("")
+          + (alert ? `<span class="pb-bang">!<span class="sr-only"> aucun vœu de sécurité sûr</span></span>` : "");
       }
     }
-    el.innerHTML = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a><span class="pb-row">${list}</span>`;
+    const full = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a><span class="pb-row">${list}</span>`;
+    if (el.classList) el.classList.toggle("pb-open", !!this.open);
+    el.innerHTML = `<button type="button" class="pb-toggle" aria-expanded="${this.open ? "true" : "false"}" aria-controls="pb-full"><span class="pb-short">${profileLine(prof, prof.serie)}</span>${short}<span class="pb-chev" aria-hidden="true"></span><span class="sr-only"> : détail du profil et de mes vœux</span></button><div class="pb-full" id="pb-full">${full}</div>`;
+    const tog = el.querySelector ? el.querySelector(".pb-toggle") : null;
+    if (tog) tog.addEventListener("click", () => { this.open = !this.open; this.render(); });
   },
 };
 // R1 (owner, 2026-11-11): the profile chip of the wide-screen header, read from the same stored profile as the bar (escaped,
