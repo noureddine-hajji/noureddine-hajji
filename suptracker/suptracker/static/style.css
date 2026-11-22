@@ -133,7 +133,7 @@ svg.chart .grid { stroke: var(--line); }
 .insights li:last-child { border-bottom: 0; }
 .chartbox { margin: 10px 0 4px; }
 svg.chart.wide { max-width: 100%; }
-#obs-trend svg.chart { max-width: 100%; }   /* reviewer: the Observatoire's trend fills its card */
+#obs-trend svg.chart { max-width: 820px; }   /* reviewer: a wider trend, its labels still at the text's size */
 #obs-trend .legend { font-size: var(--fs-sm); }
 svg.chart .phase { fill: var(--range); }
 svg.chart .phase-l { font-size: var(--fs-xs); }
@@ -849,10 +849,10 @@ a.badge { text-decoration: none; }
 .tabpanel .card:last-child { margin-bottom: 0; }
 .more-card > summary, details.profile > summary { border: 2px solid var(--edge); background: var(--surface); border-radius: var(--r-sm); }
 .info { background: var(--tint); border: 2px solid var(--edge); }   /* information: an edge, no shadow (shadows mark what can be pressed) */
-.warn { border: 2px solid var(--edge); border-left-width: 8px; }
+.warn { border: 2px solid var(--edge); }   /* one notice family: an edge, no side bar */
 /* reviewer, 2026-11-22: the list's « aucune sécurité » alert outranks the notes under it: a thick edge, a hard shadow, a drawn « ! » */
 .warn.vx-alert { display: flex; gap: 10px; align-items: flex-start; border-width: var(--bw); box-shadow: var(--sh) var(--sh) 0 var(--edge);
-  font-weight: 700; font-size: var(--fs-md); margin: 4px 6px 12px 0; }
+  font-weight: 400; font-size: var(--fs-md); margin: 4px 6px 12px 0; }
 .warn.vx-alert::before { content: "!"; display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--r-sm);
   background: var(--warn-ink); color: var(--warn-bg); }
 .card.legal { max-width: none; }
@@ -891,7 +891,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 .trajet a:hover strong, .trajet a:focus-visible strong { text-decoration: underline; text-decoration-thickness: 2px; }
 .tj-dot { width: 30px; height: 30px; border-radius: var(--r-sm); border: var(--bw) solid var(--edge); background: var(--surface); }
 .tj-fait .tj-dot, .tj-sans_objet .tj-dot { background: var(--edge); }
-.trajet .tj-next .tj-dot { background: var(--tile-violet); box-shadow: 3px 3px 0 var(--paper-ink); }
+.trajet .tj-next .tj-dot { background: var(--tile-peach); box-shadow: 3px 3px 0 var(--paper-ink); }   /* the next step: peach, never the selected violet */
 .trajet strong { font-size: var(--fs-sm); line-height: 1.25; }
 .trajet .small { color: var(--muted); }
 @media (max-width: 720px) {

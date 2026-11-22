@@ -1,6 +1,6 @@
 {
  "date": "2026-11-22",
- "reviewer": "an independent reviewer agent that saw only the 21 screenshots (no code), five fresh reviewers in all, one per round",
+ "reviewer": "an independent reviewer agent that saw only the screenshots (no code), six fresh reviewers in all, one per round",
  "screens": "phone 393 px light, phone dark, wide 1360 px light; first screen of each page; a terminale profile and a list of 3 vœux",
  "screenshots": [
   "phone-home.png",
@@ -23,52 +23,54 @@
   "wide-voeux.png",
   "wide-profil.png",
   "wide-obs.png",
-  "wide-info.png"
+  "wide-info.png",
+  "phone-voeux-alerte.png",
+  "phonedark-voeux-alerte.png"
  ],
- "style_sha256": "33858458bc98458f574880617dacbdb89885407a93778b1785e88fc14aac6e99",
+ "style_sha256": "bbca76423922739591bf14bae0ffb26b95b19298c4fb208adf94c2d947b5075e",
  "criteria": {
   "visual_hierarchy": {
    "score": 8,
-   "why": "Home, search and Observatoire each lead clearly with one hero or heading and a single strong action; on the wide formation page the peach access tile is plainly the first thing to read. On Mes vœux the 'Aucun vœu de sécurité sûr' alert looks the same as the two milder notes under it, and the wide home shows the profile three times."
+   "why": "Home, Observatoire and Mes vœux each open on one strong block, and L'essentiel leads the formation page with the peach access cell; on wide screens the profile strip, the line « Les résultats sont lus pour… » and the step tracker compete under the hero, and the zone tile is mostly empty."
   },
   "consistency": {
    "score": 8,
-   "why": "Cards, pills, the segmented control and the selected nav state are drawn the same way on every page and in both themes. Small breaks: the wide profile bar stays centred above the full-width search page; information boxes get the same hard shadow as buttons; « Autres » / « autres » written two ways."
+   "why": "Cards, edges, hard shadows, pills, the bottom bar and the selected states repeat across pages and themes; Mes vœux stacked three notice styles, one Mon profil situation card has no radio, the profile strip is full width on search only."
   },
   "style_fidelity": {
    "score": 9,
-   "why": "Cream ground, thick black edges, hard offset shadows, flat peach, pale-yellow and violet tiles with black text, one bright yellow call to action, capitals on the home doors and CTA, tilted badges only on search result cards, straight data tiles; the dark theme uses cream edges as intended."
+   "why": "Clearly balanced Neo Brutalism: cream ground, thick ink edges, unblurred offset shadows, flat peach, pale yellow and violet tiles with ink text, one yellow call to action, tilted capital badges limited to the search cards and the home; data tiles straight; the dark theme keeps cream edges."
   },
   "readability": {
-   "score": 7,
-   "why": "Body text on the phone is comfortable and the À propos column has a good line length, but the peach access tile is split into two narrow columns at 393 px (about 8 dense lines on the profile half), some wide helper text is small and light, and the phone tagline takes 3 lines."
+   "score": 8,
+   "why": "Phone body text is comfortable with good contrast; density is high in places: the peach cell's source line, an eight-line bold alert, Observatoire axis labels oversized next to a tiny legend."
   },
   "primary_action_clarity": {
    "score": 9,
-   "why": "One yellow action on the home and on search; Filtrer, Comparer, Retirer de mes vœux and Reprendre les étapes are clearly outlined secondary buttons; working pages correctly have no yellow."
+   "why": "Home and search each have exactly one yellow action, secondary actions are outlined; on the formation page « Retirer de mes vœux » and « Comparer » have the same weight."
   },
   "navigation_and_orientation": {
-   "score": 9,
-   "why": "The selected tab is filled violet with a black border on the phone tab bar and the wide header, with the list count on Mes vœux; Formations/Métiers shows its state. The home stepper's empty and violet boxes are not self-explanatory."
+   "score": 8,
+   "why": "The selected tab is unmistakable in the bottom bar and the top menu, Comprendre and Plus light up on the Observatoire; the home step tracker used the selected violet for a step to do."
   },
   "dark_theme_quality": {
    "score": 8,
-   "why": "Readable everywhere, cream edges and shadows applied consistently, tiles become muted salmon and khaki with black text; the pale-violet hero and the chosen 'En terminale' card stay bright against the near-black ground."
+   "why": "Designed, not inverted: near-black ground, cream edges and shadows, the yellow action kept, zone pills legible, a readable dark alert; the dimmed pale-yellow tiles turn slightly olive."
   },
   "responsive_layout": {
    "score": 8,
-   "why": "Nothing overflows or is cut and the wide search page uses the full width well; on the phone the header, profile bar and tab bar take about 28 % of the screen, the two-column peach tile is cramped, and the wide Observatoire chart fills about 60 % of its card."
+   "why": "No overflow or cut; the phone stacks the peach cell's halves cleanly and the wide search page uses the full width; the phone chrome (three-line tagline, profile bar, bottom bar) is heavy and 1360 px pages sit in a narrow column."
   },
   "trust_and_tone": {
-   "score": 8,
-   "why": "Caveats everywhere and well placed ('jamais des pronostics', 'Ce ne sont pas vos chances', 'officiel', 'estimation', counts such as '260 sur 883 candidats'); the large '60 / 100' robustness figure can read as a grade, and the home's capitals and tilt lean a little playful."
+   "score": 9,
+   "why": "Credible and sober: sources and years written out, officiel and estimation separated, « ce ne sont pas vos chances » on every relevant page; the large Robustesse score could read as a grade."
   },
   "accessibility_signals": {
    "score": 8,
-   "why": "Zones always pair colour with a shape and a word, selected states use fill plus border, touch targets look at least 44 px. Weak spots: the Mes vœux badge overlaps its icon, the folded profile line truncates the profile and its '!' has no visible word, two Observatoire series are both dotted in similar greys."
+   "why": "Zones combine colour, shape and name, selected states use fill plus edge, the alert pairs a « ! » with text, controls look at least 44 px; the lightest Observatoire series and some small grey text are weak points."
   }
  },
- "total": 82,
+ "total": 83,
  "measured_score": 100.0,
  "measured_on": "2026-11-22, redteam_design.py --browser (static 56/56 + browser 44/44)",
  "rounds": [
@@ -91,14 +93,18 @@
   {
    "round": 5,
    "total": 82
+  },
+  {
+   "round": 6,
+   "total": 83
   }
  ],
  "suggestions": [
-  "Phone formation page: stack the two halves of the peach tile below about 420 px and move the source details to their own short line.",
-  "Keep hard shadows for clickable things and top-level cards, not information boxes; give the 'Aucun vœu de sécurité sûr' alert a stronger look than the notes under it.",
-  "Win back space on the phone header: shorten or hide the tagline under about 420 px.",
-  "Raise the smallest wide-screen helper text to 14 px in a darker grey; chart legend at the axis labels' size.",
-  "Observatoire chart: a distinct dash and marker per series, plot stretched to the card width.",
-  "Polish: align the wide profile bar with the full-width search layout, write « Autres paires » one way, same decimals for both access figures or say why, drop the repeated profile line on the wide home, tone down the pale-violet hero in the dark theme."
+  "Reduce the phone chrome: the header tagline on fewer lines or under the logo.",
+  "One notice family in Mes vœux: keep the strong alert, one shared style for the others; the alert's text in regular weight.",
+  "Step tracker: a mark per status and no selected violet for a step to do.",
+  "Observatoire: axis labels at body size, a bigger legend, the lightest series darker.",
+  "L'essentiel on wide screens: fill the zone tile; a less dominant Robustesse numeral.",
+  "Polish: radio on the third situation card, one profile strip width, skeleton lines instead of « chargement… »."
  ]
 }
