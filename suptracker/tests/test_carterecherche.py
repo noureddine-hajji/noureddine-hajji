@@ -16,7 +16,7 @@ def test_mention_groups_truth_table():
     import redteam_carterecherche as R
     from suptracker import carte as CA
     for a, b, same in R.DL_TRUTH:
-        assert (CA.groupe_of("Double licence", a) == CA.groupe_of("Double licence", b)) == same, (a, b)
+        assert (set(CA.groupes_of("Double licence", a)) == set(CA.groupes_of("Double licence", b))) == same, (a, b)
     assert CA.groupe_of("CPES", "Sciences Des Données, Société et Santé") == "Sciences des données"
     assert CA.groupe_of("BTS - BTSA - BTSM", "Comptabilité et gestion") == "Comptabilité et gestion"
     assert sorted(["Études de santé", "Écoles d'ingénieurs", "BUT", "Formation"], key=CA.sort_key) == ["BUT", "Écoles d'ingénieurs", "Études de santé", "Formation"]

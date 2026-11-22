@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21T22:03:32+00:00",
+  "generated_at": "2026-11-21T22:51:58+00:00",
   "identities": [
     {
       "check": "series_eq_acc_neobac",
@@ -124,10 +124,10 @@
       "status": "upstream_inconsistency",
       "sample_violators": [
         "11735",
-        "27461",
-        "2574",
-        "10369",
-        "11733"
+        "10204",
+        "23431",
+        "5284",
+        "35072"
       ]
     },
     {
