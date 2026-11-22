@@ -928,6 +928,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 .carte-rc[aria-current] { background: var(--accent-soft); box-shadow: var(--sh-big) var(--sh-big) 0 var(--edge); }
 .carte-box { border: 0; }
 .rc-badges .badge, .rc-badges .zbadge { font-weight: 700; }
+.rc-badges .badge { white-space: normal; max-width: 100%; }   /* a long label wraps inside its card at 320 px (VI8) */
 .badge { border: 2px solid var(--edge); color: var(--ink); border-radius: var(--r-sm); font-weight: 600; }
 .badge.statut { background: var(--tile-violet); text-transform: uppercase; }
 .badge.sel { background: var(--tile-yellow); text-transform: uppercase; }

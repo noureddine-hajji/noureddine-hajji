@@ -20,7 +20,7 @@ dark). Without a browser (CI) the static part must be complete; the nightly brow
   DE6 one call-to-action colour (6): --cta fills only the page's main action selectors; app.js never paints with it
   DE7 links and selected states (6): links are ink with a thick underline; the open tab, the chosen view, an open or active
       filter, the current menu entry and the phone bar's page are pale violet (--select) with an ink edge
-  DE8 browser (44, --browser): 0 JS error (6); no horizontal scroll at 320 / 393 / 1360 px (8); text contrast measured on the
+  DE8 browser (44, --browser): 0 JS error (6); no horizontal scroll at 320 / 393 / 1360 px, no block wider than its card (8); text contrast measured on the
       rendered pages >= 4.5 (3 for large text) (10, proportional); controls >= 44 px on a phone (8, proportional); exactly one
       yellow main action on the home, the search and a formation page, at most one elsewhere (6); Space Grotesk loaded and used
       (3); dark parity: the cards' edge and shadow in the cream edge colour, the ground dark (3). The press effect moves a
@@ -377,7 +377,16 @@ const MEASURE = () => {
   const edge = getComputedStyle(document.documentElement).getPropertyValue('--edge').trim();
   probe.style.color = edge; document.body.appendChild(probe); const edgeRgb = getComputedStyle(probe).color; probe.remove();
   const cs = card && getComputedStyle(card);
-  return { n, low, targets: targets.length, small, filled, hs: document.documentElement.scrollWidth > W + 1,
+  // a block wider than its card (a long badge at 320 px), unless a scrolling container holds it
+  const spill = [...document.querySelectorAll('main .card, main .result.rc')].filter(vis).flatMap((c) => {
+    const cr = c.getBoundingClientRect();
+    return [...c.querySelectorAll('*')].filter((e) => { if (!vis(e) || e.closest('.leaflet-container, svg')) return false;
+      const r = e.getBoundingClientRect(); if (r.right <= cr.right + 1) return false;
+      for (let a = e; a && a !== c; a = a.parentElement) { const st = getComputedStyle(a);   // an overlay (dropdown panel) floats over the card on purpose
+        if (st.position === 'absolute' || st.position === 'fixed') return false;
+        if (a !== e && (st.overflowX === 'auto' || st.overflowX === 'scroll' || st.overflowX === 'hidden')) return false; }
+      return true; }).slice(0, 1).map((e) => `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 20)}`); });
+  return { n, low, targets: targets.length, small, filled, hs: document.documentElement.scrollWidth > W + 1 || spill.length > 0, spill,
     font: getComputedStyle(document.body).fontFamily.startsWith('"Space Grotesk"') && document.fonts.check('700 16px "Space Grotesk"'),
     edgeOk: !card || (cs.borderTopColor === edgeRgb && (cs.boxShadow === 'none' || cs.boxShadow.includes(edgeRgb))),
     bg: getComputedStyle(document.body).backgroundColor };
@@ -457,7 +466,7 @@ def browser_points(d: dict) -> tuple[dict, list]:
     pts["errors"] = BROWSER_WEIGHTS["errors"] if not d["errs"] and press_ok else 0
     if d["errs"] or not press_ok:
         bad.append(("JS errors / press effect", d["errs"][:2], d["press"]))
-    hs = [k for k, v in out.items() if v["hs"]]
+    hs = [(k, v.get("spill", [])[:2]) for k, v in out.items() if v["hs"]]
     pts["overflow"] = BROWSER_WEIGHTS["overflow"] * (1 - len(hs) / len(out))
     if hs:
         bad.append(("horizontal scroll", hs[:3]))
