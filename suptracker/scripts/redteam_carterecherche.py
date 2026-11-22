@@ -49,6 +49,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from suptracker import carte as CA  # noqa: E402
+from suptracker import domaines as DOM  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 from suptracker import planb as PB  # noqa: E402
 from suptracker import voeux as V  # noqa: E402
@@ -59,7 +60,7 @@ CHECKS = []
 STATIC = ROOT / "suptracker" / "static"
 CHANCE = re.compile(r"(?i)probabilit|chances? d'[eê]tre|de chances|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
-PAGE_TWINS = ("cartePosition", "pctRange", "carteSelection", "foldText", "carteHash", "carteKeep", "pickVoie")
+PAGE_TWINS = ("cartePosition", "pctRange", "carteSelection", "foldText", "carteHash", "carteGroupes", "carteKeep", "pickVoie")
 DISPATCH = r"""
 const F = { cartePosition, carteSelection, carteHash, carteKeep, pickVoie, lire };
 let raw = ""; process.stdin.on("data", (x) => (raw += x)); process.stdin.on("end", () => {
@@ -174,43 +175,45 @@ def dl_pair(m: str) -> frozenset:
     return frozenset(own.get(fold(p), fold(p)) for p in parts) if len(parts) == 2 else frozenset([fold(m)])
 
 
-@check("CR2 mention groups: each mention in one group, counts add up; double licence = unordered pair; owner's examples; per diploma only")
+@check("CR2 mention groups: each mention in its group(s), counts add up; double licence = its two disciplines; owner's examples; per diploma only")
 def cr2(c: Ctx):
     fac = CA.facets(c.con)
+    dom = DOM.groups(c.con)
     bad = []
     for d in fac["diplomes"]:
         seen = {}
         for g in d["mentions"]:
             for v in g["variantes"]:
                 seen[v] = seen.get(v, 0) + 1
-                if CA.groupe_of(d["label"], v) != g["label"]:
+                if g["label"] not in CA.groupes_of(d["label"], v, dom):
                     bad.append((d["label"], v, "group"))
-        if any(x != 1 for x in seen.values()) or sum(g["n"] for g in d["mentions"]) != d["n"]:
+        if any(n != len(CA.groupes_of(d["label"], v, dom)) for v, n in seen.items()):
             bad.append((d["label"], "partition"))
-        if d["label"] not in ("Double licence", "CUPGE", "CPES", "Licence", "Licence Accès Santé (L.AS)", "BUT"):
+        rows = (CA.formations(c.con, d["label"]) or {"formations": []})["formations"]
+        if sum(g["n"] for g in d["mentions"]) != sum(1 + bool(f.get("groupe2")) for f in rows):
+            bad.append((d["label"], "counts"))
+        # owner, 2026-11-21: BTS / certificate options, sport spécialités, prefixes and professional titles are grouped by
+        # redteam_filtres_mentions.py's rules (FM1-FM4); every other diploma keeps one group per published label
+        if d["label"] not in ("Double licence", "CUPGE", "CPES", "Licence", "Licence Accès Santé (L.AS)", "BUT") + tuple(CA.PREFIX_TYPES) + (CA.FP_TYPE,):
             bad += [(d["label"], g["label"], "grouped") for g in d["mentions"] if {" ".join(v.split()) for v in g["variantes"]} != {g["label"]}]
         if d["label"] == "BUT":         # owner, 2026-11-21: only SIES's « specialty Parcours … » mentions join their specialty
             bad += [("BUT", g["label"], v, "grouped") for g in d["mentions"] for v in g["variantes"]
                     if " ".join(v.split()) != g["label"] and not v.lower().startswith(g["label"].lower() + " parcours ")]
-        if d["label"] == "Double licence":
+        if d["label"] == "Double licence":  # owner, 2026-11-21: listed under each of its two disciplines, never a pair label
+            bad += [("pair label", g["label"]) for g in d["mentions"] if " / " in g["label"]]
             pairs: dict = {}
             for g in d["mentions"]:
                 for v in g["variantes"]:
-                    pairs.setdefault(dl_pair(v), set()).add(g["label"])
-            bad += [("pair split", sorted(p), sorted(gs)) for p, gs in pairs.items() if len(gs) > 1]
-            owners = {}
-            for g in d["mentions"]:
-                for v in g["variantes"]:
-                    owners.setdefault(g["label"], set()).add(dl_pair(v))
-            bad += [("pairs merged", gl) for gl, ps in owners.items() if len(ps) > 1]
+                    pairs.setdefault(dl_pair(v), set()).add(frozenset(CA.groupes_of("Double licence", v)))
+            bad += [("pair split", sorted(p), len(gs)) for p, gs in pairs.items() if len(gs) > 1]
     for a, b, same in DL_TRUTH:
-        if (CA.groupe_of("Double licence", a) == CA.groupe_of("Double licence", b)) != same:
+        if (set(CA.groupes_of("Double licence", a)) == set(CA.groupes_of("Double licence", b))) != same:
             bad.append(("truth", a[:40], b[:40]))
     if CA.groupe_of("Licence", "Théologie Catholique") != CA.groupe_of("Licence", "Théologie Protestante") or \
             CA.groupe_of("Licence", "Droit") != "Droit" or CA.groupe_of("BUT", "Informatique") != "Informatique":
         bad.append("licence near-duplicates")
     dl = next((d for d in fac["diplomes"] if d["label"] == "Double licence"), None)
-    shrink = f"double licence {sum(len(g['variantes']) for g in dl['mentions'])} -> {len(dl['mentions'])}" if dl else "no double licence"
+    shrink = f"double licence {len({v for g in dl['mentions'] for v in g['variantes']})} labels -> {len(dl['mentions'])} disciplines" if dl else "no double licence"
     return not bad, f"{len(fac['diplomes'])} diplomas; {shrink}; problems {bad[:4]}"
 
 
@@ -238,7 +241,7 @@ def cr4(c: Ctx):
         allf = CA.formations(c.con, d["label"])["formations"]
         for g in d["mentions"][:6]:
             sub = CA.formations(c.con, d["label"], g["label"])["formations"]
-            want = sorted(f["cod_aff_form"] for f in allf if f["groupe"] == g["label"])
+            want = sorted(f["cod_aff_form"] for f in allf if g["label"] in (f["groupe"], f.get("groupe2")))
             if sorted(f["cod_aff_form"] for f in sub) != want or len(want) != g["n"]:
                 bad.append((d["label"], g["label"]))
     small = {"diplomes": [{"label": d["label"], "n": d["n"], "mentions": [{"label": g["label"], "variantes": g["variantes"]} for g in d["mentions"]]}
@@ -255,12 +258,14 @@ def cr4(c: Ctx):
              {"fn": "carteKeep", "args": [{"diplome": dl["label"], "groupe": "autre"}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}]},
              {"fn": "carteKeep", "args": [{"diplome": "BUT", "groupe": "x"}, {"d": [dl["label"], "BUT"], "m": {dl["label"]: [g0["label"]]}}]},
              {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [dl["label"]], "m": {}}]},
-             {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [], "m": {}}]}]
+             {"fn": "carteKeep", "args": [{"diplome": "CPES", "groupe": "x"}, {"d": [], "m": {}}]},
+             {"fn": "carteKeep", "args": [{"diplome": dl["label"], "groupe": "autre", "groupe2": g0["label"]}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}]}]
     out = node(c.js, cases)
     if out is None:
         return not bad, f"node not installed; API problems {bad[:3]}"
     want = [{"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}}, {"d": [dl["label"]], "m": {dl["label"]: [g0["label"]]}},
-            {"d": [], "m": {}}, {"d": [], "m": {}}, None, "#/carte", True, False, True, False, True]   # R10: nothing ticked = all
+            {"d": [], "m": {}}, {"d": [], "m": {}}, None, "#/carte", True, False, True, False, True,   # R10: nothing ticked = all
+            True]                                                    # owner, 2026-11-21: a double licence kept by its 2nd discipline
     page = []
     for k, (o, w) in enumerate(zip(out, want)):
         if k == 4:
@@ -611,18 +616,19 @@ def py_mutants():
     import suptracker.carte as C
     import suptracker.voeux as VX
     from suptracker import journey as JJ
-    orig = {"lines": C.bac_lines, "groupe_of": C.groupe_of, "sort_key": C.sort_key, "zones": C.zones, "figures": VX.figures, "untyped": JJ.untyped_codes,
+    orig = {"lines": C.bac_lines, "groupe_of": C.groupe_of, "groupes_of": C.groupes_of, "sort_key": C.sort_key, "zones": C.zones, "figures": VX.figures, "untyped": JJ.untyped_codes,
             "dl": dict(C.DL_DISCIPLINE), "chmax": C.CHIFFRES_MAX}
 
     def restore():
         C.groupe_of, C.sort_key, C.zones, VX.figures, JJ.untyped_codes = orig["groupe_of"], orig["sort_key"], orig["zones"], orig["figures"], orig["untyped"]
+        C.groupes_of = orig["groupes_of"]
         C.bac_lines = orig["lines"]
         C.DL_DISCIPLINE.clear(); C.DL_DISCIPLINE.update(orig["dl"]); C.CHIFFRES_MAX = orig["chmax"]
 
-    def ordered_pair(d, m):                         # double licence pair kept in the printed order
+    def ordered_pair(d, m, domaines=None):          # double licence kept as a pair label in the printed order
         if d == "Double licence" and "/" in m:
-            return " / ".join(p.strip() for p in m.split(" - ")[0].split("/")[:2])
-        return orig["groupe_of"](d, m)
+            return [" / ".join(p.strip() for p in m.split(" - ")[0].split("/")[:2])]
+        return orig["groupes_of"](d, m, domaines)
 
     def zones_typed_only(con, diplome, mention, dkey, mb, serie, moyenne=None, lecture=False):
         out = orig["zones"](con, diplome, mention, dkey, mb, serie, moyenne, lecture)
@@ -654,7 +660,7 @@ def py_mutants():
         return {k: {**v, "rapport": None, "semblable": None} for k, v in f.items()}
 
     return [
-        ("double licence pair ordered", lambda: setattr(C, "groupe_of", ordered_pair), {"CR2"}),
+        ("double licence pair ordered", lambda: setattr(C, "groupes_of", ordered_pair), {"CR2"}),
         ("Gestion merged with Économie", lambda: C.DL_DISCIPLINE.update({"gestion": "Économie"}), {"CR2"}),
         ("order keeps accents", lambda: setattr(C, "sort_key", lambda x: x.lower()), {"CR3"}),
         ("untyped formations left without a zone", lambda: setattr(C, "zones", zones_typed_only), {"CR1"}),
@@ -671,7 +677,7 @@ def py_mutants():
 JS_MUTANTS = [
     ("bounds swapped without an average", "return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };", "return { lo: L.kt / L.n, hi: (L.kt - L.kb) / L.n, moyenne: false };", "CR6"),
     ("one hypothesis only", "lo: Math.min(p.normale, p.uniforme), hi: Math.max(p.normale, p.uniforme)", "lo: p.normale, hi: p.normale", "CR6"),
-    ("mention filter ignored", "(!(sel.m[f.diplome] || []).length || sel.m[f.diplome].includes(f.groupe))", "true", "CR4"),
+    ("mention filter ignored", "(!(sel.m[f.diplome] || []).length || carteGroupes(f).some((g) => sel.m[f.diplome].includes(g)))", "true", "CR4"),
     ("stored diploma trusted", "(stored && Array.isArray(stored.d) ? stored.d : []).filter((x) => typeof x === \"string\" && known(x))", "(stored && Array.isArray(stored.d) ? stored.d : [])", "CR4"),
     ("series line sent to the server", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}`)", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}&voie=${encodeURIComponent(ctx.prof.voie || \"\")}`)", "CR5"),
     ("position called a chance", "estimTag(pos.moyenne ? \"des admis sous votre moyenne\" : \"des admis sous ou à votre mention\"", "estimTag(pos.moyenne ? \"chances d'être admis\" : \"des admis sous ou à votre mention\"", "CR7"),

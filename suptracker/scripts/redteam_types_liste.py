@@ -13,7 +13,8 @@ and the attachment by one part of the type list (same UAI, same mention label, s
       attachment); no BTS offer keeps a « BTS - … » / « BTSA - … » label whose name SIES publishes as a BTS mention; the four
       owner-visible cases (hôtellerie restauration, sanitaire et social, aménagements paysagers, économie sociale familiale)
       classed; enough offers read and attached through the parts.
-  TY3 --real: the BTS mention filter has no group SIES does not publish (each offer is under a SIES BTS mention).
+  TY3 --real: every BTS offer carries a mention SIES publishes (the filter strips prefixes from GROUP names since
+      2026-11-21, so the check reads the offer's own mention).
   TY4 docs and wiring: README, CLAUDE.md, durations.json, the test file.
   TY5 mutation test of TY1-TY3 (mutants built in memory).
 """
@@ -193,18 +194,18 @@ def ty2(c: Ctx):
     return not bad, f"{len(offers)} offers; {n_read} read through a part of the type list, {n_att} attached only through it; problems {bad[:3]}"
 
 
-@check("TY3 real data: every BTS group of the mention filter is a mention SIES publishes")
+@check("TY3 real data: every BTS apprenticeship offer listed apart carries a mention SIES publishes (never a raw label)")
 def ty3(c: Ctx):
     if not c.real:
         return True, "skipped (no --real)"
     CA = c.mod()
     con = duckdb.connect(str(c.db), read_only=True)
     latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
-    sies = {CA.groupe_of(BTS, r[0]) for r in con.execute("SELECT fil_lib_voe_acc FROM core.formation_year WHERE fili = 'BTS' AND session = ?",
-                                                          [latest]).fetchall()}
-    groups = next((d["mentions"] for d in CA.facets(con)["diplomes"] if d["label"] == BTS), [])
-    extra = [g["label"] for g in groups if g["label"] not in sies]
-    return not extra and len(groups) > 50, f"{len(groups)} BTS groups; not published by SIES: {extra[:5]}"
+    sies = {" ".join(r[0].split()) for r in con.execute("SELECT fil_lib_voe_acc FROM core.formation_year WHERE fili = 'BTS' AND session = ?",
+                                                         [latest]).fetchall() if r[0]}
+    offers = [a for a in CA.apprentissage(con) if a["diplome"] == BTS]
+    raw = sorted({a["mention"] for a in offers if " ".join((a["mention"] or "").split()) not in sies})
+    return not raw and len(offers) > 1000, f"{len(offers)} BTS offers; mentions SIES does not publish: {raw[:5]}"
 
 
 # ------------------------------------------------------------------ TY4 docs

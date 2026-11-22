@@ -28,6 +28,7 @@ import threading
 import unicodedata
 from collections import Counter
 
+from . import domaines as DOM
 from . import journey as J
 from . import planb as PB
 
@@ -436,25 +437,57 @@ def _dl_discipline(x: str) -> str:
     return x[:1].upper() + x[1:].lower() if x.isupper() else x
 
 
-def groupe_of(diplome: str, mention: str | None) -> str:
-    """The group a mention is shown under in the map's mention filter (the formation keeps its own label)."""
+# ---- owner, 2026-11-21: a lighter mention filter. Each formation keeps its own label; only the group it is listed under changes.
+# Fixed rules on the published labels, never fuzzy:
+#  - a closed list of acronyms the cartographie prints before an offer's title (« DEUST - », « CSA - », « DSP - DSP - ») and its
+#    « - en apprentissage » suffix are left out of the GROUP name;
+#  - the options of one BTS or certificate share its group (« Métiers de l'audio-visuel opt : … », « Maintenance des systèmes -
+#    option A … », « Technico-commercial - Spécialité … »);
+#  - a BPJEPS / DEJEPS « Spécialité X - Mention Y » is grouped under its spécialité X;
+#  - a professional title « FP - … » under the official NSF domain of its RNCP fiches (domaines.py, core.fp_domaine);
+#  - a double licence under EACH of its two disciplines (groupes_of; the layer's « groupe2 »).
+GROUP_PREFIX = re.compile(r"^(?:(?:BTSA?|DEUST|CSA?|DSP|BPJEPS|DEJEPS)\s+-\s+)+")
+GROUP_SUFFIX = re.compile(r"\s+-\s+en apprentissage$", re.I)
+PREFIX_TYPES = ("BTS - BTSA - BTSM", "DEUST", "Certificats de spécialisation et FCIL", "Formations aux métiers du sport",
+                "Diplômes d'université ou d'établissement")
+OPTION_TYPES = ("BTS - BTSA - BTSM", "Certificats de spécialisation et FCIL", "Formations aux métiers du sport")
+OPTION_CUT = re.compile(r"(?:,\s*|\s+-\s*|\s+)(?:option\b|opt\s*[.:])|\s+-\s+Spécialité\s", re.I)
+SPORT_SPECIALITE = re.compile(r"^Spécialité\s+(.+?)\s+-\s+Mention\s", re.I)
+FP_TYPE = "Formation professionnelle"
+
+
+def groupes_of(diplome: str, mention: str | None, domaines: dict | None = None) -> list[str]:
+    """The group(s) a mention is listed under in the search page's mention filter: one, two for a double licence."""
     m = " ".join((mention or "").split())
-    if diplome == "Double licence":
+    if diplome == "Double licence":        # owner, 2026-11-21: listed under each of its two disciplines
         head = m.split(" - ")[0] if "/" in m.split(" - ")[0] else m
         parts = [p for p in re.split(r"\s*/\s*|\s+-\s+", head) if p.strip()][:2]
         if len(parts) < 2:
-            return m or "Sans précision"
-        a, b = sorted((_dl_discipline(p) for p in parts), key=sort_key)
-        return f"{a} / {b}"
+            return [m or "Sans précision"]
+        return sorted({_dl_discipline(p) for p in parts}, key=sort_key)
+    if diplome == FP_TYPE and domaines and m in domaines:
+        return [domaines[m]]
     if diplome in FAMILY_RULES:
         f = " ".join(_fold(m).split())
-        return next(label for rx, label in FAMILY_RULES[diplome] if re.search(rx, f))
+        return [next(label for rx, label in FAMILY_RULES[diplome] if re.search(rx, f))]
     if diplome in ("Licence", "Licence Accès Santé (L.AS)"):
-        return NEAR_DUPLICATES.get(" ".join(_fold(m).split()), m)
+        return [NEAR_DUPLICATES.get(" ".join(_fold(m).split()), m)]
     if diplome == "BUT":                   # owner, 2026-11-21: SIES names some specialties with their parcours: one group
         bp = re.match(r"(.+?)\s+parcours\s+\S", m, re.I)
-        return bp.group(1) if bp else m
-    return m
+        return [bp.group(1) if bp else m]
+    g = m
+    if diplome in PREFIX_TYPES:
+        g = GROUP_SUFFIX.sub("", GROUP_PREFIX.sub("", g)).strip() or m
+    if diplome in OPTION_TYPES:
+        g = OPTION_CUT.split(g, 1)[0].strip() or g
+        sp = SPORT_SPECIALITE.match(g) if diplome == "Formations aux métiers du sport" else None
+        g = sp.group(1).strip() if sp else g
+    return [g]
+
+
+def groupe_of(diplome: str, mention: str | None, domaines: dict | None = None) -> str:
+    """The first (for a double licence) group a mention is listed under (the formation keeps its own label)."""
+    return groupes_of(diplome, mention, domaines)[0]
 
 
 def facets(con) -> dict:
@@ -463,13 +496,15 @@ def facets(con) -> dict:
     rows = con.execute("""SELECT fili, form_lib_voe_acc, fil_lib_voe_acc, lib_for_voe_ins FROM core.formation_year
                           WHERE session = (SELECT max(session) FROM core.formation_year)""").fetchall()
     out: dict = {}
+    dom = DOM.groups(con)
     for r in [diplome_of(*r) for r in rows] + [(a["diplome"], a["mention"]) for a in apprentissage(con) if not a["rattachee"]]:
         d, m = r
         x = out.setdefault(d, {"n": 0, "mentions": {}})
         x["n"] += 1
-        g = x["mentions"].setdefault(groupe_of(d, m), {"n": 0, "variantes": set()})
-        g["n"] += 1
-        g["variantes"].add(m)
+        for gl in groupes_of(d, m, dom):  # a double licence counts in each of its two disciplines
+            g = x["mentions"].setdefault(gl, {"n": 0, "variantes": set()})
+            g["n"] += 1
+            g["variantes"].add(m)
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     # R9: diplomas and mention groups in French alphabetical order; each group lists the published labels it gathers
     return {"session": session, "offre_apprentissage": _offer_session(con), "types": type_diplomes(con),
@@ -489,7 +524,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
     """The neutral layer of a type of diploma (and mention group). R10: the whole layer is built once per warehouse and sliced
     (34 answers when no diploma is ticked); each answer gets its own dicts (callers add keys to them)."""
     by_dip, session, offre = once(_LAYER, _fingerprint(con), lambda: _layer(con))
-    out = [dict(x) for x in by_dip.get(diplome, []) if not mention or mention in (x["mention"], x["groupe"])]
+    out = [dict(x) for x in by_dip.get(diplome, []) if not mention or mention in (x["mention"], x["groupe"], x.get("groupe2"))]
     if not out:
         return None
     return {"diplome": diplome, "mention": mention, "session": session, "offre_apprentissage": offre, "formations": out}
@@ -501,7 +536,7 @@ def formations(con, diplome: str, mention: str | None = None) -> dict | None:
 # compares it with every per-diploma answer), as rows of values under a few key templates, repeated strings sent once.
 TOUS = "*"                 # /api/carte/zones?diplome=* : the zones of every type of diploma at once
 DICT_KEYS = ("region", "dep_lib", "etablissement", "ville", "academie", "contrat_etab", "select_form", "internat", "distance", "formation", "mention",
-             "groupe", "statut", "diplome")
+             "groupe", "groupe2", "statut", "diplome")
 _COUCHE: dict = {}
 
 
@@ -602,12 +637,16 @@ def _layer(con) -> tuple:
     by_dip: dict = {}
     offres = offres_par_formation(con)
     lines = bac_lines(con)                    # R10: rate per bac and most represented line among the admits
+    dom = DOM.groups(con)
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
         x = dict(zip(FIELDS, r[:15]))
         if x["lat"] is not None:
             x["lat"], x["lon"] = round(x["lat"], 5), round(x["lon"], 5)
-        x["mention"], x["groupe"], x["statut"] = m, groupe_of(d, m), statut_of(x["contrat_etab"])
+        gs = groupes_of(d, m, dom)
+        x["mention"], x["groupe"], x["statut"] = m, gs[0], statut_of(x["contrat_etab"])
+        if len(gs) > 1:
+            x["groupe2"] = gs[1]              # owner, 2026-11-21: a double licence is also listed under its second discipline
         x["capa_fin"], x["acc_pc"] = r[19], r[20]       # sprint R3: capacity and complementary-phase admits (the map's filters)
         x["region"], x["dep"], x["dep_lib"] = r[21], r[22], r[23]   # owner, 2026-11-15: the search bar's "région / département"
         sies_app = bool(r[18])                # SIES's own "en apprentissage" formations (3 in 2025)
@@ -637,7 +676,7 @@ def _layer(con) -> tuple:
             dep, dep_lib = dep_code.get(_fold(carto_dep.get(a["cod_aff_form"]) or ""), (None, None))
             a = {**a, "region": acad_region.get(a.get("academie")), "dep": dep, "dep_lib": dep_lib}
             by_dip.setdefault(a["diplome"], []).append({**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")},
-                                                        "groupe": groupe_of(a["diplome"], a["mention"]), "initiale": False, "offres_app": []})
+                                                        "groupe": groupe_of(a["diplome"], a["mention"], dom), "initiale": False, "offres_app": []})
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
     return by_dip, session, _offer_session(con)
 

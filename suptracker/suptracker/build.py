@@ -13,7 +13,7 @@ from pathlib import Path
 import duckdb
 
 from . import handicap, immersion, staging  # sprints 3 and 4 (2026-11-21)
-from . import aides, apprentissage, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
+from . import aides, apprentissage, domaines, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
 
@@ -60,6 +60,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         passerelles.build(con, raw_dir, reo_source=src)
         insertion.build(con, raw_dir)
         apprentissage.build(con)           # sprint V2: BTS apprentices vs voie scolaire, AFTER core.inserjeunes_bts (Codex)
+        domaines.build(con)                # owner, 2026-11-21: the professional titles' NSF domain (mention filter), before any map layer
         onisep.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         parcours.build(con, onisep.find_sources() if onisep_sources is _SOURCE else onisep_sources)
         cereq.build(con, cereq.source_path() if cereq_source is _SOURCE else cereq_source)
