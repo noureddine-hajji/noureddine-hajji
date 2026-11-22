@@ -293,8 +293,11 @@ def k5(c: Ctx):
     card = "const semEst = own.hasBg ? null : estimateSemblable(d.series, sem, dkey0);" in js \
         and "const est = own.hasBg || semEst ? null : estimateDoublette(d.series, g, dkey);" in js \
         and "${doubletteCard(d.doublettes, d.rapport, d.semblables)}" in js
-    evo = "const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);" in js \
-        and "${doubletteCharts(f.doublettes, years, f.semblables, f.rapport)}" in js
+    # owner, 2026-11-22: the curves read the formation's own report year by year (pairByYear, red team EV5); the estimate
+    # fills only the years without one, the similar formations before the group
+    evo = "const est = sEst || (g ? estimateDoublette(d.series, g, dk) : null);" in js \
+        and "const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : estAt[i]));" in js \
+        and "${doubletteCharts(f.doublettes, years, f.semblables, lin.rapports, \"paire\")}" in js
     vx = ": v.semblable ? `${pct1(v.semblable.taux)}" in js
     py = (ROOT / "suptracker" / "voeux.py").read_text()
     vx_py = 'if b and (b["doublettes"].get("bg") or []):\n            return None' in py and "SB.estimate(DB.series(con, cod)[\"bg\"], SB.for_formation(con, cod), dkey)" in py

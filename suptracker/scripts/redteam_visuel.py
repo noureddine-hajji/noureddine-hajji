@@ -148,7 +148,7 @@ def themes(css: str) -> dict:
 
 def block_doublette(js: str) -> str:
     """The doublette chart's lines (a route colour means the bac route: the national doublette line never borrows one)."""
-    i = js.find("const lines = [{ name: \"Tous les bacheliers généraux du groupe\"")
+    i = js.find("const lines = g ? [{ name: \"Tous les bacheliers généraux du groupe\"")
     return js[i: js.find("second = `", i)] if i != -1 else ""
 
 
@@ -475,7 +475,7 @@ process.stdout.write(JSON.stringify(out));
 
 def charts_ok(js: str) -> tuple[bool, str]:
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
-    defs = [top(js, n) for n in ("COLORS", "DASHES", "seriesDash", "chartName", "lineChart", "stackedBars", "lineLegend")]
+    defs = [top(js, n) for n in ("COLORS", "DASHES", "seriesDash", "chartName", "PHONE_CHART", "lineChart", "stackedBars", "lineLegend")]
     r = node(helpers + "\n" + "\n".join(defs) + CHART_PROG)
     if r is None:
         return True, "node not installed"
@@ -622,9 +622,9 @@ MUTANTS = [
     ("css", "zone-autre missing from a dark block", "--zone-autre: #a39dab; --shadow-tip", "--shadow-tip", (vi1,)),
     ("css", "a gear glyph as the filter marker", ".dd-fold > summary .ico { width: 18px; height: 18px; }",
      '.dd-fold > summary::before { content: "\u2699"; margin-right: 8px; }', (vi1,)),
-    ("js", "a route colour for the national doublette line", 'groupe national`, color: "var(--c2)", dash: "6 4", values', 'groupe national`, color: "var(--voie-bt)", values', (vi1,)),
+    ("js", "a route colour for the national doublette line", 'groupe national`, color: EVO.k2, dash: "6 4", values', 'groupe national`, color: "var(--voie-bt)", values', (vi1,)),
     ("css", "a pale ramp step as badge text", ".fiab-B { border-color: var(--c3); color: var(--ink); }", ".fiab-B { border-color: var(--c3); color: var(--c5); }", (vi3,)),
-    ("css", "printing keeps the dark ramp", "--c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats",
+    ("css", "printing keeps the dark ramp", "--c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb;\n    --k1: #1f2f57; --k2: #d0475f; --k3: #2b8cbe; --k4: #71697a; --m1: #2b1a10; --m2: #5e3a20; --m3: #a0703f; --m4: #dcae78; --m5: #f6e3c4; }   /* beats",
      "}   /* beats", (vi1,)),
     ("js", "the chart fills the other readings", 'fill="${filled ? c : "var(--surface)"}"', 'fill="${c}"', (vi4,)),
     ("js", "the map's 'autre' a disc", 'z === "autre" ? zoneShape(z, 9, 9, 5.8, `fill="var(--surface)" stroke="${col}" stroke-width="2.5"`)',

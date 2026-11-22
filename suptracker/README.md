@@ -4545,3 +4545,42 @@ formation is listed under changes: every formation keeps its own label on its ca
 - Red team `scripts/redteam_filtres_mentions.py` (FM1-FM7): a table of labels written by hand against an independent reading, a
   crafted RNCP export for every NSF case, every real title re-derived by an own reader, the filter and the layer counted against
   each other, the page in Node, docs, 20 mutants.
+
+## Évolution de la cohorte in colour, with the student's own curves (owner, 2026-11-22)
+
+The owner found the evolution page's grey charts unreadable and asked for the student's own curves over the years.
+
+- **Colours.** A categorical set `--k1..--k4` and a mention ramp `--m1..--m5`, defined in every theme block (print takes the
+  light values).
+  - k1 is navy in light, cream in dark; k2 raspberry; k3 sky blue; k4 is the neutral reference.
+  - The mention ramp runs from espresso (TB félicitations) to sand (sans mention), in the same order in both themes. « Non renseignée »
+    stays grey. The first legend item sits on top of each bar; shares >= 12 % are printed on a chip inside their segment.
+  - Every colour is >= 60 (RGB) away from the zones, bac routes and accent, so a chart never borrows a zone's meaning.
+  - Lines are >= 3:1 on the card. Colours stay apart under deuteranopia, protanopia and tritanopia (Machado 2009), and each line
+    keeps its own dash. Stacked bars and their swatches carry the ink edge.
+  - Bac routes keep their own `--voie-*` colours.
+- **« Vous parmi les admis »** (`mentionEvolutionCard`, `mentionYears`). Year by year, the share of néo-bachelier admits (mention
+  known) with the student's mention or lower, and the share strictly lower. Both are computed from published counts.
+  - With an average, the page adds the estimated share below it: R5's reading (curve centred in the band; the uniform spread in
+    the tooltip).
+  - All bacs, since mentions are not published by series. Hollow points below 20 admits.
+  - Computed in the browser: the average never leaves it. Outside terminale there is no card; without a profile, a link to
+    « Mon profil ».
+- **The pair, year by year** (`pairByYear`, `rapports.lineage_pairs`, `/api/lineage` → `rapports`).
+  - A year with the formation's own cross-checked report uses that campaign's bac général table: the pair's line, else
+    « Autres ». An unknown pair label, or a table without either line, gives no point that year.
+  - Other years use the formation page's estimate (similar formations, then the national group).
+  - A published point is a square, an estimate a diamond, never both the same year. A key under the chart says which is which.
+  - On real data, own pair tables exist only since 2024 (290 formations in 2024, 6 670 in 2025). 243 lineages have two published
+    years.
+- **Red team** `scripts/redteam_evolution.py` (EV1-EV12):
+  - tokens; colours (distance, contrast, colour-blind ΔE); wiring;
+  - the mention reading against an independent Python reading (crafted and 40 real lineages);
+  - the pair against an independent pick (crafted and 12 real lineages); the API on a crafted warehouse and on real reports;
+  - privacy and words; accessibility; browser (light, dark, phone, 320 px, four profiles);
+  - a quality score; 29 mutants; docs.
+- **The student's own curve** is drawn heavier, bold in its legend, with « vous » / « votre bac » at its last point (placed clear of the
+  other lines). The two personal cards come first, under one sentence with the official access rate of the first and latest campaign.
+  A bac techno or pro profile gets no pair card; a visitor without a profile gets a short prompt. Phone charts are taller.
+- **Quality score** (EV10): 0.6 × the measured checks + 0.4 × an independent screenshot review (`scripts/evolution_review.json`).
+  It must reach >= 90, and the review alone >= 80. Seven fresh reviewers in all (69, 76, 75, 75, 78, 80, 80): 0.6 × 100 + 0.4 × 80 = 92.

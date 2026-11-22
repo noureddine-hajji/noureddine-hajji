@@ -503,54 +503,75 @@ const seriesDash = (s, i) => (s.dash !== undefined ? s.dash : s.color ? "" : DAS
 // every chart has an accessible name: its series and its years (role="img" alone is announced as an unnamed image)
 const chartName = (names, years) => `Graphique : ${names.filter(Boolean).join(", ")}${years && years.length ? ` (${years[0]}–${years[years.length - 1]})` : ""}`;
 
-function lineChart(years, series, { yMax = 100, unit = "%", h = 180 } = {}) {
-  const W = 440, H = h, L = 36, R = 10, T = 10, B = 24;
+const PHONE_CHART = () => typeof narrow === "function" && narrow();   // a phone draws taller charts (bigger text once scaled)
+function lineChart(years, series, { yMax = 100, unit = "%", h = PHONE_CHART() ? 230 : 180 } = {}) {
+  const W = 440, H = h, L = unit === "%" ? 48 : 36, R = 10, T = 10, B = 24;
   const P = 24;  // keep end points clear of the y-axis labels and the right edge
   const x = (i) => L + P + (years.length === 1 ? (W - L - R - 2 * P) / 2 : i * (W - L - R - 2 * P) / (years.length - 1));
   const max = yMax ?? Math.max(1, ...series.flatMap((s) => s.values.filter((v) => v != null)));
   const y = (v) => T + (H - T - B) * (1 - v / max);
-  let g = "";
+  let g = "", tags = "";                                     // tags: the student's word at the end of their line, drawn last
   for (let k = 0; k <= 4; k++) {
     const v = max * k / 4;
-    g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+    g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}${unit === "%" ? " %" : ""}</text>`;
   }
   years.forEach((yr, i) => { g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${yr}</text>`; });
   series.forEach((s, si) => {
     const c = s.color || COLORS[si % COLORS.length];
+    const lastI = s.values.reduce((k, v, i) => (v == null ? k : i), -1);
+    if (s.tag && lastI >= 0) {
+      // the word runs leftwards from the last point: keep it clear of every other line over that stretch (its points and segments)
+      const step = lastI > 0 ? x(lastI) - x(lastI - 1) : 1;
+      const yAt = (o, back) => { const a = o.values[lastI], b = lastI > 0 ? o.values[lastI - 1] : null, t = Math.min(1, back / step);
+        return a == null ? null : y(b == null ? a : a + (b - a) * t); };
+      const py = y(s.values[lastI]), others = series.filter((o) => o !== s).flatMap((o) => [0, 25, 50].map((bk) => yAt(o, bk))).filter((v) => v != null);
+      const free = (ty) => ty - 11 > 0 && ty < H - B && others.every((oy) => Math.abs(oy - (ty - 5)) > 11);   // inside the svg, clear of other lines
+      const ty = [py - 10, py + 20, py - 26, py + 34].find(free);
+      tags += ty !== undefined ? `<text class="mine-lbl" x="${x(lastI) + 8}" y="${ty}" text-anchor="end">${esc(s.tag)}</text>`
+        : `<text class="mine-lbl" x="${x(lastI) - 9}" y="${py - 7}" text-anchor="end">${esc(s.tag)}</text>`;
+    }
     let d = "", pen = false;
     s.values.forEach((v, i) => {
       if (v == null) { pen = false; return; }          // gaps stay gaps: no interpolation over missing years
       d += `${pen ? "L" : "M"}${x(i)},${y(v)}`; pen = true;
     });
-    const dash = seriesDash(s, si);
-    g += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+    const dash = seriesDash(s, si), sw = s.mine ? 3.5 : 2;          // the student's own curve is drawn heavier (s.mine)
+    g += `<path d="${d}" fill="none" stroke="${c}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
     s.values.forEach((v, i) => {
       if (v == null) return;
-      const hollow = s.hollow?.[i];
-      g += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${hollow ? "var(--surface)" : c}" stroke="${c}" stroke-width="2"><title>${esc(s.name)} ${years[i]} : ${fmt(v, 1)}${unit === "%" ? " %" : ""}${hollow ? " (effectif < seuil)" : ""}</title></circle>`;
+      const hollow = s.hollow?.[i], fill = hollow ? "var(--surface)" : c;
+      const tip = `<title>${esc(s.name)} ${years[i]} : ${fmt(v, 1)}${unit === "%" ? " %" : ""}${hollow ? " (effectif < seuil)" : ""}${s.notes?.[i] ? ` · ${esc(s.notes[i])}` : ""}</title>`;
+      // a published point of a series that mixes published and estimated years is a square (markKey says so under the chart)
+      g += s.marks?.[i] === "pub" ? `<rect class="mk-pub" x="${x(i) - 6}" y="${y(v) - 6}" width="12" height="12" fill="${fill}" stroke="${c}" stroke-width="2">${tip}</rect>`
+        : s.marks?.[i] === "est" ? `<path class="mk-est" d="M${x(i)},${y(v) - 8}L${x(i) + 8},${y(v)}L${x(i)},${y(v) + 8}L${x(i) - 8},${y(v)}Z" fill="${fill}" stroke="${c}" stroke-width="2">${tip}</path>`
+        : `<circle cx="${x(i)}" cy="${y(v)}" r="${s.mine ? 5 : 4}" fill="${fill}" stroke="${c}" stroke-width="2">${tip}</circle>`;
     });
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(chartName(series.map((x) => x.name), years))}">${g}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(chartName(series.map((x) => x.name), years))}">${g}${tags}</svg>`;
 }
 
-function stackedBars(years, keys, rows, { normalize = true, h = 190 } = {}) {
-  const W = 440, H = h, L = 36, R = 10, T = 10, B = 24;
+function stackedBars(years, keys, rows, { normalize = true, h = PHONE_CHART() ? 240 : 190 } = {}) {
+  const W = 440, H = h, L = normalize ? 48 : 36, R = 10, T = 10, B = 24;
   const n = years.length, slot = (W - L - R) / n, bw = Math.min(46, slot * 0.6);
   const totals = rows.map((r) => r ? keys.reduce((a, k) => a + (r[k.key] || 0), 0) : 0);
   const max = normalize ? 100 : Math.max(1, ...totals);
   const y = (v) => T + (H - T - B) * (1 - v / max);
   let g = "";
-  for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}${normalize ? " %" : ""}</text>`; }
   rows.forEach((r, i) => {
     const cx = L + slot * i + slot / 2;
     g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${years[i]}</text>`;
     if (!r || !totals[i]) { g += `<text x="${cx}" y="${y(max / 2)}" text-anchor="middle">n.d.</text>`; return; }
     let acc = 0;
-    keys.forEach((k, ki) => {
+    keys.map((k, ki) => [k, ki]).reverse().forEach(([k, ki]) => {          // the first key on top: the legend reads top to bottom
       const raw = r[k.key] || 0, v = normalize ? 100 * raw / totals[i] : raw;
       if (v <= 0) return;
       const y0 = y(acc + v), hgt = y(acc) - y(acc + v);
-      g += `<rect x="${cx - bw / 2}" y="${y0}" width="${bw}" height="${Math.max(hgt - 1, 0.5)}" fill="${k.color || COLORS[ki]}"><title>${esc(k.name)} ${years[i]} : ${fmt(raw)}${normalize ? ` (${fmt(v, 1)} %)` : ""}</title></rect>`;
+      g += `<rect x="${cx - bw / 2}" y="${y0}" width="${bw}" height="${Math.max(hgt - 1, 0.5)}" fill="${k.color || COLORS[ki]}" stroke="var(--edge)" stroke-width="1"><title>${esc(k.name)} ${years[i]} : ${fmt(raw)}${normalize ? ` (${fmt(v, 1)} %)` : ""}</title></rect>`;
+      if (normalize && v >= 12) {
+        const my = (y0 + y(acc)) / 2;
+        g += `<rect class="seg-chip" x="${cx - 19}" y="${my - 9}" width="38" height="18" rx="2"/><text class="seg-lbl" x="${cx}" y="${my + 4.5}" text-anchor="middle">${fmt(v, 0)} %</text>`;
+      }
       acc += v;
     });
     if (r.low_n_flag) g += `<text x="${cx}" y="${y(acc) - 4}" text-anchor="middle">n&lt;${META.low_n_threshold}</text>`;
@@ -560,7 +581,10 @@ function stackedBars(years, keys, rows, { normalize = true, h = 190 } = {}) {
 
 const legend = (items) => `<div class="legend">${items.map((k, i) => `<span><i style="background:${k.color || COLORS[i]}"></i>${esc(k.name)}</span>`).join("")}</div>`;
 // the legend of a line chart: the same colour AND the same dash as the line
-const lineLegend = (items) => `<div class="legend">${items.map((k, i) => `<span><svg class="lg-line" viewBox="0 0 22 8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${k.color || COLORS[i]}" stroke-width="2.5"${seriesDash(k, i) ? ` stroke-dasharray="${seriesDash(k, i)}"` : ""}/></svg>${esc(k.name)}</span>`).join("")}</div>`;
+const lineLegend = (items) => `<div class="legend">${items.map((k, i) => `<span${k.mine ? ' class="lg-mine"' : ""}><svg class="lg-line" viewBox="0 0 22 8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${k.color || COLORS[i]}" stroke-width="2.5"${seriesDash(k, i) ? ` stroke-dasharray="${seriesDash(k, i)}"` : ""}/></svg>${esc(k.name)}</span>`).join("")}</div>`;
+
+// the key of a line whose years mix the formation's own report (square) and an estimation (diamond): words + the two marks
+const markKey = (c) => `<p class="muted small mk-key"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="${c}" stroke="${c}" stroke-width="2"/></svg> carré : chiffre publié par le rapport public de la formation cette année-là · <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6,1L11,6L6,11L1,6Z" fill="${c}" stroke="${c}" stroke-width="1.5"/></svg> losange : estimation</p>`;
 
 function benchBar(p) {
   if (!p.n_peers) return `<span class="muted small">pas de pairs</span>`;
@@ -1292,26 +1316,56 @@ function semblablesJuryCard(sem, rp) {
     <p class="muted small">Des comptes de rapports, jamais une moyenne ni une note : ils décrivent l'examen des dossiers dans des formations semblables, pas des chances d'admission.</p></div>`;
 }
 // the 4-year curves of the evolution page: each route for this formation, the student's doublette in the group
-function doubletteCharts(d, years, sem, rp) {
+// owner, 2026-11-22: the student's pair, year by year: the formation's OWN report of that campaign (its bac général table: the pair's
+// line, else its « Autres » line; a table without either = no point, never an estimate), else the formation page's estimate
+// (similar formations first, then the national group). A published figure replaces the estimate THAT year, never beside it.
+function pairByYear(rps, years, dk) {
+  return years.map((y) => {
+    const rp = (rps || []).find((x) => x.session === y);
+    if (!dk || !rp || !ownHasBg(rp)) return null;
+    const r = pickRapport(rp, dk);
+    return r ? { ...r, session: y } : { absent: true, session: y };
+  });
+}
+function doubletteCharts(d, years, sem, rps, part) {
   if (!d) return "";
   const at = (trend, k) => years.map((y) => { const r = trend.find((x) => x.session === y); return r ? r[k] : null; });
-  const series = ["bg", "bt", "bp"].map((s) => ({ name: VOIES[s].label, color: VOIES[s].color, values: at(d.series[s].trend, "taux"),
-    hollow: at(d.series[s].trend, "candidats").map((c) => (c || 0) < DBL_SEUIL) }));
+  const bp0 = bacProfile(), myRoute = bp0 && bp0.serie;
+  const series = ["bg", "bt", "bp"].map((s, i) => ({ name: `${VOIES[s].label}${myRoute === s ? " (votre bac)" : ""}`, color: VOIES[s].color, dash: ["", "6 4", "2 3"][i],
+    mine: myRoute === s, tag: myRoute === s ? "votre bac" : "", values: at(d.series[s].trend, "taux"), hollow: at(d.series[s].trend, "candidats").map((c) => (c || 0) < DBL_SEUIL) }));
   let second = "";
-  if (d.status === "ok") {
-    const g = d.groupe, mine = pickDoublette(g, profileDkey(bacProfile()));
-    const lines = [{ name: "Tous les bacheliers généraux du groupe", color: "var(--c4)", dash: "2 3", values: at(g.tous.trend, "taux") }];
-    const dk = profileDkey(bacProfile());
-    // the formation page's estimate: none beside a published figure, the similar formations first, then the national group
-    const sEst = ownHasBg(rp) ? null : estimateSemblable(d.series, sem, dk);
-    const est = ownHasBg(rp) ? null : sEst || estimateDoublette(d.series, g, dk);
-    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres paires de spécialités, groupe national (estimation)" : `Vos spécialités : ${mine.label}, groupe national`, color: "var(--c2)", dash: "6 4", values: at(mine.trend, "taux") });
-    if (est) lines.unshift({ name: sEst ? `Vos deux spécialités dans cette formation (estimation, ${fmt(sEst.n_rapports)} rapports de formations semblables)` : "Vos deux spécialités dans cette formation (estimation)", color: "var(--c1)", dash: "", values: at(est.trend, "taux") });
-    second = `<div class="card"><h3>Vos deux spécialités : cette formation (estimation) et le groupe « ${esc(g.label)} » (national)</h3>${lineLegend(lines)}${lineChart(years, lines)}
-      <p class="muted small">${DBL_CAVEAT}</p></div>`;
+  const dk = profileDkey(bp0), g = d.status === "ok" ? d.groupe : null, own = pairByYear(rps, years, dk);
+  if (!dk && !(myRoute && myRoute !== "bg") && g) {                 // no pair yet: a short prompt, not a chart of the group alone
+    second = `<div class="card"><h2>Vos deux spécialités, année par année</h2><p class="small"><a href="#/profil">Indiquez vos deux spécialités dans «\u00a0Mon profil\u00a0»</a> pour voir, année par année, la part des candidats qui les avaient et ont reçu une proposition ici.</p></div>`;
+  } else if ((g || own.some(Boolean)) && !(myRoute && myRoute !== "bg")) {   // pairs of specialties exist for the bac général only
+    const lines = g ? [{ name: "Tous les bacheliers généraux du groupe", color: EVO.ref, dash: "4 3", values: at(g.tous.trend, "taux") }] : [];
+    const mine = g ? pickDoublette(g, dk) : null;
+    // the formation page's estimate, for the years the formation's own report does not cover
+    const sEst = estimateSemblable(d.series, sem, dk);
+    const est = sEst || (g ? estimateDoublette(d.series, g, dk) : null);
+    if (mine) lines.unshift({ name: mine.source === "autres" ? "Autres paires de spécialités, groupe national (estimation)" : `Vos spécialités : ${mine.label}, groupe national`, color: EVO.k2, dash: "6 4", values: at(mine.trend, "taux") });
+    const estAt = est ? at(est.trend, "taux") : years.map(() => null);
+    const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : estAt[i]));
+    const marks = own.map((o) => (o && !o.absent ? "pub" : "est"));
+    const notes = own.map((o, i) => (o ? (o.absent ? "" : `publié : ${fmt(o.en_position)} classés assez haut pour recevoir une proposition sur ${fmt(o.confirmes)} confirmés${o.source === "autres" ? ", ligne « Autres paires de spécialités » du rapport" : ""}`)
+      : estAt[i] != null ? "estimation" : ""));
+    const pubYears = own.filter((o) => o && !o.absent).map((o) => o.session), absentYears = own.filter((o) => o && o.absent).map((o) => o.session);
+    const yl = (a) => (a.length > 1 ? `${a.slice(0, -1).join(", ")} et ${a[a.length - 1]}` : `${a[0]}`);   // « 2024 et 2025 »
+    if (vals.some((v) => v != null)) {
+      lines.unshift({ name: "Vos deux spécialités dans cette formation", color: EVO.k1, dash: "", mine: true, tag: "vous", values: vals, marks,
+        hollow: own.map((o) => !!o && !o.absent && (o.confirmes || 0) < DBL_SEUIL), notes });
+    }
+    const said = [
+      pubYears.length ? `En ${yl(pubYears)} : chiffre du rapport public de la formation. C'est la part de ses candidats confirmés avec vos deux spécialités classés assez haut pour recevoir une proposition. Le rapport ne compte que les élèves de terminale en France.` : "",
+      absentYears.length ? `En ${yl(absentYears)}, le rapport de la formation ne détaille pas votre paire ni ses « Autres paires » : pas de point cette année-là.` : "",
+      est && vals.some((v, i) => v != null && marks[i] === "est") ? `Les autres années : ${estimTag(sEst ? `taux de proposition des bacheliers généraux de la formation × ce que donnent vos spécialités dans ${fmt(sEst.n_rapports)} rapports de formations semblables` : "taux de proposition des bacheliers généraux de la formation × ce que donnent vos spécialités dans le groupe national")}.` : "",
+    ].filter(Boolean).map((t) => `<p class="small">${t}</p>`).join("");
+    second = `<div class="card"><h2>Vos deux spécialités, année par année</h2><p class="small chart-cap">Part des candidats ayant reçu une proposition, cette formation${g ? ` et le groupe «\u00a0${esc(g.label)}\u00a0» (national)` : ""}. Des résultats passés, pas une chance.</p>${lineLegend(lines)}${lineChart(years, lines)}
+      ${vals.some((v) => v != null) ? markKey(EVO.k1) : ""}${said ? `<details class="dip"><summary>Comment lire cette courbe</summary>${said}<p class="muted small">${DBL_CAVEAT}</p></details>` : `<p class="muted small">${DBL_CAVEAT}</p>`}</div>`;
   }
-  return `<div class="card"><h3>Taux de proposition par voie de bac (cette formation)</h3>${lineLegend(series)}${lineChart(years, series)}
-    <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats de la voie cette année-là.</p></div>${second}`;
+  const voies = `<div class="card"><h2>Taux de proposition par voie de bac (cette formation)</h2>${lineLegend(series)}${lineChart(years, series)}
+    <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats de la voie cette année-là. Une voie à peu de candidats est rare, pas fermée. Des taux passés, pas une chance.</p></div>`;
+  return part === "paire" ? second : part === "voies" ? voies : voies + second;
 }
 
 // ---- Sprint "Carte": the formations of one filière on an OpenStreetMap map, coloured by the student's zone ----
@@ -3399,35 +3453,95 @@ function timingCard(r, history) {
 
 const SERIES = [{ key: "acc_bg", name: "Bac général", color: "var(--voie-bg)" }, { key: "acc_bt", name: "Bac techno", color: "var(--voie-bt)" },
   { key: "acc_bp", name: "Bac pro", color: "var(--voie-bp)" }];
-const MENTIONS = [{ key: "acc_tbf", name: "TB félicitations" }, { key: "acc_tb", name: "Très bien" }, { key: "acc_b", name: "Bien" },
-  { key: "acc_ab", name: "Assez bien" }, { key: "acc_sansmention", name: "Sans mention" }, { key: "acc_mention_non_renseignee", name: "Non renseignée" }];
+// owner, 2026-11-22: the evolution charts are coloured (the grey ramp was unreadable): k1-k3 + the neutral reference k4, each line
+// also with its own dash; mentions on a sequential ramp (m1 = TB félicitations, darkest) and the unknown ones in a neutral grey
+const EVO = { k1: "var(--k1)", k2: "var(--k2)", k3: "var(--k3)", ref: "var(--k4)" };
+const MENTIONS = [{ key: "acc_tbf", name: "TB félicitations", color: "var(--m1)" }, { key: "acc_tb", name: "Très bien", color: "var(--m2)" },
+  { key: "acc_b", name: "Bien", color: "var(--m3)" }, { key: "acc_ab", name: "Assez bien", color: "var(--m4)" },
+  { key: "acc_sansmention", name: "Sans mention", color: "var(--m5)" }, { key: "acc_mention_non_renseignee", name: "Non renseignée", color: "var(--c5)" }];
+// owner, 2026-11-22: year by year, the share of the néo-bachelier admits (mention known) whose mention is the student's or lower
+// (published counts), the share strictly below, and with an average the estimate below it (positionMoyenne, R5: the curve centred
+// in the band; the uniform spread gives the other end, in the tooltip). Shares of admits, never a chance: SIES publishes no marks
+// and no candidates by mention. All bacs: mentions are not published by series. The average never leaves the browser (R6).
+function mentionYears(rows, vp) {
+  const band = vp.mention === "rattrapage" ? "sansmention" : vp.mention, g = vp.moyenne;
+  return rows.map((r) => {
+    const counts = r ? Object.fromEntries(LADDER.map((m) => [m, r[`acc_${m}`] || 0])) : null;
+    const n = counts ? LADDER.reduce((a, m) => a + counts[m], 0) : 0;
+    if (!n) return null;
+    let below = 0;
+    for (const m of LADDER) { if (m === band) break; below += counts[m]; }
+    const pm = g !== null && g !== undefined ? positionMoyenne(counts, g) : null;
+    return { n, below: 100 * below / n, upto: 100 * (below + counts[band]) / n,
+      moy: pm ? 100 * pm.normale : null, moyRange: pm ? [100 * Math.min(pm.normale, pm.uniforme), 100 * Math.max(pm.normale, pm.uniforme)] : null };
+  });
+}
+function mentionEvolutionCard(years, rows) {
+  const raw = store.get("profile", null);
+  if (isReo(raw)) return "";
+  const p = bacProfile(), known = !!p && (validMoyenne(p.moyenne) !== null || MENTION_CODES.includes(p.mention));   // never vxProfile's default band
+  const vp = known ? vxProfile(p) : null;
+  const head = `<h2>Vous parmi les admis : leur mention au bac, comparée à la vôtre</h2>`;
+  if (!vp) return `<div class="card">${head}<p class="small"><a href="#/profil">${p ? "Indiquez votre mention visée dans « Mon profil »" : "Créez votre profil"}</a> pour voir, année par année, la part des admis dont la mention était la vôtre ou plus basse.</p></div>`;
+  const band = vp.mention === "rattrapage" ? "sansmention" : vp.mention, M = MENTION_SHORT[band];
+  const ys = mentionYears(rows, vp), small = ys.map((x) => !!x && x.n < 20);
+  const withAvg = vp.moyenne !== null;
+  const lines = [{ name: `Mention «\u00a0${M}\u00a0» ou moins`, color: EVO.k1, dash: "", mine: !withAvg, tag: withAvg ? "" : "vous", values: ys.map((x) => (x ? x.upto : null)), hollow: small }];
+  if (band !== "sansmention") lines.push({ name: `Mention plus basse que «\u00a0${M}\u00a0»`, color: EVO.ref, dash: "4 3", values: ys.map((x) => (x ? x.below : null)), hollow: small });
+  if (vp.moyenne !== null) {
+    lines.push({ name: `Note en dessous de ${moyenneText(vp.moyenne)} (estimation)`, color: EVO.k3, dash: "6 4", mine: true, tag: "vous", marks: ys.map(() => "est"), values: ys.map((x) => (x ? x.moy : null)), hollow: small,
+      notes: ys.map((x) => (x ? `estimation : entre ${pc1(x.moyRange[0] / 100)} et ${pc1(x.moyRange[1] / 100)} selon la répartition des notes dans la mention` : "")) });
+  }
+  const li = ys.reduce((k, x, i) => (x ? i : k), -1), last = li >= 0 ? ys[li] : null;
+  const sentence = last ? `<p>En ${esc(years[li])}, ${last.moy !== null ? `environ <strong>${fmt(last.moy, 0)} %</strong> des ${fmt(last.n)} admis néo-bacheliers dont la mention est connue avaient une note en dessous de ${moyenneText(vp.moyenne)} (estimation), et ${fmt(last.upto, 0)} %` : `<strong>${fmt(last.upto, 0)} %</strong> des ${fmt(last.n)} admis néo-bacheliers dont la mention est connue`} avaient « ${esc(M)} » ou moins${band === "sansmention" && vp.mention === "rattrapage" ? " (le bac au rattrapage est compté avec « sans mention »)" : ""}.${last.n < 20 ? ` <span class="badge warnb">peu d'admis (${fmt(last.n)}) : repère fragile</span>` : ""}</p>` : "";
+  return `<div class="card">${head}${sentence}
+    <p class="small chart-cap">Part des admis néo-bacheliers, mention connue. Des parts d'admis, pas une chance.</p>
+    ${lineLegend(lines)}${lineChart(years, lines)}
+    ${vp.moyenne !== null ? estimTag(`losanges : votre moyenne placée dans votre mention`, true) : ""}
+    <details class="dip"><summary>Comment lire cette courbe</summary>
+    <p class="small">Plus la part est haute, plus les admis de la formation avaient une mention comme la vôtre ou plus basse.</p>
+    ${vp.moyenne !== null ? `<p class="small">La courbe en tirets place votre moyenne de ${moyenneText(vp.moyenne)} à l'intérieur de votre mention. SIES ne publie pas les notes : c'est une estimation.</p>` : ""}
+    <p class="muted small">Calculé avec les nombres d'admis publiés par mention, tous bacs confondus : les mentions ne sont pas publiées par série. Points creux : moins de 20 admis dont la mention est connue. Des parts d'admis, pas des chances d'admission.</p></details></div>`;
+}
 
+// one plain sentence under the title: the official access rate of the first and the latest campaign with one (published figures)
+function evoTakeaway(years, rates) {
+  const idx = rates.map((v, i) => (v == null ? -1 : i)).filter((i) => i >= 0);
+  if (idx.length < 2) return "";
+  const a = idx[0], b = idx[idx.length - 1];
+  return `<p>Taux d'accès officiel : <strong>${fmt(rates[a], 0)} %</strong> en ${esc(years[a])}, <strong>${fmt(rates[b], 0)} %</strong> en ${esc(years[b])}.</p>`;
+}
 async function viewEvolution(cod) {
   const f = await api(`/api/formation/${encodeURIComponent(cod)}`);
   const lin = await api(`/api/lineage/${encodeURIComponent(f.record.lineage_id)}`);
   const years = META.years, by = Object.fromEntries(lin.years.map((r) => [r.session, r]));
   const rows = years.map((y) => by[y] || null), col = (k) => rows.map((r) => r ? r[k] : null);
   const hollow = rows.map((r) => r ? r.low_n_flag : false);
+  const accesLines = [{ name: "Taux d'accès", color: EVO.k1, dash: "", values: col("taux_acces_ens") },
+    { name: "Part des terminales générales parmi les appelés", color: EVO.k3, dash: "6 4", values: col("part_terminale_generale_en_position_admis_pp") }];
+  const socialLines = [["pct_bours", EVO.k1, ""], ["pct_f", EVO.k2, "6 4"], ["pct_aca_orig", EVO.k3, "2 3"], ["pct_etab_orig", EVO.ref, "8 3 2 3"]]
+    .map(([k, color, dash]) => ({ name: label(k), color, dash, values: col(k), hollow }));
   $view.innerHTML = `
   <div class="card"><h1>Évolution de la cohorte 2022–2025</h1>
     <div><a href="#/f/${esc(f.record.cod_aff_form)}">${esc(f.record.g_ea_lib_vx)}</a> · ${esc(f.record.lib_for_voe_ins)}</div>
-    <div class="muted small">Lignée ${esc(lin.lineage_id)} · ${lineageBadge(f.record.lineage_confidence)}
+    ${evoTakeaway(years, col("taux_acces_ens"))}
+    <div class="muted small">${f.record.lineage_confidence === "inferred_uai_track_match" ? "La même formation suivie d'une année à l'autre : son code a changé, le lien est déduit" : "La même formation, avec le même code, chaque année"}
     ${lin.missing_years.length ? ` · absente en ${lin.missing_years.join(", ")} (aucune interpolation)` : ""}</div></div>
   ${f.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
   <div class="charts">
-    <div class="card"><h2>Taux d'accès &amp; part des terminales générales parmi les candidats appelés (PP) ${tip("taux_acces_ens")}</h2>
-      ${lineLegend([{ name: "Taux d'accès" }, { name: "Part des terminales générales parmi les appelés" }])}
-      ${lineChart(years, [{ name: "Taux d'accès", values: col("taux_acces_ens") }, { name: "Part term. gén.", values: col("part_terminale_generale_en_position_admis_pp") }])}</div>
-    <div class="card"><h2>Admis néo-bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
-    ${doubletteCharts(f.doublettes, years, f.semblables, f.rapport)}
+    ${doubletteCharts(f.doublettes, years, f.semblables, lin.rapports, "paire")}
+    ${mentionEvolutionCard(years, rows)}
+    <div class="card"><h2>Taux d'accès, et part des bacs généraux parmi les appelés ${tip("taux_acces_ens")}</h2>
+      ${lineLegend(accesLines)}${lineChart(years, accesLines)}</div>
+    ${doubletteCharts(f.doublettes, years, f.semblables, lin.rapports, "voies")}
     <div class="card"><h2>Admis par mention au bac ${tip("mentions")}</h2>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
+    <div class="card"><h2>Admis néo-bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
     <div class="card"><h2>Boursiers, femmes, origine</h2>
-      ${lineLegend([{ name: "% boursiers" }, { name: "% femmes" }, { name: "% même académie" }, { name: "% même établissement" }])}
-      ${lineChart(years, ["pct_bours", "pct_f", "pct_aca_orig", "pct_etab_orig"].map((k) => ({ name: label(k), values: col(k), hollow })))}
+      ${lineLegend(socialLines)}${lineChart(years, socialLines)}
       <p class="muted small">Points creux : moins de ${META.low_n_threshold} admis. ${tip("low_n")}</p></div>
-    <div class="card"><h2>Effectifs (trois étapes, non ratio-ables) ${tip("funnel")}</h2><div class="scroll"><table>
+    <div class="card"><h2>Combien de candidats à chaque étape ${tip("funnel")}</h2><div class="scroll"><table>
       <tr><th><span class="sr-only">Effectif</span></th>${years.map((y) => `<th class="num">${y}</th>`).join("")}</tr>
-      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_neobac", "acc_term", "acc_brs", "capa_fin"].map((k) => `<tr><td>${esc(label(k))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
+      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_neobac", "acc_term", "acc_brs", "capa_fin"].filter((k) => col(k).some((v) => v != null)).map((k) => `<tr><td>${esc(label(k).replace(" (PP)", " (phase principale)"))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
     </table></div></div>
   </div>`;
 }

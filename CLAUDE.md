@@ -811,6 +811,16 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   (none when one station serves both ends); the plane (from 500 km or across the sea) and the ferry have no public
   price: a line without a figure; NO carpooling or bus line (owner, 2026-11-18: no public data); no
   third-party route planner such as Rome2rio; official open data only, refreshed monthly). Card in « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
+- **Évolution de la cohorte (owner, 2026-11-22).** The evolution charts are COLOURED: categorical `--k1..--k4` (k4 = neutral
+  reference) and the mention ramp `--m1..--m5` (TB félicitations darkest in BOTH themes), every theme block + print, each >= 60 from zones, routes and
+  accent, lines >= 3:1, apart under three colour-blindnesses, each line its own dash (an exception to R4's grey ramp, for this page
+  only; routes keep `--voie-*`). « Vous parmi les admis » (`mentionYears`): per year, admits (néo-bacheliers, mention known) with the
+  student's mention or lower / strictly lower from published counts; with an average the R5 estimate below it; all bacs; browser only.
+  The pair per year (`pairByYear`, `/api/lineage` `rapports` = `rapports.lineage_pairs`: THAT code's report of THAT session,
+  cross-checked): own line, else « Autres » (never beside an unknown label), else no point; other years the page's estimate; a published
+  point is a square, an estimate a diamond, never both the same year. The student's curve is heavier, tagged « vous » / « votre bac »;
+  personal cards first; no pair card for a bac techno / pro profile. Red team `redteam_evolution.py` (EV1-EV12; quality >= 90 = 0.6 measured
+  + 0.4 independent screenshot review `scripts/evolution_review.json`, the review alone >= 80).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

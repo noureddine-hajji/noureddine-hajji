@@ -796,7 +796,8 @@ def lineage(lineage_id: str):
                     WHERE l.lineage_id = ? ORDER BY k.session_from""", [lineage_id])
     present = {r["session"] for r in res}
     return {"lineage_id": lineage_id, "years": res, "links": links,
-            "missing_years": [y for y in config.YEARS if y not in present]}
+            "missing_years": [y for y in config.YEARS if y not in present],
+            "rapports": RP.lineage_pairs(_con().cursor(), res)}
 
 
 @app.get("/api/compare")

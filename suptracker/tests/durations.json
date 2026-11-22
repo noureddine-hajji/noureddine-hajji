@@ -18,6 +18,7 @@
  "tests/test_design.py": 0,
  "tests/test_doublettes.py": 1184,
  "tests/test_emploi2030.py": 716,
+ "tests/test_evolution.py": 60,
  "tests/test_filtres.py": 601,
  "tests/test_filtres_mentions.py": 13,
  "tests/test_grilles.py": 53,
