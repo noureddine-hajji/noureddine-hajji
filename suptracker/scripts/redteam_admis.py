@@ -301,8 +301,8 @@ JS_MUTANTS = [
     ("comparator row dropped", '    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],\n', ""),
     ("chance wording", "Néo-bacheliers : ils passaient le bac", "Vous serez admis : ils passaient le bac"),
 ]
-CSS_MUTANTS = [("zone colour reused", "--adm-autres: #a8683c;", "--adm-autres: #b9460f;"),
-               ("dark theme token missing", "    --adm-neo: #a9bccb; --adm-autres: #e0a77c;\n  }", "  }")]
+CSS_MUTANTS = [("zone colour reused", "--adm-autres: #a8683c;", "--adm-autres: #c2410c;"),
+               ("dark theme token missing", "    --adm-neo: #a9bccb; --adm-autres: #e0a77c;\n    color-scheme: dark;\n  }", "    color-scheme: dark;\n  }")]
 API_MUTANTS = [("search not labelled", 'res = {**res, "results": ADM.mark(_con().cursor(), res["results"])}', "res = res"),
                ("apprenticeship offers labelled", 'only=lambda f: f.get("stats") is not False', "only=lambda f: True")]
 

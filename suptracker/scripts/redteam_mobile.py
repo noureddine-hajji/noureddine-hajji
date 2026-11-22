@@ -13,7 +13,7 @@ profile card, with a discreet "Créer mon profil"; the formation page was long, 
   MB4 sticky tabs (source): the tab bar is `position: sticky; top: 0` with an opaque background and 44 px tabs; choosing a
       tab down a long panel brings the new panel's start just under the bar.
   MB5 phone layout (browser, Pixel 5): the home's main action is on the first screen, with and without a profile; the
-      formation pages' tab bar starts within two screens (the longest titles of the latest campaign); inside <main>, exactly
+      formation pages' tab bar starts within 2.2 screens (owner, 2026-11-22; two before) (the longest titles of the latest campaign); inside <main>, exactly
       one control is filled with the call-to-action colour (--cta, style B) on the home and on a formation page; the tab bar sticks at 0 and a tab
       opened down the page shows its panel just under it; the map never covers the bottom tab bar; no horizontal scroll; no JS error.
   MB6 screen-reader reading (browser, Chromium's accessibility tree; not a real screen reader, see the README protocol):
@@ -258,7 +258,7 @@ const READER = () => {
     await page.goto(base + '/#/f/' + cod); await page.waitForSelector('[data-tabs="fiche"]', { timeout: 60000 }); await page.waitForTimeout(500);
     const t = await page.evaluate(() => ({ top: Math.round(document.querySelector('[data-tabs="fiche"]').getBoundingClientRect().top + scrollY), vh: innerHeight }));
     seen.fiches.push([cod, t.top]);
-    if (t.top > 2 * t.vh) problems.push(`fiche ${cod}: tabs start at ${t.top} px (> 2 screens of ${t.vh})`);
+    if (t.top > 2.2 * t.vh) problems.push(`fiche ${cod}: tabs start at ${t.top} px (> 2.2 screens of ${t.vh})`);   // owner, 2026-11-22: 14 px text, 2 -> 2.2
     const { lay, rd } = await evalChecks(page);
     problems.push(...lay.p.map((x) => `fiche ${cod}: ${x}`), ...rd.map((x) => `fiche ${cod}: ${x}`));
   }
@@ -348,7 +348,7 @@ def browser_results(c: Ctx):
     return c.page
 
 
-@check("MB5 phone layout (browser): main action on the first screen, tabs within two screens, one filled control, sticky, no scroll")
+@check("MB5 phone layout (browser): main action on the first screen, tabs within 2.2 screens, one filled control, sticky, no scroll")
 def mb5(c: Ctx):
     r = browser_results(c)
     if r.get("skipped"):
