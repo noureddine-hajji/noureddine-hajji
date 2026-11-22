@@ -14,7 +14,7 @@
 :root {
   --font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px;   /* the only five sizes */
+  --fs-xs: 13px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px;   /* the only five sizes */
   --r-sm: 4px; --r-md: 8px; --r-pill: 999px;                                    /* the only three radii */
   --bw: 3px; --bw-big: 4px; --sh: 4px; --sh-big: 8px;                           /* brutal edges and hard shadows */
 }
@@ -42,7 +42,7 @@
     --edge: #fffdf5;
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
-    --select: #c4b5fd; --select-ink: #000000;
+    --select: #b3a5f0; --select-ink: #000000;
     --tile-peach: #eaa27c; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
@@ -58,7 +58,7 @@
     --edge: #fffdf5;
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
-    --select: #c4b5fd; --select-ink: #000000;
+    --select: #b3a5f0; --select-ink: #000000;
     --tile-peach: #eaa27c; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
@@ -133,6 +133,8 @@ svg.chart .grid { stroke: var(--line); }
 .insights li:last-child { border-bottom: 0; }
 .chartbox { margin: 10px 0 4px; }
 svg.chart.wide { max-width: 100%; }
+#obs-trend svg.chart { max-width: 100%; }   /* reviewer: the Observatoire's trend fills its card */
+#obs-trend .legend { font-size: var(--fs-sm); }
 svg.chart .phase { fill: var(--range); }
 svg.chart .phase-l { font-size: var(--fs-xs); }
 svg.chart .xh { stroke: var(--muted); stroke-width: 1; }
@@ -848,6 +850,11 @@ a.badge { text-decoration: none; }
 .more-card > summary, details.profile > summary { border: 2px solid var(--edge); background: var(--surface); border-radius: var(--r-sm); }
 .info { background: var(--tint); border: 2px solid var(--edge); }   /* information: an edge, no shadow (shadows mark what can be pressed) */
 .warn { border: 2px solid var(--edge); border-left-width: 8px; }
+/* reviewer, 2026-11-22: the list's « aucune sécurité » alert outranks the notes under it: a thick edge, a hard shadow, a drawn « ! » */
+.warn.vx-alert { display: flex; gap: 10px; align-items: flex-start; border-width: var(--bw); box-shadow: var(--sh) var(--sh) 0 var(--edge);
+  font-weight: 700; font-size: var(--fs-md); margin: 4px 6px 12px 0; }
+.warn.vx-alert::before { content: "!"; display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--r-sm);
+  background: var(--warn-ink); color: var(--warn-bg); }
 .card.legal { max-width: none; }
 .card.legal > * { max-width: 72ch; }   /* the trust pages fill the column like every card; their text keeps a short line */
 /* the profile options: edged tiles, the chosen one pale violet with a hard shadow */
@@ -939,6 +946,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 /* profile bar: an edged band on wide screens */
 @media (min-width: 721px) {
   .profile-bar { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); padding: 6px 18px; max-width: calc(980px - 32px); }
+  body:has(.carte-layout) .profile-bar { max-width: calc(1680px - 32px); }   /* reviewer: the bar lines up with the full-width search page */
 }
 /* ---- Observatoire (owner, 2026-11-19): national overviews; the neutral ramp only (no zone, route or accent colour on data) ---- */
 .obs-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
@@ -986,6 +994,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .tabbar a, .tabbar button { border: 2px solid transparent; border-radius: var(--r-sm); color: var(--ink); min-height: 56px; font-weight: 700; box-shadow: none; }
   .tabbar a[aria-current="page"], .tabbar button.current, .tabbar button[aria-expanded="true"] { background: var(--select); color: var(--select-ink);
     border-color: var(--edge); }
+  .tabbar .pill { top: 0; left: calc(50% + 8px); }   /* reviewer: the count sits beside the icon, never over it */
   .more-menu:not([hidden]) { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .top { padding: 12px 16px; }
   .brand::before { width: 30px; height: 30px; }
@@ -1019,6 +1028,13 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .summary .sum-grid { gap: 6px; }
   .summary .sum-tile { padding: 7px 8px; border-width: 2px; }
   .summary :is(.sum-note, .sum-explain, .sum-label), .fhead-lib, .summary .small { line-height: 1.3; }
+}
+/* reviewer, 2026-11-22: below 480 px the access cell's two halves stack (official rate, then the profile's figure, each at full
+   width with its source on fewer, longer lines), split by an ink rule; the explanation sentence follows */
+@media (max-width: 480px) {
+  .summary .sum-tile.sum-acces { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+  .summary .sum-tile.sum-acces .sum-part + .sum-part { border-top: 2px solid var(--paper-ink); border-radius: 0; padding-top: 8px; }
+  .summary .sum-tile.sum-acces .sum-part.sum-profil { border-left: 0; padding-left: 6px; }
   .warn { padding: 6px 10px; margin-bottom: 6px; }
   /* the long tab panels and the result list stay within their phone budgets (red team X7): a slightly tighter leading */
   .tabpanel { line-height: 1.4; }

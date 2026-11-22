@@ -352,7 +352,7 @@ process.stdout.write(JSON.stringify([zoneAxisNote({ taux_zone_source: { taux: 62
         pair, autres, none1, none2, axis = json.loads(r.stdout)
         if "vos deux spécialités" not in pair or "62,5 %" not in pair or "<b>" in pair or "&lt;b&gt;2025" not in pair:
             bad.append(f"pair note {pair}")
-        if "autres paires de spécialités" not in autres or none1 or none2:
+        if "Autres paires de spécialités" not in autres or none1 or none2:
             bad.append("autres note, or a note without a source")
         if "20 candidats" not in axis or "taux d'accès officiel" not in axis:
             bad.append("legend sentence")
