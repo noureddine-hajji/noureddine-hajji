@@ -215,7 +215,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
-    split any red team whose single real-data file grows past ~10 min the same way.
+    split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
+    warehouse live in `tests/test_pipeline_verif.py`, each on its own `cached_build` copy (2026-11-22: three full builds in a row made
+    test_pipeline a 40-minute file).
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
   - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every hour from January to March (the vœux peak), every 6 h
