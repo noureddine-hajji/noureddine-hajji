@@ -43,7 +43,7 @@
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
     --select: #c4b5fd; --select-ink: #000000;
-    --tile-coral: #ff6b6b; --tile-yellow: #ffe680; --tile-violet: #c4b5fd;
+    --tile-coral: #ff6b6b; --tile-yellow: #eedc8c; --tile-violet: #b3a5f0;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
@@ -59,7 +59,7 @@
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
     --select: #c4b5fd; --select-ink: #000000;
-    --tile-coral: #ff6b6b; --tile-yellow: #ffe680; --tile-violet: #c4b5fd;
+    --tile-coral: #ff6b6b; --tile-yellow: #eedc8c; --tile-violet: #b3a5f0;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
@@ -480,7 +480,10 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .profile-bar .pb-link { color: var(--accent); }
 .pb-zone { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 
-.profile-bar .pb-alert { background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--r-sm); padding: 2px 8px; font-weight: 600; }
+.pb-row { display: contents; }   /* wide screens: the counts and the alert sit in the bar's own row */
+.profile-bar .pb-alert { background: var(--warn-bg); color: var(--warn-ink); border: 0; border-radius: var(--r-sm); padding: 2px 10px; font-weight: 700; gap: 8px; }
+.profile-bar .pb-alert::before { content: "!"; display: inline-grid; place-items: center; width: 20px; height: 20px; flex: none;
+  border-radius: var(--r-sm); background: var(--warn-ink); color: var(--warn-bg); font-weight: 700; }
 @media (max-width: 720px) { .profile-bar a { min-height: 44px; } }
 .sem-list { margin: 4px 0 8px; padding-left: 20px; }
 
@@ -793,7 +796,7 @@ a:hover { text-decoration-thickness: 4px; }
 .linkish { text-decoration-thickness: 2px; text-underline-offset: 3px; }
 /* the coloured tiles (L'essentiel, the home's hero and doors, coloured badges) keep the light theme's reading tokens in both
    themes: their fill stays vivid, their text ink (the paper tokens of :root) */
-.summary .sum-tile, .hero, .doors .door, .badge.statut, .badge.sel, .trajet .tj-next .tj-dot {
+.summary .sum-tile, .hero, .doors .door, .badge.statut, .badge.sel, .trajet .tj-next .tj-dot, .pf-opt:has(input:checked), .pill {
   --ink: var(--paper-ink); --muted: var(--paper-muted); --surface: var(--paper-surface); --bg: var(--paper-surface); --line: var(--paper-line);
   --line-input: var(--paper-ink); --accent: var(--paper-accent); --accent-soft: var(--paper-soft);
   --zone-securite: var(--paper-securite); --zone-cible: var(--paper-cible); --zone-ambitieux: var(--paper-ambitieux); --zone-autre: var(--paper-autre);
@@ -824,7 +827,9 @@ select, input[type="search"], input[type="text"], input[type="email"], input[typ
 .feedback button, .toolbar button {
   border: var(--bw) solid var(--edge); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font-weight: 700;
   box-shadow: var(--sh) var(--sh) 0 var(--edge); text-decoration: none; }
-button.primary, .btnlink.primary, .search button { background: var(--cta); border-color: var(--edge); color: var(--cta-ink); }
+button.primary, .btnlink.primary, .search button, .cs-go { background: var(--cta); border-color: var(--edge); color: var(--cta-ink); }
+a.badge { text-decoration: none; }
+.cs-go { margin-bottom: 6px; }   /* the hard shadow never touches the line below */
 .btnlink:hover, .btnlink:focus-visible { border-color: var(--edge); }
 .obs-pills button[aria-pressed="true"] { background: var(--select); color: var(--select-ink); border-color: var(--edge); }
 @media (prefers-reduced-motion: no-preference) {
@@ -833,14 +838,26 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 }
 .tip { border: 2px solid var(--edge); color: var(--ink); font-weight: 700; }
 .tip:hover::after, .tip:focus::after { border: 2px solid var(--edge); box-shadow: var(--shadow-tip); }
-.pill { border-radius: var(--r-sm); font-weight: 700; }
+.pill { border-radius: var(--r-sm); font-weight: 700; background: var(--tile-coral); color: var(--paper-ink); box-shadow: inset 0 0 0 1px var(--paper-ink); }
 /* cards: an ink edge and a hard shadow; inside a tab each section is a straight block with a thinner edge and no shadow */
 .card { border: var(--bw) solid var(--edge); border-radius: var(--r-md); padding: 18px 20px; box-shadow: var(--sh) var(--sh) 0 var(--edge); margin-bottom: 18px; }
 .tabpanel .card { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); box-shadow: none; padding: 18px 20px; margin: 0 0 12px; }
 .tabpanel .card:last-child { margin-bottom: 0; }
 .more-card > summary, details.profile > summary { border: 2px solid var(--edge); background: var(--surface); border-radius: var(--r-sm); }
-.info { border-left: 6px solid var(--edge); }
-.warn { border-left: 6px solid var(--warn-ink); }
+.info { background: var(--tint); border: 2px solid var(--edge); box-shadow: 3px 3px 0 var(--edge); }
+.warn { border: 2px solid var(--edge); box-shadow: 3px 3px 0 var(--edge); }
+.card.legal { max-width: none; }
+.card.legal > * { max-width: 72ch; }   /* the trust pages fill the column like every card; their text keeps a short line */
+/* the profile options: edged tiles, the chosen one pale violet with a hard shadow */
+.pf-opt { border: 2px solid var(--edge); border-radius: var(--r-sm); background: var(--surface); }
+.pf-opt:has(input:checked) { background: var(--select); border-color: var(--edge); box-shadow: var(--sh) var(--sh) 0 var(--edge); }
+.pf-opt:focus-within, a.pf-opt:hover, a.pf-opt:focus-visible { border-color: var(--edge); box-shadow: var(--sh) var(--sh) 0 var(--edge); }
+/* a fold says it folds: + closed, − open, like the job page's diplomas */
+.zone-legend summary, .adm-more summary { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; list-style: none; }
+.zone-legend summary::-webkit-details-marker, .adm-more summary::-webkit-details-marker { display: none; }
+.zone-legend summary::after, .adm-more summary::after { content: "+"; margin-left: 8px; font-size: var(--fs-lg); text-decoration: none; display: inline-block; }
+.zone-legend[open] > summary::after, .adm-more[open] > summary::after { content: "−"; }
+main { min-height: 70vh; }   /* a page still loading keeps the footer below the first screen */
 /* the home: a violet hero with a big shadow and the one yellow action; the doors as coloured tiles, titles in capitals */
 .hero { background: var(--tile-violet); border: var(--bw-big) solid var(--edge); border-radius: var(--r-md); padding: 24px 20px;
   box-shadow: var(--sh-big) var(--sh-big) 0 var(--edge); margin: 4px 8px 22px 0; }
@@ -878,15 +895,13 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
    pale yellow (the tiles read with the paper tokens above) */
 .card.summary { background: var(--surface); color: var(--ink); border: var(--bw-big) solid var(--edge); box-shadow: var(--sh-big) var(--sh-big) 0 var(--edge);
   margin: 0 8px 22px 0; }
-.summary > h2 { text-transform: uppercase; letter-spacing: .02em; }
 .summary .sum-tile { background: var(--tile-yellow); border: var(--bw) solid var(--edge); border-radius: var(--r-sm); color: var(--paper-ink); }
 .summary .sum-tile.sum-acces { background: var(--tile-coral); }
 .summary .sum-tile.sum-rob { background: var(--tile-violet); }
 .summary .sum-tile:hover, .summary .sum-tile:focus-visible { box-shadow: var(--sh) var(--sh) 0 var(--edge); }
 .summary .sum-tile.sum-acces:hover { background: var(--tile-coral); }
 .summary .sum-part:hover, .summary .sum-part:focus-visible { background: var(--paper-surface); }
-.summary .sum-part.sum-profil { box-shadow: inset 0 0 0 2px var(--paper-ink); }
-.summary .zone-pill { color: var(--paper-surface); }
+.summary .sum-part.sum-profil { box-shadow: none; border-left: 2px solid var(--paper-ink); border-radius: 0; padding-left: 12px; }
 .sum-tile { border-radius: var(--r-sm); }
 .sum-label { text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--fs-xs); }
 .zone-pill { box-shadow: inset 0 0 0 2px var(--paper-ink); }
@@ -918,7 +933,7 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
 .rc-badges .badge:nth-child(even) { transform: rotate(1.5deg); }
 /* profile bar: an edged band on wide screens */
 @media (min-width: 721px) {
-  .profile-bar { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); padding: 6px 18px; }
+  .profile-bar { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); padding: 6px 18px; max-width: calc(980px - 32px); }
 }
 /* ---- Observatoire (owner, 2026-11-19): national overviews; the neutral ramp only (no zone, route or accent colour on data) ---- */
 .obs-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
@@ -985,7 +1000,37 @@ button.primary, .btnlink.primary, .search button { background: var(--cta); borde
   .summary .sum-tile { padding: 10px; }
   .summary .sum-note, .summary .sum-explain { line-height: 1.4; }
   .summary .adm { gap: 4px; margin-top: 8px; }
-  .card.fhead { margin-bottom: 10px; }
-  .card.fhead, .card.summary { padding-top: 12px; padding-bottom: 12px; }
+  .card.fhead { margin-bottom: 8px; }
+  .fhead .toolbar { margin-top: 6px; }
+  .fhead h1 { margin-bottom: 2px; }
+  .card.fhead, .card.summary { padding-top: 10px; padding-bottom: 10px; }
   .summary > h2 { margin-bottom: 4px; }
+  /* Space Grotesk sets wider than the earlier body face: the summary's notes and the official title read a little tighter */
+  .card.summary { margin-bottom: 14px; }
+  .card.summary, .card.fhead { line-height: 1.4; }
+  .summary .sum-grid { gap: 6px; }
+  .summary .sum-tile { padding: 7px 8px; border-width: 2px; }
+  .summary :is(.sum-note, .sum-explain, .sum-label), .fhead-lib, .summary .small { line-height: 1.3; }
+  .warn { padding: 6px 10px; margin-bottom: 6px; }
+  /* the long tab panels and the result list stay within their phone budgets (red team X7): a slightly tighter leading */
+  .tabpanel, .carte-results { line-height: 1.4; }
+  .tabpanel .card { margin-bottom: 6px; }
+  table.stack tr { padding: 6px 0; }
+  table.stack td { padding: 1px 0; }
+  .result.rc.carte-rc { padding: 7px 10px; margin-bottom: 7px; border-top-width: 2px; border-bottom-width: 2px; border-right-width: 2px; }
+  .rc-badges .badge { padding: 0 6px; line-height: 1.35; }
+  .tabpanel p, .carte-results p { margin-block: 0.6em; }
+  .summary .sum-grid { margin-top: 6px; }
+  /* the profile bar in two rows: the profile, then the list's alert and zone counts on one swipeable line */
+  .profile-bar { flex-wrap: nowrap; align-items: flex-start; }
+  .profile-bar .pb-who { flex: 0 1 45%; min-width: 0; }
+  .pb-row { display: flex; flex: 1 1 55%; min-width: 0; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+  .pb-row > a, .pb-row > span { flex-wrap: wrap; }
+  .pb-row .pb-alert { order: -1; }
+  .profile-bar .pb-who { line-height: 1.3; }
+  .pb-sep { display: none; }   /* the counts are separated by their gap on a phone, never a dot at a line end */
+  .pb-list { column-gap: 10px; }
+  .profile-bar .pb-alert { flex: 1 1 100%; }
+  p.home-profile.small { display: none; }   /* the profile bar above says the same on a phone */
+  .fhead .toolbar button { white-space: nowrap; flex: 1 1 auto; }
 }

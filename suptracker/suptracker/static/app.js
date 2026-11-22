@@ -453,10 +453,10 @@ const profileBar = {
         const alert = d.lecture.messages.some((m) => m.code === "aucune_securite")
           ? `<a class="pb-alert" href="#/voeux">Aucun vœu de sécurité sûr</a>` : "";
         // WCAG 2.5.3 (axe, 2026-11-19): the accessible name CONTAINS the visible text; the explanation is hidden text, never an aria-label
-        list = `<a class="pb-list" href="#/voeux">Mes vœux : ${parts.join(" · ")}<span class="sr-only"> (zones pour votre profil)</span></a>${alert}`;
+        list = `<a class="pb-list" href="#/voeux">Mes vœux : ${parts.join('<span class="pb-sep"> · </span>')}<span class="sr-only"> (zones pour votre profil)</span></a>${alert}`;
       }
     }
-    el.innerHTML = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a>${list}`;
+    el.innerHTML = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a><span class="pb-row">${list}</span>`;
   },
 };
 // R1 (owner, 2026-11-11): the profile chip of the wide-screen header, read from the same stored profile as the bar (escaped,
