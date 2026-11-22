@@ -321,7 +321,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   tables and figures straight. Space Grotesk everywhere (latin + latin-ext faces, OFL). ONE yellow call to action per page (`--cta`
   `#ffd93d`, ink text; only `CTA_OK` selectors; red team MB counts them). Tiles: peach (`--tile-peach`, the access cell), pale yellow,
   pale violet, ink text in both themes through the scoped `--paper-*` tokens. Links ink, 2 px underline; selected states (tab, view,
-  filter, menu, phone bar) `--select` `#c4b5fd` + ink edge; `--accent` = focus ring (`#5b21b6`, dark `#e033ff`), >= 60 apart from the
+  filter, menu, phone bar) `--select` `#c4b5fd` + ink edge; `--accent` = focus ring (`#a3005c`, dark `#e033ff`), >= 60 apart from the
   zones, the bac routes and the ramp. Dark: near-black ground, cream edges and shadows, tiles slightly dimmed. Motion: the press
   (`:active` translate) only inside `prefers-reduced-motion: no-preference`, no transition. Phone: the profile bar folds to one line
   (`.pb-toggle`, counts by their marks, « ! » from the server's `aucune_securite`), secondary text 14 px, budgets formation <= 14 screens,

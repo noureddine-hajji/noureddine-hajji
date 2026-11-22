@@ -22,7 +22,7 @@
   --bg: #fffdf5; --surface: #ffffff; --ink: #000000; --muted: #47464f; --line: #d9d6cc;
   --line-input: #000000;                                                      /* R8: form fields' edge, >= 3:1 (1.4.11) */
   --edge: #000000;                                                            /* the brutal border and shadow colour */
-  --accent: #5b21b6;
+  --accent: #a3005c;
   --cta: #ffd93d; --cta-ink: #000000; --tint: #f1eee2;
   --select: #c4b5fd; --select-ink: #000000;                                   /* a selected tab, filter, menu entry */
   --tile-peach: #ffb38a; --tile-yellow: #fff1a8; --tile-violet: #c4b5fd;      /* coloured tiles: ink text in both themes */
@@ -33,7 +33,7 @@
   --good: #0b7a3b; --bad: #b3261e; --warn: #8a5a00;
   --adm-neo: #4f6475; --adm-autres: #a8683c;
   /* paper: the light theme's reading tokens, re-pointed inside every coloured tile (they stay vivid in the dark theme) */
-  --paper-ink: #000000; --paper-muted: #2b2a30; --paper-surface: #ffffff; --paper-line: #000000; --paper-accent: #5b21b6; --paper-soft: #ede8ff;
+  --paper-ink: #000000; --paper-muted: #2b2a30; --paper-surface: #ffffff; --paper-line: #000000; --paper-accent: #a3005c; --paper-soft: #ede8ff;
   --paper-securite: #0b7a3b; --paper-cible: #1d4ed8; --paper-ambitieux: #c2410c; --paper-autre: #6f6977;
 }
 @media (prefers-color-scheme: dark) {
