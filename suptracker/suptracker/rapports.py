@@ -249,15 +249,18 @@ def lineage_pairs(con, years: list[dict]) -> list[dict]:
         if not r:
             continue
         cap, url, conf, pos, src = r
-        bg = [{"libelle": lib, "key": dkey, "autres": autres, "confirmes": c, "en_position": p, "taux": rate(p, c)}
-              for lib, dkey, autres, c, p in con.execute("""SELECT libelle, doublette_key, autres, confirmes, en_position
-                  FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? AND bac = 'bg' ORDER BY rang""", [cod, s]).fetchall()]
+        voies = {"bg": [], "bt": [], "bp": []}
+        for bac, lib, dkey, autres, c, p in con.execute("""SELECT bac, libelle, doublette_key, autres, confirmes, en_position
+                FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? ORDER BY bac, rang""", [cod, s]).fetchall():
+            if bac in voies:          # bac techno / pro rows carry their route key (voies.voie_key), as for_formation's do
+                voies[bac].append({"libelle": lib, "key": dkey, "voie": VO.voie_key(bac, lib, autres), "autres": autres,
+                                   "confirmes": c, "en_position": p, "taux": rate(p, c)})
         masque = con.execute("SELECT count(*) FROM core.rapport_masque WHERE cod_aff_form = ? AND session = ? AND bac = 'bg'",
                              [cod, s]).fetchone()[0] > 0
         live = src == "live"
         out.append({"session": s, "cod_aff_form": cod, "capture": cap, "source": "live" if live else "archive",
                     "archive": url if live else f"https://web.archive.org/web/{cap}/{url}", "confirmes": conf, "en_position": pos,
-                    "masque_bg": masque, "doublettes": {"bg": bg}})
+                    "masque_bg": masque, "doublettes": voies, "voie_keys": VO.session_keys(con, s)})
     return out
 
 

@@ -504,11 +504,11 @@ const seriesDash = (s, i) => (s.dash !== undefined ? s.dash : s.color ? "" : DAS
 const chartName = (names, years) => `Graphique : ${names.filter(Boolean).join(", ")}${years && years.length ? ` (${years[0]}–${years[years.length - 1]})` : ""}`;
 
 const PHONE_CHART = () => typeof narrow === "function" && narrow();   // a phone draws taller charts (bigger text once scaled)
-function lineChart(years, series, { yMax = 100, unit = "%", h = PHONE_CHART() ? 230 : 180 } = {}) {
+function lineChart(years, series, { yMax = 100, unit = "%", h = PHONE_CHART() ? 230 : 180, band = null, ranges = [] } = {}) {
   const W = 440, H = h, L = unit === "%" ? 48 : 36, R = 10, T = 10, B = 24;
   const P = 24;  // keep end points clear of the y-axis labels and the right edge
   const x = (i) => L + P + (years.length === 1 ? (W - L - R - 2 * P) / 2 : i * (W - L - R - 2 * P) / (years.length - 1));
-  const max = yMax ?? Math.max(1, ...series.flatMap((s) => s.values.filter((v) => v != null)));
+  const max = yMax ?? Math.max(1, ...series.flatMap((s) => s.values.filter((v) => v != null)), ...ranges.map((r) => r.hi));
   const y = (v) => T + (H - T - B) * (1 - v / max);
   let g = "", tags = "";                                     // tags: the student's word at the end of their line, drawn last
   for (let k = 0; k <= 4; k++) {
@@ -516,6 +516,22 @@ function lineChart(years, series, { yMax = 100, unit = "%", h = PHONE_CHART() ? 
     g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}${unit === "%" ? " %" : ""}</text>`;
   }
   years.forEach((yr, i) => { g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${yr}</text>`; });
+  // a context band under the lines ({name, values: [{lo, hi} | null per year]}): one shape per run of years with both bounds
+  if (band) {
+    const runs = [];
+    let cur = [];
+    band.values.forEach((b, i) => { if (b && b.lo != null && b.hi != null) cur.push([i, b]); else { if (cur.length) runs.push(cur); cur = []; } });
+    if (cur.length) runs.push(cur);
+    runs.forEach((rn) => {
+      const tip = `<title>${esc(band.name)} : ${rn.map(([i, b]) => `${years[i]} ${fmt(b.lo, 0)}–${fmt(b.hi, 0)}${unit === "%" ? " %" : ""}`).join(", ")}</title>`;
+      g += rn.length === 1 ? `<rect class="evo-band" x="${x(rn[0][0]) - 7}" y="${y(rn[0][1].hi)}" width="14" height="${Math.max(1, y(rn[0][1].lo) - y(rn[0][1].hi))}">${tip}</rect>`
+        : `<polygon class="evo-band" points="${rn.map(([i, b]) => `${x(i)},${y(b.hi)}`).concat(rn.slice().reverse().map(([i, b]) => `${x(i)},${y(b.lo)}`)).join(" ")}">${tip}</polygon>`;
+    });
+  }
+  // a range for a year (a forecast): a dashed box from lo to hi
+  ranges.forEach((r) => {
+    g += `<rect class="evo-range" x="${x(r.i) - 9}" y="${y(r.hi)}" width="18" height="${Math.max(2, y(r.lo) - y(r.hi))}"><title>${esc(r.name)} : ${fmt(r.lo, 0)}–${fmt(r.hi, 0)}${unit === "%" ? " %" : ""}</title></rect>`;
+  });
   series.forEach((s, si) => {
     const c = s.color || COLORS[si % COLORS.length];
     const lastI = s.values.reduce((k, v, i) => (v == null ? k : i), -1);
@@ -570,7 +586,7 @@ function stackedBars(years, keys, rows, { normalize = true, h = PHONE_CHART() ? 
       g += `<rect x="${cx - bw / 2}" y="${y0}" width="${bw}" height="${Math.max(hgt - 1, 0.5)}" fill="${k.color || COLORS[ki]}" stroke="var(--edge)" stroke-width="1"><title>${esc(k.name)} ${years[i]} : ${fmt(raw)}${normalize ? ` (${fmt(v, 1)} %)` : ""}</title></rect>`;
       if (normalize && v >= 12) {
         const my = (y0 + y(acc)) / 2;
-        g += `<rect class="seg-chip" x="${cx - 19}" y="${my - 9}" width="38" height="18" rx="2"/><text class="seg-lbl" x="${cx}" y="${my + 4.5}" text-anchor="middle">${fmt(v, 0)} %</text>`;
+        g += `<rect class="seg-chip" x="${cx - 19}" y="${my - 9}" width="38" height="18"/><text class="seg-lbl" x="${cx}" y="${my + 4.5}" text-anchor="middle">${fmt(v, 0)} %</text>`;
       }
       acc += v;
     });
@@ -3476,6 +3492,99 @@ function mentionYears(rows, vp) {
       moy: pm ? 100 * pm.normale : null, moyRange: pm ? [100 * Math.min(pm.normale, pm.uniforme), 100 * Math.max(pm.normale, pm.uniforme)] : null };
   });
 }
+// owner, 2026-11-22 (« lance les 6 propositions »): the context of each campaign (/api/lineage `contexte`, evolution.py)
+const bandKey = (txt) => `<p class="muted small mk-key"><svg viewBox="0 0 16 10" aria-hidden="true"><rect class="evo-band" x="0" y="1" width="16" height="8"/></svg> ${txt}</p>`;
+const rangeKey = (txt) => `<p class="muted small mk-key"><svg viewBox="0 0 12 12" aria-hidden="true"><rect class="evo-range" x="2" y="1" width="8" height="10"/></svg> ${txt}</p>`;
+// 1 + 6: the official access rate, the middle half of the same filière behind it, and the next campaign's range (prevision.py)
+function accesEvolutionCard(years, rows, ctx, prev) {
+  const col = (k) => rows.map((r) => (r ? r[k] : null));
+  const pv = prev && prev.indicators ? prev.indicators.find((i) => i.indicator === "taux_acces_ens") : null;
+  const xs = pv && !years.includes(prev.target) ? [...years, prev.target] : years, pad = (a) => xs.map((_, i) => (i < a.length ? a[i] : null));
+  const lines = [{ name: "Taux d'accès", color: EVO.k1, dash: "", values: pad(col("taux_acces_ens")) },
+    { name: "Part des bacs généraux parmi les appelés", color: EVO.k3, dash: "6 4", values: pad(col("part_terminale_generale_en_position_admis_pp")) }];
+  const byYear = (y) => (ctx || []).find((c) => c.session === y);
+  const band = { name: "La moitié des formations de la même filière", values: xs.map((y) => { const f = (byYear(y) || {}).filiere; return f && f.p25 != null ? { lo: f.p25, hi: f.p75 } : null; }) };
+  const lastF = (ctx || []).map((c) => c.filiere).filter((f) => f && f.p25 != null).pop();
+  const ranges = pv && pv.lo != null && pv.hi != null ? [{ i: xs.indexOf(prev.target), lo: pv.lo, hi: pv.hi, name: `Fourchette ${prev.target} (prévision)` }] : [];
+  return `<div class="card"><h2>Taux d'accès, et part des bacs généraux parmi les appelés ${tip("taux_acces_ens")}</h2>
+    ${lineLegend(lines)}${lineChart(xs, lines, { band: band.values.some(Boolean) ? band : null, ranges })}
+    ${band.values.some(Boolean) ? bandKey(`la moitié des formations «\u00a0${esc(lastF ? lastF.libelle : "")}\u00a0» ont un taux d'accès dans cette bande (${fmt(lastF ? lastF.n : 0)} formations en ${esc(years[years.length - 1])}).`) : ""}
+    ${ranges.length ? rangeKey(`fourchette ${esc(prev.target)} du taux d'accès ${estimTag("prévision", false, true)} : ${fmt(pv.lo, 0)} à ${fmt(pv.hi, 0)} %. Testée sur ${esc(prev.holdout)}, ${fmt(100 * pv.coverage, 0)} % des vraies valeurs tombaient dans leur fourchette${pv.fragile ? " : moins fiable" : ""}. Pas une chance.`) : ""}</div>`;
+}
+// 2: bac techno / pro, year by year: the line of the student's bac in the formation's own report of that campaign (pickVoie),
+// else the formation's published proposal rate of the route; a report without the student's line = no point that year
+function voieYears(rps, years, bac, key) {
+  return years.map((y) => {
+    const rp = (rps || []).find((x) => x.session === y), rows = rp ? ((rp.doublettes || {})[bac] || []) : [];
+    if (!key || !rows.length) return null;
+    const r = pickVoie(rp, bac, key);
+    return r ? { ...r, session: y } : { absent: true, session: y };
+  });
+}
+function voieEvolutionCard(d, years, rps) {
+  const p = bacProfile(), vp = p ? vxProfile(p) : null;
+  if (!vp || !["bt", "bp"].includes(p.serie) || !d || !d.series || !d.series[vp.serie]) return "";
+  const trend = d.series[vp.serie].trend || [], route = years.map((y) => trend.find((t) => t.session === y) || null);
+  const own = voieYears(rps, years, vp.serie, vp.voie);
+  const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : route[i] ? route[i].taux : null));
+  if (!vals.some((v) => v != null)) return "";
+  const lines = [{ name: `${VOIES[vp.serie].label} : votre bac dans cette formation`, color: EVO.k1, dash: "", mine: true, tag: "vous", values: vals,
+    marks: own.map((o) => (o && !o.absent ? "pub" : null)),
+    hollow: own.map((o, i) => (o && !o.absent ? (o.confirmes || 0) < DBL_SEUIL : !!route[i] && (route[i].candidats || 0) < DBL_SEUIL)),
+    notes: own.map((o, i) => (o ? (o.absent ? "" : `rapport public : ${fmt(o.en_position)} classés assez haut sur ${fmt(o.confirmes)} confirmés${o.source === "autres" ? ", ligne « Autres » du rapport" : ""}`)
+      : route[i] && route[i].taux != null ? `taux de proposition de la voie : ${fmt(route[i].candidats)} candidats` : "")) }];
+  const pub = own.filter((o) => o && !o.absent).map((o) => o.session), absent = own.filter((o) => o && o.absent).map((o) => o.session);
+  return `<div class="card"><h2>Votre bac, année par année</h2>
+    <p class="small chart-cap">Part des candidats de votre voie qui ont reçu une proposition ici. Des résultats passés, pas une chance.</p>
+    ${lineLegend(lines)}${lineChart(years, lines)}
+    ${pub.length ? `<p class="muted small mk-key"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="${EVO.k1}" stroke="${EVO.k1}" stroke-width="2"/></svg> carré : ligne de votre bac dans le rapport public de la formation · <svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="${EVO.k1}" stroke="${EVO.k1}" stroke-width="2"/></svg> rond : taux de proposition de votre voie, calculé avec les effectifs publiés</p>` : ""}
+    ${pub.length ? `<p class="small">Le rapport ne compte que les élèves de terminale en France, classés assez haut pour une proposition. Le taux de votre voie compte tous ses candidats. Les deux chiffres peuvent donc différer.</p>` : ""}
+    ${absent.length ? `<p class="small">En ${absent.join(", ")}, le rapport de la formation ne donne pas de ligne pour votre bac : pas de point.</p>` : ""}
+    ${!vp.voie ? `<p class="small"><a href="#/profil">Indiquez votre ${esc(VOIE_WORD[vp.serie])} dans «\u00a0Mon profil\u00a0»</a> pour lire la ligne de votre bac dans les rapports publics.</p>` : ""}
+    <p class="muted small">Points creux : moins de ${DBL_SEUIL} candidats. Une voie à peu de candidats est rare, pas fermée.</p></div>`;
+}
+// 3: vœux per place (tension.py's ratio), against the median and the « Forte demande » threshold of the same type
+function demandeEvolutionCard(years, ctx, prudence) {
+  const at = (f) => years.map((y) => { const c = (ctx || []).find((x) => x.session === y); return c ? f(c.demande) : null; });
+  const vals = at((d) => d.par_place);
+  if (!vals.some((v) => v != null)) return "";
+  const lines = [{ name: "Cette formation", color: EVO.k1, dash: "", values: vals,
+    notes: at((d) => (d.par_place != null ? `${fmt(d.voeux)} vœux pour ${fmt(d.places)} places` : "")) },
+    { name: "Médiane des formations du même type", color: EVO.ref, dash: "4 3", values: at((d) => d.type_p50) }];
+  const p90 = at((d) => d.type_p90), li = p90.reduce((k, v, i) => (v == null ? k : i), -1);
+  const top = Math.max(1, ...lines.flatMap((l) => l.values.filter((v) => v != null)));
+  const step = [1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100].find((st) => 4 * st >= top * 1.05) || Math.ceil(top / 4);   // round axis ticks
+  return `<div class="card"><h2>Combien de vœux pour une place ?</h2>
+    <p class="small chart-cap">Vœux reçus en phase principale, divisés par les places ${estimTag("vœux ÷ places, deux chiffres publiés", false, true)}.</p>
+    ${lineLegend(lines)}${lineChart(years, lines, { yMax: 4 * step, unit: "" })}
+    ${li >= 0 ? `<p class="small">«\u00a0Forte demande\u00a0» commence à ${fmt(p90[li], 1)} vœux par place en ${esc(years[li])} (les 10 % des formations du même type les plus demandées).</p>` : ""}
+    <p class="muted small">${esc(prudence || "")}</p></div>`;
+}
+// 4: how far the list was called (appel.py's capped depth), campaign by campaign
+function appelEvolutionCard(years, ctx) {
+  const at = (f) => years.map((y) => { const c = (ctx || []).find((x) => x.session === y); return c ? f(c.appel) : null; });
+  const vals = at((a) => a.profondeur);
+  if (!vals.some((v) => v != null)) return "";
+  const lines = [{ name: "Part des candidats classés qui ont reçu une proposition", color: EVO.k1, dash: "", values: vals,
+    notes: at((a) => (a.profondeur == null ? "" : a.toute_la_liste ? `toute la liste des ${fmt(a.classes)} classés` : `sur ${fmt(a.classes)} classés`)) }];
+  const whole = years.filter((_, i) => { const c = (ctx || []).find((x) => x.session === years[i]); return c && c.appel.toute_la_liste; });
+  return `<div class="card"><h2>Jusqu'où la liste a\u2011t\u2011elle été appelée ?</h2>
+    <p class="small chart-cap">Part des candidats classés par le jury qui ont reçu une proposition en phase principale.</p>
+    ${lineLegend(lines)}${lineChart(years, lines)}
+    ${whole.length ? `<p class="small">Toute la liste a été appelée en ${whole.join(", ")}.</p>` : ""}
+    <p class="muted small">${APPEL_NOTE} Calcul : somme des rangs des derniers appelés, divisée par le nombre de classés.</p></div>`;
+}
+// 5: when the offers came: the three published cumulative shares of the admits (zero-admit campaigns left out)
+function timingEvolutionCard(years, rows) {
+  const ok = rows.map((r) => !!r && r.acc_tot > 0 && r.pct_acc_debutpp != null);
+  if (!ok.some(Boolean)) return "";
+  const lines = TIMING.map(([k, l], i) => ({ name: `Proposition reçue ${l}`, color: [EVO.k1, EVO.k3, EVO.ref][i], dash: ["", "6 4", "4 3"][i],
+    values: rows.map((r, j) => (ok[j] ? r[k] : null)), hollow: rows.map((r, j) => ok[j] && !!r.low_n_flag) }));
+  return `<div class="card"><h2>Quand arrivent les propositions ? ${tip("timing")}</h2>
+    <p class="small chart-cap">Part des admis qui avaient déjà reçu leur proposition à chaque date.</p>
+    ${lineLegend(lines)}${lineChart(years, lines)}
+    <p class="muted small">Ne pas avoir de proposition le premier jour n'est pas un refus : des places se libèrent pendant toute la phase. Points creux : peu d'admis.</p></div>`;
+}
 function mentionEvolutionCard(years, rows) {
   const raw = store.get("profile", null);
   if (isReo(raw)) return "";
@@ -3486,10 +3595,10 @@ function mentionEvolutionCard(years, rows) {
   const band = vp.mention === "rattrapage" ? "sansmention" : vp.mention, M = MENTION_SHORT[band];
   const ys = mentionYears(rows, vp), small = ys.map((x) => !!x && x.n < 20);
   const withAvg = vp.moyenne !== null;
-  const lines = [{ name: `Mention «\u00a0${M}\u00a0» ou moins`, color: EVO.k1, dash: "", mine: !withAvg, tag: withAvg ? "" : "vous", values: ys.map((x) => (x ? x.upto : null)), hollow: small }];
+  const lines = [{ name: `Mention «\u00a0${M}\u00a0» ou moins`, color: withAvg ? EVO.k3 : EVO.k1, dash: withAvg ? "6 4" : "", mine: !withAvg, tag: withAvg ? "" : "vous", values: ys.map((x) => (x ? x.upto : null)), hollow: small }];
   if (band !== "sansmention") lines.push({ name: `Mention plus basse que «\u00a0${M}\u00a0»`, color: EVO.ref, dash: "4 3", values: ys.map((x) => (x ? x.below : null)), hollow: small });
   if (vp.moyenne !== null) {
-    lines.push({ name: `Note en dessous de ${moyenneText(vp.moyenne)} (estimation)`, color: EVO.k3, dash: "6 4", mine: true, tag: "vous", marks: ys.map(() => "est"), values: ys.map((x) => (x ? x.moy : null)), hollow: small,
+    lines.unshift({ name: `Note en dessous de ${moyenneText(vp.moyenne)} (estimation)`, color: EVO.k1, dash: "", mine: true, tag: "vous", marks: ys.map(() => "est"), values: ys.map((x) => (x ? x.moy : null)), hollow: small,
       notes: ys.map((x) => (x ? `estimation : entre ${pc1(x.moyRange[0] / 100)} et ${pc1(x.moyRange[1] / 100)} selon la répartition des notes dans la mention` : "")) });
   }
   const li = ys.reduce((k, x, i) => (x ? i : k), -1), last = li >= 0 ? ys[li] : null;
@@ -3511,14 +3620,19 @@ function evoTakeaway(years, rates) {
   const a = idx[0], b = idx[idx.length - 1];
   return `<p>Taux d'accès officiel : <strong>${fmt(rates[a], 0)} %</strong> en ${esc(years[a])}, <strong>${fmt(rates[b], 0)} %</strong> en ${esc(years[b])}.</p>`;
 }
+// the latest campaign's split by bac route, in words (the thin slices of the bars are read here, not by their colour)
+function seriesWords(years, rows) {
+  const i = rows.reduce((k, r, j) => (r && SERIES.reduce((a, s) => a + (r[s.key] || 0), 0) ? j : k), -1);
+  if (i < 0) return "";
+  const r = rows[i], n = SERIES.reduce((a, s) => a + (r[s.key] || 0), 0);
+  return `<p class="small">En ${esc(years[i])} : ${SERIES.map((s) => `${esc(s.name.toLowerCase())} ${fmt(100 * (r[s.key] || 0) / n, 0)} %`).join(", ")}.</p>`;
+}
 async function viewEvolution(cod) {
   const f = await api(`/api/formation/${encodeURIComponent(cod)}`);
   const lin = await api(`/api/lineage/${encodeURIComponent(f.record.lineage_id)}`);
   const years = META.years, by = Object.fromEntries(lin.years.map((r) => [r.session, r]));
   const rows = years.map((y) => by[y] || null), col = (k) => rows.map((r) => r ? r[k] : null);
   const hollow = rows.map((r) => r ? r.low_n_flag : false);
-  const accesLines = [{ name: "Taux d'accès", color: EVO.k1, dash: "", values: col("taux_acces_ens") },
-    { name: "Part des terminales générales parmi les appelés", color: EVO.k3, dash: "6 4", values: col("part_terminale_generale_en_position_admis_pp") }];
   const socialLines = [["pct_bours", EVO.k1, ""], ["pct_f", EVO.k2, "6 4"], ["pct_aca_orig", EVO.k3, "2 3"], ["pct_etab_orig", EVO.ref, "8 3 2 3"]]
     .map(([k, color, dash]) => ({ name: label(k), color, dash, values: col(k), hollow }));
   $view.innerHTML = `
@@ -3530,18 +3644,21 @@ async function viewEvolution(cod) {
   ${f.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
   <div class="charts">
     ${doubletteCharts(f.doublettes, years, f.semblables, lin.rapports, "paire")}
+    ${voieEvolutionCard(f.doublettes, years, lin.rapports)}
     ${mentionEvolutionCard(years, rows)}
-    <div class="card"><h2>Taux d'accès, et part des bacs généraux parmi les appelés ${tip("taux_acces_ens")}</h2>
-      ${lineLegend(accesLines)}${lineChart(years, accesLines)}</div>
+    ${accesEvolutionCard(years, rows, lin.contexte, f.prevision)}
     ${doubletteCharts(f.doublettes, years, f.semblables, lin.rapports, "voies")}
+    ${demandeEvolutionCard(years, lin.contexte, lin.prudence)}
+    ${appelEvolutionCard(years, lin.contexte)}
+    ${timingEvolutionCard(years, rows)}
     <div class="card"><h2>Admis par mention au bac ${tip("mentions")}</h2>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
-    <div class="card"><h2>Admis néo-bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}</div>
+    <div class="card"><h2>Admis néo-bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}${seriesWords(years, rows)}</div>
     <div class="card"><h2>Boursiers, femmes, origine</h2>
       ${lineLegend(socialLines)}${lineChart(years, socialLines)}
       <p class="muted small">Points creux : moins de ${META.low_n_threshold} admis. ${tip("low_n")}</p></div>
-    <div class="card"><h2>Combien de candidats à chaque étape ${tip("funnel")}</h2><div class="scroll"><table>
+    <div class="card evo-wide"><h2>Combien de candidats à chaque étape ${tip("funnel")}</h2><div class="scroll"><table>
       <tr><th><span class="sr-only">Effectif</span></th>${years.map((y) => `<th class="num">${y}</th>`).join("")}</tr>
-      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_neobac", "acc_term", "acc_brs", "capa_fin"].filter((k) => col(k).some((v) => v != null)).map((k) => `<tr><td>${esc(label(k).replace(" (PP)", " (phase principale)"))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
+      ${["voe_tot", "nb_voe_pp", "nb_cla_pp", "prop_tot", "acc_tot", "acc_neobac", "acc_term", "acc_brs", "capa_fin"].filter((k) => col(k).some((v) => v != null) && !(k === "voe_tot" && col(k).every((v, i) => v === col("nb_voe_pp")[i]))).map((k) => `<tr><td>${esc(label(k).replace(" (PP)", " (phase principale)"))}</td>${col(k).map((v) => `<td class="num">${fmt(v)}</td>`).join("")}</tr>`).join("")}
     </table></div></div>
   </div>`;
 }

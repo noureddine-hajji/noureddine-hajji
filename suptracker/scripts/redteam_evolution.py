@@ -61,7 +61,8 @@ KS, MS = ("k1", "k2", "k3", "k4"), ("m1", "m2", "m3", "m4", "m5")
 # R5 bands (CLAUDE.md, written down independently of app.js): [bottom, top, centre]
 BANDS = {"sansmention": (8, 12, 11), "ab": (12, 14, 13), "b": (14, 16, 15), "tb": (16, 18, 17), "tbf": (18, 20, 19)}
 LADDER = ("sansmention", "ab", "b", "tb", "tbf")
-WEIGHTS = {"EV1": 8, "EV2": 14, "EV3": 10, "EV4": 14, "EV5": 14, "EV6": 10, "EV7": 10, "EV8": 6, "EV9": 14}
+WEIGHTS = {"EV1": 6, "EV2": 10, "EV3": 8, "EV4": 10, "EV5": 10, "EV6": 8, "EV7": 8, "EV8": 5, "EV9": 11,
+           "EV13": 6, "EV14": 5, "EV15": 5, "EV16": 3, "EV17": 3, "EV18": 2}
 
 
 def check(name):
@@ -80,6 +81,7 @@ class Ctx:
         self.js = js if js is not None else (STATIC / "app.js").read_text()
         self.css = css if css is not None else (STATIC / "style.css").read_text()
         self.rapports_src = rapports_src if rapports_src is not None else (ROOT / "suptracker" / "rapports.py").read_text()
+        self.evolution_src = (ROOT / "suptracker" / "evolution.py").read_text()
         self.api = (ROOT / "suptracker" / "api.py").read_text()
 
 
@@ -235,7 +237,9 @@ NAMES = ("esc", "fmt", "pc1", "ESTIM_DEF", "estimTag", "validMoyenne", "BANDS", 
          "withinBand", "LADDER", "positionMoyenne", "moyenneText", "MENTION_SHORT", "isReo", "bacProfile", "vxProfile", "COLORS",
          "DASHES", "seriesDash", "chartName", "PHONE_CHART", "lineChart", "stackedBars", "legend", "lineLegend", "markKey", "EVO", "MENTIONS",
          "mentionYears", "mentionEvolutionCard", "VOIES", "DBL_SEUIL", "DBL_CAVEAT", "ownHasBg", "pickRapport", "profileDkey",
-         "pickDoublette", "estimateSemblable", "estimateDoublette", "pairByYear", "doubletteCharts")
+         "pickDoublette", "estimateSemblable", "estimateDoublette", "pairByYear", "doubletteCharts", "bandKey", "rangeKey",
+         "accesEvolutionCard", "VOIE_WORD", "pickVoie", "voieYears", "voieEvolutionCard", "demandeEvolutionCard", "APPEL_NOTE",
+         "appelEvolutionCard", "TIMING", "timingEvolutionCard")
 
 
 def harness(js: str) -> str:
@@ -271,8 +275,9 @@ def wiring_ok(js: str, css: str):
         bad.append("an inline series without colour")
     if "EVO.k1" not in page or "EVO.ref" not in page:
         bad.append("the categorical palette is not used")
-    for name in ("socialLines", "accesLines"):          # the page's own lists: a colour and a dash each, none repeated
-        lst = block(evo, f"const {name} = ", ";\n")
+    acc = block(js, "function accesEvolutionCard(", "\n// 2:")
+    for name, lst in (("socialLines", block(evo, "const socialLines = ", ";\n")), ("accesEvolutionCard", block(acc, "const lines = ", ";\n"))):
+        # the page's own lists: a colour and a dash each, none repeated
         pairs = re.findall(r'\[\s*"pct_[a-z_]+", (EVO\.\w+), "([^"]*)"\]', lst) or re.findall(r'color: (EVO\.\w+), dash: "([^"]*)"', lst)
         if len(pairs) < 2 or len({p[0] for p in pairs}) != len(pairs) or len({p[1] for p in pairs}) != len(pairs):
             bad.append((name, pairs))
@@ -751,6 +756,9 @@ const PROFILES = {
         named: [...document.querySelectorAll("svg.chart")].every((s) => (s.getAttribute("aria-label") || "").startsWith("Graphique")),
         squares: document.querySelectorAll("svg.chart rect.mk-pub").length,
         mention: !!([...document.querySelectorAll("h2")].find((h) => h.textContent.startsWith("Vous parmi les admis"))),
+        titles: [...document.querySelectorAll(".charts h2")].map((h) => h.textContent.trim()),
+        ranges: document.querySelectorAll("svg.chart rect.evo-range").length, bands: document.querySelectorAll("svg.chart .evo-band").length,
+        screens: Math.round(document.documentElement.scrollHeight / window.innerHeight * 10) / 10,
         hs: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
       await ctx.close();
     }
@@ -803,6 +811,11 @@ def browser_ok(c: Ctx):
             bad.append((k, "squares", v["squares"], want))
         if k.endswith("/reo") and v["mention"]:
             bad.append((k, "a mention card outside terminale"))
+        six = ("Combien de vœux pour une place", "Jusqu'où la liste", "Quand arrivent les propositions")
+        if not all(any(t.startswith(x) for t in v["titles"]) for x in six) or v["ranges"] != 1 or v["bands"] < 1:
+            bad.append((k, "the context cards, the range or the band are missing", v["ranges"], v["bands"]))
+        if k.endswith("/bt") != any(t.startswith("Votre bac, année par année") for t in v["titles"]):
+            bad.append((k, "« Votre bac » shown to the wrong profile"))
     return not bad, f"{len(d['o'])} screens on lineage {lid}; {want} published years; problems {bad[:3]}"
 
 
@@ -811,6 +824,296 @@ def ev9(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     return browser_ok(c)
+
+
+
+# ------------------------------------------------------------------ EV13-EV18: the six proposals (owner, 2026-11-22)
+def load_evolution(src: str | None):
+    if src is None:
+        from suptracker import evolution
+        return evolution
+    spec = importlib.util.spec_from_loader("suptracker.evolution_ev", loader=None)
+    mod = importlib.util.module_from_spec(spec)
+    mod.__package__ = "suptracker"
+    mod.__file__ = str(ROOT / "suptracker" / "evolution.py")
+    exec(compile(src, "evolution_ev.py", "exec"), mod.__dict__)  # noqa: S102
+    return mod
+
+
+def qcont(vals, p):
+    """quantile_cont, written down independently: linear interpolation between the sorted values."""
+    v = sorted(vals)
+    if not v:
+        return None
+    h = (len(v) - 1) * p
+    lo = math.floor(h)
+    return v[lo] + (v[min(lo + 1, len(v) - 1)] - v[lo]) * (h - lo)
+
+
+def py_contexte(con, years):
+    out = []
+    for y in years:
+        s, cod = y["session"], y["cod_aff_form"]
+        row = con.execute("""SELECT fil_lib_voe_acc, fili, nb_voe_pp, capa_fin, nb_cla_pp, ran_grp1, ran_grp2, ran_grp3
+                             FROM core.formation_year WHERE session = ? AND cod_aff_form = ?""", [s, cod]).fetchone()
+        if not row:
+            continue
+        fil, fili, v, pl, ranked, *ranks = row
+        rates = [r for (r,) in con.execute("""SELECT taux_acces_ens FROM core.formation_year WHERE session = ? AND fil_lib_voe_acc = ?
+                                               AND taux_acces_ens IS NOT NULL""", [s, fil]).fetchall()]
+        ratios = [a / b for a, b in con.execute("""SELECT nb_voe_pp, capa_fin FROM core.formation_year WHERE session = ? AND fili = ?
+                                                    AND capa_fin > 0 AND nb_voe_pp IS NOT NULL""", [s, fili]).fetchall()]
+        given = [r for r in ranks if r is not None]
+        tot = sum(given) if given else None
+        prof = None if tot is None or not ranked else round(100 * min(1.0, tot / ranked), 1)
+        out.append({"session": s, "band": (qcont(rates, .25), qcont(rates, .75)) if len(rates) >= 20 else None,
+                    "ratio": v / pl if pl and v is not None else None,
+                    "type": (qcont(ratios, .5), qcont(ratios, .9)) if len(ratios) >= 20 else (None, None),
+                    "prof": prof, "whole": tot is not None and bool(ranked) and tot >= ranked})
+    return out
+
+
+def crafted_fy():
+    con = duckdb.connect()
+    con.execute("CREATE SCHEMA core")
+    con.execute("""CREATE TABLE core.formation_year (session INTEGER, cod_aff_form VARCHAR, fil_lib_voe_acc VARCHAR, fili VARCHAR,
+                   nb_voe_pp INTEGER, capa_fin INTEGER, nb_cla_pp INTEGER, ran_grp1 INTEGER, ran_grp2 INTEGER, ran_grp3 INTEGER,
+                   taux_acces_ens DOUBLE)""")
+    rows = []
+    for i in range(20):                       # a filière of exactly 20 (a band) and a type of exactly 20 (references)
+        rows.append((2024, f"A{i}", "Droit", "lic", 100 + 7 * i, 10 + i, 80 + i, 50 + i, None, None, float(5 * i)))
+    for i in range(19):                       # 19 formations: no band, no reference
+        rows.append((2024, f"B{i}", "Arts", "bts", 30 + i, 10, 30, 10, None, None, float(3 * i)))
+    rows += [(2024, "Z0", "Droit", "lic", 50, 0, 40, 30, 20, None, None),        # no places: no ratio; two groups beyond the list
+             (2025, "Z1", "Arts", "bts", None, 12, 0, None, None, None, None)]    # nothing ranked, no group
+    con.executemany("INSERT INTO core.formation_year VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    return con
+
+
+def contexte_ok(c: Ctx, src: str | None = None):
+    mod, bad, n = load_evolution(src if src is not None else c.evolution_src), [], 0
+    cases = [(crafted_fy(), [{"session": 2024, "cod_aff_form": "A3"}, {"session": 2024, "cod_aff_form": "B2"},
+                             {"session": 2024, "cod_aff_form": "Z0"}, {"session": 2025, "cod_aff_form": "Z1"}])]
+    if c.con is not None:
+        lids = [x for (x,) in c.con.execute("SELECT lineage_id FROM core.lineage GROUP BY 1 HAVING count(*) >= 3 ORDER BY hash(lineage_id) LIMIT 8").fetchall()]
+        for lid in lids:
+            cases.append((c.con, [{"session": s, "cod_aff_form": cod} for s, cod in c.con.execute(
+                "SELECT session, cod_aff_form FROM core.lineage WHERE lineage_id = ? ORDER BY session", [lid]).fetchall()]))
+    for con, ys in cases:
+        got, want = mod.contexte(con, ys), py_contexte(con, ys)
+        if len(got) != len(want):
+            bad.append(("rows", len(got), len(want)))
+            continue
+        for g, w in zip(got, want):
+            n += 1
+            f, d, a = g["filiere"], g["demande"], g["appel"]
+            band = (f.get("p25"), f.get("p75")) if "p25" in f else None
+            if not close(list(band) if band else None, list(w["band"]) if w["band"] else None) or not close(d["par_place"], w["ratio"]) \
+                    or not close([d["type_p50"], d["type_p90"]], list(w["type"])) or not close(a["profondeur"], w["prof"]) \
+                    or a["toute_la_liste"] != w["whole"] or (a["profondeur"] or 0) > 100:
+                bad.append((g["session"], g["cod_aff_form"], band, w["band"], d, w["ratio"], w["type"], a, w["prof"]))
+    crafted = mod.contexte(cases[0][0], cases[0][1])
+    hand = crafted[0]["filiere"].get("p25") is not None and "p25" not in crafted[1]["filiere"] and crafted[1]["demande"]["type_p50"] is None \
+        and crafted[2]["demande"]["par_place"] is None and crafted[2]["appel"]["toute_la_liste"] and crafted[3]["appel"]["profondeur"] is None
+    return not bad and hand, f"{n} campaigns re-read with independent quartiles (crafted + real); thresholds by hand {hand}; problems {bad[:2]}"
+
+
+@check("EV13 the context API: filière quartiles (>= 20), vœux per place and its type's median and 90th percentile, capped call depth")
+def ev13(c: Ctx):
+    return contexte_ok(c)
+
+
+SIX_PROG = r"""
+const out = {};
+STORE.profile = input.profile;
+const years = [2022, 2023, 2024, 2025];
+CAP.length = 0;
+out.acces = accesEvolutionCard(years, input.rows, input.ctx, input.prev);
+out.accesNoPrev = accesEvolutionCard(years, input.rows, input.ctx, null);
+out.accesLines = CAP.slice(0, 1).map((s) => s.map((x) => x.values));
+CAP.length = 0;
+out.voie = voieEvolutionCard(input.d, years, input.rps);
+out.voieVals = CAP.length ? CAP[0][0].values : null;
+out.voieMarks = CAP.length ? CAP[0][0].marks : null;
+out.voieYears = input.cases.map((k) => voieYears(k.rps, years, k.bac, k.key).map((o) => (o ? (o.absent ? "absent" : o.taux) : null)));
+CAP.length = 0;
+out.demande = demandeEvolutionCard(years, input.ctx, input.prudence);
+out.demandeVals = CAP.length ? CAP[0].map((x) => x.values) : null;
+CAP.length = 0;
+out.appel = appelEvolutionCard(years, input.ctx);
+out.appelVals = CAP.length ? CAP[0][0].values : null;
+CAP.length = 0;
+out.timing = timingEvolutionCard(years, input.rows);
+out.timingVals = CAP.length ? CAP[0].map((x) => x.values) : null;
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def six_inputs():
+    rows = [{"taux_acces_ens": 90, "part_terminale_generale_en_position_admis_pp": 80, "acc_tot": 10, "pct_acc_debutpp": 50, "pct_acc_datebac": 70, "pct_acc_finpp": 90, "low_n_flag": False},
+            {"taux_acces_ens": 80, "part_terminale_generale_en_position_admis_pp": 82, "acc_tot": 0, "pct_acc_debutpp": 0, "pct_acc_datebac": 0, "pct_acc_finpp": 0},
+            None,
+            {"taux_acces_ens": 60, "part_terminale_generale_en_position_admis_pp": 85, "acc_tot": 40, "pct_acc_debutpp": 30, "pct_acc_datebac": 60, "pct_acc_finpp": 95, "low_n_flag": True}]
+    fil = lambda a, b: {"libelle": "<b>Droit</b>", "n": 30, "p25": a, "p50": (a + b) / 2, "p75": b}  # noqa: E731
+    ctx = [{"session": 2022, "filiere": fil(30, 90), "demande": {"voeux": 100, "places": 10, "par_place": 10.0, "type_p50": 5, "type_p90": 20}, "appel": {"classes": 90, "profondeur": 100.0, "toute_la_liste": True}},
+           {"session": 2023, "filiere": {"libelle": "x", "n": 12}, "demande": {"voeux": 50, "places": 0, "par_place": None, "type_p50": None, "type_p90": None}, "appel": {"classes": 0, "profondeur": None, "toute_la_liste": False}},
+           {"session": 2025, "filiere": fil(20, 70), "demande": {"voeux": 300, "places": 20, "par_place": 15.0, "type_p50": 6, "type_p90": 25}, "appel": {"classes": 200, "profondeur": 62.5, "toute_la_liste": False}}]
+    prev = {"target": 2026, "holdout": 2025, "indicators": [{"indicator": "taux_acces_ens", "lo": 55, "hi": 74, "coverage": 0.766, "fragile": False}]}
+    trend = [{"session": y, "taux": t, "candidats": n} for y, t, n in ((2022, 40, 50), (2023, 35, 12), (2024, 30, 60), (2025, 25, 70))]
+    d = {"status": "sans_groupe", "series": {"bg": {"trend": []}, "bt": {"trend": trend}, "bp": {"trend": []}}}
+    row = lambda v, a, cf, p: {"libelle": "x", "voie": v, "autres": a, "confirmes": cf, "en_position": p, "taux": round(100 * p / cf, 1)}  # noqa: E731
+    rps = [{"session": 2024, "voie_keys": {"bt": ["STMG", "STI2D"]}, "doublettes": {"bt": [row("STMG", False, 40, 10), row(None, True, 20, 5)]}},
+           {"session": 2025, "voie_keys": {"bt": ["STMG"]}, "doublettes": {"bt": [row(None, False, 30, 3), row(None, True, 50, 20)]}}]
+    cases = [{"rps": rps, "bac": "bt", "key": "STMG"}, {"rps": rps, "bac": "bt", "key": "STI2D"}, {"rps": rps, "bac": "bt", "key": "STL"},
+             {"rps": rps, "bac": "bt", "key": None}]
+    return {"rows": rows, "ctx": ctx, "prev": prev, "d": d, "rps": rps, "cases": cases, "prudence": "Beaucoup de vœux par place ne veut pas dire peu de chances.",
+            "profile": {"serie": "bt", "mention": "ab", "statut": "terminale", "voie": "STMG"}}
+
+
+def py_pick_voie(rp, bac, key):
+    rows = rp["doublettes"].get(bac) or []
+    if not key or not rows:
+        return None
+    if any(x["voie"] is None and not x["autres"] for x in rows):
+        return "absent"
+    mine = next((x for x in rows if x["voie"] == key), None)
+    if mine:
+        return mine["taux"]
+    known = (rp.get("voie_keys") or {}).get(bac)
+    if key != "autre" and isinstance(known, list) and key not in known:
+        return "absent"
+    other = next((x for x in rows if x["autres"]), None)
+    return other["taux"] if other else "absent"
+
+
+def six_ok(js: str):
+    inp = six_inputs()
+    r = node(harness(js) + SIX_PROG, inp)
+    if r is None:
+        return None, "node not installed"
+    if r.startswith("__error__"):
+        return False, r
+    return json.loads(r), inp
+
+
+def acces_ok(js: str):
+    o, inp = six_ok(js)
+    if o is None or o is False:
+        return o is None, inp
+    bad = []
+    svg = re.search(r'<svg class="chart".*?</svg>', o["acces"], re.S).group(0)
+    if svg.count('class="evo-range"') != 1 or "Fourchette 2026 (prévision) : 55–74 %" not in svg or ">2026<" not in svg:
+        bad.append("the 2026 range is not drawn from the prevision")
+    xr = re.search(r'<rect class="evo-range" x="([\d.]+)"', svg)
+    xt = re.search(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle">2026</text>', svg)
+    if not xr or not xt or abs(float(xr.group(1)) + 9 - float(xt.group(1))) > 0.01:
+        bad.append("the range is not on the 2026 column")
+    if "77 % des vraies valeurs" not in o["acces"] or "Pas une chance" not in o["acces"] or "estimation" not in o["acces"]:
+        bad.append("coverage as measured, estimation, no chance")
+    if 'class="evo-range"' in re.search(r'<svg class="chart".*?</svg>', o["accesNoPrev"], re.S).group(0) or ">2026<" in o["accesNoPrev"]:
+        bad.append("a range without a prevision")
+    if "2022 30–90 %" not in svg or "2025 20–70 %" not in svg or "2023 " in svg.split("evo-band")[1].split("</polygon>")[0][:200] and "2023 " in re.search(r"<title>La moitié[^<]*", svg).group(0):
+        bad.append(("band", re.search(r"<title>La moitié[^<]*", svg).group(0) if "La moitié" in svg else None))
+    if "&lt;b&gt;Droit" not in o["acces"] or "<b>Droit" in o["acces"]:
+        bad.append("filière label not escaped")
+    if o["accesLines"] and o["accesLines"][0][0] != [90, 80, None, 60, None]:
+        bad.append(("rates", o["accesLines"][0][0]))
+    return not bad, f"range, band, coverage, escaping; problems {bad[:3]}"
+
+
+@check("EV14 access card: the filière band (P25-P75) and the next campaign's range from the prevision, its coverage as measured")
+def ev14(c: Ctx):
+    return acces_ok(c.js)
+
+
+def voie_ok(js: str, con, rapports_src):
+    o, inp = six_ok(js)
+    if o is None or o is False:
+        return o is None, inp
+    bad = []
+    want = [[None if not (rp := next((x for x in k["rps"] if x["session"] == y), None)) or not k["key"] or not (rp["doublettes"].get(k["bac"]) or [])
+             else py_pick_voie(rp, k["bac"], k["key"]) for y in (2022, 2023, 2024, 2025)] for k in inp["cases"]]
+    if o["voieYears"] != want:
+        bad.append(("voieYears", o["voieYears"], want))
+    if o["voieVals"] != [40, 35, 25.0, None] or o["voieMarks"] != [None, None, "pub", None]:
+        bad.append(("card values", o["voieVals"], o["voieMarks"]))
+    if "carré : ligne de votre bac" not in o["voie"] or "rare, pas fermée" not in o["voie"]:
+        bad.append("key or « rare »")
+    n = 0
+    if con is not None:
+        mod = load_rapports(rapports_src)
+        for (lid,) in con.execute("""SELECT l.lineage_id FROM core.rapport_doublette d JOIN core.lineage l USING (cod_aff_form, session)
+                                     WHERE d.bac = 'bt' GROUP BY 1 ORDER BY hash(l.lineage_id) LIMIT 6""").fetchall():
+            ys = [{"session": s, "cod_aff_form": cod} for s, cod in con.execute("SELECT session, cod_aff_form FROM core.lineage WHERE lineage_id = ?", [lid]).fetchall()]
+            rps = mod.lineage_pairs(con, ys)
+            keys = sorted({x["voie"] for rp in rps for x in rp["doublettes"]["bt"] if x["voie"]})[:2] or ["STMG"]
+            for key in keys:
+                inp2 = {**inp, "cases": [{"rps": rps, "bac": "bt", "key": key}]}
+                r = node(harness(js) + SIX_PROG, inp2)
+                got = json.loads(r)["voieYears"][0] if r and not r.startswith("__error__") else r
+                w = [None if not (rp := next((x for x in rps if x["session"] == y), None)) or not (rp["doublettes"].get("bt") or [])
+                     else py_pick_voie(rp, "bt", key) for y in (2022, 2023, 2024, 2025)]
+                n += 1
+                if got != w:
+                    bad.append((lid, key, got, w))
+    return not bad, f"crafted cases + {n} real lineages x keys against an independent pick; problems {bad[:2]}"
+
+
+@check("EV15 « Votre bac » year by year: the formation's report line (pickVoie) else the route's rate; a report without the line = no point")
+def ev15(c: Ctx):
+    return voie_ok(c.js, c.con, c.rapports_src)
+
+
+def demande_ok(js: str):
+    o, inp = six_ok(js)
+    if o is None or o is False:
+        return o is None, inp
+    want = [[10.0, None, None, 15.0], [5, None, None, 6]]
+    bad = [] if o["demandeVals"] == want else [("values", o["demandeVals"])]
+    if "Forte demande\u00a0» commence à 25 vœux par place en 2025" not in o["demande"]:
+        bad.append("the « Forte demande » threshold (the type's 90th percentile) is not said")
+    if inp["prudence"] not in o["demande"] or "estimation" not in o["demande"] or CHANCE.search(o["demande"]):
+        bad.append("caution, estimation or a chance word")
+    tm = re.findall(r'text-anchor="end">([\d,  ]+)</text>', o["demande"])
+    if not tm or tm[-1].replace(" ", "").replace(" ", "") not in ("16",):   # top 15 x 1.05 -> 4 ticks of 4
+        bad.append(("axis", tm[-1:] if tm else None))
+    return not bad, f"values = the context's; caution; round axis {tm[-1:] if tm else None}; problems {bad[:2]}"
+
+
+@check("EV16 demand card: vœux per place, the type's median and 90th percentile as served, the tension caution, labelled an estimation")
+def ev16(c: Ctx):
+    return demande_ok(c.js)
+
+
+def appel_ok(js: str):
+    o, inp = six_ok(js)
+    if o is None or o is False:
+        return o is None, inp
+    bad = [] if o["appelVals"] == [100.0, None, None, 62.5] else [("values", o["appelVals"])]
+    if "Toute la liste a été appelée en 2022" not in o["appel"] or "pas des chances" not in o["appel"]:
+        bad.append("« toute la liste » or the caution")
+    return not bad, f"values {o['appelVals']}; problems {bad[:2]}"
+
+
+@check("EV17 call depth card: the capped depth as served, « toute la liste » named, past campaigns not chances")
+def ev17(c: Ctx):
+    return appel_ok(c.js)
+
+
+def timing_ok(js: str):
+    o, inp = six_ok(js)
+    if o is None or o is False:
+        return o is None, inp
+    want = [[50, None, None, 30], [70, None, None, 60], [90, None, None, 95]]
+    bad = [] if o["timingVals"] == want else [("values", o["timingVals"])]
+    if "pas un refus" not in o["timing"]:
+        bad.append("the « pas un refus » line")
+    return not bad, f"zero-admit campaign left out; values {o['timingVals']}; problems {bad[:2]}"
+
+
+@check("EV18 offer timing card: the three published cumulative shares, zero-admit campaigns left out")
+def ev18(c: Ctx):
+    return timing_ok(c.js)
 
 
 # ------------------------------------------------------------------ EV10 quality score
@@ -870,7 +1173,8 @@ MUTANTS = [
                                                    "const n = counts ? LADDER.reduce((a, m) => a + counts[m], 0) + (r.acc_mention_non_renseignee || 0) : 0;"), "EV4"),
     ("rattrapage read in its own band", js_mut('const band = vp.mention === "rattrapage" ? "sansmention" : vp.mention, g = vp.moyenne;',
                                                'const band = vp.mention === "rattrapage" ? "ab" : vp.mention, g = vp.moyenne;'), "EV4"),
-    ("an estimate where the report has no row", js_mut("return r ? { ...r, session: y } : { absent: true, session: y };", "return r ? { ...r, session: y } : null;"), "EV5"),
+    ("an estimate where the report has no row", js_mut("const r = pickRapport(rp, dk);\n    return r ? { ...r, session: y } : { absent: true, session: y };",
+                                                     "const r = pickRapport(rp, dk);\n    return r ? { ...r, session: y } : null;"), "EV5"),
     ("the estimate beside the published year", js_mut("const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : estAt[i]));",
                                                        "const vals = own.map((o, i) => (o && !o.absent && estAt[i] == null ? o.taux : estAt[i] ?? (o && !o.absent ? o.taux : null)));"), "EV5"),
     ("« Autres » beside an unknown label", js_mut("if (rows.some((x) => x.key == null && !x.autres)) return null;     // a pair label", "if (false) return null;     // a pair label"), "EV5"),
@@ -881,7 +1185,8 @@ MUTANTS = [
     ("an escaped group label no more", js_mut("et le groupe «\\u00a0${esc(g.label)}\\u00a0» (national)", "et le groupe «\\u00a0${g.label}\\u00a0» (national)"), "EV5"),
     ("a report of another session", ("py", "WHERE cod_aff_form = ? AND session = ? AND {ok_col}", "WHERE cod_aff_form = ? AND session <= ? AND {ok_col}"), "EV6"),
     ("a report not cross-checked", ("py", "AND {ok_col}\"\"\", [cod, s]", "\"\"\", [cod, s]"), "EV6"),
-    ("lines out of order", ("py", "AND bac = 'bg' ORDER BY rang", "AND bac = 'bg' ORDER BY libelle"), "EV6"),
+    ("lines out of order", ("py", "WHERE cod_aff_form = ? AND session = ? ORDER BY bac, rang\"\"\", [cod, s]).fetchall():\n            if bac in voies",
+                            "WHERE cod_aff_form = ? AND session = ? ORDER BY bac, libelle\"\"\", [cod, s]).fetchall():\n            if bac in voies"), "EV6"),
     ("the profile sent with the lineage", js_mut("api(`/api/lineage/${encodeURIComponent(f.record.lineage_id)}`)",
                                                  "api(`/api/lineage/${encodeURIComponent(f.record.lineage_id)}?mention=${bacProfile() ? bacProfile().mention : \"\"}`)"), "EV7"),
     ("a chance word", js_mut("Des parts d'admis, pas des chances d'admission.", "Vos chances d'admission."), "EV7"),
@@ -889,11 +1194,26 @@ MUTANTS = [
     ("a long sentence", js_mut("Plus la part est haute, plus les admis de la formation avaient une mention comme la vôtre ou plus basse.",
                                "Plus la part est haute et plus elle monte d'année en année, plus les admis de la formation avaient eu au bac une mention identique à la vôtre ou bien une mention plus basse que la vôtre."), "EV7"),
     ("a mention card outside terminale", js_mut("if (isReo(raw)) return \"\";", "if (false) return \"\";"), "EV8"),
+    ("a band from 19 formations", ("evo", "if n >= MIN_FILIERE else", "if n >= MIN_FILIERE - 1 else"), "EV13"),
+    ("an uncapped call depth", ("evo", "d, whole = AP.depth(sum(given), ranked) if given else (None, False)",
+                                "d, whole = (sum(given) / ranked if ranked else None, False) if given else (None, False)"), "EV13"),
+    ("the band from the median", ("evo", "quantile_cont({col}, 0.25), quantile_cont({col}, 0.5)", "quantile_cont({col}, 0.4), quantile_cont({col}, 0.5)"), "EV13"),
+    ("the range a year early", js_mut("[{ i: xs.indexOf(prev.target), lo: pv.lo", "[{ i: xs.indexOf(prev.target) - 1, lo: pv.lo"), "EV14"),
+    ("a coverage written down", js_mut("${fmt(100 * pv.coverage, 0)} % des vraies valeurs", "80 % des vraies valeurs"), "EV14"),
+    ("the band on the median", js_mut("return f && f.p25 != null ? { lo: f.p25, hi: f.p75 } : null;", "return f && f.p25 != null ? { lo: f.p50, hi: f.p75 } : null;"), "EV14"),
+    ("the route rate beside an absent report line", js_mut("const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : route[i] ? route[i].taux : null));",
+                                                           "const vals = own.map((o, i) => (o && !o.absent ? o.taux : route[i] ? route[i].taux : null));"), "EV15"),
+    ("« Autres » beside an unknown route label", js_mut("if (rows.some((x) => x.voie == null && !x.autres)) return null;", "if (false) return null;"), "EV15"),
+    ("the threshold read as the median", js_mut("const p90 = at((d) => d.type_p90)", "const p90 = at((d) => d.type_p50)"), "EV16"),
+    ("an uncapped depth on the page", js_mut("const vals = at((a) => a.profondeur);", "const vals = at((a) => (a.classes ? 100 * (a.rang_total || 0) / a.classes : a.profondeur));"), "EV17"),
+    ("zero-admit shares drawn", js_mut("const ok = rows.map((r) => !!r && r.acc_tot > 0 && r.pct_acc_debutpp != null);", "const ok = rows.map((r) => !!r && r.pct_acc_debutpp != null);"), "EV18"),
 ]
 
 FN = {"EV1": lambda c: tokens_ok(c.css), "EV2": lambda c: palette_ok(c.css), "EV3": lambda c: (wiring_ok(c.js, c.css)[0] and charts_distinct(c.js)[0], ""),
       "EV4": lambda c: mention_ok(c.js, None), "EV5": lambda c: pair_ok(c.js, None, c.rapports_src), "EV6": lambda c: api_ok(c),
-      "EV7": lambda c: privacy_ok(c.js), "EV8": lambda c: a11y_ok(c.js)}
+      "EV7": lambda c: privacy_ok(c.js), "EV8": lambda c: a11y_ok(c.js), "EV13": lambda c: contexte_ok(c),
+      "EV14": lambda c: acces_ok(c.js), "EV15": lambda c: voie_ok(c.js, None, c.rapports_src), "EV16": lambda c: demande_ok(c.js),
+      "EV17": lambda c: appel_ok(c.js), "EV18": lambda c: timing_ok(c.js)}
 
 
 @check("EV11 mutation test: palette, wiring, reading, API and wording bugs are each caught (in memory)")
@@ -902,7 +1222,7 @@ def ev11(c: Ctx):
         return True, "skipped (node not installed)"
     missed, ran = [], 0
     for name, (kind, old, new), cid in MUTANTS:
-        src = {"css": c.css, "css_last": c.css, "css_all": c.css, "js": c.js, "py": c.rapports_src}[kind]
+        src = {"css": c.css, "css_last": c.css, "css_all": c.css, "js": c.js, "py": c.rapports_src, "evo": c.evolution_src}[kind]
         if kind == "css_all":                        # every theme block at once (the dark blocks repeat the light ramp)
             if not src.count(old):
                 missed.append((name, "anchor not found"))
@@ -921,6 +1241,7 @@ def ev11(c: Ctx):
             mut = src.replace(old, new)
         cm = Ctx(None, js=mut if kind == "js" else c.js, css=mut if kind == "css" else c.css, rapports_src=mut if kind == "py" else c.rapports_src)
         cm.api = c.api
+        cm.evolution_src = mut if kind == "evo" else c.evolution_src
         ran += 1
         try:
             ok = FN[cid](cm)[0]

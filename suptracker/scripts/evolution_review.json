@@ -1,75 +1,93 @@
 {
  "date": "2026-11-22",
- "reviewer": "an independent reviewer agent that saw only the screenshots (no code); seven fresh reviewers in all, one per round",
- "page": "#/evolution/12124 (a licence with two published report years for Maths + SES)",
- "screens": "wide 1360 px light and dark (full page); phone 393 px light and dark, a bac techno phone and a phone without profile (first four cards)",
+ "reviewer": "an independent reviewer agent that saw only the screenshots (no code); nine fresh reviewers in all, one per round",
+ "page": "#/evolution/12124 with the six proposals (forecast range, filière band, « Votre bac » year by year, demand, call depth, offer timing)",
+ "screens": "wide 1360 px light and dark (full page); every card on a phone 393 px for a bac général profile with an average and for a bac techno profile; the first six in dark and without a profile",
  "screenshots": [
   "phone-1.png",
+  "phone-10.png",
+  "phone-11.png",
   "phone-2.png",
   "phone-3.png",
   "phone-4.png",
+  "phone-5.png",
+  "phone-6.png",
+  "phone-7.png",
+  "phone-8.png",
+  "phone-9.png",
   "phone-bt-1.png",
+  "phone-bt-10.png",
+  "phone-bt-11.png",
   "phone-bt-2.png",
   "phone-bt-3.png",
   "phone-bt-4.png",
+  "phone-bt-5.png",
+  "phone-bt-6.png",
+  "phone-bt-7.png",
+  "phone-bt-8.png",
+  "phone-bt-9.png",
   "phone-noprofile-1.png",
   "phone-noprofile-2.png",
   "phone-noprofile-3.png",
   "phone-noprofile-4.png",
+  "phone-noprofile-5.png",
+  "phone-noprofile-6.png",
   "phonedark-1.png",
   "phonedark-2.png",
   "phonedark-3.png",
   "phonedark-4.png",
+  "phonedark-5.png",
+  "phonedark-6.png",
   "wide.png",
   "widedark.png"
  ],
- "style_sha256": "138ccfa7b56512475001fc0eb1bba856f5ebb81c49fc09037a0708e73b0fc680",
+ "style_sha256": "c37b82b838ea4970f94e555fc55e3ad54fe839bfe0dc4ee406c6f587f9da0ec0",
  "criteria": {
   "colour_readability": {
    "score": 8,
-   "why": "Lines are clearly separated in both themes: navy/cream solid, rose dashed, grey dotted, teal/olive/violet for the bac routes. TB félicitations and Très bien are close dark browns; the % labels on the bars carry most of the reading."
+   "why": "Line series are clearly separated: navy or cream heavy line, red dashed, light-blue dashed, grey dotted, teal/olive/violet routes. TB félicitations, Très bien and Bien are close browns; thin top segments carry no label."
   },
   "colour_blind_safety": {
    "score": 8,
-   "why": "Every line chart pairs colour with a dash pattern repeated in the legend, plus squares/diamonds and hollow points. Small unlabelled slivers of the stacked bars rely on colour order alone."
+   "why": "Line charts back colour with dashes, hollow points, squares and diamonds. The stacked bars rely on order and hue; small techno and pro segments cannot be told apart without colour (the latest year is written under the bars)."
   },
   "personal_curves": {
-   "score": 8,
-   "why": "The student's series are bold in the legend and tagged « vous » / « votre bac » at the line end; « Vos deux spécialités » is the heaviest line. On the mention chart the reference line is visually as strong as the student's dashed estimate; the « votre bac » tag sits near overlapping techno/pro lines."
+   "score": 9,
+   "why": "The student's line is the heaviest, tagged « vous » / « votre bac » with a bold first legend entry, in every profile. The tag sits near overlapping techno/pro lines in the bac techno route chart."
   },
   "legend_and_labels": {
    "score": 8,
-   "why": "Legends sit directly above each chart, axes are consistent (0-100 %, 2022-2025), the square/diamond key sits under the curves. The estimation chip, its button and its text read as three pieces; techno and pro markers collide near 0 %."
+   "why": "Legends right above each chart, marker keys right under it. On the phone some legends wrap on 2-3 lines; the 2026 box's range is printed in the note, not beside the box."
   },
   "honesty_wording": {
    "score": 9,
-   "why": "« Des résultats passés, pas une chance », « Des parts d'admis, pas une chance », « rare, pas fermée » and « (estimation) » are plain and consistent; the header says « Taux d'accès officiel »."
+   "why": "Almost every card says « pas une chance » or « des parts d'admis, pas des chances »; estimates carry the tag; rare routes read « rare, pas fermée »; the forecast states its tested coverage (77 %)."
   },
   "hierarchy": {
    "score": 8,
-   "why": "A summary card (official rate 99 % → 63 %), then the two personal cards, then context charts and the counts table. Without a profile two prompts come first; the wide grid leaves gaps under shorter cards."
+   "why": "Title card and official rate, then the personal cards, then access, routes, demand and the counts table. Uneven card heights leave gaps on wide screens."
   },
   "style_fidelity": {
-   "score": 8,
-   "why": "Thick ink edges, hard offset shadows and Space Grotesk on every card in both themes, charts straight. The « Comment lire » accordion is lighter than the rest of the kit."
+   "score": 9,
+   "why": "Thick ink edges, hard offset shadows, Space Grotesk and straight charts across all cards; the estimation chips fit the style."
   },
   "phone_layout": {
-   "score": 8,
-   "why": "No horizontal overflow, cards fit 360 px, legends wrap cleanly, tick labels legible. Legends wrapping on three lines make some cards tall."
+   "score": 7,
+   "why": "No overflow, readable sizes. The counts table squeezes its labels; 11 long cards with wrapped legends."
   },
   "dark_theme": {
    "score": 8,
-   "why": "Cream replaces navy for the main lines, teal becomes cyan, techno yellow, all with good contrast. The grey dotted reference line and the top browns are weaker than in light."
+   "why": "The student's line becomes cream; blue, red and teal stay clear; bar chips stay readable. The grey band and the darkest brown are low-contrast on near-black."
   },
   "overall_polish": {
-   "score": 7,
-   "why": "Clean and coherent. Remaining: a tag near overlapping techno/pro lines, a series flat on 0 %, uneven card heights on wide screens, close browns at the top of the mention stack."
+   "score": 8,
+   "why": "Clean and consistent. Remaining: a tag near overlapping lines, the 2026 box without its value beside it, unlabelled small segments, uneven heights on wide screens."
   }
  },
- "total": 80,
+ "total": 82,
  "measured_score": 100,
  "browser_ok": true,
- "measured_on": "EV1-EV9 all pass on the real warehouse, EV9 in Chromium (7 screens)",
+ "measured_on": "EV1-EV9 and EV13-EV18 all pass on the real warehouse, EV9 in Chromium (7 screens)",
  "rounds": [
   {
    "round": 1,
@@ -98,13 +116,22 @@
   {
    "round": 7,
    "total": 80
+  },
+  {
+   "round": 8,
+   "total": 77,
+   "note": "the six proposals added"
+  },
+  {
+   "round": 9,
+   "total": 82
   }
  ],
  "suggestions": [
-  "Make the student's estimate the heaviest line on « Vous parmi les admis » and demote the reference line.",
-  "Offset coincident bac techno / bac pro markers near 0 %.",
-  "Spread TB félicitations and Très bien further, or hatch the top segment.",
-  "Merge the estimation chip and its text into one sentence under the chart.",
-  "Collapse the two no-profile prompts into one banner on a phone."
+  "More lightness steps (or a hatch) for TB félicitations; a lighter dark-mode swatch.",
+  "Print the forecast range next to its box and join it to the last point.",
+  "A wider label column for the counts table on a phone.",
+  "A dashed outline on the filière band in dark mode.",
+  "Label small stacked segments with a leader."
  ]
 }

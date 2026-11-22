@@ -4582,5 +4582,17 @@ The owner found the evolution page's grey charts unreadable and asked for the st
 - **The student's own curve** is drawn heavier, bold in its legend, with « vous » / « votre bac » at its last point (placed clear of the
   other lines). The two personal cards come first, under one sentence with the official access rate of the first and latest campaign.
   A bac techno or pro profile gets no pair card; a visitor without a profile gets a short prompt. Phone charts are taller.
+- **Six context curves** (owner, 2026-11-22, « lance les 6 propositions »; `evolution.py`, `/api/lineage` → `contexte`):
+  - *Access rate* with, behind it, the middle half (P25–P75) of the formations of the same `fil_lib_voe_acc` that campaign (>= 20
+    formations), and after the last year the next campaign's range from `prevision.py` (sprint 5's access-rate range), its tested
+    coverage printed as measured.
+  - *Votre bac, année par année* (bac techno / pro): the formation's own report line that campaign (`pickVoie`: the route's line,
+    else « Autres », never beside an unknown label), else the route's proposal rate; squares for the report.
+  - *Vœux par place* (tension.py's ratio) with the median of the same type; the « Forte demande » threshold (the type's 90th
+    percentile) in words; tension's caution.
+  - *Jusqu'où la liste a été appelée*: appel.py's capped depth, « toute la liste » named.
+  - *Quand arrivent les propositions*: the three published cumulative shares, zero-admit campaigns left out.
+  - Red team EV13-EV18: independent quartiles and depth on crafted and real campaigns, the page's cards in Node, 12 more mutants.
 - **Quality score** (EV10): 0.6 × the measured checks + 0.4 × an independent screenshot review (`scripts/evolution_review.json`).
-  It must reach >= 90, and the review alone >= 80. Seven fresh reviewers in all (69, 76, 75, 75, 78, 80, 80): 0.6 × 100 + 0.4 × 80 = 92.
+  It must reach >= 90, and the review alone >= 80. Nine fresh reviewers in all (69, 76, 75, 75, 78, 80, 80, then 77 and 82 once the six
+  context curves were added): 0.6 × 100 + 0.4 × 82 = 92.8.

@@ -819,7 +819,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   The pair per year (`pairByYear`, `/api/lineage` `rapports` = `rapports.lineage_pairs`: THAT code's report of THAT session,
   cross-checked): own line, else « Autres » (never beside an unknown label), else no point; other years the page's estimate; a published
   point is a square, an estimate a diamond, never both the same year. The student's curve is heavier, tagged « vous » / « votre bac »;
-  personal cards first; no pair card for a bac techno / pro profile. Red team `redteam_evolution.py` (EV1-EV12; quality >= 90 = 0.6 measured
+  personal cards first; no pair card for a bac techno / pro profile. Six context curves (`evolution.py`, `/api/lineage` `contexte`, each
+  campaign with its OWN code): access rate + band P25-P75 of the same `fil_lib_voe_acc` (>= 20) + prevision.py's next range (coverage as
+  measured); « Votre bac » per year for techno/pro (`pickVoie` on that campaign's report, else the route rate); vœux par place vs the
+  type median, « Forte demande » = type P90 in words; capped call depth; offer timing without zero-admit campaigns. Red team EV13-EV18. Red team `redteam_evolution.py` (EV1-EV12; quality >= 90 = 0.6 measured
   + 0.4 independent screenshot review `scripts/evolution_review.json`, the review alone >= 80).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn

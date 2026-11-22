@@ -129,6 +129,9 @@ svg.chart rect.seg-chip { fill: var(--surface); stroke: var(--edge); stroke-widt
 .legend { row-gap: 4px; }
 .legend > span { display: inline-flex; align-items: baseline; gap: 4px; }   /* a wrapped name stays beside its swatch */
 .legend > span > svg, .legend > span > i { flex: none; align-self: center; }
+svg.chart .evo-band, .mk-key svg .evo-band { fill: var(--k4); opacity: .22; }   /* the filière's middle half, behind the lines */
+svg.chart .evo-range, .mk-key svg .evo-range { fill: none; stroke: var(--k1); stroke-width: 2; stroke-dasharray: 4 3; }   /* a forecast range */
+.charts > .evo-wide { grid-column: 1 / -1; }   /* the counts table spans the grid */
 .chart-cap { margin: 0 0 4px; color: var(--ink); }   /* what a personal chart measures, above its legend */
 .legend .lg-mine { color: var(--ink); font-weight: 700; }   /* the student's own curve, named first and in bold */
 .mk-key svg { width: 12px; height: 12px; vertical-align: -1px; }   /* the published (square) / estimated (round) key of a mixed line */
@@ -1058,7 +1061,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 /* reviewer, 2026-11-22: below 480 px the access cell's two halves stack (official rate, then the profile's figure, each at full
    width with its source on fewer, longer lines), split by an ink rule; the explanation sentence follows */
 @media (max-width: 480px) {
-  svg.chart text { font-size: 16px; }   /* chart units: about 12 px once a phone scales the chart down */
+  svg.chart text { font-size: var(--fs-md); }   /* chart units: about 12 px once a phone scales the chart down */
   .summary .sum-tile.sum-acces { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
   .summary .sum-tile.sum-acces .sum-part + .sum-part { border-top: 2px solid var(--paper-ink); border-radius: 0; padding-top: 8px; }
   .summary .sum-tile.sum-acces .sum-part.sum-profil { border-left: 0; padding-left: 6px; }
