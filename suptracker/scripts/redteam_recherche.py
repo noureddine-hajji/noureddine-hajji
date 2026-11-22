@@ -486,7 +486,7 @@ process.stdout.write(JSON.stringify(carteGroups().map(([g, t, o]) => [g, t, o.ma
 def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
     voc = FI.vocab()
-    prog = "\n".join(top(js, n) for n in ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "CARTE_ROB", "carteGroups")) + FIELD_PROG
+    prog = "\n".join(top(js, n) for n in ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups")) + FIELD_PROG
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
@@ -555,7 +555,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 def share_ok(js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
-    names = ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "CARTE_ROB", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
+    names = ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
              "carteSelection", "carteShareLink", "carteShareRead")
     exe = shutil.which("node")
     if not exe:

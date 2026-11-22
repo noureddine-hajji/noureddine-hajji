@@ -914,6 +914,13 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 .sum-tile { border-radius: var(--r-sm); }
 .sum-label { text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--fs-xs); }
 .zone-pill { box-shadow: inset 0 0 0 2px var(--paper-ink); }
+/* owner, 2026-11-22: the robustesse 2035 level gauge: five cells from « exposée » to « robuste », the formation's level(s) filled
+   in ink; its name is always written beside it (never the gauge alone) */
+.ech { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; margin: 2px 0; }
+.ech i { display: inline-block; width: 18px; height: 12px; border: 2px solid var(--ink); border-radius: 2px; background: transparent; }
+.ech i.on { background: var(--ink); }
+.ech .ech-end { font-size: var(--fs-xs); color: var(--muted); margin: 0 4px; }
+.sum-value.sum-words { font-size: var(--fs-lg); line-height: 1.2; }
 /* the formation's tabs: square buttons with an edge, the open one pale violet */
 .tabs { gap: 8px; padding: 8px 6px 10px 0; border-bottom: 0; }
 .tabs button { border: 2px solid var(--edge); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); padding: 0 14px; }

@@ -215,7 +215,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
-    split any red team whose single real-data file grows past ~10 min the same way.
+    split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
+    warehouse live in `tests/test_pipeline_verif.py`, each on its own `cached_build` copy (2026-11-22: three full builds in a row made
+    test_pipeline a 40-minute file).
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
   - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every hour from January to March (the vœux peak), every 6 h
@@ -770,9 +772,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   or a BUT (InserSup: specialty at the university, else all its BUT, else the specialty in France) in its own block BESIDE the
   repères, never in the score (`robInsPublie`); the search page filters by both repères (`CARTE_ROB`, `robLevel`, « sans » = no
   level, read from /api/reconnaissance, hidden when not loaded), the card prints them in one line; never a sort by a repère. RF11.
-  Owner, 2026-11-18: L'essentiel carries a « Robustesse 2035 » tile (`formationRobTile`): the median score « / 100 » with both repères
-  in words and the estimation label (the owner's choice: the score leaves « Détail du calcul » for this tile only); no score =
-  « données insuffisantes ». RF12.
+  Owner, 2026-11-18: L'essentiel carries a « Robustesse 2035 » tile (`formationRobTile`); no score = « données insuffisantes ». RF12.
+  Owner, 2026-11-22 (model 2027.8-f): what a student reads is a LEVEL, never the score: five levels among the Parcoursup formations
+  on the national basis (jobs + diversity), 10/20/40/20/10 % (« Très robuste », « Robuste », « Dans la moyenne », « Plus exposée »,
+  « Très exposée »; `ECHELLE`, `ECHELLE_PARTS`, `niveau5`, `with_echelle`), placed PER SCENARIO among that scenario's scores of the
+  formations' OWN blocks (borrowed/inherited/offer/certification blocks placed, never counted; ties never above/below); scenarios
+  that disagree = both levels said (« Entre … et … ») and both gauge cells filled. Never a min-max 0-100 (1 raw point = 3 shown).
+  The tile, the search card, Mes vœux and the job tab lead with the level (word + `echelleJauge`, the word always written); the
+  score and both repères live in « Détail du calcul »; the search filter « Robustesse 2035 » has the five levels (a formation
+  between two kept by either), the filière filter stays. RF18 (independent oracle, crafted + real), RF5/9/11/12/13.
   Owner, 2026-11-20 (model 2027.5-f): an apprenticeship offer SIES does not publish takes its DIPLOMA's block
   (`robustesse_formation.inherited`) only when EVERY latest-campaign formation of the same type and mention (`carte.diplome_of`,
   acronym prefix « BTS - » dropped from a closed list) has a scored block and all are identical; `herite` says it, it is added after

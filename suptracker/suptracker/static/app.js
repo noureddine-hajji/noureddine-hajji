@@ -907,7 +907,7 @@ const FI_HELP = {
   complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",
   taux: "Le taux d'accès officiel de la formation, tous candidats confondus : un repère, pas vos chances.",
   robf: "Estimation du modèle de SupCompass : les métiers auxquels mène la formation devraient-ils garder de la valeur entre 2030 et 2035 ? Comparée aux formations de sa filière. Ni une chance d'admission, ni une promesse d'emploi.",
-  robn: "Le même repère, comparé à toutes les formations, sur les métiers visés et leur diversité. Ni une chance d'admission, ni une promesse d'emploi.",
+  robn: "Cinq niveaux parmi les formations Parcoursup, de très exposée à très robuste, sur les métiers visés et leur diversité : une estimation du modèle de SupCompass. Ni une chance d'admission, ni une promesse d'emploi.",
 };
 const fiOptions = (g) => ((typeof META !== "undefined" && META && META.filtres && META.filtres[g]) || []);
 // the band of a value: lower limit included, upper limit excluded (twin of filtres.band)
@@ -1456,18 +1456,53 @@ const kwWords = (q) => foldText(q).split(/[^a-z0-9]+/).filter((w) => w.length > 
 const CARTE_R3 = ["capacite", "complementaire", "taux"];
 // owner, 2026-11-16: the académie list of the two earlier search pages stays a filter of its own (the place field reads it too)
 const CARTE_ACADS = [];                    // filled from the layer by the search page
+// owner, 2026-11-22: the robustesse 2035 is READ as one of five levels among the Parcoursup formations (the best 10 %, the next
+// 20 %, the 40 % in the middle, then 20 % and 10 %), never as a score: when the three scenarios disagree, the levels between them
+// are all said (« entre … et … ») and marked on the gauge. The score and the filière repère stay in « Détail du calcul ».
+const ECHELLE = [
+  ["tres_robuste", "Très robuste", "parmi les 10 % de formations les plus robustes"],
+  ["robuste", "Robuste", "parmi les 20 % de formations suivantes"],
+  ["moyenne", "Dans la moyenne", "parmi les 40 % de formations du milieu"],
+  ["plus_exposee", "Plus exposée", "parmi les 20 % de formations plus exposées aux changements"],
+  ["tres_exposee", "Très exposée", "parmi les 10 % de formations les plus exposées aux changements"],
+];
+const echIdx = (k) => ECHELLE.findIndex((e) => e[0] === k);
+// the levels of a formation as [first, last] indices (best first), or null for none / an unknown key
+function echelleSpan(niv) {
+  const ix = (Array.isArray(niv) ? niv : []).map(echIdx);
+  if (!ix.length || ix.some((i) => i < 0)) return null;
+  return [Math.min(...ix), Math.max(...ix)];
+}
+function echelleWords(niv) {
+  const sp = echelleSpan(niv);
+  if (!sp) return "";
+  return sp[0] === sp[1] ? ECHELLE[sp[0]][1] : `Entre « ${ECHELLE[sp[0]][1].toLowerCase()} » et « ${ECHELLE[sp[1]][1].toLowerCase()} »`;
+}
+function echelleNote(niv) {
+  const sp = echelleSpan(niv);
+  return !sp ? "" : sp[0] === sp[1] ? ECHELLE[sp[0]][2] : "selon le scénario retenu";
+}
+// five cells from « très exposée » (left) to « très robuste » (right), the formation's levels filled; its name is ALWAYS written
+// beside it (the gauge alone never carries the meaning)
+function echelleJauge(niv) {
+  const sp = echelleSpan(niv);
+  if (!sp) return "";
+  const cells = [4, 3, 2, 1, 0].map((i) => `<i class="ech-c${i >= sp[0] && i <= sp[1] ? " on" : ""}"></i>`).join("");
+  return `<span class="ech" aria-hidden="true"><span class="ech-end">exposée</span>${cells}<span class="ech-end">robuste</span></span>`;
+}
 // owner, 2026-11-18: the robustesse 2035 repères of each formation (the two the formation page shows, read from the lists'
 // payload /api/reconnaissance: no request of its own, nothing sent); "sans" = no repère (not ranked, or no estimate). A FILTER only:
 // the list is never sorted by a repère, and a repère is never merged with the zone
 const CARTE_ROB = [
   ["robf", "Robustesse 2035 dans sa filière", [["haut", "Parmi les 20 % les plus robustes de sa filière"], ["moyen", "Dans la moyenne de sa filière"],
     ["bas", "Parmi les 20 % les moins robustes de sa filière"], ["sans", "Non classée dans sa filière"]]],
-  ["robn", "Robustesse 2035, toutes formations", [["haut", "Parmi les 20 % les plus robustes"], ["moyen", "Dans la moyenne"],
-    ["bas", "Parmi les 20 % les moins robustes"], ["sans", "Pas de repère"]]],
+  // owner, 2026-11-22: the five levels the pages show (a formation between two levels carries both)
+  ["robn", "Robustesse 2035", [...ECHELLE.map(([k, lab]) => [k, lab]), ["sans", "Pas de niveau"]]],
 ];
 // the repères are usable only when the payload carried at least one level (robDecode's `ok`): never filter on an empty payload
 const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);
-const robLevel = (cod, k) => (RECO && RECO.rob && RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";
+const robLevel = (cod, k) => (k === "robn" ? ((RECO && RECO.rob && RECO.rob.echelle[cod]) || ["sans"])
+  : (RECO && RECO.rob && RECO.rob.filiere[cod]) || "sans");
 const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ...CARTE_GROUPS.slice(1),
   ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
@@ -1481,7 +1516,8 @@ function carteHas(f, g, o) {
   if (g === "zones") return carteZone(f) === o;
   if (g === "capacite") return filtreBand(f.capa_fin, fiOptions("capacite")) === o;
   if (g === "taux") return filtreBand(f.taux_acces_ens, fiOptions("taux")) === o;
-  if (g === "robf" || g === "robn") return !robReady() || robLevel(f.cod_aff_form, g) === o;   // repères not loaded or empty: no filter
+  if (g === "robf") return !robReady() || robLevel(f.cod_aff_form, g) === o;   // repères not loaded or empty: no filter
+  if (g === "robn") return !robReady() || robLevel(f.cod_aff_form, g).includes(o);   // a formation between two levels: both
   if (g === "complementaire") return f.acc_pc !== null && f.acc_pc !== undefined && (o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0);   // unknown: neither
   return false;
 }
@@ -1645,18 +1681,17 @@ function carteCard(f, ctx, pinned) {
   </div>`;
 }
 // the two robustesse repères on a result card, in words, apart from the zone and the rates (never one mark); nothing when unknown
-const ROB_CARD = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
 function robCardLine(cod) {
   const R = RECO && RECO.rob;
-  const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];      // a known level only
-  if (!a && !b) return "";
+  const w = R && R.echelle && echelleWords(R.echelle[cod]);                         // owner, 2026-11-22: the level, a known one only
+  if (!w) return "";
   // owner, 2026-11-20: an apprenticeship offer SIES does not publish carries the repères of its DIPLOMA (the same for every
   // formation of that diploma), said in words; never a figure of the establishment
   const dip = R.herite && R.herite[cod] ? " Repères du diplôme : les mêmes pour toutes les formations qui y préparent."
     : R.voisine && R.voisine[cod] ? " Repère emprunté à la formation voisine, à laquelle celle-ci mène directement."
     // owner, 2026-11-20: an offer read through the RNCP certification of the same title says so (a less sure link)
     : R.certification && R.certification[cod] ? " Métiers lus par les codes de la certification du même intitulé (France Compétences) : lien moins sûr." : "";
-  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : ${[a ? `${a} de sa filière` : "", b ? `${b}, toutes formations` : ""].filter(Boolean).map(esc).join(" ; ")}.${esc(dip)}</p>`;
+  return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : <strong>${esc(w)}</strong> ${echelleJauge(R.echelle[cod])}${dip ? `<br>${esc(dip.trim())}` : ""}</p>`;
 }
 function carteList(rows, ctx) {
   const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
@@ -2166,17 +2201,16 @@ function accesTile(r, d, prof, pr) {
 }
 // owner, 2026-11-18: the robustesse 2035 of the formation in L'essentiel: its score (median of the three scenarios) and its two
 // repères (within its filière, among all formations), always an estimation of the model; the detail stays in « Emploi et métiers »
-const ROB_SUM = { haut: "parmi les 20 % les plus robustes", moyen: "dans la moyenne", bas: "parmi les 20 % les moins robustes" };
 function formationRobTile(rb) {
-  const s = rb && rb.score, q = (rb && rb.repere) || {}, n = (rb && rb.repere_national) || {};
-  const fil = q.niveau ? `${ROB_SUM[q.niveau]} de sa filière` : q.raison === "memes_debouches" ? "non classée dans sa filière (mêmes métiers)" : q.raison ? "trop peu de formations comparables dans sa filière" : "";
-  const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : "";
+  const s = rb && rb.score, niv = rb && rb.echelle && rb.echelle.niveaux;
   // owner, 2026-11-20: a formation that leads directly to a scored one borrows its block, said in words
-  const vois = rb && rb.voisine ? "emprunté à la formation voisine" : "";
+  const vois = rb && rb.voisine ? "emprunté à la formation voisine ; " : "";
+  const words = s ? echelleWords(niv) : "";
   const note = !rb ? "pas d'estimation pour cette formation" : rb.absent ? esc((ROBF_ABSENT[rb.absent] || {}).court || "pas d'estimation pour cette formation")
     : !s ? "données insuffisantes pour une estimation sûre"
-    : `${[vois, fil, nat].filter(Boolean).map(esc).join(" ; ")} ${estimTag("", false, true)}`;
-  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span><span class="sum-note">${note}</span></button>`;
+    : !words ? `pas de niveau pour cette formation ${estimTag("", false, true)}`
+    : `${echelleJauge(niv)}<span class="sr-only">Sur une échelle de cinq niveaux, de très exposée à très robuste. </span>${esc(vois)}${esc(echelleNote(niv))} ${estimTag("", false, true)}`;
+  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value sum-words">${words ? esc(words) : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
@@ -2280,8 +2314,14 @@ function robDecode(r) {
   for (const k of Object.keys(out)) {
     for (const [lv, codes] of Object.entries((r || {})[k] || {})) for (const c of String(codes).split(",")) if (c) out[k][c] = lv;
   }
+  // owner, 2026-11-22: the five-level scale, a code listed under EACH of its levels (between two: both), known keys only
+  out.echelle = {};
+  for (const [lv, codes] of Object.entries((r || {}).echelle || {})) {
+    if (echIdx(lv) < 0) continue;
+    for (const c of String(codes).split(",")) if (c) (out.echelle[c] = out.echelle[c] || []).push(lv);
+  }
   // Codex (PR #84): an empty payload (tables or sidecar missing) decodes to empty maps: usable only with at least one level
-  out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0;
+  out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0 || Object.keys(out.echelle).length > 0;
   return out;
 }
 // Mes vœux (owner, 2026-11-17): each vœu's zone for the profile and its two robustesse repères SIDE BY SIDE, never merged into
@@ -2297,16 +2337,18 @@ function robVoeuxCard(rows, zoneOf) {
     if (k === "filiere" && R.raison[cod]) return `<span class="muted small">${esc(ROB_RAISON[R.raison[cod]] || "")}</span>`;
     return '<span class="muted small">pas d\'estimation</span>';
   };
-  const any = rows.some((v) => R.filiere[v.cod_aff_form] || R.national[v.cod_aff_form] || R.raison[v.cod_aff_form]);
+  const any = rows.some((v) => R.echelle[v.cod_aff_form]);
   if (!any) return "";
   const zcol = typeof zoneOf === "function";
+  // owner, 2026-11-22: one level per vœu (the five-level scale), the filière repère stays on the formation's page
+  const level = (cod) => (R.echelle[cod] ? `<strong>${esc(echelleWords(R.echelle[cod]))}</strong> ${echelleJauge(R.echelle[cod])}${R.apres[cod] ? `<div class="muted small">${R.apres[cod] === "master" ? "métiers après un master" : "métiers après d'autres études"}</div>` : ""}`
+    : cell(cod, "national"));
   const body = rows.map((v) => `<tr><td data-label="Formation">${v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)}</span>` : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement || v.cod_aff_form)}</a><div class="muted small">${esc(v.filiere || v.formation || "")}${v.complement ? ` · ${esc(v.complement)}` : ""}</div>`}</td>
       ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}
-      <td data-label="Robustesse dans sa filière">${cell(v.cod_aff_form, "filiere")}</td>
-      <td data-label="Toutes filières confondues">${cell(v.cod_aff_form, "national")}</td></tr>`).join("");
+      <td data-label="Robustesse 2035">${level(v.cod_aff_form)}</td></tr>`).join("");
   return `<section class="card" id="vx-robustesse"><h2>Admission et avenir des métiers, côte à côte</h2>
-    <p class="small">${zcol ? "Pour chaque vœu, la zone dit où se situe votre profil parmi les admis. " : ""}Les repères de robustesse 2035 disent si les métiers auxquels mène la formation devraient garder de la valeur entre 2030 et 2035. ${zcol ? "Les deux ne sont jamais réunis en une seule note." : ""} ${estimTag("modèle de SupCompass")}</p>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th>${zcol ? "<th>Zone pour votre profil</th>" : ""}<th>Robustesse dans sa filière</th><th>Toutes filières confondues</th></tr>${body}</table></div>
+    <p class="small">${zcol ? "Pour chaque vœu, la zone dit où se situe votre profil parmi les admis. " : ""}La robustesse 2035 dit, en cinq niveaux parmi les formations Parcoursup, si les métiers auxquels mène la formation devraient garder de la valeur entre 2030 et 2035. ${zcol ? "Les deux ne sont jamais réunis en une seule note." : ""} ${estimTag("modèle de SupCompass")}</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th>${zcol ? "<th>Zone pour votre profil</th>" : ""}<th>Robustesse 2035</th></tr>${body}</table></div>
     <p class="muted small">Ce ne sont ni des chances d'admission, ni des promesses d'emploi. L'ordre de la liste ne dépend d'aucun de ces repères. <a href="#/info/robustesse">Comment on calcule la robustesse</a></p></section>`;
 }
 function recoPill(k, lib, exp) {
@@ -4754,6 +4796,10 @@ function formationRobustesseCard(r, pub) {
   const v = r.voisine;
   const vois = v ? `<p class="small warn">Repère emprunté à la formation voisine${v.libelle ? ` « ${esc(v.libelle)} »` : ""}${v.code ? ` (<a href="#/f/${esc(v.code)}">voir sa fiche</a>)` : ""}. ${ROBF_VOISINE[v.regle] ? `Pourquoi : ${esc(ROBF_VOISINE[v.regle])}. ` : ""}Cette formation n'a pas de métiers propres dans les sources ; la confiance est abaissée et elle n'est pas classée dans sa filière.</p>` : "";
   const nat = s && qn && qn.niveau ? `<p><strong>${esc(ROBF_REPERE_NATIONAL[qn.niveau] || "")}</strong> ${estimTag(`parmi ${robNum(qn.n_formations)} formations, sur les métiers visés et leur diversité`)}${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}</p>` : "";
+  // owner, 2026-11-22: the level first (five levels among the Parcoursup formations); the repères go into « Détail du calcul »
+  const niv = r.echelle && r.echelle.niveaux, ew = s ? echelleWords(niv) : "";
+  const lvl = !s ? head : ew ? `<p class="rob-lvl"><strong>${esc(ew)}</strong> ${echelleJauge(niv)} ${estimTag(`parmi ${robNum(r.echelle.n_formations)} formations Parcoursup, sur les métiers visés et leur diversité`)}<br><span class="small">${esc(echelleNote(niv))}${(qn && qn.apres_etudes) ? ` · ${esc(ROBF_APRES[qn.apres_etudes] || "")}` : ""}</span></p>`
+    : head;
   const list = (faits.length ? `<ul class="rob-faits">${faits.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const seul = r.diplome_seul && r.diplome_seul.n ? `<h3>Avec ce diplôme seul</h3><p class="small">${esc(robJobs(r.diplome_seul))}${r.diplome_seul.mediane != null ? ` (score médian de ces métiers : ${robNum(r.diplome_seul.mediane)} sur 100)` : ""}. Ce sont les métiers de la fiche Onisep du diplôme, sans études de plus.</p>` : "";
   const am = r.master && r.master.apres_master;
@@ -4777,7 +4823,7 @@ function formationRobustesseCard(r, pub) {
       <p class="muted small">Sources : Onisep, Idéo (licence ODbL) ; France Compétences, RNCP (Licence Ouverte) ; France Travail, ROME 4.0 (Licence Ouverte) ; MonMaster et InserSup (MESR) ; et les sources de la robustesse des métiers (OIT, Anthropic Economic Index, Cedefop, Dares, France Travail).</p></details>`;
   return `<div class="card" id="robustesse"><h2>Robustesse 2035 de la formation</h2>
     <p class="muted small">Une estimation du modèle de SupCompass : les métiers auxquels mène cette formation et les compétences qu'elle développe garderont-ils de la valeur entre 2030 et 2035 ? Ce n'est ni une prévision pour une personne, ni une promesse d'emploi.</p>
-    ${vois}${head}${nat}${list}${robInsPublie(pub && pub.ins, pub && pub.but)}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${score}${scen}${comp}${conf}</details>${src}</div>`;
+    ${vois}${lvl}${list}${robInsPublie(pub && pub.ins, pub && pub.but)}${seul}${gain}${princ(r.metiers || {})}${blocs}<details class="more-card"><summary>Détail du calcul</summary>${head}${nat}${score}${scen}${comp}${conf}</details>${src}</div>`;
 }
 
 // ---- Sprint 15: l'IA générative et les tâches du métier (OIT 2025, France Travail) -----
