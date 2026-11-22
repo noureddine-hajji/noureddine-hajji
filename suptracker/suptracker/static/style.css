@@ -28,6 +28,10 @@
   --tile-peach: #ffb38a; --tile-yellow: #fff1a8; --tile-violet: #c4b5fd;      /* coloured tiles: ink text in both themes */
   --zone-securite: #0b7a3b; --zone-cible: #1d4ed8; --zone-ambitieux: #c2410c; --voie-bg: #00838f; --voie-bt: #8a6d00; --voie-bp: #6b4bb8; --accent-soft: #ede8ff; --warn-bg: #fff5e0; --warn-ink: #7a4b00; --info-bg: #eef3ff;
   --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb;   /* R4: neutral data ramp, dark to light */
+  /* evolution charts (owner, 2026-11-22): a categorical set (k1-k3 coloured, k4 = the neutral reference) and a sequential mention
+     ramp (m1 = TB félicitations .. m5 = sans mention); each >= 60 from every zone, bac route and accent colour (red team EV2) */
+  --k1: #1f2f57; --k2: #d0475f; --k3: #2b8cbe; --k4: #71697a;
+  --m1: #2b1a10; --m2: #5e3a20; --m3: #a0703f; --m4: #dcae78; --m5: #f6e3c4;
   --zone-autre: #6f6977; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
   --box: #c9d6f5; --range: #e6ebf7;
   --good: #0b7a3b; --bad: #b3261e; --warn: #8a5a00;
@@ -46,6 +50,8 @@
     --tile-peach: #eaa27c; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
+    --k1: #e8e2d0; --k2: #f2617e; --k3: #3f95d0; --k4: #bdb5c6;
+    --m1: #2b1a10; --m2: #5e3a20; --m3: #a0703f; --m4: #dcae78; --m5: #f6e3c4;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
     --box: #3a4f86; --range: #283247;
     --good: #4ade80; --bad: #ff8f86; --warn: #f3cf8a;
@@ -62,6 +68,8 @@
     --tile-peach: #eaa27c; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
+    --k1: #e8e2d0; --k2: #f2617e; --k3: #3f95d0; --k4: #bdb5c6;
+    --m1: #2b1a10; --m2: #5e3a20; --m3: #a0703f; --m4: #dcae78; --m5: #f6e3c4;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
     --box: #3a4f86; --range: #283247;
     --good: #4ade80; --bad: #ff8f86; --warn: #f3cf8a;
@@ -114,10 +122,23 @@ td.num, th.num { text-align: right; }
 .bench svg { width: 100%; height: 22px; display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--fs-xs); color: var(--muted); margin: 4px 0 8px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.legend i:not([class]) { box-shadow: inset 0 0 0 1px var(--edge); }   /* a bar swatch carries the bars' ink edge (pale mention steps) */
+svg.chart text.mine-lbl { font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+svg.chart text.seg-lbl { fill: var(--ink); }   /* a share inside its bar, on a solid chip */
+svg.chart rect.seg-chip { fill: var(--surface); stroke: var(--edge); stroke-width: 1; }
+.legend { row-gap: 4px; }
+.legend > span { display: inline-flex; align-items: baseline; gap: 4px; }   /* a wrapped name stays beside its swatch */
+.legend > span > svg, .legend > span > i { flex: none; align-self: center; }
+svg.chart .evo-band, .mk-key svg .evo-band { fill: var(--k4); opacity: .22; }   /* the filière's middle half, behind the lines */
+svg.chart .evo-range, .mk-key svg .evo-range { fill: none; stroke: var(--k1); stroke-width: 2; stroke-dasharray: 4 3; }   /* a forecast range */
+.charts > .evo-wide { grid-column: 1 / -1; }   /* the counts table spans the grid */
+.chart-cap { margin: 0 0 4px; color: var(--ink); }   /* what a personal chart measures, above its legend */
+.legend .lg-mine { color: var(--ink); font-weight: 700; }   /* the student's own curve, named first and in bold */
+.mk-key svg { width: 12px; height: 12px; vertical-align: -1px; }   /* the published (square) / estimated (round) key of a mixed line */
 svg.chart { width: 100%; max-width: 620px; height: auto; display: block; }
 svg.chart text { fill: var(--muted); font-size: var(--fs-xs); }
 svg.chart .grid { stroke: var(--line); }
-.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }   /* cards size to their content */
 @media (max-width: 720px) { .charts { grid-template-columns: minmax(0, 1fr); } }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 /* audience dashboard */
@@ -585,7 +606,8 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
   :root:root:root { --bg: #ffffff; --surface: #ffffff; --ink: #000000; --muted: #444444; --line: #999999; --accent-soft: #ffffff;
     --warn-bg: #ffffff; --warn-ink: #000000; --info-bg: #ffffff; --zone-securite: #0b7a3b; --zone-cible: #1d4ed8;
     --zone-ambitieux: #c2410c; --zone-autre: #6f6977; color-scheme: light;
-    --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb; }   /* beats the dark theme's tokens (review) */
+    --c1: #2a2430; --c2: #4d4655; --c3: #71697a; --c4: #958d9e; --c5: #b7b0bf; --c6: #d4cedb;
+    --k1: #1f2f57; --k2: #d0475f; --k3: #2b8cbe; --k4: #71697a; --m1: #2b1a10; --m2: #5e3a20; --m3: #a0703f; --m4: #dcae78; --m5: #f6e3c4; }   /* beats the dark theme's tokens (review) */
   header, nav, .tabbar, .more-menu, #profile-bar, footer, .feedback, .no-print, button { display: none !important; }
   .print-only { display: block; }
   body, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; }
@@ -1039,6 +1061,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 /* reviewer, 2026-11-22: below 480 px the access cell's two halves stack (official rate, then the profile's figure, each at full
    width with its source on fewer, longer lines), split by an ink rule; the explanation sentence follows */
 @media (max-width: 480px) {
+  svg.chart text { font-size: var(--fs-md); }   /* chart units: about 12 px once a phone scales the chart down */
   .summary .sum-tile.sum-acces { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
   .summary .sum-tile.sum-acces .sum-part + .sum-part { border-top: 2px solid var(--paper-ink); border-radius: 0; padding-top: 8px; }
   .summary .sum-tile.sum-acces .sum-part.sum-profil { border-left: 0; padding-left: 6px; }

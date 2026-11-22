@@ -388,7 +388,7 @@ def d6(c: Ctx):
                               ORDER BY 1 LIMIT 1""").fetchone()
     if orphan and M["DB"].for_formation(c.con, orphan[0])["status"] != "sans_groupe":
         bad.append(("orphan has a group", orphan[0]))
-    curves = "values: at(mine.trend, \"taux\")" in c.js and "values: at(g.tous.trend, \"taux\")" in c.js and "pickDoublette(g, profileDkey(" in c.js
+    curves = "values: at(mine.trend, \"taux\")" in c.js and "values: at(g.tous.trend, \"taux\")" in c.js and "const dk = profileDkey(bp0), g = d.status === \"ok\" ? d.groupe : null" in c.js and "g ? pickDoublette(g, dk) : null" in c.js
     return not bad and curves, f"{len(keys)} doublettes × {min(10, len(c.sample_types))} groups; curves read the same rows {curves}; problems {bad[:3]}"
 
 
