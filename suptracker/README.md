@@ -3919,6 +3919,45 @@ Travail's « chargé de postproduction », written without the hyphen). Technici
 keep their own Onisep code H3202 (the Onisep code always wins), which has a FAP family but no ISCO code in the tables: no score. Red team N8 checks every override as written,
 several codes included; N7 seeds « several override codes cut to the first » on real data.
 
+## Robustesse 2035: five levels instead of the score (owner, 2026-11-22, model 2027.8-f)
+
+Parents and students read the score « 66,8 / 100 » and the « top 20 % » repères with difficulty. The owner asked for a simpler
+scale.
+
+- **Why not a 0-100 from the lowest to the highest formation.** On 2026-11-22 the scores went from 40.4 to 73.1, most of them
+  between 48 and 67. A min-max scale would turn 1 raw point into 3 shown points, amplifying gaps the model does not measure.
+  It would also move every formation whenever one extreme changes.
+- **Five levels among the Parcoursup formations.** The levels are read on the national basis, the terms every formation has
+  (its jobs and their diversity):
+  - « Très robuste »: the best 10 %;
+  - « Robuste »: the next 20 %;
+  - « Dans la moyenne »: the 40 % in the middle;
+  - « Plus exposée »: the next 20 %;
+  - « Très exposée »: the last 10 %.
+- **How a formation is placed.** Each of the three scenarios places the formation among that scenario's own scores. Ties never
+  count as above or below, as for the repères. The reference holds the formations' OWN blocks only: an inherited, borrowed,
+  offer or certification block is placed, never counted (13 176 formations).
+- **When the scenarios disagree.** This happens for 14.2 % of the formations, almost always on two neighbouring levels (14
+  formations over three). The page then says « Entre « robuste » et « dans la moyenne » » and fills both cells of the gauge.
+- **What the pages show.**
+  - L'essentiel's tile, the search card and Mes vœux show the level in words with a five-cell gauge (« exposée » to
+    « robuste »; the word is always written).
+  - The formation's job tab leads with the level and its reference count.
+  - The score and both earlier repères (filière, all formations) stay in « Détail du calcul ».
+  - The search filter « Robustesse 2035 » has the five levels; a formation between two is kept by either. The filière filter
+    stays.
+- **Wiring.**
+  - Code: `robustesse_formation.ECHELLE`, `ECHELLE_PARTS`, `niveau5`, `with_echelle` (after every block exists); per-scenario
+    `nationaux` in each block.
+  - Payload: `compact()["echelle"]`, a code listed under each of its levels.
+  - Page: `echelleWords` / `echelleJauge`.
+  - Method page (`/robustesse`): the levels read from the constants and the changelog entry 2027.8-f.
+- **Red team.**
+  - RF18 re-derives every stored level with its own oracle, on a crafted set and on the real blocks. It also checks that
+    borrowed blocks stay out of the reference, that no level is shown without a score, and that no level is read among too
+    few formations.
+  - RF5, RF9, RF11, RF12 and RF13 check the pages; RF8 adds the new mutants.
+
 ## The formation page, tidied (owner, 2026-11-18)
 
 **L'essentiel.** The official access rate and the figure for the profile are ONE cell (`accesTile`), two halves side by side and

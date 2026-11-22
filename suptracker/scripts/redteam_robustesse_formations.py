@@ -494,7 +494,8 @@ def rf4(c: Ctx):
 
 
 # ------------------------------------------------------------------------------------------------------------- page
-NAMES = ("pc1d", "promoTxt", "robPc", "robInsPublie", "ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_VOISINE", "ROBF_ABSENT", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
+ECH_NAMES = ("ECHELLE", "echIdx", "echelleSpan", "echelleWords", "echelleNote", "echelleJauge")   # owner, 2026-11-22: the five levels
+NAMES = ECH_NAMES + ("pc1d", "promoTxt", "robPc", "robInsPublie", "ROB_SCEN", "ROB_CONF", "robNum", "ROBF_REPERE", "ROBF_REPERE_NATIONAL", "ROBF_APRES", "ROBF_METHODE", "ROBF_VOISINE", "ROBF_ABSENT", "ROBF_LIEN", "robJobs", "robfFaits", "formationRobustesseCard")
 
 
 def page_data():
@@ -510,13 +511,16 @@ def page_data():
         "rncp": {"fiche": "RNCP40114", "lien": "onisep", "apprentissage": True, "intitule": HOSTILE, "blocs": ["Bloc " + HOSTILE]},
         "repere": {"niveau": "haut", "filiere": "Licence" + HOSTILE, "n_formations": 2403, "part": 0.2},
         "score_national": 64.4, "repere_national": {"niveau": "bas", "n_formations": 12185, "part": 0.2, "apres_etudes": "master"},
+        "echelle": {"niveaux": ["robuste"], "n_formations": 13176, "parts": [0.1, 0.3]},
     }
     same = copy.deepcopy(full)
     same["repere"] = {"niveau": None, "filiere": "CPGE", "n_formations": 809, "raison": "memes_debouches"}
     same["rncp"] = {"fiche": "RNCP1\" onmouseover=alert(1)", "lien": "titre", "apprentissage": False, "blocs": ["x"]}
     same["repere_national"] = {"niveau": "haut", "n_formations": 12185, "part": 0.2, "apres_etudes": "autres"}
+    same["echelle"] = {"niveaux": ["robuste", "moyenne"], "n_formations": 13176, "parts": [0.1, 0.3]}
     none = copy.deepcopy(full)
     none["score"], none["scenarios"], none["repere"], none["score_national"], none["repere_national"] = None, None, None, None, None
+    none["echelle"] = {"niveaux": ["robuste"], "n_formations": 13176, "parts": [0.1, 0.3]}   # stale: no score, so no level shown
     none["confiance"]["niveau"] = "faible"
     return full, same, none
 
@@ -543,8 +547,15 @@ def rf5(c: Ctx):
         if re.search(r"(?i)condamn|menac|danger|disparaî|chance|garanti|probabilit|feu rouge", txt):
             bad.append(f"output {i}: an alarming word, a chance or a promise")
     lead, _, detail = cf.partition("<summary>Détail du calcul</summary>")
-    if "Parmi les 20 % de formations les plus robustes de sa filière" not in lead or '<span class="estim">' not in lead:
-        bad.append("the repère does not lead the card as an estimation")
+    first = lead.split("<ul")[0]
+    nb = lambda t: t.replace("\u202f", " ").replace("\xa0", " ")  # noqa: E731
+    # owner, 2026-11-22: the LEVEL leads (word + gauge + estimation + its reference count); the repères go into the detail
+    if "<strong>Robuste</strong>" not in first or '<span class="estim">' not in first or 'class="ech"' not in first:
+        bad.append("the level does not lead the card as an estimation with its gauge")
+    if "parmi 13 176 formations Parcoursup" not in nb(first) or "ils arrivent après la licence et un master (bac+5)" not in first:
+        bad.append("the level's reference count or the master caveat is missing before the facts")
+    if "robustes de sa filière" in first or "toutes filières confondues" in first:
+        bad.append("a repère still leads the card instead of the level")
     if re.search(r"Score :|sur 100,", lead.split("<h3>")[0]):
         bad.append("the score is shown before « Détail du calcul »")
     for w in ("8 métiers (7 estimés) : 1 parmi les 20 % de métiers les plus robustes", "50 sur 100 sont transférables", "20 touchent au numérique",
@@ -558,17 +569,19 @@ def rf5(c: Ctx):
     for w in ("fraîcheur", "liens observés", "accord des sources", "couverture", "Version du modèle", "RNCP", "ROME 4.0", "transverse"):
         if w not in cf:
             bad.append(f"card lacks « {w} »")
-    # the national repère (owner, 2026-11-17): second line, before the facts, with the later-studies caveat; its score in the detail
-    if "Parmi les 20 % de formations les moins robustes, toutes filières confondues" not in lead.split("<ul")[0] \
-            or "parmi 12 185 formations" not in lead.replace("\u202f", " ").replace("\xa0", " ") \
-            or "ils arrivent après la licence et un master (bac+5)" not in lead:
-        bad.append("the national repère, its count or its master caveat is missing before the facts")
+    # both repères (filière, national: owner, 2026-11-17) stay readable, in « Détail du calcul » (owner, 2026-11-22)
+    if "Parmi les 20 % de formations les plus robustes de sa filière" not in detail \
+            or "Parmi les 20 % de formations les moins robustes, toutes filières confondues" not in detail \
+            or "parmi 12 185 formations" not in nb(detail):
+        bad.append("the filière or national repère (or its count) is missing from « Détail du calcul »")
     if "base commune à toutes les formations (métiers visés et diversité) : <strong>64</strong>" not in detail:
         bad.append("the national score is not in « Détail du calcul »")
     if "Parmi les 20 % de formations les plus robustes, toutes filières confondues" not in cs or "souvent après d&#39;autres études" not in cs:
         bad.append("a formation not ranked in its filière loses its national repère or its caveat")
-    if "toutes filières" in cn or "base commune" in cn:
-        bad.append("a national repère without a score")
+    if "Entre « robuste » et « dans la moyenne »" not in cs or "selon le scénario retenu" not in cs:
+        bad.append("scenarios that disagree: both levels are not said")
+    if "toutes filières" in cn or "base commune" in cn or 'class="ech"' in cn:
+        bad.append("a national repère or a level without a score")
     if "ne les classons pas" not in cs or "robustes de sa filière" in cs or "francecompetences.fr/recherche/rncp/1" in cs:
         bad.append("shared outlets: no level said, or a link from a non-numeric fiche")
     if "Données insuffisantes" not in cn or re.search(r"Score :|Parmi les 20 % de formations", cn):
@@ -735,17 +748,18 @@ def rf7(c: Ctx):
 
 
 # ------------------------------------------------------------------------------------------------------- Mes vœux + method
-VX_NAMES = ("esc", "ROB_WORD", "ROB_RAISON", "robDecode", "robVoeuxCard")
+VX_NAMES = ("esc",) + ECH_NAMES + ("ROB_WORD", "ROB_RAISON", "robDecode", "robVoeuxCard")
 
 
-@check("RF9 Mes vœux: both repères beside each zone, never merged or sorted by; compact payload re-derived; escaped")
+@check("RF9 Mes vœux: the robustesse level beside each zone, never merged or sorted by; compact payload re-derived; escaped")
 def rf9(c: Ctx):
     import duckdb
     F = c.F()
     bad = []
     # compact(): every formation's levels, re-derived from the stored blocks (a crafted table in core)
-    rows = {"1": {"repere": {"niveau": "haut"}, "repere_national": {"niveau": "bas", "apres_etudes": "master"}},
-            "2": {"repere": {"niveau": None, "raison": "memes_debouches"}, "repere_national": {"niveau": "haut", "apres_etudes": "autres"}},
+    rows = {"1": {"repere": {"niveau": "haut"}, "repere_national": {"niveau": "bas", "apres_etudes": "master"}, "echelle": {"niveaux": ["robuste"]}},
+            "2": {"repere": {"niveau": None, "raison": "memes_debouches"}, "repere_national": {"niveau": "haut", "apres_etudes": "autres"},
+                  "echelle": {"niveaux": ["robuste", "moyenne"]}},
             "3": {"repere": {"niveau": None, "raison": "trop_peu"}, "repere_national": None},
             "4": {"repere": None, "repere_national": None},
             "5": {"repere": {"niveau": "moyen"}, "repere_national": {"niveau": "moyen", "apres_etudes": None}},
@@ -758,7 +772,7 @@ def rf9(c: Ctx):
     got = F.compact(con)
     exp = {"filiere": {"haut": "1", "moyen": "5,6"}, "national": {"bas": "1,7", "haut": "2,6", "moyen": "5"},
            "raison": {"memes_debouches": "2", "trop_peu": "3"}, "apres": {"autres": "2", "master": "1"}, "herite": {"diplome": "6"},
-           "voisine": {}, "certification": {"rncp": "7"}}
+           "voisine": {}, "certification": {"rncp": "7"}, "echelle": {"moyenne": "2", "robuste": "1,2"}}
     if got != exp:
         bad.append(f"compact {got} != {exp}")
     pc_src = (ROOT / "suptracker" / "precomp.py").read_text()
@@ -789,20 +803,21 @@ def rf9(c: Ctx):
     if "<img" in full or "<img" in nozone:
         bad.append("an unescaped stored string")
     trs = re.findall(r"<tr>(.*?)</tr>", full, re.S)
-    if len(trs) != 4 or any(len(re.findall(r"<td", t)) != 4 for t in trs):
-        bad.append("each vœu must have its own row with four cells (formation, zone, filière, toutes filières)")
+    # owner, 2026-11-22: one cell per vœu for the robustesse LEVEL (word + gauge), beside the zone's own cell
+    if len(trs) != 4 or any(len(re.findall(r"<td", t)) != 3 for t in trs):
+        bad.append("each vœu must have its own row with three cells (formation, zone, robustesse 2035)")
     else:
         cells = [re.findall(r"<td[^>]*>(.*?)</td>", t, re.S) for t in trs]
-        if "Z-cible" not in cells[0][1] or "parmi les 20 % les plus robustes" not in cells[0][2] or "parmi les 20 % les moins robustes" not in cells[0][3] \
-                or "métiers après un master" not in cells[0][3]:
-            bad.append("row 1: the zone and the two repères are not each in their own cell")
-        if "mêmes métiers" not in cells[1][2] or "après d&#39;autres études" not in cells[1][3].replace("'", "&#39;"):
-            bad.append("row 2: the reason or the later-studies caveat is missing")
-        if "trop peu" not in cells[2][2] or "pas d" not in cells[2][3]:
-            bad.append("row 3: an unscored national repère must say so")
+        if "Z-cible" not in cells[0][1] or "<strong>Robuste</strong>" not in cells[0][2] or 'class="ech"' not in cells[0][2] \
+                or "métiers après un master" not in cells[0][2]:
+            bad.append("row 1: the zone and the level (word and gauge) are not each in their own cell")
+        if "Entre « robuste » et « dans la moyenne »" not in cells[1][2] or "après d&#39;autres études" not in cells[1][2].replace("'", "&#39;"):
+            bad.append("row 2: two levels or the later-studies caveat are missing")
+        if "pas d" not in cells[2][2] or "ech-c" in cells[2][2]:
+            bad.append("row 3: a formation with no level must say so, never a gauge")
         if [re.search(r'href="#/f/(\d+)"', t).group(1) if re.search(r'href="#/f/(\d+)"', t) else None for t in trs] != ["1", "2", "3", None]:
             bad.append("the rows are not in the list's own order")
-        if any("Z-" in x for row in cells for x in row[2:]) or any("robustes" in row[1] for row in cells):
+        if any("Z-" in x for row in cells for x in row[2:]) or any("Robuste" in row[1] or "ech-c" in row[1] for row in cells):
             bad.append("a zone and a repère share a cell")
     if "Option Ω" not in full:
         bad.append("a terminale row loses the course's complement (two courses of one filière look alike)")
@@ -863,8 +878,8 @@ def rf10(c: Ctx):
 
 
 # ------------------------------------------------------------------------- RF11: insertion beside the score, search filters
-FILTER_NAMES = ("CARTE_ROB", "robReady", "robLevel", "CARTE_FGROUPS", "carteHas", "carteFilter", "carteFacets", "carteCommon", "carteInLieu", "ROB_CARD",
-                "robCardLine")
+FILTER_NAMES = ECH_NAMES + ("CARTE_ROB", "robReady", "robLevel", "CARTE_FGROUPS", "carteHas", "carteFilter", "carteFacets", "carteCommon",
+                             "carteInLieu", "robCardLine")
 FILTER_STUB = """
 const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, carteZone = () => "autre", carteText = () => "", haversineKm = () => 0;
 """
@@ -873,18 +888,18 @@ const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 var RECO = { rob: robDecode(D.p) };
 const ref = {};
 for (const [g, os] of Object.entries(D.opts)) for (const o of os) ref[g + ":" + o] = carteFilter(D.rows, { [g]: [o] }).map((f) => f.cod_aff_form);
-const both = carteFilter(D.rows, { robf: ["haut", "sans"], robn: ["bas"] }).map((f) => f.cod_aff_form);
+const both = carteFilter(D.rows, { robf: ["haut", "sans"], robn: ["plus_exposee"] }).map((f) => f.cod_aff_form);
 const fac = carteFacets(D.rows, { robf: ["haut"] }, null, D.opts);
 const facets = Object.fromEntries(Object.entries(fac).map(([g, m]) => [g, Object.fromEntries(m)]));
 const lines = D.rows.map((f) => robCardLine(f.cod_aff_form));
 RECO = { rob: robDecode({ filiere: {}, national: {}, raison: {}, apres: {} }) };     // tables missing: an empty payload (Codex)
-const empty = carteFilter(D.rows, { robf: ["haut"], robn: ["bas"] }).length;
+const empty = carteFilter(D.rows, { robf: ["haut"], robn: ["plus_exposee"] }).length;
 RECO = null;
-const none = carteFilter(D.rows, { robf: ["haut"], robn: ["bas"] }).length;
+const none = carteFilter(D.rows, { robf: ["haut"], robn: ["plus_exposee"] }).length;
 process.stdout.write(JSON.stringify({ ref, both, facets, lines, none, empty, noline: robCardLine("1") }));"""
 
 
-@check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by both repères, counted, never sorted by")
+@check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by the filière repère and the five levels, counted, never sorted by")
 def rf11(c: Ctx):
     bad = []
     if not all(RB.top(c.js, n) for n in NAMES + FILTER_NAMES + VX_NAMES[1:]):
@@ -933,36 +948,39 @@ def rf11(c: Ctx):
     rf_src = c.src["robf"]
     if re.search(r"for_bts|for_but|taux_emploi|inserjeunes", rf_src, re.I):
         bad.append("the formation model reads the BTS / BUT insertion (it must stay out of the score)")
-    # 2. the search filters, re-derived from the compact payload
+    # 2. the search filters, re-derived from the compact payload: the filière repère, and the FIVE levels (owner, 2026-11-22),
+    # a formation between two levels kept by either
     lv = ["haut", "moyen", "bas", None]
-    rows, p = [], {"filiere": {}, "national": {}, "raison": {}, "apres": {}}
+    E = ["tres_robuste", "robuste", "moyenne", "plus_exposee", "tres_exposee"]
+    spans = [[e] for e in E] + [[E[k], E[k + 1]] for k in range(4)] + [None]
+    rows, p = [], {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "echelle": {}}
     exp = {}
     for i in range(40):
         cod = str(100 + i)
-        a, b = lv[i % 4], lv[(i // 4) % 4]
+        a, b = lv[i % 4], spans[(i // 4) % len(spans)]
         if a:
             p["filiere"].setdefault(a, []).append(cod)
         elif i % 8 == 3:
             p["raison"].setdefault("memes_debouches", []).append(cod)
-        if b:
-            p["national"].setdefault(b, []).append(cod)
+        for e in b or []:
+            p["echelle"].setdefault(e, []).append(cod)
         rows.append({"cod_aff_form": cod, "statut": "public"})
-        exp[cod] = (a or "sans", b or "sans")
+        exp[cod] = (a or "sans", b or ["sans"])
     rows.append({"cod_aff_form": "X1", "statut": "prive_app", "stats": False})          # an apprenticeship offer: no repère
-    exp["X1"] = ("sans", "sans")
+    exp["X1"] = ("sans", ["sans"])
     payload = {k: {lvl: ",".join(v) for lvl, v in d.items()} for k, d in p.items()}
-    opts = {"robf": ["haut", "moyen", "bas", "sans"], "robn": ["haut", "moyen", "bas", "sans"]}
+    opts = {"robf": ["haut", "moyen", "bas", "sans"], "robn": E + ["sans"]}
     fprog = RB.STUB + FILTER_STUB + "\n".join(RB.top(c.js, n) for n in ("robDecode",) + FILTER_NAMES) + FILTER_PROG
     o = RB.node(fprog, {"p": payload, "rows": rows, "opts": opts})
     for g, k in (("robf", 0), ("robn", 1)):
         for lvl in opts[g]:
-            want = [cod for cod, e in exp.items() if e[k] == lvl]
+            want = [cod for cod, e in exp.items() if (lvl in e[k] if k else e[k] == lvl)]
             if sorted(o["ref"][f"{g}:{lvl}"]) != sorted(want):
                 bad.append(f"filter {g}={lvl}: {len(o['ref'][f'{g}:{lvl}'])} kept, {len(want)} expected")
-    if sorted(o["both"]) != sorted(cod for cod, e in exp.items() if e[0] in ("haut", "sans") and e[1] == "bas"):
+    if sorted(o["both"]) != sorted(cod for cod, e in exp.items() if e[0] in ("haut", "sans") and "plus_exposee" in e[1]):
         bad.append("two groups together: options OR inside a group, AND between groups")
     keep = [cod for cod, e in exp.items() if e[0] == "haut"]
-    want_n = {lvl: sum(1 for cod in keep if exp[cod][1] == lvl) for lvl in opts["robn"]}
+    want_n = {lvl: sum(1 for cod in keep if lvl in exp[cod][1]) for lvl in opts["robn"]}
     if o["facets"]["robn"] != want_n or o["facets"]["robf"] != {lvl: sum(1 for e in exp.values() if e[0] == lvl) for lvl in opts["robf"]}:
         bad.append("the counts beside the options are not those of the other groups' selection")
     if o["empty"] != len(rows):
@@ -971,18 +989,21 @@ def rf11(c: Ctx):
         bad.append("repères not loaded: the filter must keep every formation (and the dropdowns are hidden)")
     for f, line in zip(rows, o["lines"]):
         a, b = exp[f["cod_aff_form"]]
-        if (a, b) == ("sans", "sans"):
+        if b == ["sans"]:
             if line:
-                bad.append("a card line with no repère")
+                bad.append("a card line with no level")
             continue
-        if "estimation" not in line or (a != "sans" and "de sa filière" not in line) or (b != "sans" and "toutes formations" not in line):
-            bad.append("a card line without its label or a repère")
+        names = {"tres_robuste": "Très robuste", "robuste": "Robuste", "moyenne": "Dans la moyenne", "plus_exposee": "Plus exposée",
+                 "tres_exposee": "Très exposée"}
+        want = names[b[0]] if len(b) == 1 else f"Entre « {names[b[0]].lower()} » et « {names[b[1]].lower()} »"
+        if "estimation" not in line or want not in line or 'class="ech"' not in line or "de sa filière" in line:
+            bad.append(f"a card line without its label, its level ({want}) or its gauge")
             break
     if o["noline"]:
         bad.append("a card line without the repères loaded")
     # a level the payload never sends is never printed
-    q = RB.node(RB.STUB + "\n".join(RB.top(c.js, n) for n in ("ROB_CARD", "robCardLine")) + """
-      var RECO = { rob: { filiere: { "1": "<img src=x>" }, national: { "1": "zz" } } };
+    q = RB.node(RB.STUB + "\n".join(RB.top(c.js, n) for n in ECH_NAMES + ("robCardLine",)) + """
+      var RECO = { rob: { filiere: { "1": "<img src=x>" }, national: { "1": "zz" }, echelle: { "1": ["<img src=x>", "zz"] } } };
       process.stdout.write(JSON.stringify(robCardLine("1")));""", {})
     if q:
         bad.append("an unknown level printed on a card")
@@ -1002,9 +1023,9 @@ def rf11(c: Ctx):
     return not bad, f"differences {bad[:5]}"
 
 
-@check("RF12 L'essentiel: the robustesse tile (median score / 100, both repères, estimation; none invented), opens « Emploi et métiers »")
+@check("RF12 L'essentiel: the robustesse tile (the level in words + gauge, estimation; no score; none invented), opens « Emploi et métiers »")
 def rf12(c: Ctx):
-    names = ("ROB_SUM", "robNum", "formationRobTile")
+    names = ECH_NAMES + ("robNum", "formationRobTile")
     if not all(RB.top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     full, same, none = page_data()
@@ -1015,19 +1036,23 @@ def rf12(c: Ctx):
     trop = copy.deepcopy(full)
     trop["repere"] = {"niveau": None, "raison": "trop_peu"}
     trop["repere_national"] = {"niveau": "moyen"}
+    trop["echelle"] = {"niveaux": ["<img src=x>"]}                     # an unknown level is never printed
     out = RB.node(prog, {"f": full, "s": same, "n": none, "t": trop})
     if out is None:
         return True, "node absent: not run"
     f, sm, n, z, t = out
     bad = []
-    if "66 / 100" not in f or "parmi les 20 % les plus robustes de sa filière" not in f or "parmi les 20 % les moins robustes de toutes les formations" not in f \
-            or "estimation" not in f:
-        bad.append("the score, a repère or the estimation label is missing")
-    if "non classée dans sa filière" not in sm or "plus robustes de toutes les formations" not in sm:
-        bad.append("a formation not ranked in its filière: no reason or no national repère")
-    if "trop peu de formations comparables" not in t or "dans la moyenne de toutes les formations" not in t:
-        bad.append("too few comparable formations: not said")
-    if "/ 100" in n or "données insuffisantes" not in n or "/ 100" in z or "pas d'estimation" not in z:
+    if "pas de niveau" not in t or 'class="ech"' in t:
+        bad.append("an unknown level is printed instead of « pas de niveau »")
+    # owner, 2026-11-22: the LEVEL in words (one, or « entre … et … » when the scenarios disagree), its gauge and the estimation
+    # label; never the score « / 100 » nor a repère (both in « Détail du calcul » of « Emploi et métiers »)
+    if ">Robuste<" not in f or 'class="ech"' not in f or "parmi les 20 % de formations suivantes" not in f or "estimation" not in f:
+        bad.append("the level, its gauge, its meaning or the estimation label is missing")
+    if "Entre « robuste » et « dans la moyenne »" not in sm or "selon le scénario retenu" not in sm:
+        bad.append("scenarios that disagree: both levels are not said")
+    if any("/ 100" in x or "de sa filière" in x or "toutes les formations" in x for x in (f, sm, t)):
+        bad.append("the tile still shows the score or a repère")
+    if "/ 100" in n or "données insuffisantes" not in n or ">Robuste<" in n or 'class="ech"' in n or "/ 100" in z or "pas d'estimation" not in z:
         bad.append("a number without a score, or the absence not said")
     if any('data-goto="emploi"' not in x for x in out) or "<img" in "".join(out):
         bad.append("the tile does not open « Emploi et métiers », or is not escaped")
@@ -1040,9 +1065,12 @@ def rf12(c: Ctx):
 
 
 SOURCE_MUTANTS = [
-    ("js", "score without its estimation label", '.map(esc).join(" ; ")} ${estimTag("", false, true)}`;', '.map(esc).join(" ; ")}`;', "RF12"),
-    ("js", "national repère dropped from the tile", "  const nat = n.niveau ? `${ROB_SUM[n.niveau]} de toutes les formations` : \"\";", "  const nat = \"\";", "RF12"),
-    ("js", "a number with no score", '<span class="sum-value">${s ? `${robNum(s.median)} / 100` : "—"}</span>', '<span class="sum-value">${robNum(rb && rb.score_national)} / 100</span>', "RF12"),
+    ("js", "level without its estimation label", '${esc(echelleNote(niv))} ${estimTag("", false, true)}`;', '${esc(echelleNote(niv))}`;', "RF12"),
+    ("js", "gauge dropped from the tile", '    : `${echelleJauge(niv)}<span class="sr-only">', '    : `<span class="sr-only">', "RF12"),
+    ("js", "a level with no score", '  const words = s ? echelleWords(niv) : "";', '  const words = echelleWords(niv);', "RF12"),
+    ("js", "the score back in the tile", '<span class="sum-value sum-words">${words ? esc(words) : "—"}</span>', '<span class="sum-value sum-words">${s ? `${robNum(s.median)} / 100` : "—"}</span>', "RF12"),
+    ("js", "both levels not said", '  return sp[0] === sp[1] ? ECHELLE[sp[0]][1] : `Entre', '  return sp[0] === sp[0] ? ECHELLE[sp[0]][1] : `Entre', "RF12"),
+    ("js", "an unknown level accepted", '  if (!ix.length || ix.some((i) => i < 0)) return null;', '  if (!ix.length) return null;', "RF12"),
     ("js", "tile out of the summary", "      ${formationRobTile(d.robustesse)}\n", "", "RF12"),
     ("robf", "portable threshold 19", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS", "rome[\"partage\"].get(o, 0) >= PORTABLE_SHEETS - 1", "RF1"),
     ("robf", "technique counted portable", 'C[o]["sous_cat"] == "Transverse" or', 'C[o]["sous_cat"] != "Technique expert" or', "RF1"),
@@ -1073,12 +1101,12 @@ SOURCE_MUTANTS = [
     ("robf", "national without the caveat", '"apres_etudes": {"poursuite": "master", "famille": "autres"}.get(d["methode"])}', '"apres_etudes": None}', "RF4"),
     ("robf", "filière lists unsorted", "    for ref in by.values():\n        ref.sort()\n", "", "RF4"),
     ("robf", "national ties count as below", "below = bisect.bisect_left(others, v) / n", "below = bisect.bisect_right(others, v) / n", "RF4"),
-    ("js", "no national line", "${head}${nat}${list}", "${head}${list}", "RF5"),
-    ("js", "national caveat dropped", '${qn.apres_etudes ? `<br><span class="small">${esc(ROBF_APRES[qn.apres_etudes] || "")}</span>` : ""}', "", "RF5"),
+    ("js", "no level line", "${vois}${lvl}${list}", "${vois}${list}", "RF5"),
+    ("js", "master caveat dropped", '${(qn && qn.apres_etudes) ? ` · ${esc(ROBF_APRES[qn.apres_etudes] || "")}` : ""}', "", "RF5"),
     ("robf", "compact drops the national repère", '            acc["national"].setdefault(n["niveau"], []).append(cod)', "            pass", "RF9"),
     ("robf", "compact drops the reasons", '            acc["raison"].setdefault(q["raison"], []).append(cod)', "            pass", "RF9"),
-    ("js", "zone and repère merged", '      ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}\n      <td data-label="Robustesse dans sa filière">${cell(v.cod_aff_form, "filiere")}</td>',
-     '      <td data-label="Robustesse dans sa filière">${zcol ? zoneOf(v) : ""} ${cell(v.cod_aff_form, "filiere")}</td>', "RF9"),
+    ("js", "zone and level merged", '      ${zcol ? `<td data-label="Zone pour votre profil">${zoneOf(v)}</td>` : ""}\n      <td data-label="Robustesse 2035">${level(v.cod_aff_form)}</td>',
+     '      <td data-label="Robustesse 2035">${zcol ? zoneOf(v) : ""} ${level(v.cod_aff_form)}</td>', "RF9"),
     ("js", "comparator rows sorted by repère", "const body = rows.map(", "const body = [...rows].sort((a, b) => (R.national[b.cod_aff_form] || \"z\").localeCompare(R.national[a.cod_aff_form] || \"z\")).map(", "RF9"),
     ("js", "comparator name unescaped", "${esc(v.etablissement || v.cod_aff_form)}", "${v.etablissement || v.cod_aff_form}", "RF9"),
     ("js", "comparator drops the complement", '${v.complement ? ` · ${esc(v.complement)}` : ""}</div>`}</td>\n      ${zcol', '</div>`}</td>\n      ${zcol', "RF9"),
@@ -1087,7 +1115,7 @@ SOURCE_MUTANTS = [
     ("js", "no comparator in Mes vœux", "${robVoeuxCard(d.voeux, (v) =>", "${(() => \"\")(d.voeux, (v) =>", "RF9"),
     ("methode", "a version missing from the changelog", '    ("2027.2 / 2027.2-f", "17 novembre 2026",', '    ("2027.9", "17 novembre 2026",', "RF10"),
     ("methode", "a weight typed on the page", "<li>Les métiers visés comptent pour {pc(RF.W_JOBS)}.", "<li>Les métiers visés comptent pour 50 %.", "RF10"),
-    ("js", "score in the lead", "${head}${nat}${list}${robInsPublie", "${score}${head}${nat}${list}${robInsPublie", "RF5"),
+    ("js", "score in the lead", "${vois}${lvl}${list}${robInsPublie", "${vois}${score}${lvl}${list}${robInsPublie", "RF5"),
     ("js", "filière unescaped", "` (${esc(q.filiere.replace(\"_\", \" \"))})`", "` (${q.filiere})`", "RF5"),
     ("js", "fiche link not checked", '/^RNCP\\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null', '(rn.fiche || "").slice(4) || null', "RF5"),
     ("js", "no diploma-alone block", '<h3>Avec ce diplôme seul</h3>', '<h3>Débouchés</h3>', "RF5"),
@@ -1103,17 +1131,31 @@ SOURCE_MUTANTS = [
     ("js", "insertion block dropped", "${robInsPublie(pub && pub.ins, pub && pub.but)}", "", "RF11"),
     ("js", "page does not pass the insertion", "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${insertionCard",
      "formationRobustesseCard(d.robustesse, {})}\n  ${insertionCard", "RF11"),
-    ("js", "national repère read for the filière filter", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]', 'RECO.rob["filiere"][cod]', "RF11"),
-    ("js", "no repère counted as average", 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "sans";', 'RECO.rob[k === "robf" ? "filiere" : "national"][cod]) || "moyen";', "RF11"),
+    ("js", "national repère read for the filière filter", '  : (RECO && RECO.rob && RECO.rob.filiere[cod]) || "sans");', '  : (RECO && RECO.rob && RECO.rob.national[cod]) || "sans");', "RF11"),
+    ("js", "no level counted as average", 'RECO.rob.echelle[cod]) || ["sans"])', 'RECO.rob.echelle[cod]) || ["moyenne"])', "RF11"),
+    ("js", "the level filter matches one level only", '  if (g === "robn") return !robReady() || robLevel(f.cod_aff_form, g).includes(o);',
+     '  if (g === "robn") return !robReady() || robLevel(f.cod_aff_form, g)[0] === o;', "RF11"),
     ("js", "repères not loaded hide every formation", "return !robReady() || robLevel(f.cod_aff_form, g) === o;", "return robLevel(f.cod_aff_form, g) === o;", "RF11"),
-    ("js", "empty payload counted as loaded (Codex)", "out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0;", "out.ok = true;", "RF11"),
+    ("js", "empty payload counted as loaded (Codex)", "out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0 || Object.keys(out.echelle).length > 0;", "out.ok = true;", "RF11"),
     ("js", "readiness ignores an empty payload", "const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);", "const robReady = () => !!(RECO && RECO.rob);", "RF11"),
     ("js", "dropdowns shown for an empty payload", "    const robOk = robReady();", "    const robOk = !!(RECO && RECO.rob);", "RF11"),
     ("js", "filter ignored by the list", '...CARTE_R3, "robf", "robn"];', "...CARTE_R3];", "RF11"),
     ("js", "groups not offered", "fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "fiOptions(g).map((o) => [o.key, o.label])])];", "RF11"),
     ("js", "groups offered without repères", '.filter(([gr]) => robOk || !gr.startsWith("rob"))', ".filter(() => true)", "RF11"),
     ("js", "dropdown without its estimation label", '${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} ', '${gr.startsWith("rob") ? `<p class="small"> ', "RF11"),
-    ("js", "card line reads unknown levels", "const a = R && ROB_CARD[R.filiere[cod]], b = R && ROB_CARD[R.national[cod]];", "const a = R && (ROB_CARD[R.filiere[cod]] || R.filiere[cod]), b = R && ROB_CARD[R.national[cod]];", "RF11"),
+    ("js", "card line reads unknown levels", "const w = R && R.echelle && echelleWords(R.echelle[cod]);", "const w = R && R.echelle && (echelleWords(R.echelle[cod]) || (R.echelle[cod] || []).join(\" \"));", "RF11"),
+    ("robf", "ties counted below", "    below = bisect.bisect_left(ref, v) / n\n    above = (n - bisect.bisect_right(ref, v)) / n\n    for i, part in enumerate(ECHELLE_PARTS):",
+     "    below = bisect.bisect_right(ref, v) / n\n    above = (n - bisect.bisect_right(ref, v)) / n\n    for i, part in enumerate(ECHELLE_PARTS):", "RF18"),
+    ("robf", "the top 20 % called very robust", "ECHELLE_PARTS = (0.10, 0.30)", "ECHELLE_PARTS = (0.20, 0.30)", "RF18"),
+    ("robf", "the central scenario only", 'idx = sorted({ECHELLE.index(niveau5(d["nationaux"][s], refs[s])) for s in ("S1", "S2", "S3")})',
+     'idx = sorted({ECHELLE.index(niveau5(d["nationaux"][s], refs[s])) for s in ("S2",)})', "RF18"),
+    ("robf", "borrowed blocks counted in the reference", '    return not (d.get("herite") or d.get("diplome_offre") or d.get("voisine") or d.get("certification"))',
+     "    return True", "RF18"),
+    ("robf", "one reference for every scenario", 'refs = {s: sorted(d["nationaux"][s] for d in own) for s in ("S1", "S2", "S3")}',
+     'refs = {s: sorted(d["nationaux"]["S2"] for d in own) for s in ("S1", "S2", "S3")}', "RF18"),
+    ("robf", "a level without a score", '        if not (d.get("score") and d.get("nationaux")) or len(own) < MIN_ECHELLE:',
+     '        if not d.get("nationaux") or len(own) < MIN_ECHELLE:', "RF18"),
+    ("robf", "levels dropped from the payload", '            acc["echelle"].setdefault(lv, []).append(cod)', "            pass", "RF9"),
     ("js", "card line without estimation", 'Robustesse 2035 des métiers visés ${estimTag("", false, true)} :', "Robustesse 2035 des métiers visés :", "RF11"),
     ("robf", "neighbour confidence not lowered", 'k["valeur"] = round(k["valeur"] * VOISIN_WEIGHT, 3)', 'k["valeur"] = round(k["valeur"], 3)', "RF15"),
     ("robf", "neighbour kept in its filière ranking", '        b["repere"] = None\n        v = b.get("score_national")\n        apres =',
@@ -1210,12 +1252,13 @@ def rf13(c: Ctx):
     if not (0 <= body.find("with_repere(rows, fili)") < body.find("rows.update(inherit(con, rows, session))")) or body.count("with_repere(rows, fili)") != 1:
         bad.append("inherited rows enter the repères' ranking")
     # the card: the line on an apprenticeship card too, saying the repères are the diploma's
-    q = RB.node(RB.STUB + "\n".join(RB.top(c.js, n) for n in ("ROB_CARD", "robCardLine")) + """
-      var RECO = { rob: { filiere: { "1": "moyen", "2": "haut" }, national: { "1": "bas", "2": "bas" }, herite: { "2": "diplome" } } };
+    q = RB.node(RB.STUB + "\n".join(RB.top(c.js, n) for n in ECH_NAMES + ("robCardLine",)) + """
+      var RECO = { rob: { filiere: { "1": "moyen", "2": "haut" }, national: { "1": "bas", "2": "bas" }, herite: { "2": "diplome" },
+        echelle: { "1": ["moyenne"], "2": ["plus_exposee"] } } };
       process.stdout.write(JSON.stringify([robCardLine("1"), robCardLine("2")]));""", {})
     if q is not None:
         own, inh = q
-        if "diplôme" in own or "Repères du diplôme" not in inh or "de sa filière" not in inh:
+        if "diplôme" in own or "Repères du diplôme" not in inh or "Plus exposée" not in inh:
             bad.append("the card does not say an inherited repère is the diploma's (or says it of a formation's own)")
     if "herite: {}" not in RB.top(c.js, "robDecode"):
         bad.append("the page does not decode the inherited list")
@@ -1661,6 +1704,85 @@ def rf17(c: Ctx):
                 break
         real = f"; real: {len(own)} offers read through their certification ({sum(1 for v in own.values() if v.get('score'))} with a score)"
     return not bad, f"differences {bad[:4]}{real}"
+
+
+def oracle_echelle(rows: dict, parts=(0.10, 0.30)) -> dict:
+    """An independent reading of the five-level scale (owner, 2026-11-22): per scenario, the share of the OWN blocks strictly below
+    and strictly above; the top level from 90 % below, the second from 70 %; the same at the bottom; the middle otherwise."""
+    names = ["tres_robuste", "robuste", "moyenne", "plus_exposee", "tres_exposee"]
+    own = [d for d in rows.values() if d.get("score") and d.get("nationaux")
+           and not any(d.get(k) for k in ("herite", "diplome_offre", "voisine", "certification"))]
+    out = {}
+    for cod, d in rows.items():
+        if not (d.get("score") and d.get("nationaux")) or len(own) < 100:
+            out[cod] = None
+            continue
+        lv = set()
+        for sc in ("S1", "S2", "S3"):
+            vals = [o["nationaux"][sc] for o in own]
+            v = d["nationaux"][sc]
+            lo, hi = sum(x < v for x in vals) / len(vals), sum(x > v for x in vals) / len(vals)
+            k = 0 if lo >= 1 - parts[0] else 1 if lo >= 1 - parts[1] else 4 if hi >= 1 - parts[0] else 3 if hi >= 1 - parts[1] else 2
+            lv.add(k)
+        out[cod] = [names[min(lv)]] if len(lv) == 1 else [names[min(lv)], names[max(lv)]]
+    return out
+
+
+@check("RF18 five levels (owner, 2026-11-22): per scenario among the OWN blocks, 10/20/40/20/10, ties never above, both levels when they disagree")
+def rf18(c: Ctx):
+    import random
+    F = c.F()
+    rnd = random.Random(7)
+    bad = []
+    rows = {}
+    for i in range(240):
+        base = rnd.choice([40, 50, 55, 58, 60, 60, 60, 62, 64, 66, 70, 73]) + rnd.random() * 2
+        nat = {"S1": round(base - rnd.random() * 3, 1), "S2": round(base, 1), "S3": round(base + rnd.random() * 0.5, 1)}
+        rows[str(i)] = {"score": {"median": base}, "nationaux": nat}
+    rows["T1"], rows["T2"] = ({"score": {"median": 60}, "nationaux": {"S1": 60.0, "S2": 60.0, "S3": 60.0}} for _ in range(2))
+    rows["H"] = {"score": {"median": 99}, "nationaux": {"S1": 99.0, "S2": 99.0, "S3": 99.0}, "herite": {"source": "diplome"}}
+    rows["V"] = {"score": {"median": 1}, "nationaux": {"S1": 1.0, "S2": 1.0, "S3": 1.0}, "voisine": {"regle": "x"}}
+    rows["N"] = {"score": None, "nationaux": {"S1": 50.0, "S2": 50.0, "S3": 50.0}}
+    exp = oracle_echelle(copy.deepcopy(rows))
+    got = F.with_echelle(copy.deepcopy(rows))
+    diff = [k for k in rows if (got[k].get("echelle") or {}).get("niveaux") != exp[k]]
+    if diff:
+        bad.append(f"crafted: {len(diff)} levels differ from the oracle (e.g. {diff[:3]})")
+    if got["H"]["echelle"]["n_formations"] != 242:
+        bad.append("an inherited or borrowed block counted in the reference")
+    if got["H"]["echelle"]["niveaux"] != ["tres_robuste"] or got["V"]["echelle"]["niveaux"] != ["tres_exposee"]:
+        bad.append("a borrowed block is not placed")
+    if got["N"]["echelle"] is not None:
+        bad.append("a level without a score")
+    small = F.with_echelle({k: copy.deepcopy(rows[k]) for k in list(rows)[:50]})
+    if any(v.get("echelle") for v in small.values()):
+        bad.append("a level read among too few formations")
+    shares = [sum(1 for k in rows if exp[k] and exp[k][0] == n and len(exp[k]) == 1) for n in ("tres_robuste", "moyenne")]
+    # the real blocks (sidecar beside the warehouse): every stored level re-derived, the shares measured
+    detail = ""
+    if c.db is not None:
+        import duckdb
+        tp = c.db.parent / "rapport_textes.duckdb"
+        if tp.exists():
+            con = duckdb.connect(str(tp), read_only=True)
+            try:
+                real = {k: json.loads(v) for k, v in con.execute("SELECT cod_aff_form, data FROM r35_formation").fetchall()}
+            except Exception:  # noqa: BLE001
+                real = {}
+            con.close()
+            if real and any("nationaux" in v for v in real.values()):
+                want = oracle_echelle(real)
+                wrong = [k for k, v in real.items() if (v.get("echelle") or {}).get("niveaux") != want[k]]
+                if wrong:
+                    bad.append(f"real: {len(wrong)} stored levels differ from the oracle (e.g. {wrong[:3]})")
+                own = [v for v in real.values() if v.get("echelle") and not any(v.get(k) for k in ("herite", "diplome_offre", "voisine", "certification"))]
+                two = sum(1 for v in own if len(v["echelle"]["niveaux"]) == 2) / max(1, len(own))
+                if two > 0.25:
+                    bad.append(f"the scenarios disagree on {two:.0%} of the formations: the scale says little")
+                detail = f"; real: {len(real)} blocks, {len(own)} own levels, two levels {two:.1%}"
+            elif real:
+                detail = "; real blocks without the per-scenario national scores (an older build): not re-derived"
+    return not bad, f"differences {bad[:4]}; crafted single tres_robuste/moyenne {shares}{detail}"
 
 
 @check("RF8 mutation test: every seeded bug is caught")

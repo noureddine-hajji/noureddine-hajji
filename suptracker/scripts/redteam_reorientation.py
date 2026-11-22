@@ -608,7 +608,7 @@ def e6(c: Ctx):
     # sprint R2: the summary's "Pour votre profil" tile and the page's own helpers it calls
     r2 = "".join(top(js, n) for n in ("pickDoublette", "estimateDoublette", "estimateSemblable", "ownHasBg", "pickRapport", "pickVoie",
                                        "VOIE_WORD", "RP_VOIE", "DBL_SEUIL", "profileRate", "PR_SOURCE", "profileRateTile",
-                                       "ACCES_EXPLAIN", "accesTile", "ROB_SUM", "robNum", "formationRobTile"))
+                                       "ACCES_EXPLAIN", "accesTile", "ECHELLE", "echIdx", "echelleSpan", "echelleWords", "echelleNote", "echelleJauge", "robNum", "formationRobTile"))
     pre = r2 + page_prog(c)
     zones = "" if re.search(r"^const ZONES = ", pre, re.M) else re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0) + "\n"
     draw = "".join(top(js, n) for n in ("zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "ZONE_AXIS", "zoneAxisNote") if not re.search(rf"^(?:const|function) {n}\b", pre, re.M))

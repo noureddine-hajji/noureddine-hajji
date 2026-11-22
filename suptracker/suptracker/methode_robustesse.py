@@ -16,6 +16,10 @@ from . import robustesse_formation as RF
 
 # every version of the model, newest first: (version, date, what changed). The modules' MODEL_VERSION must be listed.
 CHANGELOG = (
+    ("2027.8-f", "22 novembre 2026",
+     "Les formations se lisent en cinq niveaux, de très robuste à très exposée, parmi les formations Parcoursup : les 10 % les "
+     "plus robustes, les 20 % suivants, les 40 % du milieu, puis 20 % et 10 %. Chaque scénario place la formation ; quand ils ne "
+     "sont pas d'accord, la page donne les deux niveaux. Le score et le repère dans la filière restent dans le détail du calcul."),
     ("2027.7-f", "20 novembre 2026",
      "Les offres en apprentissage sans fiche Onisep sont lues par la certification RNCP du même intitulé. "
      "Il faut que toutes ses fiches actives visent les mêmes codes métiers. Leurs métiers sont ceux de ces codes : "
@@ -57,6 +61,9 @@ def pc(x: float) -> str:
 
 def page() -> str:
     lo, hi = pc(RJ.REPERE_SHARE), pc(1 - RJ.REPERE_SHARE)
+    # owner, 2026-11-22: the five levels, read from the module's constants (never typed here)
+    p1, p2 = RF.ECHELLE_PARTS
+    e1, e2, e3 = pc(p1), pc(p2 - p1), pc(1 - 2 * p2)
     versions = "".join(f"<li><strong>{esc(v)}</strong> ({esc(d)}) : {esc(t)}</li>" for v, d, t in CHANGELOG)
     return f"""<h1>Comment on calcule la robustesse 2035</h1>
 <p>La robustesse 2035 est une estimation du modèle de SupCompass. Elle dit si un métier, ou les métiers auxquels mène une
@@ -85,9 +92,20 @@ baisse.</li>
 </ul>
 <h2>Ce que la page montre en premier</h2>
 <p>Les scores sont proches les uns des autres : un ou deux points d'écart ne veulent rien dire. La page montre donc d'abord un
-repère en trois niveaux : parmi les {lo} les plus robustes, dans la moyenne, ou parmi les {lo} les moins robustes. Pour un
-métier, le repère le compare aux autres métiers estimés. Pour une formation, il y a deux repères : un dans sa filière, un parmi
-toutes les formations. Le score reste dans « Détail du calcul ».</p>
+niveau, jamais le score. Pour un métier, c'est un repère en trois niveaux : parmi les {lo} les plus robustes, dans la moyenne, ou
+parmi les {lo} les moins robustes des métiers estimés.</p>
+<p>Pour une formation, c'est un niveau parmi cinq. Il la situe parmi les formations Parcoursup notées sur les métiers visés et
+leur diversité.</p>
+<ul>
+<li>Très robuste : les {e1} les plus robustes.</li>
+<li>Robuste : les {e2} suivantes.</li>
+<li>Dans la moyenne : les {e3} du milieu.</li>
+<li>Plus exposée : les {e2} suivantes.</li>
+<li>Très exposée : les {e1} les plus exposées aux changements.</li>
+</ul>
+<p>Chacun des trois scénarios place la formation. Quand ils ne la placent pas au même niveau, la page donne les deux niveaux,
+par exemple « entre robuste et dans la moyenne ». Le score, le repère dans la filière et le repère parmi toutes les formations
+restent dans « Détail du calcul ».</p>
 <p>Quand les formations d'une filière mènent toutes aux mêmes métiers, elles ne sont pas classées entre elles. Quand les métiers
 comptés arrivent après d'autres études, la page le dit.</p>
 <h2>La confiance</h2>
@@ -97,11 +115,11 @@ insuffisantes » et ne montre aucun chiffre.</p>
 <p>Deux contrôles ne changent jamais le score. La mesure de l'OCDE et l'usage réel de l'IA sont comparés à l'OIT par le rang
 du métier. Au-delà de {round(100 * RJ.RANK_GAP)} points d'écart entre les deux places, la confiance baisse, sans descendre sous {esc(str(RJ.RANK_FLOOR).replace(".", ","))}.</p>
 <h2>Dans « Mes vœux »</h2>
-<p>Chaque vœu montre côte à côte sa zone pour votre profil et ses repères de robustesse. Les deux ne sont jamais réunis en une
+<p>Chaque vœu montre côte à côte sa zone pour votre profil et son niveau de robustesse. Les deux ne sont jamais réunis en une
 seule note : l'une parle de l'admission, l'autre des métiers d'après.</p>
 <h2>Dans la recherche</h2>
-<p>La recherche de formations propose deux filtres : la robustesse dans la filière et parmi toutes les formations. Ce sont des
-filtres : la liste n'est jamais triée par ces repères.</p>
+<p>La recherche de formations propose deux filtres : les cinq niveaux de robustesse, et le repère dans la filière. Ce sont des
+filtres : la liste n'est jamais triée par la robustesse.</p>
 <h2>À côté de l'insertion publiée</h2>
 <p>Pour un BTS ou un BUT, la page de la formation montre aussi l'insertion publiée par le ministère, dans un encadré à part. Ces
 chiffres n'entrent pas dans le score : ils décrivent des promotions passées, quelques mois après le diplôme.</p>

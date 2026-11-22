@@ -54,7 +54,7 @@ from pathlib import Path
 
 from . import robustesse as RJ
 
-MODEL_VERSION = "2027.7-f"
+MODEL_VERSION = "2027.8-f"
 DIR = Path(__file__).resolve().parents[1] / "data" / "rncp"
 RNCP_ZIP, ROME_ZIP = "export-fiches-csv.zip", "rome_toutes_donnees.zip"
 W_JOBS, W_INS, W_DIV, W_COMP = 0.60, 0.10, 0.15, 0.15
@@ -62,6 +62,14 @@ METHOD_WEIGHT = {"direct": 1.0, "poursuite": 0.8, "famille": 0.5, "certification
 PORTABLE_SHEETS = 20
 REPERE_SHARE = RJ.REPERE_SHARE
 MIN_FILIERE = 20                   # fewer scored formations in a filière: the repère is read among all formations
+# Owner, 2026-11-22 (model 2027.8-f): what a student and a parent read is a LEVEL, not a score: five levels among the Parcoursup
+# formations scored on the common terms (their jobs and their diversity, the national basis), the top 10 %, the next 20 %, the
+# 40 % in the middle, then 20 % and 10 %. Each scenario places the formation among that scenario's own scores (ties never above or
+# below, `place`'s rule); when the three scenarios disagree (13 % on 2026-11-22, always two NEIGHBOUR levels) both are said.
+# The score and the filière repère stay in « Détail du calcul ». Never a chance of admission, never a promise of a job.
+ECHELLE = ("tres_robuste", "robuste", "moyenne", "plus_exposee", "tres_exposee")
+ECHELLE_PARTS = (0.10, 0.30)       # the top level holds the best 10 %, the first two the best 30 % (and the same at the bottom)
+MIN_ECHELLE = 100                  # fewer scored formations nationally: no level (a synthetic warehouse, never the real one)
 # owner, 2026-11-18 (thresholds re-set the same day): a licence is scored through its university's masters when they cover at
 # least MIN_MASTERS masters or MIN_MASTER_JOBS jobs; otherwise on the licence's own jobs, the masters still shown, the reason said
 MIN_MASTERS, MIN_MASTER_JOBS = 1, 1
@@ -286,6 +294,7 @@ def formation(omega: dict, method: str, jobs: dict, ins: float | None, comp: dic
                   "dependance_scenario": max(vals) - min(vals) > RJ.BADGE_SPREAD} if shown else None,
         "scenarios": scen if shown else None,
         "score_national": statistics.median(common.values()) if shown and None not in common.values() else None,
+        "nationaux": dict(common) if shown and None not in common.values() else None,
         "composantes": {k: (round(v, 1) if v is not None else None) for k, v in terms.items()},
         "metiers": {"n": len(omega), "n_notes": len(scored),
                     "n_haut": sum(1 for m in omega if lv[m].get("niveau") == "haut"),
@@ -329,6 +338,40 @@ def place(v: float, others: list[float]) -> str:
     below = bisect.bisect_left(others, v) / n
     above = (n - bisect.bisect_right(others, v)) / n
     return "haut" if below >= 1 - REPERE_SHARE else "bas" if above >= 1 - REPERE_SHARE else "moyen"
+
+
+def niveau5(v: float, ref: list[float]) -> str:
+    """The level of a national score among `ref` (SORTED scores of one scenario): ties never count as above or below."""
+    n = len(ref)
+    below = bisect.bisect_left(ref, v) / n
+    above = (n - bisect.bisect_right(ref, v)) / n
+    for i, part in enumerate(ECHELLE_PARTS):
+        if below >= 1 - part:
+            return ECHELLE[i]
+    for i, part in enumerate(ECHELLE_PARTS):
+        if above >= 1 - part:
+            return ECHELLE[-1 - i]
+    return ECHELLE[len(ECHELLE) // 2]
+
+
+def own_block(d: dict) -> bool:
+    """A block computed for the formation itself (never inherited, borrowed, an offer's sheet or a certification)."""
+    return not (d.get("herite") or d.get("diplome_offre") or d.get("voisine") or d.get("certification"))
+
+
+def with_echelle(rows: dict) -> dict:
+    """Owner, 2026-11-22: every scored block's LEVEL(S) on the national five-level scale. The reference is the formations' OWN
+    blocks (a borrowed, inherited or offer block is placed, never counted); per scenario, its own sorted scores."""
+    own = [d for d in rows.values() if d.get("score") and d.get("nationaux") and own_block(d)]
+    refs = {s: sorted(d["nationaux"][s] for d in own) for s in ("S1", "S2", "S3")}
+    for d in rows.values():
+        d["echelle"] = None
+        if not (d.get("score") and d.get("nationaux")) or len(own) < MIN_ECHELLE:
+            continue
+        idx = sorted({ECHELLE.index(niveau5(d["nationaux"][s], refs[s])) for s in ("S1", "S2", "S3")})
+        d["echelle"] = {"niveaux": [ECHELLE[idx[0]]] if len(idx) == 1 else [ECHELLE[idx[0]], ECHELLE[idx[-1]]],
+                        "n_formations": len(own), "parts": list(ECHELLE_PARTS)}
+    return rows
 
 
 def terms_key(d: dict) -> str:
@@ -525,6 +568,7 @@ def build(con, jobs: dict | None = None, d: Path = DIR, textes: Path | None = No
                     rncp_rows[fiche] = json.dumps({"intitule": f["intitule"], "blocs": f["blocs"], "rome": sorted(f["rome"]),
                                                    "actif": f["actif"]}, ensure_ascii=False, sort_keys=True)
             rows.update(cert)
+    with_echelle(rows)                                     # owner, 2026-11-22: after every block exists
     out_rows = [(c, json.dumps(v, ensure_ascii=False, sort_keys=True)) for c, v in sorted(rows.items())]
 
     def write(c, p):
@@ -798,7 +842,8 @@ def compact(con) -> dict:
     {"filiere": {niveau: "cod,cod"}, "national": {niveau: ...}, "raison": {raison: ...}, "apres": {"master" | "autres": ...}}.
     Mes vœux shows them BESIDE each vœu's zone, never merged with it (owner, 2026-11-17)."""
     c, p = _src(con)
-    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}, "voisine": {}, "certification": {}}
+    out: dict = {"filiere": {}, "national": {}, "raison": {}, "apres": {}, "herite": {}, "voisine": {}, "certification": {},
+                 "echelle": {}}
     if c is None:
         return out
     acc = {k: {} for k in out}
@@ -815,6 +860,8 @@ def compact(con) -> dict:
             acc["voisine"].setdefault("emprunte", []).append(cod)
         if d.get("certification"):
             acc["certification"].setdefault("rncp", []).append(cod)
+        for lv in (d.get("echelle") or {}).get("niveaux") or []:           # owner, 2026-11-22: a code under each of its levels
+            acc["echelle"].setdefault(lv, []).append(cod)
         if n.get("niveau"):
             acc["national"].setdefault(n["niveau"], []).append(cod)
             if n.get("apres_etudes"):
