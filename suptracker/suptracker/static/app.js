@@ -460,10 +460,16 @@ const profileBar = {
       }
     }
     const full = `<a class="pb-who" href="#/profil"><span class="sr-only">Votre profil : </span>${profileLine(prof, prof.serie)}<span class="sr-only"> (le modifier dans Mon profil)</span></a><span class="pb-row">${list}</span>`;
+    // Codex: the toggle is redrawn below; a keyboard user who had it focused keeps the focus on the new one
+    const hadFocus = typeof document !== "undefined" && el.contains && el.contains(document.activeElement)
+      && !!document.activeElement.closest && !!document.activeElement.closest(".pb-toggle");
     if (el.classList) el.classList.toggle("pb-open", !!this.open);
     el.innerHTML = `<button type="button" class="pb-toggle" aria-expanded="${this.open ? "true" : "false"}" aria-controls="pb-full"><span class="pb-short">${profileLine(prof, prof.serie)}</span>${short}<span class="pb-chev" aria-hidden="true"></span><span class="sr-only"> : détail du profil et de mes vœux</span></button><div class="pb-full" id="pb-full">${full}</div>`;
     const tog = el.querySelector ? el.querySelector(".pb-toggle") : null;
-    if (tog) tog.addEventListener("click", () => { this.open = !this.open; this.render(); });
+    if (tog) {
+      tog.addEventListener("click", () => { this.open = !this.open; this.render(); });
+      if (hadFocus) tog.focus();
+    }
   },
 };
 // R1 (owner, 2026-11-11): the profile chip of the wide-screen header, read from the same stored profile as the bar (escaped,

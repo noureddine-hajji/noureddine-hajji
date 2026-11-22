@@ -4176,6 +4176,8 @@ block, rule, text and check of the earlier sprints stays.
 - **Found on the way.**
   - The browser run caught zone pills with white text on a light fill in the dark « L'essentiel » (fixed).
   - X7 already failed on `main` (formation page 13.4 screens of 13: the data grew). It is fixed with the new spacing.
+  - Codex: the folded phone profile bar lost the keyboard focus when it opened (it is redrawn). The focus now returns to its
+    button; DE11 checks the code and DE8 presses Enter then Space on it in the browser.
 
 ## Nightly browser checks (owner, 2026-11-19)
 

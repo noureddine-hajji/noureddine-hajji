@@ -29,7 +29,9 @@ dark). Without a browser (CI) the static part must be complete; the nightly brow
       >= 80, static 56/56. The review (scripts/design_review.json) is done by a reviewer who saw only the screenshots, scores 10
       classic UX criteria out of 10 with a reason each, and names the stylesheet it saw; CI reads the measured score recorded with
       it, the nightly browser run measures it again
-  DE10 mutation test of DE1-DE7 (mutants built in memory)
+  DE10 mutation test of DE1-DE7 and DE11 (mutants built in memory)
+  DE11 (Codex) the folded phone profile bar keeps the keyboard focus on its button when it opens or closes; DE8 presses Enter
+       then Space on it in the browser (part of the 6 JS points)
 """
 from __future__ import annotations
 
@@ -301,6 +303,15 @@ def links_ok(css: str) -> tuple[bool, str]:
     return not bad, f"problems {bad[:3]}"
 
 
+def focus_ok(js: str) -> tuple[bool, str]:
+    """Codex: the folded profile bar is redrawn on every toggle; the focus must come back to the new toggle."""
+    m = re.search(r"const profileBar = \{.*?\n\};", js, re.S)
+    body = m.group(0) if m else ""
+    before = body.find("const hadFocus") != -1 and body.find("const hadFocus") < body.find("el.innerHTML = `<button type=\"button\" class=\"pb-toggle\"")
+    ok = before and "if (hadFocus) tog.focus();" in body and 'aria-expanded="${this.open ? "true" : "false"}"' in body
+    return ok, f"focus read before the redraw {before}; restored {'if (hadFocus) tog.focus();' in body}"
+
+
 @check("DE1 tokens and contrast: brutal tokens, equal dark blocks, ink on every tile, edges and focus ring visible")
 def de1(c: Ctx):
     return tokens_ok(c.css)
@@ -334,6 +345,11 @@ def de6(c: Ctx):
 @check("DE7 links ink and underlined; selected states pale violet with an ink edge")
 def de7(c: Ctx):
     return links_ok(c.css)
+
+
+@check("DE11 the folded phone profile bar keeps the keyboard focus on its button when it opens or closes (Codex)")
+def de11(c: Ctx):
+    return focus_ok(c.js)
 
 
 # ------------------------------------------------------------------ browser measurements
@@ -425,7 +441,17 @@ const MEASURE = () => {
     const bx = await btn.boundingBox(); await p.mouse.move(bx.x + 10, bx.y + 10); await p.mouse.down();
     press[rm] = await btn.evaluate((e) => getComputedStyle(e).transform); await p.mouse.up(); await ctx.close();
   }
-  process.stdout.write(JSON.stringify({ errs, out, press })); await b.close();
+  // Codex: the phone profile bar opens and closes from the keyboard, the focus staying on its button
+  const kctx = await b.newContext({ ...devices["Pixel 5"] });
+  await kctx.addInitScript((p) => localStorage.setItem("profile", JSON.stringify(p)), PROFILE);
+  const kp = await kctx.newPage(); await kp.goto(base + "/#/profil"); await kp.waitForSelector(".pb-toggle");
+  await kp.focus(".pb-toggle"); const kbd = [];
+  for (let i = 0; i < 2; i += 1) {
+    await kp.keyboard.press(i ? "Space" : "Enter");
+    kbd.push(await kp.evaluate(() => { const a = document.activeElement; return a && a.classList.contains("pb-toggle") ? a.getAttribute("aria-expanded") : "lost"; }));
+  }
+  await kctx.close();
+  process.stdout.write(JSON.stringify({ errs, out, press, kbd })); await b.close();
 })();
 """
 
@@ -462,7 +488,8 @@ def measure(c: Ctx) -> dict | str:
 def browser_points(d: dict) -> tuple[dict, list]:
     """Points per measured criterion (out of BROWSER_WEIGHTS) and the problems behind lost points."""
     out, bad, pts = d["out"], [], {}
-    press_ok = d["press"].get("no-preference", "none") != "none" and d["press"].get("reduce") == "none"
+    press_ok = d["press"].get("no-preference", "none") != "none" and d["press"].get("reduce") == "none" \
+        and d.get("kbd") == ["true", "false"]                           # Codex: the folded bar keeps the keyboard focus
     pts["errors"] = BROWSER_WEIGHTS["errors"] if not d["errs"] and press_ok else 0
     if d["errs"] or not press_ok:
         bad.append(("JS errors / press effect", d["errs"][:2], d["press"]))
@@ -590,10 +617,14 @@ def de10(c: Ctx):
             ok = False
         if ok:
             missed.append(name)
+    if "      if (hadFocus) tog.focus();\n" not in c.js:
+        missed.append("the profile bar's focus restore (anchor gone)")
+    elif focus_ok(c.js.replace("      if (hadFocus) tog.focus();\n", "", 1))[0]:
+        missed.append("the profile bar's toggle loses the keyboard focus")
     js_mut = c.js.replace("const store = {", 'const DE_PROBE = "var(--cta)";\nconst store = {', 1)
     if js_mut != c.js and cta_ok(c.css, js_mut)[0]:
         missed.append("app.js painting with the call-to-action colour")
-    n = len(MUTANTS) + 1
+    n = len(MUTANTS) + 2
     return not missed, f"{n - len(missed)}/{n} mutants caught" + (f"; missed {missed}" if missed else "")
 
 
