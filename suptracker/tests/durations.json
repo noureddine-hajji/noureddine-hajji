@@ -74,5 +74,6 @@
  "tests/test_voeux.py": 712,
  "tests/test_voiepro.py": 4,
  "tests/test_voies.py": 790.0,
- "tests/test_zone_paire.py": 17.0
+ "tests/test_zone_paire.py": 17.0,
+ "tests/test_design.py": 3
 }

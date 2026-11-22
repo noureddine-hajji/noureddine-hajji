@@ -846,8 +846,8 @@ a.badge { text-decoration: none; }
 .tabpanel .card { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); box-shadow: none; padding: 18px 20px; margin: 0 0 12px; }
 .tabpanel .card:last-child { margin-bottom: 0; }
 .more-card > summary, details.profile > summary { border: 2px solid var(--edge); background: var(--surface); border-radius: var(--r-sm); }
-.info { background: var(--tint); border: 2px solid var(--edge); box-shadow: 3px 3px 0 var(--edge); }
-.warn { border: 2px solid var(--edge); box-shadow: 3px 3px 0 var(--edge); }
+.info { background: var(--tint); border: 2px solid var(--edge); }   /* information: an edge, no shadow (shadows mark what can be pressed) */
+.warn { border: 2px solid var(--edge); border-left-width: 8px; }
 .card.legal { max-width: none; }
 .card.legal > * { max-width: 72ch; }   /* the trust pages fill the column like every card; their text keeps a short line */
 /* the profile options: edged tiles, the chosen one pale violet with a hard shadow */
@@ -1011,6 +1011,7 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .summary > h2 { margin-bottom: 4px; }
   /* owner, 2026-11-22: secondary text reads at 14 px on a phone (budgets: formation <= 14 screens, tabs within 2.2) */
   :root { --fs-xs: 14px; }
+  .brand span { line-height: 1.25; }
   /* Space Grotesk sets wider than the earlier body face: the summary's notes and the official title read a little tighter */
   .card.summary { margin-bottom: 14px; }
   .card.summary, .card.fhead { line-height: 1.4; }

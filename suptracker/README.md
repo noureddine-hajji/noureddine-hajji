@@ -763,10 +763,9 @@ state shown by form and semantic colour, no emoji as markers, one type scale, se
 - **Design tokens** (`style.css`): five font sizes (`--fs-xs` 12 to `--fs-xl` 28 px), three radii (`--r-sm`, `--r-md`,
   `--r-pill`), a "prune" accent with neutrals biased toward it, light and dark. The zone colours are their own tokens
   (`--zone-securite`, `--zone-cible`, `--zone-ambitieux`), never the accent, so a zone never reads as a link.
-- **Fonts, self-hosted** (`static/fonts/`, SIL OFL): Plus Jakarta Sans for titles and key figures, Atkinson Hyperlegible for text (style B, 2026-11-19; before: Bricolage Grotesque and Figtree).
-  No request to a font host, so no visitor's address leaves the site. (Atkinson Hyperlegible was tried first in lot 2 and
-  dropped: its slashed zero made "2025" read as "2Ø25". Style B keeps it for letters and takes the digits 0-9 from Plus Jakarta
-  Sans through a `unicode-range` face declared last.)
+- **Fonts, self-hosted** (`static/fonts/`, SIL OFL): Space Grotesk for titles and text since the Neo Brutalism design (2026-11-22;
+  before: Plus Jakarta Sans + Atkinson Hyperlegible in style B, Bricolage Grotesque and Figtree in lot 2). No request to a font
+  host, so no visitor's address leaves the site.
 - **Formation page:** one highlighted card first, **"L'essentiel"**, with four tiles: the official access rate, **your
   zone** (a coloured pill filled from the same Plan B answer as "Mon parcours"; without a profile, a link to it), admits
   and places, and the number of jobs of the Onisep sheet. It says "pas des chances d'admission". Then four tabs named
@@ -4103,7 +4102,7 @@ From January to March the students create their vœux on Parcoursup: the traffic
 - **CI.** Five shard runners instead of four: the slowest of four took 34 of its 45 minutes; five bring each to about 27
   (same greedy plan from `tests/durations.json`, `tests/test_shards.py` unchanged).
 
-## Style B, « appli bento » (owner, 2026-11-19)
+## Style B, « appli bento » (owner, 2026-11-19; replaced by Neo Brutalism on 2026-11-22)
 
 The owner chose, among nine directions drawn on a canvas, the recommendation in style B: the same reading levels, a new look.
 Only the appearance changed; every block, rule, text and check of the earlier sprints stays.
@@ -4123,6 +4122,60 @@ Only the appearance changed; every block, rule, text and check of the earlier sp
   this browser only, `guideCard`), then the four doors as tinted tiles.
 - **Search page.** Every filter of sprint H is kept (red team RS9); the dropdowns are pills, the chosen ones in ink; result cards
   are white tiles keeping the zone's edge (never the accent); the map and the list are unchanged.
+
+## Neo Brutalism, design version 3 (owner, 2026-11-22)
+
+The owner picked version 3 among four directions drawn on a canvas, for the whole site at once. Only the look changed: every
+block, rule, text and check of the earlier sprints stays.
+
+- **Owner's answers.**
+  - Intensity « équilibré »: thick ink edges and hard offset shadows everywhere. Tilted badges and capitals only on the home
+    and on the search cards. Data pages and tables stay straight.
+  - One bright yellow call to action per page (`--cta` #FFD93D, ink text). Zones keep their meaning, in a more vivid tone, with
+    their shapes.
+  - A brutal dark theme: near-black ground, cream edges and shadows, the same tiles slightly dimmed.
+  - Space Grotesk everywhere. Motion: only the press of a button, nothing under « reduced motion ».
+  - « L'essentiel »: a white card with a 4 px edge and an 8 px shadow. The access cell is peach (coral first; the owner
+    switched to peach after the review), the robustness cell pale violet, the others pale yellow.
+  - The logo is a sticker. Links are ink with a thick underline. Selected states (open tab, chosen filter, current menu entry)
+    are pale violet `#C4B5FD` with an ink edge.
+  - On a phone, the profile bar folds to one line (profile, zone counts by their marks, a « ! » when the list has no sure safety)
+    and opens on a tap.
+  - Secondary text reads at 14 px on a phone; the budgets moved by one screen: formation page <= 14 phone screens, search
+    <= 13, tabs within 2.2 screens (red teams X7, MB5).
+- **Tokens** (`style.css`): `--edge`, `--bw` / `--bw-big`, `--sh` / `--sh-big`, `--select`, `--tile-peach` / `--tile-yellow` /
+  `--tile-violet`.
+  - The `--paper-*` reading tokens are re-pointed inside every coloured tile, so its text stays ink in both themes.
+  - Three radii (4 px, 8 px, pill) and five sizes, as before (X9).
+  - The dark accent `#e033ff` (focus ring) is at least 60 apart from every zone, route and ramp colour (VI2).
+- **Red team `redteam_design.py` (DE1-DE10).** A design score out of 100, from measurements only.
+  - 56 points read in the stylesheet:
+    - tokens and contrast: ink on every tile >= 4.5, edges and focus ring >= 3, dark blocks equal;
+    - fonts: Space Grotesk only, latin + latin-ext, licence, no dead file;
+    - motion: the press only under `no-preference`, no transition;
+    - intensity: tilts and capitals only on the allowed selectors;
+    - shadows: no blur anywhere;
+    - one call-to-action colour;
+    - links and selected states.
+  - 44 points measured in Chromium (nightly suite) on seven pages × phone light / dark, 320 px, wide light / dark:
+    - JS errors and the press effect;
+    - horizontal scroll;
+    - contrast of every rendered text;
+    - 44 px controls;
+    - exactly one yellow action where one is expected;
+    - the font loaded;
+    - the dark edges.
+  - DE10 seeds 22 design bugs; each is caught.
+- **Score (owner's rule).** 0.6 × the measured score + 0.4 × an independent screenshot review must reach 90, and the review
+  alone 80.
+  - The review is `scripts/design_review.json`. Each round, a reviewer agent that saw only 21 screenshots, never the code,
+    scored 10 classic UX criteria out of 10, each with its reason.
+  - Rounds 73, 71, 78, 79, 82. Each fixed what the previous one found: the profile bar, nested boxes, capitals on data pages,
+    soft callouts, dark glare, the count badge, container widths, info boxes without shadows.
+  - Measured 100/100. Design score 0.6 × 100 + 0.4 × 82 = **92.8/100**.
+- **Found on the way.**
+  - The browser run caught zone pills with white text on a light fill in the dark « L'essentiel » (fixed).
+  - X7 already failed on `main` (formation page 13.4 screens of 13: the data grew). It is fixed with the new spacing.
 
 ## Nightly browser checks (owner, 2026-11-19)
 

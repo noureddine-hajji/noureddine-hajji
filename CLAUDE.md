@@ -315,13 +315,21 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   top menu only on wide screens; VOUVOIEMENT in every student-facing text, the owner's choice (no "tu/ton/ta/tes/toi", no tu-imperatives); no column
   name in what a student reads (method texts, glossary, labels); controls ≥ 44 px on a phone; search filters (the
   dropdown bar, sprint H) folded under "Filtrer" on a phone; home = four doors (sprint 21 added "Je me réoriente ou je reprends mes études"). Red team `redteam_ux.py` (X1-X8; `--browser` measures phone screens).
-- **Design (lot 2, Claude design guidelines; style B since 2026-11-19).** Owner, 2026-11-19: style B « appli bento » (rounded tiles on a
-  warm ground, ink bands, pill menus, a floating tab bar on a phone; fonts Plus Jakarta Sans (display) + Atkinson Hyperlegible (body)).
-  ONE lime call to action per page (`--cta` `#c8f169`, ink text; red team MB counts the controls filled with `--cta`); `--accent` = links and
-  selected states (`#3a1fa0`, dark `#c8f169`), >= 60 apart from the zones, the bac routes and the ramp. « L'essentiel » (and every
-  `.summary`) is an ink band whose tiles keep the paper tokens (`--paper-*`, scoped). Only the look changed: no block, rule or text removed. Tokens only: 5 sizes `--fs-*`, 3 radii `--r-*` (chart marks 2-4 px aside); zone
-  colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` with their OFL licence (never a font host);
-  no emoji as a marker (drawn `ICONS`); `prefers-reduced-motion` honoured. Formation page = "L'essentiel" summary first (the only
+- **Design (lot 2, Claude design guidelines; Neo Brutalism since 2026-11-22).** Owner, 2026-11-22: version 3 « Neo Brutalism », balanced
+  (style B « appli bento » before it). Thick ink edges (`--edge`, `--bw`) and HARD offset shadows (`--sh`, `--sh-big`, never a blur) on cards
+  and controls; tilted badges and capitals ONLY on the home and the search cards (`redteam_design.ROTATE_OK` / `UPPER_OK`); data pages,
+  tables and figures straight. Space Grotesk everywhere (latin + latin-ext faces, OFL). ONE yellow call to action per page (`--cta`
+  `#ffd93d`, ink text; only `CTA_OK` selectors; red team MB counts them). Tiles: peach (`--tile-peach`, the access cell), pale yellow,
+  pale violet, ink text in both themes through the scoped `--paper-*` tokens. Links ink, 2 px underline; selected states (tab, view,
+  filter, menu, phone bar) `--select` `#c4b5fd` + ink edge; `--accent` = focus ring (`#5b21b6`, dark `#e033ff`), >= 60 apart from the
+  zones, the bac routes and the ramp. Dark: near-black ground, cream edges and shadows, tiles slightly dimmed. Motion: the press
+  (`:active` translate) only inside `prefers-reduced-motion: no-preference`, no transition. Phone: the profile bar folds to one line
+  (`.pb-toggle`, counts by their marks, « ! » from the server's `aucune_securite`), secondary text 14 px, budgets formation <= 14 screens,
+  search <= 13, tabs within 2.2 (owner). Only the look changed: no block, rule or text removed. Tokens only: 5 sizes `--fs-*`, 3 radii
+  `--r-*` (chart marks 2-4 px aside); zone colours are `--zone-*` tokens, never the accent; fonts self-hosted in `static/fonts/` (never a
+  font host); no emoji as a marker (drawn `ICONS`). Red team `redteam_design.py` (DE1-DE10): design score = 0.6 x measured (56 static +
+  44 browser) + 0.4 x the independent screenshot review (`scripts/design_review.json`, 10 criteria, a reviewer who saw only screenshots)
+  >= 90, the review alone >= 80 (owner); a visible change re-runs the review. Formation page = "L'essentiel" summary first (the only
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
   `<details class="dip">`. A new card goes in a tab, never above the summary. Red team X9-X13 (+ X7 page lengths).
   Sprint 19: "Y entrer" shows 5 cards and folds the others under "Plus de chiffres sur l'admission"; the summary links to the jury

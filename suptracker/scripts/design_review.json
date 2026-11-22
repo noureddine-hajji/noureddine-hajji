@@ -1,0 +1,104 @@
+{
+ "date": "2026-11-22",
+ "reviewer": "an independent reviewer agent that saw only the 21 screenshots (no code), five fresh reviewers in all, one per round",
+ "screens": "phone 393 px light, phone dark, wide 1360 px light; first screen of each page; a terminale profile and a list of 3 vœux",
+ "screenshots": [
+  "phone-home.png",
+  "phone-search.png",
+  "phone-formation.png",
+  "phone-voeux.png",
+  "phone-profil.png",
+  "phone-obs.png",
+  "phone-info.png",
+  "phonedark-home.png",
+  "phonedark-search.png",
+  "phonedark-formation.png",
+  "phonedark-voeux.png",
+  "phonedark-profil.png",
+  "phonedark-obs.png",
+  "phonedark-info.png",
+  "wide-home.png",
+  "wide-search.png",
+  "wide-formation.png",
+  "wide-voeux.png",
+  "wide-profil.png",
+  "wide-obs.png",
+  "wide-info.png"
+ ],
+ "style_sha256": "33858458bc98458f574880617dacbdb89885407a93778b1785e88fc14aac6e99",
+ "criteria": {
+  "visual_hierarchy": {
+   "score": 8,
+   "why": "Home, search and Observatoire each lead clearly with one hero or heading and a single strong action; on the wide formation page the peach access tile is plainly the first thing to read. On Mes vœux the 'Aucun vœu de sécurité sûr' alert looks the same as the two milder notes under it, and the wide home shows the profile three times."
+  },
+  "consistency": {
+   "score": 8,
+   "why": "Cards, pills, the segmented control and the selected nav state are drawn the same way on every page and in both themes. Small breaks: the wide profile bar stays centred above the full-width search page; information boxes get the same hard shadow as buttons; « Autres » / « autres » written two ways."
+  },
+  "style_fidelity": {
+   "score": 9,
+   "why": "Cream ground, thick black edges, hard offset shadows, flat peach, pale-yellow and violet tiles with black text, one bright yellow call to action, capitals on the home doors and CTA, tilted badges only on search result cards, straight data tiles; the dark theme uses cream edges as intended."
+  },
+  "readability": {
+   "score": 7,
+   "why": "Body text on the phone is comfortable and the À propos column has a good line length, but the peach access tile is split into two narrow columns at 393 px (about 8 dense lines on the profile half), some wide helper text is small and light, and the phone tagline takes 3 lines."
+  },
+  "primary_action_clarity": {
+   "score": 9,
+   "why": "One yellow action on the home and on search; Filtrer, Comparer, Retirer de mes vœux and Reprendre les étapes are clearly outlined secondary buttons; working pages correctly have no yellow."
+  },
+  "navigation_and_orientation": {
+   "score": 9,
+   "why": "The selected tab is filled violet with a black border on the phone tab bar and the wide header, with the list count on Mes vœux; Formations/Métiers shows its state. The home stepper's empty and violet boxes are not self-explanatory."
+  },
+  "dark_theme_quality": {
+   "score": 8,
+   "why": "Readable everywhere, cream edges and shadows applied consistently, tiles become muted salmon and khaki with black text; the pale-violet hero and the chosen 'En terminale' card stay bright against the near-black ground."
+  },
+  "responsive_layout": {
+   "score": 8,
+   "why": "Nothing overflows or is cut and the wide search page uses the full width well; on the phone the header, profile bar and tab bar take about 28 % of the screen, the two-column peach tile is cramped, and the wide Observatoire chart fills about 60 % of its card."
+  },
+  "trust_and_tone": {
+   "score": 8,
+   "why": "Caveats everywhere and well placed ('jamais des pronostics', 'Ce ne sont pas vos chances', 'officiel', 'estimation', counts such as '260 sur 883 candidats'); the large '60 / 100' robustness figure can read as a grade, and the home's capitals and tilt lean a little playful."
+  },
+  "accessibility_signals": {
+   "score": 8,
+   "why": "Zones always pair colour with a shape and a word, selected states use fill plus border, touch targets look at least 44 px. Weak spots: the Mes vœux badge overlaps its icon, the folded profile line truncates the profile and its '!' has no visible word, two Observatoire series are both dotted in similar greys."
+  }
+ },
+ "total": 82,
+ "measured_score": 100.0,
+ "measured_on": "2026-11-22, redteam_design.py --browser (static 56/56 + browser 44/44)",
+ "rounds": [
+  {
+   "round": 1,
+   "total": 73
+  },
+  {
+   "round": 2,
+   "total": 71
+  },
+  {
+   "round": 3,
+   "total": 78
+  },
+  {
+   "round": 4,
+   "total": 79
+  },
+  {
+   "round": 5,
+   "total": 82
+  }
+ ],
+ "suggestions": [
+  "Phone formation page: stack the two halves of the peach tile below about 420 px and move the source details to their own short line.",
+  "Keep hard shadows for clickable things and top-level cards, not information boxes; give the 'Aucun vœu de sécurité sûr' alert a stronger look than the notes under it.",
+  "Win back space on the phone header: shorten or hide the tagline under about 420 px.",
+  "Raise the smallest wide-screen helper text to 14 px in a darker grey; chart legend at the axis labels' size.",
+  "Observatoire chart: a distinct dash and marker per series, plot stretched to the card width.",
+  "Polish: align the wide profile bar with the full-width search layout, write « Autres paires » one way, same decimals for both access figures or say why, drop the repeated profile line on the wide home, tone down the pale-violet hero in the dark theme."
+ ]
+}
