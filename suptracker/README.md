@@ -4170,9 +4170,11 @@ block, rule, text and check of the earlier sprints stays.
   alone 80.
   - The review is `scripts/design_review.json`. Each round, a reviewer agent that saw only 21 screenshots, never the code,
     scored 10 classic UX criteria out of 10, each with its reason.
-  - Rounds 73, 71, 78, 79, 82. Each fixed what the previous one found: the profile bar, nested boxes, capitals on data pages,
-    soft callouts, dark glare, the count badge, container widths, info boxes without shadows.
-  - Measured 100/100. Design score 0.6 × 100 + 0.4 × 82 = **92.8/100**.
+  - Rounds 73, 71, 78, 79, 82, 83. Each fixed what the previous one found: the profile bar, nested boxes, capitals on data pages,
+    soft callouts, dark glare, the count badge, container widths, info boxes without shadows; round 6 (after the merge): the access
+    cell stacked under 480 px, a stronger « aucune sécurité » alert, five distinct Observatoire dashes, one spelling of « Autres
+    paires », the step tracker's next step in peach, one notice family.
+  - Measured 100/100. Design score 0.6 × 100 + 0.4 × 83 = **93.2/100**.
 - **Found on the way.**
   - The browser run caught zone pills with white text on a light fill in the dark « L'essentiel » (fixed).
   - X7 already failed on `main` (formation page 13.4 screens of 13: the data grew). It is fixed with the new spacing.

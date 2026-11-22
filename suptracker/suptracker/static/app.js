@@ -43,7 +43,7 @@ const ZONE_AXIS = "Le taux lu est celui de vos deux spécialités quand le rappo
 function zoneAxisNote(f) {
   const s = f && f.taux_zone_source;
   if (!s) return "";
-  const what = s.source === "autres" ? "la ligne « autres paires de spécialités »" : "vos deux spécialités";
+  const what = s.source === "autres" ? "la ligne « Autres paires de spécialités »" : "vos deux spécialités";
   return `<div class="muted small zaxis">lue sur ${what} : ${pct1(s.taux)} (rapport public ${esc(s.session)})</div>`;
 }
 function zoneLegend() {
@@ -2215,7 +2215,7 @@ function fillZoneTile(target) {
   el.querySelector(".sum-value").innerHTML = z ? zonePillHtml(target.zone, false, target.large && !target.uncertain) : "—";
   if (target && target.uncertain) el.querySelector(".sum-note").textContent = "lecture incertaine : peu de données";
   else if (target && target.taux_zone_source) el.querySelector(".sum-note").textContent = target.taux_zone_source.source === "autres"
-    ? "lue sur la ligne « autres paires de spécialités » du rapport" : "lue sur le taux de vos deux spécialités (rapport public)";
+    ? "lue sur la ligne « Autres paires de spécialités » du rapport" : "lue sur le taux de vos deux spécialités (rapport public)";
 }
 // tabbed: one tab per non-empty group; the first is open; a tile with data-goto opens its tab
 function tabbed(id, groups) {
@@ -4281,7 +4281,7 @@ async function viewVoeux() {
   <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
     ${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large)}
     ${zoneLegend()}
-    ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
+    ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}${m.code === "aucune_securite" ? " vx-alert" : ""}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
     <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition pour vos deux spécialités (cette formation, estimation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
@@ -4972,7 +4972,7 @@ async function viewComprendre() {
 const OBS_DEFAULT = ["BTS - BTSA - BTSM", "Licence", "BUT", "Écoles d'ingénieurs", "CPGE scientifique"];
 const OBS_MAX = 5;
 // five series at most, each with its own dash AND a shade of the ramp that keeps 3:1 on the card (--c5/--c6 are too light)
-const OBS_SERIES = [["var(--c1)", ""], ["var(--c2)", "6 4"], ["var(--c3)", "2 3"], ["var(--c4)", "8 3 2 3"], ["var(--c2)", "1 3"]];
+const OBS_SERIES = [["var(--c1)", ""], ["var(--c2)", "6 4"], ["var(--c3)", "2 3"], ["var(--c4)", "8 3 2 3"], ["var(--c2)", "12 3 2 3 2 3"]];   // reviewer: five distinct dashes (the fifth was dotted like the third)
 const obsUI = { types: null, type: null };
 const obsArrow = (a, b, f) => `${f(a)} → ${f(b)}`;
 // four classes from the quartiles of the values shown (fixed rule): radius AND shade, never the shade alone
