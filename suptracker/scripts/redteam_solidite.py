@@ -404,8 +404,12 @@ def so9(c: Ctx):
     calls = []
 
     def slow():
+        # a build waits (up to 3 s) for every visitor to reach it: without the lock all 12 do, with it only one does, so the
+        # mutant is caught however slowly a loaded runner schedules the threads (a fixed 0.3 s let CI serialise them)
         calls.append(1)
-        time.sleep(0.3)
+        deadline = time.time() + 3
+        while len(calls) < 12 and time.time() < deadline:
+            time.sleep(0.01)
         return {"v": len(calls)}
     cache: dict = {}
     got = []
