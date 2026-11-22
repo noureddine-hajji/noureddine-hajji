@@ -43,7 +43,7 @@
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
     --select: #c4b5fd; --select-ink: #000000;
-    --tile-coral: #ff6b6b; --tile-yellow: #eedc8c; --tile-violet: #b3a5f0;
+    --tile-coral: #e86a6a; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
@@ -59,7 +59,7 @@
     --accent: #e033ff;
     --cta: #ffd93d; --cta-ink: #000000; --tint: #26251f;
     --select: #c4b5fd; --select-ink: #000000;
-    --tile-coral: #ff6b6b; --tile-yellow: #eedc8c; --tile-violet: #b3a5f0;
+    --tile-coral: #e86a6a; --tile-yellow: #e3d386; --tile-violet: #a99ae8;
     --zone-securite: #4ade80; --zone-cible: #7aa2ff; --zone-ambitieux: #fb923c; --voie-bg: #4dd0e1; --voie-bt: #d4b106; --voie-bp: #c58af9; --accent-soft: #2c2641; --warn-bg: #3a2e14; --warn-ink: #f3cf8a; --info-bg: #1d2740;
     --c1: #f0ecf3; --c2: #cdc6d4; --c3: #a9a1b1; --c4: #857e8e; --c5: #655e6e; --c6: #4a4452;
     --zone-autre: #a39dab; --shadow-tip: 4px 4px 0 var(--edge); --shadow-pop: 6px 6px 0 var(--edge);
@@ -766,6 +766,7 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .dd-note { flex-basis: 100%; margin: 4px 0 0; }
 /* the dropdowns sit under a "Filtrer" fold on a phone (the list comes first there); always open on a wide screen */
 .dd-fold { margin-top: 12px; }
+.dd-fold > summary { margin-bottom: 8px; }
 .dd-fold > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; cursor: pointer;
   border: 1px solid var(--line-input); border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font-weight: 600; }
 .dd-fold > summary::-webkit-details-marker { display: none; }
@@ -796,7 +797,7 @@ a:hover { text-decoration-thickness: 4px; }
 .linkish { text-decoration-thickness: 2px; text-underline-offset: 3px; }
 /* the coloured tiles (L'essentiel, the home's hero and doors, coloured badges) keep the light theme's reading tokens in both
    themes: their fill stays vivid, their text ink (the paper tokens of :root) */
-.summary .sum-tile, .hero, .doors .door, .badge.statut, .badge.sel, .trajet .tj-next .tj-dot, .pf-opt:has(input:checked), .pill {
+.summary .sum-tile, .hero, .doors .door, .badge.statut, .badge.sel, .trajet .tj-next .tj-dot, .pf-opt:has(input:checked) {
   --ink: var(--paper-ink); --muted: var(--paper-muted); --surface: var(--paper-surface); --bg: var(--paper-surface); --line: var(--paper-line);
   --line-input: var(--paper-ink); --accent: var(--paper-accent); --accent-soft: var(--paper-soft);
   --zone-securite: var(--paper-securite); --zone-cible: var(--paper-cible); --zone-ambitieux: var(--paper-ambitieux); --zone-autre: var(--paper-autre);
@@ -838,7 +839,7 @@ a.badge { text-decoration: none; }
 }
 .tip { border: 2px solid var(--edge); color: var(--ink); font-weight: 700; }
 .tip:hover::after, .tip:focus::after { border: 2px solid var(--edge); box-shadow: var(--shadow-tip); }
-.pill { border-radius: var(--r-sm); font-weight: 700; background: var(--tile-coral); color: var(--paper-ink); box-shadow: inset 0 0 0 1px var(--paper-ink); }
+.pill { border-radius: var(--r-sm); font-weight: 700; background: var(--edge); color: var(--bg); }   /* a count, never an alarm: ink on paper, cream in the dark */
 /* cards: an ink edge and a hard shadow; inside a tab each section is a straight block with a thinner edge and no shadow */
 .card { border: var(--bw) solid var(--edge); border-radius: var(--r-md); padding: 18px 20px; box-shadow: var(--sh) var(--sh) 0 var(--edge); margin-bottom: 18px; }
 .tabpanel .card { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); box-shadow: none; padding: 18px 20px; margin: 0 0 12px; }
@@ -931,6 +932,8 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 .badge.sel { background: var(--tile-yellow); text-transform: uppercase; }
 .rc-badges .badge:nth-child(odd) { transform: rotate(-2deg); }
 .rc-badges .badge:nth-child(even) { transform: rotate(1.5deg); }
+/* Mes vœux's four zone tiles on one row on a wide screen (never an orphan tile) */
+@media (min-width: 721px) { .summary .sum-grid:not(:has(.sum-acces)):has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* profile bar: an edged band on wide screens */
 @media (min-width: 721px) {
   .profile-bar { background: var(--surface); border: 2px solid var(--edge); border-radius: var(--r-sm); padding: 6px 18px; max-width: calc(980px - 32px); }
@@ -1030,7 +1033,8 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .profile-bar .pb-who { line-height: 1.3; }
   .pb-sep { display: none; }   /* the counts are separated by their gap on a phone, never a dot at a line end */
   .pb-list { column-gap: 10px; }
-  .profile-bar .pb-alert { flex: 1 1 100%; }
+  .profile-bar .pb-alert { flex: 1 1 100%; flex-wrap: nowrap; }
+  .profile-bar { padding-top: 4px; }
   p.home-profile.small { display: none; }   /* the profile bar above says the same on a phone */
   .fhead .toolbar button { white-space: nowrap; flex: 1 1 auto; }
 }
