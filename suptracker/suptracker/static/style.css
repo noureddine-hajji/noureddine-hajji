@@ -1108,4 +1108,8 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .ech .ech-end { margin: 0; line-height: 1.2; }
   .ech .ech-end:first-child { grid-area: l; }
   .ech .ech-end:last-child { grid-area: r; justify-self: end; }
+  /* in the half-width summary tile the level word above already says it: the cells alone, on one line (MB5, tabs within 2.2
+     screens on the longest titles) */
+  .sum-rob .ech { display: inline-flex; }
+  .sum-rob .ech .ech-end { display: none; }
 }

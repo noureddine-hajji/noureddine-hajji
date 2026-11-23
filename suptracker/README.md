@@ -4245,7 +4245,8 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
 - Audit of 2026-11-23: the nightly had never run a check. `ubuntu-latest` had moved to Ubuntu 26.04, where Playwright 1.56.1
   cannot install Chromium, so every night failed at installation. Run by hand, the suite found three real regressions, all fixed:
   - G11: the robustesse gauge (« exposée ▢▢▢▢▢ robuste ») was 235 px wide in a half-width tile and pushed the phone page to
-    439 px. Its five cells now stay together and only its two words wrap.
+    439 px. Its five cells now stay together; on a phone the two words go under the cells, and in the half-width summary
+    tile (where the level word is written just above) the cells stand alone, so the tabs stay within 2.2 screens (MB5).
   - X7: a formation page reached 14.3 phone screens (budget 14). When the formation's own report already gives the student's
     bac général figure, « Selon votre bac » folds the national detail by pair (« Le même détail pour tout le groupe de
     formations, en France »); nothing is removed. The page measured falls to 12.7 screens.
