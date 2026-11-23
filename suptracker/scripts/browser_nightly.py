@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 SUITE = {
     "a11y": ("A4",),
     "carterecherche": ("CR8",),
+    "chiffres": ("CH4",),
     "conformite": ("QC10",),
     "design": ("DE8",),
     "evolution": ("EV9",),

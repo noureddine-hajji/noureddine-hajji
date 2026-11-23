@@ -60,7 +60,7 @@ CHECKS = []
 STATIC = ROOT / "suptracker" / "static"
 CHANCE = re.compile(r"(?i)probabilit|chances? d'[eê]tre|de chances|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
-PAGE_TWINS = ("cartePosition", "pctRange", "carteSelection", "foldText", "carteHash", "carteGroupes", "carteKeep", "pickVoie")
+PAGE_TWINS = ("mentionShareOf", "cartePosition", "carteSelection", "foldText", "carteHash", "carteGroupes", "carteKeep", "pickVoie")
 DISPATCH = r"""
 const F = { cartePosition, carteSelection, carteHash, carteKeep, pickVoie, lire };
 let raw = ""; process.stdin.on("data", (x) => (raw += x)); process.stdin.on("end", () => {
@@ -332,7 +332,7 @@ def cr5(c: Ctx):
 
 
 # ------------------------------------------------------------------ CR6
-@check("CR6 position: page cartePosition (Node) = server stage 2 `position` with the average; without one, the band's published bounds")
+@check("CR6 position: page cartePosition (Node) = server stage 2 `position` with the average; without one, Mes vœux's share (PR 2)")
 def cr6(c: Ctx):
     dk = J.doublette_key("MATHS", "SES")
     rows = untyped(c.con, c.latest)
@@ -353,7 +353,10 @@ def cr6(c: Ctx):
                 p = oracle[cd]["position"]
                 want.append(None if not p else (min(p["normale"], p["uniforme"]), max(p["normale"], p["uniforme"]), True))
                 cases.append({"fn": "cartePosition", "args": [f["lec"], f["taux_acces_ens"], band, None]})
-                want.append(None if not p else (p["bornes"][0], p["bornes"][1], False))
+                # PR 2 of the audit: with no average, the share Mes vœux prints (planb._view): the series' bounds, else the
+                # all-bacs share, both read at the band's top like the zone
+                sp = f.get("spos")
+                want.append(None if not p else ((sp["bounds"][0], sp["bounds"][1], False) if sp else (f["cdf"], f["cdf"], False)))
     out = node(c.js, cases)
     if out is None:
         return True, "node not installed"
@@ -379,7 +382,7 @@ def cr7(c: Ctx):
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
     pos = sec[sec.index("function cartePosFigure("): sec.index("\n}", sec.index("function cartePosFigure("))]
     pos_ok = ("estimation" in pos or "estimTag(" in pos) and "taux d'accès" not in pos.lower() and "chance" not in pos.lower()
-    labels = all(x in sec for x in ("Taux d'accès ${esc(ctx.session)}", '"Vos deux spécialités"', '"Votre moyenne parmi les admis"', '"Votre mention parmi les admis"'))
+    labels = all(x in sec for x in ("Taux d'accès ${esc(ctx.session)}", '"Vos deux spécialités"', '"Admis sous votre moyenne"', '"Admis avec votre mention ou moins"'))
     footnote = "aucun taux d'accès par moyenne n'est publié" in sec and "pas une chance d'admission" in sec and "jamais par chances" in sec
     official = "officiel" in sec and "dblFigure(ch)" in sec and "voieFigure(" in sec and "pickVoie(ch.voies" in sec
     # Codex: the chosen formation's figures are asked whatever chose it (a map marker can be on no loaded page of the list)
@@ -540,7 +543,7 @@ def cr11(c: Ctx):
                                    f"{n_majo} lines; differing {bad[:3]}")
 
 
-CARD_TWINS = ("esc", "fmt", "pct", "pct1", "STATUT_LABEL", "carteBacs", "carteMajo", "compareButton", "carteSortName")
+CARD_TWINS = ("esc", "fmt", "pct", "pct1", "STATUT_LABEL", "bacAccesHtml", "carteBacs", "carteMajo", "compareButton", "carteSortName")
 
 
 @check("CR12 the card (Node): statut and selectivity said, rate per bac (masked = non publié, estimation starred and named), the line, compare button")
@@ -675,12 +678,12 @@ def py_mutants():
 
 
 JS_MUTANTS = [
-    ("bounds swapped without an average", "return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };", "return { lo: L.kt / L.n, hi: (L.kt - L.kb) / L.n, moyenne: false };", "CR6"),
+    ("the band's range without an average", "  const m = mentionShareOf(L);\n  return m && { ...m, moyenne: false };", "  return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };", "CR6"),
     ("one hypothesis only", "lo: Math.min(p.normale, p.uniforme), hi: Math.max(p.normale, p.uniforme)", "lo: p.normale, hi: p.normale", "CR6"),
     ("mention filter ignored", "(!(sel.m[f.diplome] || []).length || carteGroupes(f).some((g) => sel.m[f.diplome].includes(g)))", "true", "CR4"),
     ("stored diploma trusted", "(stored && Array.isArray(stored.d) ? stored.d : []).filter((x) => typeof x === \"string\" && known(x))", "(stored && Array.isArray(stored.d) ? stored.d : [])", "CR4"),
     ("series line sent to the server", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}`)", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}&voie=${encodeURIComponent(ctx.prof.voie || \"\")}`)", "CR5"),
-    ("position called a chance", "estimTag(pos.moyenne ? \"des admis sous votre moyenne\" : \"des admis sous ou à votre mention\"", "estimTag(pos.moyenne ? \"chances d'être admis\" : \"des admis sous ou à votre mention\"", "CR7"),
+    ("position called a chance", 'estimTag(compact ? "des admis sous votre moyenne"', 'estimTag(compact ? "vos chances d\'être admis"', "CR7"),
     ("footnote without the caveat", "aucun taux d'accès par moyenne n'est publié", "", "CR7"),
     ("doublette figure not Mes vœux's", "ctx.serie === \"bg\" ? dblFigure(ch)", "ctx.serie === \"bg\" ? pct(ch.taux)", "CR7"),
     ("marker choice never asks its figures (Codex)", "    if (f) figures([f]);", "    if (focus && f) figures([f]);", "CR7"),

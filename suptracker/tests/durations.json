@@ -14,6 +14,7 @@
  "tests/test_carte_mutants_3.py": 136,
  "tests/test_carterecherche.py": 48,
  "tests/test_cereq.py": 479,
+ "tests/test_chiffres.py": 150,
  "tests/test_conformite.py": 5,
  "tests/test_design.py": 0,
  "tests/test_doublettes.py": 1314,
