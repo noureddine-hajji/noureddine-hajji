@@ -186,7 +186,7 @@ def top_def(js: str, name: str) -> str:
 
 
 def helpers(js: str) -> str:
-    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
+    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ", "const rpLabel = ")))
 
 
 def r2_defs(js: str) -> str:

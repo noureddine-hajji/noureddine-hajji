@@ -42,7 +42,7 @@ CHECKS = []
 CHANCE = re.compile(r"(?i)probabilit|vos chances|votre chance|chances? d['’]être admis|vous serez admis|garanti")
 TU = re.compile(r"(?i)\b(tu|ton|ta|tes|toi)\b")
 NAMES = ("esc", "fmt", "MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "bandParam", "mentionParams",
-         "localAverage", "moyenneText", "MENTION_SHORT", "vxProfile", "REO_LABEL", "isReo", "vxQuery", "profileLine", "ICO",
+         "localAverage", "moyenneText", "MENTION_SHORT", "SPE_SHORT", "speName", "vxProfile", "REO_LABEL", "isReo", "vxQuery", "profileLine", "ICO",
          "ICONS", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone",
          "seriesPos", "isLarge", "lire", "tauxZone", "relireVue", "lectureOf", "readList", "voeuxLocal",
          "GUIDE_STEPS", "GUIDE_STATUT", "profileReady", "guideState", "guideFlags", "guideHtml", "viewGuide", "guideCard")
