@@ -2909,7 +2909,7 @@ function apprentiInsertionCard(a) {
   return `<div class="card"><h2>Après ce BTS : en apprentissage ou en lycée ?</h2>
     <p class="small">Dans toute la France, pour ce BTS (${esc(n.voies[0].annee)}). Chaque établissement publie ses propres taux ; on montre le taux du milieu des établissements qui le publient ${estimTag("médiane des établissements, pas un taux national")}.</p>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">En emploi 6 mois après la sortie</th><th class="num">Poursuivent leurs études</th><th class="num">Établissements</th></tr>
-    ${n.voies.map((v) => `<tr><td>${esc(rpLabel(v.libelle))}</td>
+    ${n.voies.map((v) => `<tr><td>${esc(v.libelle)}</td>
       <td class="num" data-label="En emploi 6 mois après la sortie">${fmt(v.emploi_med)} % <span class="muted small">(la moitié des établissements entre ${fmt(v.emploi_q1)} et ${fmt(v.emploi_q3)} %)</span></td>
       <td class="num" data-label="Poursuivent leurs études">${v.poursuite_med !== null && v.poursuite_med !== undefined ? `${fmt(v.poursuite_med)} %` : "—"}</td>
       <td class="num" data-label="Établissements">${fmt(v.n_emploi)} sur ${fmt(v.n_etab)}</td></tr>`).join("")}</table></div>
