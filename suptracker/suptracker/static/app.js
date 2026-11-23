@@ -6083,7 +6083,7 @@ let routeSeq = 0;
 // where the student was. Red team U9.
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 const savedY = () => (history.state && Number.isFinite(history.state.y) ? history.state.y : null);
-let scrollSave = 0, routeBackTo = null;
+let scrollSave = 0, routeBackTo = null;   // routeBackTo: restored by a11yAfterRoute, which only the route still current reaches
 window.addEventListener("scroll", () => {
   clearTimeout(scrollSave);
   scrollSave = setTimeout(() => { try { history.replaceState({ ...(history.state || {}), y: Math.round(window.scrollY) }, ""); } catch (e) { /* ignore */ } }, 100);
@@ -6093,7 +6093,7 @@ async function route() {
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
   const backTo = savedY();
   clearTimeout(scrollSave);
-  routeBackTo = backTo;                   // restored by a11yAfterRoute, which only the route still current reaches
+  routeBackTo = backTo;
   if (backTo === null) window.scrollTo(0, 0);
   if (!pathRoute(location.pathname, location.hash)) document.title = HOME_TITLE;
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
