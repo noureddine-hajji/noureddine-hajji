@@ -584,7 +584,7 @@ def mutants(base: Ctx) -> tuple[int, list[str]]:
 
 # ---------------------------------------------------------------- LA9 / LA10 (audit PR 3)
 RAW = re.compile(r"\((?:PP|PC)\)|cohorte finale|cod_aff_form|\ban\(s\)|n&lt;10|\bn<10\b|Atypique|Part de destination|prérequis non alignés|Msgn/", re.I)
-REPORT_PRINTS = ("<td>${esc(rpLabel(x.libelle))}", "<strong>${esc(rpLabel(m.libelle))}</strong>", "<td>${esc(rpLabel(v.libelle))}</td>",
+REPORT_PRINTS = ("<td>${esc(rpLabel(x.libelle))}", "<strong>${esc(rpLabel(m.libelle))}</strong>",
                  "ligne « ${esc(rpLabel(mineV.libelle))} »", "ligne « ${esc(rpLabel(r.libelle))} »", "`<mark>${esc(rpLabel(x))}</mark>` : esc(rpLabel(x))",
                  "${esc(rpLabel(lab))} (${fmt(c)})")
 SPE_PRINTS = ("${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}", 'esc(s1.doublette.split("+").map(speName).join(" + "))')
