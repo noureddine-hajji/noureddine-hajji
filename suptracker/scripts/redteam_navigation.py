@@ -17,10 +17,14 @@
      status is validated; the route of bac techno/pro is kept only with the same bac; missing specialties take the defaults
   U6 browser (--browser): nothing is stored before "Enregistrer", a later change is saved at once, terminale <-> not in terminale
      keeps the bac fields, erasing asks first, the chip follows, "Comprendre" opens and closes (Escape, click elsewhere), the
-     Explorer tab is marked on the map, no JS error and no horizontal scroll on a phone
+     Explorer tab is marked on the map, no JS error and no horizontal scroll on a phone; a page opened from the phone bar
+     starts at its top and « back » returns to where the student was (U9)
   U7 wording and privacy: vouvoiement, no chance or probability, the page sends nothing but the vocabulary request (the lycée is
      searched in the browser), the privacy promises match the code, docs and release guards
-  U8 mutation test of U1-U5 and U7 (mutants built in memory)
+  U8 mutation test of U1-U5, U7 and U9 (mutants built in memory)
+  U9 scroll (audit, 2026-11-23): each history entry keeps its own scroll position in its state; a new entry opens at the top,
+     back / forward (or the same page drawn again) returns to the saved position, after the page is drawn; the browser's own
+     restoration is off (it restored nothing on hash routes). U6 measures it on a phone.
 """
 from __future__ import annotations
 
@@ -502,6 +506,14 @@ const base = process.argv[2];
       chip: getComputedStyle(document.getElementById("profile-chip")).display, bar: getComputedStyle(document.querySelector(".tabbar")).display,
       cur: (document.querySelector('.tabbar a[aria-current="page"]') || {}).textContent }));
   }
+  // U9: the home scrolled down, then Mes vœux from the phone bar opens at its top; back returns to the home's position
+  await q.goto(base + "/#/"); await q.waitForTimeout(1500);
+  await q.evaluate(() => window.scrollTo(0, Math.min(900, document.documentElement.scrollHeight - innerHeight))); await q.waitForTimeout(400);
+  const homeY = await q.evaluate(() => window.scrollY);
+  await q.click('.tabbar a[href="#/voeux"]'); await q.waitForTimeout(2000);
+  const newY = await q.evaluate(() => window.scrollY);
+  await q.goBack(); await q.waitForTimeout(2500);
+  o.scroll = { homeY, newY, backY: await q.evaluate(() => window.scrollY) };
   await ph.close();
   process.stdout.write(JSON.stringify({ errs, o })); await b.close();
 })();
@@ -564,6 +576,9 @@ def u6(c: Ctx):
     cur = {k: v["cur"] for k, v in o["phone"].items() if v["cur"] != want[k]}
     if ph or cur:
         bad.append(("phone", ph, cur))
+    sc = o.get("scroll") or {}
+    if not sc or sc["homeY"] < 300 or sc["newY"] > 5 or abs(sc["backY"] - sc["homeY"]) > 30:
+        bad.append(("scroll: a new page not at its top, or back not where the student was", sc))
     return not bad, f"{len(bad)} problems {bad[:3]}"
 
 
@@ -621,7 +636,33 @@ def u7(c: Ctx):
     return not bad, f"{len(bad)} problems {bad[:4]}"
 
 
+@check("U9 scroll: a new page opens at its top, back / forward returns to the saved position, browser restoration off")
+def u9(c: Ctx):
+    js, bad = c.js, []
+    body = js[js.find("async function route() {"):js.find("async function routeView(")]
+    need = {
+        "browser restoration off": 'history.scrollRestoration = "manual"' in js,
+        "position kept in the entry's own state": re.search(r"history\.replaceState\(\{ \.\.\.\(history\.state \|\| \{\}\), y: Math\.round\(window\.scrollY\) \}, \"\"\)", js),
+        "saved on scroll": re.search(r'addEventListener\("scroll", \(\) => \{\s*clearTimeout\(scrollSave\)', js),
+        "saved position read from the state": "history.state && Number.isFinite(history.state.y) ? history.state.y : null" in js,
+        "read before drawing": body.find("const backTo = savedY();") != -1 and body.find("const backTo = savedY();") < body.find("await routeView("),
+        "pending save dropped on a new route": "clearTimeout(scrollSave);" in body,
+        "new entry at the top": "if (backTo === null) window.scrollTo(0, 0);" in body,
+        "restored after drawing, only by the current route": "routeBackTo = backTo;" in body
+            and "if (routeBackTo !== null) window.scrollTo(0, routeBackTo);" in js[js.find("function a11yAfterRoute() {"):js.find("function a11yScrollRegions(")]
+            and "if (seq === routeSeq) a11yAfterRoute();" in body,
+    }
+    bad = [k for k, v in need.items() if not v]
+    return not bad, f"missing {bad}"
+
+
 MUTANTS = [
+    ("js", "browser restoration left on", 'history.scrollRestoration = "manual"', 'history.scrollRestoration = "auto"', "u9"),
+    ("js", "a new page keeps the old scroll", "if (backTo === null) window.scrollTo(0, 0);", "", "u9"),
+    ("js", "back always to the top", "  if (routeBackTo !== null) window.scrollTo(0, routeBackTo);", "", "u9"),
+    ("js", "the saved position never handed to the drawn page", "  routeBackTo = backTo;", "", "u9"),
+    ("js", "the state overwritten (other keys lost)", "history.replaceState({ ...(history.state || {}), y:", "history.replaceState({ y:", "u9"),
+    ("js", "position never saved", 'window.addEventListener("scroll", () => {', 'window.addEventListener("scrollend-never", () => {', "u9"),
     ("html", "Mon profil dropped from the phone bar", '<a href="#/profil" data-tab="profil"><svg', '<a href="#/parcours" data-tab="profil"><svg', "u1"),
     ("html", "glossary missing from Comprendre", '        <a href="#/glossaire" data-tab="glossaire">Glossaire</a>\n      </div>', "      </div>", "u1"),
     ("html", "adult page missing from Plus", '  <a href="#/accompagner" data-tab="accompagner">Parents et professeurs</a>\n  <a href="#/info/aide"', '  <a href="#/info/aide"', "u1"),
@@ -681,7 +722,7 @@ MUTANTS = [
 
 @check("U8 mutation test: menu, router, chip, form, form reading, wording and privacy bugs are each caught")
 def u8(c: Ctx):
-    fns = {"u1": u1, "u2": u2, "u3": u3, "u4": u4, "u5": u5, "u7": u7}
+    fns = {"u1": u1, "u2": u2, "u3": u3, "u4": u4, "u5": u5, "u7": u7, "u9": u9}
     missed = []
     for where, name, old, new, fn in MUTANTS:
         src = getattr(c, where)

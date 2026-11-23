@@ -1118,7 +1118,12 @@ function doubletteCard(d, rp, sem) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
     <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
     ${own.html}
-    <h3>Par paire de spécialités (bac général)${own.hasBg ? " : le groupe de formations, toute la France" : ""}</h3>${semBlock}${dbl}</div>`;
+    ${own.hasBg
+    // the formation's own report already gives the student's figure: the national group detail is folded (2026-11-23, phone
+    // page length, red team X7), never removed
+    ? `<details class="more-card"><summary>Le même détail pour tout le groupe de formations, en France</summary>
+    <h3>Par paire de spécialités (bac général) : le groupe de formations, toute la France</h3>${semBlock}${dbl}</details>`
+    : `<h3>Par paire de spécialités (bac général)</h3>${semBlock}${dbl}`}</div>`;
 }
 // ---- Sprint "Rapports publics": the formation's own report (archived PDF, checked against SIES) ----
 const RP_VOIE = { bg: "Bac général", bt: "Bac technologique", bp: "Bac professionnel" };
@@ -1558,7 +1563,8 @@ function echelleJauge(niv) {
   const sp = echelleSpan(niv);
   if (!sp) return "";
   const cells = [4, 3, 2, 1, 0].map((i) => `<i class="ech-c${i >= sp[0] && i <= sp[1] ? " on" : ""}"></i>`).join("");
-  return `<span class="ech" aria-hidden="true"><span class="ech-end">exposée</span>${cells}<span class="ech-end">robuste</span></span>`;
+  // the five cells never split across lines (a narrow tile wraps the two words around them, never the gauge: 2026-11-23)
+  return `<span class="ech" aria-hidden="true"><span class="ech-end">exposée</span><span class="ech-cells">${cells}</span><span class="ech-end">robuste</span></span>`;
 }
 // owner, 2026-11-18: the robustesse 2035 repères of each formation (the two the formation page shows, read from the lists'
 // payload /api/reconnaissance: no request of its own, nothing sent); "sans" = no repère (not ranked, or no estimate). A FILTER only:
@@ -6036,6 +6042,7 @@ function safeDecode(x) { try { return decodeURIComponent(x); } catch (_) { retur
 // whole pages aloud). Every horizontally scrolling table can be reached and scrolled with the keyboard (2.1.1).
 let a11yFirst = true;
 function a11yAfterRoute() {
+  if (routeBackTo !== null) window.scrollTo(0, routeBackTo);       // back / forward: where the student was (U9)
   const h = $view.querySelector("h1");
   const name = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
   document.title = name ? `${name} — SupCompass` : HOME_TITLE;
@@ -6070,9 +6077,24 @@ document.addEventListener("mouseout", (e) => { if (e.target.classList && e.targe
 // each navigation gets its own number: a route that finishes after the student has left it (a slow
 // answer) must not move the focus, announce a page or show an error over the current one (Codex)
 let routeSeq = 0;
+// scroll (audit, 2026-11-23): the page is one document, so a new route kept the previous page's scroll position (Mes vœux
+// opened 3,400 px down, « Je me réoriente » under its own title). Each history entry now remembers its own position in its
+// state: a NEW entry (a link, a typed address) opens at the top; back / forward, or the same page drawn again, returns to
+// where the student was. Red team U9.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+const savedY = () => (history.state && Number.isFinite(history.state.y) ? history.state.y : null);
+let scrollSave = 0, routeBackTo = null;
+window.addEventListener("scroll", () => {
+  clearTimeout(scrollSave);
+  scrollSave = setTimeout(() => { try { history.replaceState({ ...(history.state || {}), y: Math.round(window.scrollY) }, ""); } catch (e) { /* ignore */ } }, 100);
+}, { passive: true });
 async function route() {
   const seq = ++routeSeq;
   if (location.pathname !== "/" && location.hash && location.hash !== "#") history.replaceState(null, "", "/" + location.hash);
+  const backTo = savedY();
+  clearTimeout(scrollSave);
+  routeBackTo = backTo;                   // restored by a11yAfterRoute, which only the route still current reaches
+  if (backTo === null) window.scrollTo(0, 0);
   if (!pathRoute(location.pathname, location.hash)) document.title = HOME_TITLE;
   // Split before decoding: a pasted fiche URL is one %2F-encoded segment.
   const [, a, b, c] = (pathRoute(location.pathname, location.hash) || location.hash.slice(1) || "/").split("/").map(safeDecode);

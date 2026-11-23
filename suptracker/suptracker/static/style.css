@@ -938,7 +938,8 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
 .zone-pill { box-shadow: inset 0 0 0 2px var(--paper-ink); }
 /* owner, 2026-11-22: the robustesse 2035 level gauge: five cells from « exposée » to « robuste », the formation's level(s) filled
    in ink; its name is always written beside it (never the gauge alone) */
-.ech { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; margin: 2px 0; }
+.ech { display: inline-flex; flex-wrap: wrap; max-width: 100%; align-items: center; gap: 3px; vertical-align: middle; margin: 2px 0; }
+.ech .ech-cells { display: inline-flex; gap: 3px; flex: none; }
 .ech i { display: inline-block; width: 18px; height: 12px; border: 2px solid var(--ink); border-radius: 2px; background: transparent; }
 .ech i.on { background: var(--ink); }
 .ech .ech-end { font-size: var(--fs-xs); color: var(--muted); margin: 0 4px; }
@@ -1098,4 +1099,13 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   .profile-bar .pb-alert { flex: 1 1 100%; flex-wrap: nowrap; }
   p.home-profile.small { display: none; }   /* the profile bar above says the same on a phone */
   .fhead .toolbar button { white-space: nowrap; flex: 1 1 auto; }
+}
+/* the robustesse gauge on a phone (2026-11-23): in a half-width tile the one-line gauge (235 px) overflowed the page and,
+   wrapped, took three lines; here the five cells sit on top and the two words under their ends (red teams G11, MB5) */
+@media (max-width: 480px) {
+  .ech { display: inline-grid; grid-template-columns: auto auto; grid-template-areas: "c c" "l r"; column-gap: 6px; row-gap: 2px; }
+  .ech .ech-cells { grid-area: c; }
+  .ech .ech-end { margin: 0; line-height: 1.2; }
+  .ech .ech-end:first-child { grid-area: l; }
+  .ech .ech-end:last-child { grid-area: r; justify-self: end; }
 }

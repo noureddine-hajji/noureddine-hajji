@@ -632,7 +632,7 @@ def x16(c: Ctx):
 SHORT_MUTANTS = [
     ("prevision back in view", "  ${appelCard(d.appel)}\n  <div id=\"planb\"></div>", "  ${appelCard(d.appel)}\n  ${previsionCard(d.prevision)}\n  <div id=\"planb\"></div>"),
     ("Plan B folded", "  <div id=\"planb\"></div>\n  ${offerCard(r, d.apprentissage)}\n  <details class=\"more-card\">", "  ${offerCard(r, d.apprentissage)}\n  <details class=\"more-card\">\n  <div id=\"planb\"></div>"),
-    ("nothing folded", '<details class="more-card">', '<div class="more-card">'),
+    ("nothing folded", '<details class="more-card"><summary><strong>Plus de chiffres sur l\'admission</strong>', '<div class="more-card"><summary><strong>Plus de chiffres sur l\'admission</strong>'),
     ("link without a jury tab", "d.jury_tab = !juryHtml ? null :", "d.jury_tab = false ? null :"),
     ("report session unescaped", "son rapport public ${esc(d.jury_tab.session)}", "son rapport public ${d.jury_tab.session}"),
     ("grid session unescaped", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : \"\"}", "la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${d.jury_tab.session}` : \"\"}"),

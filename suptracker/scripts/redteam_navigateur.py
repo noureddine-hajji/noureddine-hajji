@@ -9,7 +9,9 @@
   BN3 the setup: no Playwright / Chromium or no warehouse fails the run (exit 1), never a silent pass; the report names it.
   BN4 the workflow: nightly + by hand only (never on push), Playwright pinned to the version the checks were written with
       and found by `require` from any folder, Chromium installed with its system libraries, the script run on the committed
-      warehouse, an issue opened or commented on failure and closed when green again, the right permissions, a time limit.
+      warehouse, an issue opened or commented on failure and closed when green again, the right permissions, a time limit,
+      and a runner image PINNED to an Ubuntu that Playwright supports (2026-11-23: ubuntu-latest moved to 26.04 and the
+      nightly failed at installation three nights in a row without running one check).
   BN5 mutation test: every seeded bug in the script or the workflow is caught.
 """
 from __future__ import annotations
@@ -158,6 +160,7 @@ def bn4(c: Ctx):
         "a time limit": re.search(r"timeout-minutes: (\d+)", wf) and int(re.search(r"timeout-minutes: (\d+)", wf).group(1)) >= 120,
         "report kept": "actions/upload-artifact@v4" in wf,
         "same title both ways": wf.count("Contrôles navigateur en échec") >= 2,
+        "runner pinned to a supported Ubuntu": re.search(r"(?m)^\s+runs-on: ubuntu-(22|24)\.04\s*$", wf),
     }
     bad = [k for k, v in need.items() if not v]
     return not bad, f"missing {bad}"
@@ -179,6 +182,8 @@ MUTANTS = [
     ("wf", "require cannot find Playwright", 'echo "NODE_PATH=$(npm root -g)" >> "$GITHUB_ENV"', "true"),
     ("wf", "run on every push", "  workflow_dispatch:\n", "  workflow_dispatch:\n  push:\n"),
     ("wf", "never closed", "gh issue close", "echo close"),
+    ("wf", "runner image floating", "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
+    ("wf", "runner on an Ubuntu Playwright does not support", "runs-on: ubuntu-24.04", "runs-on: ubuntu-26.04"),
 ]
 # the third and fourth mutants carry their target in MUTANT_TARGETS (they sit outside one check's anchor list)
 MUTANT_TARGETS = {"only the browser checks judged": "BN2", "'not installed' read as a pass": "BN2", "no browser = pass": "BN3",
