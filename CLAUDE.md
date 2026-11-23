@@ -336,7 +336,11 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   highlighted card; zone from the Plan B answer), then tabs named after student questions; job page = summary + diplomas folded in
   `<details class="dip">`. A new card goes in a tab, never above the summary. Red team X9-X13 (+ X7 page lengths).
   Sprint 19: "Y entrer" shows 5 cards and folds the others under "Plus de chiffres sur l'admission"; the summary links to the jury
-  tab from the same render; two-row header. Keep a new admission card folded unless it replaces one of the five. Red team X16-X17.
+  tab from the same render; two-row header. Keep a new admission card folded unless it replaces one of the five. Red team X16-X17 « Selon votre bac » folds the national group detail by
+  pair when the formation's own report gives the bac général figure (2026-11-23: the phone page went past X7's budget); the
+  robustesse gauge keeps its five cells on one line (`.ech-cells`), its two words wrap only where room lacks, and in the phone
+  summary tile (half width, the level word above) the cells stand alone (G11 caught a 439 px page; MB5 the tabs' position;
+  X7 the search page's 13 screens, which a two-row gauge in every card exceeded).
 - **Working pages (lot 3).** Mes vœux opens on `zoneTiles` (zone tokens, counts, never a chance); Mon parcours folds a stored
   profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
   (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide;
@@ -483,7 +487,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   "Où je me situe"), `#/reorientation`, `#/premiere`. `#/profil` is the ONE place the profile is edited (`profileForm`, `readForm`):
   situation first, only its fields, each with what it is used for; first save explicit, later changes saved at once; outside
   terminale the stored fields are kept and no bac field is invented; erase asks first. Profile prompts link `#/profil`. A new page
-  needs a TAB_OF entry and a closed analytics route. Red team `redteam_navigation.py` (U1-U8).
+  needs a TAB_OF entry and a closed analytics route. Scroll (audit, 2026-11-23): each history entry keeps its position in its
+  state (`savedY`), a new entry opens at the top, back/forward returns to it after drawing, `history.scrollRestoration = "manual"`.
+  Red team `redteam_navigation.py` (U1-U9).
 - **"Pour votre profil" (sprint R2, owner 2026-11-11).** L'essentiel shows the official access rate, then ONE figure for the profile
   with its source in words (`profileRate`, `profileRateTile`): the figure the "Selon votre bac" card shows, same rules, same order:
   bac général = own report row (doublette, else its "Autres" line) when the report has a bac général table (no row = said, never an
@@ -852,7 +858,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   for what loads after the list (the cards' rates per bac, VI8), never a fixed delay.
 - **Nightly browser checks (owner, 2026-11-19).** CI has no browser: browser checks skip there. `scripts/browser_nightly.py` runs
   them all (`SUITE`: 17 red teams) on the committed warehouse and FAILS on any skip; `.github/workflows/suptracker-browser.yml`
-  runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`), opens/comments the issue
+  runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`, runner PINNED to `ubuntu-24.04`:
+  `ubuntu-latest` moved to 26.04, which Playwright 1.56.1 cannot install on, and the nightly ran no check for three nights; BN4), opens/comments the issue
   « Contrôles navigateur en échec » on failure, closes it when green. A NEW browser check goes in `SUITE` (red team
   `redteam_navigateur.py` BN1 fails otherwise: title says « browser », body skips without one).
 - **Observatoire (owner, 2026-11-19).** `observatoire.py`, `#/observatoire` (Comprendre / Plus), `/api/observatoire` (no parameter,

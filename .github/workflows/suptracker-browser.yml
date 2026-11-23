@@ -16,7 +16,9 @@ permissions:
   issues: write
 jobs:
   browser:
-    runs-on: ubuntu-latest
+    # pinned (2026-11-23): ubuntu-latest moved to 26.04, which Playwright 1.56.1 cannot install Chromium on; the
+    # nightly failed at installation for three nights without running a check (red team BN6)
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     defaults:
       run:

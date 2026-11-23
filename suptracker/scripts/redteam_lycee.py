@@ -263,7 +263,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     sugg = ('data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie' in js and "if ($view.dataset.rendered !== marker) return;" in _fn(js, "async function suggestLycee(")
             and 'if (q) suggestLycee(q, "carte");' in js and '$view.querySelectorAll(".lyc-suggest").forEach((x) => x.remove());' in js
             # the marker is cleared on every navigation, so a late suggestion never lands on another page
-            and re.search(r"async function route\(\) \{[\s\S]{0,900}delete \$view\.dataset\.rendered;", js) is not None)
+            and re.search(r"async function route\(\) \{[\s\S]{0,1500}delete \$view\.dataset\.rendered;", js) is not None)
     ok = not raw and words and not promise and me and badge and here and pick and keeps and sugg
     return ok, (f"unescaped {raw[:3]}; context wording {words}; promises {promise}; Maths expertes note {me}; same-lycée badge gated {badge}; "
                 f"fiche note gated {here}; picker escaped {pick}; picking keeps pending form edits {keeps}; search suggestion escaped and guarded {sugg}")

@@ -4233,7 +4233,7 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
 - `.github/workflows/suptracker-browser.yml` runs it every night at 02:23 UTC on `main`, and by hand (Actions >
   suptracker-browser > Run workflow). It installs Node 22, Playwright 1.56.1 (the version the checks were written with,
   found by `require` from any folder through `NODE_PATH`), axe-core 4.14.0 (red team A4's WCAG audit of every page) and
-  Chromium with its system libraries.
+  Chromium with its system libraries, on a runner pinned to `ubuntu-24.04`.
   - On failure it opens the issue « Contrôles navigateur en échec » (or comments on it) with the report: GitHub e-mails the owner.
   - When the checks are green again, it closes that issue with a comment.
 - Red team `redteam_navigateur.py` (BN1-BN5):
@@ -4241,7 +4241,20 @@ headings, page lengths, the map, the speed budgets) **skips itself** in the `sup
     « browser », its body skips without one);
   - the verdict (failure, skip, absence, crash) and the setup failures;
   - the workflow's triggers, pinned version, `NODE_PATH`, issue steps, permissions and time limit;
-  - a mutation test (14/14).
+  - a mutation test (17/17), including a floating or unsupported runner image.
+- Audit of 2026-11-23: the nightly had never run a check. `ubuntu-latest` had moved to Ubuntu 26.04, where Playwright 1.56.1
+  cannot install Chromium, so every night failed at installation. Run by hand, the suite found three real regressions, all fixed:
+  - G11: the robustesse gauge (« exposée ▢▢▢▢▢ robuste ») was 235 px wide in a half-width tile and pushed the phone page to
+    439 px. Its five cells now stay together and its two words wrap only where room lacks. In the phone's half-width summary
+    tile, where the level word is written just above, the cells stand alone, so the tabs stay within 2.2 screens (MB5); a
+    two-row gauge in every search card pushed the phone search page past its 13 screens on GitHub's runner (X7).
+  - X7: a formation page reached 14.3 phone screens (budget 14). When the formation's own report already gives the student's
+    bac général figure, « Selon votre bac » folds the national detail by pair (« Le même détail pour tout le groupe de
+    formations, en France »); nothing is removed. The page measured falls to 12.7 screens.
+  - Z5 failed through the same overflow.
+  - Scroll: the site is one document, so a new page kept the previous page's scroll (Mes vœux opened 3,400 px down). Each
+    history entry now keeps its own position: a new page opens at its top, « back » returns where the student was.
+    Red team U9 + U6 (phone).
 - First full run (2026-11-19), all fixed before shipping:
   - CR8 waited a fixed 5 s on a cold server, clicked a mention box hidden in its dropdown since sprint H, and still expected
     three columns: it now waits for the map and the cards, opens the dropdown first and checks today's layout (filter bar
