@@ -5,7 +5,7 @@
   "final_url": "https://www.parcoursup.gouv.fr/sites/default/files/database/documents/2026-10/calendrier-parcoursup-2027-805.pdf",
   "bytes": 75548,
   "sha256": "5547eb355c28385ccce1c1cda6660f280cee1c8bc5b0613a96581f90c3cabb90",
-  "fetched": "2026-11-16T13:59:44+00:00",
+  "fetched": "2026-11-23T16:29:08+00:00",
   "file": "calendrier-parcoursup-2027-805.pdf"
  },
  {
@@ -14,7 +14,7 @@
   "final_url": "https://www.parcoursup.gouv.fr/sites/default/files/database/documents/2026-10/calendrier-parcoursup-2027-805_0.pdf",
   "bytes": 79724,
   "sha256": "8c15fe05d608c1000df6a36963c26efa9225c7ebe2a672667d1883431032d2aa",
-  "fetched": "2026-11-16T13:59:50+00:00",
+  "fetched": "2026-11-23T16:29:09+00:00",
   "file": "calendrier-parcoursup-2027-805_0.pdf"
  },
  {
@@ -23,7 +23,7 @@
   "final_url": "https://www.parcoursup.gouv.fr/sites/default/files/database/documents/2026-10/calendrier-parcoursup-2027-805_1.pdf",
   "bytes": 35037,
   "sha256": "9f7b7878ae357d899151b25925dc77527314b94fb22336067ca9a74d67c593a7",
-  "fetched": "2026-11-16T13:59:51+00:00",
+  "fetched": "2026-11-23T16:29:10+00:00",
   "file": "calendrier-parcoursup-2027-805_1.pdf"
  },
  {
@@ -31,7 +31,7 @@
   "status": 403,
   "final_url": "https://www.parcoursup.gouv.fr/calendrier",
   "bytes": 5474,
-  "sha256": "b14c84dd17b0002620fc3b1b56e6347280f95a70cebae5299013d4de9885e38c",
-  "fetched": "2026-11-16T13:59:51+00:00"
+  "sha256": "e68225a6ba5944c1f2f9f8d35e54123f8f7301faad78446f32c5a407444584d0",
+  "fetched": "2026-11-23T16:29:10+00:00"
  }
 ]
