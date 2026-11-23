@@ -667,7 +667,7 @@ def fingerprint_follows_status(c: Ctx, proj: str) -> list:
 
 
 # --------------------------------------------------------------------------------------------------------------------- GR10
-JURY_NAMES = ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "rpText", "RP_SPE", "RP_IMP",
+JURY_NAMES = ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "rpText", "rpLabel", "RP_SPE", "RP_IMP",
               "RP_OPTIONS", "rpPending", "rapportSource", "juryParts", "juryMerged")
 
 
