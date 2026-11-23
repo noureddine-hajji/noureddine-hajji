@@ -25,6 +25,15 @@ different ways of saying "estimation", zones never explained in words, no "what 
       the help page lists every service with its phone links, no horizontal scroll, no JS error.
   LA8 the tokenizer reads exactly the strings of a full JavaScript parser (acorn, when installed), and the mutation test:
       every seeded bug is caught.
+  LA9 raw codes and internal labels (audit PR 3, 2026-11-23): no column abbreviation (« (PP) », « (PC) »), internal word
+      (« cohorte finale », « Atypique / prérequis non alignés », « Part de destination », « Reconnu »), column name
+      (« cod_aff_form »), « an(s) » or « n<10 » in the page's visible strings or the server's labels; the specialty codes are
+      printed by their short names (SPE_SHORT = journey.SPECIALTY_SHORT, run in Node); a report's printed bucket and STMG
+      labels are made readable by ONE helper (rpLabel, run in Node) at every place a report label is printed; the specialties
+      of the profile are never printed as codes.
+  LA10 browser (--browser / --real): the TEXT a student reads, every folded block and tab opened, on the real pages (home,
+      profile, Où je me situe, Mes vœux, formation pages with reports of bac général and STMG, a search, a job), for a bac
+      général and a bac techno profile: none of LA9's words, no « doublette » outside its explanation, no specialty code.
 """
 from __future__ import annotations
 
@@ -483,7 +492,7 @@ walk(acorn.parse(src, { ecmaVersion: 2022 })); process.stdout.write(JSON.stringi
         notes.append("tokenizer = acorn")
     else:
         notes.append("acorn not installed: tokenizer check skipped")
-    base_bad = [fn.check_name.split()[0] for fn in CHECKS if fn.check_name.split()[0] in ("LA1", "LA2", "LA3", "LA4", "LA5", "LA6") and not fn(c)[0]]
+    base_bad = [fn.check_name.split()[0] for fn in CHECKS if fn.check_name.split()[0] in ("LA1", "LA2", "LA3", "LA4", "LA5", "LA6", "LA9") and not fn(c)[0]]
     if base_bad:
         return False, f"the unmutated code fails {base_bad}: mutants not counted"
     caught, missed = mutants(c)
@@ -530,6 +539,17 @@ def mutants(base: Ctx) -> tuple[int, list[str]]:
     js_mut("'votre ligne' back in a header", "Votre bac dans le rapport du jury (cette formation)", "Votre ligne dans le rapport du jury (cette formation)", {"LA1"})
     ctx_mut("jargon in the glossary", lambda c: c.glossary.__setitem__("x", ("Votre ligne", "La ligne du rapport.")), {"LA1"})
     ctx_mut("jargon in a method text", lambda c: c.methodology.__setitem__("x", "Part de la doublette parmi les admis."), {"LA1"})
+    js_mut("(PP) back in a header", '["Classés (phase principale)",', '["Classés (PP)",', {"LA9"})
+    js_mut("cohorte finale back", "Admis (toute la campagne)", "Admis (cohorte finale)", {"LA9"})
+    js_mut("column name in the history table", "<th>Code Parcoursup</th>", "<th>cod_aff_form</th>", {"LA9"})
+    js_mut("an(s) back", 'spécialités · ${f.years} campagne${f.years > 1 ? "s" : ""}', "spécialités · ${f.years} an(s)", {"LA9"})
+    js_mut("internal gate name back", 'label: "Peu courant avec vos spécialités"', 'label: "Atypique / prérequis non alignés"', {"LA9"})
+    js_mut("search chip says Reconnu", 'sigle: "Mot compris"', 'sigle: "Reconnu"', {"LA9"})
+    js_mut("a report row printed raw", "<td>${esc(rpLabel(x.libelle))}", "<td>${esc(x.libelle)}", {"LA9"})
+    js_mut("Autres doublettes left as printed", '.replace(/^Autres doublettes$/i, "Autres paires de spécialités")', "", {"LA9"})
+    js_mut("STMG label left raw", '.replace(/Msgn\\/\\s*([^&·]+?)(?=\\s*(?:&|·|$))/g, "Management ($1)")', "", {"LA9"})
+    js_mut("a specialty printed as its code", '${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}`', '${esc(p.spe1)} + ${esc(p.spe2)}`', {"LA9"})
+    js_mut("a short name drifts from the vocabulary", '"MATHS": "Mathématiques", "PC"', '"MATHS": "Maths", "PC"', {"LA9"})
     js_mut("a hard-coded zone threshold", "taux d'accès d'au moins ${R.securite_access} %", "taux d'accès d'au moins 60 %", {"LA3"})
     js_mut("zone texts off by the cdf", "${sur100(R.ambitieux_cdf)} admis sur 100", "${sur100(R.securite_cdf)} admis sur 100", {"LA3"})
     js_mut("legend dropped from Mes vœux", "    ${zoneLegend()}\n", "\n", {"LA3"})
@@ -560,6 +580,135 @@ def mutants(base: Ctx) -> tuple[int, list[str]]:
     ctx_mut("a 40-word glossary sentence", lambda c: c.glossary.__setitem__("x", ("Test", " ".join(["mot"] * 40) + ".")), {"LA6"})
     ctx_mut("a long method sentence", lambda c: c.methodology.__setitem__("x", " ".join(["mot"] * 80) + "."), {"LA6"})
     return caught, missed
+
+
+# ---------------------------------------------------------------- LA9 / LA10 (audit PR 3)
+RAW = re.compile(r"\((?:PP|PC)\)|cohorte finale|cod_aff_form|\ban\(s\)|n&lt;10|\bn<10\b|Atypique|Part de destination|prérequis non alignés|Msgn/", re.I)
+REPORT_PRINTS = ("<td>${esc(rpLabel(x.libelle))}", "<strong>${esc(rpLabel(m.libelle))}</strong>", "<td>${esc(rpLabel(v.libelle))}</td>",
+                 "ligne « ${esc(rpLabel(mineV.libelle))} »", "ligne « ${esc(rpLabel(r.libelle))} »", "`<mark>${esc(rpLabel(x))}</mark>` : esc(rpLabel(x))",
+                 "${esc(rpLabel(lab))} (${fmt(c)})")
+SPE_PRINTS = ("${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}", 'esc(s1.doublette.split("+").map(speName).join(" + "))')
+
+
+def node_json(prog: str):
+    node = shutil.which("node")
+    if not node:
+        return None
+    r = subprocess.run([node, "-e", prog], capture_output=True, text=True, timeout=60)
+    if r.returncode:
+        raise RuntimeError(r.stderr[-400:])
+    return json.loads(r.stdout)
+
+
+@check("LA9 no raw code or internal label: column abbreviations, internal words, codes; readable report labels and specialty names")
+def la9(c: Ctx):
+    bad = []
+    hits = [t[:80] for t in js_visible(c.js) if RAW.search(t)]
+    if hits:
+        bad.append(("page strings", hits[:3]))
+    from suptracker import indicators as IND
+    from suptracker import schema as SC
+    labels = [f.label for f in SC.VOEUX_FIELDS if getattr(f, "label", None)] + [v[2] for v in IND.__dict__.get("INDICATORS", {}).values()
+                                                                             if isinstance(v, tuple) and len(v) > 2 and isinstance(v[2], str)]
+    srv = [x for x in labels if RAW.search(x)]
+    if srv:
+        bad.append(("server labels", srv[:3]))
+    if re.search(r'sigle: "Reconnu"', c.js):
+        bad.append("the search's word chip says « Reconnu »")
+    miss = [x for x in REPORT_PRINTS + SPE_PRINTS if x not in c.js]
+    if miss:
+        bad.append(("a print without its helper", miss[:3]))
+    if re.search(r"esc\((?:p|prof)\.spe[12]", c.js):
+        bad.append("a specialty code printed raw")
+    from suptracker import journey as J
+    names = ["SPE_SHORT", "speName", "rpLabel"]
+    prog = "\n".join(defn(c.js, n) for n in names) + """
+process.stdout.write(JSON.stringify({ short: SPE_SHORT, a: rpLabel("Autres doublettes"), s: rpLabel("Autres spécialités"),
+  m: rpLabel("Msgn/ Mercatique & Droit et Economie"), l: rpLabel("Série STMG : Droit et Economie · Msgn/ Gestion et Finance · Msgn/ Mercatique"),
+  k: rpLabel("Mathématiques Spécialité & Sciences Economiques et Sociales Spécialité"), x: speName("MATHS"), u: speName("ZZZ") }));"""
+    try:
+        o = node_json(prog)
+    except Exception as e:  # noqa: BLE001
+        return False, f"rpLabel / SPE_SHORT do not run: {e}"
+    if o is not None:
+        want = {"a": "Autres paires de spécialités", "s": "Autres spécialités", "m": "Management (Mercatique) & Droit et Economie",
+                "l": "Série STMG : Droit et Economie · Management (Gestion et Finance) · Management (Mercatique)",
+                "k": "Mathématiques Spécialité & Sciences Economiques et Sociales Spécialité", "x": "Mathématiques", "u": "ZZZ"}
+        diff = {k: (o[k], v) for k, v in want.items() if o[k] != v}
+        if diff:
+            bad.append(("readable labels", diff))
+        if o["short"] != dict(J.SPECIALTY_SHORT):
+            bad.append(("SPE_SHORT differs from the vocabulary", {k: (o["short"].get(k), v) for k, v in J.SPECIALTY_SHORT.items() if o["short"].get(k) != v}))
+    return not bad, f"{len(bad)} problems {bad[:4]}"
+
+
+SCAN_JS = r"""
+const { chromium, devices } = require('playwright');
+const [base, cods] = [process.argv[2], JSON.parse(process.argv[3])];
+const RAW = /\((?:PP|PC)\)|cohorte finale|cod_aff_form|\ban\(s\)|\bn<10\b|Atypique|Part de destination|prérequis non alignés|Msgn\/|Reconnu : /i;
+const CODE = /\b(?:MATHS|BIOECO)\b/;   // codes the vocabulary renames (EPPCS, SES, SVT... ARE their short names)
+const DBL = /\bdoublettes?\b/i, ALLOWED = /(?:on dit aussi |\()« doublette »/i;
+(async () => {
+  const b = await chromium.launch(); const hits = []; const errs = []; let n = 0;
+  const profs = { bg: { statut: 'terminale', serie: 'bg', spe1: 'MATHS', spe2: 'SES', mention: 'ab', academie: '' },
+    bt: { statut: 'terminale', serie: 'bt', mention: 'sansmention', voie: null } };
+  const pages = ['#/', '#/profil', '#/parcours', '#/voeux', '#/guide', ...cods.map((c) => '#/f/' + c), '#/metiers', '#/calendrier', '#/premiere', '#/compare'];
+  for (const [pk, prof] of Object.entries(profs)) {
+    const ctx = await b.newContext({ ...devices['Pixel 5'] });
+    await ctx.addInitScript(([p, c]) => { localStorage.setItem('profile', JSON.stringify(p)); localStorage.setItem('voeux', JSON.stringify(c));
+      localStorage.setItem('compare', JSON.stringify(c.slice(0, 2))); }, [prof, cods]);
+    const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+    for (const u of pages) {
+      await p.goto(base + '/' + u); await p.waitForTimeout(3500);
+      await p.evaluate(() => { document.querySelectorAll('details').forEach((d) => { d.open = true; });
+        document.querySelectorAll('[role="tabpanel"]').forEach((t) => { t.hidden = false; t.style.display = 'block'; }); });
+      const t = await p.evaluate(() => document.querySelector('#view').innerText); n += 1;
+      for (const line of t.split('\n')) {
+        const l = line.replace(ALLOWED, ' ');
+        if (RAW.test(l) || CODE.test(l) || DBL.test(l)) hits.push(`${pk} ${u}: ${line.trim().slice(0, 110)}`);
+      }
+    }
+    await ctx.close();
+  }
+  process.stdout.write(JSON.stringify({ n, hits: [...new Set(hits)], errs })); await b.close();
+})();
+"""
+
+
+@check("LA10 browser: the text a student reads (folded blocks and tabs opened) carries no raw code, internal label or jargon")
+def la10(c: Ctx):
+    if not (c.browser or c.real):
+        return True, "skipped (--browser)"
+    node = shutil.which("node")
+    if not node or subprocess.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
+        return True, "skipped (node or playwright not installed)"
+    import duckdb
+    from suptracker import config
+    db = c.db or config.DB_PATH
+    with duckdb.connect(str(db), read_only=True) as con:
+        latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+        pick = lambda sql: [r[0] for r in con.execute(sql, [latest]).fetchall()]  # noqa: E731
+        cods = pick("""SELECT DISTINCT cod_aff_form FROM core.rapport_doublette WHERE session = ? AND bac = 'bt' AND libelle ILIKE 'Msgn%'
+                       ORDER BY 1 LIMIT 1""") + pick("""SELECT DISTINCT cod_aff_form FROM core.rapport_doublette WHERE session = ? AND bac = 'bg'
+                       AND autres ORDER BY 1 LIMIT 2""")
+    if not cods:
+        return False, "no formation with a report to read"
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+    tmp = tempfile.mkdtemp()
+    env = {**os.environ, "SUPTRACKER_ANALYTICS_DIR": tmp, "SUPTRACKER_DB": str(db)}
+    srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "suptracker.api:app", "--port", str(port)], cwd=ROOT, env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(8)
+        script = Path(tmp) / "la10.js"
+        script.write_text(SCAN_JS)
+        r = subprocess.run([node, str(script), f"http://127.0.0.1:{port}", json.dumps(cods)], capture_output=True, text=True, timeout=900)
+    finally:
+        srv.terminate()
+    if r.returncode:
+        return False, r.stderr[-400:]
+    o = json.loads(r.stdout)
+    return o["n"] > 20 and not o["hits"] and not o["errs"], f"{o['n']} pages read; {len(o['hits'])} hits {o['hits'][:5]}; JS errors {o['errs'][:2]}"
 
 
 def run(db: Path | None = None, real: bool = False, browser: bool = False, checks: set | None = None) -> list[dict]:

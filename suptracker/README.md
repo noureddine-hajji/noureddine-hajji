@@ -4641,3 +4641,46 @@ Red team `scripts/redteam_chiffres.py` (CH1-CH5, `tests/test_chiffres.py`):
   formation page and in Mes vœux (nightly suite).
 - **CH5**: 13 seeded bugs, all caught.
 
+## Plain words everywhere (audit PR 3, 2026-11-23)
+
+The four testers of the audit all met jargon the earlier language red team could not see. Some came from the code; others
+came from data printed as is:
+- column abbreviations « (PP) »;
+- « cohorte finale »;
+- a « cod_aff_form » column heading;
+- « 4 an(s) » and « n<10 »;
+- the internal gate name « Atypique / prérequis non alignés »;
+- a search chip « Reconnu : licence »;
+- specialty codes « MATHS + SES »;
+- reports' own labels « Autres doublettes » and « Msgn/ Mercatique & Droit et Economie ».
+
+| Before | Now |
+|---|---|
+| (PP) / (PC) | (phase principale) / (phase complémentaire), in the page and in the server's labels |
+| Admis (cohorte finale) | Admis (toute la campagne) |
+| cod_aff_form | Code Parcoursup |
+| 4 an(s) | 4 campagnes |
+| n<10 | moins de 10 admis… |
+| Atypique / prérequis non alignés | Peu courant avec vos spécialités |
+| Part de destination / Indice | Où vont les admis ayant vos spécialités / Par rapport à la moyenne |
+| Reconnu : licence | Mot compris : licence |
+| Groupe : BUT Production | Groupe de formations du ministère : « BUT Production » |
+| MATHS + SES | Mathématiques + SES (`SPE_SHORT` = the vocabulary's short names) |
+| Autres doublettes | Autres paires de spécialités (`rpLabel`) |
+| Msgn/ Mercatique & Droit et Economie | Management (Mercatique) & Droit et Economie (`rpLabel`) |
+
+« Néo-bacheliers » and « phase principale » stay: they are Parcoursup's own words, explained on the page.
+
+Report labels change on screen only. Every rule (the student's line, « Autres », the pair key) still reads the published label or
+its key.
+
+The language red team gains two checks:
+- **LA9** reads the page strings and the server's labels for these words. It runs `SPE_SHORT` and `rpLabel` in Node, against the
+  vocabulary and on real labels, and checks every place a report label or a specialty is printed. 11 new mutants bring the total
+  to 37/37.
+- **LA10** opens the real pages in a browser for a bac général and a bac techno profile, with folded blocks and tabs open:
+  - home, profile, Où je me situe, Mes vœux, Calendrier, the job search, Première and the comparator;
+  - formation pages with a STMG report and with « Autres » lines.
+
+  It reads the text a student sees and finds none of these words (24 pages). LA10 joins the nightly browser suite.
+

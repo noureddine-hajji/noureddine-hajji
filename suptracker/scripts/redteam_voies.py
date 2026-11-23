@@ -444,7 +444,7 @@ JS_MUTANTS = [
     ("page twin without the bucket", "  const other = rows.find((x) => x.autres);\n  return other ? { ...other, source: \"autres\" } : null;\n}\nconst VOIE_WORD",
      "  return null;\n}\nconst VOIE_WORD"),
     ("every row marked", "const meV = v === myVoie && mineV && (mineV.source === \"voie\" ? x.voie === vkey : x.autres);", "const meV = v === myVoie && mineV;"),
-    ("row label unescaped", "ligne « ${esc(mineV.libelle)} »${mineV.source", "ligne « ${mineV.libelle} »${mineV.source"),
+    ("row label unescaped", "ligne « ${esc(rpLabel(mineV.libelle))} »${mineV.source", "ligne « ${rpLabel(mineV.libelle)} »${mineV.source"),
     ("masked table not said", "la formation n'a pas publié son tableau (effectifs trop faibles)", "aucun chiffre"),
     ("route sent for bac général", 'if (prof.serie !== "bg" && typeof prof.voie === "string" && prof.voie)', 'if (typeof prof.voie === "string" && prof.voie)'),
     ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : "", men', ': p.voie_label ? p.voie_label : "", men'),

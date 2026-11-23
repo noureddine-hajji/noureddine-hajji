@@ -65,8 +65,8 @@ VOEUX_FIELDS: tuple[Field, ...] = (
     F("nb_voe_pp", "BIGINT", stage="candidates", label="Vœux en phase principale"),
     F("nb_voe_pc", "BIGINT", stage="candidates", label="Vœux en phase complémentaire"),
     # --- stage 2: ranked & offered ---------------------------------------------
-    F("nb_cla_pp", "BIGINT", stage="ranked_offered", label="Candidats classés (PP)"),
-    F("nb_cla_pc", "BIGINT", stage="ranked_offered", label="Candidats classés (PC)"),
+    F("nb_cla_pp", "BIGINT", stage="ranked_offered", label="Candidats classés (phase principale)"),
+    F("nb_cla_pc", "BIGINT", stage="ranked_offered", label="Candidats classés (phase complémentaire)"),
     F("prop_tot", "BIGINT", stage="ranked_offered", label="Candidats ayant reçu une proposition"),
     F("ran_grp1", "BIGINT", stage="ranked_offered", label="Rang du dernier appelé, groupe 1"),
     F("ran_grp2", "BIGINT", stage="ranked_offered", label="Rang du dernier appelé, groupe 2"),

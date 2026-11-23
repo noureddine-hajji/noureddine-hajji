@@ -638,7 +638,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   carry it as a title; the folded `zoneLegend()` sits on every page that shows zones. "Et maintenant ?" (`nextSteps(kind)`): links
   only, no figure, always ending with the help page. Help page `aide.py` (`/aide`, `#/info/aide`): official services and hosts only,
   numbers as the services publish them (red team's own table), never opening hours. Short texts: sentences <= 30 words,
-  Kandel-Moles >= 70. Red team `redteam_langage.py` (LA1-LA8; `scripts/jstext.py` reads the page strings).
+  Kandel-Moles >= 70. Audit PR 3 (2026-11-23): no raw code or internal label either: no « (PP) » / « (PC) » (« phase
+  principale / complémentaire »), « cohorte finale », « cod_aff_form », « an(s) », « n<10 », gate names (« Atypique… »), « Reconnu »;
+  specialty codes printed by their short names (`SPE_SHORT` = `journey.SPECIALTY_SHORT`, `speName`); report labels through ONE
+  helper (`rpLabel`: « Autres doublettes » -> « Autres paires de spécialités », STMG « Msgn/ X » -> « Management (X) »), display
+  only (rules read the keys). Red team `redteam_langage.py` (LA1-LA10; `scripts/jstext.py` reads the page strings; LA10 reads the
+  TEXT of the real pages in a browser, folded blocks opened, for a bac général and a bac techno profile).
 - **Home and formation page on a phone (sprint Q5, owner 2026-11-13).** The home has ONE main action, `homeCta()` in the hero
   right after the title and its sentence: "Créer mon profil" (#/profil) without a profile, "Voir où je me situe" (#/parcours) with
   one; it is the only filled (accent) control in `<main>`: other calls are outlined buttons or links (the Liste/Carte/Métiers switch
