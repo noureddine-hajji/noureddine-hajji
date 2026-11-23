@@ -753,7 +753,20 @@ def formation(cod: str, session: int | None = None):
             # sprint 4: what the fiche says of disability support and a student ambassador (never the contact itself), and
             # the sentences of its own texts about immersions and mini-stages, verbatim
             "handicap": HA.for_formation(_con().cursor(), rec["cod_aff_form"]),
-            "immersion": IMM.for_formation(_con().cursor(), rec["cod_aff_form"])}
+            "immersion": IMM.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # PR 2 of the audit (2026-11-23): the access rate of each bac route exactly as the search card shows it
+            "bacs": _bacs_block(rec)}
+
+
+def _bacs_block(rec: dict) -> dict | None:
+    """The access rate of each bac route the search card prints (carte.bac_lines: the formation's own cross-checked report of
+    the latest campaign, else the site's estimation, a masked table = none), so that the formation page prints the SAME figure
+    under the same name. Only on the latest campaign's page (the search lists that campaign); None elsewhere."""
+    con = _con().cursor()
+    if rec["session"] != con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]:
+        return None
+    e = CA.bac_lines(con).get(rec["cod_aff_form"])
+    return e["bacs"] if e else None
 
 
 def _insertion_block(rec: dict) -> dict | None:
