@@ -1100,16 +1100,10 @@ main { min-height: 70vh; }   /* a page still loading keeps the footer below the 
   p.home-profile.small { display: none; }   /* the profile bar above says the same on a phone */
   .fhead .toolbar button { white-space: nowrap; flex: 1 1 auto; }
 }
-/* the robustesse gauge on a phone (2026-11-23): in a half-width tile the one-line gauge (235 px) overflowed the page and,
-   wrapped, took three lines; here the five cells sit on top and the two words under their ends (red teams G11, MB5) */
+/* the robustesse gauge on a phone (2026-11-23): its five cells never split (.ech-cells) and its two words wrap only where the
+   room lacks (G11: the one-line gauge, 235 px, pushed a half-width tile's page to 439 px). In the half-width summary tile the
+   level word is written just above: the cells stand alone there, on one line (MB5, tabs within 2.2 screens); in the full-width
+   search cards the gauge keeps its one line (X7, the search page within 13 screens) */
 @media (max-width: 480px) {
-  .ech { display: inline-grid; grid-template-columns: auto auto; grid-template-areas: "c c" "l r"; column-gap: 6px; row-gap: 2px; }
-  .ech .ech-cells { grid-area: c; }
-  .ech .ech-end { margin: 0; line-height: 1.2; }
-  .ech .ech-end:first-child { grid-area: l; }
-  .ech .ech-end:last-child { grid-area: r; justify-self: end; }
-  /* in the half-width summary tile the level word above already says it: the cells alone, on one line (MB5, tabs within 2.2
-     screens on the longest titles) */
-  .sum-rob .ech { display: inline-flex; }
   .sum-rob .ech .ech-end { display: none; }
 }

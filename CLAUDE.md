@@ -338,8 +338,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   Sprint 19: "Y entrer" shows 5 cards and folds the others under "Plus de chiffres sur l'admission"; the summary links to the jury
   tab from the same render; two-row header. Keep a new admission card folded unless it replaces one of the five. Red team X16-X17 « Selon votre bac » folds the national group detail by
   pair when the formation's own report gives the bac général figure (2026-11-23: the phone page went past X7's budget); the
-  robustesse gauge keeps its five cells on one line (`.ech-cells`); on a phone its two words go under the cells, and in the
-  summary tile (half width, the level word above) the cells stand alone (G11 caught a 439 px page; MB5 the tabs' position).
+  robustesse gauge keeps its five cells on one line (`.ech-cells`), its two words wrap only where room lacks, and in the phone
+  summary tile (half width, the level word above) the cells stand alone (G11 caught a 439 px page; MB5 the tabs' position;
+  X7 the search page's 13 screens, which a two-row gauge in every card exceeded).
 - **Working pages (lot 3).** Mes vœux opens on `zoneTiles` (zone tokens, counts, never a chance); Mon parcours folds a stored
   profile under `profileLine` (escaped); long tables use `table.stack` + `tr.stack-head` and EVERY figure cell carries `data-label`
   (a stacked cell without a label is a bug); positioning shows 20 rows first; search pages are `searchPage()` (20 phone / 40 wide;
