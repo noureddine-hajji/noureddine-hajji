@@ -3504,11 +3504,12 @@ function accesEvolutionCard(years, rows, ctx, prev) {
     { name: "Part des bacs généraux parmi les appelés", color: EVO.k3, dash: "6 4", values: pad(col("part_terminale_generale_en_position_admis_pp")) }];
   const byYear = (y) => (ctx || []).find((c) => c.session === y);
   const band = { name: "La moitié des formations de la même filière", values: xs.map((y) => { const f = (byYear(y) || {}).filiere; return f && f.p25 != null ? { lo: f.p25, hi: f.p75 } : null; }) };
-  const lastF = (ctx || []).map((c) => c.filiere).filter((f) => f && f.p25 != null).pop();
+  // the caption names the campaign the count comes from (Codex, PR #107): the latest one WITH a band, not always the last year
+  const lastC = (ctx || []).filter((c) => c.filiere && c.filiere.p25 != null).pop(), lastF = lastC ? lastC.filiere : null;
   const ranges = pv && pv.lo != null && pv.hi != null ? [{ i: xs.indexOf(prev.target), lo: pv.lo, hi: pv.hi, name: `Fourchette ${prev.target} (prévision)` }] : [];
   return `<div class="card"><h2>Taux d'accès, et part des bacs généraux parmi les appelés ${tip("taux_acces_ens")}</h2>
     ${lineLegend(lines)}${lineChart(xs, lines, { band: band.values.some(Boolean) ? band : null, ranges })}
-    ${band.values.some(Boolean) ? bandKey(`la moitié des formations «\u00a0${esc(lastF ? lastF.libelle : "")}\u00a0» ont un taux d'accès dans cette bande (${fmt(lastF ? lastF.n : 0)} formations en ${esc(years[years.length - 1])}).`) : ""}
+    ${band.values.some(Boolean) ? bandKey(`la moitié des formations «\u00a0${esc(lastF ? lastF.libelle : "")}\u00a0» ont un taux d'accès dans cette bande (${fmt(lastF ? lastF.n : 0)} formations en ${esc(lastC ? lastC.session : "")}).`) : ""}
     ${ranges.length ? rangeKey(`fourchette ${esc(prev.target)} du taux d'accès ${estimTag("prévision", false, true)} : ${fmt(pv.lo, 0)} à ${fmt(pv.hi, 0)} %. Testée sur ${esc(prev.holdout)}, ${fmt(100 * pv.coverage, 0)} % des vraies valeurs tombaient dans leur fourchette${pv.fragile ? " : moins fiable" : ""}. Pas une chance.`) : ""}</div>`;
 }
 // 2: bac techno / pro, year by year: the line of the student's bac in the formation's own report of that campaign (pickVoie),

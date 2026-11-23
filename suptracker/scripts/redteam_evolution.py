@@ -930,6 +930,7 @@ const years = [2022, 2023, 2024, 2025];
 CAP.length = 0;
 out.acces = accesEvolutionCard(years, input.rows, input.ctx, input.prev);
 out.accesNoPrev = accesEvolutionCard(years, input.rows, input.ctx, null);
+out.accesOld = accesEvolutionCard(years, input.rows, input.ctx.filter((c) => c.session !== 2025), null);   // the band ends in 2022
 out.accesLines = CAP.slice(0, 1).map((s) => s.map((x) => x.values));
 CAP.length = 0;
 out.voie = voieEvolutionCard(input.d, years, input.rps);
@@ -1014,6 +1015,10 @@ def acces_ok(js: str):
         bad.append("a range without a prevision")
     if "2022 30–90 %" not in svg or "2025 20–70 %" not in svg or "2023 " in svg.split("evo-band")[1].split("</polygon>")[0][:200] and "2023 " in re.search(r"<title>La moitié[^<]*", svg).group(0):
         bad.append(("band", re.search(r"<title>La moitié[^<]*", svg).group(0) if "La moitié" in svg else None))
+    if "(30 formations en 2025)" not in o["acces"] or "(12 formations en 2025)" in o["acces"]:
+        bad.append("the band's count is not dated by its own campaign")
+    if "(30 formations en 2022)" not in o["accesOld"]:
+        bad.append("a band ending before the last year is dated by the last year (Codex, PR #107)")
     if "&lt;b&gt;Droit" not in o["acces"] or "<b>Droit" in o["acces"]:
         bad.append("filière label not escaped")
     if o["accesLines"] and o["accesLines"][0][0] != [90, 80, None, 60, None]:
@@ -1200,6 +1205,7 @@ MUTANTS = [
     ("the band from the median", ("evo", "quantile_cont({col}, 0.25), quantile_cont({col}, 0.5)", "quantile_cont({col}, 0.4), quantile_cont({col}, 0.5)"), "EV13"),
     ("the range a year early", js_mut("[{ i: xs.indexOf(prev.target), lo: pv.lo", "[{ i: xs.indexOf(prev.target) - 1, lo: pv.lo"), "EV14"),
     ("a coverage written down", js_mut("${fmt(100 * pv.coverage, 0)} % des vraies valeurs", "80 % des vraies valeurs"), "EV14"),
+    ("the band dated by the last year", js_mut("formations en ${esc(lastC ? lastC.session : \"\")}).", "formations en ${esc(years[years.length - 1])})."), "EV14"),
     ("the band on the median", js_mut("return f && f.p25 != null ? { lo: f.p25, hi: f.p75 } : null;", "return f && f.p25 != null ? { lo: f.p50, hi: f.p75 } : null;"), "EV14"),
     ("the route rate beside an absent report line", js_mut("const vals = own.map((o, i) => (o ? (o.absent ? null : o.taux) : route[i] ? route[i].taux : null));",
                                                            "const vals = own.map((o, i) => (o && !o.absent ? o.taux : route[i] ? route[i].taux : null));"), "EV15"),
