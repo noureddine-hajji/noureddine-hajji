@@ -8,6 +8,9 @@ pytest-xdist>=3.5
 # Red team of the analytics Redis path (scripts/redteam_analytics.py R17)
 fakeredis>=2.26
 lupa>=2.2
+# redis 8.2.0 (2026-11) changed an internal fakeredis 2.40 reads: red team R17 crashed (« 'method_descriptor' object has
+# no attribute '__closure__' ») on main and every PR; the app never imports redis (Upstash is reached over HTTPS)
+redis<8.2
 openpyxl>=3.1
 # Dares FAP-2009 table (.xls, sprint 13)
 xlrd>=2.0
