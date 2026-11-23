@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import re
 import shutil
@@ -93,7 +94,14 @@ def node(prog: str, payload=None):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=120)
+    # the program goes through a file: the page's renderers it carries grew past the kernel's 128 KB limit for one argument
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as fh:
+        fh.write(prog)
+    try:
+        r = subprocess.run([exe, fh.name], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=120)
+    finally:
+        os.unlink(fh.name)
     if r.returncode:
         return "__error__ " + r.stderr[-800:]
     return r.stdout
