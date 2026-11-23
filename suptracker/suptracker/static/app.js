@@ -1084,9 +1084,13 @@ function doubletteCard(d, rp, sem) {
   const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
   const last = Object.values(d.series)[0].trend.slice(-1)[0];
+  // PR 2 of the audit: on the latest campaign's page, the search card's « taux d'accès de ce bac » first, under the same name;
+  // the ministry's proposal rate (every phase, every candidate of the route) second, named for what it is
+  const acc = d.acces || null;
   const voies = ["bg", "bt", "bp"].map((s) => { const v = d.series[s];
     return `<tr${s === myVoie ? ' class="dbl-mine"' : ""}><td>${voiePill(s)}${s === myVoie ? ' <span class="estim">votre bac</span>' : ""}</td>
-      <td class="num" data-label="Taux de proposition">${pct1(v.taux)}${v.taux !== null && v.taux !== undefined ? rateBar(v.taux, VOIES[s].color) : ""}</td>
+      ${acc ? `<td class="num" data-label="Taux d'accès de ce bac">${bacAccesHtml(acc[s])}</td>` : ""}
+      <td class="num" data-label="${acc ? "Propositions reçues, toutes phases" : "Taux de proposition"}">${pct1(v.taux)}${v.taux !== null && v.taux !== undefined ? rateBar(v.taux, VOIES[s].color) : ""}</td>
       <td class="num" data-label="Candidats">${fmt(v.candidats)}${v.fragile && v.candidats ? ' <span class="badge warnb">peu de candidats</span>' : ""}</td></tr>`; }).join("");
   const dkey0 = profileDkey(prof);
   // where this formation's own report has no bac général table: the similar formations' reports, then the national group
@@ -1115,8 +1119,9 @@ function doubletteCard(d, rp, sem) {
   }
   return `<div class="card"><h2>Selon votre bac</h2>
     <h3>Par voie de bac, pour cette formation${last ? ` (campagne ${esc(last.session)})` : ""}</h3>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th><th class="num">Taux de proposition</th><th class="num">Candidats</th></tr>${voies}</table></div>
-    <p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th>${acc ? `<th class="num">Taux d'accès de ce bac</th><th class="num">Propositions reçues, toutes phases</th>` : '<th class="num">Taux de proposition</th>'}<th class="num">Candidats</th></tr>${voies}</table></div>
+    ${acc ? `<p class="muted small"><strong>Taux d'accès de ce bac</strong> : le chiffre de la carte de recherche, la part des candidats de ce bac classés assez haut pour recevoir une proposition en phase principale, d'après le rapport du jury (candidats de terminale en France) ; * = pas de rapport, estimation du site. <strong>Propositions reçues</strong> : la part de tous les candidats de ce bac ayant reçu une proposition, toutes phases (chiffre du ministère). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>`
+    : `<p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>`}
     ${own.html}
     ${own.hasBg
     // the formation's own report already gives the student's figure: the national group detail is folded (2026-11-23, phone
@@ -1684,35 +1689,50 @@ function appOffers(list) {
 // student's doublette (or bac techno / pro line), the one Mes vœux and the formation page show (voeux.figures, read per page of
 // the list); where the student's average or mention stands among the formation's néo-bachelier admits, a RANGE read here from
 // the published counts (journey.stage2's `lec`), never an access rate or a chance: SIES publishes no access rate by mention.
+// PR 2 of the audit (2026-11-23): « admis avec votre mention ou moins » has ONE meaning on every page (search card, Mes vœux,
+// Où je me situe): the reading the zone uses with no average (the band's top, w = 1): the series' exact bounds when the formation
+// publishes enough for them (journey.series_cdf_bounds), else the all-bacs share. Twin of the server's planb._view.
+function mentionShareOf(L) {
+  if (!L || !L.n) return null;
+  const cdf = L.kt / L.n, sp = seriesPos(L.s, 1, cdf);
+  return sp ? { lo: sp.bounds[0], hi: sp.bounds[1], serie: true } : { lo: cdf, hi: cdf, serie: false };
+}
+const mentionShareTxt = (lo, hi) => (hi - lo < 0.005 ? pc1(lo) : `${pc1(lo)} – ${pc1(hi)}`);
+// who the share counts: the student's own bac when the bounds are read, else every bac
+const mentionWho = (serieRead, serie) => (serieRead ? `${{ bg: "bacs généraux", bt: "bacs technos", bp: "bacs pros" }[serie || "bg"]} admis` : "tous bacs");
 function cartePosition(L, taux, band, g) {
   if (!L || !L.n) return null;
   if (g !== null && g !== undefined) {
     const p = lire(L, taux, band, g).position;
     return p ? { lo: Math.min(p.normale, p.uniforme), hi: Math.max(p.normale, p.uniforme), moyenne: true } : null;
   }
-  return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };
+  const m = mentionShareOf(L);
+  return m && { ...m, moyenne: false };
 }
-const pctRange = (lo, hi) => { const a = Math.round(100 * lo), b = Math.round(100 * hi); return a === b ? `${a} %` : `${a} à ${b} %`; };
-function cartePosFigure(pos, compact) {
+function cartePosFigure(pos, compact, serie) {
   if (!pos) return '<span class="muted small">non publié</span>';
-  if (compact) return `${pctRange(pos.lo, pos.hi)}${estimTag(pos.moyenne ? "des admis sous votre moyenne" : "des admis sous ou à votre mention", true)}`;
-  return `${pctRange(pos.lo, pos.hi)}${pos.moyenne ? estimTag("des admis néo-bacheliers avaient une moyenne plus basse que la vôtre", true)
-    : '<div class="estim">des admis néo-bacheliers avaient une mention plus basse (bas de la fourchette) ou égale (haut) · indiquez votre moyenne pour préciser</div>'}`;
+  if (pos.moyenne) return `${mentionShareTxt(pos.lo, pos.hi)}${estimTag(compact ? "des admis sous votre moyenne" : "des admis néo-bacheliers avaient une moyenne plus basse que la vôtre", true)}`;
+  return `${mentionShareTxt(pos.lo, pos.hi)} <span class="muted small">(${mentionWho(pos.serie, serie)})</span>`;
 }
 // ctx: { ok, prof, serie, chiffres: Map(code -> voeux.figures answer, or null while it loads), lec: {code: lec}, band, g, session }
 // R10 (owner, 2026-11-13): the card reads like Parcoursup's, compact: statut, selectivity and zone first; the access rate of
 // each bac route (the formation's report, else the site's estimation, said); the most represented line among the admits;
 // the two figures for the profile; then the actions (vœu, comparateur, fiche).
 const STATUT_LABEL = { public: "Public", contrat: "Privé sous contrat", prive: "Privé hors contrat (payant)", prive_app: "Privé, en apprentissage" };
+// PR 2 of the audit (2026-11-23): ONE rendering of « taux d'accès de ce bac » (carte.bac_lines: the formation's own report, else
+// the site's estimation starred, a masked table « non publié »), shared by the search card and the formation page
+function bacAccesHtml(x) {
+  x = x || {};
+  const v = x.masque ? '<span class="muted">non publié</span>' : x.taux === null || x.taux === undefined ? '<span class="muted">—</span>'
+    : `${pct1(x.taux)}${x.source === "estimation" ? '<sup class="est" aria-hidden="true">*</sup>' : ""}${x.fragile ? ' <span class="muted small">(peu de candidats)</span>' : ""}`;
+  const sr = x.source === "estimation" && !x.masque && x.taux !== null && x.taux !== undefined ? '<span class="sr-only"> (estimation)</span>' : "";
+  return `<strong>${v}</strong>${sr}`;
+}
 function carteBacs(f) {
   // sprint Q3: a formation's rates per bac arrive with the cards' answer, just after the list (never shown as missing)
   if (f.bacs === undefined && f.stats !== false) return '<p class="cbacs-wait small muted">Taux d\'accès par bac : chargement…</p>';
   if (!f.bacs) return "";
-  const cell = (b) => { const x = f.bacs[b] || {};
-    const v = x.masque ? '<span class="muted">non publié</span>' : x.taux === null || x.taux === undefined ? '<span class="muted">—</span>'
-      : `${pct1(x.taux)}${x.source === "estimation" ? '<sup class="est" aria-hidden="true">*</sup>' : ""}${x.fragile ? ' <span class="muted small">(peu de candidats)</span>' : ""}`;
-    const sr = x.source === "estimation" && !x.masque && x.taux !== null && x.taux !== undefined ? '<span class="sr-only"> (estimation)</span>' : "";
-    return `<li class="cb cb-${b}"><span class="cb-k">${{ bg: "Bac général", bt: "Bac techno", bp: "Bac pro" }[b]}</span> <strong>${v}</strong>${sr}</li>`; };
+  const cell = (b) => `<li class="cb cb-${b}"><span class="cb-k">${{ bg: "Bac général", bt: "Bac techno", bp: "Bac pro" }[b]}</span> ${bacAccesHtml(f.bacs[b])}</li>`;
   return `<ul class="cbacs" aria-label="Taux d'accès par bac">${["bg", "bt", "bp"].map(cell).join("")}</ul>`;
 }
 function carteMajo(f) {
@@ -1731,7 +1751,7 @@ function carteFigures(f, ctx) {
   const pos = cartePosition((ctx.lec || {})[f.cod_aff_form], f.taux_acces_ens, ctx.band, ctx.g);
   return `<div class="cfigs">
     <div class="cf" data-cfig="${esc(f.cod_aff_form)}"><span class="cf-k">${ctx.serie === "bg" ? "Vos deux spécialités" : "Votre bac dans le rapport"}</span><span class="cf-v">${second}</span></div>
-    <div class="cf"><span class="cf-k">${ctx.g !== null && ctx.g !== undefined ? "Votre moyenne parmi les admis" : "Votre mention parmi les admis"}</span><span class="cf-v">${cartePosFigure(pos, ctx.compact)}</span></div></div>`;
+    <div class="cf"><span class="cf-k">${ctx.g !== null && ctx.g !== undefined ? "Admis sous votre moyenne" : "Admis avec votre mention ou moins"}</span><span class="cf-v">${cartePosFigure(pos, ctx.compact, ctx.serie)}</span></div></div>`;
 }
 function compareButton(cod) {
   const inB = basket.get().includes(cod), full = !inB && basket.get().length >= 6;
@@ -2898,6 +2918,7 @@ async function viewFormation(cod, session, refresh) {
     document.title = "Fiche formation — SupCompass";               // the tab names the page while it loads (R8 rule)
   }
   const d = await api(`/api/formation/${encodeURIComponent(cod)}${session ? `?session=${session}` : ""}`);
+  if (d.doublettes && d.bacs) d.doublettes = { ...d.doublettes, acces: d.bacs };   // « Selon votre bac » prints the card's figure (PR 2)
   store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);
   const years = d.history.map((h) => h.session);
@@ -4549,10 +4570,10 @@ async function viewVoeux() {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">n&lt;10</span>' : ""}${autresBadge(v)}`;
-    const position = v.bounds ? (v.bounds[1] - v.bounds[0] < 0.005 ? pc1(v.bounds[0]) : `${pc1(v.bounds[0])} – ${pc1(v.bounds[1])}`) : pc1(v.position);
+    const position = `${v.bounds ? mentionShareTxt(v.bounds[0], v.bounds[1]) : pc1(v.position)}${d.moyenne !== null && d.moyenne !== undefined ? "" : ` <span class="muted small">(${mentionWho(!!v.bounds, serie)})</span>`}`;
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain, v.large)}${v.status === "ok" ? zoneAxisNote(v) : ""}${flags}</td>
       <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
-      <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
+      <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
       ${serie === "bg" ? `<td class="num" data-label="Vos deux spécialités, cette formation">${dblFigure(v)}</td>` : vxVoieCell(v, prof)}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
@@ -4564,7 +4585,7 @@ async function viewVoeux() {
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}${m.code === "aucune_securite" ? " vx-alert" : ""}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
     <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Votre mention ou moins parmi les admis"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Taux de proposition pour vos deux spécialités (cette formation, estimation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;

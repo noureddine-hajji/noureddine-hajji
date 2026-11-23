@@ -56,7 +56,7 @@ PY_TEXT = ["voeux.py", "planb.py", "journey.py", "reorientation.py", "voies.py",
            "seo.py", "semblables.py", "rapports.py", "carte.py", "filtres.py", "admis.py", "appel.py", "selectivite.py", "observatoire.py", "tension.py"]
 CODE_STRING = re.compile(r"\b(?:SELECT|CREATE|INSERT|FROM|WHERE|JOIN)\b|^[\w.:/-]*$")
 # every renderer of a computed figure, with its number of computed figures (each one labelled by estimTag)
-ESTIMATE_RENDERERS = {"doubletteCard": 3, "cartePosFigure": 2, "PR_SOURCE": 2, "stage1Matrix": 1, "moyRange": 1,
+ESTIMATE_RENDERERS = {"doubletteCard": 3, "cartePosFigure": 1, "PR_SOURCE": 2, "stage1Matrix": 1, "moyRange": 1,
                       "viewParcours": 1, "dblFigure": 2, "reoCell": 1, "tensionCard": 1, "distanceText": 1, "apprentiInsertionCard": 1, "aidesCard": 1}
 NEXT_PAGES = {"formation": ("viewFormation",), "parcours": ("viewParcours",), "voeux": ("viewVoeux", "viewVoeuxReo"),
               "reorientation": ("viewReorientation",), "metier": ("viewMetier",), "premiere": ("viewPremiere",),

@@ -4226,7 +4226,7 @@ The CI runners have no browser, so every red-team check that opens the site in C
 headings, page lengths, the map, the speed budgets) **skips itself** in the `suptracker` workflow. Three of them failed on
 `main` without anyone seeing it.
 
-- `scripts/browser_nightly.py` runs the browser checks of the 17 red teams that have one (`SUITE`), on the committed
+- `scripts/browser_nightly.py` runs the browser checks of the 20 red teams that have one (`SUITE`), on the committed
   warehouse, each through the red team's own `run()` (real warehouse, browser on, restricted to those checks when the red team
   allows it). Any failure, any SKIPPED browser check, any browser check that did not run, a crash, or a missing Playwright,
   Chromium or warehouse fails the run (exit 1). It writes a Markdown report.
@@ -4609,3 +4609,35 @@ The owner found the evolution page's grey charts unreadable and asked for the st
 - **Quality score** (EV10): 0.6 × the measured checks + 0.4 × an independent screenshot review (`scripts/evolution_review.json`).
   It must reach >= 90, and the review alone >= 80. Nine fresh reviewers in all (69, 76, 75, 75, 78, 80, 80, then 77 and 82 once the six
   context curves were added): 0.6 × 100 + 0.4 × 82 = 92.8.
+
+## One figure per question (audit PR 2, 2026-11-23)
+
+The audit's four testers each met a formation printed with several neighbouring percentages under similar names. On one licence
+they read « Bac général 41,2 % » on the search card and « Bac général 14,1 % » on the formation page. They also read « Votre
+mention parmi les admis 43 à 89 % » on the card against « 81,1 % – 100 % » in Mes vœux. These were different figures under one
+name:
+- a report's access rate per bac against the ministry's proposal rate, every phase;
+- a [strictly lower ; lower or equal] range against the bac général's exact bounds.
+
+A name now always means the same figure:
+
+| Name | Figure | Where |
+|---|---|---|
+| Taux d'accès de ce bac | the formation's own cross-checked report of the latest campaign (en position / confirmés over the bac's lines), else the site's estimation (starred), a masked table « non publié » (`carte.bac_lines`) | search card; « Selon votre bac » on the formation page, first column (`/api/formation` → `bacs`) |
+| Propositions reçues, toutes phases | the ministry's proposal rate of the route (every phase, every candidate of that bac) | « Selon votre bac », second column |
+| Admis avec votre mention ou moins | the zone's reading with no average: the series' exact bounds (« bacs généraux admis »), else the all-bacs share (« tous bacs ») | search card, Mes vœux, Où je me situe |
+| Admis sous votre moyenne | the R5 range of the average's position, an estimation | the same places, with an average |
+| Vos deux spécialités | the formation's report line, else similar formations, else the national group (`dblFigure`) | search card, Mes vœux, and L'essentiel's « Pour votre profil » |
+
+One function draws each figure (`bacAccesHtml`, `mentionShareOf` + `mentionShareTxt` + `mentionWho`, `dblFigure`). The old
+names (« Votre mention parmi les admis », « Taux de proposition pour vos deux spécialités (cette formation, estimation) ») are
+gone.
+
+Red team `scripts/redteam_chiffres.py` (CH1-CH5, `tests/test_chiffres.py`):
+- **CH1**: the shared renderings and names, read statically.
+- **CH2**: the formation answer's `bacs` equals the card's source for 25 latest-campaign formations; none on an older page.
+- **CH3**: the card's share (Node twin) equals what Mes vœux prints on 240 real rows, for bac général, techno and pro.
+- **CH4**: in a browser, a real licence found through the search page shows the same three figures on the card, on the
+  formation page and in Mes vœux (nightly suite).
+- **CH5**: 13 seeded bugs, all caught.
+

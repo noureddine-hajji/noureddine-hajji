@@ -212,24 +212,35 @@ def pj2(c: Ctx):
     if not pol or pol[0] != CA.PUBLIC:
         bad.append(f"cache policy {pol}")
     if c.db is not None:
+        # the API reads THIS warehouse: set (never setdefault: another test of the same worker may have left its own path)
+        # and the cached connection dropped, both restored afterwards (CI shard 2 asked the real warehouse for a synthetic code)
         import os
-        os.environ.setdefault("SUPTRACKER_DB", str(c.db))
         from fastapi.testclient import TestClient
-        from suptracker.api import app
+        from suptracker import api
         import duckdb
         con = duckdb.connect(str(c.db), read_only=True)
         try:
             cod = con.execute("SELECT max(cod_aff_form) FROM core.formation_year").fetchone()[0]
         finally:
             con.close()
-        cl = TestClient(app)
-        for path, want in ((f"/api/projet/{cod}", 200), ("/api/projet/abc", 422), ("/api/projet/1234567890", 422),
-                           ("/api/projet/%D9%A1%D9%A2", 422), ("/api/projet/999999999", 404)):
-            r = cl.get(path)
-            if r.status_code != want:
-                bad.append(f"{path}: {r.status_code}")
-            elif want == 200 and not r.headers.get("cache-control", "").startswith("public"):
-                bad.append("not publicly cached")
+        old = os.environ.get("SUPTRACKER_DB")
+        os.environ["SUPTRACKER_DB"] = str(c.db)
+        api._con.cache_clear()
+        try:
+            cl = TestClient(api.app)
+            for path, want in ((f"/api/projet/{cod}", 200), ("/api/projet/abc", 422), ("/api/projet/1234567890", 422),
+                               ("/api/projet/%D9%A1%D9%A2", 422), ("/api/projet/999999999", 404)):
+                r = cl.get(path)
+                if r.status_code != want:
+                    bad.append(f"{path}: {r.status_code}")
+                elif want == 200 and not r.headers.get("cache-control", "").startswith("public"):
+                    bad.append("not publicly cached")
+        finally:
+            if old is None:
+                os.environ.pop("SUPTRACKER_DB", None)
+            else:
+                os.environ["SUPTRACKER_DB"] = old
+            api._con.cache_clear()
     return not bad, f"problems {bad}"
 
 
