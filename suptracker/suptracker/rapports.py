@@ -231,6 +231,39 @@ def for_formation(con, cod: str, session: int | None = None, textes: bool = True
             "doublettes": voies, "masques": masked, "textes": textes, "voie_keys": VO.session_keys(con, s)}
 
 
+def lineage_pairs(con, years: list[dict]) -> list[dict]:
+    """The evolution page's per-campaign pair rates (owner, 2026-11-22): for each (session, code) of a lineage, the bac général
+    table of THAT code's report of THAT session (never another session's: `for_formation` would fall back to the latest one),
+    cross-checked only (`recoupe`). Published counts; the page picks the student's row with pickRapport, year by year."""
+    if not _has(con, "core", "rapport"):
+        return []
+    have = {c for (c,) in con.execute("""SELECT column_name FROM information_schema.columns WHERE table_schema = 'core'
+                                          AND table_name = 'rapport'""").fetchall()}
+    src_col = "source" if "source" in have else "'archive'"
+    ok_col = "recoupe" if "recoupe" in have else "true"          # older warehouses
+    out = []
+    for y in years:
+        cod, s = y["cod_aff_form"], y["session"]
+        r = con.execute(f"""SELECT capture, url, confirmes, en_position, {src_col} FROM core.rapport
+                            WHERE cod_aff_form = ? AND session = ? AND {ok_col}""", [cod, s]).fetchone()
+        if not r:
+            continue
+        cap, url, conf, pos, src = r
+        voies = {"bg": [], "bt": [], "bp": []}
+        for bac, lib, dkey, autres, c, p in con.execute("""SELECT bac, libelle, doublette_key, autres, confirmes, en_position
+                FROM core.rapport_doublette WHERE cod_aff_form = ? AND session = ? ORDER BY bac, rang""", [cod, s]).fetchall():
+            if bac in voies:          # bac techno / pro rows carry their route key (voies.voie_key), as for_formation's do
+                voies[bac].append({"libelle": lib, "key": dkey, "voie": VO.voie_key(bac, lib, autres), "autres": autres,
+                                   "confirmes": c, "en_position": p, "taux": rate(p, c)})
+        masque = con.execute("SELECT count(*) FROM core.rapport_masque WHERE cod_aff_form = ? AND session = ? AND bac = 'bg'",
+                             [cod, s]).fetchone()[0] > 0
+        live = src == "live"
+        out.append({"session": s, "cod_aff_form": cod, "capture": cap, "source": "live" if live else "archive",
+                    "archive": url if live else f"https://web.archive.org/web/{cap}/{url}", "confirmes": conf, "en_position": pos,
+                    "masque_bg": masque, "doublettes": voies, "voie_keys": VO.session_keys(con, s)})
+    return out
+
+
 TEXTES_FILE = "rapport_textes.duckdb"   # the jury texts, beside the warehouse: they alone would push it over GitHub's 100 MB limit
 
 

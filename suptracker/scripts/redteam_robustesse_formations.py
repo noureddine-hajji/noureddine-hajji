@@ -66,9 +66,10 @@ def check(name):
 
 
 class Ctx:
-    def __init__(self, db: Path | None = None, real: bool = False):
+    def __init__(self, db: Path | None = None, real: bool = False, part: tuple[int, int] | None = None):
         self.db = db if db and db.exists() else None
         self.real = real
+        self.part = part          # RF8 only: (i, n) runs the i-th of n slices of the mutants (one CI file per slice)
         self.src = {"robf": (ROOT / "suptracker" / "robustesse_formation.py").read_text(),
                     "api": (ROOT / "suptracker" / "api.py").read_text(),
                     "methode": (ROOT / "suptracker" / "methode_robustesse.py").read_text()}
@@ -1787,12 +1788,17 @@ def rf18(c: Ctx):
 
 @check("RF8 mutation test: every seeded bug is caught")
 def rf8(c: Ctx):
-    targets = {m[4] for m in SOURCE_MUTANTS}
-    base_bad = [fn.check_name.split()[0] for fn in CHECKS if fn.check_name.split()[0] in targets and not fn(c)[0]]
+    # 2026-11-23: the mutants run on the crafted data (real off), so the unmutated baseline is read the same way (it ran the
+    # real-data checks a second time, RF18's oracle included); `part` splits the mutants over CI files
+    mutants = SOURCE_MUTANTS if not c.part else SOURCE_MUTANTS[c.part[0] - 1::c.part[1]]
+    base = copy.copy(c)
+    base.real = False
+    targets = {m[4] for m in mutants}
+    base_bad = [fn.check_name.split()[0] for fn in CHECKS if fn.check_name.split()[0] in targets and not fn(base)[0]]
     if base_bad:
         return False, f"the unmutated code fails {base_bad}: mutants not counted"
     caught, missed = 0, []
-    for kind, name, old, new, target in SOURCE_MUTANTS:
+    for kind, name, old, new, target in mutants:
         m = copy.copy(c)
         m.real = False
         src = c.js if kind == "js" else c.src[kind]
@@ -1811,13 +1817,15 @@ def rf8(c: Ctx):
         caught += not ok
         if ok:
             missed.append(name)
-    return not missed, f"{caught}/{len(SOURCE_MUTANTS)} caught; missed {missed}"
+    return not missed, f"{caught}/{len(mutants)} caught; missed {missed}"
 
 
-def run(db: Path | None = None, real: bool = False) -> list[dict]:
-    c = Ctx(db or ROOT / "data" / "suptracker.duckdb", real)
+def run(db: Path | None = None, real: bool = False, checks: set | None = None, part: tuple[int, int] | None = None) -> list[dict]:
+    c = Ctx(db or ROOT / "data" / "suptracker.duckdb", real, part)
     out = []
     for fn in CHECKS:
+        if checks is not None and fn.check_name.split()[0] not in checks:
+            continue
         t = time.time()
         try:
             ok, detail = fn(c)

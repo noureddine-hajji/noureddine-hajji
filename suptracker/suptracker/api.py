@@ -57,6 +57,7 @@ from . import jpo as JPO
 from . import robustesse as ROB
 from . import robustesse_formation as ROBF
 from . import rapports as RP
+from . import evolution as EVO
 from . import carte as CA
 from . import appel as AP
 from . import selectivite as SEL
@@ -796,7 +797,8 @@ def lineage(lineage_id: str):
                     WHERE l.lineage_id = ? ORDER BY k.session_from""", [lineage_id])
     present = {r["session"] for r in res}
     return {"lineage_id": lineage_id, "years": res, "links": links,
-            "missing_years": [y for y in config.YEARS if y not in present]}
+            "missing_years": [y for y in config.YEARS if y not in present],
+            "rapports": RP.lineage_pairs(_con().cursor(), res), "contexte": EVO.contexte(_con().cursor(), res), "prudence": EVO.PRUDENCE}
 
 
 @app.get("/api/compare")

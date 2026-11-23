@@ -209,15 +209,16 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Five shard runners
-    (`pytest -n auto --dist loadfile --shard=i/5`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), files spread by `tests/durations.json`; a new test file goes in that table, with its
+  - CI: push on `main` only, branches through their PR, stale runs cancelled. Six shard runners
+    (`pytest -n auto --dist loadfile --shard=i/6`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
     of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
     warehouse live in `tests/test_pipeline_verif.py`, each on its own `cached_build` copy (2026-11-22: three full builds in a row made
-    test_pipeline a 40-minute file).
+    test_pipeline a 40-minute file). Robustesse RF8 (115 mutants) runs in `tests/test_robustesse_mutants_{1,2,3}.py` (`run(...,
+    checks={"RF8"}, part=(i, 3))`), its baseline read on the crafted data like the mutants (2026-11-23: one 30-minute file).
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
   - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every hour from January to March (the vœux peak), every 6 h
@@ -813,6 +814,19 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   (none when one station serves both ends); the plane (from 500 km or across the sea) and the ferry have no public
   price: a line without a figure; NO carpooling or bus line (owner, 2026-11-18: no public data); no
   third-party route planner such as Rome2rio; official open data only, refreshed monthly). Card in « Combien ça coûte » after the cost card. Red team `redteam_transports.py` (TR1-TR8).
+- **Évolution de la cohorte (owner, 2026-11-22).** The evolution charts are COLOURED: categorical `--k1..--k4` (k4 = neutral
+  reference) and the mention ramp `--m1..--m5` (TB félicitations darkest in BOTH themes), every theme block + print, each >= 60 from zones, routes and
+  accent, lines >= 3:1, apart under three colour-blindnesses, each line its own dash (an exception to R4's grey ramp, for this page
+  only; routes keep `--voie-*`). « Vous parmi les admis » (`mentionYears`): per year, admits (néo-bacheliers, mention known) with the
+  student's mention or lower / strictly lower from published counts; with an average the R5 estimate below it; all bacs; browser only.
+  The pair per year (`pairByYear`, `/api/lineage` `rapports` = `rapports.lineage_pairs`: THAT code's report of THAT session,
+  cross-checked): own line, else « Autres » (never beside an unknown label), else no point; other years the page's estimate; a published
+  point is a square, an estimate a diamond, never both the same year. The student's curve is heavier, tagged « vous » / « votre bac »;
+  personal cards first; no pair card for a bac techno / pro profile. Six context curves (`evolution.py`, `/api/lineage` `contexte`, each
+  campaign with its OWN code): access rate + band P25-P75 of the same `fil_lib_voe_acc` (>= 20) + prevision.py's next range (coverage as
+  measured); « Votre bac » per year for techno/pro (`pickVoie` on that campaign's report, else the route rate); vœux par place vs the
+  type median, « Forte demande » = type P90 in words; capped call depth; offer timing without zero-admit campaigns. Red team EV13-EV18. Red team `redteam_evolution.py` (EV1-EV12; quality >= 90 = 0.6 measured
+  + 0.4 independent screenshot review `scripts/evolution_review.json`, the review alone >= 80).
 - **Qui sont les admis ? (owner, 2026-11-10).** `acc_neobac` (passed the bac that year) and `acc_at` (other admits: SIES does not
   split them) are PUBLISHED counts; they add up to `acc_tot` except on 21 (2022) and 15 (2023) rows. The formation page's bar is drawn
   only when they add up, and says the mention and series shares cover néo-bacheliers only. The list label "Majorité d'admis hors

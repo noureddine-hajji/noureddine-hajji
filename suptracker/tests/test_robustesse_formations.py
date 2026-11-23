@@ -11,5 +11,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 def test_red_team():
     import redteam_robustesse_formations as R
     db = ROOT / "data" / "suptracker.duckdb"
-    failed = [r for r in R.run(db if db.exists() else None, real=db.exists()) if not r["ok"]]
+    every = {fn.check_name.split()[0] for fn in R.CHECKS} - {"RF8"}     # RF8 (the mutants) runs in tests/test_robustesse_mutants_*.py
+    failed = [r for r in R.run(db if db.exists() else None, real=db.exists(), checks=every) if not r["ok"]]
     assert not failed, failed
