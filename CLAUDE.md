@@ -856,7 +856,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   page lives in ONE block at the end of style.css (tabs within two screens, MB5; page <= 13 screens, X7). Browser checks wait
   for what loads after the list (the cards' rates per bac, VI8), never a fixed delay.
 - **Nightly browser checks (owner, 2026-11-19).** CI has no browser: browser checks skip there. `scripts/browser_nightly.py` runs
-  them all (`SUITE`: 17 red teams) on the committed warehouse and FAILS on any skip; `.github/workflows/suptracker-browser.yml`
+  them all (`SUITE`: 20 red teams) on the committed warehouse and FAILS on any skip; `.github/workflows/suptracker-browser.yml`
   runs it nightly and by hand (Playwright 1.56.1 global + `NODE_PATH`, Chromium `--with-deps`, runner PINNED to `ubuntu-24.04`:
   `ubuntu-latest` moved to 26.04, which Playwright 1.56.1 cannot install on, and the nightly ran no check for three nights; BN4), opens/comments the issue
   « Contrôles navigateur en échec » on failure, closes it when green. A NEW browser check goes in `SUITE` (red team
@@ -912,6 +912,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the calendar's verified steps (« 1er »). Concours = a NAMED common entrance exam in the labels (`jpo.concours_of`) or « concours
   commun », never harmonize's broad flag or its count-based pools; absent from the latest cartographie = « vérifiez qu'elle existe
   toujours ». Statuses in words; never « liste valide » (SupCompass does not see the Parcoursup file). Red team `redteam_liste.py` (LI1-LI7).
+- **One figure per question (audit PR 2, owner 2026-11-23).** A name always means the same figure on every page.
+  - « Taux d'accès de ce bac » = `carte.bac_lines` (own cross-checked report of the latest campaign, else the site's estimation
+    starred, a masked table « non publié »), drawn by ONE function `bacAccesHtml` on the search card and in « Selon votre bac »
+    (`/api/formation` `bacs`, latest campaign only); the ministry's proposal rate there is « Propositions reçues, toutes phases ».
+  - « Admis avec votre mention ou moins » = the zone's reading with no average (`mentionShareOf`: the series' exact bounds,
+    else the all-bacs share), ONE formatter (`mentionShareTxt`) with who it counts (`mentionWho`), on the card and in Mes vœux;
+    with an average, « Admis sous votre moyenne » (the R5 range, estimation). Never the [strictly lower ; lower or equal] range.
+  - « Vos deux spécialités » = `dblFigure` (voeux.figures) on the card and in Mes vœux = L'essentiel's « Pour votre profil ».
+  - Red team `redteam_chiffres.py` (CH1-CH5; CH4 compares the three pages in a browser on real data).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
