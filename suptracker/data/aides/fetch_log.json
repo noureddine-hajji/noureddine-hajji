@@ -4,7 +4,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
   "sha256": "38261df54befba540fc98316cd293c9142cafdd13bc8f45357da0e5b65dbc517",
-  "fetched": "2026-11-24T17:56:24+00:00",
+  "fetched": "2026-11-24T23:15:27+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12214.txt"
  },
  {
@@ -12,7 +12,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
   "sha256": "b91aaeaf50db43b561b1e1d9cdbab3a16d2a5a3d3cf5a2e4b48aa157c0550599",
-  "fetched": "2026-11-24T17:56:24+00:00",
+  "fetched": "2026-11-24T23:15:27+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1010.txt"
  },
  {
@@ -20,7 +20,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34643",
   "sha256": "e1b0aa4df0ba268601c8bd47165f0f891da2789e1dd6ac90bf904677058458f8",
-  "fetched": "2026-11-24T17:56:24+00:00",
+  "fetched": "2026-11-24T23:15:27+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F34643.txt"
  },
  {
@@ -28,7 +28,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2865",
   "sha256": "e5a861175d4a766194ebc6d9ef6c5b2a4a063666682a0633032a212a12938211",
-  "fetched": "2026-11-24T17:56:24+00:00",
+  "fetched": "2026-11-24T23:15:27+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2865.txt"
  },
  {
@@ -44,7 +44,7 @@
   "status": 200,
   "final_url": "https://cvec.etudiant.gouv.fr/",
   "sha256": "b38a1bd44ac644ec6c5a7cf58fa93b1fe0ee995c447da91700feece091b97de0",
-  "fetched": "2026-11-24T17:58:25+00:00",
+  "fetched": "2026-11-24T23:17:29+00:00",
   "file": "cvec.etudiant.gouv.fr_.txt"
  },
  {
@@ -60,7 +60,133 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
   "sha256": "696852d3cb598432733223698af7881e50d98ebf0960d48d7a23bc195270882b",
-  "fetched": "2026-11-24T18:00:26+00:00",
+  "fetched": "2026-11-24T23:19:30+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1563.txt"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F10705",
+  "status": 200,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F10705",
+  "sha256": "1b79b0035d7c931bda216929c28707ae1b6c2c66ebba98dd4bd18aaa28da8b8c",
+  "fetched": "2026-11-24T23:19:30+00:00",
+  "file": "www.service-public.gouv.fr_particuliers_vosdroits_F10705.txt"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14018",
+  "status": 200,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14018",
+  "sha256": "3851b14bda470ee614535ddc76fea1ac07ba2040f28fc07920c6ef7e24f8e54b",
+  "fetched": "2026-11-24T23:19:30+00:00",
+  "file": "www.service-public.gouv.fr_particuliers_vosdroits_F14018.txt"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14012",
+  "status": 200,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14012",
+  "sha256": "24b2f17195bfc0fb79cf50d816353a1df9d690817d64cc34a5180aeaec9308dc",
+  "fetched": "2026-11-24T23:19:30+00:00",
+  "file": "www.service-public.gouv.fr_particuliers_vosdroits_F14012.txt"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14167",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14167",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:30+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1574",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1574",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:30+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2240",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2240",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:31+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N20026",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N20026",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:31+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N1902",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N1902",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:31+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31155",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31155",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:31+00:00"
+ },
+ {
+  "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F11003",
+  "status": 404,
+  "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F11003",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:31+00:00"
+ },
+ {
+  "url": "https://www.moncompteformation.gouv.fr/espace-public/",
+  "status": 200,
+  "final_url": "https://www.moncompteformation.gouv.fr/espace-prive/html/#/aide",
+  "sha256": "6b4ff860650b6c5e2cd2691024f05d802090e61a1294a879f489b8fdc0eb883d",
+  "fetched": "2026-11-24T23:19:31+00:00",
+  "file": "www.moncompteformation.gouv.fr_espace-public_.txt"
+ },
+ {
+  "url": "https://www.1jeune1solution.gouv.fr/accompagnement",
+  "status": 403,
+  "final_url": "https://www.1jeune1solution.gouv.fr/accompagnement",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:32+00:00"
+ },
+ {
+  "url": "https://travail-emploi.gouv.fr/le-conseil-en-evolution-professionnelle-cep",
+  "status": 200,
+  "final_url": "https://travail-emploi.gouv.fr/le-conseil-en-evolution-professionnelle-cep",
+  "sha256": "9e92d8c45e6a866c22135488943a3877e3f9f55554ad50c14f1bf09c58bdaa24",
+  "fetched": "2026-11-24T23:19:32+00:00",
+  "file": "travail-emploi.gouv.fr_le-conseil-en-evolution-professionnelle-cep.txt"
+ },
+ {
+  "url": "https://travail-emploi.gouv.fr/le-projet-de-transition-professionnelle-ptp",
+  "status": 200,
+  "final_url": "https://travail-emploi.gouv.fr/le-projet-de-transition-professionnelle-ptp",
+  "sha256": "babd6905692b91aad5a8e2b2f3a3cd23a8019f46fedbe2c0b642b8ec2aa59068",
+  "fetched": "2026-11-24T23:19:32+00:00",
+  "file": "travail-emploi.gouv.fr_le-projet-de-transition-professionnelle-ptp.txt"
+ },
+ {
+  "url": "https://sante.gouv.fr/metiers-et-concours/les-metiers-de-la-sante/les-fiches-metiers/article/infirmier",
+  "status": 200,
+  "final_url": "https://sante.gouv.fr/metiers-et-concours/les-metiers-de-la-sante/les-fiches-metiers/article/infirmier",
+  "sha256": "97e78b3af717380afd0ec0c7ea3acb988348064035ae08b150e1b691fb750d0c",
+  "fetched": "2026-11-24T23:19:33+00:00",
+  "file": "sante.gouv.fr_metiers-et-concours_les-metiers-de-la-sante_les-fiches-metiers_article_infirmier.txt"
+ },
+ {
+  "url": "https://www.parcoursup.gouv.fr/",
+  "status": 403,
+  "final_url": "https://www.parcoursup.gouv.fr/",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:33+00:00"
+ },
+ {
+  "url": "https://www.parcoursup.gouv.fr/faq",
+  "status": 403,
+  "final_url": "https://www.parcoursup.gouv.fr/faq",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fetched": "2026-11-24T23:19:33+00:00"
  }
 ]
