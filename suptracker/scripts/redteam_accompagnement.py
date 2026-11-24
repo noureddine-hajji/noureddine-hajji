@@ -376,7 +376,7 @@ const ZONES = { securite: { label: "Vœu de sécurité", color: "var(--zone-secu
 
 def page_prog(c: Ctx) -> str:
     js = c.js
-    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "pc1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "MENTION_SHORT", "vxProfile", "vxQuery", "REO_LABEL", "isReo", "profileLine",
+    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "pc1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "MENTION_SHORT", "SPE_SHORT", "speName", "vxProfile", "vxQuery", "REO_LABEL", "isReo", "profileLine",
                                   "REO_NO_ZONE", "reoWhy", "reoCell",
                                   # R6: the list is read in the browser with the average the profile keeps
                                   "BAND_SIGMA", "erf", "withinBand", "bandParam", "localAverage", "ZONE_RULES", "MIN_BOUNDS_N",

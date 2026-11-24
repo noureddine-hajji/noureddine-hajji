@@ -582,7 +582,7 @@ JS_MUTANTS = [
     ("page uses the bucket for a common doublette", "if (mine && !mine.rare) return", "if (mine && false) return"),
     ("route coloured like a zone", 'bg: { label: "Bac général", color: "var(--voie-bg)" }', 'bg: { label: "Bac général", color: "var(--zone-cible)" }'),
     ("national caveat dropped", "Chiffre national du groupe, pas propre à cet établissement. ", ""),
-    ("group label unescaped", "Groupe : <strong>${esc(g.label)}</strong>", "Groupe : <strong>${g.label}</strong>"),
+    ("group label unescaped", "« <strong>${esc(g.label)}</strong> »", "« <strong>${g.label}</strong> »"),
     ("doublette label unescaped", "top.map((x) => row(esc(x.label), x,", "top.map((x) => row(x.label, x,"),
     ("figure without its label", '<td class="num" data-label="Candidats">${fmt(v.candidats)}', '<td class="num">${fmt(v.candidats)}'),
     ("stage 1 hides the rare doublette's filières", "const fewOnly = s1.filieres.length > 0", "const fewOnly = false && s1.filieres.length > 0"),
@@ -590,7 +590,7 @@ JS_MUTANTS = [
     ("fallback overrides the student's filters", 's1.filieres.every((f) => f.gate === "insuffisant") && !show.has("insuffisant")',
      '!s1.filieres.some((f) => show.has(f.gate)) && s1.filieres.some((f) => f.gate === "insuffisant")'),
     ("left-out campaigns not disclosed", "const out = (g.campagnes_ecartees || []).slice().sort();", "const out = [];"),
-    ("pooled span hard-coded", "Groupe : <strong>${esc(g.label)}</strong> · ${dblCampagnes(g)}</p>", "Groupe : <strong>${esc(g.label)}</strong> · campagnes 2022–2025 cumulées</p>"),
+    ("pooled span hard-coded", "« <strong>${esc(g.label)}</strong> » · ${dblCampagnes(g)}</p>", "« <strong>${esc(g.label)}</strong> » · campagnes 2022–2025 cumulées</p>"),
     ("page gate threshold drifts", "const GATE_MIN = 100;", "const GATE_MIN = 50;"),
 ]
 CSS_MUTANTS = [

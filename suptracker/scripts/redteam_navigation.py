@@ -246,7 +246,7 @@ process.stdout.write(JSON.stringify(out));
 
 
 def chip_run(js: str):
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ")))
     r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "moyenneText"))   # R5: the average
     prog = helpers + "\n" + r5 + "\n" + top(js, "vxProfile") + "\n" + top(js, "MENTION_SHORT") + "\n" + top(js, "chipLine") + "\n" + top(js, "profileChip") + CHIP_PROG
     hostile = "<img src=x onerror=alert(1)>"
@@ -301,7 +301,7 @@ process.stdout.write(JSON.stringify(cases.map(([p, saved]) => profileForm(p, sav
 
 
 def form_run(js: str):
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ")))
     r5 = "\n".join(top(js, n) for n in ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf")) + "\n" + next(
         ln for ln in js.splitlines() if ln.startswith("const fmt = "))           # R5: the average field of the form
     # owner, 2026-11-15: the town field of "Mon profil" (kept in this browser, never sent)
@@ -676,7 +676,7 @@ MUTANTS = [
     ("js", "Plus marks the calendar", 'const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];', 'const MORE_TABS = [...COMP_TABS, "calendrier", "accompagner", "aide"];', "u2"),
     ("js", "profile page not routed", '    if (a === "profil") return await viewProfil();\n', "", "u2"),
     ("js", "menus left open on navigation", "    if (menu) menu.hidden = true;\n  }\n}", "  }\n}", "u2"),
-    ("js", "chip unescaped", '`${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}` : p.voie_label ? esc(p.voie_label) : "";',
+    ("js", "chip unescaped", '`${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}` : p.voie_label ? esc(p.voie_label) : "";',
      '`${p.spe1 || ""} + ${p.spe2 || ""}` : p.voie_label ? p.voie_label : "";', "u3"),
     ("js", "chip reads the raw profile", "<span>${chipLine(vxProfile(raw))}</span>", "<span>${chipLine(raw)}</span>", "u3"),
     ("js", "chip on a shared list", '  if (tab === "stats" || tab === "liste") { el.hidden = true; return; }\n  el.hidden = false;\n  const has',

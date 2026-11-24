@@ -335,7 +335,7 @@ def w5(c: Ctx):
     js = c.js
     try:
         lib = "\n".join(top(js, n) for n in ("esc", "fmt", "pct", "VOIES", "pct1", "rateBar", "voiePill", "profileDkey", "pickRapport",
-                                             "pickVoie", "VOIE_WORD", "RP_CAVEAT", "rpPending", "rapportSource", "rapportDoublettes",
+                                             "pickVoie", "VOIE_WORD", "RP_CAVEAT", "rpPending", "rapportSource", "SPE_SHORT", "speName", "rpLabel", "rapportDoublettes",
                                              "REO_LABEL", "isReo", "profileLine", "vxQuery", "voieFigure", "vxVoieCell", "voieFromForm",
                                              "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT", "vxProfile"))
     except KeyError as e:
@@ -376,11 +376,12 @@ process.stdout.write(JSON.stringify(out));"""
     py = [(lambda x: [x["source"], x["taux"]] if x else None)(M["VO"].pick_voie(b, *k)) for k in cases]
     twin = o["picks"] == py
     mine = lambda h: re.findall(r'<tr class="dbl-mine"><td>(.*?)</td>', h)  # noqa: E731
-    own = (mine(o["own"]) == ['Msgn/ Mercatique &amp; Droit et Economie <span class="estim">votre bac</span>']
-           and "Votre bac dans cette formation : 36,1 %" in o["own"] and "ligne « Msgn/ Mercatique &amp; Droit et Economie »" in o["own"]
+    # audit PR 3: the report's label is printed readable (rpLabel), its key unchanged
+    own = (mine(o["own"]) == ['Management (Mercatique) &amp; Droit et Economie <span class="estim">votre bac</span>']
+           and "Votre bac dans cette formation : 36,1 %" in o["own"] and "ligne « Management (Mercatique) &amp; Droit et Economie »" in o["own"]
            and "70 candidats sur 194 de votre série" in o["own"])
-    bucket = (mine(o["bucket"]) == ['Autres doublettes <span class="estim">votre série en fait partie</span>']
-              and "ligne « Autres doublettes » de la formation" in o["bucket"] and "la vôtre est comptée avec les autres" in o["bucket"])
+    bucket = (mine(o["bucket"]) == ['Autres paires de spécialités <span class="estim">votre série en fait partie</span>']
+              and "ligne « Autres paires de spécialités » de la formation" in o["bucket"] and "la vôtre est comptée avec les autres" in o["bucket"])
     none = not mine(o["none"]) and "Indiquez votre série et vos spécialités</a> pour voir le chiffre de votre bac" in o["none"]
     masked = "la formation n'a pas publié son tableau" in o["masked"] and not mine(o["masked"])
     bg = mine(o["bg"]) == ['Mathématiques &amp; SES <span class="estim">vos deux spécialités</span>'] and "Votre ligne dans" not in o["bg"] and "Votre bac dans" not in o["bg"]
@@ -444,7 +445,7 @@ JS_MUTANTS = [
     ("page twin without the bucket", "  const other = rows.find((x) => x.autres);\n  return other ? { ...other, source: \"autres\" } : null;\n}\nconst VOIE_WORD",
      "  return null;\n}\nconst VOIE_WORD"),
     ("every row marked", "const meV = v === myVoie && mineV && (mineV.source === \"voie\" ? x.voie === vkey : x.autres);", "const meV = v === myVoie && mineV;"),
-    ("row label unescaped", "ligne « ${esc(mineV.libelle)} »${mineV.source", "ligne « ${mineV.libelle} »${mineV.source"),
+    ("row label unescaped", "ligne « ${esc(rpLabel(mineV.libelle))} »${mineV.source", "ligne « ${rpLabel(mineV.libelle)} »${mineV.source"),
     ("masked table not said", "la formation n'a pas publié son tableau (effectifs trop faibles)", "aucun chiffre"),
     ("route sent for bac général", 'if (prof.serie !== "bg" && typeof prof.voie === "string" && prof.voie)', 'if (typeof prof.voie === "string" && prof.voie)'),
     ("profile label unescaped", ': p.voie_label ? esc(p.voie_label) : "", men', ': p.voie_label ? p.voie_label : "", men'),

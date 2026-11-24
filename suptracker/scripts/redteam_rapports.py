@@ -342,7 +342,7 @@ PY_MUTANTS = [
     ("not cross-checked shown as verified", '"source": "live" if r.get("source") == "live" else "archive", "recoupe": ok}', '"source": "live" if r.get("source") == "live" else "archive", "recoupe": True}'),
 ]
 JS_MUTANTS = [
-    ("label unescaped", "<td>${esc(x.libelle)}", "<td>${x.libelle}"),
+    ("label unescaped", "<td>${esc(rpLabel(x.libelle))}", "<td>${rpLabel(x.libelle)}"),
     ("jury text unescaped", 'const rpText = (t) => esc(t || "")', 'const rpText = (t) => String(t || "")'),
     ("criterion unescaped", '<td data-label="Critère">${esc(c.critere)}</td>', '<td data-label="Critère">${c.critere}</td>'),
     ("estimate kept beside the published figure", "const est = own.hasBg || semEst ? null : estimateDoublette(d.series, g, dkey);", "const est = semEst ? null : estimateDoublette(d.series, g, dkey);"),

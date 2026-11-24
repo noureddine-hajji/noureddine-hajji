@@ -186,7 +186,7 @@ def top_def(js: str, name: str) -> str:
 
 
 def helpers(js: str) -> str:
-    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ")))
+    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ", "const rpLabel = ")))
 
 
 def r2_defs(js: str) -> str:
@@ -715,7 +715,7 @@ def x14(c: Ctx):
 
 LOT3_MUTANTS = [
     ("zone tile in the accent colour", 'class="zone-pill" style="background:${zz.color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
-    ("profile line unescaped", '[ser, serie === "bg" ? `${esc(p.spe1 || "")} + ${esc(p.spe2 || "")}`', '[ser, serie === "bg" ? `${p.spe1 || ""} + ${p.spe2 || ""}`', ("js", (x14,))),
+    ("profile line unescaped", '[ser, serie === "bg" ? `${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}`', '[ser, serie === "bg" ? `${speName(p.spe1)} + ${speName(p.spe2)}`', ("js", (x14,))),
     ("académie unescaped", 'p.academie ? `académie de ${esc(p.academie)}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
     ("a figure loses its label", '<td class="num" data-label="Places">', '<td class="num">', ("js", (x14,))),
     ("stored profile never read back on Où je me situe", "${hasProfile ? `<p class=\"home-profile\">", "${false ? `<p class=\"home-profile\">", ("js", (x14,))),

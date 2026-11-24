@@ -18,10 +18,10 @@ from . import config
 
 # metric -> (SQL expression, needs acc_tot >= threshold, label, higher_is_more_selective)
 PEER_METRICS: dict[str, tuple[str, bool, str, bool]] = {
-    "taux_acces_ens": ("taux_acces_ens", False, "Taux d'accès (PP)", False),
+    "taux_acces_ens": ("taux_acces_ens", False, "Taux d'accès (phase principale)", False),
     "part_terminale_generale_en_position_admis_pp": (
         "part_terminale_generale_en_position_admis_pp", False,
-        "Part des terminales générales parmi les candidats en position d'admis (PP)", False),
+        "Part des terminales générales parmi les candidats classés assez haut pour recevoir une proposition (phase principale)", False),
     "pct_tb_tbf": ("pct_tb + coalesce(pct_tbf, 0)", True, "% mention TB (+ félicitations)", True),
     "pct_bours": ("pct_bours", True, "% boursiers", False),
     "pct_f": ("pct_f", True, "% femmes", False),

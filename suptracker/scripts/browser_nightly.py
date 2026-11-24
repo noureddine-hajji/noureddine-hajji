@@ -36,7 +36,7 @@ SUITE = {
     "evolution": ("EV9",),
     "filtres": ("FI7",),
     "guide": ("GU6",),
-    "langage": ("LA7",),
+    "langage": ("LA7", "LA10"),
     "lecture": ("LE8",),
     "mobile": ("MB5", "MB6"),
     "moyenne": ("MO7",),

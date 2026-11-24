@@ -307,7 +307,7 @@ def k5(c: Ctx):
 
 
 def _render(c: Ctx, sem, rp=None, dkey="MATHS+SES", profile=None):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct1 = ", "const rateBar = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct1 = ", "const rateBar = ", "const SPE_SHORT = ", "const speName = ", "const rpLabel = ")))
     part = block(c.js, "function estimateSemblable(", "// Codex (PR #37): the pooled figures")
     rp_consts = block(c.js, "const RP_SPE = ", "const rpText")
     jury = block(c.js, "const SEM_CRIT_N", "// the 4-year curves of the evolution page:")
@@ -355,7 +355,7 @@ def k6(c: Ctx):
 
 
 def _bar(c: Ctx, profile, ids, answer):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const SPE_SHORT = ", "const speName = ")))
     bar = block(c.js, "// ---- point 4 of the UI brief", "// ---- SVG primitives")
     zones = block(c.js, "const ZONES = {", "const GATES")
     line = block(c.js, "function profileLine(", "async function viewSearch(")

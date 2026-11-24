@@ -459,7 +459,7 @@ process.stdout.write(JSON.stringify(out));
 
 
 def page_ok(js: str, mentions: list[dict]) -> tuple[bool, str]:
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const pc1 = ",
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const pc1 = ", "const SPE_SHORT = ", "const speName = ",
                                                                        "const REO_LABEL = ", "const isReo = ")))
     names = ("MENTION_CODES", "BANDS", "BAND_SIGMA", "validMoyenne", "bandOf", "mentionParams", "moyenneText", "mentionWords", "MENTION_ROW", "MENTION_TXT", "vxProfile", "bandParam",
              "MENTION_SHORT", "chipLine", "profileLine", "PF_SAVE", "spe2Of", "profileForm", "voieFromForm", "readForm", "erf",
