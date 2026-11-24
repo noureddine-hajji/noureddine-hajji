@@ -1877,7 +1877,7 @@ async function viewCarte(dArg, mArg) {
   // R10: the page's heading and a loading line at once, BEFORE the first answer (a cold server takes ~3 s: the page must
   // never be without its heading meanwhile, WCAG 2.4.6; red team A4 on a fresh server)
   const fresh = $view.dataset.rendered !== "carte";                  // audit PR 4: entering the page (not a re-render of it)
-  if (fresh) $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
   document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
