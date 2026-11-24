@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -48,6 +49,18 @@ CHANCE = re.compile(r"(?i)\bprobabilit|\d+\s*%\s*de chances|chances? d'[eê]tre 
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
 M = {"DB": DB, "J": J}          # the modules the checks call (the mutation test swaps in mutated copies, in memory)
 
+
+
+def _node_run(node: str, prog: str, **kw):
+    """The program goes through a file: the page code it carries grew past the kernel's 128 KB limit for one argument
+    (audit PR 4: « Argument list too long »)."""
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as fh:
+        fh.write(prog)
+    try:
+        return subprocess.run([node, fh.name], **kw)
+    finally:
+        os.unlink(fh.name)
 
 def check(name):
     def deco(fn):
@@ -267,7 +280,7 @@ def page_pick(js: str):
     prog = m.group(0) + """
 const [g, keys] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(keys.map((k) => { const x = pickDoublette(g, k); return x ? [x.source, x.taux, !!x.estimation] : null; })));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps([_crafted(), [k for k, _ in PICK_CASES]]), capture_output=True, text=True, timeout=60)
+    r = _node_run(node, prog, input=json.dumps([_crafted(), [k for k, _ in PICK_CASES]]), capture_output=True, text=True, timeout=60)
     return json.loads(r.stdout) if r.returncode == 0 else "error: " + r.stderr[-200:]
 
 
@@ -445,7 +458,7 @@ out.filtered = stage1Matrix({ filieres: [
   { type_key: "d", label: "Licence D", gate: "insuffisant", candidates: 40, years: 4, offer_rate: 0.7, offer_rate_all: 0.5, share: 0.1, lift: 1,
     destination_share: 0.01, n_formations: 2, rare: false, autres: null }] }, new Set(), false);
 process.stdout.write(JSON.stringify(out));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps([{"series": ser, "groupe": g, "status": "ok"},
+    r = _node_run(node, prog, input=json.dumps([{"series": ser, "groupe": g, "status": "ok"},
                                                             {"serie": "bg", "spe1": "ART", "spe2": "EPPCS"}]), capture_output=True, text=True, timeout=60)
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-300:]}
 
@@ -495,7 +508,7 @@ def page_estimate(js: str, cases: list) -> list | str | None:
     prog = m1.group(0) + "\n" + m2.group(0) + """
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(cases.map(([s, g, k]) => { const e = estimateDoublette(s, g, k); return e ? [e.taux, e.trend.map((t) => t.taux)] : null; })));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps(cases), capture_output=True, text=True, timeout=120)
+    r = _node_run(node, prog, input=json.dumps(cases), capture_output=True, text=True, timeout=120)
     return json.loads(r.stdout) if r.returncode == 0 else "error: " + r.stderr[-200:]
 
 

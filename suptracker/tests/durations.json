@@ -34,6 +34,7 @@
  "tests/test_licence_master.py": 799,
  "tests/test_liste.py": 17,
  "tests/test_lycee.py": 34,
+ "tests/test_masque.py": 40,
  "tests/test_mentions.py": 576,
  "tests/test_metiers.py": 487,
  "tests/test_mobile.py": 0,

@@ -918,6 +918,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the calendar's verified steps (« 1er »). Concours = a NAMED common entrance exam in the labels (`jpo.concours_of`) or « concours
   commun », never harmonize's broad flag or its count-based pools; absent from the latest cartographie = « vérifiez qu'elle existe
   toujours ». Statuses in words; never « liste valide » (SupCompass does not see the Parcoursup file). Red team `redteam_liste.py` (LI1-LI7).
+- **Nothing hidden without saying so (audit PR 4, owner 2026-11-24).** The search page never hides a formation silently.
+  - Paid private formations stay unticked by default; the list says « N formations d'établissements privés payants masquées — les
+    afficher » (`carteHiddenPaid`: the paid ones the other criteria keep), and the button ticks their box.
+  - Apprenticeship offers listed apart match the engine's `terms` (`search.offer_terms`: the typed word, or an acronym's
+    `TAG_RULES` label phrases, never fuzzy), so an acronym finds what its full title finds (`carteOfferMatch`).
+  - A keyword naming apprenticeship is an option (« Option : apprentissage », flag `apprentissage`): the page keeps the formations
+    offered in apprenticeship; never « Ignoré », never « statut scolaire ».
+  - Filters kept from an earlier visit are named on entering, with a reset (never for a shared link; a change clears it); a search
+    with no result names the active filters. Red team `redteam_masque.py` (MQ1-MQ8).
 - **One figure per question (audit PR 2, owner 2026-11-23).** A name always means the same figure on every page.
   - « Taux d'accès de ce bac » = `carte.bac_lines` (own cross-checked report of the latest campaign, else the site's estimation
     starred, a masked table « non publié »), drawn by ONE function `bacAccesHtml` on the search card and in « Selon votre bac »

@@ -640,11 +640,15 @@ def keyword_codes(con, q: str, near: str | None = None) -> dict:
             SELECT fy.cod_aff_form FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
             WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?)
             ORDER BY fy.session DESC, fy.cod_aff_form LIMIT 1""", [code]).fetchone()
-        return {"query": q, "codes": list(dict.fromkeys([*(latest or []), code])), "interpretation": [], "notes": [], "partial": False}
+        return {"query": q, "codes": list(dict.fromkeys([*(latest or []), code])), "interpretation": [], "notes": [], "partial": False,
+                "terms": [], "apprentissage": False}
     res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)
     # the engine answers per (formation, campaign): a code is kept once, at its best (first) rank
     return {"query": q, "codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"])), "interpretation": res.get("interpretation", []),
-            "notes": res.get("notes", []), "partial": bool(res.get("partial"))}
+            "notes": res.get("notes", []), "partial": bool(res.get("partial")),
+            # audit PR 4: what the page matches the apprenticeship offers' names on (the engine's acronyms included), and whether
+            # the query named apprenticeship (the page then keeps the formations offered in apprenticeship)
+            "terms": S.offer_terms(q), "apprentissage": bool(res.get("apprentissage"))}
 
 
 @app.get("/api/search/codes")

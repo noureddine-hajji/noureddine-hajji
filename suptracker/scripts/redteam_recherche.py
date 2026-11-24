@@ -680,15 +680,18 @@ const base = process.argv[2];
 
 def py_count(c: Ctx, q: str, lieu=None, statut=("public", "contrat", "prive_app")) -> int:
     from suptracker import api
-    codes = set(api.keyword_codes(c.con.cursor(), q)["codes"])
-    words = [w for w in re.split(r"[^a-z0-9]+", fold(q)) if len(w) > 1]
+    d = api.keyword_codes(c.con.cursor(), q)
+    codes, terms, app = set(d["codes"]), d["terms"], d["apprentissage"]
     n = 0
     for f in c.rows:
         if f.get("statut") not in statut:
             continue
         if lieu and f.get(lieu[0]) != lieu[1]:
             continue
-        if f["cod_aff_form"] in codes or (f.get("stats") is False and words and all(w in fold(f"{f['etablissement']} {f['formation']} {f['ville']}") for w in words)):
+        # audit PR 4: an offer listed apart matches the engine's terms (an acronym's label phrase counts), punctuation folded
+        text = " " + re.sub(r"[^a-z0-9]+", " ", fold(f"{f['etablissement']} {f['formation']} {f['ville']}")) + " "   # acronyms: whole words
+        offer = f.get("stats") is False and (all(any(a in text for a in alts) for alts in terms) if terms else app)
+        if (f["cod_aff_form"] in codes or offer) and (not app or f.get("apprentissage")):
             n += 1
     return n
 
