@@ -4684,3 +4684,44 @@ The language red team gains two checks:
 
   It reads the text a student sees and finds none of these words (24 pages). LA10 joins the nightly browser suite.
 
+
+## Nothing hidden without saying so (audit PR 4, 2026-11-24)
+
+The audit found four silent gaps on the search page. Measured on the real warehouse before the change:
+- **Paid private formations.** Their box is unticked by default (Plan B's rule), and the list did not say so. « école de commerce
+  Lyon » found 24 formations, all paid, and showed none of them.
+- **Acronyms and apprenticeship offers.** The offers listed apart are matched on their names in the browser. « BTS MCO » found
+  none of the 988 offers its full title finds.
+- **Apprenticeship words.** « apprentissage » was shown as « Ignoré », with a note saying the results were « sous statut scolaire ».
+  The cards carried the apprenticeship badge at the same time.
+- **Kept filters.** A filter kept from an earlier visit (a zone) gave 0 results, and nothing on screen named it.
+
+What changed:
+- Under the count, the list says « N formations d'établissements privés payants masquées — les afficher ». The count is the paid
+  formations the other criteria keep (`carteHiddenPaid`). The button ticks their box. They stay unticked by default.
+- `search.offer_terms` gives, for each word of the keyword, the typed word or, for an acronym or a known phrase, its tag's label
+  phrases (`TAG_RULES` literals only, never fuzzy). `/api/search/codes` serves them as `terms`, and the page matches the offers'
+  folded names on them (`carteOfferMatch`). « BTS MCO » and its full title now list the same 1,338 formations.
+- A keyword naming apprenticeship is an option, like « internat ». The engine strips the word and says « Option : apprentissage ».
+  It sets `apprentissage`, and the page keeps the formations offered in apprenticeship. The note now says where these offers come
+  from: the Parcoursup cartographie, with no rate or zone.
+- On entering the page, the filters that differ from their default are named once, with a reset: « Filtres gardés de votre
+  dernière visite : … ». A shared link never shows it, and any change of filter clears it. A search with no result names the
+  active filters, with the same reset.
+
+The « Mot compris » chip now says the words typed (« ecole de commerce »), never the engine's tag name (« ecom »).
+
+One more bug, found by the browser check: the testers' « Cannot set properties of null ». If the visitor left the page while the
+map was still zooming, the map's last move redrew a list that was gone and saved invalid bounds. On the way back, « Bounds are not
+valid. » replaced the whole search page. `draw` and `panel` now return when the page is gone, and only valid bounds are kept and
+restored.
+
+Red team `redteam_masque.py` (MQ1-MQ8):
+- MQ1 checks the offer terms, and that an acronym finds exactly the offers its title finds (seven pairs on real data).
+- MQ2 runs the page's twin in Node against a Python reading. MQ3 checks the apprenticeship option and the note.
+- MQ4 checks the hidden paid count (crafted rows and the real layer) and its button. MQ5 checks the kept-filter notice.
+- MQ6 checks all of it on the real page in a browser, phone included, leaving the page during a search too. It joins the
+  nightly browser suite.
+- MQ7 is the mutation test: 28 mutants, all caught. MQ8 checks the docs.
+
+`search.py` changed, so the search index stored in the warehouse is rebuilt by the data workflow.

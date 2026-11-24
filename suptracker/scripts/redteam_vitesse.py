@@ -442,7 +442,7 @@ def js_top(js: str, name: str) -> str:
     return top(js, name)
 
 
-FACET_PARTS = ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteCommon",
+FACET_PARTS = ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteOfferMatch", "carteCommon",
                "carteFilter", "carteFacets", "carteInLieu", "foldText", "haversineKm", "carteZone", "carteSortName", "FR_COLL",
                "carteNameRank")
 FACET_PROG = r"""

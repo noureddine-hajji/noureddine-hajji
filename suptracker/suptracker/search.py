@@ -230,11 +230,11 @@ OPTIONS = {
     "sport": lambda x: x.get("amenag_sport") is True,
     "art": lambda x: x.get("amenag_art") is True,
 }
+# Audit PR 4 (2026-11-24): the page lists the apprenticeship offers of the cartographie (no SIES figure), so a query naming
+# apprenticeship is read as an option (the word matches no label): the page keeps the formations offered in apprenticeship.
 APPRENTICESHIP_NOTE = (
-    "Les formations en apprentissage ne figurent presque plus dans les statistiques publiques de Parcoursup "
-    "depuis 2023 : SupCompass ne peut pas les comparer. Pour les trouver, utilisez la recherche de "
-    "Parcoursup avec le filtre « Apprentissage ». Les résultats ci-dessous sont des formations sous statut "
-    "scolaire.")
+    "Apprentissage : les statistiques publiques de Parcoursup ne couvrent presque plus les formations en apprentissage. "
+    "SupCompass les montre d'après la cartographie Parcoursup, sans taux ni zone.")
 _APPRENTI = re.compile(r"\b(apprenti\w*|alternan\w*|en alternance)\b")
 _INTERNAT = re.compile(r"\b(?:avec\s+(?:un\s+|l\s+)?)?internats?\b")
 PUBLIC = tuple(c for c in SUMMARY if c not in ("detail_forma", "dep_lib", "region_etab_aff", "capa_fin"))
@@ -426,6 +426,47 @@ def _apply_phrases(q: str, origin: dict[str, list[str]] | None = None) -> str:
     return padded.strip()
 
 
+# Audit PR 4 (2026-11-24): the apprenticeship offers SIES does not publish are matched in the browser on their names, so an
+# acronym the engine understands (« BTS MCO », « NDRC ») found none of them (0 against 988 with the full title). offer_terms
+# gives, for each word of the query, the texts one of which the offer's folded name must contain: the typed word itself, or for
+# an acronym or known phrase the typed phrase and the label phrases of its tag (TAG_RULES, literal alternatives only).
+_TAG_TEXT: dict[str, list[str]] = {}
+for _tags, _fld, _rx in TAG_RULES:
+    for _alt in _rx.split("|"):
+        _alt = _alt.strip("^$").strip()
+        if re.fullmatch(r"[a-z0-9 ]+", _alt):
+            for _t in _tags.split():
+                _TAG_TEXT.setdefault(_t, []).append(_alt)
+
+
+def _typed_phrases(text: str) -> dict[str, list[str]]:
+    """tag -> the folded phrases of `text` the engine read as that tag, in order (« ecole de commerce » for t_ecom)."""
+    padded, typed = f" {' '.join(text.split())} ", {}
+    for rx, tag in _PHRASE_RX:
+        if tag.startswith("t_"):
+            for m in rx.finditer(padded):
+                typed.setdefault(tag, []).append(m.group(0).strip())
+        padded = rx.sub(tag, padded)
+    return typed
+
+
+def offer_terms(q: str) -> list[list[str]]:
+    """[[alternatives of word 1], ...] on the folded query, apprenticeship and internat words out (both are options); stop
+    words out, generic words (« école ») out unless nothing else is left. Never fuzzy: a typed word or a tag's own label; a
+    tag's alternatives are padded with spaces (whole words, matched against the padded folded name)."""
+    raw = fold((q or "")[:MAX_QUERY_CHARS])
+    raw = _INTERNAT.sub(" ", _APPRENTI.sub(" ", raw))
+    typed = _typed_phrases(raw)
+    toks = [t for t in dict.fromkeys(_apply_phrases(" ".join(raw.split())).split()) if t not in STOP and len(t) > 1]
+    if any(t not in SOFT for t in toks):
+        toks = [t for t in toks if t not in SOFT]
+    # an acronym or a tag's phrase is a whole word (padded: « sio » never inside « profession »); a free word keeps matching the
+    # start or the middle of a word, as before (« info » in « informatique »)
+    out = [[f" {a} " for a in dict.fromkeys([*typed.get(t, []), *_TAG_TEXT.get(t, [])]) or [t[2:]]] if t.startswith("t_") else [t]
+           for t in toks]
+    return out[:MAX_TERMS]
+
+
 def _extract_place(idx: Index, toks: list[str]) -> tuple[list[str], str | None, dict[int, float] | None]:
     """Longest n-gram (<= 4 tokens) naming a place. A single word is taken as a place only
     when it names more formations' locations than it appears in programme labels
@@ -541,8 +582,12 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
     raw = fold(q)
     interp: list[dict] = []
     notes: list[str] = []
-    if _APPRENTI.search(raw):
+    apprenti = bool(_APPRENTI.search(raw))
+    if apprenti:
         notes.append(APPRENTICESHIP_NOTE)
+        q = _APPRENTI.sub(" ", raw)
+        raw = fold(q)
+        interp.append({"type": "option", "value": "apprentissage"})
     # "prépa avec internat lyon": no label says "internat"; the word is the internat option
     if _INTERNAT.search(raw):
         q = _INTERNAT.sub(" ", raw)
@@ -569,6 +614,7 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
             interp.append({"type": "corrigé", "value": f"{a} → {b}"})
         origin: dict[str, list[str]] = {}
         phrased = _apply_phrases(corrected, origin)
+        said = _typed_phrases(corrected)
         # places are matched on unstemmed words ("paris", "nantes", "tours"), then the rest is stemmed
         toks, place, place_ids = _extract_place(idx, phrased.split())
         toks = [t if t.startswith("t_") else stem(t) for t in toks]
@@ -592,7 +638,8 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
             idf = math.log(1 + n / (1 + len(hits))) if hits else 0.0
             per_term.append((t, hits, kind, idf))
             if t.startswith("t_"):
-                interp.append({"type": "sigle", "value": t[2:]})
+                # audit PR 4: the words the student typed (« ecole de commerce »), never the engine's tag name (« ecom »)
+                interp.append({"type": "sigle", "value": (said.get(t) or [t[2:]])[0]})
             elif kind in ("prefix", "fuzzy"):
                 interp.append({"type": "approché", "value": t})
         partial = False
@@ -671,6 +718,7 @@ def search(con: duckdb.DuckDBPyConnection, q: str, *, fili: str | None = None, a
         "facets": {**{k: [{"value": v, "count": c} for v, c in cnt.most_common() if v] for k, cnt in facets.items()},
                    "options": opt_facet},
         "options": list(options),
+        "apprentissage": apprenti,     # audit PR 4: the query named apprenticeship (an option the page applies, never a label)
         "results": [{**{k: idx.docs[d][k] for k in PUBLIC},
                      "lib_comp_voe_ins": clean_complement(idx.docs[d])} for d in page],
     }

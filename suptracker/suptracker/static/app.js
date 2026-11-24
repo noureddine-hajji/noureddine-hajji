@@ -1616,14 +1616,32 @@ const carteFolded = new Map();
 function carteText(f) {
   const raw = `${f.etablissement} ${f.formation} ${f.ville}`, x = carteFolded.get(f.cod_aff_form);
   if (x && x[0] === raw) return x[1];
-  const t = foldText(raw);
+  const t = foldText(raw).replace(/[^a-z0-9]+/g, " ");   // punctuation as the engine folds it (« l'internet » -> « l internet »)
   carteFolded.set(f.cod_aff_form, [raw, t]);
   return t;
 }
+// audit PR 4 (2026-11-24): an apprenticeship offer listed apart is matched on its name: every word of the keyword (kw.terms, from
+// the engine: the typed word, or for an acronym « MCO » its label « management commercial operationnel ») must be in it; a keyword
+// that only named apprenticeship keeps every offer. An acronym's alternatives come padded (« sio » is a whole word, never inside
+// « profession »); a free word matches anywhere, as before
+const carteOfferMatch = (f, kw) => kw.terms.length ? kw.terms.every((alts) => alts.some((a) => ` ${carteText(f)} `.includes(a))) : kw.app;
 // what every group shares: the place, the keyword and the radius
 const carteCommon = (f, F, kw) => carteInLieu(f, F.lieu)
-  && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && kw.words.length > 0 && kw.words.every((w) => carteText(f).includes(w))))
+  && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && carteOfferMatch(f, kw)))
+  && (!kw || !kw.app || !!f.apprentissage)
   && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km));
+// audit PR 4: the paid private formations the other criteria keep, hidden only because their box is unticked (none when the
+// statut group is empty, which shows everything, or already has the box)
+function carteHiddenPaid(rows, F, kw) {
+  if (!(F.statut || []).length || F.statut.includes("prive")) return 0;
+  return carteFilter(rows.filter((f) => f.statut === "prive"), { ...F, statut: [] }, undefined, kw).length;
+}
+// the filter groups (and the zone filter) that differ from their default, by their titles
+function carteActive(F) {
+  const out = carteGroups().filter(([gr]) => JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || [])).map(([, title]) => title);
+  return (F.zones || []).length ? ["Votre zone", ...out] : out;
+}
+const carteRestored = (F) => carteActive(F);
 function carteFilter(rows, F, skip, kw) {
   const groups = CARTE_FGROUPS.filter((g) => g !== skip && (F[g] || []).length);
   return rows.filter((f) => groups.every((g) => F[g].some((o) => carteHas(f, g, o))) && carteCommon(f, F, kw));
@@ -1858,7 +1876,8 @@ async function viewCarte(dArg, mArg) {
   const recoP = recoLoad();                                          // V1: the State-label badges of the cards, beside the layer
   // R10: the page's heading and a loading line at once, BEFORE the first answer (a cold server takes ~3 s: the page must
   // never be without its heading meanwhile, WCAG 2.4.6; red team A4 on a fresh server)
-  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  const fresh = $view.dataset.rendered !== "carte";                  // audit PR 4: entering the page (not a re-render of it)
+  if (fresh) $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
   document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
@@ -1922,6 +1941,9 @@ async function viewCarte(dArg, mArg) {
   if (F.academie && !F.lieu) { F.lieu = { t: "acad", v: String(F.academie) }; F.lieuTxt = `Académie de ${F.academie}`; }
   delete F.academie;
   F.q = typeof F.q === "string" ? F.q.slice(0, 200) : "";
+  // audit PR 4 (2026-11-24): filters kept from a previous visit are hidden in folded dropdowns (a zone filter kept gave 0 results):
+  // on entering the page, the groups that differ from their default are named once, with a reset, until a filter is changed
+  if (fresh) carteUI.restored = shareRaw != null ? [] : carteRestored(F);
   F.lieu = F.lieu && ["region", "dep", "acad"].includes(F.lieu.t) && typeof F.lieu.v === "string" ? { t: F.lieu.t, v: F.lieu.v } : null;
   F.autour = F.autour && Number.isFinite(F.autour.lat) && Number.isFinite(F.autour.lon) && Number.isFinite(F.autour.km) ? F.autour : null;
   F.lieuTxt = typeof F.lieuTxt === "string" ? F.lieuTxt.slice(0, 120) : (F.autour && F.autour.ville) || "";
@@ -1938,7 +1960,8 @@ async function viewCarte(dArg, mArg) {
   const near = carteNear(CARTE_ACADS);
   const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };
   const kwLoad = (q) => cached(`kw|${q}|${near}`, () => api(`/api/search/codes?${kwQuery(q)}`).then((d) => ({ q, codes: new Set(d.codes),
-    rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q), interp: d.interpretation || [], notes: d.notes || [] })));
+    rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q),
+    terms: Array.isArray(d.terms) ? d.terms : kwWords(q).map((w) => [w]), app: !!d.apprentissage, interp: d.interpretation || [], notes: d.notes || [] })));
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
@@ -1992,15 +2015,24 @@ async function viewCarte(dArg, mArg) {
     L.tileLayer(CARTE_TILES, { maxZoom: 18, attribution: CARTE_ATTRIB }).addTo(carteUI.map);
     carteUI.layer = L.layerGroup().addTo(carteUI.map);
     const type = JSON.stringify(sel);
-    if (carteUI.type === type && carteUI.bounds) carteUI.map.fitBounds(carteUI.bounds);
+    // audit PR 4: a map left during its animated zoom saved NaN bounds, and fitBounds threw « Bounds are not valid. » on the way
+    // back: the whole page showed that error. Only valid bounds are kept and restored.
+    if (carteUI.type === type && carteUI.bounds && carteUI.bounds.isValid()) carteUI.map.fitBounds(carteUI.bounds);
     carteUI.type = type;
-    carteUI.map.on("moveend", () => { carteUI.bounds = carteUI.map.getBounds(); carteUI.page = 0; draw(); });
+    const map = carteUI.map;
+    map.on("moveend", () => {
+      if (map !== carteUI.map || seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;   // a map the page left
+      const bb = map.getBounds();
+      if (bb.isValid()) carteUI.bounds = bb;
+      carteUI.page = 0; draw();
+    });
   }
   const shown = () => rows.filter((f) => carteKeep(f, sel));
   // the filter panel: Parcoursup's groups, each option with its count among the formations the OTHER filters keep
   // the filters, one dropdown per group (owner, 2026-11-15), each option with its count among the formations the OTHER filters
   // keep; one dropdown open at a time, kept open while its boxes are ticked
   function panel() {
+    if (seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("cfilters")) return;
     const base = shown(), kw = carteUI.kw, bar = document.getElementById("cfilters");
     const facetOpts = Object.fromEntries(carteGroups().map(([gr, , opts]) => [gr, opts.map(([o]) => o)]));
     if (ok) facetOpts.zones = [...CARTE_ZONES, "autre"];
@@ -2034,7 +2066,7 @@ async function viewCarte(dArg, mArg) {
     const changed = active > 0;
     document.getElementById("dd-fold-n").textContent = active ? `(${active} actif${active > 1 ? "s" : ""})` : "";
     bar.innerHTML = `${dips}${mens}${groups[0]}${zones}${groups.slice(1).join("")}${changed ? '<button type="button" class="linkish dd-reset" id="dd-reset">Réinitialiser les filtres</button>' : ""}
-      <p class="muted small dd-note">Formations en apprentissage : offre ${esc(offre || "")} de la cartographie Parcoursup. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès.</p>`;
+      <p class="muted small dd-note">Les offres en apprentissage listées à part viennent de la cartographie Parcoursup ${esc(offre || "")}. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès.</p>`;
     bar.querySelectorAll("details.dd").forEach((d) => d.addEventListener("toggle", () => {
       if (d.open) { carteUI.open = d.dataset.dd; bar.querySelectorAll("details.dd[open]").forEach((o) => { if (o !== d) o.open = false; }); }
       else if (carteUI.open === d.dataset.dd) carteUI.open = null;
@@ -2057,7 +2089,7 @@ async function viewCarte(dArg, mArg) {
       const q = foldText(el.value.trim());
       el.closest("fieldset").querySelectorAll("[data-men-label]").forEach((lab) => { lab.hidden = !!q && !lab.dataset.menLabel.includes(q); }); }; });
     const rs = document.getElementById("dd-reset");
-    if (rs) rs.onclick = () => { for (const [gr] of carteGroups()) F[gr] = [...(CARTE_DEFAULT[gr] || [])]; F.zones = []; carteUI.open = null; store.set("carteFiltres2", F); sel.d = []; sel.m = {}; reselect(); };
+    if (rs) rs.onclick = resetFilters;
     if (carteUI.focus) { const el = bar.querySelector(carteUI.focus); if (el) el.focus(); carteUI.focus = null; }
   }
   // the figures for the student's doublette or line: one request per page of the list, kept for the profile
@@ -2072,8 +2104,11 @@ async function viewCarte(dArg, mArg) {
     }).catch(() => want.forEach((c) => ctx.chiffres.delete(c)));
   }
   function draw(fetch = true) {
+    // audit PR 4: the map's moveend (an animated zoom ending) or a late answer may land after the visitor left the page or
+    // opened it again: never draw into elements that are gone (the testers' « Cannot set properties of null »)
+    if (seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("cs-status")) return;
     const kw = carteUI.kw, kept = carteFilter(shown(), F, undefined, kw), vb = carteUI.map && carteUI.map.getBounds();
-    const inView = (f) => !vb || (f.lat != null && vb.contains([f.lat, f.lon]));
+    const inView = (f) => !vb || !vb.isValid() || (f.lat != null && vb.contains([f.lat, f.lon]));
     const rank = carteNameRank(C), sortName = new Map(kept.map((f) => [f, carteSortName(f)]));
     const byName = (a, b) => { const x = rank.get(sortName.get(a)), y = rank.get(sortName.get(b));
       return x !== undefined && y !== undefined ? x - y : FR_COLL.compare(sortName.get(a), sortName.get(b)); };
@@ -2089,8 +2124,10 @@ async function viewCarte(dArg, mArg) {
       kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
       carteUI.kwErr ? `<p class="warn small">La recherche par mot-clé n'a pas abouti : ${esc(carteUI.kwErr)}. La liste montre toutes les formations.</p>` : "",
       carteUI.lieuBad ? `<p class="warn small">Lieu non reconnu : « ${esc(carteUI.lieuBad)} ». Choisissez une ville, un département, une académie ou une région dans la liste.</p>` : "",
-      (kw || F.lieu || F.autour) && !kept.length ? `<p class="muted">Aucune formation ne correspond. Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…), un autre lieu, ou retirez un filtre.</p>` : "",
+      (carteUI.restored || []).length ? `<p class="small cs-restored">Filtres gardés de votre dernière visite : ${esc(carteUI.restored.join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button></p>` : "",
+      !kept.length && (kw || F.lieu || F.autour || carteActive(F).length) ? `<p class="muted">Aucune formation ne correspond.${carteActive(F).length ? ` Filtres actifs : ${esc(carteActive(F).join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button>` : ""} Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou un autre lieu.</p>` : "",
     ].join("");
+    document.querySelectorAll("#cs-status [data-reset-filters]").forEach((b) => { b.onclick = resetFilters; });
     if (carteUI.fit && carteUI.map) {
       carteUI.fit = false;
       const pts = kept.filter((f) => f.lat != null).map((f) => [f.lat, f.lon]);
@@ -2098,7 +2135,13 @@ async function viewCarte(dArg, mArg) {
       if ((kw || F.lieu) && pts.length) { carteUI.map.fitBounds(pts, { maxZoom: 12, padding: [24, 24] }); return; }   // moveend draws again
     }
     const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
-    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte`;
+    // audit PR 4 (owner, 2026-11-23): the paid private establishments stay unticked by default (Plan B's rule), and the list SAYS how
+    // many of them the other criteria would show, with a button that ticks their box
+    const paid = carteHiddenPaid(shown(), F, kw);
+    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte${paid
+      ? `<br><span class="cs-paid">${fmt(paid)} formation${paid > 1 ? "s" : ""} d'établissements privés payants ${paid > 1 ? "masquées" : "masquée"} — <button type="button" class="linkish" id="cs-paid">les afficher</button></span>` : ""}`;
+    const pb = document.getElementById("cs-paid");
+    if (pb) pb.onclick = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };
     document.getElementById("carte-legend").innerHTML = ok && !zonesReady ? '<span class="muted">Zones en cours de chargement…</span>' : ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
     if (carteUI.map) {
       carteUI.layer.clearLayers();
@@ -2139,7 +2182,9 @@ async function viewCarte(dArg, mArg) {
     $view.querySelectorAll("[data-cmp]").forEach((b) => { b.onclick = () => { basket.toggle(b.dataset.cmp); draw(false); }; });
     $view.querySelectorAll("[data-unpin]").forEach((b) => { b.onclick = () => { carteUI.sel = null; carteUI.pin = false; showSel(); }; });
   }
-  function save(repanel = true) { store.set("carteFiltres2", F); carteUI.page = 0; if (repanel) panel(); draw(); }
+  function save(repanel = true) { carteUI.restored = []; store.set("carteFiltres2", F); carteUI.page = 0; if (repanel) panel(); draw(); }
+  const resetFilters = () => { for (const [gr] of carteGroups()) F[gr] = [...(CARTE_DEFAULT[gr] || [])]; F.zones = []; carteUI.open = null; carteUI.restored = [];
+    store.set("carteFiltres2", F); sel.d = []; sel.m = {}; reselect(); };
   const form = document.getElementById("cs-form"), qEl = document.getElementById("cs-q"), lieuEl = document.getElementById("cs-lieu");
   document.getElementById("dd-fold").addEventListener("toggle", (e) => { if (narrow()) carteUI.fold = e.target.open; });
   const kmEl = document.getElementById("cs-km"), kmBox = form.querySelector(".cs-km");
