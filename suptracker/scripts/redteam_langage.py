@@ -545,6 +545,7 @@ def mutants(base: Ctx) -> tuple[int, list[str]]:
     js_mut("an(s) back", 'spécialités · ${f.years} campagne${f.years > 1 ? "s" : ""}', "spécialités · ${f.years} an(s)", {"LA9"})
     js_mut("internal gate name back", 'label: "Peu courant avec vos spécialités"', 'label: "Atypique / prérequis non alignés"', {"LA9"})
     js_mut("search chip says Reconnu", 'sigle: "Mot compris"', 'sigle: "Reconnu"', {"LA9"})
+    js_mut("route names through the report-label helper", "<tr><td>${esc(v.libelle)}</td>", "<tr><td>${esc(rpLabel(v.libelle))}</td>", {"LA9"})
     js_mut("a report row printed raw", "<td>${esc(rpLabel(x.libelle))}", "<td>${esc(x.libelle)}", {"LA9"})
     js_mut("Autres doublettes left as printed", '.replace(/^Autres doublettes$/i, "Autres paires de spécialités")', "", {"LA9"})
     js_mut("STMG label left raw", '.replace(/Msgn\\/\\s*([^&·]+?)(?=\\s*(?:&|·|$))/g, "Management ($1)")', "", {"LA9"})
@@ -587,6 +588,9 @@ RAW = re.compile(r"\((?:PP|PC)\)|cohorte finale|cod_aff_form|\ban\(s\)|n&lt;10|\
 REPORT_PRINTS = ("<td>${esc(rpLabel(x.libelle))}", "<strong>${esc(rpLabel(m.libelle))}</strong>",
                  "ligne « ${esc(rpLabel(mineV.libelle))} »", "ligne « ${esc(rpLabel(r.libelle))} »", "`<mark>${esc(rpLabel(x))}</mark>` : esc(rpLabel(x))",
                  "${esc(rpLabel(lab))} (${fmt(c)})")
+# SupCompass's own labels that are NOT report lines: rpLabel never wraps them (CI, 2026-11-24: the BTS route comparison's
+# route names went through it by mistake).
+OWN_PRINTS = ("${n.voies.map((v) => `<tr><td>${esc(v.libelle)}</td>",)
 SPE_PRINTS = ("${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}", 'esc(s1.doublette.split("+").map(speName).join(" + "))')
 
 
@@ -618,6 +622,9 @@ def la9(c: Ctx):
     miss = [x for x in REPORT_PRINTS + SPE_PRINTS if x not in c.js]
     if miss:
         bad.append(("a print without its helper", miss[:3]))
+    own = [x for x in OWN_PRINTS if x not in c.js]
+    if own:
+        bad.append(("our own label put through the report-label helper", own))
     if re.search(r"esc\((?:p|prof)\.spe[12]", c.js):
         bad.append("a specialty code printed raw")
     from suptracker import journey as J
