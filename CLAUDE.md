@@ -209,8 +209,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Six shard runners
-    (`pytest -n auto --dist loadfile --shard=i/6`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), files spread by `tests/durations.json`; a new test file goes in that table, with its
+  - CI: push on `main` only, branches through their PR, stale runs cancelled. Seven shard runners
+    (`pytest -n auto --dist loadfile --shard=i/7`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
     of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
@@ -918,6 +918,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the calendar's verified steps (« 1er »). Concours = a NAMED common entrance exam in the labels (`jpo.concours_of`) or « concours
   commun », never harmonize's broad flag or its count-based pools; absent from the latest cartographie = « vérifiez qu'elle existe
   toujours ». Statuses in words; never « liste valide » (SupCompass does not see the Parcoursup file). Red team `redteam_liste.py` (LI1-LI7).
+- **Workflow pushes (audit PR A, owner 2026-11-24).** Every workflow step that commits pushes through `scripts/git_push_retry.sh
+  "$GITHUB_REF_NAME"` (fetch, rebase, push, up to 5 tries with a growing wait; a conflict aborts the rebase and fails; NEVER a
+  force-push). A new committing workflow uses it too. Red team `redteam_enregistrement.py` (EN1-EN5; EN2 runs it on real repos).
 - **Nothing hidden without saying so (audit PR 4, owner 2026-11-24).** The search page never hides a formation silently.
   - Paid private formations stay unticked by default; the list says « N formations d'établissements privés payants masquées — les
     afficher » (`carteHiddenPaid`: the paid ones the other criteria keep), and the button ticks their box.

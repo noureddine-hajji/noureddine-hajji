@@ -108,7 +108,8 @@ def test_a_harvest_reaches_the_site():
         assert name in rebuilt_after, name
         assert all(p in hfp for p in paths), name
     for f in DATA_WF.parent.glob("suptracker-*.yml"):
-        if "git push" in f.read_text() and f.stem not in ("suptracker-data", "suptracker-calendrier"):
+        text = f.read_text()                                              # audit PR A: pushes go through the retry script
+        if ("git push" in text or "git_push_retry.sh" in text) and f.stem not in ("suptracker-data", "suptracker-calendrier"):
             assert f.stem in rebuilt_after, f"{f.stem} pushes to main but no rebuild follows it"
     assert wf.count("bash scripts/harvest_fingerprint.sh") == 2            # the check and the value written read ONE list
     assert "github.event.workflow_run.conclusion == 'success'" in wf

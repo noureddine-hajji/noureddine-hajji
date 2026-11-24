@@ -461,7 +461,7 @@ def ai6(c: Ctx):
 def ai7(c: Ctx):
     bad = []
     wf = (REPO / ".github" / "workflows" / "suptracker-aides.yml").read_text()
-    for need in ("python scripts/aides_fetch.py data/aides", 'paths: ["suptracker/data/aides/request.json"]', "git add data/aides", "git pull --rebase"):
+    for need in ("python scripts/aides_fetch.py data/aides", 'paths: ["suptracker/data/aides/request.json"]', "git add data/aides", 'bash scripts/git_push_retry.sh "$GITHUB_REF_NAME"'):
         if need not in wf:
             bad.append(f"workflow: {need} missing")
     data = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()

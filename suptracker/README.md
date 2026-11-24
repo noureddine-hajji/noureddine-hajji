@@ -4733,3 +4733,30 @@ Red team `redteam_masque.py` (MQ1-MQ8):
 - MQ7 is the mutation test: 31 mutants, all caught. MQ8 checks the docs.
 
 `search.py` changed, so the search index stored in the warehouse is rebuilt by the data workflow.
+
+## Every workflow push survives a concurrent push (audit PR A, 2026-11-24)
+
+On 2026-11-23 the warehouse rebuild was rejected by GitHub (« fetch first »). The official calendar fetch had pushed to `main` a
+few minutes earlier. The rebuilt warehouse never reached `main`, which kept a warehouse older than its own open-day files, and red
+team J9 failed on `main` and on every PR until the warehouse was rebuilt by hand.
+
+Every workflow that commits now pushes through `scripts/git_push_retry.sh`: eight steps in seven workflows (the data rebuild and
+its probe, reports, open days, calendar, student aids, fares, RNCP):
+- it fetches the branch, replays the workflow's commit on top (rebase) and pushes;
+- a push rejected because another workflow pushed meanwhile is tried again, up to 5 times with a growing wait;
+- a real conflict (the same file changed on both sides) aborts the rebase and fails, with an error line. It never force-pushes.
+  Workflows write disjoint paths, so this happens only if two runs of the same workflow overlap.
+
+Red team `redteam_enregistrement.py` (EN1-EN5):
+- EN1 reads every workflow: each committing step pushes through the script with its own branch, with no bare push and no force-push.
+- EN2 runs the script on real git repositories (a bare origin, two clones, a server hook):
+  - a push made meanwhile to another file is kept, and ours lands on top;
+  - a push rejected once is retried and lands;
+  - a conflict fails, with origin unchanged and the clone out of the rebase;
+  - endless rejection fails after the configured attempts.
+- EN3 checks the script's own guarantees, EN4 is the mutation test (9 mutants, all caught), EN5 the docs.
+
+**CI: seven shards.** This PR's CI cancelled shard 4 at the 45-minute limit, while shard 2 of the same plan finished in 23
+minutes: each of the six shards planned 4.8 thousand seconds, too close to the limit on a slow runner. Seven shards plan about
+4.1 thousand seconds each (same greedy plan from `tests/durations.json`; `tests/test_shards.py` reads the count from the
+workflow; red team S6's mutant now splits the seven-shard command).
