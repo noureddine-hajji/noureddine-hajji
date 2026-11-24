@@ -515,7 +515,7 @@ SOURCE_MUTANTS = [
     ("vie", "CVEC typed differently", '"montant": 105, "annee": "2026-2027"', '"montant": 103, "annee": "2026-2027"', "AI5"),
     ("vie", "meal link reverted", '"url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123"', '"url": "https://www.etudiant.gouv.fr/fr/se-restaurer"', "AI5"),
     ("build", "aids not built", "        aides.build(con)", "        pass", "AI7"),
-    ("fetch", "any host fetched", '    "https://sante.gouv.fr/")', '    "https://sante.gouv.fr/", "https://example.com/")', "AI2"),
+    ("fetch", "any host fetched", '    "https://www.messervices.etudiant.gouv.fr/")', '    "https://www.messervices.etudiant.gouv.fr/", "https://example.com/")', "AI2"),
 ]
 
 
