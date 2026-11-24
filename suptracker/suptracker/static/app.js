@@ -1625,10 +1625,13 @@ function carteText(f) {
 // that only named apprenticeship keeps every offer. An acronym's alternatives come padded (« sio » is a whole word, never inside
 // « profession »); a free word matches anywhere, as before
 const carteOfferMatch = (f, kw) => kw.terms.length ? kw.terms.every((alts) => alts.some((a) => ` ${carteText(f)} `.includes(a))) : kw.app;
+// Codex (PR #111): the internat values the engine's « internat » option keeps (search.OPTIONS), applied by the page to every row
+const KW_INTERNAT = ["mixte", "filles", "garcons", "oui"];
 // what every group shares: the place, the keyword and the radius
 const carteCommon = (f, F, kw) => carteInLieu(f, F.lieu)
   && (!kw || kw.codes.has(f.cod_aff_form) || (f.stats === false && carteOfferMatch(f, kw)))
   && (!kw || !kw.app || !!f.apprentissage)
+  && (!kw || !kw.internat || KW_INTERNAT.includes(f.internat))
   && (!F.autour || (f.lat != null && haversineKm(F.autour.lat, F.autour.lon, f.lat, f.lon) <= F.autour.km));
 // audit PR 4: the paid private formations the other criteria keep, hidden only because their box is unticked (none when the
 // statut group is empty, which shows everything, or already has the box)
@@ -1859,10 +1862,14 @@ const carteHash = (sel) => (sel.d.length === 1 && (sel.m[sel.d[0]] || []).length
 const carteGroupes = (f) => (f.groupe2 ? [f.groupe, f.groupe2] : [f.groupe]);
 const carteKeep = (f, sel) => !sel.d.length || (sel.d.includes(f.diplome) && (!(sel.m[f.diplome] || []).length || carteGroupes(f).some((g) => sel.m[f.diplome].includes(g))));
 // Leaflet (static/vendor/leaflet, BSD-2) is loaded by this page only, never by the page shell
+// audit PR 4: loaded ONCE. Two openings of the page close together (leave and come back during a search) both saw no window.L and
+// loaded Leaflet twice; the second copy did not recognise the first one's objects. A failed load may be tried again.
 function carteLeaflet() {
   if (window.L) return Promise.resolve();
   const load = (tag, attrs) => new Promise((ok, ko) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = ko; document.head.appendChild(el); });
-  return Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }), load("script", { src: "/static/vendor/leaflet/leaflet.js" })]);
+  carteUI.leafletP = carteUI.leafletP || Promise.all([load("link", { rel: "stylesheet", href: "/static/vendor/leaflet/leaflet.css" }),
+    load("script", { src: "/static/vendor/leaflet/leaflet.js" })]).catch((e) => { carteUI.leafletP = null; throw e; });
+  return carteUI.leafletP;
 }
 async function viewCarte(dArg, mArg) {
   // sprint Q3: the layer is asked at once, beside the types of diploma (it does not depend on them)
@@ -1961,7 +1968,7 @@ async function viewCarte(dArg, mArg) {
   const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };
   const kwLoad = (q) => cached(`kw|${q}|${near}`, () => api(`/api/search/codes?${kwQuery(q)}`).then((d) => ({ q, codes: new Set(d.codes),
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q),
-    terms: Array.isArray(d.terms) ? d.terms : kwWords(q).map((w) => [w]), app: !!d.apprentissage, interp: d.interpretation || [], notes: d.notes || [] })));
+    terms: Array.isArray(d.terms) ? d.terms : kwWords(q).map((w) => [w]), app: !!d.apprentissage, internat: !!d.internat, interp: d.interpretation || [], notes: d.notes || [] })));
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
   const reselect = () => { store.set("carteSel", sel); carteUI.sel = null; carteUI.page = 0; history.replaceState(null, "", carteHash(sel)); viewCarte("", ""); };
@@ -2017,13 +2024,15 @@ async function viewCarte(dArg, mArg) {
     const type = JSON.stringify(sel);
     // audit PR 4: a map left during its animated zoom saved NaN bounds, and fitBounds threw « Bounds are not valid. » on the way
     // back: the whole page showed that error. Only valid bounds are kept and restored.
-    if (carteUI.type === type && carteUI.bounds && carteUI.bounds.isValid()) carteUI.map.fitBounds(carteUI.bounds);
+    // kept as plain numbers: a LatLngBounds made by an earlier copy of Leaflet is not one for the copy loaded now (instanceof fails,
+    // it is rebuilt empty and fitBounds throws the same error)
+    if (carteUI.type === type && Array.isArray(carteUI.bounds) && carteUI.bounds.flat().every(Number.isFinite)) carteUI.map.fitBounds(carteUI.bounds);
     carteUI.type = type;
     const map = carteUI.map;
     map.on("moveend", () => {
       if (map !== carteUI.map || seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;   // a map the page left
       const bb = map.getBounds();
-      if (bb.isValid()) carteUI.bounds = bb;
+      if (bb.isValid()) { const sw = bb.getSouthWest(), ne = bb.getNorthEast(); carteUI.bounds = [[sw.lat, sw.lng], [ne.lat, ne.lng]]; }
       carteUI.page = 0; draw();
     });
   }

@@ -4716,12 +4716,20 @@ map was still zooming, the map's last move redrew a list that was gone and saved
 valid. » replaced the whole search page. `draw` and `panel` now return when the page is gone, and only valid bounds are kept and
 restored.
 
+Codex's review found one more gap. « avec internat » is an option the engine applies to its own codes, but the offers matched on
+their names skipped it: « BTS avec internat » let 7,138 offers without an internat through. `/api/search/codes` now says
+`internat`, and the page applies it to every row (`KW_INTERNAT` = the engine's option values).
+
+The browser check then showed why « Bounds are not valid. » could still come back. Two openings of the page close together both
+loaded Leaflet, and the second copy did not recognise the first copy's bounds. Leaflet is now loaded once (one shared promise),
+and the bounds are kept as plain numbers.
+
 Red team `redteam_masque.py` (MQ1-MQ8):
 - MQ1 checks the offer terms, and that an acronym finds exactly the offers its title finds (seven pairs on real data).
 - MQ2 runs the page's twin in Node against a Python reading. MQ3 checks the apprenticeship option and the note.
 - MQ4 checks the hidden paid count (crafted rows and the real layer) and its button. MQ5 checks the kept-filter notice.
 - MQ6 checks all of it on the real page in a browser, phone included, leaving the page during a search too. It joins the
   nightly browser suite.
-- MQ7 is the mutation test: 28 mutants, all caught. MQ8 checks the docs.
+- MQ7 is the mutation test: 31 mutants, all caught. MQ8 checks the docs.
 
 `search.py` changed, so the search index stored in the warehouse is rebuilt by the data workflow.

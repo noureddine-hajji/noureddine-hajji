@@ -12,7 +12,9 @@ results were « sous statut scolaire » while the cards carried the apprenticesh
       phrase and its tag's label phrases (TAG_RULES literals only, never fuzzy); apprenticeship, internat and stop words out; no
       empty group; on real data an acronym finds exactly the offers its full title finds (BTS MCO, NDRC, SIO, GPME, CG...)
   MQ2 the page's twin (Node vs Python): carteOfferMatch and carteCommon on crafted rows and keywords = an independent Python
-      reading (terms, the apprenticeship option, a bare code); the keyword answer's terms and flag reach the page (kwLoad)
+      reading (terms, the apprenticeship option, the internat option (Codex, PR #111: « BTS avec internat » let 7,138 offers
+      without an internat through), a bare code); the keyword answer's terms and flags reach the page (kwLoad); the page's
+      internat values are the engine's option
   MQ3 apprenticeship is an option, never « Ignoré »: the engine strips the words, says « Option : apprentissage », sets the flag;
       the page keeps the formations offered in apprenticeship; the note is true (no « statut scolaire » anywhere a student reads)
   MQ4 the hidden paid formations are counted and offered: carteHiddenPaid (Node) = an independent count (crafted rows and the real
@@ -120,7 +122,10 @@ def node(prog: str, payload=None):
     return json.loads(r.stdout)
 
 
-def offer_hits(rows, terms, app, codes=()) -> list:
+INTERNAT_OK = ("mixte", "filles", "garcons", "oui")     # the engine's « internat » option, read again here
+
+
+def offer_hits(rows, terms, app, codes=(), internat=False) -> list:
     """Independent reading of the page's keyword rule: a code the engine gave, else an offer listed apart whose folded name holds
     one alternative of every term (no term: only when the query named apprenticeship); the apprenticeship option keeps only the
     formations offered in apprenticeship."""
@@ -128,7 +133,8 @@ def offer_hits(rows, terms, app, codes=()) -> list:
     for f in rows:
         text = f" {fold(f"{f.get('etablissement')} {f.get('formation')} {f.get('ville')}")} "
         offer = f.get("stats") is False and (all(any(a in text for a in alts) for alts in terms) if terms else bool(app))
-        if (f["cod_aff_form"] in codes or offer) and (not app or f.get("apprentissage")):
+        if (f["cod_aff_form"] in codes or offer) and (not app or f.get("apprentissage")) \
+                and (not internat or f.get("internat") in INTERNAT_OK):     # Codex: the internat option holds for offers too
             out.append(f["cod_aff_form"])
     return out
 
@@ -193,7 +199,7 @@ STUBS = """const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, r
   haversineKm = () => 0, carteZone = (f) => f.zone || "autre", FI_TITLE = {}, CARTE_ROB = [];
 """
 NAMES = ("foldText", "CARTE_DEFAULT", "CARTE_GROUPS", "CARTE_ACADS", "carteGroups", "CARTE_FGROUPS", "carteHas",
-         "carteFolded", "carteText", "carteOfferMatch", "carteInLieu", "carteCommon", "carteFilter", "carteHiddenPaid", "carteActive")
+         "carteFolded", "carteText", "carteOfferMatch", "KW_INTERNAT", "carteInLieu", "carteCommon", "carteFilter", "carteHiddenPaid", "carteActive")
 
 
 def harness(js: str) -> str:
@@ -201,14 +207,14 @@ def harness(js: str) -> str:
 
 
 def crafted() -> list:
-    base = {"ville": "Lyon", "lat": None, "lon": None, "academie": "Lyon", "internat": None, "distance": None, "select_form": None}
+    base = {"ville": "Lyon", "lat": None, "lon": None, "academie": "Lyon", "internat": "non", "distance": None, "select_form": None}
     rows = [
         {"cod_aff_form": "1", "etablissement": "Lycée A", "formation": "BTS - Management commercial opérationnel", "stats": True,
          "statut": "public", "initiale": True, "apprentissage": False},
         {"cod_aff_form": "2", "etablissement": "CFA B", "formation": "BTS - Management commercial opérationnel - en apprentissage",
          "stats": False, "statut": "prive_app", "initiale": False, "apprentissage": True},
         {"cod_aff_form": "3", "etablissement": "CFA C", "formation": "BTS - Négociation et digitalisation de la relation client",
-         "stats": False, "statut": "contrat", "initiale": False, "apprentissage": True},
+         "stats": False, "statut": "contrat", "initiale": False, "apprentissage": True, "internat": "mixte"},
         {"cod_aff_form": "4", "etablissement": "École D", "formation": "Bachelor - commerce", "stats": True, "statut": "prive",
          "initiale": True, "apprentissage": False},
         {"cod_aff_form": "5", "etablissement": "École E", "formation": "Ecole de commerce - Programme Grande Ecole", "stats": True,
@@ -221,7 +227,7 @@ def crafted() -> list:
     return [{**base, **r} for r in rows]
 
 
-KWS = [  # (name, codes the engine gave, terms, apprenticeship flag)
+KWS = [  # (name, codes the engine gave, terms, apprenticeship flag[, internat option])
     ("mco", ["1"], [[" bts "], [" mco ", " management commercial operationnel "]], False),
     ("ndrc", [], [[" ndrc ", " negociation et digitalisation "]], False),
     ("inside", [], [[" ion "]], False),
@@ -231,14 +237,16 @@ KWS = [  # (name, codes the engine gave, terms, apprenticeship flag)
     ("code", ["4"], [], False),
     ("internet", [], [[" l internet "]], False),
     ("none", [], [["zzz"]], False),
+    ("internat-bts", [], [[" bts "]], False, True),
+    ("internat-all", ["1", "4"], [], False, True),
 ]
 
 
 def twin_prog() -> str:
     return """
 const D = JSON.parse(require('fs').readFileSync(0, 'utf8')); const out = {};
-for (const [name, codes, terms, app] of D.kws) {
-  const kw = { codes: new Set(codes), terms, app, words: [] };
+for (const [name, codes, terms, app, internat] of D.kws) {
+  const kw = { codes: new Set(codes), terms, app, internat: !!internat, words: [] };
   out[name] = D.rows.filter((f) => carteCommon(f, { lieu: null, autour: null }, kw)).map((f) => f.cod_aff_form);
 }
 process.stdout.write(JSON.stringify(out));"""
@@ -253,13 +261,23 @@ def twin_ok(c: Ctx, js: str | None = None) -> tuple[bool, str]:
         return False, f"the page's twin does not run: {str(e)[:300]}"
     if got is None:
         return True, "skipped (node not installed)"
-    for name, codes, terms, app in KWS:
-        want = offer_hits(rows, terms, app, set(codes))
+    for name, codes, terms, app, *opt in KWS:
+        want = offer_hits(rows, terms, app, set(codes), bool(opt and opt[0]))
         if got[name] != want:
             bad.append((name, got[name], want))
     # the keyword answer's terms and flag reach the page; an older answer without terms falls back on the typed words
-    if not re.search(r"terms: Array\.isArray\(d\.terms\) \? d\.terms : kwWords\(q\)\.map\(\(w\) => \[w\]\), app: !!d\.apprentissage", js):
-        bad.append("kwLoad does not read terms / apprentissage")
+    if not re.search(r"terms: Array\.isArray\(d\.terms\) \? d\.terms : kwWords\(q\)\.map\(\(w\) => \[w\]\), app: !!d\.apprentissage, internat: !!d\.internat", js):
+        bad.append("kwLoad does not read terms / apprentissage / internat")
+    # the page's internat values = the engine's option, read from search.py's own OPTIONS
+    eng = re.search(r'"internat": lambda x: x\.get\("internat"\) in \(([^)]*)\)', c.search_src)
+    page = re.search(r"const KW_INTERNAT = \[([^\]]*)\];", js)
+    if not eng or not page or sorted(re.findall(r'"(\w+)"', eng.group(1))) != sorted(re.findall(r'"(\w+)"', page.group(1))) \
+            or sorted(INTERNAT_OK) != sorted(re.findall(r'"(\w+)"', eng.group(1))):
+        bad.append("KW_INTERNAT is not the engine's internat option")
+    from suptracker import api
+    if c.con.execute("SELECT count(*) FROM core.formation_year").fetchone()[0]:
+        if not api.keyword_codes(c.con.cursor(), "prépa avec internat").get("internat") or api.keyword_codes(c.con.cursor(), "prépa").get("internat"):
+            bad.append("the keyword answer's internat flag")
     return not bad, f"{len(KWS)} keywords x {len(rows)} rows = the Python reading; problems {bad[:3]}"
 
 
@@ -315,7 +333,7 @@ PAID_PROG = """
 const D = JSON.parse(require('fs').readFileSync(0, 'utf8')); const out = [];
 for (const [statut, kwd] of D.cases) {
   const F = { statut, lieu: null, autour: null, zones: [] };
-  const kw = kwd ? { codes: new Set(kwd[0]), terms: kwd[1], app: kwd[2], words: [] } : null;
+  const kw = kwd ? { codes: new Set(kwd[0]), terms: kwd[1], app: kwd[2], internat: !!kwd[3], words: [] } : null;
   out.push(carteHiddenPaid(D.rows, F, kw));
 }
 process.stdout.write(JSON.stringify(out));"""
@@ -327,7 +345,7 @@ def py_hidden(rows, statut, kwd) -> int:
     paid = [f for f in rows if f.get("statut") == "prive"]
     if kwd is None:
         return len(paid)
-    return len(offer_hits(paid, kwd[1], kwd[2], set(kwd[0])))
+    return len(offer_hits(paid, kwd[1], kwd[2], set(kwd[0]), bool(kwd[3]) if len(kwd) > 3 else False))
 
 
 def paid_ok(c: Ctx, js: str | None = None) -> tuple[bool, str]:
@@ -352,7 +370,7 @@ def paid_ok(c: Ctx, js: str | None = None) -> tuple[bool, str]:
         cases = []
         for q in ("école de commerce Lyon", "BTS MCO", "infirmier Marseille", "droit"):
             d = api.keyword_codes(c.con.cursor(), q)
-            cases.append((D, [d["codes"], d["terms"], d["apprentissage"]]))
+            cases.append((D, [d["codes"], d["terms"], d["apprentissage"], d["internat"]]))
         got = node(harness(js) + PAID_PROG, {"rows": c.rows, "cases": cases})
         want = [py_hidden(c.rows, s, k) for s, k in cases]
         real = list(zip(("école de commerce Lyon", "BTS MCO", "infirmier Marseille", "droit"), got))
@@ -406,8 +424,9 @@ def restored_ok(c: Ctx, js: str | None = None) -> tuple[bool, str]:
         "the reset clears the notice": "F.zones = []; carteUI.open = null; carteUI.restored = [];",
         "draw never writes into a page that is gone": 'if (seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("cs-status")) return;',
         "panel neither": 'if (seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("cfilters")) return;',
-        "only valid map bounds restored": "if (carteUI.type === type && carteUI.bounds && carteUI.bounds.isValid()) carteUI.map.fitBounds(carteUI.bounds);",
-        "only valid map bounds kept": "if (bb.isValid()) carteUI.bounds = bb;",
+        "Leaflet loaded once": "carteUI.leafletP = carteUI.leafletP || Promise.all([",
+        "only valid map bounds restored, as numbers": "if (carteUI.type === type && Array.isArray(carteUI.bounds) && carteUI.bounds.flat().every(Number.isFinite)) carteUI.map.fitBounds(carteUI.bounds);",
+        "only valid map bounds kept, as numbers": "if (bb.isValid()) { const sw = bb.getSouthWest(), ne = bb.getNorthEast(); carteUI.bounds = [[sw.lat, sw.lng], [ne.lat, ne.lng]]; }",
         "a left map's moves ignored": 'if (map !== carteUI.map || seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;   // a map the page left',
     }
     for k, v in needs.items():
@@ -460,7 +479,10 @@ const { chromium } = require('playwright');
   for (let i = 0; i < 4; i++) {
     await p.fill('#cs-q', i % 2 ? 'BTS MCO' : 'licence droit'); await p.click('.cs-go'); await p.waitForTimeout(150 + 100 * i);
     await p.evaluate(() => { location.hash = '#/accueil'; }); await p.waitForTimeout(900);
-    await p.evaluate(() => { location.hash = '#/carte'; }); await p.waitForSelector('#cs-q', { timeout: 120000 }); await p.waitForTimeout(600);
+    await p.evaluate(() => { location.hash = '#/carte'; });
+    try { await p.waitForSelector('#cs-q', { timeout: 120000 }); }
+    catch (e) { throw new Error('the page did not come back: ' + JSON.stringify(await p.evaluate(() => [location.hash, document.getElementById('view')?.dataset.rendered, (document.getElementById('view')?.innerText || '').slice(0, 200)])) + ' errors ' + JSON.stringify(errs.slice(0, 2))); }
+    await p.waitForTimeout(600);
   }
   o.raceErrs = errs.length;
   // the next visit: a new page load with the filters an earlier visit stored
@@ -491,7 +513,7 @@ def py_count(c: Ctx, q: str, acad=None, statut=("public", "contrat", "prive_app"
     from suptracker import api
     d = api.keyword_codes(c.con.cursor(), q)
     rows = [f for f in c.rows if f.get("statut") in statut and (not acad or f.get("academie") == acad)]
-    return len(offer_hits(rows, d["terms"], d["apprentissage"], set(d["codes"])))
+    return len(offer_hits(rows, d["terms"], d["apprentissage"], set(d["codes"]), d["internat"]))
 
 
 @check("MQ6 browser: the paid line with the Python count and its button, a stored filter named then reset, BTS MCO = its title; no error")
@@ -591,10 +613,12 @@ def mq7(c: Ctx):
     A = lambda j: app_ok(c, js=j)          # noqa: E731
     js_mut("offers matched on any word", "kw.terms.every((alts) =>", "kw.terms.some((alts) =>", T)
     js_mut("acronym labels ignored", "alts.some((a) => ` ${carteText(f)} `.includes(a))", "` ${carteText(f)} `.includes(alts[0])", T)
-    js_mut("apprenticeship-only query keeps no offer", ": kw.app;\n// what every group", ": false;\n// what every group", T)
+    js_mut("apprenticeship-only query keeps no offer", ": kw.app;\n// Codex (PR #111)", ": false;\n// Codex (PR #111)", T)
     js_mut("apprenticeship option not applied", "&& (!kw || !kw.app || !!f.apprentissage)", "", T)
     js_mut("acronyms matched inside words", "alts.some((a) => ` ${carteText(f)} `.includes(a))", "alts.some((a) => carteText(f).includes(a.trim()))", T)
     js_mut("punctuation kept in names", '.replace(/[^a-z0-9]+/g, " ");   // punctuation', ';   // punctuation', T)
+    js_mut("internat option not applied to offers", "  && (!kw || !kw.internat || KW_INTERNAT.includes(f.internat))\n", "", T)
+    js_mut("internat values drift", 'const KW_INTERNAT = ["mixte", "filles", "garcons", "oui"];', 'const KW_INTERNAT = ["mixte", "oui", "non"];', T)
     js_mut("kwLoad drops the terms", "terms: Array.isArray(d.terms) ? d.terms :", "terms: [] || ", T)
     js_mut("hidden count ignores the keyword", "{ ...F, statut: [] }, undefined, kw).length", "{ ...F, statut: [] }, undefined, null).length", P)
     js_mut("hidden count with paid ticked", '|| F.statut.includes("prive")) return 0;', ") return 0;", P)
@@ -607,8 +631,9 @@ def mq7(c: Ctx):
     js_mut("notice never cleared", "function save(repanel = true) { carteUI.restored = []; ", "function save(repanel = true) { ", R)
     js_mut("no result says nothing of the filters", ' Filtres actifs : ${esc(carteActive(F).join(", "))}.', "", R)
     js_mut("draw after the page is gone", 'if (seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("cs-status")) return;', "", R)
-    js_mut("invalid bounds restored", "carteUI.bounds && carteUI.bounds.isValid()) carteUI.map", "carteUI.bounds) carteUI.map", R)
-    js_mut("invalid bounds kept", "if (bb.isValid()) carteUI.bounds = bb;", "carteUI.bounds = bb;", R)
+    js_mut("Leaflet loaded at every opening", "carteUI.leafletP = carteUI.leafletP || Promise.all([", "carteUI.leafletP = Promise.all([", R)
+    js_mut("bounds restored unchecked", "Array.isArray(carteUI.bounds) && carteUI.bounds.flat().every(Number.isFinite)) carteUI.map", "carteUI.bounds) carteUI.map", R)
+    js_mut("Leaflet's own bounds object kept", "{ const sw = bb.getSouthWest(), ne = bb.getNorthEast(); carteUI.bounds = [[sw.lat, sw.lng], [ne.lat, ne.lng]]; }", "carteUI.bounds = bb;", R)
     js_mut("statut scolaire back", "Les offres en apprentissage listées à part viennent de la cartographie Parcoursup",
            "Les résultats sont des formations sous statut scolaire. Les offres en apprentissage viennent de la cartographie Parcoursup", A)
     # the engine
