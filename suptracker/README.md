@@ -4755,3 +4755,8 @@ Red team `redteam_enregistrement.py` (EN1-EN5):
   - a conflict fails, with origin unchanged and the clone out of the rebase;
   - endless rejection fails after the configured attempts.
 - EN3 checks the script's own guarantees, EN4 is the mutation test (9 mutants, all caught), EN5 the docs.
+
+**CI: seven shards.** This PR's CI cancelled shard 4 at the 45-minute limit, while shard 2 of the same plan finished in 23
+minutes: each of the six shards planned 4.8 thousand seconds, too close to the limit on a slow runner. Seven shards plan about
+4.1 thousand seconds each (same greedy plan from `tests/durations.json`; `tests/test_shards.py` reads the count from the
+workflow; red team S6's mutant now splits the seven-shard command).
