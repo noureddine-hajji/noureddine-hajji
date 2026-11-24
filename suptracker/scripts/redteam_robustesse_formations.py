@@ -1009,7 +1009,8 @@ def rf11(c: Ctx):
     if q:
         bad.append("an unknown level printed on a card")
     view = c.js[c.js.index("async function viewCarte("): c.js.index("\n// ---- lot 2 (Claude design guidelines)")]
-    sort = view[view.index("const listed = kept.filter("): view.index('document.getElementById("cs-status")')]
+    start = view.index("const listed = kept.filter(")
+    sort = view[start: view.index('document.getElementById("cs-status")', start)]   # the end after the start (draw's guard names it too)
     wiring = {
         "the groups in the dropdowns": "...CARTE_ROB];" in c.js and '"robf", "robn"];' in c.js,
         "hidden when the repères did not load or are empty": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view

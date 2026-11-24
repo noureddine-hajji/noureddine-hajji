@@ -280,7 +280,10 @@ def app_ok(c: Ctx, src: str | None = None, js: str | None = None, note: str | No
         kc = api.keyword_codes(c.con.cursor(), q)
         if not r.get("apprentissage") or not kc.get("apprentissage"):
             bad.append((q, "the flag is not set"))
-        if {"type": "option", "value": "apprentissage"} not in r["interpretation"] or any(i["type"] == "ignoré" for i in r["interpretation"]):
+        # an unrelated word the warehouse lacks may still be « ignoré » (the synthetic one has no BUT informatique); the
+        # apprenticeship words never
+        if {"type": "option", "value": "apprentissage"} not in r["interpretation"] or any(
+                i["type"] == "ignoré" and re.search(r"apprenti|alternan", i["value"]) for i in r["interpretation"]):
             bad.append((q, "not read as an option", r["interpretation"]))
         if note not in r["notes"]:
             bad.append((q, "no note"))
