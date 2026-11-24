@@ -452,7 +452,7 @@ __PARTS__
 const { rows, cases, names, kept } = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = { facets: [], sorted: null, collator: null, text: null };
 for (const [F, kw, opts] of cases) {
-  const k = kw ? { codes: new Set(kw.codes), words: kw.words } : null;
+  const k = kw ? { codes: new Set(kw.codes), words: kw.words, terms: kw.words.map((w) => [w]), app: false } : null;
   const fac = carteFacets(rows, F, k, opts), one = {}, ref = {};
   for (const g in opts) for (const o of opts[g]) {
     one[g + ':' + o] = fac[g].get(o);
@@ -468,7 +468,9 @@ out.collator = list.slice().sort((a, b) => carteSortName(a).localeCompare(carteS
 // the folded-name cache follows a changed name
 const f = { cod_aff_form: "T1", etablissement: "Lycée Été", formation: "BTS", ville: "Évry" };
 const t1 = carteText(f); f.ville = "Saint-Étienne"; const t2 = carteText(f);
-out.text = [t1 === foldText("Lycée Été BTS Évry"), t2 === foldText("Lycée Été BTS Saint-Étienne")];
+// audit PR 4: punctuation folded as the engine does (« Saint-Étienne » -> « saint etienne »)
+const fold2 = (x) => foldText(x).replace(/[^a-z0-9]+/g, " ");
+out.text = [t1 === fold2("Lycée Été BTS Évry"), t2 === fold2("Lycée Été BTS Saint-Étienne")];
 process.stdout.write(JSON.stringify(out));
 """
 

@@ -283,7 +283,7 @@ def c3(c: Ctx):
         + [[CRAFT + [cfa], {"statut": ["public", "contrat", "prive_app", "prive"]}, None, kw] for kw in kws[:3]] + [[real, {}, None, kws[3]]]
     page = node("const CARTE_ZONES = ['securite', 'cible', 'ambitieux'];\n" + fns + """
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(cases.map(([rows, F, skip, kw]) => carteFilter(rows, F, skip || undefined, kw ? { codes: new Set(kw.codes), words: kw.words } : null).map((f) => f.cod_aff_form))));""", cases)
+process.stdout.write(JSON.stringify(cases.map(([rows, F, skip, kw]) => carteFilter(rows, F, skip || undefined, kw ? { codes: new Set(kw.codes), words: kw.words, terms: kw.words.map((w) => [w]), app: false } : null).map((f) => f.cod_aff_form))));""", cases)
     if page is None:
         return True, "node not installed"
     if isinstance(page, dict):
