@@ -921,6 +921,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Workflow pushes (audit PR A, owner 2026-11-24).** Every workflow step that commits pushes through `scripts/git_push_retry.sh
   "$GITHUB_REF_NAME"` (fetch, rebase, push, up to 5 tries with a growing wait; a conflict aborts the rebase and fails; NEVER a
   force-push). A new committing workflow uses it too. Red team `redteam_enregistrement.py` (EN1-EN5; EN2 runs it on real repos).
+- **Reorientation, completed (audit PR 6, owner 2026-11-24).** Outside terminale (`isReo`) a search card shows the estimated
+  access outside terminale through `reoCell` (map layer detail `reo` = `reorientation.latest`, a DETAIL_KEYS entry), never the rates
+  per bac, the most represented line or « Indiquez votre profil ». The adults' services are ONE list (`aide.ADULTES`: help page +
+  folded card on « Je me réoriente » via `META.reprise`); every link is an official page read by the `suptracker-aides` workflow
+  (`ADULTES_TITRES`, its own title) or a link such a page prints (`via`); our words only, never an amount, an age or a condition.
+  The hero names « Je me réoriente » in one link (`homeReo`, never a second primary action, not repeated outside terminale).
+  Red team `redteam_reprise.py` (RP1-RP8).
 - **Formation page on a phone (audit PR 5, owner 2026-11-24).** « Emploi et métiers » opens on the jobs (metiersCard), the
   robustesse model last (the L'essentiel tile stays, owner). A link about one card carries `data-goto-card` (its card an id): the
   page scrolls to that card under the sticky tab bar (apprenticeship link -> `#app-card`, Robustesse tile -> `#robustesse`).

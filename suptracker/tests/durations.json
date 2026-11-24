@@ -60,6 +60,7 @@
  "tests/test_referentiel.py": 45,
  "tests/test_release.py": 0,
  "tests/test_reorientation.py": 667,
+ "tests/test_reprise.py": 120,
  "tests/test_robustesse.py": 51,
  "tests/test_robustesse_formations.py": 300,
  "tests/test_robustesse_mutants_1.py": 400,

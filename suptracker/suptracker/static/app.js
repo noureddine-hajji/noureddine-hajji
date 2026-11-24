@@ -5615,6 +5615,17 @@ function reoCell(b) {
   if (!b || b.acces_estime == null) return `—<div class="estim">${esc(reoWhy(b, ""))}</div>`;
   return `${pct1(b.acces_estime)}${estimTag(`${b.plafonne ? "plafonnée à 100 % · " : ""}${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale${b.propositions === 0 ? " : rare cette année-là, pas forcément fermé" : ""}`, true)}`;
 }
+// audit PR 6 (2026-11-24): an adult who goes back to studies: the public services that help (aide.ADULTES through META.reprise,
+// the same list as the help page), folded so the list of formations stays near the top; official links only, every string escaped
+function reoAdultesCard() {
+  const R = META && META.reprise;
+  if (!R || !Array.isArray(R.services) || !R.services.length) return "";
+  const svc = (s) => `<li class="reo-svc"><strong>${esc(s.titre)}</strong><div class="small">${esc(s.pour)} ${esc(s.comment)}</div>
+    <div class="small">${(s.liens || []).filter((x) => /^https:\/\//.test(String(x.url || ""))).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.texte)}</a>`).join(" · ")}</div></li>`;
+  return `<details class="card reo-adultes"><summary><h2>Se faire accompagner pour reprendre des études</h2></summary>
+    <p class="small">${esc(R.intro)}</p><ul class="reo-svcs">${R.services.map(svc).join("")}</ul>
+    <p class="muted small">Pages officielles lues le ${esc(R.verifie)}. <a href="#/info/aide">Tous les services qui aident à choisir</a></p></details>`;
+}
 // the formation page's folded card: the published counts, the estimate and its method (review: never a figure without them)
 function reoCard(b) {
   if (!b) return "";
@@ -5669,6 +5680,7 @@ async function viewReorientation(dArg, mArg) {
       <p class="small">${REO_NO_ZONE} Les chiffres ci-dessous sont des parts de candidats des campagnes passées, pas des chances d'admission.</p>
       <div class="toolbar">${mine ? `<span class="badge exact">Votre situation : ${REO_LABEL}</span><button type="button" id="reo-back" class="small">Je suis en terminale</button>`
         : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Où je me situe », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
+    ${reoAdultesCard()}
     <div class="card"><div class="carte-pick"><label class="small">Type de diplôme <select id="rdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
       <label class="small">Mention <select id="rmen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
       <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label></div>

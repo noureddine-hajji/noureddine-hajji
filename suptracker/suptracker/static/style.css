@@ -665,6 +665,9 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 /* sprint 1 (owner, 2026-11-20): « Préparer mes projets de formation motivés » */
 .projet > summary { cursor: pointer; }
 .projet > summary h2 { display: inline; }
+.reo-adultes > summary { cursor: pointer; }
+.reo-adultes > summary h2 { display: inline; }
+.reo-svcs { display: grid; gap: 12px; padding-left: 0; list-style: none; }
 .projet > summary .small { display: block; }
 .pj-crit { list-style: none; padding-left: 0; }
 .pj-crit li { margin: 8px 0; }
