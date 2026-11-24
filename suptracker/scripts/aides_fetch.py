@@ -19,7 +19,10 @@ import httpx
 
 ALLOWED = ("https://www.legifrance.gouv.fr/", "https://www.service-public.gouv.fr/", "https://www.etudiant.gouv.fr/",
            "https://www.parcoursup.gouv.fr/", "https://www.enseignementsup-recherche.gouv.fr/", "https://cvec.etudiant.gouv.fr/",
-           "https://www.messervices.etudiant.gouv.fr/")
+           "https://www.messervices.etudiant.gouv.fr/",
+           # audit PR 6 (2026-11-24): the official pages of the services that help an adult go back to studies
+           "https://www.moncompteformation.gouv.fr/", "https://www.1jeune1solution.gouv.fr/", "https://travail-emploi.gouv.fr/",
+           "https://sante.gouv.fr/")
 
 
 def page_text(html: str) -> str:
