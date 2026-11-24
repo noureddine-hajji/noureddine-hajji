@@ -918,6 +918,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the calendar's verified steps (« 1er »). Concours = a NAMED common entrance exam in the labels (`jpo.concours_of`) or « concours
   commun », never harmonize's broad flag or its count-based pools; absent from the latest cartographie = « vérifiez qu'elle existe
   toujours ». Statuses in words; never « liste valide » (SupCompass does not see the Parcoursup file). Red team `redteam_liste.py` (LI1-LI7).
+- **Workflow pushes (audit PR A, owner 2026-11-24).** Every workflow step that commits pushes through `scripts/git_push_retry.sh
+  "$GITHUB_REF_NAME"` (fetch, rebase, push, up to 5 tries with a growing wait; a conflict aborts the rebase and fails; NEVER a
+  force-push). A new committing workflow uses it too. Red team `redteam_enregistrement.py` (EN1-EN5; EN2 runs it on real repos).
 - **Nothing hidden without saying so (audit PR 4, owner 2026-11-24).** The search page never hides a formation silently.
   - Paid private formations stay unticked by default; the list says « N formations d'établissements privés payants masquées — les
     afficher » (`carteHiddenPaid`: the paid ones the other criteria keep), and the button ticks their box.

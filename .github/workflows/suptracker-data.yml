@@ -58,7 +58,7 @@ jobs:
           git add data/probe
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Probe source files ($(date -u +%Y-%m-%d))"
-          git push
+          bash scripts/git_push_retry.sh "$GITHUB_REF_NAME"   # fetch, rebase, push; retried if another workflow pushed meanwhile
   # After a fetch run: rebuild only when it committed a new build input (scripts/harvest_fingerprint.sh differs from
   # data/harvest_fingerprint.txt, the value of the last published warehouse); a fetch that changed nothing costs no build.
   harvest-changed:
@@ -150,4 +150,4 @@ jobs:
           git add data/suptracker.duckdb data/rapport_textes.duckdb data/sources_brutes.duckdb data/verification data/fingerprint.txt data/harvest_fingerprint.txt
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Refresh SIES warehouse ($(date -u +%Y-%m-%d))"
-          git push
+          bash scripts/git_push_retry.sh "$GITHUB_REF_NAME"   # fetch, rebase, push; retried if another workflow pushed meanwhile

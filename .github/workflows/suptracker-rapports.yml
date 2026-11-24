@@ -84,5 +84,4 @@ jobs:
           git add data/rapports/probe data/rapports/harvest data/rapports/live data/fiches 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "Parcoursup public reports: ${{ steps.req.outputs.mode }} ($(date -u +%Y-%m-%d))"
-          git pull --rebase
-          git push
+          bash scripts/git_push_retry.sh "$GITHUB_REF_NAME"   # fetch, rebase, push; retried if another workflow pushed meanwhile

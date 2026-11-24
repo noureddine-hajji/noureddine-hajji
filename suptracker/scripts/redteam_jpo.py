@@ -600,7 +600,7 @@ def j8(c: Ctx):
     bad = []
     wf = (REPO / ".github" / "workflows" / "suptracker-jpo.yml").read_text()
     for need in ("python scripts/jpo_fetch.py data/jpo --warehouse data/suptracker.duckdb", 'paths: ["suptracker/data/jpo/request.json"]',
-                 "git add data/jpo", "git pull --rebase", "schedule:", "duckdb==2.0.0"):
+                 "git add data/jpo", 'bash scripts/git_push_retry.sh "$GITHUB_REF_NAME"', "schedule:", "duckdb==2.0.0"):
         if need not in wf:
             bad.append(f"workflow: {need}")
     data = (REPO / ".github" / "workflows" / "suptracker-data.yml").read_text()
