@@ -18,7 +18,8 @@ per-job model (redteam_robustesse.py).
   RF5 page (node): formationRobustesseCard escapes every stored string, leads with the repère (or its reason) and the plain
       facts, never the score before « Détail du calcul »; « avec ce diplôme seul » apart; the master gain for a licence; the
       RNCP blocks verbatim with an https France Compétences link built from digits only; vouvoiement, no chance or promise.
-  RF6 plumbing: build after the jobs, API, first card of « Emploi et métiers », sources en ligne, the data workflow fingerprint
+  RF6 plumbing: build after the jobs, API, in « Emploi et métiers » after the jobs card (owner, 2026-11-24: audit PR 5; it was the
+      tab's first card), sources en ligne, the data workflow fingerprint
       and .vercelignore cover data/rncp, README, CLAUDE.md, tests and durations.
   RF7 real (--real): the stored blocks re-derived for a sample (skills from the real RNCP and ROME files, outlets and formula
       from the stored jobs), the repère of every formation re-derived, coverage per filière printed.
@@ -600,7 +601,7 @@ def rf5(c: Ctx):
     return not bad, f"differences {bad[:5]}"
 
 
-@check("RF6 plumbing: build after the jobs, API, first card of « Emploi et métiers », sources, fingerprint, bundle, docs, tests")
+@check("RF6 plumbing: build after the jobs, API, in « Emploi et métiers » after the jobs, sources, fingerprint, bundle, docs, tests")
 def rf6(c: Ctx):
     bad = []
     b = (ROOT / "suptracker" / "build.py").read_text()
@@ -609,7 +610,10 @@ def rf6(c: Ctx):
         bad.append("build (after the jobs)")
     if '"robustesse": ROBF.for_formation(' not in (ROOT / "suptracker" / "api.py").read_text():
         bad.append("API")
-    if '["emploi", "Emploi et métiers", `\n  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}' not in c.js:
+    emploi = re.search(r'\["emploi", "Emploi et métiers", `(.*?)`\]', c.js, re.S)
+    body = emploi.group(1) if emploi else ""
+    k, m = body.find("${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}"), body.find("${metiersCard(d.metiers)}")
+    if k < 0 or m < 0 or k < m:                  # owner, 2026-11-24 (audit PR 5): the jobs first, the robustesse model after them
         bad.append("formation page")
     from suptracker import sources as SRC
     st = {s["key"]: s["status"] for s in SRC.SOURCES}
@@ -1122,8 +1126,9 @@ SOURCE_MUTANTS = [
     ("js", "fiche link not checked", '/^RNCP\\d+$/.test(rn.fiche || "") ? rn.fiche.slice(4) : null', '(rn.fiche || "").slice(4) || null', "RF5"),
     ("js", "no diploma-alone block", '<h3>Avec ce diplôme seul</h3>', '<h3>Débouchés</h3>', "RF5"),
     ("js", "blocks unescaped", "rn.blocs.map((b) => `<li>${esc(b)}</li>`)", "rn.blocs.map((b) => `<li>${b}</li>`)", "RF5"),
-    ("js", "card not first", "${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${insertionCard(d.insertion)}",
-     "${insertionCard(d.insertion)}\n  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}", "RF6"),
+    ("js", "card before the jobs", "  ${metiersCard(d.metiers)}\n  ${insertionCard(d.insertion)}",
+     "  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${metiersCard(d.metiers)}\n  ${insertionCard(d.insertion)}", "RF6"),
+    ("js", "card dropped from Emploi", "\n  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}`],", "`],", "RF6"),
     # RF11 (owner, 2026-11-18): published insertion beside the score, robustesse filters and card line on the search page
     ("js", "options not named", "${many ? `${esc(r.libelle_formation)} : ` : \"\"}", "", "RF11"),
     ("js", "option name unescaped", "${many ? `${esc(r.libelle_formation)} : `", "${many ? `${r.libelle_formation} : `", "RF11"),
@@ -1131,8 +1136,8 @@ SOURCE_MUTANTS = [
     ("js", "BUT university total before the specialty", '["Cette spécialité dans l\'université", but.specialite]', '["Cette spécialité dans l\'université", but.total || but.specialite]', "RF11"),
     ("js", "insertion said to be in the score", "restent à côté de la robustesse, jamais dedans", "complètent la robustesse", "RF11"),
     ("js", "insertion block dropped", "${robInsPublie(pub && pub.ins, pub && pub.but)}", "", "RF11"),
-    ("js", "page does not pass the insertion", "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}\n  ${insertionCard",
-     "formationRobustesseCard(d.robustesse, {})}\n  ${insertionCard", "RF11"),
+    ("js", "page does not pass the insertion", "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}`],",
+     "formationRobustesseCard(d.robustesse, {})}`],", "RF11"),
     ("js", "national repère read for the filière filter", '  : (RECO && RECO.rob && RECO.rob.filiere[cod]) || "sans");', '  : (RECO && RECO.rob && RECO.rob.national[cod]) || "sans");', "RF11"),
     ("js", "no level counted as average", 'RECO.rob.echelle[cod]) || ["sans"])', 'RECO.rob.echelle[cod]) || ["moyenne"])', "RF11"),
     ("js", "the level filter matches one level only", '  if (g === "robn") return !robReady() || robLevel(f.cod_aff_form, g).includes(o);',

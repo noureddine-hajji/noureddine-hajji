@@ -21,6 +21,7 @@
  "tests/test_emploi2030.py": 602,
  "tests/test_enregistrement.py": 12,
  "tests/test_evolution.py": 120,
+ "tests/test_fiche_telephone.py": 6,
  "tests/test_filtres.py": 273,
  "tests/test_filtres_mentions.py": 12,
  "tests/test_grilles.py": 34,

@@ -34,6 +34,7 @@ SUITE = {
     "conformite": ("QC10",),
     "design": ("DE8",),
     "evolution": ("EV9",),
+    "fiche_telephone": ("FT4",),
     "filtres": ("FI7",),
     "guide": ("GU6",),
     "langage": ("LA7", "LA10"),
