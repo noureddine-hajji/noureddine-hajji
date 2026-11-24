@@ -705,6 +705,7 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .hero-cta { display: grid; gap: 8px; justify-items: start; margin-top: 12px; }
 .hero-cta .btnlink.primary { min-height: 52px; padding: 0 24px; font-size: var(--fs-md); font-weight: 700; }
 .hero-cta p { margin: 0; }
+.hero-reo { margin: 10px 0 0; }
 .tabs { position: sticky; top: 0; z-index: 20; background: var(--bg); }
 .tabs button { min-height: 44px; }
 .adm-more summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }

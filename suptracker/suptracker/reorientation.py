@@ -68,6 +68,17 @@ def for_codes(con, cods: list[str]) -> dict:
     return _rows(con, "session = (SELECT max(session) FROM core.formation_year) AND list_contains(?, cod_aff_form)", [list(cods)])
 
 
+# audit PR 6 (2026-11-24): what a search card reads for a candidate outside terminale, the same figure as this page and Mes vœux
+CARD_KEYS = ("candidats", "propositions", "acces_estime", "plafonne", "min_candidats")
+
+
+def latest(con) -> dict:
+    """{code: the card's block} for every formation of the latest campaign (the map layer's `reo` detail: no profile needed,
+    the figure is the same for every candidate outside terminale)."""
+    blocks = _rows(con, "session = (SELECT max(session) FROM core.formation_year)", [])
+    return {c: {k: b[k] for k in CARD_KEYS} for c, b in blocks.items()}
+
+
 def listing(con, diplome: str, mention: str | None = None) -> dict | None:
     """Every formation of a type of diploma (and mention) of the latest campaign, with its figures. The page sorts it by the
     student's académie, then by name (never by figures); the académie never reaches the server."""
