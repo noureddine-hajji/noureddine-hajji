@@ -2367,7 +2367,7 @@ function formationRobTile(rb) {
     : !s ? "données insuffisantes pour une estimation sûre"
     : !words ? `pas de niveau pour cette formation ${estimTag("", false, true)}`
     : `${echelleJauge(niv)}<span class="sr-only">Sur une échelle de cinq niveaux, de très exposée à très robuste. </span>${esc(vois)}${esc(echelleNote(niv))} ${estimTag("", false, true)}`;
-  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi"><span class="sum-label">Robustesse 2035</span><span class="sum-value sum-words">${words ? esc(words) : "—"}</span><span class="sum-note">${note}</span></button>`;
+  return `<button type="button" class="sum-tile sum-rob" data-goto="emploi" data-goto-card="robustesse"><span class="sum-label">Robustesse 2035</span><span class="sum-value sum-words">${words ? esc(words) : "—"}</span><span class="sum-note">${note}</span></button>`;
 }
 function summaryBand(r, d) {
   const prof = store.get("profile", null);
@@ -2386,7 +2386,7 @@ function summaryBand(r, d) {
     ${prof && !isReo(prof) ? zoneLegend() : ""}
     ${admisBar(d.admis)}
     ${d.jury_tab ? `<p class="small sum-jury"><button type="button" class="linkish" data-goto="jury">${d.jury_tab.kind === "both" ? `Comment votre dossier est examiné : la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""} et le rapport du jury ${esc(d.jury_tab.rapport)}` : d.jury_tab.kind === "own" ? `Ce que regarde le jury : son rapport public ${esc(d.jury_tab.session)}` : d.jury_tab.kind === "grille" ? `Comment votre dossier sera examiné : la grille de la fiche Parcoursup${d.jury_tab.session ? ` ${esc(d.jury_tab.session)}` : ""}` : "Ce que regardent les jurys de formations semblables (pas de rapport pour celle-ci)"} →</button></p>` : ""}
-    ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
+    ${d.apprenti && d.apprenti.propose ? `<p class="small sum-app"><button type="button" class="linkish" data-goto="cout" data-goto-card="app-card">${d.apprenti.sies_apprentissage ? "Cette formation se fait en apprentissage" : "Cette formation se fait aussi en apprentissage"} : formation gratuite et salaire →</button></p>` : ""}
     ${jpoLine(d.jpo)}
     ${d.vie && d.vie.lat != null && villeDepart() ? `<p class="small sum-dist"><button type="button" class="linkish" data-goto="cout">À ${fmt(Math.round(haversineKm(villeDepart().lat, villeDepart().lon, d.vie.lat, d.vie.lon)))} km de ${esc(villeLabel(villeDepart()))} à vol d'oiseau : loyer et transports →</button></p>` : ""}
     <p class="muted small">Des résultats des campagnes passées, pas des chances d'admission.</p></section>`;
@@ -2439,7 +2439,15 @@ function bindTabs(id) {
     open(next.dataset.tabKey); next.focus();
   };
   document.querySelectorAll("[data-goto]").forEach((t) => {
-    t.onclick = () => { if (bar.querySelector(`[data-tab-key="${t.dataset.goto}"]`)) { open(t.dataset.goto); bar.scrollIntoView({ block: "start" }); } };
+    t.onclick = () => {
+      if (!bar.querySelector(`[data-tab-key="${t.dataset.goto}"]`)) return;
+      open(t.dataset.goto);
+      // audit PR 5: a link about one card lands ON that card (the apprenticeship card was 5.8 phone screens below its link),
+      // under the sticky tab bar; else the tab's start
+      const card = t.dataset.gotoCard && document.getElementById(t.dataset.gotoCard);
+      if (card && !card.closest("[hidden]")) window.scrollBy(0, card.getBoundingClientRect().top - bar.offsetHeight - 8);
+      else bar.scrollIntoView({ block: "start" });
+    };
   });
 }
 
@@ -2948,7 +2956,7 @@ function apprentiCard(a) {
   const offres = (a.offres || []).length ? `<p class="small">${a.offres.length > 1 ? "Ces établissements la proposent" : "Cet établissement la propose"} en apprentissage (pas de statistiques d'admission publiées pour cette voie) :</p>
     <ul class="small">${a.offres.map((o) => { const url = carteFiche(o);
       return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul>` : "";
-  return `<div class="card app-card"><h2>Et en apprentissage ?</h2>
+  return `<div class="card app-card" id="app-card"><h2>Et en apprentissage ?</h2>
     <ul class="small">
       <li><strong>Pas de frais de formation</strong> : la formation d'un apprenti est gratuite pour lui (Code du travail, article L6211-1).</li>
       <li><strong>Un salaire</strong> : un pourcentage du Smic qui dépend de votre âge et de l'année de formation. <a href="${esc(a.liens.salaire)}" target="_blank" rel="noopener">Calculer votre salaire d'apprenti ↗</a></li>
@@ -3057,12 +3065,13 @@ async function viewFormation(cod, session, refresh) {
   ${passerellesCard(d.passerelles)}
   ${licenceMasterCard(d.licence_master)}
   ${butCard(d.but)}`],
+    // audit PR 5: the jobs first (Onisep), then the published insertion, then the robustesse model (its detail folded)
     ["emploi", "Emploi et métiers", `
-  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}
+  ${metiersCard(d.metiers)}
   ${insertionCard(d.insertion)}
   ${apprentiInsertionCard(d.apprenti)}
   ${cereqCard(d.cereq)}
-  ${metiersCard(d.metiers)}`],
+  ${formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })}`],
     ["historique", "Historique", `
   <div class="card"><h2>Historique de la lignée ${tip("lineage")}</h2><p class="muted small">Code de l'établissement (UAI) : ${esc(r.cod_uai)}</p><div class="scroll"><table>
     <tr><th>Session</th><th>Code Parcoursup</th><th>Libellé</th><th>Lien vers la campagne suivante</th><th class="num">Admis</th><th class="num">Taux d'accès</th></tr>
@@ -4586,7 +4595,7 @@ function bindVoeuButton(after) {
 }
 // messages: one fixed rule each, read from the server's counts (voeux.read_list); never a combined chance
 const VX_MSG = {
-  aucune_securite: "Aucun vœu de sécurité sûr dans votre liste : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé. La carte « Compléter ma liste » ci-dessous en propose dans les filières de vos vœux.",
+  aucune_securite: "Aucun vœu de sécurité sûr dans votre liste : ajoutez au moins une formation où la cohorte admise ressemble à votre profil et où le taux d'accès est élevé. La carte « Compléter ma liste », juste en dessous, en propose dans les filières de vos vœux.",
   majorite_ambitieuse: "Plus de la moitié des vœux situés sont ambitieux ou hors-profil.",
   hors_profil: "Au moins un vœu est hors-profil : moins de 2 % des admis 2022–2025 avaient votre mention ou moins.",
   non_ouvert: "Au moins un vœu n'est pas ouvert à votre série (groupes d'appel, ou presque aucun admis de votre série) : vérifiez la fiche Parcoursup.",
@@ -4651,7 +4660,8 @@ async function viewVoeux() {
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
-    $view.querySelector(".next-steps").insertAdjacentHTML("beforebegin", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
+    // audit PR 5: right under the « aucune sécurité » alert (it was below the whole list, out of sight on a phone)
+    $view.querySelector("section.summary").insertAdjacentHTML("afterend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
     loadCompleter(qs, marker, rate, false, prof);
   }
   loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status !== "absente").map((v) => [v.cod_aff_form, v.etablissement])),

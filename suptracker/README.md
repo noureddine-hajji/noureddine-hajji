@@ -4760,3 +4760,31 @@ Red team `redteam_enregistrement.py` (EN1-EN5):
 minutes: each of the six shards planned 4.8 thousand seconds, too close to the limit on a slow runner. Seven shards plan about
 4.1 thousand seconds each (same greedy plan from `tests/durations.json`; `tests/test_shards.py` reads the count from the
 workflow; red team S6's mutant now splits the seven-shard command).
+
+## A shorter formation page on a phone (audit PR 5, 2026-11-24)
+
+The audit's testers met four obstacles on a phone, each fixed where it was:
+- « Emploi et métiers » opened on the Robustesse 2035 model, and the Onisep jobs came last. The tab now opens on the jobs, then
+  the published insertion (Inserjeunes / InserSup), the apprenticeship comparison, Céreq, and the robustesse model last, its
+  detail still folded. The owner kept the Robustesse tile in « L'essentiel » (2026-11-23), unchanged.
+- A summary link opened its tab at the top: the apprenticeship card was 5.8 phone screens below « Cette formation se fait aussi en
+  apprentissage → ». A link about one card now carries `data-goto-card`, and the page scrolls to that card, under the sticky tab
+  bar: the apprenticeship link to its card, the Robustesse tile to its card (at 66 px on a Pixel 5).
+- « Compléter ma liste » sat at the bottom of Mes vœux, far below the « aucune sécurité » alert that points to it. It now comes
+  right after the reading of the list (457 px under the alert), and the alert says « juste en dessous ».
+- « i » buttons are drawn at 17 px, with an invisible 44 px zone around them. That zone was clipped in stacked tables, because the
+  cell hid its overflow to contain its floated label. The cell now uses `display: flow-root`, which contains the label without
+  clipping, and the wrapper of a stacked table no longer clips sideways (a stacked table never scrolls sideways).
+
+The salary of an apprentice stays in words with the official simulator, never a computed amount (sprint V2 rule).
+
+Red team `redteam_fiche_telephone.py` (FT1-FT6):
+- FT1 checks the Emploi order. FT2 checks the links' landing and the unclipped tap zones. FT3 checks Compléter's place.
+- FT4 runs on an emulated Pixel 5, on real data the red team picks itself (a BTS offered in apprenticeship with its jobs and a
+  robustesse card, and a list with no sure safety):
+  - both links land on their cards;
+  - the Emploi tab opens on the jobs;
+  - each « i » button answers a tap anywhere in a 44 x 44 px square (26 buttons);
+  - Compléter sits within a screen of the alert;
+  - there is no JS error and no horizontal scroll.
+- FT5 is the mutation test (14 mutants). FT4 joins the nightly browser suite.

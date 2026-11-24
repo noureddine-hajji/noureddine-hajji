@@ -921,6 +921,12 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Workflow pushes (audit PR A, owner 2026-11-24).** Every workflow step that commits pushes through `scripts/git_push_retry.sh
   "$GITHUB_REF_NAME"` (fetch, rebase, push, up to 5 tries with a growing wait; a conflict aborts the rebase and fails; NEVER a
   force-push). A new committing workflow uses it too. Red team `redteam_enregistrement.py` (EN1-EN5; EN2 runs it on real repos).
+- **Formation page on a phone (audit PR 5, owner 2026-11-24).** « Emploi et métiers » opens on the jobs (metiersCard), the
+  robustesse model last (the L'essentiel tile stays, owner). A link about one card carries `data-goto-card` (its card an id): the
+  page scrolls to that card under the sticky tab bar (apprenticeship link -> `#app-card`, Robustesse tile -> `#robustesse`).
+  « Compléter ma liste » comes right after the reading of the list. Stacked cells are `display: flow-root` (never overflow:
+  hidden, which clipped the « i » buttons' 44 px zone) and a stacked table's `.scroll` shows overflow. Red team
+  `redteam_fiche_telephone.py` (FT1-FT6; FT4 taps every « i » button on an emulated phone).
 - **Nothing hidden without saying so (audit PR 4, owner 2026-11-24).** The search page never hides a formation silently.
   - Paid private formations stay unticked by default; the list says « N formations d'établissements privés payants masquées — les
     afficher » (`carteHiddenPaid`: the paid ones the other criteria keep), and the button ticks their box.
