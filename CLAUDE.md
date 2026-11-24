@@ -924,7 +924,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   - Apprenticeship offers listed apart match the engine's `terms` (`search.offer_terms`: the typed word, or an acronym's
     `TAG_RULES` label phrases, never fuzzy), so an acronym finds what its full title finds (`carteOfferMatch`).
   - A keyword naming apprenticeship is an option (« Option : apprentissage », flag `apprentissage`): the page keeps the formations
-    offered in apprenticeship; never « Ignoré », never « statut scolaire ».
+    offered in apprenticeship; never « Ignoré », never « statut scolaire ». « avec internat » likewise (flag `internat`, Codex): the
+    page applies it to every row, offers included (`KW_INTERNAT` = search.OPTIONS' values).
+  - Leaflet is loaded ONCE (`carteUI.leafletP`); the map bounds are kept as numbers; `draw` / `panel` never write into a page that
+    is gone (the testers' « Cannot set properties of null », then « Bounds are not valid. » on the way back).
   - Filters kept from an earlier visit are named on entering, with a reset (never for a shared link; a change clears it); a search
     with no result names the active filters. Red team `redteam_masque.py` (MQ1-MQ8).
 - **One figure per question (audit PR 2, owner 2026-11-23).** A name always means the same figure on every page.
