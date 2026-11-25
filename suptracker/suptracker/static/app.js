@@ -5618,7 +5618,7 @@ function reoCell(b) {
 // audit PR 6 (2026-11-24): an adult who goes back to studies: the public services that help (aide.ADULTES through META.reprise,
 // the same list as the help page), folded so the list of formations stays near the top; official links only, every string escaped
 function reoAdultesCard() {
-  const R = META && META.reprise;
+  const R = typeof META !== "undefined" && META && META.reprise;
   if (!R || !Array.isArray(R.services) || !R.services.length) return "";
   const svc = (s) => `<li class="reo-svc"><strong>${esc(s.titre)}</strong><div class="small">${esc(s.pour)} ${esc(s.comment)}</div>
     <div class="small">${(s.liens || []).filter((x) => /^https:\/\//.test(String(x.url || ""))).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.texte)}</a>`).join(" · ")}</div></li>`;
