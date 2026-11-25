@@ -278,15 +278,18 @@ def _save(out: Path, etat: dict, champs: dict, crits: dict, atts: dict, new_text
         write(out / "contact.csv", CONTACT_COLS, [contacts[c] for c in sorted(contacts, key=key)])
 
 
-def sample(http, out: Path, per_status: int = 6, pause: float = 1.0) -> dict:
-    """Design material: a few fiches of each status the reader could not use (sans_grille, rejetee), saved MASKED (e-mail
-    addresses and phone numbers replaced, as in what is read) under data/fiches/echantillon/<status>_<code>.html."""
+def sample(http, out: Path, per_status: int = 6, pause: float = 1.0, codes: list | None = None) -> dict:
+    """Design material: a few fiches of each status the reader could not use (sans_grille, rejetee), or the fiches of the
+    given codes (`codes`, status "code"), saved MASKED (e-mail addresses and phone numbers replaced, as in what is read) under
+    data/fiches/echantillon/<status>_<code>.html."""
     from fiche_parse import mask
     etat = read_rows(out / "etat.csv")
     dest = out / "echantillon"
     dest.mkdir(parents=True, exist_ok=True)
     picked: dict = {}
-    for r in etat:
+    if codes:
+        picked["code"] = [str(c) for c in codes if str(c).isdigit()][:40]
+    for r in etat if not codes else []:
         if r["status"] in ("sans_grille", "rejetee") and len(picked.setdefault(r["status"], [])) < per_status:
             picked[r["status"]].append(r["cod_aff_form"])
     saved = []
@@ -308,6 +311,8 @@ def main(db: str, out: str, budget_min: float) -> None:
 if __name__ == "__main__":
     if sys.argv[1] == "--echantillon":
         with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
-            print(json.dumps(sample(http, Path(sys.argv[2]))), flush=True)
+            req = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+            codes = json.loads(req.read_text(encoding="utf-8")).get("codes") if req and req.exists() else None
+            print(json.dumps(sample(http, Path(sys.argv[2]), codes=codes)), flush=True)
     else:
         main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 300)

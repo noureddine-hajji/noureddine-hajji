@@ -1,1 +1,1 @@
-{"mode": "live", "budget_min": 330, "note": "live harvest run 4 (after run 3: 22 859 of 26 509 fiches read, 10 181 live PDFs, 3 650 left + 763 to retry)"}
+{"mode": "grilles_echantillon", "note": "audit PR 7: do the fiches name the vœu multiple of IFSI / EFTS / concours formations? (masked samples)", "codes": [23942, 23943, 23944, 23945, 23947, 36282, 38557, 23144, 23130, 23133, 34167, 47572, 47573, 47824, 33532, 28097, 28675, 25828, 25829, 25826, 35695, 23965, 3878, 22, 24438, 35740]}
