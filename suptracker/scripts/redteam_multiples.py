@@ -399,7 +399,7 @@ MUTANTS = [
     ("multiples", "every formation counted", "        if key is None or key not in seen:", "        if True:", "VM3"),
     ("js", "twin by name only", 'const vmKey = (g) => (g && typeof g.nom === "string" && typeof g.formation === "string" ? `${g.session}|${g.nom}|${g.formation}` : null);',
      'const vmKey = (g) => (g && typeof g.nom === "string" && typeof g.formation === "string" ? g.nom : null);', "VM3"),
-    ("js", "count of formations shown as vœux", '  const compte = nVx === n ?', '  const compte = true ?', "VM4"),
+    ("js", "count of formations shown as vœux", '  const compte = vxCompteTxt(n, nVx);', '  const compte = vxCompteTxt(n, n);', "VM4"),   # audit PR 8: ONE wording
     ("js", "group name unescaped", "sous-vœux du même vœu multiple «&nbsp;${esc(x.g.nom)}&nbsp;»", "sous-vœux du même vœu multiple «&nbsp;${x.g.nom}&nbsp;»", "VM4"),
     ("js", "concours hedge repeated", ' && v.concours && vmKey(v.voeu_multiple) === null);', " && v.concours);", "VM4"),
     ("js", "group line dropped", "  for (const x of vms) {\n    items.push(", "  for (const x of []) {\n    items.push(", "VM4"),
