@@ -15,6 +15,7 @@
  "tests/test_carterecherche.py": 93,
  "tests/test_cereq.py": 608,
  "tests/test_chiffres.py": 487,
+ "tests/test_coherence.py": 60,
  "tests/test_conformite.py": 6,
  "tests/test_design.py": 0,
  "tests/test_doublettes.py": 1224,

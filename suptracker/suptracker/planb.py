@@ -161,17 +161,35 @@ def plan_b(con, cod: str, *, serie: str = "bg", dkey: str | None = None, mention
             "reason": None if out else "aucune formation de la même filière n'est plus accessible pour votre profil"}
 
 
+def complement_of(rec: dict) -> str | None:
+    """What tells this formation apart from the others of its programme, as Plan B, Mes vœux AND the formation page show it
+    (audit PR 8: one rule, so a student never sees another name for the formation she added). rec carries the SIES columns."""
+    out = clean_complement(rec)
+    # the parcours that tells two formations of one programme apart is often only in detail_forma
+    detail = rec.get("detail_forma")
+    if detail and (not out or fold(detail) not in fold(out)):
+        out = f"{out} · {detail}" if out else detail
+    return out
+
+
+def complement_fiche(rec: dict) -> str | None:
+    """Audit PR 8: the formation page's heading adds the parts of complement_of that its title (lib_for_voe_ins) and its
+    establishment (the h1) do not already print, so the parcours Mes vœux and Plan B name is on the page that was added."""
+    full = complement_of(rec)
+    if not full:
+        return None
+    seen = (fold(rec.get("lib_for_voe_ins") or ""), fold(rec.get("g_ea_lib_vx") or ""))
+    parts = [p for p in full.split(" · ") if p.strip() and not any(fold(p) in s for s in seen)]
+    return " · ".join(parts) or None
+
+
 def _view(f: dict, reason: str | None, km: float | None = None) -> dict:
     keys = ("cod_aff_form", "etablissement", "ville", "academie", "filiere", "complement", "zone", "uncertain", "large",
             "taux_acces_ens", "taux_zone", "taux_zone_source", "taux_acces_all", "serie", "internat", "distance", "apprentissage")
     v = {k: f.get(k) for k in keys}
-    v["complement"] = clean_complement({"lib_comp_voe_ins": f.get("complement"), "g_ea_lib_vx": f.get("etablissement"),
-                                        "fili": f.get("fili"), "fil_lib_voe_acc": f.get("filiere"),
-                                        "form_lib_voe_acc": f.get("form_lib_voe_acc")})
-    # the parcours that tells two formations of one programme apart is often only in detail_forma
-    detail = f.get("detail_forma")
-    if detail and (not v["complement"] or fold(detail) not in fold(v["complement"])):
-        v["complement"] = f"{v['complement']} · {detail}" if v["complement"] else detail
+    v["complement"] = complement_of({"lib_comp_voe_ins": f.get("complement"), "g_ea_lib_vx": f.get("etablissement"),
+                                     "fili": f.get("fili"), "fil_lib_voe_acc": f.get("filiere"),
+                                     "form_lib_voe_acc": f.get("form_lib_voe_acc"), "detail_forma": f.get("detail_forma")})
     v["contrat_etab"], v["paid"] = f.get("contrat_etab"), paid(f)
     v.update({"position": _pos(f), "bounds": f["spos"]["bounds"] if f.get("spos") else None,
               "why": reason, "km": None if km is None else round(km)})

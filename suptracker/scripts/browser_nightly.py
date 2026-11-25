@@ -31,6 +31,7 @@ SUITE = {
     "a11y": ("A4",),
     "carterecherche": ("CR8",),
     "chiffres": ("CH4",),
+    "coherence": ("CO6",),
     "conformite": ("QC10",),
     "design": ("DE8",),
     "evolution": ("EV9",),

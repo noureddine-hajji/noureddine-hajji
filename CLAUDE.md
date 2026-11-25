@@ -964,6 +964,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   several lycées) are never inferred; the sub-wish limit is not typed (« vérifiez sur parcoursup.gouv.fr »); the list keeps
   10 formations. Fees: « X € (droits) + Y € (CVEC) » = ONE closed shape (`vie.montant_hors_cvec`), the CVEC then counted at its
   official amount; other wordings stay text, tile « À lire ci-dessous », never a dash. Red team `redteam_multiples.py` (VM1-VM8).
+- **One count, one message, one name (audit PR 8, owner 2026-11-25).** A list's size has ONE wording (`vxCompteTxt`, `vxTitre`:
+  formations, then the Parcoursup vœux they make) in the list's title, its reading (both situations) and « Avant de confirmer »; `/api/voeux`
+  and `/api/reorientation/voeux` rows carry `voeu_multiple` and `n_voeux`. The search page never prints « Aucune formation ne correspond »
+  when hidden paid formations match: it says so with « Les afficher ». The formation page prints `planb.complement_fiche` (the parts of
+  `complement_of`, THE Plan B / Mes vœux rule, that its title and h1 do not print). « Mon profil » acts on a blur-fired change after the
+  blur (form still on the page). Search page: the zones are written on the layer's rows (never a copy of 21,000 formations), details decoded
+  in slices (`coucheDetailsParts` = `coucheDetails`∘`coucheDecode`), details and figures redraw the cards only (`drawCards`), unchanged lines
+  kept (`setHtml`), place suggestions on first use; one full draw without a profile, two with one. Red team `redteam_coherence.py` (CO1-CO8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
