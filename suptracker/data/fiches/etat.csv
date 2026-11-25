@@ -13001,7 +13001,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 28137,ok,20261121134359,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28137&typeBac=0&originePc=0,4
 28140,ok,20261122145236,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28140&typeBac=0&originePc=0,4
 28142,ok,20261122145237,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28142&typeBac=0&originePc=0,4
-28143,failed,20261124145019,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28143&typeBac=0&originePc=0,
+28143,failed,20261125150334,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28143&typeBac=0&originePc=0,
 28144,ok,20261122145238,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28144&typeBac=0&originePc=0,4
 28159,sans_grille,20261121134400,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28159&typeBac=0&originePc=0,4
 28160,sans_grille,20261121134401,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28160&typeBac=0&originePc=0,4
@@ -13345,8 +13345,8 @@ cod_aff_form,status,lu_le,session,raison,url,version
 28935,ok,20261121134702,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28935&typeBac=0&originePc=0,4
 28936,ok,20261121134704,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28936&typeBac=0&originePc=0,4
 28937,ok,20261123143612,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28937&typeBac=0&originePc=0,4
-28939,failed,20261124145022,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28939&typeBac=0&originePc=0,
-28940,failed,20261124145024,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28940&typeBac=0&originePc=0,
+28939,failed,20261125150337,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28939&typeBac=0&originePc=0,
+28940,failed,20261125150339,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28940&typeBac=0&originePc=0,
 28941,hors_campagne,20261115141218,,fiche 200,,
 28942,ok,20261123143613,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28942&typeBac=0&originePc=0,4
 28943,ok,20261121134705,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=28943&typeBac=0&originePc=0,4
@@ -13397,7 +13397,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 29058,ok,20261123143648,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29058&typeBac=0&originePc=0,4
 29059,ok,20261121134712,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29059&typeBac=0&originePc=0,4
 29068,ok,20261123143649,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29068&typeBac=0&originePc=0,4
-29073,failed,20261124145026,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29073&typeBac=0&originePc=0,
+29073,failed,20261125150341,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29073&typeBac=0&originePc=0,
 29074,ok,20261123143651,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29074&typeBac=0&originePc=0,4
 29075,ok,20261123143652,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29075&typeBac=0&originePc=0,4
 29076,ok,20261123143653,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=29076&typeBac=0&originePc=0,4
@@ -14799,7 +14799,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 31989,ok,20261123145010,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31989&typeBac=0&originePc=0,4
 31991,ok,20261123145011,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31991&typeBac=0&originePc=0,4
 31992,ok,20261123145012,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31992&typeBac=0&originePc=0,4
-31997,failed,20261124145028,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31997&typeBac=0&originePc=0,
+31997,failed,20261125150343,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=31997&typeBac=0&originePc=0,
 32005,ok,20261123145014,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32005&typeBac=0&originePc=0,4
 32007,ok,20261123145015,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32007&typeBac=0&originePc=0,4
 32009,ok,20261123145016,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32009&typeBac=0&originePc=0,4
@@ -15073,20 +15073,20 @@ cod_aff_form,status,lu_le,session,raison,url,version
 32549,hors_campagne,20261115133805,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32549&typeBac=0&originePc=0,
 32550,hors_campagne,20261115133808,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32550&typeBac=0&originePc=0,
 32552,ok,20261123145230,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32552&typeBac=0&originePc=0,4
-32553,failed,20261124145031,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32553&typeBac=0&originePc=0,
+32553,failed,20261125150346,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32553&typeBac=0&originePc=0,
 32554,ok,20261123145231,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32554&typeBac=0&originePc=0,4
-32556,failed,20261124145033,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32556&typeBac=0&originePc=0,
+32556,failed,20261125150348,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32556&typeBac=0&originePc=0,
 32557,ok,20261123145232,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32557&typeBac=0&originePc=0,4
-32558,failed,20261124145035,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32558&typeBac=0&originePc=0,
+32558,failed,20261125150350,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32558&typeBac=0&originePc=0,
 32559,ok,20261123145234,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32559&typeBac=0&originePc=0,4
-32560,failed,20261124145037,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32560&typeBac=0&originePc=0,
+32560,failed,20261125150352,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32560&typeBac=0&originePc=0,
 32561,ok,20261123145235,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32561&typeBac=0&originePc=0,4
-32562,failed,20261124145040,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32562&typeBac=0&originePc=0,
+32562,failed,20261125150355,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32562&typeBac=0&originePc=0,
 32563,ok,20261123145236,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32563&typeBac=0&originePc=0,4
-32565,failed,20261124145042,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32565&typeBac=0&originePc=0,
+32565,failed,20261125150357,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32565&typeBac=0&originePc=0,
 32566,ok,20261123145238,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32566&typeBac=0&originePc=0,4
 32567,ok,20261123145239,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32567&typeBac=0&originePc=0,4
-32568,failed,20261124145044,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32568&typeBac=0&originePc=0,
+32568,failed,20261125150359,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32568&typeBac=0&originePc=0,
 32569,ok,20261123145241,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32569&typeBac=0&originePc=0,4
 32570,ok,20261123145242,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32570&typeBac=0&originePc=0,4
 32571,ok,20261121140407,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=32571&typeBac=0&originePc=0,4
@@ -15320,8 +15320,8 @@ cod_aff_form,status,lu_le,session,raison,url,version
 33108,ok,20261123145336,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33108&typeBac=0&originePc=0,4
 33110,ok,20261123145338,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33110&typeBac=0&originePc=0,4
 33111,ok,20261123145339,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33111&typeBac=0&originePc=0,4
-33148,failed,20261124145046,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33148&typeBac=0&originePc=0,
-33150,failed,20261124145049,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33150&typeBac=0&originePc=0,
+33148,failed,20261125150402,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33148&typeBac=0&originePc=0,
+33150,failed,20261125150404,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33150&typeBac=0&originePc=0,
 33152,hors_campagne,20261115133957,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33152&typeBac=0&originePc=0,
 33163,ok,20261121140728,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33163&typeBac=0&originePc=0,4
 33165,sans_grille,20261121140729,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=33165&typeBac=0&originePc=0,4
@@ -16028,11 +16028,11 @@ cod_aff_form,status,lu_le,session,raison,url,version
 34456,sans_grille,20261121141950,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34456&typeBac=0&originePc=0,4
 34457,ok,20261121141951,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34457&typeBac=0&originePc=0,4
 34463,sans_grille,20261121141952,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34463&typeBac=0&originePc=0,4
-34465,failed,20261124145051,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34465&typeBac=0&originePc=0,
-34466,failed,20261124145053,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34466&typeBac=0&originePc=0,
+34465,failed,20261125150406,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34465&typeBac=0&originePc=0,
+34466,failed,20261125150408,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34466&typeBac=0&originePc=0,
 34471,sans_grille,20261121141953,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34471&typeBac=0&originePc=0,4
 34473,ok,20261121141954,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34473&typeBac=0&originePc=0,4
-34475,failed,20261124145055,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34475&typeBac=0&originePc=0,
+34475,failed,20261125150411,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34475&typeBac=0&originePc=0,
 34477,ok,20261121141956,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34477&typeBac=0&originePc=0,4
 34478,ok,20261121141957,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34478&typeBac=0&originePc=0,4
 34479,ok,20261121141958,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=34479&typeBac=0&originePc=0,4
@@ -16301,7 +16301,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 35108,ok,20261123145555,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35108&typeBac=0&originePc=0,4
 35109,ok,20261123145556,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35109&typeBac=0&originePc=0,4
 35111,ok,20261121142434,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35111&typeBac=0&originePc=0,4
-35115,failed,20261124145058,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35115&typeBac=0&originePc=0,
+35115,failed,20261125150413,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35115&typeBac=0&originePc=0,
 35116,ok,20261123145558,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35116&typeBac=0&originePc=0,4
 35117,ok,20261123145559,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35117&typeBac=0&originePc=0,4
 35118,hors_campagne,20261115134153,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35118&typeBac=0&originePc=0,
@@ -16331,10 +16331,10 @@ cod_aff_form,status,lu_le,session,raison,url,version
 35158,ok,20261123145624,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35158&typeBac=0&originePc=0,4
 35159,ok,20261123145625,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35159&typeBac=0&originePc=0,4
 35160,ok,20261123145627,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35160&typeBac=0&originePc=0,4
-35163,failed,20261124145100,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35163&typeBac=0&originePc=0,
-35164,failed,20261124145102,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35164&typeBac=0&originePc=0,
-35165,failed,20261124145104,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35165&typeBac=0&originePc=0,
-35166,failed,20261124145106,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35166&typeBac=0&originePc=0,
+35163,failed,20261125150415,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35163&typeBac=0&originePc=0,
+35164,failed,20261125150417,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35164&typeBac=0&originePc=0,
+35165,failed,20261125150420,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35165&typeBac=0&originePc=0,
+35166,failed,20261125150422,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35166&typeBac=0&originePc=0,
 35179,ok,20261123145628,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35179&typeBac=0&originePc=0,4
 35181,ok,20261123145629,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35181&typeBac=0&originePc=0,4
 35182,ok,20261123145630,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35182&typeBac=0&originePc=0,4
@@ -16594,7 +16594,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 35729,ok,20261123150100,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35729&typeBac=0&originePc=0,4
 35730,ok,20261123150101,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35730&typeBac=0&originePc=0,4
 35732,ok,20261123150102,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35732&typeBac=0&originePc=0,4
-35734,failed,20261124145109,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35734&typeBac=0&originePc=0,
+35734,failed,20261125150424,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35734&typeBac=0&originePc=0,
 35739,ok,20261123150103,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35739&typeBac=0&originePc=0,4
 35740,ok,20261123150104,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35740&typeBac=0&originePc=0,4
 35741,sans_grille,20261121142505,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=35741&typeBac=0&originePc=0,4
@@ -16769,7 +16769,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 36058,hors_campagne,20261115134316,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36058&typeBac=0&originePc=0,
 36064,ok,20261123150323,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36064&typeBac=0&originePc=0,4
 36066,ok,20261123150324,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36066&typeBac=0&originePc=0,4
-36080,failed,20261124145111,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36080&typeBac=0&originePc=0,
+36080,failed,20261125150427,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36080&typeBac=0&originePc=0,
 36096,sans_grille,20261121142541,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36096&typeBac=0&originePc=0,4
 36098,ok,20261123150325,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36098&typeBac=0&originePc=0,4
 36099,ok,20261121142542,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36099&typeBac=0&originePc=0,4
@@ -16792,7 +16792,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 36156,hors_campagne,20261115134322,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36156&typeBac=0&originePc=0,
 36157,ok,20261123150338,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36157&typeBac=0&originePc=0,4
 36165,ok,20261121142549,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36165&typeBac=0&originePc=0,4
-36169,failed,20261124145113,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36169&typeBac=0&originePc=0,
+36169,failed,20261125150429,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36169&typeBac=0&originePc=0,
 36173,ok,20261121142550,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36173&typeBac=0&originePc=0,4
 36176,ok,20261123150340,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36176&typeBac=0&originePc=0,4
 36184,ok,20261123150341,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36184&typeBac=0&originePc=0,4
@@ -16931,16 +16931,16 @@ cod_aff_form,status,lu_le,session,raison,url,version
 36498,ok,20261121142620,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36498&typeBac=0&originePc=0,4
 36499,ok,20261121142621,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36499&typeBac=0&originePc=0,4
 36501,ok,20261121142622,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36501&typeBac=0&originePc=0,4
-36502,failed,20261124145115,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36502&typeBac=0&originePc=0,
-36503,failed,20261124145118,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36503&typeBac=0&originePc=0,
-36504,failed,20261124145120,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36504&typeBac=0&originePc=0,
-36505,failed,20261124145122,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36505&typeBac=0&originePc=0,
-36506,failed,20261124145124,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36506&typeBac=0&originePc=0,
+36502,failed,20261125150431,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36502&typeBac=0&originePc=0,
+36503,failed,20261125150433,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36503&typeBac=0&originePc=0,
+36504,failed,20261125150436,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36504&typeBac=0&originePc=0,
+36505,failed,20261125150438,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36505&typeBac=0&originePc=0,
+36506,failed,20261125150440,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36506&typeBac=0&originePc=0,
 36511,ok,20261123150537,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36511&typeBac=0&originePc=0,4
 36512,ok,20261123150538,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36512&typeBac=0&originePc=0,4
-36514,failed,20261124145127,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36514&typeBac=0&originePc=0,
-36515,failed,20261124145129,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36515&typeBac=0&originePc=0,
-36516,failed,20261124145131,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36516&typeBac=0&originePc=0,
+36514,failed,20261125150442,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36514&typeBac=0&originePc=0,
+36515,failed,20261125150445,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36515&typeBac=0&originePc=0,
+36516,failed,20261125150447,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36516&typeBac=0&originePc=0,
 36517,hors_campagne,20261115134415,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36517&typeBac=0&originePc=0,
 36522,ok,20261123150539,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36522&typeBac=0&originePc=0,4
 36524,hors_campagne,20261115134417,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36524&typeBac=0&originePc=0,
@@ -17088,8 +17088,8 @@ cod_aff_form,status,lu_le,session,raison,url,version
 36761,sans_grille,20261121142906,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36761&typeBac=0&originePc=0,4
 36768,ok,20261121142908,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36768&typeBac=0&originePc=0,4
 36773,ok,20261121142909,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36773&typeBac=0&originePc=0,4
-36775,failed,20261124145133,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36775&typeBac=0&originePc=0,
-36776,failed,20261124145136,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36776&typeBac=0&originePc=0,
+36775,failed,20261125150449,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36775&typeBac=0&originePc=0,
+36776,failed,20261125150452,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36776&typeBac=0&originePc=0,
 36790,ok,20261121142910,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36790&typeBac=0&originePc=0,4
 36791,ok,20261121142911,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36791&typeBac=0&originePc=0,4
 36792,sans_grille,20261121142912,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=36792&typeBac=0&originePc=0,4
@@ -17751,12 +17751,12 @@ cod_aff_form,status,lu_le,session,raison,url,version
 37984,ok,20261121144151,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=37984&typeBac=0&originePc=0,4
 37989,ok,20261121144152,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=37989&typeBac=0&originePc=0,4
 37994,ok,20261123150609,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=37994&typeBac=0&originePc=0,4
-37998,failed,20261124145138,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=37998&typeBac=0&originePc=0,
+37998,failed,20261125150454,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=37998&typeBac=0&originePc=0,
 38000,ok,20261123150611,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38000&typeBac=0&originePc=0,4
 38001,ok,20261123150612,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38001&typeBac=0&originePc=0,4
-38002,failed,20261124145140,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38002&typeBac=0&originePc=0,
-38003,failed,20261124145142,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38003&typeBac=0&originePc=0,
-38004,failed,20261124145145,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38004&typeBac=0&originePc=0,
+38002,failed,20261125150456,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38002&typeBac=0&originePc=0,
+38003,failed,20261125150458,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38003&typeBac=0&originePc=0,
+38004,failed,20261125150501,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38004&typeBac=0&originePc=0,
 38007,ok,20261121144153,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38007&typeBac=0&originePc=0,4
 38009,ok,20261123150613,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38009&typeBac=0&originePc=0,4
 38010,ok,20261121144155,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38010&typeBac=0&originePc=0,4
@@ -18004,7 +18004,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 38409,ok,20261121144656,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38409&typeBac=0&originePc=0,4
 38411,ok,20261121144657,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38411&typeBac=0&originePc=0,4
 38418,ok,20261123150615,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38418&typeBac=0&originePc=0,4
-38419,failed,20261124145147,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38419&typeBac=0&originePc=0,
+38419,failed,20261125150503,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38419&typeBac=0&originePc=0,
 38423,ok,20261121144659,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38423&typeBac=0&originePc=0,4
 38425,sans_grille,20261121144700,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38425&typeBac=0&originePc=0,4
 38426,ok,20261121144701,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=38426&typeBac=0&originePc=0,4
@@ -18334,7 +18334,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 39090,ok,20261123150708,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39090&typeBac=0&originePc=0,4
 39091,ok,20261123150709,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39091&typeBac=0&originePc=0,4
 39092,ok,20261123150710,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39092&typeBac=0&originePc=0,4
-39107,failed,20261124145149,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39107&typeBac=0&originePc=0,
+39107,failed,20261125150505,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39107&typeBac=0&originePc=0,
 39108,ok,20261123150711,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39108&typeBac=0&originePc=0,4
 39110,ok,20261123150713,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39110&typeBac=0&originePc=0,4
 39114,hors_campagne,20261115134745,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39114&typeBac=0&originePc=0,
@@ -18382,7 +18382,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 39197,ok,20261123150803,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39197&typeBac=0&originePc=0,4
 39199,ok,20261121145217,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39199&typeBac=0&originePc=0,4
 39201,ok,20261123150804,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39201&typeBac=0&originePc=0,4
-39202,failed,20261124145151,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39202&typeBac=0&originePc=0,
+39202,failed,20261125150507,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39202&typeBac=0&originePc=0,
 39203,ok,20261123150805,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39203&typeBac=0&originePc=0,4
 39204,ok,20261123150807,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39204&typeBac=0&originePc=0,4
 39206,ok,20261123150808,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39206&typeBac=0&originePc=0,4
@@ -18451,8 +18451,8 @@ cod_aff_form,status,lu_le,session,raison,url,version
 39322,ok,20261123150917,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39322&typeBac=0&originePc=0,4
 39323,ok,20261123150918,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39323&typeBac=0&originePc=0,4
 39324,ok,20261123150920,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39324&typeBac=0&originePc=0,4
-39326,failed,20261124145153,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39326&typeBac=0&originePc=0,
-39327,failed,20261124145156,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39327&typeBac=0&originePc=0,
+39326,failed,20261125150510,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39326&typeBac=0&originePc=0,
+39327,failed,20261125150512,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39327&typeBac=0&originePc=0,
 39328,hors_campagne,20261115134806,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39328&typeBac=0&originePc=0,
 39329,ok,20261123150921,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39329&typeBac=0&originePc=0,4
 39330,ok,20261123150922,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39330&typeBac=0&originePc=0,4
@@ -18633,7 +18633,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 39646,ok,20261123151117,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39646&typeBac=0&originePc=0,4
 39652,ok,20261121145355,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39652&typeBac=0&originePc=0,4
 39653,ok,20261123151119,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39653&typeBac=0&originePc=0,4
-39654,failed,20261124145158,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39654&typeBac=0&originePc=0,
+39654,failed,20261125150514,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39654&typeBac=0&originePc=0,
 39660,ok,20261121145357,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39660&typeBac=0&originePc=0,4
 39661,ok,20261123151120,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39661&typeBac=0&originePc=0,4
 39663,sans_grille,20261121145358,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=39663&typeBac=0&originePc=0,4
@@ -19510,8 +19510,8 @@ cod_aff_form,status,lu_le,session,raison,url,version
 41310,ok,20261121092808,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41310&typeBac=0&originePc=0,4
 41312,ok,20261121092809,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41312&typeBac=0&originePc=0,4
 41314,ok,20261121092811,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41314&typeBac=0&originePc=0,4
-41319,failed,20261124145200,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41319&typeBac=0&originePc=0,
-41320,failed,20261124145202,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41320&typeBac=0&originePc=0,
+41319,failed,20261125150517,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41319&typeBac=0&originePc=0,
+41320,failed,20261125150519,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41320&typeBac=0&originePc=0,
 41322,sans_grille,20261121092812,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41322&typeBac=0&originePc=0,4
 41324,ok,20261121092813,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41324&typeBac=0&originePc=0,4
 41326,ok,20261121092814,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41326&typeBac=0&originePc=0,4
@@ -19773,7 +19773,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 41856,ok,20261123151452,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41856&typeBac=0&originePc=0,4
 41858,sans_grille,20261121093323,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41858&typeBac=0&originePc=0,4
 41859,ok,20261121093324,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41859&typeBac=0&originePc=0,4
-41860,failed,20261124145205,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41860&typeBac=0&originePc=0,
+41860,failed,20261125150521,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41860&typeBac=0&originePc=0,
 41861,sans_grille,20261121093325,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41861&typeBac=0&originePc=0,4
 41862,ok,20261121093327,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41862&typeBac=0&originePc=0,4
 41863,ok,20261121093328,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=41863&typeBac=0&originePc=0,4
@@ -23260,7 +23260,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 48851,ok,20261121102321,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48851&typeBac=0&originePc=0,4
 48852,ok,20261123153523,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48852&typeBac=0&originePc=0,4
 48854,ok,20261123153525,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48854&typeBac=0&originePc=0,4
-48855,failed,20261124145207,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48855&typeBac=0&originePc=0,
+48855,failed,20261125150523,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48855&typeBac=0&originePc=0,
 48856,ok,20261123153526,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48856&typeBac=0&originePc=0,4
 48859,ok,20261123153527,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48859&typeBac=0&originePc=0,4
 48860,ok,20261123153528,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=48860&typeBac=0&originePc=0,4
@@ -24049,7 +24049,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 50177,ok,20261121103738,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50177&typeBac=0&originePc=0,4
 50179,sans_grille,20261121103739,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50179&typeBac=0&originePc=0,4
 50180,ok,20261121103740,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50180&typeBac=0&originePc=0,4
-50181,failed,20261124145209,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50181&typeBac=0&originePc=0,
+50181,failed,20261125150526,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50181&typeBac=0&originePc=0,
 50183,ok,20261121103742,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50183&typeBac=0&originePc=0,4
 50184,sans_grille,20261121103743,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50184&typeBac=0&originePc=0,4
 50185,ok,20261121103744,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=50185&typeBac=0&originePc=0,4
@@ -25966,10 +25966,10 @@ cod_aff_form,status,lu_le,session,raison,url,version
 53117,ok,20261121111837,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53117&typeBac=0&originePc=0,4
 53118,ok,20261121111838,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53118&typeBac=0&originePc=0,4
 53119,ok,20261121111839,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53119&typeBac=0&originePc=0,4
-53120,failed,20261124145211,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53120&typeBac=0&originePc=0,
-53121,failed,20261124145214,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53121&typeBac=0&originePc=0,
-53122,failed,20261124145216,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53122&typeBac=0&originePc=0,
-53123,failed,20261124145218,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53123&typeBac=0&originePc=0,
+53120,failed,20261125150528,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53120&typeBac=0&originePc=0,
+53121,failed,20261125150530,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53121&typeBac=0&originePc=0,
+53122,failed,20261125150532,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53122&typeBac=0&originePc=0,
+53123,failed,20261125150535,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53123&typeBac=0&originePc=0,
 53124,ok,20261121111841,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53124&typeBac=0&originePc=0,4
 53125,ok,20261121111842,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53125&typeBac=0&originePc=0,4
 53126,ok,20261121111843,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53126&typeBac=0&originePc=0,4
@@ -25999,7 +25999,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 53156,ok,20261121111918,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53156&typeBac=0&originePc=0,4
 53158,ok,20261121111919,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53158&typeBac=0&originePc=0,4
 53161,ok,20261121111921,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53161&typeBac=0&originePc=0,4
-53162,failed,20261124145220,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53162&typeBac=0&originePc=0,
+53162,failed,20261125150537,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53162&typeBac=0&originePc=0,
 53163,ok,20261121111922,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53163&typeBac=0&originePc=0,4
 53165,ok,20261121111923,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53165&typeBac=0&originePc=0,4
 53167,ok,20261121111925,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53167&typeBac=0&originePc=0,4
@@ -26308,7 +26308,7 @@ cod_aff_form,status,lu_le,session,raison,url,version
 53547,ok,20261121112552,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53547&typeBac=0&originePc=0,4
 53549,ok,20261121112553,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53549&typeBac=0&originePc=0,4
 53550,ok,20261121112554,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53550&typeBac=0&originePc=0,4
-53551,failed,20261124145223,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53551&typeBac=0&originePc=0,
+53551,failed,20261125150539,,fiche 200,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53551&typeBac=0&originePc=0,
 53552,ok,20261121112555,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53552&typeBac=0&originePc=0,4
 53553,ok,20261121112557,2026,,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53553&typeBac=0&originePc=0,4
 53554,sans_grille,20261121112558,2026,pas de grille,https://dossier.parcoursup.fr/Candidats/public/fiches/afficherFicheFormation?g_ta_cod=53554&typeBac=0&originePc=0,4
