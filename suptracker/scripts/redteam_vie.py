@@ -275,7 +275,14 @@ FEES_CVEC = {
     "178 € + 105 € + 50 € (CVEC)": None, "CVEC 103 € (frais d'inscription) + 178 €": None, "178 € (CVEC) + 105 € (CVEC)": None, "178 € + 105 €": None, "": None, HOSTILE: None,
     "178 € (Droits de scolarité) + 103 € (CVEC) " + HOSTILE: None, "Exonération des frais de scolarité et de la CVEC": None,
     "Par année scolaire : Droits d'inscription : 175 € + frais de scolarité : 400 € + CVEC": None,
+    "601 € + 92 € Contribution vie étudiante ": 601,   # the real 13755 / 9765 line: the CVEC written out
 }
+
+
+def names_cvec(text: str) -> bool:
+    """Independent: the text names the CVEC, by its acronym or written out (the same words as cvec_split)."""
+    t = (text or "").lower()
+    return "cvec" in t or "contribution vie" in t
 
 
 def cvec_split(text: str) -> int | None:
@@ -317,7 +324,7 @@ def v3(c: Ctx):
             if a is None:
                 continue
             n += 1
-            if "cvec" in t.lower() or a != numbers_sum(t):
+            if names_cvec(t) or a != numbers_sum(t):
                 bad.append(f"{r['cod_aff_form']}: {a} read from {t[:50]!r}")
     m = 0
     for t, want in FEES_CVEC.items():
@@ -634,12 +641,12 @@ def v7(c: Ctx):
         if cat != want:
             bad.append(f"{cod}: {cat} != {want}")
     for cod, rub, txt, m in con.execute("SELECT cod_aff_form, rubrique, texte, montant FROM core.vie_frais WHERE montant IS NOT NULL").fetchall():
-        beside = "cvec" in (txt or "").lower()       # audit PR 7: the tuition printed beside the CVEC, which is then counted
+        beside = names_cvec(txt)       # audit PR 7: the tuition printed beside the CVEC, which is then counted
         want = cvec_split(txt or "") if beside else numbers_sum(txt or "")
         if (rub or "").strip().lower() != "par année" or m != want:
             bad.append(f"{cod}: fee {m} from {(txt or '')[:40]!r}")
     for cod, txt in con.execute("""SELECT cod_aff_form, texte FROM core.vie_frais WHERE montant IS NOT NULL AND NOT cvec
-            AND lower(texte) LIKE '%cvec%'""").fetchall():
+            AND (lower(texte) LIKE '%cvec%' OR lower(texte) LIKE '%contribution vie%')""").fetchall():
         bad.append(f"{cod}: the CVEC its fee line prints is not counted ({(txt or '')[:40]!r})")
     sample = [c2 for (c2,) in con.execute("""SELECT DISTINCT cod_aff_form FROM core.vie_frais USING SAMPLE 60 ROWS""").fetchall()]
     n_tot = 0
