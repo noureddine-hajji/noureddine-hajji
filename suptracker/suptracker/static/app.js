@@ -882,6 +882,13 @@ function homeCta() {
     : ["#/profil", "Créer mon profil", "1 minute, sans compte : votre bac, vos spécialités et votre mention. Il reste dans ce navigateur."];
   return `<div class="hero-cta"><a class="btnlink primary" href="${href}">${label}</a><p class="small">${note} <a href="#/carte">Ou cherchez directement une formation</a></p></div>`;
 }
+// audit PR 6 (2026-11-24): the « Je me réoriente » door was below the first screen (841 px on a 768 px laptop, two screens on a
+// phone): the hero names it in one line, a LINK (the hero keeps ONE primary action); a student already outside terminale is
+// sent there by « Voir où je me situe », so the line is not repeated for them
+function homeReo() {
+  if (isReo(store.get("profile", null))) return "";
+  return `<p class="hero-reo small">Vous n'êtes plus en terminale ? <a href="#/reorientation">Je me réoriente ou je reprends mes études</a></p>`;
+}
 // the profile the results are read for, said on the Explorer home (escaped by profileLine); no profile: the hero carries the call
 function homeProfile() {
   const raw = store.get("profile", null);
@@ -893,7 +900,7 @@ function viewHome() {
   const n = voeux.get().length;
   $view.innerHTML = `<section class="hero"><h1>Trouvez votre voie après le bac</h1>
     <p>Les chiffres officiels de Parcoursup 2022–2025, expliqués simplement. Des repères pour choisir, jamais des pronostics.</p>
-    ${homeCta()}</section>
+    ${homeCta()}${homeReo()}</section>
   ${homeProfile()}
   ${guideCard()}
   <div class="doors">
@@ -1425,7 +1432,7 @@ const carteColor = (z) => (z === "autre" ? CARTE_OTHER.color : ZONES[z].color);
 // sprint Q3: the map layer arrives as rows of values under key templates (carte.couche); this twin of carte.dec rebuilds
 // exactly the objects /api/carte/formations served (red team VT1 compares them). An object = [-(1 + template), values...]
 const CARTE_TOUS = "*";
-const CARTE_DETAIL_KEYS = ["bacs", "majo", "offres_app", "fiche"];      // carte.DETAIL_KEYS
+const CARTE_DETAIL_KEYS = ["bacs", "majo", "offres_app", "fiche", "reo"];      // carte.DETAIL_KEYS
 function coucheDec(v, K, S, top) {
   if (Array.isArray(v)) {
     if (v.length && Number.isInteger(v[0]) && v[0] < 0) {
@@ -1768,8 +1775,16 @@ function carteMajo(f) {
   if (!m) return "";
   return `<p class="cmajo small"><span class="muted">Le plus représenté chez les admis :</span> <strong>${esc(rpLabel(m.libelle))}</strong> <span class="muted">(${esc({ bg: "bac général", bt: "bac techno", bp: "bac pro" }[m.bac] || "")}${m.exaequo ? ", ex æquo" : ""})</span></p>`;
 }
+// audit PR 6 (2026-11-24): outside terminale the card shows the estimated access outside terminale (reorientation.latest, the
+// same block and the same cell as « Je me réoriente » and Mes vœux), never the rates per bac nor « Indiquez votre profil »
+function carteReo(f) {
+  if (f.reo === undefined) return '<p class="cbacs-wait small muted">Accès estimé hors terminale : chargement…</p>';
+  if (f.reo === false) return '<p class="small muted">Accès estimé hors terminale : indisponible pour le moment. Rechargez la page plus tard.</p>';
+  return `<div class="cfigs"><div class="cf cf-reo"><span class="cf-k">Accès estimé hors terminale</span><span class="cf-v">${reoCell(f.reo && { ...f.reo, taux_acces_ens: f.taux_acces_ens })}</span></div></div>`;
+}
 function carteFigures(f, ctx) {
   if (f.stats === false) return "";
+  if (ctx.reo) return carteReo(f);
   if (!ctx.ok) return `<p class="small muted"><a href="#/profil">Indiquez votre profil</a> : votre zone, le chiffre de vos deux spécialités et votre moyenne parmi les admis.</p>`;
   const ch = ctx.chiffres.get(f.cod_aff_form);
   // bac techno / pro: the student's line is picked HERE (pickVoie): the series or specialty is sent only to /api/voeux
@@ -1797,8 +1812,8 @@ function carteCard(f, ctx, pinned) {
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
-    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${carteBacs(f)}</div>
-    ${carteMajo(f)}
+    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${ctx.reo ? "" : carteBacs(f)}</div>
+    ${ctx.reo ? "" : carteMajo(f)}
     ${carteFigures(f, { ...ctx, compact: true })}
     ${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}
     <div class="toolbar ctools">${f.stats === false ? "" : `${voeuButton(f.cod_aff_form)}${compareButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Fiche →</a>`}${pinned ? '<button type="button" class="btn-sec" data-unpin>Fermer</button>' : ""}</div>
@@ -1940,7 +1955,7 @@ async function viewCarte(dArg, mArg) {
     return zs.some(Boolean);
   };
   const session = C.session, offre = C.offre_apprentissage;
-  const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session };
+  const ctx = { ok, prof: P || {}, serie, chiffres: carteUI.chiffres, lec, band, g, session, reo: isReo(store.get("profile", null)) };
   CARTE_ACADS.splice(0, CARTE_ACADS.length, ...[...new Set(C.rows.map((f) => f.academie).filter(Boolean))].sort(FR_COLL.compare));
   const F = { ...CARTE_DEFAULT, ...(store.get("carteFiltres2", {}) || {}) };
   for (const [gr, , opts] of carteGroups()) F[gr] = Array.isArray(F[gr]) ? F[gr].filter((o) => opts.some(([k]) => k === o)) : [];
@@ -2252,7 +2267,8 @@ async function viewCarte(dArg, mArg) {
     rows.forEach((f) => { const g = by.get(f.cod_aff_form); if (g) CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; }); });
     draw(false);
   }, () => {
-    rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; });
+    // Codex (PR #116): the estimate outside terminale too: « indisponible », never « chargement… » forever
+    rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });
     if (seq === carteUI.seq && $view.dataset.rendered === "carte") draw(false);
   });
   if (ok) zonesP.then((zs) => {
@@ -5588,7 +5604,7 @@ async function viewSelectivite(dArg, mArg) {
 // The group outside terminale (reorientation, return to studies, other routes) has no published access rate: the server derives
 // its candidates and proposals from the published counts and scales the official rate (reorientation.py). Always an estimation,
 // never a zone, never a Plan B; the list is sorted by the student's académie, then by name, never by figures.
-const REO_NO_ZONE = "Le SIES ne publie ni mention ni série pour les candidats qui ne sont pas en terminale : aucune zone (sécurité, cible, ambitieux) ne peut être lue pour eux.";
+const REO_NO_ZONE = "Pour ces candidats, le SIES ne publie ni la mention ni la série du bac : aucune zone (sécurité, cible, ambitieux) ne peut donc être lue.";
 function reoWhy(b, ok) {
   if (!b) return "pas de chiffres pour cette formation";
   if (b.acces_estime != null) return b.plafonne ? `${ok} (plafonnée à 100 %)` : ok;
@@ -5601,6 +5617,17 @@ function reoCell(b) {
   if (!b || b.acces_estime == null) return `—<div class="estim">${esc(reoWhy(b, ""))}</div>`;
   return `${pct1(b.acces_estime)}${estimTag(`${b.plafonne ? "plafonnée à 100 % · " : ""}${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale${b.propositions === 0 ? " : rare cette année-là, pas forcément fermé" : ""}`, true)}`;
 }
+// audit PR 6 (2026-11-24): an adult who goes back to studies: the public services that help (aide.ADULTES through META.reprise,
+// the same list as the help page), folded so the list of formations stays near the top; official links only, every string escaped
+function reoAdultesCard() {
+  const R = typeof META !== "undefined" && META && META.reprise;
+  if (!R || !Array.isArray(R.services) || !R.services.length) return "";
+  const svc = (s) => `<li class="reo-svc"><strong>${esc(s.titre)}</strong><div class="small">${esc(s.pour)} ${esc(s.comment)}</div>
+    <div class="small">${(s.liens || []).filter((x) => /^https:\/\//.test(String(x.url || ""))).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.texte)}</a>`).join(" · ")}</div></li>`;
+  return `<details class="card reo-adultes"><summary><h2>Se faire accompagner pour reprendre des études</h2></summary>
+    <p class="small">${esc(R.intro)}</p><ul class="reo-svcs">${R.services.map(svc).join("")}</ul>
+    <p class="muted small">Pages officielles lues le ${esc(R.verifie)}. <a href="#/info/aide">Tous les services qui aident à choisir</a></p></details>`;
+}
 // the formation page's folded card: the published counts, the estimate and its method (review: never a figure without them)
 function reoCard(b) {
   if (!b) return "";
@@ -5611,7 +5638,8 @@ function reoCard(b) {
     <p class="muted small">${REO_METHOD} ${REO_NO_ZONE}</p></div>`;
 }
 const reoAutres = (b) => (b && b.part_admis_autres != null ? `${pct1(b.part_admis_autres)}<div class="estim">${fmt(b.admis_autres)} sur ${fmt(b.admis)} admis</div>` : "—");
-const REO_METHOD = "Accès estimé hors terminale = taux d'accès officiel × (part des candidats hors terminale qui ont reçu une proposition ÷ part de tous les candidats qui en ont reçu une), plafonné à 100 %. C'est une estimation à partir des effectifs publiés (phase principale et phase complémentaire), pas un taux officiel ni une chance d'admission.";
+// audit PR 6 (2026-11-24): short sentences (<= 30 words; the formula was one 32-word sentence)
+const REO_METHOD = "Accès estimé hors terminale : le taux d'accès officiel, ajusté par les propositions reçues. On le multiplie par la part des candidats hors terminale qui ont reçu une proposition, puis on le divise par la même part pour tous les candidats. Le résultat est plafonné à 100 %. C'est une estimation faite avec les chiffres publiés des deux phases : pas un taux officiel ni une chance d'admission.";
 function reoSort(rows, home) {
   const by = (x) => `${x.etablissement || ""} ${x.formation || ""}`;
   return rows.slice().sort((a, b) => (home ? (b.academie === home) - (a.academie === home) : 0)
@@ -5650,10 +5678,11 @@ async function viewReorientation(dArg, mArg) {
       <td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>
       <td class="acts" data-label="Mes vœux">${voeuButton(f.cod_aff_form)}</td></tr>`; };
     $view.innerHTML = `<div class="card"><h1>Je me réoriente ou je reprends mes études</h1>
-      <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le SIES compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page l'estime pour chaque formation à partir des candidats et des propositions publiés.</p>
+      <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le SIES compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page calcule une estimation pour chaque formation, avec les chiffres publiés.</p>
       <p class="small">${REO_NO_ZONE} Les chiffres ci-dessous sont des parts de candidats des campagnes passées, pas des chances d'admission.</p>
       <div class="toolbar">${mine ? `<span class="badge exact">Votre situation : ${REO_LABEL}</span><button type="button" id="reo-back" class="small">Je suis en terminale</button>`
         : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Où je me situe », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
+    ${reoAdultesCard()}
     <div class="card"><div class="carte-pick"><label class="small">Type de diplôme <select id="rdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
       <label class="small">Mention <select id="rmen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
       <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label></div>
@@ -5665,7 +5694,7 @@ async function viewReorientation(dArg, mArg) {
       ${rows.slice(0, shown).map(row).join("")}</table></div>` : `<p class="muted">Aucune formation pour ces filtres.</p>`}
       ${rows.length > shown ? `<p><button type="button" id="rmore">Afficher ${fmt(Math.min(searchPage(), rows.length - shown))} de plus (${fmt(shown)} sur ${fmt(rows.length)})</button></p>` : ""}
       <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-      <p class="muted small">Admis hors néo-bacheliers : admis qui avaient déjà le bac ou venaient d'un autre parcours, effectifs publiés ; le SIES ne les détaille pas.</p></div>
+      <p class="muted small">Admis hors néo-bacheliers : les admis qui n'ont pas passé le bac l'année de leur admission. Le SIES publie leur nombre, sans détail.</p></div>
     ${nextSteps("reorientation")}${feedbackBox("reorientation")}`;
     $view.dataset.rendered = marker;
     document.getElementById("rdip").onchange = (e) => goTo(e.target.value, "");

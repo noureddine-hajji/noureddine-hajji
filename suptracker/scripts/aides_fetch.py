@@ -37,7 +37,10 @@ def page_links(html: str, base: str) -> list:
     page links: the simulator, the online services)."""
     out, seen = [], set()
     for href, inner in re.findall(r'<a\b[^>]*?href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.S | re.I):
-        url = str(httpx.URL(base).join(htmlmod.unescape(href)))
+        try:                       # audit PR 6: etudiant.gouv.fr printed « https://MesServicesEtudiant.gouv.fr\xa0 »: one bad
+            url = str(httpx.URL(base).join(htmlmod.unescape(href)))     # link is skipped, it never stops the whole fetch
+        except (httpx.InvalidURL, ValueError):
+            continue
         text = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", inner))).strip()
         if url.startswith("https://") and (text, url) not in seen:
             seen.add((text, url))

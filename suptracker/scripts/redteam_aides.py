@@ -216,7 +216,8 @@ def ai2(c: Ctx):
     t = fe.page_text(f"<p>a&nbsp;b</p><script>alert(1)</script><style>x{{}}</style><div>c {HOSTILE}</div>")
     if "alert(1)" in t.split("img")[0] or "x{}" in t or "a b" not in t:
         bad.append(f"page_text: {t!r}")
-    L = fe.page_links('<a href="/R1">Calc</a><a href="javascript:x">j</a><a href="http://x.fr/">h</a>', "https://www.service-public.gouv.fr/p")
+    L = fe.page_links('<a href="/R1">Calc</a><a href="javascript:x">j</a><a href="http://x.fr/">h</a>'
+                      '<a href="https://MesServicesEtudiant.gouv.fr&nbsp;">bad host</a>', "https://www.service-public.gouv.fr/p")
     if L != [["Calc", "https://www.service-public.gouv.fr/R1"]]:
         bad.append(f"page_links: {L}")
     return not bad, f"{len(cases) + 2} tampered pages; {bad[:4]}"

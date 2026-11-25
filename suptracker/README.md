@@ -4788,3 +4788,47 @@ Red team `redteam_fiche_telephone.py` (FT1-FT6):
   - Compléter sits within a screen of the alert;
   - there is no JS error and no horizontal scroll.
 - FT5 is the mutation test (14 mutants). FT4 joins the nightly browser suite.
+
+## The reorientation journey, completed (audit PR 6, 2026-11-24)
+
+The audit of 2026-11-23 found « Je me réoriente ou je reprends mes études » incomplete. Each gap is fixed where it was:
+
+- **Search cards outside terminale.** A student outside terminale saw the rates per bac and « Indiquez votre profil ». The card now
+  shows the estimated access outside terminale, the same cell as « Je me réoriente » and Mes vœux (`reoCell`), with its counts and
+  the word « estimation ». The figure needs no profile, so it travels in the map layer's card details (`reo`,
+  `reorientation.latest`, a `carte.DETAIL_KEYS` entry), shared-cached like the rates per bac. A student in terminale sees the card
+  unchanged.
+- **An adult going back to studies.** Six public services, each with who it is for and what it does, in our words:
+  - the conseil en évolution professionnelle (CEP), with the page to find its operator;
+  - the mission locale;
+  - France Travail (the CPF of a job seeker, the pay during an approved training, the agencies);
+  - the compte personnel de formation;
+  - the projet de transition professionnelle (through the association Transitions Pro of the region);
+  - the validation des acquis de l'expérience.
+
+  The list lives in ONE place (`aide.ADULTES`). It is shown on the help page (`/aide`) and, folded, on « Je me réoriente »
+  (`META.reprise`). The development sandbox cannot reach these sites: the `suptracker-aides` workflow read the pages
+  (`data/aides`, service-public.gouv.fr). Every link is one of those pages, checked against its own title, or a link such a page
+  prints (the mission locale and France Travail directories). No amount, age limit or condition is typed: the official page says
+  them. travail-emploi.gouv.fr and sante.gouv.fr answered a bot check; no official page on the nursing schools' route outside
+  Parcoursup could be read, so nothing is said about it beyond « the formation's Parcoursup fiche prevails ».
+- **The door.** The « Je me réoriente » door sat at 841 px on a 768 px laptop, and two screens down on a phone. The hero names it
+  in one link, right after the main action. A student already outside terminale is sent there by « Voir où je me situe », so
+  the link is not repeated.
+- **Shorter sentences.** The method was one 32-word sentence. It is now four sentences, and the intro and notes are simpler. The
+  page's prose scores 75 on Kandel-Moles (bar: 70), with every sentence at 30 words or fewer.
+- **A fetcher bug found on the way.** etudiant.gouv.fr's home printed a link to « MesServicesEtudiant.gouv.fr » followed by a
+  no-break space. httpx refused it and the whole fetch failed. `aides_fetch.page_links` now skips a link it cannot parse
+  (red team AI2).
+
+Red team `scripts/redteam_reprise.py` (RP1-RP8; run in CI by `tests/test_reprise.py`, RP6 in the nightly browser suite):
+- RP1 re-derives the card's figure in SQL for every formation of the latest campaign (the reorientation red team's reading).
+- RP2 renders the card in Node: outside terminale, in terminale, before the details, with no estimate, escaped.
+- RP3 checks every service link against the fetched pages (status 200, title, or printed by the page), our words only (no
+  amount, age or chance, 30 words at most per sentence), the help page, `/api/meta` and the folded card (escaped, https only).
+- RP4 checks the hero line: a link, after the main action, not repeated outside terminale; the door stays.
+- RP5 measures readability: Kandel-Moles of the page's texts and the services ≥ 70, 30 words at most per sentence.
+- RP6 runs in the browser: the hero link in the first screen (laptop and phone), the card's estimate equal to the layer's, the
+  services open, the page's prose ≥ 70.
+- RP7 is the mutation test.
+- RP8 checks the wiring and docs.

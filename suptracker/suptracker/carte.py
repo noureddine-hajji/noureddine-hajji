@@ -540,7 +540,7 @@ DICT_KEYS = ("region", "dep_lib", "etablissement", "ville", "academie", "contrat
 _COUCHE: dict = {}
 
 
-DETAIL_KEYS = ("bacs", "majo", "offres_app", "fiche")   # read by the cards only: sent in a second answer, after the list
+DETAIL_KEYS = ("bacs", "majo", "offres_app", "fiche", "reo")   # read by the cards only: sent in a second answer, after the list
 
 
 def couche(con, mark=None, partie: str = "base") -> dict:
@@ -637,6 +637,8 @@ def _layer(con) -> tuple:
     by_dip: dict = {}
     offres = offres_par_formation(con)
     lines = bac_lines(con)                    # R10: rate per bac and most represented line among the admits
+    from . import reorientation as RO         # (reorientation imports this module)
+    reo = RO.latest(con)                      # audit PR 6: the card's figure for a candidate outside terminale (no profile)
     dom = DOM.groups(con)
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
@@ -657,6 +659,7 @@ def _layer(con) -> tuple:
         x["offres_app"] = offres.get(x["cod_aff_form"], [])
         ln = lines.get(x["cod_aff_form"]) or {}
         x["bacs"], x["majo"] = ln.get("bacs"), ln.get("majo")
+        x["reo"] = reo.get(x["cod_aff_form"])
         x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
         by_dip.setdefault(d, []).append(x)
     # an apprenticeship offer has its académie (UAI, else département), not the SIES region: the region most SIES formations of

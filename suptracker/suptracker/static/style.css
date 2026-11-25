@@ -665,6 +665,9 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 /* sprint 1 (owner, 2026-11-20): « Préparer mes projets de formation motivés » */
 .projet > summary { cursor: pointer; }
 .projet > summary h2 { display: inline; }
+.reo-adultes > summary { cursor: pointer; }
+.reo-adultes > summary h2 { display: inline; }
+.reo-svcs { display: grid; gap: 12px; padding-left: 0; list-style: none; }
 .projet > summary .small { display: block; }
 .pj-crit { list-style: none; padding-left: 0; }
 .pj-crit li { margin: 8px 0; }
@@ -698,13 +701,15 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
 .next-steps ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 8px; }
 .next-steps li { line-height: 1.5; }
 .next-steps li:last-child { list-style: none; margin-left: -20px; padding: 8px 10px; background: var(--accent-soft); border-radius: var(--r-sm); }
-.aide-service { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
+.aide-service, .aide-adulte { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
+.aide-adulte h3 { font-size: var(--fs-md); margin: 4px 0; }
 .aide-service h2 { font-size: var(--fs-md); margin: 4px 0; }
 .aide-tel a { font-size: var(--fs-lg); font-weight: 700; display: inline-flex; align-items: center; min-height: 44px; }
 /* sprint Q5: one primary action in the home hero; the formation page's tab bar stays on screen */
 .hero-cta { display: grid; gap: 8px; justify-items: start; margin-top: 12px; }
 .hero-cta .btnlink.primary { min-height: 52px; padding: 0 24px; font-size: var(--fs-md); font-weight: 700; }
 .hero-cta p { margin: 0; }
+.hero-reo { margin: 10px 0 0; }
 .tabs { position: sticky; top: 0; z-index: 20; background: var(--bg); }
 .tabs button { min-height: 44px; }
 .adm-more summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }

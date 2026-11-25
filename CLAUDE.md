@@ -212,7 +212,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - CI: push on `main` only, branches through their PR, stale runs cancelled. Seven shard runners
     (`pytest -n auto --dist loadfile --shard=i/7`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
-    of a shard to need the shared synthetic warehouse also carries its build) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
+    of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
@@ -921,6 +921,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Workflow pushes (audit PR A, owner 2026-11-24).** Every workflow step that commits pushes through `scripts/git_push_retry.sh
   "$GITHUB_REF_NAME"` (fetch, rebase, push, up to 5 tries with a growing wait; a conflict aborts the rebase and fails; NEVER a
   force-push). A new committing workflow uses it too. Red team `redteam_enregistrement.py` (EN1-EN5; EN2 runs it on real repos).
+- **Reorientation, completed (audit PR 6, owner 2026-11-24).** Outside terminale (`isReo`) a search card shows the estimated
+  access outside terminale through `reoCell` (map layer detail `reo` = `reorientation.latest`, a DETAIL_KEYS entry), never the rates
+  per bac, the most represented line or « Indiquez votre profil ». The adults' services are ONE list (`aide.ADULTES`: help page +
+  folded card on « Je me réoriente » via `META.reprise`); every link is an official page read by the `suptracker-aides` workflow
+  (`ADULTES_TITRES`, its own title) or a link such a page prints (`via`); our words only, never an amount, an age or a condition.
+  The hero names « Je me réoriente » in one link (`homeReo`, never a second primary action, not repeated outside terminale).
+  Red team `redteam_reprise.py` (RP1-RP8).
 - **Formation page on a phone (audit PR 5, owner 2026-11-24).** « Emploi et métiers » opens on the jobs (metiersCard), the
   robustesse model last (the L'essentiel tile stays, owner). A link about one card carries `data-goto-card` (its card an id): the
   page scrolls to that card under the sticky tab bar (apprenticeship link -> `#app-card`, Robustesse tile -> `#robustesse`).

@@ -40,6 +40,7 @@ SUITE = {
     "langage": ("LA7", "LA10"),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
+    "reprise": ("RP6",),
     "mobile": ("MB5", "MB6"),
     "moyenne": ("MO7",),
     "navigation": ("U6",),

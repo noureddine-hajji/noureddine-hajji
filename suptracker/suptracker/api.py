@@ -52,6 +52,7 @@ from . import vie as VIE
 from . import transports as TR
 from . import tension as TS
 from . import apprentissage as APP
+from . import aide as AIDE
 from . import aides as AID
 from . import jpo as JPO
 from . import robustesse as ROB
@@ -558,6 +559,8 @@ def meta():
         "schema_audit": audit,
         "low_n_threshold": config.LOW_N_THRESHOLD,
         "filtres": FI.vocab(),             # sprint R3: one definition of every band, for the search and the map
+        # audit PR 6: the services that help an adult go back to studies (aide.ADULTES, the same list as the help page)
+        "reprise": {"intro": AIDE.ADULTES_INTRO, "verifie": AIDE.ADULTES_CHECKED, "services": AIDE.ADULTES},
     }
 
 

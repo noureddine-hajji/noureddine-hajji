@@ -60,7 +60,7 @@ from suptracker import cache as CACHE  # noqa: E402
 from suptracker import carte as CA  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 
-DETAIL = ("bacs", "majo", "offres_app", "fiche")          # written here: the keys only the cards read
+DETAIL = ("bacs", "majo", "offres_app", "fiche", "reo")   # written here: the keys only the cards read (audit PR 6: + reo)
 BUDGET_KB = {"base": 700, "details": 500}                 # compressed bytes of the two layer answers (real warehouse)
 PHONE_BUDGET_MS = {"list": 9000, "zones": 11000, "home": 4000, "formation": 5000, "keyword": 2500, "filter": 1000,
                    # owner, 2026-11-16: « Où je me situe » and the jobs pages, measured at 2.7 s, 0.2 s and 2.2 s
@@ -270,7 +270,7 @@ def vt4(c: Ctx):
         "detail keys = carte.DETAIL_KEYS": f'const CARTE_DETAIL_KEYS = {json.dumps(list(CA.DETAIL_KEYS))};'.replace('","', '", "') in c.js
                                            and tuple(CA.DETAIL_KEYS) == DETAIL,
         "details merged into the drawn rows": "CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; });" in view,
-        "a failed details answer clears the wait": 'rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; });' in view,
+        "a failed details answer clears the wait": 'rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });' in view,
         "rates wait while details come": "if (f.bacs === undefined && f.stats !== false) return" in fn_src(c.js, "carteBacs")
                                          and "chargement…" in fn_src(c.js, "carteBacs"),
     }
@@ -678,7 +678,7 @@ def mutants():
     page_mut("one zones request per diploma when nothing is ticked", "Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ))",
              "Promise.all(dips.map(loadZ))", {"VT4"})
     page_mut("details never merged into the drawn rows", "CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; });", "", {"VT4"})
-    page_mut("rates wait forever after a failure", "rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; });", "", {"VT4"})
+    page_mut("rates wait forever after a failure", "rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });", "", {"VT4"})
     # (decoding the dictionary inside nested objects too is an equivalent mutant on this layer: no nested key of
     # DICT_KEYS ever holds an integer; the build's round-trip check guards that case)
     page_mut("the page twin forgets the strings table", "o[cols[i]] = top && K.dict.has(cols[i]) && Number.isInteger(x) ? S[x]",
