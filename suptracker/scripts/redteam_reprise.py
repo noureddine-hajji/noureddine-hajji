@@ -162,6 +162,7 @@ const out = {
   few: carteCard({ ...base, reo: { ...reo, acces_estime: null, candidats: 7 } }, ctx(false, true), false),
   none: carteCard({ ...base, reo: null }, ctx(false, true), false),
   wait: carteCard({ ...base }, ctx(false, true), false),
+  failed: carteCard({ ...base, reo: false }, ctx(false, true), false),
   term: carteCard({ ...base, reo }, ctx(false, false), false),
   offer: carteCard({ ...base, stats: false, reo: undefined }, ctx(false, true), false),
 };
@@ -201,6 +202,11 @@ def rp2(c: Ctx):
         bad.append("no reason when there is no estimate")
     if "chargement" not in txt["wait"]:
         bad.append("no loading line before the details")
+    # Codex (PR #116): when the details fail, the card says so, never « chargement… » forever
+    if "chargement" in txt["failed"] or "indisponible" not in txt["failed"]:
+        bad.append("a failed details load keeps « chargement »")
+    if "if (f.reo === undefined) f.reo = false;" not in c.js:
+        bad.append("the details failure path does not clear the estimate's loading line")
     if "Accès estimé hors terminale" in o["term"] or 'class="cbacs"' not in o["term"] or "Indiquez votre profil" not in o["term"]:
         bad.append("the terminale card changed")
     if "Accès estimé hors terminale" in o["offer"]:
@@ -478,6 +484,9 @@ JS_MUTANTS = [
     ("no loading line", "if (f.reo === undefined) return '<p class=\"cbacs-wait small muted\">Accès estimé hors terminale : chargement…</p>';",
      "if (f.reo === undefined) return '';"),
     ("status not read", 'reo: isReo(store.get("profile", null)) };', "reo: false };"),
+    ("loading forever when the details fail", " if (f.reo === undefined) f.reo = false; });", " });"),
+    ("a failed load shown as loading", "  if (f.reo === false) return '<p class=\"small muted\">Accès estimé hors terminale : indisponible",
+     "  if (f.reo === 1) return '<p class=\"small muted\">Accès estimé hors terminale : indisponible"),
     ("detail key missing in the page", 'const CARTE_DETAIL_KEYS = ["bacs", "majo", "offres_app", "fiche", "reo"];',
      'const CARTE_DETAIL_KEYS = ["bacs", "majo", "offres_app", "fiche"];'),
     ("hero line dropped", "${homeCta()}${homeReo()}</section>", "${homeCta()}</section>"),

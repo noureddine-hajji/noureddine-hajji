@@ -1779,6 +1779,7 @@ function carteMajo(f) {
 // same block and the same cell as « Je me réoriente » and Mes vœux), never the rates per bac nor « Indiquez votre profil »
 function carteReo(f) {
   if (f.reo === undefined) return '<p class="cbacs-wait small muted">Accès estimé hors terminale : chargement…</p>';
+  if (f.reo === false) return '<p class="small muted">Accès estimé hors terminale : indisponible pour le moment. Rechargez la page plus tard.</p>';
   return `<div class="cfigs"><div class="cf cf-reo"><span class="cf-k">Accès estimé hors terminale</span><span class="cf-v">${reoCell(f.reo && { ...f.reo, taux_acces_ens: f.taux_acces_ens })}</span></div></div>`;
 }
 function carteFigures(f, ctx) {
@@ -2266,7 +2267,8 @@ async function viewCarte(dArg, mArg) {
     rows.forEach((f) => { const g = by.get(f.cod_aff_form); if (g) CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; }); });
     draw(false);
   }, () => {
-    rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; });
+    // Codex (PR #116): the estimate outside terminale too: « indisponible », never « chargement… » forever
+    rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });
     if (seq === carteUI.seq && $view.dataset.rendered === "carte") draw(false);
   });
   if (ok) zonesP.then((zs) => {
