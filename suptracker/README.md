@@ -4845,7 +4845,12 @@ counts them as ONE vœu multiple whose sub-wishes are the schools.
   « Regroupement IFSI Université de Bordeaux » (eight), « Réseau ScPo – concours commun » (the Sciences Po network),
   « Concours Geipi Polytech », and the multi-site schools of social work (« ASKORIA »).
 - **The reader.** The fiche reader (version 5, `fiche_parse.voeu_multiple`) keeps that name and the formation line verbatim
-  (`data/fiches/identite.csv`, masked like every fiche text). Every fiche was read again by the `suptracker-rapports` workflow.
+  (`data/fiches/identite.csv`, masked like every fiche text). Every fiche was read again by the `suptracker-rapports` workflow
+  (two runs, 25,737 fiches; 716 out of the campaign and 56 that did not answer keep their earlier reading).
+- **Measured on 2026-11-25.** 289 vœux multiples group 1,763 formations: 329 of the 344 IFSI of 2025 (35 regroupements, up to 22
+  schools each), 429 of 585 engineering schools (Puissance Alpha, Geipi Polytech, Avenir, Advance, CESI, INSA), 154 of 256
+  business schools, 76 of 243 schools of social work, 50 of 287 PASS and 182 licences taught on several sites of one university.
+  No BTS, BUT or CPGE fiche names a group (those vœux multiples are the student's own choice).
 - **The groups.** `multiples.py` builds `core.voeu_multiple`. A group is the same name AND the same formation line in the same
   fiche campaign: Geipi's bac général and bac techno concours are two vœux. A group needs at least two formations; a name printed
   on one fiche alone is not counted as a group.
