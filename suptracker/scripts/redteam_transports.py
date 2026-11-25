@@ -234,7 +234,7 @@ const estimTag = () => '<span class="estim">estimation</span>';
 const frDate = (iso) => iso;
 const villeLabel = (c) => `${c.nom} (${c.dep})`;
 """
-NAMES = ("haversineKm", "trNear", "TR_FUEL_NAMES", "trFuel", "trLand", "trSea", "trCar", "trTrain", "trEuros", "trHours", "trFr", "TR_LINKS",
+NAMES = ("haversineKm", "trNear", "TR_FUEL_NAMES", "trFuel", "trLand", "trSea", "trCar", "trTrain", "trEuros", "trHours", "trRange", "trFr", "TR_LINKS",
          "transportsHtml")
 # real places (lat, lon) and whether a car can go between them: the sea or a border = no car estimate
 PLACES = {"Paris": (48.8566, 2.3522), "Lyon": (45.764, 4.8357), "Brest": (48.3904, -4.4861), "Strasbourg": (48.5734, 7.7521),
@@ -365,12 +365,17 @@ def tr3(c: Ctx):
       const noTown = transportsCard({ lat: 45.7, lon: 4.8 }); VD = { nom: "x", dep: "1", lat: 1, lon: 1 };
       const dep13 = transportsHtml(D.P, { nom: "Marseille", dep: "13", lat: 43.2965, lon: 5.3698 }, 45.7606, 4.8595);
       const sea = transportsHtml(D.P, { nom: "Ajaccio", dep: "2A", lat: 41.9192, lon: 8.7386 }, 43.2965, 5.3698);
-      process.stdout.write(JSON.stringify([near, far, same, noTown, transportsCard({ lat: null }), dep13, sea]));"""
+      const short = transportsHtml(D.P, { nom: "Villeurbanne", dep: "69", lat: 45.7606, lon: 4.9187 }, 45.7606, 4.8595);
+      process.stdout.write(JSON.stringify([near, far, same, noTown, transportsCard({ lat: null }), dep13, sea, short]));"""
     o = node(prog, {"P": P, "H": HOSTILE})
     if o is None:
         return True, "node absent: not run"
-    near, far, same, no_town, none, dep13, sea = o
+    near, far, same, no_town, none, dep13, sea, short = o
     bad = []
+    # audit PR 7: two ends that print the same are one value (« 6 à 6 km » on a 4.6 km trip)
+    same_ends = re.findall(r"(?<![\d,])(\d[\d,\s\u202f]*(?: min| h(?: \d\d)?| km| €)?) à \1(?![\d,])", re.sub(r"<[^>]+>", " ", short + near))
+    if same_ends or not re.search(r"(?<![\d,])6 km de route", short):
+        bad.append(f"a range whose two ends print the same: {same_ends[:3]}")
     fr = lambda x: f"{x:.2f}".replace(".", ",")
     nat = [x["prix"] for x in P["carburant"].values()]
     loc = [(P["carburant_dep"].get("13", {}).get(k) or x)["prix"] for k, x in P["carburant"].items()]
@@ -534,6 +539,8 @@ SOURCE_MUTANTS = [
     ("tr", "absurd prices counted", "if v is None or not 0.5 <= v <= 5:", "if v is None:", "TR1"),
     ("tr", "mean instead of median", '"prix": round(statistics.median([v for v, _d in recent]), 3)', '"prix": round(statistics.mean([v for v, _d in recent]), 3)', "TR1"),
     ("js", "one way instead of a round trip", "  return { a, b, price: [2 * od[0], 2 * od[1]], carriers: od[2],", "  return { a, b, price: [od[0], od[1]], carriers: od[2],", "TR2"),
+    ("js", "equal ends printed twice", 'const trRange = (a, b, unit = "") => (a === b ? `${a}${unit}` : `${a} à ${b}${unit}`);',
+     'const trRange = (a, b, unit = "") => `${a} à ${b}${unit}`;', "TR3"),
     ("js", "detour ignored", "  const road = [km * H.detour[0], km * H.detour[1]];", "  const road = [km, km];", "TR2"),
     ("js", "prices crossed", "* H.conso_l_100km[0] / 100 * Math.min(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.max(...prices)]",
      "* H.conso_l_100km[0] / 100 * Math.max(...prices), 2 * road[1] * H.conso_l_100km[1] / 100 * Math.min(...prices)]", "TR2"),

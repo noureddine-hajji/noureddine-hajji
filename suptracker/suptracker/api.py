@@ -69,6 +69,7 @@ from . import sources as SRC
 from . import contact as CT
 from . import projet as PRJ
 from . import liste as LST
+from . import multiples as MU
 from . import handicap as HA
 from . import immersion as IMM
 from . import legal as LG
@@ -747,6 +748,8 @@ def formation(cod: str, session: int | None = None):
             # sprint V1: the State label the fiche prints (one badge, the label verbatim) and the cost of studying there
             # (local rent and Crous, national items of the OVE survey, the fiche's tuition fees verbatim): ranges, sources
             "reconnaissance": RC.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # audit PR 7: the vœu multiple the fiche names, when other formations share it (one vœu on Parcoursup)
+            "voeu_multiple": MU.for_formation(_con().cursor(), rec["cod_aff_form"]),
             "vie": vie,
             # sprint F: the student aids as the official pages state them, adapted to this place and these fees
             "aides": AID.for_formation(_con().cursor(), rec["cod_aff_form"], vie),

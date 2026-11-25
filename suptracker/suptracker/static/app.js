@@ -706,7 +706,7 @@ function guideHtml(G, c) {
     explorer: `<p>Cherchez une formation par son nom, sa ville ou un métier, ou parcourez la carte. Ouvrez la page d'une formation pour voir ses chiffres officiels et ce que regarde le jury.</p>
       <div class="toolbar"><a class="btnlink" href="#/">Rechercher</a><a class="btnlink" href="#/carte">La carte</a><a class="btnlink" href="#/metiers">Par métier</a></div>`,
     voeux: `<p>Sur la page d'une formation, choisissez « Ajouter à mes vœux ». Parcoursup accepte jusqu'à ${voeux.MAX} vœux (hors sous-vœux), et ils ne sont pas classés : l'ordre de votre liste ne compte pas.</p>
-      <p class="small">${c.n ? `${fmt(c.n)} vœu${c.n > 1 ? "x" : ""} sur ${voeux.MAX} dans votre liste.` : "Votre liste est vide pour l'instant."}</p><a class="btnlink" href="#/voeux">Voir mes vœux</a>`,
+      <p class="small">${c.n ? `${fmt(c.n)} formation${c.n > 1 ? "s" : ""} dans votre liste (les sous-vœux d'un même vœu multiple comptent pour un seul vœu).` : "Votre liste est vide pour l'instant."}</p><a class="btnlink" href="#/voeux">Voir mes vœux</a>`,
     securite: c.reo
       ? `<p>Hors terminale, aucune zone n'est publiée : les chiffres officiels ne donnent ni mention ni série pour ces candidats. Comparez plutôt l'accès estimé hors terminale des formations.</p><a class="btnlink" href="#/reorientation">Je me réoriente</a>`
       : `<p>Un vœu de sécurité sûr est une formation où, les années passées, le taux d'accès atteignait au moins 70 % et au moins la moitié des admis avaient votre mention ou moins, sans incertitude. Si votre liste n'en a pas, « Compléter ma liste » (dans Mes vœux) en propose dans les mêmes filières.</p>
@@ -2676,16 +2676,30 @@ function jpoConcours(k, today) {
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
+// audit PR 7: a fiche that writes its fees in words (no plain sum) is never a dash: the tile says where to read them
+const fraisALire = (fr) => !!(fr && (fr.montant === null || fr.montant === undefined) && (fr.lignes || []).length);
+// a bare number ("9000") is in euros: the fiche says « sauf indication contraire les sommes indiquées sont en euros »
+const fraisTexte = (t) => (/^\s*\d{1,3}(?:[\s\u00a0\u202f.]\d{3})*\s*$|^\s*\d+\s*$/.test(t || "") ? `${fmt(Number(String(t).replace(/\D/g, "")))} €` : t || "");
+function coutFraisValue(fr) {
+  if (fr && fr.montant !== null && fr.montant !== undefined) return `${euros(fr.montant)} par an`;
+  return fraisALire(fr) ? "À lire ci-dessous" : "—";
+}
+function coutFraisNote(fr) {
+  if (!fr) return "fiche pas encore lue";
+  if (fraisALire(fr)) return "la fiche les écrit en toutes lettres";
+  if (fr.montant === null || fr.montant === undefined) return "aucun montant sur la fiche";
+  return "selon la fiche Parcoursup";
+}
 function coutCard(v, r) {
   if (!v) return `<div class="card"><h2>Combien coûte une année ici ?</h2><p class="muted small">Pas encore de données sur le coût de la vie pour cette formation.</p></div>`;
   const fr = v.frais, m = v.mensuel, an = v.annuel, lo = v.loyer;
   const tiles = `<div class="sum-grid cout-tiles">
     <div class="sum-tile"><span class="sum-label">Par mois sur place</span><span class="sum-value">${m ? eurosRange(m.min, m.max) : "—"}</span><span class="sum-note">${m ? `logement, courses, transports… ${estimTag("loyer local + moyennes nationales")}` : "loyer de la commune non publié"}</span></div>
-    <div class="sum-tile"><span class="sum-label">Frais de la formation</span><span class="sum-value">${fr && fr.montant !== null && fr.montant !== undefined ? `${euros(fr.montant)} par an` : "—"}</span><span class="sum-note">${fr ? "selon la fiche Parcoursup" : "fiche pas encore lue"}</span></div>
-    <div class="sum-tile"><span class="sum-label">Sur une année (${esc(v.mois)} mois)</span><span class="sum-value">${an ? eurosRange(an.min, an.max) : "—"}</span><span class="sum-note">${an ? `vie sur place, frais${an.cvec ? " et CVEC" : ""} ${estimTag("somme des lignes ci-dessous")}` : "il manque une partie du calcul"}</span></div>
+    <div class="sum-tile"><span class="sum-label">Frais de la formation</span><span class="sum-value">${coutFraisValue(fr)}</span><span class="sum-note">${coutFraisNote(fr)}</span></div>
+    <div class="sum-tile"><span class="sum-label">Sur une année (${esc(v.mois)} mois)</span><span class="sum-value">${an ? eurosRange(an.min, an.max) : "—"}</span><span class="sum-note">${an ? `vie sur place, frais${an.cvec ? " et CVEC" : ""} ${estimTag("somme des lignes ci-dessous")}` : m && fraisALire(fr) ? "les frais sont à lire sur la fiche : pas de total" : "il manque une partie du calcul"}</span></div>
   </div>`;
   const fraisHtml = fr ? `<h3>${esc(fr.titre || "Frais de scolarité")}</h3>
-    <ul class="small cout-frais">${fr.lignes.map((l) => `<li><strong>${esc(l.rubrique)}</strong> : ${esc(l.texte)}</li>`).join("")}${fr.cvec ? `<li>${esc(v.cvec.texte)} <a href="${esc(v.cvec.url)}" target="_blank" rel="noopener">En savoir plus ↗</a></li>` : ""}</ul>
+    <ul class="small cout-frais">${fr.lignes.map((l) => `<li><strong>${esc(l.rubrique)}</strong> : ${esc(fraisTexte(l.texte))}</li>`).join("")}${fr.cvec ? `<li>${esc(v.cvec.texte)} <a href="${esc(v.cvec.url)}" target="_blank" rel="noopener">En savoir plus ↗</a></li>` : ""}</ul>
     <p class="muted small">Recopié de la fiche Parcoursup, qui fait foi.</p>` : "";
   const loyerRow = lo ? `<tr><td>Loyer d'un studio de ${esc(v.studio_m2)} m² ${lo.maille ? '<span class="badge warnb" title="Peu d\'annonces dans cette commune : le loyer est estimé à partir des communes voisines.">peu d\'annonces</span>' : ""}</td>
       <td class="num" data-label="Par mois">${eurosRange(lo.min, lo.max)}</td>
@@ -2876,6 +2890,8 @@ function trTrain(T, home, lat, lon) {
 }
 const trEuros = (x) => `${fmt(x[0] === x[1] ? Math.round(x[0]) : Math.floor(x[0]))}${x[0] === x[1] ? "" : ` à ${fmt(Math.ceil(x[1]))}`} €`;
 const trHours = (m) => { const h = Math.floor(m / 60), mn = Math.round(m % 60); return mn === 60 ? `${h + 1} h` : h ? `${h} h${mn ? ` ${String(mn).padStart(2, "0")}` : ""}` : `${mn} min`; };
+// audit PR 7: two ends that print the same ("6 à 6 km") are one value
+const trRange = (a, b, unit = "") => (a === b ? `${a}${unit}` : `${a} à ${b}${unit}`);
 const trFr = (x, d = 2) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const TR_LINKS = { sncf: "https://www.sncf-connect.com/" };
 function transportsHtml(T, home, lat, lon) {
@@ -2891,8 +2907,8 @@ function transportsHtml(T, home, lat, lon) {
   const link = (k, txt) => `<a href="${esc(TR_LINKS[k])}" target="_blank" rel="noopener">${esc(txt)} ↗</a>`;
   const row = (mode, prix, duree, comment) => `<tr><td>${mode}</td><td class="num" data-label="Aller-retour">${prix}</td><td data-label="Durée (aller)">${duree}</td><td data-label="D'où vient le chiffre" class="small">${comment}</td></tr>`;
   const rows = [
-    car ? row("Voiture", trEuros(car.cost), `${trHours(car.minutes[0])} à ${trHours(car.minutes[1])}`,
-      `${estimTag("", false, true)} carburant seul : ${fmt(Math.round(car.road[0]))} à ${fmt(Math.round(car.road[1]))} km de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trFr(car.pmin, 2)} à ${trFr(car.pmax, 2)} € le litre (${esc(names(F.all))} : ${fuelWhere}, sur les 30 jours avant le ${esc(frDate(fuelDate || ""))}). Péages et parking non compris.`)
+    car ? row("Voiture", trEuros(car.cost), trRange(trHours(car.minutes[0]), trHours(car.minutes[1])),
+      `${estimTag("", false, true)} carburant seul : ${trRange(fmt(Math.round(car.road[0])), fmt(Math.round(car.road[1])), " km")} de route (${trFr(H.detour[0], 1)} à ${trFr(H.detour[1], 1)} fois la distance à vol d'oiseau), ${fmt(H.conso_l_100km[0])} à ${fmt(H.conso_l_100km[1])} litres aux 100 km, ${trRange(trFr(car.pmin, 2), trFr(car.pmax, 2), " €")} le litre (${esc(names(F.all))} : ${fuelWhere}, sur les 30 jours avant le ${esc(frDate(fuelDate || ""))}). Péages et parking non compris.`)
       : row("Voiture", "—", "—", sea ? "la mer ou une frontière sépare votre ville et la formation : pas d'estimation en voiture." : "prix des carburants pas encore lus"),
     tr.price ? row(`Train (${tr.carriers.map(esc).join(", ")})`, trEuros(tr.price), `voir ${link("sncf", "SNCF Connect")}`,
       `fourchette plein tarif, 2de classe, publiée par la SNCF entre les gares de ${esc(tr.a.nom)} et ${esc(tr.b.nom)}.${tr.etudiant ? ` Au « Tarif Élève - Étudiant - Apprenti » publié par la SNCF : <strong>${trEuros(tr.etudiant)}</strong> l'aller-retour.` : ""} Avec une carte Avantage, c'est souvent moins cher.`)
@@ -3027,7 +3043,7 @@ async function viewFormation(cod, session, refresh) {
     <div class="toolbar" style="margin-top:8px">
       ${voeuButton(r.cod_aff_form, true)}
       <button id="bask">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
-    </div>
+    </div>${vmNote(d.voeu_multiple)}
   </div>
   ${d.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
   ${summaryBand(r, d)}
@@ -4716,6 +4732,23 @@ function listeJours(iso, today) {
   const d = Math.round((Date.parse(`${iso}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / 86400000);
   return d > 1 ? `dans ${fmt(d)} jours` : d === 1 ? "demain" : d === 0 ? "aujourd'hui" : "date passée";
 }
+// audit PR 7 (2026-11-25): the vœu multiple a fiche names (multiples.py). Its sub-wishes count ONCE among the vœux; the key is
+// the name AND the formation line of the same fiche campaign (twin of multiples.compte)
+const vmKey = (g) => (g && typeof g.nom === "string" && typeof g.formation === "string" ? `${g.session}|${g.nom}|${g.formation}` : null);
+function vxCompte(voeux) {
+  const seen = new Set();
+  let n = 0;
+  for (const v of voeux || []) {
+    const k = vmKey(v.voeu_multiple);
+    if (k === null || !seen.has(k)) n += 1;
+    if (k !== null) seen.add(k);
+  }
+  return n;
+}
+function vmNote(g) {
+  if (!vmKey(g)) return "";
+  return `<p class="small vm-note">Sur Parcoursup, cette formation est un sous-vœu du vœu multiple «&nbsp;${esc(g.nom)}&nbsp;» (${fmt(g.n_formations)} formations, nom écrit sur sa fiche) : avec les autres formations de ce vœu, elle compte pour un seul vœu.</p>`;
+}
 function verifierCard(ids, f, cal, opts) {
   if (!f || !Array.isArray(f.voeux)) return "";
   const R = (cal && cal.regles) || {}, noms = opts.noms || {}, today = opts.today || localIso();
@@ -4723,12 +4756,27 @@ function verifierCard(ids, f, cal, opts) {
   const ok = '<span class="vf-st vf-ok">Fait</span>', look = '<span class="vf-st vf-look">À vérifier</span>', info = '<span class="vf-st vf-info">À savoir</span>';
   const li = (st, html) => `<li>${st}<div>${html}</div></li>`;
   const items = [];
-  const n = f.voeux.length, nApp = f.voeux.filter((v) => v.apprentissage).length, nSco = n - nApp;
+  const n = f.voeux.length, app = f.voeux.filter((v) => v.apprentissage), nApp = vxCompte(app);
+  const nVx = vxCompte(f.voeux), nSco = vxCompte(f.voeux.filter((v) => !v.apprentissage));
   const max = Number.isInteger(R.voeux_max) ? R.voeux_max : null, maxApp = Number.isInteger(R.apprentissage_max) ? R.apprentissage_max : null;
-  items.push(li(max !== null && nSco <= max ? ok : info, `Votre liste compte ${fmt(n)} vœu${n > 1 ? "x" : ""}${nApp ? `, dont ${fmt(nApp)} en apprentissage` : ""}. ${max !== null
+  const compte = nVx === n ? `${fmt(n)} vœu${n > 1 ? "x" : ""}` : `${fmt(n)} formations, soit ${fmt(nVx)} vœu${nVx > 1 ? "x" : ""} sur Parcoursup`;
+  items.push(li(max !== null && nSco <= max ? ok : info, `Votre liste compte ${compte}${nApp ? `, dont ${fmt(nApp)} en apprentissage` : ""}. ${max !== null
     ? `Parcoursup accepte jusqu'à ${fmt(max)} vœux, sans les classer.` : "Vérifiez le nombre de vœux permis sur parcoursup.gouv.fr."}${maxApp !== null
     ? ` Vous pouvez ajouter jusqu'à ${fmt(maxApp)} vœux en apprentissage en plus.` : ""}`));
-  const conc = f.voeux.filter((v) => typeof v.concours === "string" && v.concours);
+  // the vœux multiples the fiches name: one line per group of the list, its formations named
+  const vms = [];
+  for (const v of f.voeux) {
+    const k = vmKey(v.voeu_multiple);
+    if (k === null) continue;
+    const g = vms.find((x) => x.k === k);
+    if (g) g.v.push(v); else vms.push({ k, g: v.voeu_multiple, v: [v] });
+  }
+  for (const x of vms) {
+    items.push(li(info, x.v.length > 1
+      ? `${x.v.map((v) => nom(v.cod_aff_form)).join(", ")}&nbsp;: sous-vœux du même vœu multiple «&nbsp;${esc(x.g.nom)}&nbsp;» (nom écrit sur leurs fiches Parcoursup). Ensemble, ils comptent pour un seul vœu. Parcoursup limite aussi le nombre de sous-vœux&nbsp;: vérifiez sur parcoursup.gouv.fr.`
+      : `${nom(x.v[0].cod_aff_form)}&nbsp;: sous-vœu du vœu multiple «&nbsp;${esc(x.g.nom)}&nbsp;» (${fmt(x.g.n_formations)} formations, nom écrit sur sa fiche Parcoursup). Les autres formations de ce vœu compteraient avec elle pour un seul vœu.`));
+  }
+  const conc = f.voeux.filter((v) => typeof v.concours === "string" && v.concours && vmKey(v.voeu_multiple) === null);
   if (conc.length) {
     // Codex (PR #99): formations of DIFFERENT concours never share a vœu: one line per NAMED concours; « Concours commun » names
     // no concours, so each of those formations stands alone
@@ -4743,7 +4791,7 @@ function verifierCard(ids, f, cal, opts) {
         ? "ces formations recrutent par le même concours. Sur Parcoursup, elles peuvent compter comme sous-vœux d'un même vœu. Vérifiez sur leurs fiches."
         : "cette formation recrute par un concours commun. Sur Parcoursup, elle peut compter comme sous-vœu d'un vœu multiple. Vérifiez sur sa fiche."}`));
     }
-  } else if (R.sous_voeux === true) {
+  } else if (R.sous_voeux === true && !vms.length) {
     items.push(li(info, "Pour certaines formations, Parcoursup permet aussi des sous-vœux. La fiche de chaque formation le précise."));
   }
   const gone = f.voeux.filter((v) => v.dans_carte === false);
@@ -4755,7 +4803,8 @@ function verifierCard(ids, f, cal, opts) {
   if (opts.securite === "aucune") items.push(li(look, "Aucun vœu de votre liste n'est une sécurité sûre pour votre profil. Voyez « Compléter ma liste » sur cette page."));
   else if (opts.securite === "ok") items.push(li(ok, "Votre liste contient au moins une sécurité sûre pour votre profil."));
   const P = projetLoad(), nDraft = ids.filter((c) => P[c] && P[c].brouillon).length;
-  items.push(li(nDraft === n ? ok : look, `${fmt(nDraft)} vœu${nDraft > 1 ? "x" : ""} sur ${fmt(n)} ${nDraft > 1 ? "ont" : "a"} un brouillon de projet de formation motivé. <a href="#/projet">Préparer mes projets</a>`));
+  const unit = nVx === n ? ["vœu", "vœux"] : ["formation", "formations"];   // audit PR 7: a list with sub-wishes counts formations here
+  items.push(li(nDraft === n ? ok : look, `${fmt(nDraft)} ${unit[nDraft > 1 ? 1 : 0]} sur ${fmt(n)} ${nDraft > 1 ? "ont" : "a"} un brouillon de projet de formation motivé. <a href="#/projet">Préparer mes projets</a>`));
   const fin = listeDate(cal, "fin_voeux"), conf = listeDate(cal, "confirmation");
   const jour = (iso) => frDate(iso).replace(/^(\S+) 1 /, "$1 1er ");          // « jeudi 1er avril », as the calendar prints it
   const when = (iso) => (iso ? `<strong>${esc(jour(iso))}</strong> (${esc(listeJours(iso, today))})` : "date à vérifier sur parcoursup.gouv.fr");

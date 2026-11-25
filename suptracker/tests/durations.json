@@ -41,6 +41,7 @@
  "tests/test_metiers.py": 588,
  "tests/test_mobile.py": 0,
  "tests/test_moyenne.py": 474,
+ "tests/test_multiples.py": 20,
  "tests/test_navigateur.py": 0,
  "tests/test_navigation.py": 7,
  "tests/test_nomenclatures.py": 970,

@@ -264,6 +264,30 @@ FEES = {
 }
 
 
+# audit PR 7: the tuition printed BESIDE the CVEC, in one closed shape (vie.montant_hors_cvec); every other wording = None
+FEES_CVEC = {
+    "175 € (Droits de scolarité) + 103 € (CVEC) (Montant pour 2025/2026)": 175,
+    "FRAIS-INSCRIPTION- 175 EUROS + CVEC-103 EUROS (Montant pour 2025/2026)": 175,
+    "Droits d'inscription : 175 euros, CVEC : 103 euros (tarifs 2024/2025) (Montant pour 2025/2026)": 175,
+    "178€ + 105€ (CVEC) tarif rentrée 2025 (Montant pour 2025/2026)": 178, "103 € CVEC + 178 € frais inscription": 178,
+    "1 715,50 € de droits de scolarité + 105 € de CVEC": 1716, "178 € inscription + 105 € CVEC (montant 2025-2026)": 178,
+    "175 € (remboursé par le conseil régional) + 103 € CVEC (remboursé par le CROUS)": None, "103 € (CVEC)": None,
+    "178 € + 105 € + 50 € (CVEC)": None, "CVEC 103 € (frais d'inscription) + 178 €": None, "178 € (CVEC) + 105 € (CVEC)": None, "178 € + 105 €": None, "": None, HOSTILE: None,
+    "178 € (Droits de scolarité) + 103 € (CVEC) " + HOSTILE: None, "Exonération des frais de scolarité et de la CVEC": None,
+    "Par année scolaire : Droits d'inscription : 175 € + frais de scolarité : 400 € + CVEC": None,
+}
+
+
+def cvec_split(text: str) -> int | None:
+    """Independent: the numbers printed minus those of the ONE part (split on « + » or a comma) naming the CVEC."""
+    parts = re.split(r"\s*\+\s*|,\s+", re.sub(r"\(montant pour 20\d\d/20\d\d\)", "", text, flags=re.I))
+    cv = [p for p in parts if "cvec" in p.lower() or "contribution vie" in p.lower()]
+    if len(cv) != 1:
+        return None
+    strip = lambda x: re.sub(r"\((?:tarifs?|montants?)[^()]*\)|tarifs? (?:rentrée )?20\d\d(?: ?[-/] ?20\d\d)?", "", x, flags=re.I)  # noqa: E731
+    return numbers_sum(strip(text)) - numbers_sum(strip(cv[0]))
+
+
 def numbers_sum(text: str) -> int:
     """Independent: the sum of the amounts printed (thousands separated by spaces or dots, decimals after a comma or a dot
     followed by one or two digits), the year left out, rounded to the euro half up."""
@@ -295,7 +319,20 @@ def v3(c: Ctx):
             n += 1
             if "cvec" in t.lower() or a != numbers_sum(t):
                 bad.append(f"{r['cod_aff_form']}: {a} read from {t[:50]!r}")
-    return not bad, f"{len(FEES)} ground texts, {n} real amounts; {bad[:4]}"
+    m = 0
+    for t, want in FEES_CVEC.items():
+        if vie.montant_hors_cvec(t) != want:
+            bad.append(f"beside the CVEC {t[:40]!r}: {vie.montant_hors_cvec(t)} != {want}")
+    if fr.exists() and tx.exists():
+        for r in csv.DictReader(open(fr, encoding="utf-8")):
+            t = texts.get(r["texte_id"]) or ""
+            a = vie.montant_hors_cvec(t)
+            if a is None:
+                continue
+            m += 1
+            if vie.montant_annuel(t) is not None or a != cvec_split(t):
+                bad.append(f"{r['cod_aff_form']}: {a} beside the CVEC in {t[:50]!r} (independent {cvec_split(t)})")
+    return not bad, f"{len(FEES)} + {len(FEES_CVEC)} ground texts, {n} real amounts, {m} beside the CVEC; {bad[:4]}"
 
 
 # ---------------------------------------------------------------- V4
@@ -421,6 +458,13 @@ def v4(c: Ctx):
         con2 = fixture(vie, rc, Path(d) / "b", fees="Entre 5 000 et 7 000 €")
         if vie.for_formation(con2, "1")["annuel"] is not None:
             bad.append("a year computed without a fee amount")
+        # audit PR 7: a fee line that prints the CVEC beside the tuition gives the tuition, and the CVEC is counted
+        con4 = fixture(vie, rc, Path(d) / "e", fees="175 € (Droits de scolarité) + 103 € (CVEC) (Montant pour 2025/2026)", cvec=False)
+        f4 = vie.for_formation(con4, "1")
+        a4, m4 = (f4 or {}).get("annuel") or {}, (f4 or {}).get("mensuel") or {}
+        if (f4 or {}).get("frais", {}).get("montant") != 175 or not f4["frais"]["cvec"] or \
+                (a4.get("min"), a4.get("max")) != (r10(10 * m4["min"] + 175 + 105), r10(10 * m4["max"] + 175 + 105)):
+            bad.append(f"tuition beside the CVEC: {f4 and f4.get('frais')} {a4}")
         con3 = fixture(vie, rc, Path(d) / "c", postes=False)
         if vie.for_formation(con3, "1")["mensuel"] is not None:
             bad.append("a monthly total with survey items missing")
@@ -509,7 +553,8 @@ def node(prog: str, data):
 @check("V6 page: escaped, computed figures labelled, fiche fait foi, only the rent is local, vouvoiement, no chance, safe links")
 def v6(c: Ctx):
     rc, vie, _fp = c.mods()
-    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "euros", "eurosRange", "recoPill", "recoBadge", "recoCard", "coutCard",
+    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "euros", "eurosRange", "recoPill", "recoBadge", "recoCard",
+                                            "fraisALire", "fraisTexte", "coutFraisValue", "coutFraisNote", "coutCard",
                                             "haversineKm", "villeLabel", "villeDepart", "distanceText", "distanceBlock"))
     stub = """const ICONS = { check: '<svg class="i"></svg>' };
       const store = { get: () => null };
@@ -525,14 +570,18 @@ def v6(c: Ctx):
             "labels": ["Label " + HOSTILE], "codes": ["DL_01"], "bourses": False, "session": 2026}
     none = {"categorie": "aucun", "libelle": rc.LIBELLE["aucun"], "explication": rc.EXPLICATION["aucun"], "source": "label",
             "labels": [], "codes": [], "bourses": None, "session": 2026}
+    # audit PR 7: fees written in words are « à lire ci-dessous », never a dash; a bare number is in euros
+    w = json.loads(json.dumps(v))
+    w["frais"]["montant"], w["annuel"] = None, None
+    w["frais"]["lignes"] = [{"rubrique": "Par année", "texte": "175 € (remboursé par la Région)"}, {"rubrique": "Formation continue", "texte": "9000"}]
     prog = stub + defs + """
       const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
       process.stdout.write(JSON.stringify([coutCard(D.v, {}), coutCard(null, {}), recoCard(D.r), recoCard(D.n), recoCard(null),
-        recoBadge("1"), recoPill("x" + D.h, "Lib " + D.h, "E " + D.h)]));"""
-    out = node(prog, {"v": v, "r": reco, "n": none, "h": HOSTILE})
+        recoBadge("1"), recoPill("x" + D.h, "Lib " + D.h, "E " + D.h), coutCard(D.w, {})]));"""
+    out = node(prog, {"v": v, "r": reco, "n": none, "h": HOSTILE, "w": w})
     if out is None:
         return True, "node absent: not run"
-    cout, empty, rec, rnone, rnull, badge0, pill = out
+    cout, empty, rec, rnone, rnull, badge0, pill, words = out
     bad = []
     for i, h in enumerate(out):
         if "<img" in h:
@@ -553,6 +602,10 @@ def v6(c: Ctx):
             bad.append(f"{a!r} shown without the estimation label")
     if "fait foi" not in cout or "Seul le loyer est propre à la commune" not in cout:
         bad.append("cost card: the fiche or the national items not said")
+    tile = words[words.find("Frais de la formation"): words.find("</div>", words.find("Frais de la formation"))]
+    if "À lire ci-dessous" not in tile or "—" in tile or not re.search(r"Formation continue</strong> : 9[\s\u202f\xa0]000 €", words) \
+            or "les frais sont à lire sur la fiche" not in words:
+        bad.append(f"fees written in words: tile {re.sub(r'<[^>]+>', ' ', tile)[:80]!r}, bare number or year note")
     if "Pas encore de données" not in empty:
         bad.append("no data: no message")
     if "fait foi" not in rec or "« Label &lt;img" not in rec or "ouvre pas droit aux bourses" not in rec:
@@ -581,8 +634,13 @@ def v7(c: Ctx):
         if cat != want:
             bad.append(f"{cod}: {cat} != {want}")
     for cod, rub, txt, m in con.execute("SELECT cod_aff_form, rubrique, texte, montant FROM core.vie_frais WHERE montant IS NOT NULL").fetchall():
-        if (rub or "").strip().lower() != "par année" or m != numbers_sum(txt or "") or "cvec" in (txt or "").lower():
+        beside = "cvec" in (txt or "").lower()       # audit PR 7: the tuition printed beside the CVEC, which is then counted
+        want = cvec_split(txt or "") if beside else numbers_sum(txt or "")
+        if (rub or "").strip().lower() != "par année" or m != want:
             bad.append(f"{cod}: fee {m} from {(txt or '')[:40]!r}")
+    for cod, txt in con.execute("""SELECT cod_aff_form, texte FROM core.vie_frais WHERE montant IS NOT NULL AND NOT cvec
+            AND lower(texte) LIKE '%cvec%'""").fetchall():
+        bad.append(f"{cod}: the CVEC its fee line prints is not counted ({(txt or '')[:40]!r})")
     sample = [c2 for (c2,) in con.execute("""SELECT DISTINCT cod_aff_form FROM core.vie_frais USING SAMPLE 60 ROWS""").fetchall()]
     n_tot = 0
     for cod in sample:
@@ -659,6 +717,13 @@ SOURCE_MUTANTS = [
     ("rc", "unknown label as national", '    return "autre"', '    return "national"', "V2"),
     ("rc", "RNCP from any title", '        elif re.search(TITLE_RNCP, fold(titles.get(r["cod_aff_form"]))):', "        elif True:", "V2"),
     ("vie", "CVEC summed in the fees", '    if "cvec" in f:\n        return None', '    if False:\n        return None', "V3"),
+    ("vie", "fee beside the CVEC = the CVEC", "            cvec += 1\n            continue\n", "            cvec += 1\n", "V3"),
+    ("vie", "a third term beside the CVEC", "    if len(terms) != 2:\n        return None\n", "", "V3"),
+    ("vie", "two labels in one term", "        if len(labs) > 1:\n            return None\n", "", "V3"),
+    ("vie", "beside the CVEC never read", "                b = montant_hors_cvec(txt) if a is None and", "                b = None if a is None and", "V4"),
+    ("vie", "the fee line's CVEC not counted", '                d["cvec"] = d["cvec"] or b is not None', '                d["cvec"] = d["cvec"]', "V4"),
+    ("js", "fees in words shown as a dash", '  return fraisALire(fr) ? "À lire ci-dessous" : "—";', '  return "—";', "V6"),
+    ("js", "a bare number without euros", "${fmt(Number(String(t).replace(/\\D/g, \"\")))} €`", "${t}`", "V6"),
     ("vie", "comment with figures accepted", 'r"(.*?\\d.*?)\\s+-\\s+([^\\d+]*)"', 'r"(.*?\\d.*?)\\s+-\\s+(.*)"', "V3"),
     ("vie", "cents dropped", 'cents += int(re.sub(r"\\D", "", m.group(1))) * 100 + int((m.group(2) or "0").ljust(2, "0"))',
      'cents += int(re.sub(r"\\D", "", m.group(1))) * 100', "V3"),

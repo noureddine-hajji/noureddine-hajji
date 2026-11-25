@@ -897,7 +897,7 @@ a.badge { text-decoration: none; }
 .zone-legend summary::-webkit-details-marker, .adm-more summary::-webkit-details-marker { display: none; }
 .zone-legend summary::after, .adm-more summary::after { content: "+"; margin-left: 8px; font-size: var(--fs-lg); text-decoration: none; display: inline-block; }
 .zone-legend[open] > summary::after, .adm-more[open] > summary::after { content: "−"; }
-main { min-height: 70vh; }   /* a page still loading keeps the footer below the first screen */
+main { min-height: 100vh; }   /* a page still loading keeps the footer below the first screen (audit PR 7: 70vh left it in view on a phone, CLS 0.11-0.17) */
 /* the home: a violet hero with a big shadow and the one yellow action; the doors as coloured tiles, titles in capitals */
 .hero { background: var(--tile-violet); border: var(--bw-big) solid var(--edge); border-radius: var(--r-md); padding: 24px 20px;
   box-shadow: var(--sh-big) var(--sh-big) 0 var(--edge); margin: 4px 8px 22px 0; }

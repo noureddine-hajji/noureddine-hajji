@@ -955,6 +955,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
     with an average, « Admis sous votre moyenne » (the R5 range, estimation). Never the [strictly lower ; lower or equal] range.
   - « Vos deux spécialités » = `dblFigure` (voeux.figures) on the card and in Mes vœux = L'essentiel's « Pour votre profil ».
   - Red team `redteam_chiffres.py` (CH1-CH5; CH4 compares the three pages in a browser on real data).
+- **Vœux multiples (audit PR 7, owner 2026-11-25).** No open data names a group (SIES and the cartographie: one row per
+  formation). The LIVE fiche's heading (`h2#libelle-etab-ff`) names the vœu multiple in place of « <establishment> (<town> -
+  <dep>) »; fiche reader version 5 keeps it with the formation line (`fiche_parse.voeu_multiple`, identite.csv, masked).
+  `multiples.py`: a group = same fiche campaign + same name + same formation line, >= 2 formations (a lone name = no group);
+  `compte` (twin `vxCompte`) counts each group once. Mes vœux « N formations, soit M vœux », one line per group, the concours
+  hedge only for formations no fiche groups; the formation page note (`vmNote`). Groups a student makes freely (same BTS in
+  several lycées) are never inferred; the sub-wish limit is not typed (« vérifiez sur parcoursup.gouv.fr »); the list keeps
+  10 formations. Fees: « X € (droits) + Y € (CVEC) » = ONE closed shape (`vie.montant_hors_cvec`), the CVEC then counted at its
+  official amount; other wordings stay text, tile « À lire ci-dessous », never a dash. Red team `redteam_multiples.py` (VM1-VM8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

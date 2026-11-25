@@ -99,7 +99,8 @@ def build(con, src: Path | None = FICHES) -> dict:
     con.execute("CREATE SCHEMA IF NOT EXISTS core")
     con.execute("CREATE SCHEMA IF NOT EXISTS meta")
     con.execute("""CREATE OR REPLACE TABLE core.fiche_identite (cod_aff_form VARCHAR, session INTEGER, etab_type VARCHAR,
-        bourses BOOLEAN, labels_codes VARCHAR, labels_textes VARCHAR, categorie VARCHAR, source VARCHAR)""")
+        bourses BOOLEAN, labels_codes VARCHAR, labels_textes VARCHAR, categorie VARCHAR, source VARCHAR,
+        voeu_multiple VARCHAR, voeu_multiple_formation VARCHAR)""")
     con.execute("CREATE OR REPLACE TABLE meta.reconnaissance_audit (categorie VARCHAR, n INTEGER, exemple VARCHAR)")
     rows = _read(src / "identite.csv") if src else []
     titles = {}
@@ -122,13 +123,15 @@ def build(con, src: Path | None = FICHES) -> dict:
         bourses = {"oui": True, "non": False}.get(r.get("bourses") or "")
         sess = int(r["session"]) if (r.get("session") or "").isdigit() else None
         out.append((r["cod_aff_form"], sess, r.get("etab_type") or None, bourses, r.get("labels_codes") or None,
-                    r.get("labels_textes") or None, cat, source))
+                    r.get("labels_textes") or None, cat, source,
+                    # reader version 5 (audit PR 7): the vœu multiple the fiche's heading names (multiples.py)
+                    r.get("voeu_multiple") or None, r.get("voeu_multiple_formation") or None))
         a = audit.setdefault(cat, [0, set()])
         a[0] += 1
         if cat == "autre":
             a[1].update(textes)
     if out:
-        con.executemany("INSERT INTO core.fiche_identite VALUES (?, ?, ?, ?, ?, ?, ?, ?)", out)
+        con.executemany("INSERT INTO core.fiche_identite VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", out)
     for cat, (n, ex) in sorted(audit.items()):
         con.execute("INSERT INTO meta.reconnaissance_audit VALUES (?, ?, ?)", [cat, n, " | ".join(sorted(ex))[:2000] or None])
     return {cat: n for cat, (n, _ex) in audit.items()}
