@@ -135,7 +135,7 @@ def _service(s: dict) -> str:
 
 def _adulte(s: dict) -> str:
     links = "".join(f'<li><a href="{esc(x["url"])}" rel="noopener">{esc(x["texte"])}</a></li>' for x in s["liens"])
-    return (f'<section class="aide-service" id="aide-{esc(s["id"])}"><h3>{esc(s["titre"])}</h3>'
+    return (f'<section class="aide-adulte" id="aide-{esc(s["id"])}"><h3>{esc(s["titre"])}</h3>'
             f'<p><strong>Pour qui :</strong> {esc(s["pour"])}</p><p>{esc(s["comment"])}</p><ul>{links}</ul></section>')
 
 

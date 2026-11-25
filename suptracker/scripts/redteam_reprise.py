@@ -268,7 +268,9 @@ def rp3(c: Ctx):
     if "<img" in hostile or "onerror=alert(1)>" in hostile.replace("&lt;img", ""):
         bad.append("the help page's services are not escaped")
     page = A.page()
-    if A.adultes_html() not in page or page.count('id="aide-adultes"') != 1:
+    # the help page's own services keep their class (red team LA7 counts `.aide-service`): the adults' sections have theirs
+    if A.adultes_html() not in page or page.count('id="aide-adultes"') != 1 or page.count('class="aide-service"') != len(A.SERVICES) \
+            or page.count('class="aide-adulte"') != len(A.ADULTES):
         bad.append("the help page does not carry the services")
     for s in A.ADULTES:
         for x in s["liens"]:
@@ -472,6 +474,7 @@ PY_MUTANTS = [   # (module key, file, name, old, new)
      '"pour": "Les jeunes de 16 à 25 ans."'),
     ("AI", "aide.py", "the help page without the services", "{adultes_html()}\n", ""),
     ("AI", "aide.py", "a name unescaped", "<h3>{esc(s[\"titre\"])}</h3>", "<h3>{s[\"titre\"]}</h3>"),
+    ("AI", "aide.py", "the adults' sections counted as the help page's services", '<section class="aide-adulte"', '<section class="aide-service"'),
     ("AI", "aide.py", "a long sentence", '"comment": "Votre expérience peut être reconnue par un diplôme ou par un titre professionnel."',
      '"comment": "Votre expérience peut être reconnue par un diplôme ou par un titre professionnel et cela vaut pour toute la vie et pour toutes les '
      'expériences que vous avez eues dans votre carrière ou dans vos activités bénévoles depuis toujours."'),
