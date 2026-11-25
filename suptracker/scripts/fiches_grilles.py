@@ -48,7 +48,7 @@ ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "ver
 CHAMP_COLS = ["cod_aff_form", "session", "rang", "champ", "poids", "intitule_id"]
 CRIT_COLS = ["cod_aff_form", "session", "champ_rang", "rang", "critere_id", "elements_id", "importance"]
 ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
-ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes"]
+ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes", "voeu_multiple", "voeu_multiple_formation"]
 FRAIS_COLS = ["cod_aff_form", "session", "rang", "titre", "rubrique", "texte_id"]
 CONTACT_COLS = ["cod_aff_form", "session", "handicap_id", "referent", "ambassadeur", "infos_id", "handicap_infos"]
 
@@ -228,7 +228,9 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
         idents[c] = {"cod_aff_form": c, "session": p["session"] or "", "etab_type": bd.get("etab_type") or "",
                      "bourses": {True: "oui", False: "non"}.get(bd.get("bourses"), ""),
                      "labels_codes": "|".join(x["code"] for x in bd.get("labels", [])),
-                     "labels_textes": "|".join(x["texte"].replace("|", "/") for x in bd.get("labels", []))}
+                     "labels_textes": "|".join(x["texte"].replace("|", "/") for x in bd.get("labels", [])),
+                     "voeu_multiple": (p.get("voeu_multiple") or {}).get("nom") or "",
+                     "voeu_multiple_formation": (p.get("voeu_multiple") or {}).get("formation") or ""}
         fees[c] = [{"cod_aff_form": c, "session": p["session"] or "", "rang": i + 1, "titre": x["titre"], "rubrique": x["rubrique"],
                     "texte_id": text_id(x["texte"])} for i, x in enumerate(p.get("frais") or [])]
         ct = p.get("contact") or {}
