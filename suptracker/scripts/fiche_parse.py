@@ -78,7 +78,8 @@ def _section(page: str, heading: str) -> str | None:
 
 
 # the establishment line of an ordinary fiche ends with its town and department, « (Pessac - 33) », « (37) », « (2A) »
-_DEP_END = re.compile(r"\((?:[^()]*-\s*)?(?:\d{2,3}|2[AB])\s*\)\s*$")
+# (a town may carry its own brackets: « (Château-Chinon (Ville) - 58) »; same rule as multiples.DEP_END)
+_DEP_END = re.compile(r"(?:\(|-)\s*(?:\d{2,3}|2[AB])\s*\)\s*$")
 
 
 def voeu_multiple(page: str) -> dict | None:

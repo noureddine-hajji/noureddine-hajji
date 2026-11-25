@@ -15,6 +15,9 @@ SupCompass counts them one by one and says the fiche prevails. The number of sub
 from __future__ import annotations
 
 MIN_FORMATIONS = 2
+# an establishment line ends with its department, « (Pessac - 33) », « (37) », « (Château-Chinon (Ville) - 58) »: never a group's
+# name (the reader's own rule, fiche_parse._DEP_END, read again here for rows stored before it handled bracketed towns)
+DEP_END = r"(?:\(|-)\s*(?:\d{2,3}|2[AB])\s*\)\s*$"
 
 
 def build(con) -> int:
@@ -29,7 +32,7 @@ def build(con) -> int:
     con.execute(f"""INSERT INTO core.voeu_multiple
         WITH g AS (SELECT cod_aff_form, session, voeu_multiple AS nom, voeu_multiple_formation AS formation
                    FROM core.fiche_identite WHERE voeu_multiple IS NOT NULL AND voeu_multiple_formation IS NOT NULL
-                     AND session IS NOT NULL)
+                     AND session IS NOT NULL AND NOT regexp_matches(voeu_multiple, '{DEP_END}'))
         SELECT cod_aff_form, session, nom, formation, count(*) OVER (PARTITION BY session, nom, formation) AS n
         FROM g QUALIFY n >= {MIN_FORMATIONS} ORDER BY cod_aff_form""")
     return con.execute("SELECT count(*) FROM core.voeu_multiple").fetchone()[0]

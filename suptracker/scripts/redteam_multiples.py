@@ -80,7 +80,7 @@ def top(js: str, name: str) -> str:
 
 
 # ------------------------------------------------------------------ VM1 reader
-DEP = re.compile(r"\((?:[^()]*-\s*)?(?:\d{2,3}|2[AB])\s*\)\s*$")
+DEP = re.compile(r"\(\s*(?:\d{2,3}|2[AB])\s*\)\s*$|\s-\s*(?:\d{2,3}|2[AB])\s*\)\s*$")
 
 
 def rt_heading(page: str):
@@ -112,6 +112,7 @@ CRAFTED = [
     ('<h2 id="libelle-etab-ff">Lycée Descartes (Tours - 37)<br><span class="fr-h4">CPGE - BCPST</span></h2>', None),
     ('<h2 id="libelle-etab-ff">Université de Brest (EPE) (29)<br>Licence</h2>', None),
     ('<h2 id="libelle-etab-ff">Lycée A (Ajaccio - 2A)<br>BTS</h2>', None),
+    ('<h2 id="libelle-etab-ff">Lycée F. Mitterrand (Château-Chinon (Ville) - 58)<br>BTS - Tourisme</h2>', None),
     ('<h2 id="libelle-etab-ff">Concours ' + HOSTILE.replace("<", "&lt;").replace(">", "&gt;") + '<br>Formation</h2>',
      {"nom": "Concours " + HOSTILE, "formation": "Formation"}),
     ('<h2 id="libelle-etab-ff">Réseau ScPo – concours commun</h2>', None),
@@ -165,13 +166,16 @@ ROWS = [  # (code, session, nom, formation)
     ("9", 2026, None, None),
     ("10", 2026, "Concours " + HOSTILE, "X"), ("11", 2026, "Concours " + HOSTILE, "X"),
     ("12", None, "Regroupement IFSI Université de Lille", "D.E Infirmier"),
+    # a row stored before the reader handled bracketed towns: an establishment, never a group
+    ("13", 2026, "Lycée F. Mitterrand (Château-Chinon (Ville) - 58)", "BTS - Tourisme"),
+    ("14", 2026, "Lycée F. Mitterrand (Château-Chinon (Ville) - 58)", "BTS - Tourisme"),
 ]
 
 
 def rt_groups(rows) -> dict:
     by: dict = {}
     for cod, s, nom, f in rows:
-        if nom and f and s is not None:
+        if nom and f and s is not None and not DEP.search(nom):
             by.setdefault((s, nom, f), []).append(cod)
     return {cod: {"nom": k[1], "formation": k[2], "session": k[0], "n_formations": len(v)} for k, v in by.items() if len(v) >= 2 for cod in v}
 
@@ -387,6 +391,7 @@ MUTANTS = [
     ("fiche_parse", "unmasked name", '    return {"nom": mask(parts[0]), "formation": mask(parts[1])}', '    return {"nom": parts[0], "formation": mask(parts[1])}', "VM1"),
     ("fiche_parse", "parse does not carry it", '    out["voeu_multiple"] = voeu_multiple(page)', '    out["voeu_multiple"] = None', "VM1"),
     ("fiche_parse", "Corsica as a group", "(?:\\d{2,3}|2[AB])", "(?:\\d{2,3})", "VM1"),
+    ("multiples", "an establishment line as a group", "AND NOT regexp_matches(voeu_multiple, '{DEP_END}')", "", "VM2"),
     ("multiples", "a lone name is a group", "MIN_FORMATIONS = 2", "MIN_FORMATIONS = 1", "VM2"),
     ("multiples", "formation line ignored", "PARTITION BY session, nom, formation", "PARTITION BY session, nom", "VM2"),
     ("multiples", "campaign ignored", "PARTITION BY session, nom, formation", "PARTITION BY nom, formation", "VM2"),
