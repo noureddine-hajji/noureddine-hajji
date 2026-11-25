@@ -725,7 +725,7 @@ PY_MUTANTS = [
     ("majority without the threshold", '"autres_majoritaires": ADM.autres_majoritaires(tot, neo, at)', '"autres_majoritaires": part is not None and part > 50'),
     ("oldest campaign for Mes vœux", "session = (SELECT max(session) FROM core.formation_year)", "session = (SELECT min(session) FROM core.formation_year)"),
     ("apprenticeship offers listed", 'if f.get("stats") is not False]', "if True]"),
-    ("estimate dropped from the list", '"candidats", "propositions", "acces_estime", "plafonne"', '"candidats", "propositions", "plafonne"'),
+    ("estimate dropped from the list", 'LIST_KEYS = ("candidats", "propositions", "acces_estime", "plafonne"', 'LIST_KEYS = ("candidats", "propositions", "plafonne"'),
 ]
 JS_MUTANTS = [
     ("sorted by the estimate", '|| by(a).localeCompare(by(b), "fr", { sensitivity: "base" })',

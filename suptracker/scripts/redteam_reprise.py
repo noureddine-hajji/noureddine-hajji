@@ -121,6 +121,11 @@ def rp1(c: Ctx):
             if len(bad) > 3:
                 break
         n += 1
+    for row, exp in RR.EDGES:          # crafted rows (a capped estimate, the thresholds): the same block the card reads
+        b = RO_.block(row)
+        if (b["candidats"], b["propositions"], b["plafonne"]) != exp[:2] + (exp[3],) or (exp[2] is None) != (b["acces_estime"] is None) \
+                or (exp[2] is not None and abs(b["acces_estime"] - min(100.0, exp[2])) > 0.051):
+            bad.append(("crafted row", exp, {k: b[k] for k in keys}))
     if not set(RO_.CARD_KEYS) <= set(RO_.LIST_KEYS):
         bad.append("a card key the list does not carry")
     m = re.search(r"const CARTE_DETAIL_KEYS = \[([^\]]*)\]", c.js)
@@ -447,8 +452,8 @@ def rp8(c: Ctx):
 
 # ---------------------------------------------------------------- RP7 mutation test
 PY_MUTANTS = [   # (module key, file, name, old, new)
-    ("RO", "reorientation.py", "card block from the oldest campaign", 'blocks = _rows(con, "session = (SELECT max(session) FROM core.formation_year)", [])',
-     'blocks = _rows(con, "session = (SELECT min(session) FROM core.formation_year)", [])'),
+    ("RO", "reorientation.py", "card block from the oldest campaign", 'blocks = _rows(con, "session IN (SELECT max(session) FROM core.formation_year)", [])',
+     'blocks = _rows(con, "session IN (SELECT min(session) FROM core.formation_year)", [])'),
     ("RO", "reorientation.py", "estimate left out of the card", 'CARD_KEYS = ("candidats", "propositions", "acces_estime", "plafonne", "min_candidats")',
      'CARD_KEYS = ("candidats", "propositions", "plafonne", "min_candidats")'),
     ("RO", "reorientation.py", "cap dropped", "est, capped = round(min(100.0, raw), 1), raw > 100", "est, capped = round(raw, 1), raw > 100"),

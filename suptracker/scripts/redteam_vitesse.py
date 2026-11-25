@@ -60,7 +60,7 @@ from suptracker import cache as CACHE  # noqa: E402
 from suptracker import carte as CA  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 
-DETAIL = ("bacs", "majo", "offres_app", "fiche")          # written here: the keys only the cards read
+DETAIL = ("bacs", "majo", "offres_app", "fiche", "reo")   # written here: the keys only the cards read (audit PR 6: + reo)
 BUDGET_KB = {"base": 700, "details": 500}                 # compressed bytes of the two layer answers (real warehouse)
 PHONE_BUDGET_MS = {"list": 9000, "zones": 11000, "home": 4000, "formation": 5000, "keyword": 2500, "filter": 1000,
                    # owner, 2026-11-16: « Où je me situe » and the jobs pages, measured at 2.7 s, 0.2 s and 2.2 s

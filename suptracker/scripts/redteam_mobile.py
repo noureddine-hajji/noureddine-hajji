@@ -76,13 +76,14 @@ def mb1(c: Ctx):
     js = c.js
     cta, home, prof = top(js, "homeCta"), top(js, "viewHome"), top(js, "homeProfile")
     probs = []
-    if not re.search(r'<h1>[^<]*</h1>\s*<p>[^<]*</p>\s*\$\{homeCta\(\)\}</section>', home):
+    # audit PR 6: the hero may end with the « Je me réoriente » LINK (homeReo), after the main action
+    if not re.search(r'<h1>[^<]*</h1>\s*<p>[^<]*</p>\s*\$\{homeCta\(\)\}(?:\$\{homeReo\(\)\})?</section>', home):
         probs.append("homeCta is not right after the hero's title and lead sentence")
     if not ('["#/profil", "Créer mon profil"' in cta and '["#/parcours", "Voir où je me situe"' in cta and 'class="btnlink primary"' in cta):
         probs.append("homeCta does not lead to the profile (none) and to where I stand (profile) as the primary button")
     if 'hasStoredProfile(store.get("profile", null))' not in cta:
         probs.append("homeCta does not read the stored profile")
-    others = home.replace("${homeCta()}", "") + prof + top(js, "guideCard") + top(js, "explorerViews")
+    others = home.replace("${homeCta()}", "") + prof + top(js, "guideCard") + top(js, "explorerViews") + (top(js, "homeReo") if "function homeReo(" in js else "")
     if re.search(r'class="[^"]*\bprimary\b', others):
         probs.append("another primary control on the home")
     if 'if (!hasStoredProfile(raw)) return "";' not in prof or "btnlink" in prof:
@@ -381,7 +382,7 @@ def mb7(c: Ctx):
 
 
 SOURCE_MUTANTS = [
-    ("js", "the hero without its main action", "    ${homeCta()}</section>", "</section>", "MB1"),
+    ("js", "the hero without its main action", "    ${homeCta()}${homeReo()}</section>", "    ${homeReo()}</section>", "MB1"),
     ("js", "a second primary on the home", '<a class="btnlink" href="#/guide">', '<a class="btnlink primary" href="#/guide">', "MB1"),
     ("js", "the profile card back as a button", '· <a href="#/profil">Modifier mon profil</a></p>`;', '<a class="btnlink" href="#/profil">Modifier mon profil</a></p>`;', "MB1"),
     ("js", "no profile leads to the search", '["#/profil", "Créer mon profil"', '["#/s/", "Créer mon profil"', "MB1"),

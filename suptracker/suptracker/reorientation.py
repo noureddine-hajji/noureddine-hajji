@@ -75,7 +75,7 @@ CARD_KEYS = ("candidats", "propositions", "acces_estime", "plafonne", "min_candi
 def latest(con) -> dict:
     """{code: the card's block} for every formation of the latest campaign (the map layer's `reo` detail: no profile needed,
     the figure is the same for every candidate outside terminale)."""
-    blocks = _rows(con, "session = (SELECT max(session) FROM core.formation_year)", [])
+    blocks = _rows(con, "session IN (SELECT max(session) FROM core.formation_year)", [])
     return {c: {k: b[k] for k in CARD_KEYS} for c, b in blocks.items()}
 
 
