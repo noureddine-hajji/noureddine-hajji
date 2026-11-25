@@ -607,7 +607,9 @@ def cr13(c: Ctx):
         # cards a saved zone filter reveals only once the zones arrive need their figures (Codex): that redraw fetches, the
         # figures' own redraw never does (no request loop), and a pending or known code is never asked twice
         "figures after the zones": bool(re.search(r"if \(applyZones\(zs\)\)[^\n]*\n\s*panel\(\); draw\(\);", view)),
-        "no figures loop": "if (seq === carteUI.seq && $view.dataset.rendered === \"carte\") { draw(false); }" in view
+        # audit PR 8: the figures redraw the cards only (drawCards asks no figure)
+        "no figures loop": "if (seq === carteUI.seq && $view.dataset.rendered === \"carte\") drawCards();" in view
+                           and "figures(" not in view[view.find("function drawCards()"):view.find("function showSel(")]
                            and "!ctx.chiffres.has(f.cod_aff_form)" in view,
     }
     bad = [k for k, v in checks.items() if not v]

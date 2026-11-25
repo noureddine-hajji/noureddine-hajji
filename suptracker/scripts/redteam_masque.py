@@ -622,7 +622,7 @@ def mq7(c: Ctx):
     js_mut("kwLoad drops the terms", "terms: Array.isArray(d.terms) ? d.terms :", "terms: [] || ", T)
     js_mut("hidden count ignores the keyword", "{ ...F, statut: [] }, undefined, kw).length", "{ ...F, statut: [] }, undefined, null).length", P)
     js_mut("hidden count with paid ticked", '|| F.statut.includes("prive")) return 0;', ") return 0;", P)
-    js_mut("paid line without its button", 'masquée"} — <button type="button" class="linkish" id="cs-paid">les afficher</button>', 'masquée"}', P)
+    js_mut("paid line without its button", 'masquée"} — <button type="button" class="linkish" id="cs-paid" data-show-paid>les afficher</button>', 'masquée"}', P)
     js_mut("button does not tick the box", '[...new Set([...F.statut, "prive"])]', "[...F.statut]", P)
     js_mut("paid ticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };',
            'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app", "prive"] };', P)

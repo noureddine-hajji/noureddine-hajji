@@ -256,7 +256,7 @@ def h4(c: Ctx):
 def h5(c: Ctx):
     js = c.js
     # sprint H: the search results ARE the map list's cards (carteCard, below); the old list page is gone
-    search = "function resultCard(" not in js and "carteList(listed, ctx)" in js
+    search = "function resultCard(" not in js and "carteList(lastCards.listed, ctx, lastCards.empty)" in js   # audit PR 8: drawCards
     # R10: one card for the map's list and the pinned formation (carteCard)
     carte = block(js, "function carteCard(", "function carteList(")
     carte_ok = carte.count("${autresBadge(f)}") == 1 and "carteCard(f, ctx, false)" in js and "carteCard(f, ctx, true)" in js
