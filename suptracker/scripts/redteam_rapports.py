@@ -32,6 +32,7 @@ import argparse
 import csv
 import gzip
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -237,6 +238,16 @@ def r3(c: Ctx):
     return not bad, f"{len(spec['rows'])} formations; problems {bad[:3]}"
 
 
+def run_js(exe: str, prog: str, data, timeout: int):
+    """Node on a program written to a file: one argv string is capped at 128 KiB (the page block grew past it, audit PR 8)."""
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+        f.write(prog)
+    try:
+        return subprocess.run([exe, f.name], input=json.dumps(data), capture_output=True, text=True, timeout=timeout)
+    finally:
+        os.unlink(f.name)
+
+
 def page_pick(js: str, block: dict, keys: list):
     m = re.search(r"function pickRapport\(rp, dkey\) \{.*?\n\}", js, re.S)
     node = shutil.which("node")
@@ -247,7 +258,7 @@ def page_pick(js: str, block: dict, keys: list):
     prog = m.group(0) + """
 const [b, keys] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(keys.map((k) => { const x = pickRapport(b, k); return x ? [x.source, x.taux] : [null, null]; })));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps([block, keys]), capture_output=True, text=True, timeout=60)
+    r = run_js(node, prog, [block, keys], 60)
     return json.loads(r.stdout) if r.returncode == 0 else "error: " + r.stderr[-200:]
 
 
@@ -255,7 +266,7 @@ def node(prog: str, data=None):
     n = shutil.which("node")
     if not n:
         return None
-    r = subprocess.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
+    r = run_js(n, prog, data, 120)
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-400:]}
 
 
@@ -280,7 +291,7 @@ PROFILE = { serie: "bg", spe1: "MATHS", spe2: "PC", maths_expertes: true };
 const out = { card: doubletteCard(d, b), card_nobg: doubletteCard(d, b2), card_none: doubletteCard(d, null), jury: juryCard(b) };
 PROFILE = { serie: "bg", spe1: "HLP", spe2: "SES" }; out.card_autres = doubletteCard(d, b); out.jury_nome = juryCard(b);
 process.stdout.write(JSON.stringify(out));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps([d, block, block_nobg]), capture_output=True, text=True, timeout=60)
+    r = run_js(node, prog, [d, block, block_nobg], 60)
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-400:]}
 
 

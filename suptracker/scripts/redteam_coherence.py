@@ -295,6 +295,11 @@ CRAFTED_RECS = [
     {"lib_for_voe_ins": "Licence - Langues - Parcours LLCER Anglais", "g_ea_lib_vx": "Université B", "fili": "Licence",
      "fil_lib_voe_acc": "Langues", "form_lib_voe_acc": "Licence", "lib_comp_voe_ins": "Université B - Licence - Langues - Parcours LLCER Anglais",
      "detail_forma": "Parcours LLCER Anglais"},
+    # a real 2025 row (Université du littoral): its parcours line is only the h1, so the page must not print it again
+    {"lib_for_voe_ins": "Licence - Portail Droit", "g_ea_lib_vx": "Université du littoral - Site de Boulogne-sur-Mer", "fili": "Licence_Las",
+     "fil_lib_voe_acc": "Droit", "form_lib_voe_acc": "Licence - Droit-économie-gestion",
+     "lib_comp_voe_ins": "Université du littoral - Site de Boulogne-sur-Mer - Licence - Portail Droit",
+     "detail_forma": ": Université du littoral - Site de Boulogne-sur-Mer"},
 ]
 
 
@@ -338,7 +343,8 @@ def co3(c: Ctx):
     bad = co3_check(pb, recs)
     if pb.complement_fiche(CRAFTED_RECS[0]) != "Economie et gestion - Informatique":
         bad.append(("the licence's parcours", pb.complement_fiche(CRAFTED_RECS[0])))
-    if pb.complement_fiche(CRAFTED_RECS[1]) is not None or pb.complement_fiche(CRAFTED_RECS[3]) is not None:
+    if pb.complement_fiche(CRAFTED_RECS[1]) is not None or pb.complement_fiche(CRAFTED_RECS[3]) is not None \
+            or pb.complement_fiche(CRAFTED_RECS[4]) is not None:
         bad.append(("a part the title prints is repeated", pb.complement_fiche(CRAFTED_RECS[1]), pb.complement_fiche(CRAFTED_RECS[3])))
     if '${d.complement ? `<span class="fhead-parcours"> · ${esc(d.complement)}</span>` : ""}' not in c.js:
         bad.append("the formation page does not print it (escaped)")
