@@ -468,6 +468,9 @@ def qc9(c: Ctx):
     words += [("form", m) for m in TU.findall(text_of(fn_src(c.js, "contactForm")))]
     if words:
         bad.append(("tutoiement", words[:5]))
+    # audit PR 7: the public footer never links the owner's dashboard, and its token form never prints a technical name
+    if 'href="#/stats"' in c.html or re.search(r"SUPTRACKER_|variable d.environnement", fn_src(c.stats, "tokenForm")):
+        bad.append("the footer links the owner's dashboard, or its form names an environment variable")
     if "Sprint Q1" not in c.readme or "Trust and compliance (sprint Q1" not in c.claude:
         bad.append("docs")
     return not bad, f"problems {bad}"
@@ -664,6 +667,8 @@ def mutants():
     page_mut("a message shown unescaped", "stats", "${esc(x.message)}", "${x.message}", {"QC4"})
     page_mut("the page's subjects differ", "js", '["autre", "Autre chose"]', '["autre", "Autre"]', {"QC4"})
     page_mut("success shown on any answer", "js", "if (r && r.status === 201 && d.ok) {", "if (r) {", {"QC6"})
+    page_mut("the dashboard linked from the footer", "html", "(Do Not Track respecté).<nav", '(Do Not Track respecté). <a href="#/stats">Audience</a><nav', {"QC9"})
+    page_mut("the token form names the variable", "stats", "Saisissez votre jeton d'accès", "Saisissez SUPTRACKER_STATS_TOKEN", {"QC9"})
     page_mut("no report link on the formation page", "js", '${feedbackBox("fiche")}${reportLink(r.cod_aff_form)}', '${feedbackBox("fiche")}', {"QC9"})
     page_mut("an address that does not open in the app", "js", "(a-propos|contact|mentions-legales|confidentialite|accessibilite|aide|nos-chiffres|robustesse)",
              "(a-propos|contact|mentions-legales|confidentialite|aide|nos-chiffres|robustesse)", {"QC9"})

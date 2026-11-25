@@ -239,7 +239,7 @@ def top(js: str, name: str) -> str:
     return js[m.start(): js.find("\n}", m.start()) + 2]
 
 
-NAMES = ("esc", "fmt", "frDate", "PROJET_MAX", "projetLoad", "listeDate", "listeJours", "verifierCard")
+NAMES = ("esc", "fmt", "frDate", "PROJET_MAX", "projetLoad", "listeDate", "listeJours", "vmKey", "vxCompte", "verifierCard")
 
 
 def run_node(js: str, payload):

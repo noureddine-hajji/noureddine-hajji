@@ -587,14 +587,14 @@ def ha6(c: Ctx):
     return page_ok(c.js)
 
 
-@check("HA7 plumbing: route, build, reader version 4, fingerprint, README, CLAUDE.md, durations")
+@check("HA7 plumbing: route, build, reader version >= 4, fingerprint, README, CLAUDE.md, durations")
 def ha7(c: Ctx):
     bad = []
     if '"handicap": HA.for_formation(_con().cursor(), rec["cod_aff_form"])' not in c.api or '"immersion": IMM.for_formation(' not in c.api:
         bad.append("route")
     if "handicap.build(con)" not in c.build or "immersion.build(con)" not in c.build:
         bad.append("build")
-    if not re.search(r"^VERSION = 4\b", c.src["fp"], re.M) or 'out["contact"] = contact(page)' not in c.src["fp"]:
+    if not re.search(r"^VERSION = ([4-9]|\d\d)\b", c.src["fp"], re.M) or 'out["contact"] = contact(page)' not in c.src["fp"]:
         bad.append("reader version")
     if "data/fiches/contact.csv" not in c.workflow.split("fp=$(", 1)[-1].split("sha256sum", 1)[0]:
         bad.append("contact.csv not in the warehouse fingerprint")
@@ -650,7 +650,7 @@ MUTANTS = [
     ("js", "unknown referent said no", '    : ha.referent === false ?', "    : ha.referent !== true ?", "HA6"),
     ("js", "card moved after the SIES figures", "  ${jpoCard(d.jpo)}\n  ${decouvrirCard(d.immersion, d.handicap)}\n", "  ${jpoCard(d.jpo)}\n", "HA6"),
     ("api", "route without the blocks", '            "handicap": HA.for_formation(_con().cursor(), rec["cod_aff_form"]),\n', "", "HA7"),
-    ("fp", "reader version not bumped", "VERSION = 4 ", "VERSION = 3 ", "HA7"),
+    ("fp", "reader version not bumped", "VERSION = 5 ", "VERSION = 3 ", "HA7"),
 ]
 
 

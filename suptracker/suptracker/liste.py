@@ -11,6 +11,8 @@ en apprentissage », sous-vœux for some formations, apprenticeship vœux still 
     Parcoursup. « Préparation aux concours » is not an exam (harmonize's broad `subwish_label_flag` is not used), and the
     count-based pools of `subwish_pool_flag` are a deduction: SupCompass cannot know how Parcoursup groups a vœu multiple;
   * `apprentissage`: the SIES row is an apprenticeship formation (counted apart: « 10 vœux supplémentaires »).
+  * `voeu_multiple` (audit PR 7): the vœu multiple the formation's fiche names, shared with at least one other formation
+    (multiples.py); `n_voeux` counts each such group once.
 Never « votre liste est valide »: SupCompass does not see the Parcoursup file; every vœu is confirmed on Parcoursup.
 The answer carries the student's list: no shared cache, no audience event (like /api/voeux).
 """
@@ -19,6 +21,7 @@ from __future__ import annotations
 import re
 
 from . import jpo as JPO
+from . import multiples as MU
 
 MAX_IDS = 10
 COMMUN = re.compile(r"\bconcours communs?\b")
@@ -39,6 +42,7 @@ def verifier(con, ids: list[str]) -> dict:
                                     AND table_name = 'cartographie'""").fetchone()[0])
     carte_session = con.execute("SELECT max(carto_session) FROM core.cartographie").fetchone()[0] if has_carto else None
     out = []
+    groupes = MU.of_codes(con, ids)
     for cod in ids:
         r = con.execute("""SELECT session, concat_ws(' ', lib_for_voe_ins, lib_comp_voe_ins, detail_forma), apprentissage
                            FROM core.formation_year WHERE cod_aff_form = ? ORDER BY session DESC LIMIT 1""", [cod]).fetchone()
@@ -47,5 +51,7 @@ def verifier(con, ids: list[str]) -> dict:
             dans = bool(con.execute("SELECT count(*) FROM core.cartographie WHERE cod_aff_form = ? AND carto_session = ?",
                                     [cod, carte_session]).fetchone()[0])
         out.append({"cod_aff_form": cod, "connu": r is not None, "session": r[0] if r else None, "dans_carte": dans,
-                    "concours": concours(r[1]) if r else None, "apprentissage": bool(r[2]) if r else False})
-    return {"session": latest, "carte_session": carte_session, "voeux": out}
+                    "concours": concours(r[1]) if r else None, "apprentissage": bool(r[2]) if r else False,
+                    "voeu_multiple": groupes.get(cod)})
+    # audit PR 7: the sub-wishes of one vœu multiple the fiches name count once (multiples.py)
+    return {"session": latest, "carte_session": carte_session, "voeux": out, "n_voeux": MU.compte(out)}

@@ -48,7 +48,7 @@ ETAT_COLS = ["cod_aff_form", "status", "lu_le", "session", "raison", "url", "ver
 CHAMP_COLS = ["cod_aff_form", "session", "rang", "champ", "poids", "intitule_id"]
 CRIT_COLS = ["cod_aff_form", "session", "champ_rang", "rang", "critere_id", "elements_id", "importance"]
 ATT_COLS = ["cod_aff_form", "session", "nationaux_id", "complementaires_id", "conseils_id", "info_id"]
-ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes"]
+ID_COLS = ["cod_aff_form", "session", "etab_type", "bourses", "labels_codes", "labels_textes", "voeu_multiple", "voeu_multiple_formation"]
 FRAIS_COLS = ["cod_aff_form", "session", "rang", "titre", "rubrique", "texte_id"]
 CONTACT_COLS = ["cod_aff_form", "session", "handicap_id", "referent", "ambassadeur", "infos_id", "handicap_infos"]
 
@@ -228,7 +228,9 @@ def harvest(http, db: str, out: Path, budget_s: float, pause: float = 1.0, refre
         idents[c] = {"cod_aff_form": c, "session": p["session"] or "", "etab_type": bd.get("etab_type") or "",
                      "bourses": {True: "oui", False: "non"}.get(bd.get("bourses"), ""),
                      "labels_codes": "|".join(x["code"] for x in bd.get("labels", [])),
-                     "labels_textes": "|".join(x["texte"].replace("|", "/") for x in bd.get("labels", []))}
+                     "labels_textes": "|".join(x["texte"].replace("|", "/") for x in bd.get("labels", [])),
+                     "voeu_multiple": (p.get("voeu_multiple") or {}).get("nom") or "",
+                     "voeu_multiple_formation": (p.get("voeu_multiple") or {}).get("formation") or ""}
         fees[c] = [{"cod_aff_form": c, "session": p["session"] or "", "rang": i + 1, "titre": x["titre"], "rubrique": x["rubrique"],
                     "texte_id": text_id(x["texte"])} for i, x in enumerate(p.get("frais") or [])]
         ct = p.get("contact") or {}
@@ -278,15 +280,18 @@ def _save(out: Path, etat: dict, champs: dict, crits: dict, atts: dict, new_text
         write(out / "contact.csv", CONTACT_COLS, [contacts[c] for c in sorted(contacts, key=key)])
 
 
-def sample(http, out: Path, per_status: int = 6, pause: float = 1.0) -> dict:
-    """Design material: a few fiches of each status the reader could not use (sans_grille, rejetee), saved MASKED (e-mail
-    addresses and phone numbers replaced, as in what is read) under data/fiches/echantillon/<status>_<code>.html."""
+def sample(http, out: Path, per_status: int = 6, pause: float = 1.0, codes: list | None = None) -> dict:
+    """Design material: a few fiches of each status the reader could not use (sans_grille, rejetee), or the fiches of the
+    given codes (`codes`, status "code"), saved MASKED (e-mail addresses and phone numbers replaced, as in what is read) under
+    data/fiches/echantillon/<status>_<code>.html."""
     from fiche_parse import mask
     etat = read_rows(out / "etat.csv")
     dest = out / "echantillon"
     dest.mkdir(parents=True, exist_ok=True)
     picked: dict = {}
-    for r in etat:
+    if codes:
+        picked["code"] = [str(c) for c in codes if str(c).isdigit()][:40]
+    for r in etat if not codes else []:
         if r["status"] in ("sans_grille", "rejetee") and len(picked.setdefault(r["status"], [])) < per_status:
             picked[r["status"]].append(r["cod_aff_form"])
     saved = []
@@ -308,6 +313,8 @@ def main(db: str, out: str, budget_min: float) -> None:
 if __name__ == "__main__":
     if sys.argv[1] == "--echantillon":
         with httpx.Client(follow_redirects=True, timeout=120, headers={"User-Agent": UA}) as http:
-            print(json.dumps(sample(http, Path(sys.argv[2]))), flush=True)
+            req = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+            codes = json.loads(req.read_text(encoding="utf-8")).get("codes") if req and req.exists() else None
+            print(json.dumps(sample(http, Path(sys.argv[2]), codes=codes)), flush=True)
     else:
         main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 300)

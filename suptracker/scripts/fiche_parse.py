@@ -35,10 +35,12 @@ SESSION = re.compile(r"analysent les candidatures en [^.]*?(20\d\d)")
 # sprint 3 (2026-11-21): 7,735 fiches read « ok » (apprenticeship offers SIES does not publish) print no « analysent les
 # candidatures » line: the campaign is then read on the capacity line the fiche prints for it (« 359 places en 2026 »)
 SESSION_ALT = re.compile(r"\b\d[\d\s]*\s+places?\s+en\s+(20\d\d)\b")
-VERSION = 4          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
+VERSION = 5          # 2 (2026-11-14): one-field grids without "Au total", the "Candidater" notice, error pages are not fiches
 #                      3 (2026-11-15): the identity badges (State label, establishment, grants) and the tuition fees
 #                      4 (2026-11-21, sprints 3-4): the « Contacter » tab (disability support, student ambassador, the
 #                        establishment's « Informations supplémentaires ») and the campaign read from the capacity line
+#                      5 (2026-11-25, audit PR 7): the fiche's heading names its vœu multiple (« Regroupement IFSI Université de
+#                        Lille », « Réseau ScPo – concours commun », « Concours Geipi Polytech ») in place of the establishment
 
 
 def text(fragment: str) -> str:
@@ -73,6 +75,25 @@ def _section(page: str, heading: str) -> str | None:
         return None
     t = text(m.group(1))
     return t or None
+
+
+# the establishment line of an ordinary fiche ends with its town and department, « (Pessac - 33) », « (37) », « (2A) »
+# (a town may carry its own brackets: « (Château-Chinon (Ville) - 58) »; same rule as multiples.DEP_END)
+_DEP_END = re.compile(r"(?:\(|-)\s*(?:\d{2,3}|2[AB])\s*\)\s*$")
+
+
+def voeu_multiple(page: str) -> dict | None:
+    """The fiche's heading (`h2#libelle-etab-ff`): « <establishment> (<town> - <dep>) » then the formation, on an ordinary fiche;
+    the NAME OF ITS VŒU MULTIPLE then the formation when the formation is a sub-wish of a group Parcoursup fixes (IFSI
+    regroupements, concours communs, multi-site schools). That name is kept verbatim with the formation line; a first line
+    ending with a department is an establishment (None). Whether a name is shared by several formations is checked at build."""
+    m = re.search(r'<h2 id="libelle-etab-ff"[^>]*>(.*?)</h2>', page, re.S)
+    if not m:
+        return None
+    parts = [x for x in (text(p) for p in re.split(r"<br\s*/?>", m.group(1), maxsplit=1)) if x]
+    if len(parts) != 2 or _DEP_END.search(parts[0]):
+        return None
+    return {"nom": mask(parts[0]), "formation": mask(parts[1])}
 
 
 def badges(page: str) -> dict:
@@ -169,7 +190,8 @@ def contact(page: str) -> dict:
 
 def parse(page: str) -> dict:
     out = {"ok": False, "reason": "", "session": None, "champs": [], "criteres": [], "attendus_nationaux": None,
-           "attendus_complementaires": None, "conseils": None, "info": None, "badges": None, "frais": [], "contact": None}
+           "attendus_complementaires": None, "conseils": None, "info": None, "badges": None, "frais": [], "contact": None,
+           "voeu_multiple": None}
     t = re.search(r"<title>(.*?)</title>", page, re.S)
     if not t or not text(t.group(1)).startswith("Fiche formation"):
         out["reason"] = "pas une fiche"          # "Oups..." or "Mise à jour de données": an error page, read again later
@@ -179,6 +201,7 @@ def parse(page: str) -> dict:
     out["badges"] = badges(page)          # read on every fiche, grid or not (version 3)
     out["frais"] = frais(page)
     out["contact"] = contact(page)        # version 4: read on every fiche, grid or not
+    out["voeu_multiple"] = voeu_multiple(page)   # version 5: read on every fiche, grid or not
     out["attendus_nationaux"] = mask(_section(page, "Les attendus nationaux"))
     out["attendus_complementaires"] = mask(_section(page, "Les attendus complémentaires"))
     # the notice under "Candidater à la formation" (e.g. an apprenticeship formation that examines no application)

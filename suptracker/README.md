@@ -4832,3 +4832,68 @@ Red team `scripts/redteam_reprise.py` (RP1-RP8; run in CI by `tests/test_reprise
   services open, the page's prose ≥ 70.
 - RP7 is the mutation test.
 - RP8 checks the wiring and docs.
+
+## Vœux multiples, and the audit's small fixes (audit PR 7, 2026-11-25)
+
+**Vœux multiples.** The audit found that three nursing schools (IFSI) of one regroupement counted as « 3 vœux sur 10 ». Parcoursup
+counts them as ONE vœu multiple whose sub-wishes are the schools.
+
+- **What the data say.** SIES and the cartographie publish one row per formation, and no column names a group: an IFSI row
+  carries its own candidates. The live Parcoursup fiche does name it. Its heading prints « <establishment> (<town> - <dep>) » then
+  the formation on an ordinary fiche. For a sub-wish of a group that Parcoursup fixes, the name of the vœu multiple replaces the
+  establishment. Examples from 26 sampled fiches: « Regroupement IFSI Université de Lille » (three Lille schools),
+  « Regroupement IFSI Université de Bordeaux » (eight), « Réseau ScPo – concours commun » (the Sciences Po network),
+  « Concours Geipi Polytech », and the multi-site schools of social work (« ASKORIA »).
+- **The reader.** The fiche reader (version 5, `fiche_parse.voeu_multiple`) keeps that name and the formation line verbatim
+  (`data/fiches/identite.csv`, masked like every fiche text). Every fiche was read again by the `suptracker-rapports` workflow
+  (two runs, 25,737 fiches; 716 out of the campaign and 56 that did not answer keep their earlier reading).
+- **Measured on 2026-11-25.** 289 vœux multiples group 1,763 formations: 329 of the 344 IFSI of 2025 (35 regroupements, up to 22
+  schools each), 429 of 585 engineering schools (Puissance Alpha, Geipi Polytech, Avenir, Advance, CESI, INSA), 154 of 256
+  business schools, 76 of 243 schools of social work, 50 of 287 PASS and 182 licences taught on several sites of one university.
+  No BTS, BUT or CPGE fiche names a group (those vœux multiples are the student's own choice).
+- **The groups.** `multiples.py` builds `core.voeu_multiple`. A group is the same name AND the same formation line in the same
+  fiche campaign: Geipi's bac général and bac techno concours are two vœux. A group needs at least two formations; a name printed
+  on one fiche alone is not counted as a group.
+- **Formations grouped freely are not fixed.** A student can also put the same BTS of several lycées together as a vœu multiple.
+  That choice is the student's and no fiche names it, so SupCompass counts these formations one by one.
+- **What changes on the pages.**
+  - Mes vœux, card « Avant de confirmer sur Parcoursup »: « Votre liste compte 5 formations, soit 3 vœux sur Parcoursup ». Each
+    group of the list gets one line naming its formations: « sous-vœux du même vœu multiple « … » (nom écrit sur leurs fiches
+    Parcoursup). Ensemble, ils comptent pour un seul vœu ». The concours hedge (« elles peuvent compter comme sous-vœux ») stays
+    only for the formations no fiche groups.
+  - The formation page says it under its buttons.
+  - The guide counts formations, not vœux.
+- **Not read.** The number of sub-wishes Parcoursup allows: the official calendar does not print it, so the card sends the student
+  to parcoursup.gouv.fr. The list still keeps at most 10 formations.
+
+**Small fixes found by the audit.**
+
+- **Fees.** « 175 € (Droits de scolarité) + 103 € (CVEC) » printed a dash in the fee tile. One closed shape is now read
+  (`vie.montant_hors_cvec`): two terms, each one euro amount with at most one label, one naming the CVEC. The tuition is
+  kept, and the CVEC is counted with its official amount of the year. This gives an amount to 93 more fiches. Any other
+  wording keeps the text alone, and the tile says « À lire ci-dessous » instead of a dash. A bare number (« Formation continue :
+  9000 ») is shown in euros, as the fiche's own note says.
+- **Travel.** « 6 à 6 km » on a short trip: two ends that print the same are one value (`trRange`), for the road distance, the
+  time and the fuel price.
+- **The « Audience » link.** The public footer no longer links the owner's dashboard. Its sign-in form no longer prints the name
+  of an environment variable (red team QC9).
+- **Layout shift.** The footer was in the first phone screen while a page loaded, then the content pushed it down (CLS 0.11 to
+  0.17 on six pages). `main` now reserves one screen (`min-height: 100vh`): CLS 0 on the app's pages and 0.055 on the indexable
+  formation page, measured with Lighthouse.
+- **Speed of the indexable formation page.** The audit's 61/100 did not reproduce. Measured again, warm, `/formation/35341`
+  scores 88 to 90, the same as `#/f/35341`. The 61 came from the first run of a fresh browser, whose start-up task (1.9 s) is
+  counted as blocking time. Nothing was changed for it.
+- **Already fixed.** The zone filter kept from an earlier visit (0 results) has been named with a reset since PR 4. The
+  « Cannot set properties of null » error (PR 4) and the profile saved without a town do not reproduce.
+
+Red team `scripts/redteam_multiples.py` (VM1-VM8; run in CI by `tests/test_multiples.py`):
+- VM1 checks the reader against an independent BeautifulSoup reading of every saved fiche and of crafted headings.
+- VM2 re-derives the groups on crafted rows (campaign, name, formation line, two formations).
+- VM3 checks the count in Python and its page twin (`vxCompte`) on 300 random lists.
+- VM4 renders the Mes vœux card in Node.
+- VM5 checks the formation page's note and the API keys.
+- VM6 (`--real`) re-derives every stored group from `data/fiches/identite.csv` and measures the IFSI coverage.
+- VM7 checks the wiring.
+- VM8 is the mutation test.
+
+The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in TR3 (`redteam_transports.py`).

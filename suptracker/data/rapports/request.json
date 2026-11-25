@@ -1,1 +1,1 @@
-{"mode": "live", "budget_min": 330, "note": "live harvest run 4 (after run 3: 22 859 of 26 509 fiches read, 10 181 live PDFs, 3 650 left + 763 to retry)"}
+{"mode": "grilles", "budget_min": 330, "note": "audit PR 7: reader version 5, run 2 (after run 1: 16 866 of 26 509 fiches read at version 5)"}

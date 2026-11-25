@@ -13,6 +13,7 @@ from pathlib import Path
 import duckdb
 
 from . import handicap, immersion, staging  # sprints 3 and 4 (2026-11-21)
+from . import multiples  # audit PR 7 (2026-11-25)
 from . import aides, apprentissage, domaines, jpo, transports, robustesse, robustesse_formation, precomp, bmo, config, cereq, reconnaissance, tension, vie, doublettes, parcours, rapports, ia_exposition, crosswalk, licence_master, emploi2030, grilles, harmonize, indicators, calibration, insertion, journey, lycee, nomenclatures, onisep, passerelles, poursuite, prevision, referentiel, search, semblables, success
 from .ingest import load_manifest
 
@@ -46,6 +47,7 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         handicap.build(con)                # sprint 4: disability support and a student ambassador, as the fiche prints them
         immersion.build(con)               # sprint 4: what the fiche's own texts say of immersions and mini-stages
         reconnaissance.build(con)          # sprint V1: the State label printed on each live fiche, one badge
+        multiples.build(con)               # audit PR 7: the vœux multiples the fiches name (IFSI, concours communs)
         vie.build(con, raw_dir, textes=rapports.textes_path(db_path))   # V1: rents, Crous, OVE items, fees; V2: communes (beside)
         aides.build(con)                   # sprint F: student aids read from the official pages (data/aides)
         jpo.build(con, textes=rapports.textes_path(db_path))   # open days (data/jpo, data/fiches): beside the warehouse

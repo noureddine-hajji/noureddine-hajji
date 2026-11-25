@@ -109,6 +109,49 @@ def montant_annuel(texte: str | None) -> int | None:
     return (cents + 50) // 100
 
 
+# audit PR 7 (2026-11-25): "175 € (Droits de scolarité) + 103 € (CVEC)" printed a dash in the fee tile. ONE closed shape is
+# read: two terms joined by "+" or a comma, each ONE euro amount with at most one label, one label naming the CVEC and the
+# other a tuition label (or none); tariff-year notes are dropped. Any other wording stays the text alone.
+_FRAIS_MOT = r"(?:(?:droits?|frais)[ -]+(?:d[e'] ?)?(?:inscription|scolarite)(?: universitaire)?|inscription)"
+_CVEC_MOT = r"(?:cvec|contribution (?:de )?vie etudiante(?: et de campus)?(?: \(cvec\))?)"
+_LAB = rf"(?:{_FRAIS_MOT}|{_CVEC_MOT})"
+_TERME = re.compile(rf"(?:({_LAB})\s*[-:]?\s*)?{EURO}(?:\s*(?:de\s+)?(?:\(\s*({_LAB})\s*\)|({_LAB})))?", re.I)
+
+
+def _plain(t: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFD", t.replace("’", "'"))
+    return re.sub(r"\s+", " ", "".join(ch for ch in t if not unicodedata.combining(ch))).strip().lower()
+
+
+def montant_hors_cvec(texte: str | None) -> int | None:
+    """The tuition a fee line prints BESIDE the CVEC, in the one closed shape above, else None. The CVEC itself is never
+    taken from the fiche (the official amount of the year is used, shown apart)."""
+    t = _plain(texte or "")
+    if "cvec" not in t and "contribution vie" not in t:
+        return None
+    t = re.sub(r"\(montant pour 20\d\d/20\d\d\)", "", t)
+    t = re.sub(r"\((?:tarifs?|montant)[^()]*\)|\btarifs? (?:rentree )?20\d\d(?: ?[-/] ?20\d\d)?\b", "", t).strip(" .")
+    terms = re.split(r"\s*\+\s*|,\s+", t)
+    if len(terms) != 2:
+        return None
+    fee, cvec = None, 0
+    for term in terms:
+        m = _TERME.fullmatch(term.strip(" ."))
+        if not m:
+            return None
+        labs = [x for x in (m.group(1), m.group(4), m.group(5)) if x]
+        if len(labs) > 1:
+            return None
+        if labs and re.fullmatch(_CVEC_MOT, labs[0]):
+            cvec += 1
+            continue
+        fee = int(re.sub(r"\D", "", m.group(2))) * 100 + int((m.group(3) or "0").ljust(2, "0"))
+    if cvec != 1 or fee is None:
+        return None
+    return (fee + 50) // 100
+
+
 def _fees(src: Path) -> dict:
     """{code: {"titre", "lignes": [(rubrique, texte)], "cvec": bool}} from the harvest (texts by id)."""
     from .grilles import read_texts
@@ -259,8 +302,13 @@ def build(con, raw_dir: Path, fiches: Path | None = FICHES, ove: Path = OVE_CSV,
         for cod, d in fees.items():
             if not d["lignes"]:
                 rows.append((cod, d["titre"], 0, None, None, None, d["cvec"]))
-            for i, (rub, txt) in enumerate(d["lignes"]):
-                amount = montant_annuel(txt) if rub.strip().lower() == "par année" else None
+            amounts = []
+            for rub, txt in d["lignes"]:
+                a = montant_annuel(txt) if rub.strip().lower() == "par année" else None
+                b = montant_hors_cvec(txt) if a is None and rub.strip().lower() == "par année" else None
+                amounts.append(a if a is not None else b)
+                d["cvec"] = d["cvec"] or b is not None     # the fiche prints the CVEC in that line: it is counted
+            for i, ((rub, txt), amount) in enumerate(zip(d["lignes"], amounts)):
                 rows.append((cod, d["titre"], i + 1, rub, txt, amount, d["cvec"]))
         if rows:
             con.executemany("INSERT INTO core.vie_frais VALUES (?, ?, ?, ?, ?, ?, ?)", rows)

@@ -29,8 +29,8 @@ async function statsApi(days) {
 
 function tokenForm(msg) {
   $view.innerHTML = `<div class="card" style="max-width:520px"><h1>Audience · accès réservé</h1>
-    <p class="muted small">Ce tableau de bord est réservé à l'équipe du site. Saisissez le jeton défini dans la variable
-    d'environnement <code>SUPTRACKER_STATS_TOKEN</code>. Il reste dans cet onglet uniquement (sessionStorage).</p>
+    <p class="muted small">Ce tableau de bord est réservé à l'éditeur du site. Saisissez votre jeton d'accès : il reste
+    dans cet onglet uniquement. Ce que le site mesure est décrit dans la <a href="#/info/confidentialite">politique de confidentialité</a>.</p>
     ${msg ? `<div class="warn">${esc(msg)}</div>` : ""}
     <form id="tokf" class="toolbar"><input id="tok" type="password" autocomplete="off" aria-label="Jeton" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)">
     <button class="primary">Ouvrir</button></form></div>`;
