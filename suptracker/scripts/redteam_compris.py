@@ -112,6 +112,12 @@ def sc1(c: Ctx):
                     break
             if places and any(m > len(groups) for m in d["mots"]):
                 bad.append((q, "a place counted"))
+        # crafted, whatever the data holds: a place of several words, typed with a hyphen or with spaces (Codex, PR #123)
+        for q, place in (("licence aix en provence", "aix en provence"), ("droit clermont-ferrand", "clermont ferrand"),
+                         ("bts saint denis", "saint denis")):
+            got = {w for g in api.word_groups(q, [{"type": "lieu", "value": place}]) for a in g for w in my_fold(a).split()}
+            if got & set(place.split()) or not got:
+                bad.append((q, "a word of the place counted (crafted)", sorted(got)))
     if 'MOTS_FIELDS = ("fili", "fil_lib_voe_acc", "lib_for_voe_ins", "lib_comp_voe_ins", "g_ea_lib_vx")' not in c.api_src:
         bad.append("the counted fields changed (the domain must stay out)")
     return not bad and n > 50, f"{n} codes re-counted over {len(QUERIES)} queries; problems {bad[:4]}"
