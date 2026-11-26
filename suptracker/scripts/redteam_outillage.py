@@ -61,8 +61,8 @@ class Ctx:
         return m
 
 
-def tmp_count() -> int:
-    return len(glob.glob(os.path.join(tempfile.gettempdir(), "rt_node_*.js")))
+def tmp_count(where: str) -> int:
+    return len(glob.glob(os.path.join(where, "rt_node_*.js")))
 
 
 # ------------------------------------------------------------------ OU1
@@ -71,14 +71,24 @@ process.stderr.write('E' + d.x); process.stdout.write(JSON.stringify([process.ar
 process.exit(d.code);"""
 
 
-@check("OU1 nodefile.run = node -e: stdout, stderr, code, stdin, env, argv; a 300 KiB program runs; the temp file is always removed")
+@check("OU1 nodefile.run = node -e: stdout, stderr, code, stdin, env, argv, require from the working directory; a 300 KiB program runs; the temp file is always removed")
 def ou1(c: Ctx):
     nf = c.mod("nodefile")
     exe = shutil.which("node")
     if not exe:
         return True, "skipped (node not installed)"
     bad = []
-    before = tmp_count()
+    own = tempfile.mkdtemp(prefix="ou1_")                  # a private temp dir: red teams running beside this one write theirs in /tmp
+    saved, tempfile.tempdir = tempfile.tempdir, own
+    try:
+        return _ou1(nf, exe, bad, own)
+    finally:
+        tempfile.tempdir = saved
+        shutil.rmtree(own, ignore_errors=True)
+
+
+def _ou1(nf, exe, bad, own):
+    before = tmp_count(own)
     for code in (0, 3):
         kw = dict(input=json.dumps({"x": "é<b>", "code": code}), capture_output=True, text=True, timeout=60, env={**os.environ, "OU_VAR": "v"})
         a = subprocess.run([exe, "-e", PROG, "a1", "--b"], **kw)
@@ -99,11 +109,21 @@ def ou1(c: Ctx):
         bad.append("no timeout raised")
     except subprocess.TimeoutExpired:
         pass
+    with tempfile.TemporaryDirectory() as d:                # a package installed in the working directory's node_modules
+        os.makedirs(os.path.join(d, "node_modules", "ou_local_pkg"))
+        with open(os.path.join(d, "node_modules", "ou_local_pkg", "index.js"), "w") as f:
+            f.write("module.exports = 'local';")
+        req = "process.stdout.write(require('ou_local_pkg') + ' ' + require('path').sep)"
+        env = {k: v for k, v in os.environ.items() if k != "NODE_PATH"}
+        a = subprocess.run([exe, "-e", req], capture_output=True, text=True, timeout=60, cwd=d, env=env)
+        b = nf.run([exe, "-e", req], capture_output=True, text=True, timeout=60, cwd=d, env=env)
+        if a.stdout != b.stdout or not b.stdout.startswith("local"):
+            bad.append(("require from the working directory", a.stdout, b.stdout, b.stderr[-160:]))
     r2 = nf.run([exe, "--version"], capture_output=True, text=True)
     if not r2.stdout.startswith("v"):
         bad.append("a plain command is not passed through")
-    if tmp_count() != before:
-        bad.append(("temporary files left", tmp_count() - before))
+    if tmp_count(own) != before:
+        bad.append(("temporary files left", tmp_count(own) - before))
     return not bad, f"-e refuses 300 KiB: {refused}; problems {bad[:3]}"
 
 
@@ -262,7 +282,8 @@ def ou6(c: Ctx):
 
 # ------------------------------------------------------------------ OU5
 MUTANTS = [
-    ("nodefile", "OU1", "argv keeps the file path", 'f.write("process.argv.splice(1, 1); " + args[2])', "f.write(args[2])"),
+    ("nodefile", "OU1", "argv keeps the file path", "PRELUDE = \"process.argv.splice(1, 1); require", "PRELUDE = \"0; require"),
+    ("nodefile", "OU1", "require resolved from the temporary file", "require = require('module').createRequire(process.cwd() + '/'); \"", "\""),
     ("nodefile", "OU1", "the program still passed by -e", "return subprocess.run([args[0], path, *args[3:]], *a, **kw)",
      "return subprocess.run(args, *a, **kw)"),
     ("nodefile", "OU1", "the temporary file left behind", "                os.unlink(path)", "                pass"),
