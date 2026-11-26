@@ -37,6 +37,9 @@ import zipfile
 from pathlib import Path
 
 import duckdb
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -401,7 +404,7 @@ const sel = (m) => ({ d: ["Double licence"], m: { "Double licence": m } });
 process.stdout.write(JSON.stringify({ h: carteKeep(pool[0], sel(["Histoire"])), d: carteKeep(pool[0], sel(["Droit"])),
   x: carteKeep(pool[0], sel(["Lettres"])), one: carteKeep(pool[1], sel(["Histoire"])), all: carteKeep(pool[0], sel([])),
   counts: Object.fromEntries(nMen) }));"""
-    r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60)
+    r = nodefile.run([exe, "-e", prog], capture_output=True, text=True, timeout=60)
     if r.returncode:
         return False, r.stderr[-400:]
     o = json.loads(r.stdout)

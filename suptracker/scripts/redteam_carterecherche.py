@@ -55,6 +55,9 @@ from suptracker import planb as PB  # noqa: E402
 from suptracker import voeux as V  # noqa: E402
 
 import redteam_lecture as RL  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 CHECKS = []
 STATIC = ROOT / "suptracker" / "static"
@@ -93,7 +96,7 @@ def node(js: str, cases: list[dict]):
     if not exe:
         return None
     prog = "\n".join(RL.top(js, n) for n in RL.TWINS + PAGE_TWINS) + DISPATCH
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
     if r.returncode:
         raise RuntimeError(r.stderr[-800:])
     return json.loads(r.stdout)
@@ -438,7 +441,7 @@ def cr8(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    if not exe or subprocess.run([exe, "-e", "require('playwright')"], capture_output=True).returncode:
+    if not exe or nodefile.run([exe, "-e", "require('playwright')"], capture_output=True).returncode:
         return True, "skipped (node or playwright not installed)"
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
     srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "suptracker.api:app", "--port", str(port)], cwd=str(ROOT),
@@ -563,7 +566,7 @@ const out = { bacs: carteBacs(f), majo: carteMajo(f), none: carteMajo({}), statu
 store.set("b", ["12"]); out.cmp1 = compareButton("12"); store.set("b", ["1", "2", "3", "4", "5", "6"]); out.cmp2 = compareButton("12");
 out.sort = ["(CFA b)", "Alpha", "« Zeta »"].map((e) => ({ etablissement: e })).sort((a, b) => carteSortName(a).localeCompare(carteSortName(b), "fr")).map((x) => x.etablissement);
 process.stdout.write(JSON.stringify(out));"""
-    r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60)
+    r = nodefile.run([exe, "-e", prog], capture_output=True, text=True, timeout=60)
     if r.returncode:
         return False, r.stderr[-300:]
     o = json.loads(r.stdout)

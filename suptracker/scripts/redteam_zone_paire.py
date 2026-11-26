@@ -33,6 +33,9 @@ REPO = ROOT.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import redteam_securite_large as SL  # noqa: E402  (the module loader, the node harness and the oracle's journey)
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 MODS = {**SL.MODS, "rapports": "rapports.py"}
 SL.MODS.update(MODS)
@@ -219,7 +222,7 @@ def zp4(c: Ctx):
         names = ("ZONE_RANK", "SAME_ZONE_ACCESS_GAIN", "isNum", "tauxZone", "whyBetter")
         prog = "\n".join(SL.top(c.js, n) for n in names) + """
 const cs = JSON.parse(require('fs').readFileSync(0, 'utf8')); process.stdout.write(JSON.stringify(cs.map((x) => whyBetter(...x.args))));"""
-        r = subprocess.run(["node", "-e", prog], input=json.dumps(prog_cases), capture_output=True, text=True, timeout=60)
+        r = nodefile.run(["node", "-e", prog], input=json.dumps(prog_cases), capture_output=True, text=True, timeout=60)
         if r.returncode:
             return False, r.stderr[-300:]
         for got, (t, cand, w) in zip(json.loads(r.stdout), pb_cases()):
@@ -320,7 +323,7 @@ def zp6(c: Ctx):
     if shutil.which("node"):
         prog = SL.top(c.js, "pickRapport") + """
 const cs = JSON.parse(require('fs').readFileSync(0, 'utf8')); process.stdout.write(JSON.stringify(cs.map(([b, k]) => { const x = pickRapport(b, k); return x ? x.source : null; })));"""
-        r = subprocess.run(["node", "-e", prog], input=json.dumps([[block(rows), dkey] for rows, dkey in guard]), capture_output=True, text=True, timeout=60)
+        r = nodefile.run(["node", "-e", prog], input=json.dumps([[block(rows), dkey] for rows, dkey in guard]), capture_output=True, text=True, timeout=60)
         if r.returncode:
             return False, r.stderr[-300:]
         for got, (rows, dkey) in zip(json.loads(r.stdout), guard):
@@ -346,7 +349,7 @@ def zp7(c: Ctx):
         prog = "\n".join(SL.top(c.js, n) for n in names) + """
 process.stdout.write(JSON.stringify([zoneAxisNote({ taux_zone_source: { taux: 62.5, source: "paire", session: "<b>2025" } }),
   zoneAxisNote({ taux_zone_source: { taux: 40, source: "autres", session: 2025 } }), zoneAxisNote({}), zoneAxisNote(null), ZONE_AXIS]));"""
-        r = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
+        r = nodefile.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
         if r.returncode:
             return False, r.stderr[-300:]
         pair, autres, none1, none2, axis = json.loads(r.stdout)

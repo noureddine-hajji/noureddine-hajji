@@ -40,6 +40,9 @@ from suptracker import carte as CA  # noqa: E402
 from suptracker import filtres as FI0  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 from suptracker import search as S  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 SRC = (ROOT / "suptracker" / "filtres.py").read_text()
@@ -108,7 +111,7 @@ def node(prog: str, payload=None):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=120)
     if r.returncode:
         return "__error__ " + r.stderr[-800:]
     return r.stdout
@@ -279,7 +282,7 @@ def page_ok(c: Ctx):
 const META = { filtres: JSON.parse(process.env.VOCAB) };
 const H = "<img src=x onerror=alert(1)>";
 process.stdout.write(JSON.stringify({ groups: carteGroups(), pill: zonePillHtml("cible", true) + zonePillHtml("hors_profil", false) + zonePillHtml(H, false) }));"""
-    r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(c.FI.vocab())})
+    r = nodefile.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(c.FI.vocab())})
     if r.returncode:
         return False, "__error__ " + r.stderr[-600:]
     o = json.loads(r.stdout)
@@ -339,7 +342,7 @@ def map_ok(c: Ctx):
     exe = shutil.which("node")
     if not exe:
         return not bad, f"payload {len(bad)} rows differ; node not installed"
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(rows, default=str), capture_output=True, text=True, timeout=120,
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(rows, default=str), capture_output=True, text=True, timeout=120,
                        env={**os.environ, "VOCAB": json.dumps(c.FI.vocab())})
     if r.returncode:
         return False, "__error__ " + r.stderr[-600:]
@@ -393,7 +396,7 @@ def fi7(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()

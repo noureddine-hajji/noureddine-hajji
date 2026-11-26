@@ -4945,3 +4945,29 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
   error.
 - CO7: every seeded bug caught.
 - CO8: wiring.
+
+## Anti-breakage tooling (lot 1, PR 9, 2026-11-26)
+
+**Why.** Audit PR 8 needed four extra CI rounds:
+- nine red teams pinned exact code strings that the PR rewrote, and nobody ran them before pushing;
+- one red team (rapports R4) broke because its Node program, passed as `node -e <program>`, grew past Linux's 128 KiB cap on a single argument.
+
+**What changes.**
+- `scripts/nodefile.py`: `run()` takes `subprocess.run`'s arguments. For `[node, "-e", program, …]` it writes the program
+  to a temporary file and runs it. Stdin, stdout, stderr, exit code, environment, timeout and `process.argv` stay the same, and the file is always removed.
+  All 53 scripts that ran `node -e` (78 calls) now go through it.
+- `scripts/blast.py`: the blast radius of a diff. It lists the red teams and test files concerned by a change, in two tiers:
+  - « certain »: a text the red team holds verbatim (16 characters or more) is gone from the code;
+  - « possible »: the red team names a touched JS function, or a touched Python function called as code.
+
+  `--run` runs their test files, and `--certain` limits the run to the first tier.
+  - Replayed on audit PR 8's first commit (`--base 6486067 --head acb3e8b --readers-at 6486067`), it names all ten red teams that broke in CI, seven of them « certain ».
+  - Before every push: `python scripts/blast.py --run --certain`, then the « possible » ones that look relevant.
+
+**Red team** `scripts/redteam_outillage.py` (OU1-OU6), run by `tests/test_outillage.py`:
+- **OU1:** `nodefile` behaves exactly like `node -e`, and runs a 300 KiB program that `-e` refuses.
+- **OU2:** no script calls `node -e` directly any more.
+- **OU3:** checks the tiers on a crafted git repository.
+- **OU4:** replays audit PR 8.
+- **OU5:** 12 seeded bugs, each caught.
+- **OU6:** wiring.

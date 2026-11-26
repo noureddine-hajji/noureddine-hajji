@@ -32,6 +32,9 @@ import types
 from pathlib import Path
 
 import duckdb
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -283,7 +286,7 @@ process.stdout.write(JSON.stringify({ p: appParcours(P.offres[0]), none: appParc
     offres = [{"cod_aff_form": "1", "etablissement": "CFA", "ville": "V", "fiche": "https://dossierappel.parcoursup.fr/x",
                "parcours": ["Marketing digital, e-business et entrepreneuriat", HOSTILE]},
               {"cod_aff_form": "2", "etablissement": "CFA2", "ville": "V", "fiche": None, "parcours": []}]
-    r = subprocess.run([exe, "-e", prog], input=json.dumps({"offres": offres}), capture_output=True, text=True, timeout=60)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps({"offres": offres}), capture_output=True, text=True, timeout=60)
     if r.returncode:
         return False, r.stderr[-400:]
     o = json.loads(r.stdout)

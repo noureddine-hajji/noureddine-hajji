@@ -55,6 +55,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from suptracker import carte as CA  # noqa: E402
 from suptracker import search as S  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -150,7 +153,7 @@ def node(prog: str, payload=None):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=300)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(payload, default=str), capture_output=True, text=True, timeout=300)
     if r.returncode:
         raise RuntimeError(r.stderr[-800:])
     return json.loads(r.stdout)
@@ -490,7 +493,7 @@ def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
-    r = subprocess.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(voc)})
+    r = nodefile.run([exe, "-e", prog], capture_output=True, text=True, timeout=60, env={**os.environ, "VOCAB": json.dumps(voc)})
     if r.returncode:
         return False, r.stderr[-400:]
     groups = {g: (t, o) for g, t, o in json.loads(r.stdout)}
@@ -560,7 +563,7 @@ def share_ok(js: str) -> tuple[bool, str]:
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
-    r = subprocess.run([exe, "-e", "\n".join(top(js, n) for n in names) + SHARE_PROG], capture_output=True, text=True, timeout=60,
+    r = nodefile.run([exe, "-e", "\n".join(top(js, n) for n in names) + SHARE_PROG], capture_output=True, text=True, timeout=60,
                        env={**os.environ, "VOCAB": json.dumps(FI.vocab())})
     if r.returncode:
         return False, r.stderr[-500:]
@@ -701,7 +704,7 @@ def rs6(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     s = socket.socket()

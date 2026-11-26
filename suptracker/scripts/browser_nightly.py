@@ -20,6 +20,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -66,7 +69,7 @@ def browser_ready() -> str | None:
     if not node:
         return "node is not installed"
     prog = "const { chromium } = require('playwright'); chromium.launch().then((b) => b.close()).then(() => process.exit(0), (e) => { console.error(e.message); process.exit(1); });"
-    r = subprocess.run([node, "-e", prog], capture_output=True, text=True, timeout=120)
+    r = nodefile.run([node, "-e", prog], capture_output=True, text=True, timeout=120)
     return None if r.returncode == 0 else f"Playwright / Chromium unavailable: {(r.stderr or r.stdout).strip()[-300:]}"
 
 
