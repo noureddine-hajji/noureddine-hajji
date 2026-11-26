@@ -261,7 +261,7 @@ def vi3(c: Ctx):
 
 # ------------------------------------------------------------------ Node harnesses
 def base_defs(js: str) -> str:
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     parts = [top(js, n) for n in ("ZONE_RULES", "zoneHelp", "ESTIM_DEF", "estimTag", "zoneShape", "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml",
                                   "zoneBadge")]                     # sprint Q4: zone titles and the estimation label
@@ -477,7 +477,7 @@ process.stdout.write(JSON.stringify(out));
 
 
 def charts_ok(js: str) -> tuple[bool, str]:
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ")))
     defs = [top(js, n) for n in ("COLORS", "DASHES", "seriesDash", "chartName", "PHONE_CHART", "lineChart", "stackedBars", "lineLegend")]
     r = node(helpers + "\n" + "\n".join(defs) + CHART_PROG)
     if r is None:

@@ -273,7 +273,7 @@ def for_licence(con, cod: str, fili: str | None, contrat: str | None, paysage: d
         r = out["reorientation"]
         if r:
             r["maillon"] = E.maillon("reorientation_l1", r["taux_reorientation"], france=(out["reorientation_france"] or {}).get("taux_reorientation"),
-                                     granularite="universite_x_discipline", population="néo-bacheliers inscrits en L1",
+                                     granularite="universite_x_discipline", population="nouveaux bacheliers inscrits en L1",
                                      cohorte=r["cohort"], effectif=r["inscrits"], source="SIES, Note Flash 2025-29", lien=lien or "nom",
                                      avertissement="tous les inscrits en L1 de cette grande discipline dans l'université")
     if has_mm:

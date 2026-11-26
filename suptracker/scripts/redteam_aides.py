@@ -334,7 +334,7 @@ const bacProfile = () => PROFILE;
 
 @check("AI4 page: the card escapes, labels the computed year, safe official links, no échelon or promise, nothing sent, profile read here")
 def ai4(c: Ctx):
-    names = ("euros", "eurosRange", "euroMois", "aidesHint", "aidesCard")
+    names = ("ACAD_LABEL", "acadLabel", "euros", "eurosRange", "euroMois", "aidesHint", "aidesCard")
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     defs = "\n".join(top(c.js, n) for n in names)
@@ -509,7 +509,7 @@ SOURCE_MUTANTS = [
     ("ai", "IFSI gets the Crous table", "    if fili in SANITAIRE_SOCIAL:", "    if fili in ():", "AI3"),
     ("ai", "overseas majoration dropped", "        if out[\"outre_mer\"]:\n            maj", "        if False:\n            maj", "AI3"),
     ("js", "condition unescaped", "a.merite.conditions.map((c) => `<li>${esc(c)}</li>`)", "a.merite.conditions.map((c) => `<li>${c}</li>`)", "AI4"),
-    ("js", "académie unescaped", "pas la vôtre (${esc(p.academie)})", "pas la vôtre (${p.academie})", "AI4"),
+    ("js", "académie unescaped", "pas la vôtre (${esc(acadLabel(p.academie))})", "pas la vôtre (${p.academie})", "AI4"),
     ("js", "boursier year not labelled", '${estimTag("même calcul que ci-dessus, sans ce dont les boursiers sont exonérés ; la bourse n\'est pas déduite")}', "", "AI4"),
     ("js", "unsafe link kept", "  const lien = (url, texte) => /^https:\\/\\/[a-z0-9.-]+\\.gouv\\.fr\\//.test(url || \"\") ? ", "  const lien = (url, texte) => url ? ", "AI4"),
     ("ai", "the tariff table cut short", '        if x in ("Transfert d\'inscription", "Règlement", "Exonération des droits d\'inscription"):',

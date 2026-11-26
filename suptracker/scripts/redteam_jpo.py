@@ -852,7 +852,7 @@ def j11(c: Ctx):
     vf = c.js[c.js.index("async function viewFormation("):]
     adm = vf[vf.index('["admission", "Y entrer", `'):vf.index('["jury", "Ce que regarde le jury"')]
     cout = vf[vf.index('["cout", "Combien ça coûte"'):vf.index('["reussite", "Réussir et poursuivre"')]
-    if "${jpoCard(d.jpo)}" not in adm or adm.index("${jpoCard(d.jpo)}") > adm.index("Indicateurs officiels SIES"):
+    if "${jpoCard(d.jpo)}" not in adm or adm.index("${jpoCard(d.jpo)}") > adm.index("Chiffres officiels du ministère"):
         bad.append("the open days are not in « Y entrer » before the SIES indicators")
     if "jpoCard" in cout:
         bad.append("the open days are still in « Combien ça coûte »")
@@ -952,8 +952,8 @@ SOURCE_MUTANTS += [
     ("js", "online sessions mixed", "const surPlace = dates.filter((e) => !e.virtuel), enLigne = dates.filter((e) => e.virtuel);",
      "const surPlace = dates, enLigne = [];", "J11"),
     ("js", "card left in the cost tab", '    ["cout", "Combien ça coûte", coutCard(d.vie, r)', '    ["cout", "Combien ça coûte", jpoCard(d.jpo) + coutCard(d.vie, r)', "J11"),
-    ("js", "card after the SIES indicators", "  ${jpoCard(d.jpo)}\n  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES",
-     "  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Indicateurs officiels SIES", "J11"),
+    ("js", "card after the SIES indicators", "  ${jpoCard(d.jpo)}\n  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Chiffres officiels du ministère",
+     "  ${decouvrirCard(d.immersion, d.handicap)}\n  <div class=\"card\"><h2>Chiffres officiels du ministère", "J11"),
     ("js", "summary line opens the cost tab", '<button type="button" class="linkish" data-goto="admission">${txt} →</button>',
      '<button type="button" class="linkish" data-goto="cout">${txt} →</button>', "J11"),
 ]

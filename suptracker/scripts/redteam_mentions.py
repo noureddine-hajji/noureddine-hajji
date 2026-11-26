@@ -228,7 +228,7 @@ def m7(con, real):
                          AND abs(pct_bg_mention - 100.0 * acc_bg_mention / acc_neobac) > 1)
         FROM core.formation_year WHERE acc_bg_mention IS NOT NULL""").fetchone()
     from suptracker.schema import FIELD_BY_NAME
-    label_ok = "ensemble des néo-bacheliers" in FIELD_BY_NAME["pct_bg_mention"].label
+    label_ok = "ensemble des nouveaux bacheliers" in FIELD_BY_NAME["pct_bg_mention"].label
     return over == 0 and mism <= 0.01 * n and label_ok, \
         f"{over} rows with more mentions than admits, {mism}/{n} mismatches over acc_neobac, label {'ok' if label_ok else 'WRONG'}"
 

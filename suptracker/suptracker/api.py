@@ -145,10 +145,10 @@ METHODOLOGY = {
         "des admis bacheliers généraux. Les autres filières sont accessibles. En dessous de 100 candidats "
         "cumulés, l'effectif est jugé insuffisant."),
     "journey_cdf": (
-        "Part des admis ayant au plus votre mention : parmi les admis néo-bacheliers de la formation dont "
+        "Part des admis ayant au plus votre mention : parmi les admis nouveaux bacheliers de la formation dont "
         "la mention est connue, la part qui a une mention inférieure ou égale à la vôtre, cumulée sur la "
         "lignée 2022–2025. L'intervalle est un intervalle de Wilson à 95 %. SIES publie les mentions "
-        "pour tous les néo-bacheliers (général, technologique et professionnel), sans croisement avec la "
+        "pour tous les nouveaux bacheliers (général, technologique et professionnel), sans croisement avec la "
         "série : la part de bacheliers généraux est donc affichée à côté. Ce n'est pas une probabilité "
         "d'admission individuelle : c'est la composition d'une cohorte d'admis."),
     "journey_bg": (
@@ -206,7 +206,7 @@ METHODOLOGY = {
         "handicap ne figurent pas dans ces données : chaque fiche Parcoursup indique le référent handicap."),
     "success": (
         "Réussite en licence : chiffres publiés par le SIES (ministère de l'Enseignement supérieur) pour "
-        "l'ensemble des néo-bacheliers inscrits en première année de licence d'une université dans une grande "
+        "l'ensemble des nouveaux bacheliers inscrits en première année de licence d'une université dans une grande "
         "discipline (droit ; économie-AES ; arts, lettres, langues et sciences humaines ; sciences-santé ; "
         "STAPS). Ils ne portent pas sur cette seule licence, et ne sont pas publiés formation par formation. "
         "Trois cohortes : le devenir un an après l'entrée en L1 (passage en L2, redoublement, réorientation, "
@@ -217,7 +217,7 @@ METHODOLOGY = {
         "discipline. Les petits effectifs sont masqués par le SIES (« ns ») ou signalés ici en dessous de 100 "
         "inscrits. Ce sont des résultats de cohortes passées, pas des chances de réussite."),
     "but": (
-        "Réussite en BUT : chiffres publiés par le SIES (ministère de l'Enseignement supérieur) pour les néo-bacheliers "
+        "Réussite en BUT : chiffres publiés par le SIES (ministère de l'Enseignement supérieur) pour les nouveaux bacheliers "
         "2021 inscrits en première année de BUT. Par établissement, le SIES ne publie qu'un taux par université, toutes "
         "spécialités et tous IUT confondus : il ne porte pas sur ce seul BUT. La réussite est attribuée à l'université "
         "d'inscription en première année, même si le diplôme a été obtenu ailleurs. Le taux attendu (« simulé ») tient "
@@ -238,7 +238,7 @@ METHODOLOGY = {
         "type de bac ou la mention, jamais les deux à la fois. Ce sont des résultats de cohortes passées, pas des "
         "chances de réussite."),
     "passerelles": (
-        "Passerelles : deux sources du ministère de l'Enseignement supérieur (SIES). 1) Après la L1 : parmi les néo-bacheliers "
+        "Passerelles : deux sources du ministère de l'Enseignement supérieur (SIES). 1) Après la L1 : parmi les nouveaux bacheliers "
         "entrés en L1 dans l'université et la grande discipline de cette licence, la part qui s'inscrit l'année suivante dans "
         "une autre formation que la licence, et vers quoi : hors de l'université (BTS, classe préparatoire, écoles de "
         "commerce ou d'ingénieurs) ou à l'université (BUT, diplôme d'infirmier). Ce sont des parts des inscrits en L1 ; le "
@@ -397,9 +397,9 @@ METHODOLOGY = {
         "navigateur : le site n'envoie que votre mention, reçoit les effectifs publiés de cette mention et place lui-même votre "
         "moyenne dedans, avec la même règle que le serveur. Aucune page ne l'envoie, la recherche non plus. Ce sont des repères tirés des admis passés, jamais une chance d'admission."),
     "mentions": (
-        "Les décompositions par série et par mention portent sur les admis néo-bacheliers, "
+        "Les décompositions par série et par mention portent sur les admis nouveaux bacheliers, "
         "le dénominateur que SIES utilise effectivement : sur les exports 2022–2025, les séries s'additionnent "
-        "exactement au nombre d'admis néo-bacheliers, et non au nombre d'admis venant de terminale. Les parts "
+        "exactement au nombre d'admis nouveaux bacheliers, et non au nombre d'admis venant de terminale. Les parts "
         "affichées sont celles publiées par SIES. "
         "Quelques lignes de l'export SIES lui-même ne s'additionnent pas ; elles sont signalées."),
 }
@@ -694,7 +694,7 @@ def _warnings(rec: dict, peers: list[dict] | None = None) -> list[dict]:
     if rec.get("series_sum_mismatch") or rec.get("mention_sum_mismatch"):
         w.append({"code": "sies_identity", "text": "Incohérence dans l'export SIES : la décomposition par "
                   + ("série" if rec.get("series_sum_mismatch") else "mention")
-                  + " ne s'additionne pas exactement aux admis néo-bacheliers. Données reprises telles quelles."})
+                  + " ne s'additionne pas exactement aux admis nouveaux bacheliers. Données reprises telles quelles."})
     if rec["lineage_confidence"] == INFERRED:
         w.append({"code": "lineage", "text": "Historique reconstitué avec au moins un appariement inféré "
                   "(changement de code formation)."})

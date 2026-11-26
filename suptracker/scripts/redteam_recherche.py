@@ -489,7 +489,7 @@ process.stdout.write(JSON.stringify(carteGroups().map(([g, t, o]) => [g, t, o.ma
 def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
     voc = FI.vocab()
-    prog = "\n".join(top(js, n) for n in ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups")) + FIELD_PROG
+    prog = "\n".join(top(js, n) for n in ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups")) + FIELD_PROG
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
@@ -558,7 +558,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 def share_ok(js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
-    names = ("FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
+    names = ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
              "carteSelection", "carteShareLink", "carteShareRead")
     exe = shutil.which("node")
     if not exe:
@@ -818,7 +818,7 @@ JS_MUTANTS = [
     ("failure: the list emptied", "catch (e) { err = apiErrorText(e); }", "catch (e) { err = apiErrorText(e); kw = { codes: new Set(), rank: new Map(), words: [], interp: [], notes: [] }; }", "rs5"),
     ("a superseded answer kept (Codex)", "if (mine !== carteUI.kwTok || seq !== carteUI.seq", "if (seq !== carteUI.seq", "rs5"),
     ("unknown place unescaped", "Lieu non reconnu : « ${esc(carteUI.lieuBad)} »", "Lieu non reconnu : « ${carteUI.lieuBad} »", "rs5"),
-    ("the académie dropdown dropped (owner, 2026-11-16)", '["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ', "", "rs9"),
+    ("the académie dropdown dropped (owner, 2026-11-16)", '["acad", "Académie", CARTE_ACADS.map((a) => [a, acadLabel(a)])], ', "", "rs9"),
     ("the apprenticeship group dropped", '  ["app", "Apprentissage", [["non", "Formations hors apprentissage"], ["oui", "Formations en apprentissage"]]],\n', "", "rs9"),
     ("an aménagement option dropped", '["sport", "Aménagements pour sportifs de haut niveau"], ', "", "rs9"),
     ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "  ...CARTE_ROB];", "rs9"),

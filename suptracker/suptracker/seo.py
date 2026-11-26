@@ -180,15 +180,15 @@ def observatoire_body(d: dict) -> str:
 {sec(f"Où la demande est la plus forte ({esc(last)})", "Vœux par place de toutes les formations de chaque académie.",
      _obs_table("Vœux par place par académie", ["Académie", "Vœux par place", "Vœux", "Places"], a),
      f"Pas de chiffre sous {esc(num(d['seuils']['academie_formations']))} formations ou {esc(num(d['seuils']['academie_places']))} places.")}
-{sec(f"Rester près de chez soi ou partir loin ({esc(last)})", "Part des admis néo-bacheliers venus de l'académie de leur formation.",
-     _obs_table("Admis venus de la même académie", ["Type de formation", "Même académie", "Admis néo-bacheliers"], p),
-     "Cette part n'est publiée que pour les néo-bacheliers.")}
+{sec(f"Rester près de chez soi ou partir loin ({esc(last)})", "Part des admis nouveaux bacheliers venus de l'académie de leur formation.",
+     _obs_table("Admis venus de la même académie", ["Type de formation", "Même académie", "Admis nouveaux bacheliers"], p),
+     "Cette part n'est publiée que pour les nouveaux bacheliers.")}
 {sec(f"Filles et garçons ({esc(last)})", "Part de filles parmi les admis, et parmi les vœux.",
      _obs_table("Part de filles", ["Type de formation", "Parmi les admis", "Parmi les vœux"], f), "Des vœux, pas des personnes.")}
-{sec(f"Bac général, techno ou pro ({esc(last)})", "Le bac des admis néo-bacheliers. Une part faible veut dire « rare », jamais « fermé ».",
+{sec(f"Bac général, techno ou pro ({esc(last)})", "Le bac des admis nouveaux bacheliers. Une part faible veut dire « rare », jamais « fermé ».",
      _obs_table("Bac des admis", ["Type de formation", "Bac général", "Bac techno", "Bac pro"], b))}
 {sec(f"Les mentions au bac des admis ({esc(d.get('mentions_avant', first))} → {esc(last)})",
-     "Part des admis néo-bacheliers avec « très bien » ou « très bien avec félicitations ».",
+     "Part des admis nouveaux bacheliers avec « très bien » ou « très bien avec félicitations ».",
      _obs_table("Mentions très bien ou plus", ["Type de formation", "Très bien ou plus"], m),
      "Ce sont les admis passés : ni le niveau demandé ni vos chances.")}
 <p class="muted small">{esc(OBS_NOTE)}</p>

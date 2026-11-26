@@ -257,7 +257,7 @@ def ui(js: str) -> tuple[bool, str]:
     html, none, empty = json.loads(out)
     leaks = re.findall(r"<(?:script|img|svg|b)\b", html)
     words = all(w in html for w in ("pas une prévision de pertes d'emplois", "transformé que remplacé", "on ne fait pas la moyenne",
-                                     "CC BY 4.0", "pas de note OIT", "0,60", "0,53", "de 0,43 à 0,60", "exposé, gradient 4 sur 4",
+                                     "CC BY 4.0", "pas de note pour ce code", "0,60", "0,53", "de 0,43 à 0,60", "exposé, gradient 4 sur 4",
                                      "liée à la transition numérique", "non renseignée pour la transition numérique",
                                      "0,49 à 0,55", "2 professions US", "1 profession US", "non calculée", "estimation adaptée",
                                      "de 0,49 à 0,65 sur 1", "pas le score publié par le FMI", "jamais combinée avec la note de l'OIT"))
@@ -318,7 +318,7 @@ UI_MUTANTS = [
     ("one decimal", "minimumFractionDigits: 2, maximumFractionDigits: 2", "maximumFractionDigits: 1"),
     ("range replaced by an average", "va de ${score(ia.min)} à ${score(ia.max)} sur 1", "est en moyenne de ${score((ia.min + ia.max) / 2)} sur 1"),
     ("job-loss caveat dropped", "pas une prévision de pertes d'emplois ni un risque pour vous", "un risque pour votre avenir"),
-    ("unscored code hidden", "'<span class=\"muted\">pas de note OIT</span>'", "\"\""),
+    ("unscored code hidden", "'<span class=\"muted\">pas de note pour ce code</span>'", "\"\""),
     ("gradient label raw English", "esc(IA_GRADIENT[i.gradient] || i.gradient)", "esc(i.gradient)"),
     ("theta range collapsed to its middle", "(score(lo) === score(hi) ? score(lo) : `${score(lo)} à ${score(hi)}`)", "score((lo + hi) / 2)"),
     ("theta presented as the IMF score", "c'est une estimation adaptée (fiabilité C), pas le score publié par le FMI", "c'est le score du FMI"),

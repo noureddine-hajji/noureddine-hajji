@@ -387,7 +387,7 @@ HOSTILE = "<img src=x onerror=alert(1)>"
 
 @check("PA6 page: escaped, statuses worded, Onisep links noopener, 80 % sentence only with routes, measure from data, vouvoiement")
 def pa6(c: Ctx):
-    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "PA_HOW", "paRoute", "parcoursCard"))
+    defs = "\n".join(top(c.js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "PA_HOW", "paRoute", "parcoursCard"))
     route = {"entree": "ps:PASS", "etapes": [{"id": "FOR.1", "libelle": "DE " + HOSTILE, "niveau": "bac + 9"}], "comment": "regle",
              "regle": "sante_mmopk", "principale": True,
              "entree_info": {"libelle": "PASS " + HOSTILE, "n_formations": 287, "places": 26646, "recherche": "PASS"},

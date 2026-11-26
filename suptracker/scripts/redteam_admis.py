@@ -41,7 +41,7 @@ API = ROOT / "suptracker" / "api.py"
 CHECKS = []
 CHANCE = re.compile(r"(?i)\bprobabilit|\d+\s*%\s*de chances|chances? d'[eê]tre (?:admis|pris)|vous serez admis|garanti")
 FORMAL = re.compile(r"\b(?:[Tt]u|[Tt]on|[Tt]a|[Tt]es|[Tt]oi)\b")
-LABEL = "Majorité d'admis hors néo-bacheliers"
+LABEL = "Majorité d'admis hors nouveaux bacheliers"
 M = {"ADM": ADM}
 RULE_SQL = "acc_tot >= 10 AND acc_tot = acc_neobac + acc_at AND acc_at > acc_neobac"
 
@@ -211,7 +211,7 @@ def h2(c: Ctx):
 
 @check("H3 the page in Node: bar only when the counts add up, widths and text from the published counts, label from the flag")
 def h3(c: Ctx):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ")))
     part = block(c.js, "const AUTRES_LABEL = ", "function summaryBand(")
     prog = helpers + "\n" + part + """
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -230,10 +230,10 @@ process.stdout.write(JSON.stringify(cases.map((a) => ({ bar: admisBar(a), cell: 
     widths = lambda h: [float(x) for x in re.findall(r'style="width:([\d.]+)%"', h)]
     w1, w2 = widths(a["bar"]), widths(b["bar"])
     ok_bar = (w1 == [round(600 / 28, 2), round(2200 / 28, 2)] and abs(sum(w2) - 100) < 0.02 and "adm-bar" in a["bar"]
-              and 'aria-label="6 néo-bacheliers et 22 autres admis sur 28 admis"' in a["bar"]
-              and "6 néo-bacheliers (21 % des admis)" in a["bar"] and "22 autres admis" in a["bar"])
+              and 'aria-label="6 nouveaux bacheliers et 22 autres admis sur 28 admis"' in a["bar"]
+              and "6 nouveaux bacheliers (21 % des admis)" in a["bar"] and "22 autres admis" in a["bar"])
     ok_label = LABEL in a["bar"] and LABEL not in b["bar"] and LABEL in a["badge"] and not b["badge"] and LABEL in a["cell"] and LABEL not in b["cell"]
-    ok_inc = ("adm-bar" not in inc["bar"] and "13 néo-bacheliers et 7 autres admis publiés, pour 21 admis" in inc["bar"]
+    ok_inc = ("adm-bar" not in inc["bar"] and "13 nouveaux bacheliers et 7 autres admis publiés, pour 21 admis" in inc["bar"]
               and "ne font pas exactement le total publié" in inc["bar"] and "(total publié 21)" in inc["cell"])
     ok_none = none["bar"] == "" and none["cell"] == "—" and none["badge"] == ""
     ok_small = "<img" not in small["bar"] and "adm-bar" in small["bar"] and "des admis)" not in small["bar"]
@@ -248,8 +248,8 @@ def h4(c: Ctx):
     texts = re.findall(r"`[^`]*`|\"[^\"]*\"", part)
     chance = [t[:60] for t in texts if CHANCE.search(t)]
     tu = [t[:60] for t in texts if FORMAL.search(re.sub(r"\$\{[^}]*\}", "", t))]
-    scope = "Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers." in part
-    detail = "le SIES ne les détaille pas" in part
+    scope = "Les mentions et les séries de bac publiées ne concernent que les nouveaux bacheliers." in part
+    detail = "le ministère ne les détaille pas" in part
     label = f'const AUTRES_LABEL = "{LABEL}";' in part
     ok = not chance and not tu and scope and detail and label
     return ok, f"chance wording {chance[:2]}; tutoiement {tu[:2]}; néo-bacheliers scope said {scope}; other admits not detailed {detail}; label {label}"
@@ -263,7 +263,7 @@ def h5(c: Ctx):
     # R10: one card for the map's list and the pinned formation (carteCard)
     carte = block(js, "function carteCard(", "function carteList(")
     carte_ok = carte.count("${autresBadge(f)}") == 1 and "carteCard(f, ctx, false)" in js and "carteCard(f, ctx, true)" in js
-    cmp_ok = '["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)]' in block(js, "async function viewCompare(", "async function viewSpecialites(")
+    cmp_ok = '["Nouveaux bacheliers / autres admis", (f) => admisCell(f.admis)]' in block(js, "async function viewCompare(", "async function viewSpecialites(")
     vx_ok = "${autresBadge(v)}`;" in block(js, "async function viewVoeux(", "const position = ")
     summary = "    ${admisBar(d.admis)}\n" in block(js, "function summaryBand(", "function fillZoneTile(")
     blocks = re.findall(r"(?s)(:root \{.*?\n\}|:root:not\(\[data-theme=\"light\"\]\) \{.*?\n  \}|:root\[data-theme=\"dark\"\] \{.*?\n\})", c.css)
@@ -297,12 +297,12 @@ JS_MUTANTS = [
     ("width from the wrong count", '<span class="neo" style="width:${w(a.admis_neobac)}%"></span>', '<span class="neo" style="width:${w(a.admis_autres)}%"></span>'),
     ("label shown for every formation", "(x && x.autres_majoritaires ?", "(x ?"),
     ("session unescaped", "Qui sont les admis ${esc(a.session)} ?", "Qui sont les admis ${a.session} ?"),
-    ("scope of the mentions dropped", "Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.", ""),
+    ("scope of the mentions dropped", "Les mentions et les séries de bac publiées ne concernent que les nouveaux bacheliers.", ""),
     ("bar dropped from the summary", "    ${admisBar(d.admis)}\n", "\n"),
     ("label dropped from the search cards", "${voieBadges(f)}${autresBadge(f)}", "${voieBadges(f)}"),
     ("label dropped from Mes vœux", "${autresBadge(v)}`;", "`;"),
-    ("comparator row dropped", '    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],\n', ""),
-    ("chance wording", "Néo-bacheliers : ils passaient le bac", "Vous serez admis : ils passaient le bac"),
+    ("comparator row dropped", '    ["Nouveaux bacheliers / autres admis", (f) => admisCell(f.admis)],\n', ""),
+    ("chance wording", "Nouveaux bacheliers : ils passaient le bac", "Vous serez admis : ils passaient le bac"),
 ]
 CSS_MUTANTS = [("zone colour reused", "--adm-autres: #a8683c;", "--adm-autres: #c2410c;"),
                ("dark theme token missing", "    --adm-neo: #a9bccb; --adm-autres: #e0a77c;\n    color-scheme: dark;\n  }", "    color-scheme: dark;\n  }")]

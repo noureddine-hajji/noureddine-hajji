@@ -38,6 +38,7 @@ different ways of saying "estimation", zones never explained in words, no "what 
 from __future__ import annotations
 
 import argparse
+import copy
 import html as H
 import json
 import os
@@ -719,6 +720,167 @@ def la10(c: Ctx):
         return False, r.stderr[-400:]
     o = json.loads(r.stdout)
     return o["n"] > 20 and not o["hits"] and not o["errs"], f"{o['n']} pages read; {len(o['hits'])} hits {o['hits'][:5]}; JS errors {o['errs'][:2]}"
+
+
+# ---------------------------------------------------------------- LA11-LA13: the words the testers quoted (lot 1, PR 10)
+# what two audits' testers (2026-11-23, 2026-11-25) could not read; « néo-bachelier » only as the quoted official word
+TESTER = [
+    ("néo-bachelier", re.compile(r"néo-bachelier(?! »)", re.I)),
+    ("SIES without « ministère »", re.compile(r"\bSIES\b")),
+    ("Pas de conclusion", re.compile(r"\bPas de conclusion\b", re.I)),
+    ("note OIT", re.compile(r"\bnote OIT\b")),
+    ("Part des classés appelés", re.compile(r"Part des classés appelés")),
+    ("Part des terminales générales parmi", re.compile(r"Part des terminales générales parmi")),
+    ("taux_acces_ens =", re.compile(r"taux_acces_ens =")),
+    ("Indicateurs officiels SIES", re.compile(r"Indicateurs officiels SIES")),
+]
+JS_TESTER = [("×N (a ratio with a times sign)", re.compile(r">×\$\{fmt\(")),
+             ("an académie printed without acadLabel", re.compile(r"esc\((?:(?:\w+\.)+(?:academie|acad_mies)|home|acad)\)")),
+             ("a report label printed raw in L'essentiel", re.compile(r"ligne « \$\{v\.libelle\} »|: x\.libelle,"))]
+
+
+def tester_hits(texts, allow_sies=True):
+    out = []
+    for t in texts:
+        for name, rx in TESTER:
+            if rx.search(t) and not (name.startswith("SIES") and allow_sies and "ministère" in t):
+                out.append((name, t[:90]))
+    return out
+
+
+@check("LA11 the words the testers quoted (néo-bacheliers, SIES, Pas de conclusion, codes, raw labels) are gone from page and server texts")
+def la11(c: Ctx):
+    bad = tester_hits(js_visible(c.js))
+    for name, rx in JS_TESTER:
+        if rx.search(c.js):
+            bad.append((name, rx.search(c.js).group(0)[:60]))
+    srv = []
+    for f in PY_TEXT + ["api.py", "glossary.py", "schema.py"]:
+        for t in py_visible(ROOT / "suptracker" / f):
+            srv += [(f, n, x) for n, x in tester_hits([t]) if n.startswith("néo")]
+    if srv:
+        bad.append(("server texts", srv[:3]))
+    g = c.glossary.get("neo_bachelier")
+    if not g or "néo" in g[0].lower() or "« néo-bachelier »" not in g[1]:
+        bad.append(("glossary: « Nouveau bachelier », the official word quoted", g))
+    prog = defn(c.js, "ACAD_LABEL") + "\n" + defn(c.js, "acadLabel") + """
+process.stdout.write(JSON.stringify([acadLabel("Besancon"), acadLabel("Etranger"), acadLabel("Lyon"), acadLabel(null), acadLabel("")]));"""
+    try:
+        o = node_json(prog)
+    except Exception as e:  # noqa: BLE001
+        o, bad = None, bad + [("acadLabel does not run", str(e)[:80])]
+    if o is not None and o != ["Besançon", "Étranger", "Lyon", None, ""]:
+        bad.append(("acadLabel", o))
+    pr = defn(c.js, "profileRate")
+    if pr.count("rpLabel(") < 3:
+        bad.append("profileRate prints a report label without rpLabel")
+    return not bad, f"{len(bad)} problems {bad[:4]}"
+
+
+SCAN2_JS = r"""
+const { chromium, devices } = require('playwright');
+const [base, cods] = [process.argv[2], JSON.parse(process.argv[3])];
+const BAN = /\bISCO\b|FAP-20\d\d|O\*NET(?! \(minist)|\bθ\b|néo-bachelier(?! »)|Pas de conclusion|\bBesancon\b|\bEtranger\b|×\s?\d[\d,]*(?![\d,]|\s*m²)|taux_acces_ens|series_eq|stage1|Msgn\/|\bSIES\b/i;
+(async () => {
+  const b = await chromium.launch(); const hits = []; const errs = []; let n = 0;
+  const profs = { bg: { statut: 'terminale', serie: 'bg', spe1: 'MATHS', spe2: 'SES', mention: 'ab', academie: 'Besancon' },
+    bt: { statut: 'terminale', serie: 'bt', mention: 'sansmention', voie: 'stmg_merc', voie_label: 'STMG Mercatique' },
+    reo: { statut: 'reorientation', academie: 'Etranger' } };
+  const metiers = await (await fetch(base + '/api/metiers')).json();
+  const iid = metiers.fields.indexOf('id'); const ids = metiers.rows.map((r) => r[iid]).filter(Boolean);
+  const jobs = [ids[0], ids[Math.floor(ids.length / 2)], ids[ids.length - 1]];
+  const pages = ['#/', '#/profil', '#/parcours', '#/voeux', '#/qualite', '#/observatoire', '#/reorientation', ...cods.map((c) => '#/f/' + c), ...jobs.map((j) => '#/metier/' + j)];
+  for (const [pk, prof] of Object.entries(profs)) {
+    const ctx = await b.newContext({ ...devices['Pixel 5'] });
+    await ctx.addInitScript(([p, c]) => { localStorage.setItem('profile', JSON.stringify(p)); localStorage.setItem('voeux', JSON.stringify(c)); }, [prof, cods]);
+    const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+    for (const u of pages) {
+      await p.goto(base + '/' + u); await p.waitForTimeout(3500);
+      const t = await p.evaluate(() => { const v = document.querySelector('#view').cloneNode(true);
+        v.querySelectorAll('details.more-card').forEach((d) => d.remove());          // the folded detail of a calculation may keep its codes
+        v.querySelectorAll('details').forEach((d) => { d.open = true; });
+        v.querySelectorAll('[role="tabpanel"]').forEach((x) => { x.hidden = false; });
+        document.body.appendChild(v); v.style.position = 'absolute'; v.style.left = '-99999px';
+        const txt = v.innerText; v.remove(); return txt; });
+      n += 1;
+      for (const line of t.split('\n')) if (BAN.test(line) && !(/\bSIES\b/.test(line) && /minist/i.test(line) && !BAN.test(line.replace(/\bSIES\b/g, '')))) { const m = line.match(BAN); const k = Math.max(0, (m ? m.index : 0) - 50); hits.push(`${pk} ${u}: [${m ? m[0] : ''}] ${line.trim().slice(k, k + 130)}`); }
+    }
+    await ctx.close();
+  }
+  process.stdout.write(JSON.stringify({ n, hits: [...new Set(hits)], errs })); await b.close();
+})();
+"""
+
+
+@check("LA12 browser: the pages the testers read (bac techno with its route, reorientation, job pages, quality page) carry none of their quoted words outside a folded calculation")
+def la12(c: Ctx):
+    if not (c.browser or c.real):
+        return True, "skipped (--browser)"
+    node = shutil.which("node")
+    if not node or nodefile.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
+        return True, "skipped (node or playwright not installed)"
+    import duckdb
+    from suptracker import config
+    db = c.db or config.DB_PATH
+    with duckdb.connect(str(db), read_only=True) as con:
+        latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+        cods = [r[0] for r in con.execute("""SELECT DISTINCT cod_aff_form FROM core.rapport_doublette WHERE session = ? AND bac = 'bt'
+            AND libelle ILIKE 'Msgn/ Mercatique%' ORDER BY 1 LIMIT 1""", [latest]).fetchall()]
+        cods += [r[0] for r in con.execute("""SELECT cod_aff_form FROM core.formation_year WHERE session = ? AND acad_mies IN ('Besancon', 'Etranger')
+            ORDER BY cod_aff_form LIMIT 2""", [latest]).fetchall()]
+    if not cods:
+        return False, "no formation to read"
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+    tmp = tempfile.mkdtemp()
+    env = {**os.environ, "SUPTRACKER_ANALYTICS_DIR": tmp, "SUPTRACKER_DB": str(db)}
+    srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "suptracker.api:app", "--port", str(port)], cwd=ROOT, env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(8)
+        script = Path(tmp) / "la12.js"
+        script.write_text(SCAN2_JS)
+        r = subprocess.run([node, str(script), f"http://127.0.0.1:{port}", json.dumps(cods)], capture_output=True, text=True, timeout=1200)
+    finally:
+        srv.terminate()
+    if r.returncode:
+        return False, r.stderr[-400:]
+    o = json.loads(r.stdout)
+    return o["n"] > 30 and not o["hits"] and not o["errs"], f"{o['n']} pages read; {len(o['hits'])} hits {o['hits'][:6]}; JS errors {o['errs'][:2]}"
+
+
+TESTER_MUTANTS = [
+    ("the raw report label back in L'essentiel", "`votre bac, ligne « ${rpLabel(v.libelle)} »`", "`votre bac, ligne « ${v.libelle} »`"),
+    ("« Pas de conclusion » back", 'incertain: "Prévisions divergentes" };', 'incertain: "Pas de conclusion" };'),
+    ("an académie printed raw", "${esc(acadLabel(r.acad_mies))}", "${esc(r.acad_mies)}"),
+    ("the reorientation home académie printed raw", "Seulement l'académie de ${esc(acadLabel(home))}", "Seulement l'académie de ${esc(home)}"),
+    ("acadLabel forgets Besançon", 'const ACAD_LABEL = { Besancon: "Besançon", Etranger: "Étranger" };', 'const ACAD_LABEL = { Etranger: "Étranger" };'),
+    ("néo-bacheliers back in a sentence", "des admis nouveaux bacheliers", "des admis néo-bacheliers"),
+    ("the SIES heading back", "Chiffres officiels du ministère · ", "Indicateurs officiels SIES · "),
+    ("the times sign back", '${fmt(f.lift, 2)} fois la moyenne</td>', '×${fmt(f.lift, 2)}</td>'),
+    ("a quality-page code back", "<tr><td>Taux d'accès = fichier officiel brut</td>", "<tr><td>taux_acces_ens = fichier SIES brut</td>"),
+]
+
+
+@check("LA13 mutation test: every seeded return of a word the testers quoted is caught by LA11")
+def la13(c: Ctx):
+    ok0, d0 = la11(c)
+    if not ok0:
+        return False, f"the unmutated code fails LA11: {d0}"
+    missed, caught = [], 0
+    for name, old, new in TESTER_MUTANTS:
+        if c.js.count(old) < 1:
+            missed.append(f"{name} (anchor missing)")
+            continue
+        m = copy.copy(c)
+        m.js = c.js.replace(old, new, 1)
+        try:
+            ok = la11(m)[0]
+        except Exception:  # noqa: BLE001
+            ok = False
+        caught += not ok
+        if ok:
+            missed.append(name)
+    return not missed, f"{caught}/{len(TESTER_MUTANTS)} caught; missed {missed}"
 
 
 def run(db: Path | None = None, real: bool = False, browser: bool = False, checks: set | None = None) -> list[dict]:

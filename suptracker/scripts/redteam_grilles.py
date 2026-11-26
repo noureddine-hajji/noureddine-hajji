@@ -555,7 +555,7 @@ HOSTILE = "<img src=x onerror=alert(1)>"
 
 @check("GR7 page: grilleCard escapes, shows every weight and importance (label + dots), campaign, fait foi, no chance, vouvoiement")
 def gr7(c: Ctx):
-    defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "grilleCard"))
+    defs = "\n".join(top(c.js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "grilleCard"))
     g = {"session": 2026, "lu_le": "2026-11-13", "url": "https://dossier.parcoursup.fr/x?g_ta_cod=1", "grille": True,
          "nationaux": f"Savoir lire.\n- {HOSTILE}\n- Écrire", "complementaires": None, "conseils": HOSTILE,
          "champs": [{"rang": 1, "champ": "Résultats scolaires", "poids": 73, "intitule": "x", "criteres": [
@@ -670,7 +670,7 @@ def fingerprint_follows_status(c: Ctx, proj: str) -> list:
 
 
 # --------------------------------------------------------------------------------------------------------------------- GR10
-JURY_NAMES = ("esc", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "rpText", "rpLabel", "RP_SPE", "RP_IMP",
+JURY_NAMES = ("esc", "ACAD_LABEL", "acadLabel", "fmt", "rateBar", "GR_IMP", "ficheText", "grilleImp", "grilleHas", "grilleParts", "rpText", "rpLabel", "RP_SPE", "RP_IMP",
               "RP_OPTIONS", "rpPending", "rapportSource", "juryParts", "juryMerged")
 
 

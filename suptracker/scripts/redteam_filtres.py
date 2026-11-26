@@ -274,7 +274,7 @@ def page_ok(c: Ctx):
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
     parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "zoneHelp", "zoneShape",
                                   "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "ZONE_RULES")]

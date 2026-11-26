@@ -976,6 +976,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   a `-e` program written to a temp file: one argv string is capped at 128 KiB), never `subprocess.run([node, "-e", …])` (OU2). Before
   pushing a change, run `python scripts/blast.py --run --certain` (red teams holding a text the diff removed) and look at its « possible »
   list (red teams naming a touched function). Red team `redteam_outillage.py` (OU1-OU6; OU4 replays audit PR 8: 10/10 named).
+- **Plain words, the testers' list (lot 1, PR 10, owner 2026-11-26).** « nouveau(x) bachelier(s) », never « néo-bachelier » (only quoted as
+  the official word, glossary); « SIES » only beside « ministère »; « Prévisions divergentes » (never « Pas de conclusion »); « N fois la
+  moyenne » (never « ×N »); an académie DISPLAYED through `acadLabel` (Besançon, Étranger; keys raw); `profileRate` prints report lines
+  through `rpLabel`; job-page codes (ISCO, FAP, O*NET, θ, the ILO table) only inside `details.more-card` « Détail du calcul »,
+  folded, never removed. Red team `redteam_langage.py` LA11-LA13 (LA12 browser, nightly).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

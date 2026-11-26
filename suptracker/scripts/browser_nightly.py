@@ -41,7 +41,7 @@ SUITE = {
     "fiche_telephone": ("FT4",),
     "filtres": ("FI7",),
     "guide": ("GU6",),
-    "langage": ("LA7", "LA10"),
+    "langage": ("LA7", "LA10", "LA12"),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

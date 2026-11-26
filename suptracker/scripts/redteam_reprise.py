@@ -282,7 +282,7 @@ def rp3(c: Ctx):
     if '"reprise": {"intro": AIDE.ADULTES_INTRO, "verifie": AIDE.ADULTES_CHECKED, "services": AIDE.ADULTES}' not in c.api_src:
         bad.append("/api/meta does not serve the list")
     # the reorientation page's folded card (Node): escaped, https only, nothing without the list
-    prog = "\n".join(LA.defn(c.js, n) for n in ("esc", "reoAdultesCard")) + r"""
+    prog = "\n".join(LA.defn(c.js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "reoAdultesCard")) + r"""
     const H = "<img src=x onerror=alert(1)>";
     var META = { reprise: { intro: H, verifie: H, services: [ { titre: H, pour: H, comment: H,
       liens: [ { texte: H, url: "https://www.service-public.gouv.fr/x" }, { texte: "bad", url: "javascript:alert(1)" }, { texte: "http", url: "http://x.fr/" } ] } ] } };

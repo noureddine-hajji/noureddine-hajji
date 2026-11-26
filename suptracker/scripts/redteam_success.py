@@ -330,7 +330,7 @@ def ui_card(js: str) -> tuple[bool, str]:
     blk = _card(js)
     # a stored string interpolated as is: ${s.x}, ${s.x || ...} (a ternary that escapes is fine)
     raw = re.findall(r"\$\{s\.(?:etab_label|discipline_label|reason|etab)\s*(?:\}|\|\|)", blk)
-    scope = "pas seulement de cette licence" in blk and "tous les néo-bacheliers inscrits en L1" in blk
+    scope = "pas seulement de cette licence" in blk and "tous les nouveaux bacheliers inscrits en L1" in blk
     nochance = "pas des chances de réussite" in blk and not re.search(r"chances? de r[ée]ussir|vous r[ée]ussirez|garanti", blk, re.I)
     noclass = "ne classe pas les universités" in blk
     va_ctx = re.search(r"u\.taux_simule != null && u\.va != null", blk) is not None

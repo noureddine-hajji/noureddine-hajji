@@ -337,7 +337,7 @@ def w4(c: Ctx):
 def w5(c: Ctx):
     js = c.js
     try:
-        lib = "\n".join(top(js, n) for n in ("esc", "fmt", "pct", "VOIES", "pct1", "rateBar", "voiePill", "profileDkey", "pickRapport",
+        lib = "\n".join(top(js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "pct", "VOIES", "pct1", "rateBar", "voiePill", "profileDkey", "pickRapport",
                                              "pickVoie", "VOIE_WORD", "RP_CAVEAT", "rpPending", "rapportSource", "SPE_SHORT", "speName", "rpLabel", "rapportDoublettes",
                                              "REO_LABEL", "isReo", "profileLine", "vxQuery", "voieFigure", "vxVoieCell", "voieFromForm",
                                              "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT", "vxProfile"))
