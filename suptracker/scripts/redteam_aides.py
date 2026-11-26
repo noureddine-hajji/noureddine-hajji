@@ -123,8 +123,13 @@ def reread() -> dict:
 
 @check("AI1 official pages: every item read, equal to an independent re-reading, two official sources agree, official links only")
 def ai1(c: Ctx):
-    A = c.mod().read(DIR)
-    bad = list(A["audit"])
+    ai = c.mod()
+    A = ai.read(DIR)
+    # an item whose host refuses robots may wait for its page (EN_ATTENTE, never more than one, its page absent); every other must be read
+    waiting = [k for k in ai.EN_ATTENTE if not (DIR / ai._file(ai.PAGES[k])).exists()]
+    bad = [x for x in A["audit"] if not any(x == f"{k}: waiting ({ai.EN_ATTENTE[k]})" for k in waiting)]
+    if len(ai.EN_ATTENTE) > 1 or not set(ai.EN_ATTENTE) <= {"ifsi_fpc"}:
+        bad.append(f"waiting items {sorted(ai.EN_ATTENTE)}: only the IFSI page is refused to robots")
     try:
         R = reread()
     except Exception as e:  # noqa: BLE001
@@ -194,7 +199,7 @@ def ai2(c: Ctx):
             A = ai.read(d)
             if A.get(key) is not None or not any(x.startswith(key + ":") for x in A["audit"]):
                 bad.append(f"{key} ({why}): still read")
-            if sum(1 for k in ai.RULES if A.get(k) is None) != 1:
+            if sum(1 for k in ai.RULES if A.get(k) is None and not (k in ai.EN_ATTENTE and not (DIR / ai._file(ai.PAGES[k])).exists())) != 1:
                 bad.append(f"{key} ({why}): another item was lost too")
     with tempfile.TemporaryDirectory() as tmp:          # the simulator link moved to a foreign host
         d = Path(tmp)
@@ -208,6 +213,15 @@ def ai2(c: Ctx):
         A = ai.read(d)
         if A.get("merite") is not None or "merite: page not fetched" not in A["audit"]:
             bad.append("a missing page is not said")
+    with tempfile.TemporaryDirectory() as tmp:          # a waiting item whose page arrives is read by its rule, a changed one said
+        d = Path(tmp)
+        for f in DIR.iterdir():
+            shutil.copy(f, d / f.name)
+        for k in ai.EN_ATTENTE:
+            (d / ai._file(ai.PAGES[k])).write_text("Une page officielle sans la phrase attendue.\n")
+            A = ai.read(d)
+            if A.get(k) is not None or f"{k}: the rule no longer matches the official page" not in A["audit"]:
+                bad.append(f"{k}: a page that arrived without the sentence is not said")
     fe = c.mod("fetch")
     if not all(u.startswith("https://") and u.endswith(".gouv.fr/") for u in fe.ALLOWED) or any("example" in u for u in fe.ALLOWED):
         bad.append(f"fetcher hosts {fe.ALLOWED}")
@@ -521,6 +535,9 @@ SOURCE_MUTANTS = [
     ("vie", "CVEC typed differently", '"montant": 105, "annee": "2026-2027"', '"montant": 103, "annee": "2026-2027"', "AI5"),
     ("vie", "meal link reverted", '"url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123"', '"url": "https://www.etudiant.gouv.fr/fr/se-restaurer"', "AI5"),
     ("build", "aids not built", "        aides.build(con)", "        pass", "AI7"),
+    ("ai", "a fetched page waits too", 'EN_ATTENTE = {"ifsi_fpc": ', 'EN_ATTENTE = {"bourse": "x", "ifsi_fpc": ', "AI1"),
+    ("ai", "a waiting page that arrived is not read", '            audit.append(f"{key}: waiting ({EN_ATTENTE[key]})" if key in EN_ATTENTE else f"{key}: page not fetched")\n            continue',
+     '            audit.append(f"{key}: waiting ({EN_ATTENTE[key]})" if key in EN_ATTENTE else f"{key}: page not fetched")\n            continue\n        if key in EN_ATTENTE:\n            out[key] = None\n            continue', "AI2"),
     ("fetch", "any host fetched", '    "https://www.messervices.etudiant.gouv.fr/")', '    "https://www.messervices.etudiant.gouv.fr/", "https://example.com/")', "AI2"),
 ]
 

@@ -211,6 +211,11 @@ def r_ifsi_fpc(text: str, links: list) -> dict | None:
     return None
 
 
+# Items whose official host refuses robots (lot 1, PR 12, owner 2026-11-26): their page is never fetched around that refusal (no
+# copy, no other host); the item stays out and its card hidden until the page is read (the fetcher keeps asking it, or the owner
+# commits it). A WAITING item whose page exists is read by its rule like any other: a page that no longer matches is said.
+EN_ATTENTE = {"ifsi_fpc": "parcoursup.gouv.fr refuse les robots : la carte attend la page officielle"}
+
 RULES = {"bourse": r_bourse, "merite": r_merite, "mobilite": r_mobilite, "mobilite_mesr": r_mobilite_mesr, "droits": r_droits, "cvec": r_cvec,
          "repas": r_repas, "regions": r_regions, "logement": r_logement, "ifsi_fpc": r_ifsi_fpc}
 
@@ -222,7 +227,7 @@ def read(d: Path = DIR) -> dict:
         f = d / _file(PAGES[key])
         if not f.exists():
             out[key] = None
-            audit.append(f"{key}: page not fetched")
+            audit.append(f"{key}: waiting ({EN_ATTENTE[key]})" if key in EN_ATTENTE else f"{key}: page not fetched")
             continue
         lf = d / _file(PAGES[key], ".links.json")
         links = json.loads(lf.read_text()) if lf.exists() else []
