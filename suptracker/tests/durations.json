@@ -2,7 +2,7 @@
  "tests/test_a11y.py": 1,
  "tests/test_accompagnement.py": 545,
  "tests/test_admis.py": 722,
- "tests/test_adulte.py": 180,
+ "tests/test_adulte.py": 15,
  "tests/test_aides.py": 16,
  "tests/test_appel.py": 330,
  "tests/test_bmo.py": 993,
