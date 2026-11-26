@@ -4532,8 +4532,13 @@ apart from the initial formation of their lycée.
 - Checked first (owner's question): elsewhere, the offers listed apart are at CFAs without an initial formation of the same
   kind (DCG, DEUST, CS/CSA, sport, social work), not a label mismatch. Grouping BTS options, prefixes such as « DEUST - » and
   BPJEPS mentions were proposed and not chosen.
-- Red team `scripts/redteam_types_liste.py` (TY1-TY5): a crafted warehouse against a table written by hand, every real offer
+- Red team `scripts/redteam_types_liste.py` (TY1-TY6): a crafted warehouse against a table written by hand, every real offer
   re-derived, the filter, docs, 10 mutants. The map red team's C9 / C10 re-derive the rule on their own (`rt_reading`).
+- **List separator (2026-11-26).** The cartographie export now joins a formation's types and mentions with « | »
+  (« …hôtellerie restauration|BTS - BTSA - BTSM »), where it used « , ». Every rule reads the comma form, so
+  `harmonize.build_cartographie` writes « | » back as « , » in `type_formation` and `mention_lib` (`CARTO_LISTS`), for every
+  session: the format changes, the labels are the ones read before. TY6 builds a crafted export with each separator and
+  requires the same table.
 
 ## Filtre des mentions allégé (owner 2026-11-21)
 

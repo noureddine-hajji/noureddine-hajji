@@ -415,7 +415,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     its offers under one; an offer whose labels no SIES formation carries whole takes `carte.part_votes` (the SIES formations whose
     type list CONTAINS its type, same mention label, ALL reading the same; split = raw label), and is attached at the SAME UAI to an
     initial formation of which its type is one part, same mention label and same reading (607 BTS offers read, 153 more attached).
-    Red team `redteam_types_liste.py` (TY1-TY5); C9 / C10 `rt_reading`.
+    Since 2026-11-26 the export joins the lists with « | »: `harmonize.CARTO_LISTS` writes it back as « , » for every session
+    (format only, the labels as before; red team TY6). Red team `redteam_types_liste.py` (TY1-TY6); C9 / C10 `rt_reading`.
   - Lighter mention filter (owner, 2026-11-21): only the GROUP changes, each formation keeps its label. `carte.groupes_of` (fixed
     rules): professional titles « FP - … » by the NSF domain of their RNCP fiches of the SAME title (`domaines.py`, `core.fp_domaine`
     built at build: active fiches first, one NSF 3-digit group, several in one sub-domain = its plurivalent X0 code, else « Autres
