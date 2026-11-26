@@ -37,6 +37,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -87,7 +90,7 @@ def node(prog: str, payload=None):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
     if r.returncode:
         return "__error__ " + r.stderr[-600:]
     return r.stdout
@@ -525,7 +528,7 @@ def u6(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()

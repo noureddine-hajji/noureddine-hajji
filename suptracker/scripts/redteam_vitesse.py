@@ -59,6 +59,9 @@ from suptracker import admis as ADM  # noqa: E402
 from suptracker import cache as CACHE  # noqa: E402
 from suptracker import carte as CA  # noqa: E402
 from suptracker import journey as J  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 DETAIL = ("bacs", "majo", "offres_app", "fiche", "reo")   # written here: the keys only the cards read (audit PR 6: + reo)
 BUDGET_KB = {"base": 700, "details": 500}                 # compressed bytes of the two layer answers (real warehouse)
@@ -530,7 +533,7 @@ def vt9(c: Ctx):
     if not exe:
         return not bad, f"node not installed; wiring problems {bad}"
     prog = FACET_PROG.replace("__PARTS__", "\n".join(js_top(c.js, n) for n in FACET_PARTS))
-    r = subprocess.run([exe, "-e", prog], input=json.dumps({"rows": rows, "cases": cases, "names": names, "kept": kept}, default=str),
+    r = nodefile.run([exe, "-e", prog], input=json.dumps({"rows": rows, "cases": cases, "names": names, "kept": kept}, default=str),
                        capture_output=True, text=True, timeout=300, env={**os.environ, "VOCAB": json.dumps(vocab)})
     if r.returncode:
         return False, "node: " + r.stderr[-400:]

@@ -36,6 +36,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import duckdb
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -184,7 +187,7 @@ def run_twin(js: str, cases: list[dict]):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", twin_prog(js)], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
+    r = nodefile.run([exe, "-e", twin_prog(js)], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
     if r.returncode:
         raise RuntimeError(r.stderr[-600:])
     return json.loads(r.stdout)
@@ -275,7 +278,7 @@ def ch4(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     cands = c.con.execute("""SELECT fy.cod_aff_form, fy.g_ea_lib_vx, fy.lib_for_voe_ins FROM core.formation_year fy

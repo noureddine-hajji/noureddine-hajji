@@ -41,6 +41,9 @@ from suptracker import doublettes as DB  # noqa: E402
 from suptracker import rapports as RP  # noqa: E402
 from suptracker import semblables as SB  # noqa: E402
 from suptracker import voies as VO  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -496,7 +499,7 @@ def z5(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     latest = c.con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]

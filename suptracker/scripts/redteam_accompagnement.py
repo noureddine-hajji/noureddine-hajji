@@ -39,6 +39,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from suptracker import calendrier as CAL  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -81,7 +84,7 @@ def node(prog: str, data=None):
     n = shutil.which("node")
     if not n:
         return None
-    r = subprocess.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-700:]}
 
 

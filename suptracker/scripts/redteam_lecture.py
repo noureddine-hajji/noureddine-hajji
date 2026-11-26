@@ -50,6 +50,9 @@ from suptracker import carte as CA  # noqa: E402
 from suptracker import journey as J  # noqa: E402
 from suptracker import planb as PB  # noqa: E402
 from suptracker import voeux as VX  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -100,7 +103,7 @@ def run_node(js: str, cases: list[dict]):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", twin_prog(js)], input=json.dumps(cases, default=float), capture_output=True, text=True,
+    r = nodefile.run([exe, "-e", twin_prog(js)], input=json.dumps(cases, default=float), capture_output=True, text=True,
                        timeout=600)
     if r.returncode:
         raise RuntimeError(r.stderr[-800:])
@@ -697,7 +700,7 @@ def le8(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     cod = planb_targets(c)[0][0]

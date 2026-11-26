@@ -53,6 +53,9 @@ from suptracker import reorientation as RO  # noqa: E402
 import redteam_langage as LA  # noqa: E402
 import redteam_reorientation as RR  # noqa: E402
 import redteam_visuel as VI  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 AIDES = ROOT / "data" / "aides"
@@ -399,7 +402,7 @@ def rp6(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser or --real)"
     exe = shutil.which("node")
-    probe = subprocess.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
+    probe = nodefile.run([exe, "-e", "require('playwright')"], capture_output=True, text=True) if exe else None
     if not exe or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     s = socket.socket()

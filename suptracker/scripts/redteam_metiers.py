@@ -40,6 +40,9 @@ sys.path.insert(0, str(ROOT))
 
 from suptracker import metiers as MT  # noqa: E402
 from suptracker import onisep as ON  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 APP_JS = ROOT / "suptracker" / "static" / "app.js"
 CHECKS = []
@@ -202,7 +205,7 @@ for (const q of P.queries) {
     .sort((x, y) => y[0] - x[0]).slice(0, 10).map((x) => x[1]);
 }
 process.stdout.write(JSON.stringify(out));"""
-    r = subprocess.run([node, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([node, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         return {"__error__": r.stderr[-300:]}
     return json.loads(r.stdout)

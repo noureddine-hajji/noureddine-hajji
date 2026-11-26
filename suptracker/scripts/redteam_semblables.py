@@ -34,6 +34,9 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from suptracker import semblables as SB  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -63,7 +66,7 @@ def node(prog: str, data=None):
     n = shutil.which("node")
     if not n:
         return None
-    r = subprocess.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-600:]}
 
 
@@ -318,7 +321,7 @@ process.stdout.write(JSON.stringify({ jury: semblablesJuryCard(sem, rp), dbl: se
     if not n:
         return None
     import os
-    r = subprocess.run([n, "-e", prog], input=json.dumps([sem, rp, dkey]), capture_output=True, text=True, timeout=120,
+    r = nodefile.run([n, "-e", prog], input=json.dumps([sem, rp, dkey]), capture_output=True, text=True, timeout=120,
                        env={**os.environ, "PROFILE": json.dumps(profile or {"spe1": "MATHS", "spe2": "SES"})})
     return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-600:]}
 

@@ -40,6 +40,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -171,7 +174,7 @@ def node_run(prog: str, payload) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    r = subprocess.run([node, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
+    r = nodefile.run([node, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=60)
     return ("__error__" + r.stderr[-400:]) if r.returncode else r.stdout
 
 
@@ -318,7 +321,7 @@ def x7(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser)"
     node = shutil.which("node")
-    probe = subprocess.run([node, "-e", "require('playwright')"], capture_output=True, text=True) if node else None
+    probe = nodefile.run([node, "-e", "require('playwright')"], capture_output=True, text=True) if node else None
     if not node or probe.returncode:
         return True, "skipped (node or playwright not installed)"
     import socket

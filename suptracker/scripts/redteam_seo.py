@@ -47,6 +47,9 @@ sys.path.insert(0, str(ROOT))
 
 from suptracker import cache as CACHE  # noqa: E402
 from suptracker import seo as SEO  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -407,7 +410,7 @@ process.stdout.write(JSON.stringify(cases.map(([p, h]) => pathRoute(p, h))));"""
     cases = [["/formation/2882", ""], ["/formation/2882/", ""], ["/metier/MET.798", ""], ["/formation/2882", "#/parcours"],
              ["/formation/abc", ""], ["/formation/12345678901", ""], ["/metier/MET.1<x>", ""], ["/", ""], ["/formation/2882", "#"],
              ["/x/formation/2882", ""], ["/observatoire", ""], ["/observatoire/", ""], ["/observatoires", ""], ["/observatoire", "#/carte"]]
-    r = subprocess.run([node, "-e", prog], input=json.dumps(cases), capture_output=True, text=True, timeout=60)
+    r = nodefile.run([node, "-e", prog], input=json.dumps(cases), capture_output=True, text=True, timeout=60)
     if r.returncode:
         return False, r.stderr[-300:]
     got = json.loads(r.stdout)
@@ -710,7 +713,7 @@ def g11(c: Ctx):
     if not c.browser:
         return True, "skipped (run with --browser)"
     node = shutil.which("node")
-    if not node or subprocess.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
+    if not node or nodefile.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
         return True, "skipped (node or playwright not installed)"
     import socket
     import time

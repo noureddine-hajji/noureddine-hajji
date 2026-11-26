@@ -49,6 +49,7 @@
  "tests/test_observatoire.py": 713,
  "tests/test_offer.py": 617,
  "tests/test_onisep.py": 367,
+ "tests/test_outillage.py": 30,
  "tests/test_parcours.py": 126,
  "tests/test_passerelles.py": 784,
  "tests/test_pipeline.py": 385,

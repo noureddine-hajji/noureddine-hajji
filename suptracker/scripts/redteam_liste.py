@@ -34,6 +34,9 @@ import unicodedata
 from pathlib import Path
 
 import duckdb
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -252,7 +255,7 @@ const localIso = () => "2027-02-01";
 """ + "\n".join(top(js, n) for n in NAMES) + """
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(P.map(([ids, f, cal, opts, st]) => { STORE = st || {}; return verifierCard(ids, f, cal, opts); })));"""
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(payload), capture_output=True, text=True, timeout=120)
     if r.returncode:
         raise RuntimeError(r.stderr[-600:])
     return json.loads(r.stdout)

@@ -43,6 +43,9 @@ REPO = ROOT.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from suptracker import journey as JR  # noqa: E402  the REAL journey: the oracle never reads a mutant
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 CHECKS = []
 MODS = {"journey": "journey.py", "voeux": "voeux.py", "calibration": "calibration.py", "planb": "planb.py", "carte": "carte.py"}
@@ -115,7 +118,7 @@ def node(js: str, cases: list[dict]):
     if not exe:
         return None
     prog = "\n".join(top(js, n) for n in JS_NAMES) + DISPATCH
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(cases, default=float), capture_output=True, text=True, timeout=600)
     if r.returncode:
         raise RuntimeError(r.stderr[-800:])
     return json.loads(r.stdout)

@@ -33,6 +33,9 @@ import types
 from pathlib import Path
 
 import duckdb
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -222,7 +225,7 @@ def node(prog: str, data):
     exe = shutil.which("node")
     if not exe:
         return None
-    r = subprocess.run([exe, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
+    r = nodefile.run([exe, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
     if r.returncode:
         raise RuntimeError(r.stderr[-600:])
     return json.loads(r.stdout)

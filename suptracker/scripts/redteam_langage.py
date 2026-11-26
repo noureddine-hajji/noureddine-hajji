@@ -54,6 +54,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import jstext  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 STATIC = ROOT / "suptracker" / "static"
 CHECKS = []
@@ -477,14 +480,14 @@ const { chromium, devices } = require('playwright');
 def la8(c: Ctx):
     notes = []
     node = shutil.which("node")
-    acorn = node and subprocess.run([node, "-e", "require('acorn')"], capture_output=True).returncode == 0
+    acorn = node and nodefile.run([node, "-e", "require('acorn')"], capture_output=True).returncode == 0
     if acorn:
         prog = r"""const acorn = require('acorn'); const src = require('fs').readFileSync(0, 'utf8'); const out = [];
 const walk = (n) => { if (!n || typeof n.type !== 'string') return; if (n.type === 'Literal' && typeof n.value === 'string') out.push(n.value);
   if (n.type === 'TemplateElement') out.push(n.value.cooked);
   for (const k in n) { const v = n[k]; if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v.type === 'string') walk(v); } };
 walk(acorn.parse(src, { ecmaVersion: 2022 })); process.stdout.write(JSON.stringify(out));"""
-        r = subprocess.run([node, "-e", prog], input=c.js, capture_output=True, text=True, timeout=60)
+        r = nodefile.run([node, "-e", prog], input=c.js, capture_output=True, text=True, timeout=60)
         from collections import Counter
         same = Counter(json.loads(r.stdout)) == Counter(t for _o, t in jstext.strings(c.js))
         if not same:
@@ -598,7 +601,7 @@ def node_json(prog: str):
     node = shutil.which("node")
     if not node:
         return None
-    r = subprocess.run([node, "-e", prog], capture_output=True, text=True, timeout=60)
+    r = nodefile.run([node, "-e", prog], capture_output=True, text=True, timeout=60)
     if r.returncode:
         raise RuntimeError(r.stderr[-400:])
     return json.loads(r.stdout)
@@ -687,7 +690,7 @@ def la10(c: Ctx):
     if not (c.browser or c.real):
         return True, "skipped (--browser)"
     node = shutil.which("node")
-    if not node or subprocess.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
+    if not node or nodefile.run([node, "-e", "require('playwright')"], capture_output=True).returncode:
         return True, "skipped (node or playwright not installed)"
     import duckdb
     from suptracker import config

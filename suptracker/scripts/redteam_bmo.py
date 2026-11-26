@@ -32,6 +32,9 @@ sys.path.insert(0, str(ROOT))
 
 from suptracker import bmo as B  # noqa: E402
 from suptracker import metiers as MT  # noqa: E402
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 APP_JS = ROOT / "suptracker" / "static" / "app.js"
 CHECKS = []
@@ -185,7 +188,7 @@ def render(js: str):
         return None
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
     prog = helpers + "\n" + block(js) + "\nconst P = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nprocess.stdout.write(JSON.stringify(P.map(bmoCard)));"
-    r = subprocess.run([node, "-e", prog], input=json.dumps([HOSTILE, None, {"familles": []}]), capture_output=True, text=True, timeout=60)
+    r = nodefile.run([node, "-e", prog], input=json.dumps([HOSTILE, None, {"familles": []}]), capture_output=True, text=True, timeout=60)
     return ("__error__" + r.stderr[-300:]) if r.returncode else r.stdout
 
 

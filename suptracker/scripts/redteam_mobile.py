@@ -37,6 +37,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+import os as _os_nf, sys as _sys_nf  # noqa: E401,E402  lot 1, PR 9: Node programs through a file (nodefile.py)
+_sys_nf.path.insert(0, _os_nf.path.dirname(_os_nf.path.abspath(__file__)))
+import nodefile  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -314,7 +317,7 @@ def browser_results(c: Ctx):
     node = shutil.which("node")
     db = c.db or ROOT / "data" / "suptracker.duckdb"
     # like FI7 / MO7: the browser checks need node with Playwright (CI runners have neither the module nor Chromium)
-    has_pw = bool(node) and subprocess.run([node, "-e", "require('playwright')"], capture_output=True).returncode == 0
+    has_pw = bool(node) and nodefile.run([node, "-e", "require('playwright')"], capture_output=True).returncode == 0
     if not has_pw or not db.exists():
         c.page = {"skipped": True}
         return c.page

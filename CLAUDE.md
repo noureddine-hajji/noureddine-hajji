@@ -972,6 +972,10 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   blur (form still on the page). Search page: the zones are written on the layer's rows (never a copy of 21,000 formations), details decoded
   in slices (`coucheDetailsParts` = `coucheDetails`∘`coucheDecode`), details and figures redraw the cards only (`drawCards`), unchanged lines
   kept (`setHtml`), place suggestions on first use; one full draw without a profile, two with one. Red team `redteam_coherence.py` (CO1-CO8).
+- **Anti-breakage tooling (lot 1, PR 9, owner 2026-11-26).** Red teams run Node through `scripts/nodefile.py` (`run` = `subprocess.run`,
+  a `-e` program written to a temp file: one argv string is capped at 128 KiB), never `subprocess.run([node, "-e", …])` (OU2). Before
+  pushing a change, run `python scripts/blast.py --run --certain` (red teams holding a text the diff removed) and look at its « possible »
+  list (red teams naming a touched function). Red team `redteam_outillage.py` (OU1-OU6; OU4 replays audit PR 8: 10/10 named).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
