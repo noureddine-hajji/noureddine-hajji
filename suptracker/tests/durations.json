@@ -17,6 +17,7 @@
  "tests/test_cereq.py": 713,
  "tests/test_chiffres.py": 493,
  "tests/test_coherence.py": 731,
+ "tests/test_compris.py": 60,
  "tests/test_conformite.py": 6,
  "tests/test_design.py": 1,
  "tests/test_doublettes.py": 775,

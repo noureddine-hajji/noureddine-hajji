@@ -581,7 +581,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   outside click), a group marked only when it differs from its default, options counted with the other groups applied, one reset;
   folded under "Filtrer (n actifs)" on a phone, list before the map there. NO filter field of the earlier pages may be lost
   (owner, 2026-11-16): type, mention, statut, académie (its own dropdown, `CARTE_ACADS`), apprentissage, internat,
-  aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order unchanged (figures first, distance, the engine's
+  aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order (figures first; with a keyword, the number of typed words the formation's names carry, `api.words_matched`, lot 1 PR 13; then distance, the engine's
   relevance, name; never a figure). The home has no switch and no search field (door + hero link). Shared link (owner,
   2026-11-16): `#/recherche/<parameters>` (`carteShareLink` / `carteShareRead`, after "#", never sent): words, TYPED place + radius,
   types, mentions, groups differing from their default; NEVER "Ma ville", the zones or a profile key; every value checked on opening
@@ -999,6 +999,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the owner's browser copy `data/aides/depot/*.html` is read instead (`aides_fetch.depot_row`, only for its OWN canonical URL, logged `via`
   « depot »); no copy = the item waits in `aides.EN_ATTENTE` (said in the audit, card hidden). Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
   adviser. Red team `redteam_adulte.py` (AD1-AD9).
+- **The search says what it understood (lot 1, PR 13, owner 2026-11-26).** `/api/search/codes` carries `mots`: per code, the typed word
+  groups (`search.offer_terms`) its own names carry (`api.words_matched`: filière, mention, labels, establishment; never the domain
+  « Droit-économie-gestion », never a place); the page sorts figures first, then (keyword) more words first, then distance, rank, name;
+  search.py untouched (no index rebuild). Chips (`kwChips`): recognised words with their kind (« Mot compris »…), the others « Mots cherchés » as
+  typed; the order said around a town. Red team `redteam_compris.py` (SC1-SC6).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

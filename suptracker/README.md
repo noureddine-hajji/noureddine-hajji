@@ -5080,3 +5080,21 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **AD2:** re-derives the absent codes in SQL and checks the route's cache and parameters.
 - **AD7 (browser, nightly):** checks an absent IFSI with a reorientation and a terminale profile.
 - **AD8:** a mutation test of 13 seeded defects.
+
+
+## The search says what it understood (lot 1, PR 13, 2026-11-26)
+
+**Why.** In the 2026-11-25 audit, Léa searched « licence économie gestion » with « Autour de ma ville ». The list showed licences of any mention first, sorted by distance, and the chip said « Mot compris : licence », which she read as « only licence was understood ». The engine already ranked « Économie et gestion » first; it was the page that sorted by distance before relevance.
+
+**What changes.**
+- **Sorting:** `/api/search/codes` returns, for each code, how many of the typed word groups its own names carry (`api.words_matched`). The word groups come from `search.offer_terms`: a word, or an acronym's own label phrases. The names checked are the filière, the mention, the labels and the establishment; never the broad domain « Droit-économie-gestion », never a place. With a keyword, the page sorts the formations that carry more of the words first, BEFORE the distance; then come the distance, the engine's rank and the name. The list is never sorted by a figure. `search.py` is untouched, so the stored search index does not change.
+- **The chips:** they say every typed word the search used:
+  - the recognised ones with their kind (« Mot compris », « Lieu », « Mot approché »…);
+  - the others under « Mots cherchés », as typed, accents kept;
+  - around a town, one sentence gives the order: « Les formations dont le nom contient le plus de vos mots d'abord, puis les plus proches ».
+- **Léa's search around Lyon** now lists five « Licence - Economie et gestion » first.
+
+**Red team** `scripts/redteam_compris.py` (SC1-SC6), run by `tests/test_compris.py`:
+- **SC1:** re-counts 1,705 codes over 8 queries with its own folding.
+- **SC4 (browser, nightly):** replays Léa's search.
+- **SC5:** a mutation test.

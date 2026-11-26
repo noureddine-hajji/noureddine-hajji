@@ -644,11 +644,16 @@ def keyword_codes(con, q: str, near: str | None = None) -> dict:
             SELECT fy.cod_aff_form FROM core.formation_year fy JOIN core.lineage l USING (session, cod_aff_form)
             WHERE l.lineage_id IN (SELECT l2.lineage_id FROM core.lineage l2 WHERE l2.cod_aff_form = ?)
             ORDER BY fy.session DESC, fy.cod_aff_form LIMIT 1""", [code]).fetchone()
-        return {"query": q, "codes": list(dict.fromkeys([*(latest or []), code])), "interpretation": [], "notes": [], "partial": False,
-                "terms": [], "apprentissage": False, "internat": False}
+        codes = list(dict.fromkeys([*(latest or []), code]))
+        return {"query": q, "codes": codes, "interpretation": [], "notes": [], "partial": False,
+                "terms": [], "apprentissage": False, "internat": False, "mots": [0] * len(codes)}
     res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)
     # the engine answers per (formation, campaign): a code is kept once, at its best (first) rank
-    return {"query": q, "codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"])), "interpretation": res.get("interpretation", []),
+    codes = list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))
+    return {"query": q, "codes": codes, "interpretation": res.get("interpretation", []),
+            # lot 1, PR 13: how many of the typed words (places out) each formation's own names carry, one per code in the codes'
+            # order; the page puts « tous vos mots » before the distance (Léa: « licence économie gestion » around her town)
+            "mots": words_matched(res, q, codes),
             "notes": res.get("notes", []), "partial": bool(res.get("partial")),
             # audit PR 4: what the page matches the apprenticeship offers' names on (the engine's acronyms included), and whether
             # the query named apprenticeship (the page then keeps the formations offered in apprenticeship)
@@ -656,6 +661,30 @@ def keyword_codes(con, q: str, near: str | None = None) -> dict:
             # Codex (PR #111): « avec internat » is an option the engine applies to its codes; the page applies it to every row,
             # the apprenticeship offers matched on their names included
             "internat": "internat" in (res.get("options") or [])}
+
+
+MOTS_FIELDS = ("fili", "fil_lib_voe_acc", "lib_for_voe_ins", "lib_comp_voe_ins", "g_ea_lib_vx")   # never the domain (« Droit-économie-gestion »)
+
+
+def word_groups(q: str, interp: list) -> list[list[str]]:
+    """The typed words the page counts (search.offer_terms: a word, or an acronym's own label phrases), a place out."""
+    places = {S.fold(i.get("value")).strip() for i in interp or [] if i.get("type") == "lieu"}
+    return [g for g in S.offer_terms(q) if not any(a.strip() in places for a in g)]
+
+
+def words_matched(res: dict, q: str, codes: list[str]) -> list[int]:
+    """Per code, the number of word groups found in the padded folded names of its first (best-ranked) result: the
+    formation's labels and its establishment's name (never a figure, never a place)."""
+    groups = word_groups(q, res.get("interpretation"))
+    first = {}
+    for r in res["results"]:
+        first.setdefault(r["cod_aff_form"], r)
+    out = []
+    for c in codes:
+        r = first[c]
+        text = f" {S.fold(' '.join(str(r.get(k) or '') for k in MOTS_FIELDS))} "
+        out.append(sum(any(a in text for a in g) for g in groups))
+    return out
 
 
 @app.get("/api/search/codes")
