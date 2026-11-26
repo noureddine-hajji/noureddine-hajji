@@ -187,7 +187,7 @@ def a3(c: Ctx):
 
 @check("A4 pages on hostile data (Node): escaped, labelled cells, 'toute la liste' never a share, caveat, no rank input")
 def a4(c: Ctx):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ")))
     part = block(c.js, "// ---- Comprendre l'appel and the selectivity matrix", "async function viewComprendre(")
     plot = block(c.js, "const SEL_Q = [", "async function viewSelectivite(")
     prog = helpers + "\n" + part + "\n" + plot + """
