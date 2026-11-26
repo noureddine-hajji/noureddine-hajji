@@ -5007,3 +5007,34 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 
   It reads them for three profiles: bac général, bac techno STMG with its route, and reorientation. It looks for the quoted words and for JS errors.
 - **LA13:** a mutation test of 8 seeded returns, every one caught by LA11.
+
+
+## One figure per question, kept in percent (lot 1, PR 11, 2026-11-26)
+
+**Why.** In the 2026-11-25 audit, all 4 testers found several neighbouring percentages for the same question:
+- Léa read four on one page: 28 % official, 60,7 % « Pour votre profil », 39,7 % « Taux d'accès de ce bac » and 21,3 % « Propositions reçues ».
+- A bac techno student saw « Accès estimé pour votre série » 34 % beside the jury report's 31,2 % in Mes vœux.
+- « Admis sous votre moyenne » was 77,7–78,3 % on the search card but 12,6–89,2 % in Mes vœux.
+- « Tous les candidats : 6 316 » (a last-called rank) was read as a headcount.
+
+**The percent stays the figure (owner, analysed).** It is comparable across formations of every size, and it is the unit of Parcoursup's own « taux d'accès ». A count alone (« 54 sur 89 ») cannot be compared with « 540 sur 890 ». The counts the percent comes from stay printed beside it, smaller, so the student sees how many candidates it rests on.
+
+**What changes.**
+- **Mes vœux, bac techno / pro:** one column, « Pour votre bac (cette formation) ». It shows the report's line when it is published, otherwise the estimated access the zone reads, labelled as an estimation. It never shows both (`vxVoieFigure`). The rate column is the official rate for every bac (`taux_acces_all` outside the bac général).
+- **Mes vœux, position:** « Admis sous votre moyenne » and « Admis avec votre mention ou moins » are the search card's figure. They come from the same reading through `vxPos` and `cartePosFigure`. The mention's wide bounds no longer sit under the average's name.
+- **« Selon votre bac »:** the card opens on « Pour votre profil » (`profileLead`). This is L'essentiel's figure, with the same rules, its counts or its estimation label, and the sentence « Le même chiffre que dans « L'essentiel » ». The per-route table is folded under « Les chiffres de chaque voie de bac, pour comparer », never removed.
+- **Comprendre l'appel:** each group reads « <groupe> : rang 6 316 ».
+- **Search card ≤ one phone screen:**
+  - the per-bac rates, the most represented line and the apprenticeship offers are folded in one `<details>` (`carteMore`, its summary naming « aussi en apprentissage »);
+  - the two profile figures sit side by side down to 340 px;
+  - the actions are tighter, and « des admis sous votre moyenne » is no longer repeated under its own label.
+
+  On a Pixel 5, every card measured is now at most the visible screen: 488–651 px for 655 px, down from 516–736 px.
+- **Search, after « Rechercher »:** the page goes down to the count of results on a phone, and the count is said in the status line. The focus stays in the field. On a wide screen the page does not move.
+- **Prévision:** the range under the published access rate and admits is folded (« Prévision 2026 »). The prévision card opens no group.
+- **Shared list:** a bac techno / pro route rides the link (`v=`, checked against the vocabulary, dropped when it cannot be checked). The list says that its zones are read with the mention alone, since the link never carries the average.
+
+**Red team** `scripts/redteam_unchiffre.py` (UC1-UC10), run by `tests/test_unchiffre.py`:
+- **UC2:** replays real `/api/voeux` answers and prints the card's figure and Mes vœux's figure for 180 rows, 120 of them with an average. They are identical.
+- **UC8 (browser, nightly):** measures every card of three searches × three profiles on a phone, and checks the jump to the results.
+- **UC9:** 17 seeded defects, each caught.

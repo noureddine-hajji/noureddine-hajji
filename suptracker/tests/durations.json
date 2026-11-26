@@ -81,6 +81,7 @@
  "tests/test_tauxprofil.py": 26,
  "tests/test_transports.py": 3,
  "tests/test_types_liste.py": 79,
+ "tests/test_unchiffre.py": 240,
  "tests/test_ux.py": 4,
  "tests/test_vie.py": 35,
  "tests/test_visuel.py": 412,

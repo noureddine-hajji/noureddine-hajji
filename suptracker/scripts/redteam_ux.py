@@ -583,7 +583,7 @@ def x13(c: Ctx):
 
 
 # ------------------------------------------------------------------ sprint 19: a shorter formation page
-Y_SHOWN = ['<div class="card"><h2>Chiffres officiels du ministère', "${doubletteCard(d.doublettes, d.rapport, d.semblables)}", "${appelCard(d.appel)}",
+Y_SHOWN = ['<div class="card"><h2>Chiffres officiels du ministère', "${doubletteCard(d.doublettes, d.rapport, d.semblables, profileRate(d, bacProfile()))}", "${appelCard(d.appel)}",
            '<div id="planb"></div>', "${offerCard(r, d.apprentissage)}"]
 Y_FOLDED = ["${previsionCard(d.prevision)}", "${timingCard(r, d.history)}", "${lyceeHere(r)}", "Entonnoir · trois étapes distinctes",
             "Position dans la filière"]

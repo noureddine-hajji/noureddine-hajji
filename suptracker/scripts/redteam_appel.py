@@ -275,7 +275,7 @@ PY_MUTANTS = [
     ("SEL", "selectivite.py", "quadrant axes swapped", "return QUADRANTS[(taux >= med_taux, bien >= med_bien)]", "return QUADRANTS[(bien >= med_bien, taux >= med_taux)]"),
 ]
 JS_MUTANTS = [
-    ("group label unescaped", '${esc(g.label || "Groupe")} : ${fmt(g.rang)}', '${g.label || "Groupe"} : ${fmt(g.rang)}'),
+    ("group label unescaped", '${esc(g.label || "Groupe")} : <span class="nowrap">rang ${fmt(g.rang)}', '${g.label || "Groupe"} : <span class="nowrap">rang ${fmt(g.rang)}'),
     ("dot title unescaped", "<title>${esc(f.etablissement)} — ${esc(f.formation)}", "<title>${f.etablissement} — ${f.formation}"),
     ("figure without its label", '<td class="num" data-label="Jusqu\'où la liste a été appelée">', '<td class="num">'),
     ("whole list shown as a share", 'r.toute_la_liste ? "toute la liste" : pct(r.profondeur)', "pct(r.profondeur)"),

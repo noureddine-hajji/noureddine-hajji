@@ -264,7 +264,7 @@ def h5(c: Ctx):
     carte = block(js, "function carteCard(", "function carteList(")
     carte_ok = carte.count("${autresBadge(f)}") == 1 and "carteCard(f, ctx, false)" in js and "carteCard(f, ctx, true)" in js
     cmp_ok = '["Nouveaux bacheliers / autres admis", (f) => admisCell(f.admis)]' in block(js, "async function viewCompare(", "async function viewSpecialites(")
-    vx_ok = "${autresBadge(v)}`;" in block(js, "async function viewVoeux(", "const position = ")
+    vx_ok = "${autresBadge(v)}`;" in block(js, "async function viewVoeux(", "    return `<tr><td>${name}</td>")
     summary = "    ${admisBar(d.admis)}\n" in block(js, "function summaryBand(", "function fillZoneTile(")
     blocks = re.findall(r"(?s)(:root \{.*?\n\}|:root:not\(\[data-theme=\"light\"\]\) \{.*?\n  \}|:root\[data-theme=\"dark\"\] \{.*?\n\})", c.css)
     tok = [b for b in blocks if "--adm-neo:" in b and "--adm-autres:" in b]

@@ -1091,8 +1091,16 @@ function dblCampagnes(g) {
   return `campagnes ${span} cumulées${out.length ? ` · ${out.join(" et ")} ${out.length > 1 ? "écartées" : "écartée"} : rupture de comptage dans les données publiées (candidats multipliés par 2 ou 3 sans hausse des propositions), ces campagnes ne sont dans aucun chiffre de ce bloc ni dans l'estimation` : ""}`;
 }
 const DBL_CAVEAT = "Parmi les candidats ayant fait au moins un vœu dans ce groupe de formations (toute la France), part ayant reçu au moins une proposition. Chiffre national du groupe, pas propre à cet établissement. Ce sont des résultats passés, pas des chances d'admission.";
-function doubletteCard(d, rp, sem) {
+// lot 1, PR 11: the card opens on THE figure for the profile, the one L'essentiel shows (profileRate, same rules, same order);
+// the other rates of the formation by bac route are folded under a summary saying what they are for (comparing), never removed
+function profileLead(pr) {
+  if (!pr || pr.taux === null || pr.taux === undefined || !PR_SOURCE[pr.source]) return "";
+  return `<div class="pr-lead"><p class="small"><span class="sum-label">Pour votre profil</span> <strong class="pr-lead-v">${pct1(pr.taux)}</strong></p>
+    <p class="muted small">${esc(pr.what)} · ${PR_SOURCE[pr.source](pr)}. Le même chiffre que dans « L'essentiel ». Les chiffres repliés ci-dessous comptent d'autres candidats (tout votre bac, toutes les phases) : ils servent à comparer.</p></div>`;
+}
+function doubletteCard(d, rp, sem, pr) {
   if (!d) return "";
+  const lead = profileLead(pr);
   const prof = bacProfile() || {};
   const own = rapportDoublettes(rp, prof);      // sprint "Rapports publics": this formation's OWN published figures
   const myVoie = ["bg", "bt", "bp"].includes(prof.serie) ? prof.serie : (prof.spe1 ? "bg" : null);
@@ -1130,11 +1138,13 @@ function doubletteCard(d, rp, sem) {
       ${!dkey ? `<p class="small"><a href="#/profil">Indiquez vos spécialités dans « Mon profil »</a> pour voir vos deux spécialités en premier.</p>` : ""}
       <p class="muted small">${DBL_CAVEAT}</p>`;
   }
-  return `<div class="card"><h2>Selon votre bac</h2>
-    <h3>Par voie de bac, pour cette formation${last ? ` (campagne ${esc(last.session)})` : ""}</h3>
+  const voiesBlock = `<h3>Par voie de bac, pour cette formation${last ? ` (campagne ${esc(last.session)})` : ""}</h3>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Voie</th>${acc ? `<th class="num">Taux d'accès de ce bac</th><th class="num">Propositions reçues, toutes phases</th>` : '<th class="num">Taux de proposition</th>'}<th class="num">Candidats</th></tr>${voies}</table></div>
     ${acc ? `<p class="muted small"><strong>Taux d'accès de ce bac</strong> : le chiffre de la carte de recherche, la part des candidats de ce bac classés assez haut pour recevoir une proposition en phase principale, d'après le rapport du jury (candidats de terminale en France) ; * = pas de rapport, estimation du site. <strong>Propositions reçues</strong> : la part de tous les candidats de ce bac ayant reçu une proposition, toutes phases (chiffre du ministère). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>`
-    : `<p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>`}
+    : `<p class="muted small">Part des candidats de chaque voie ayant reçu une proposition de cette formation (toutes phases). Moins de ${DBL_SEUIL} candidats : chiffre fragile.</p>`}`;
+  return `<div class="card"><h2>Selon votre bac</h2>
+    ${lead}
+    ${lead ? `<details class="more-card"><summary>Les chiffres de chaque voie de bac, pour comparer</summary>${voiesBlock}</details>` : voiesBlock}
     ${own.html}
     ${own.hasBg
     // the formation's own report already gives the student's figure: the national group detail is folded (2026-11-23, phone
@@ -1771,7 +1781,7 @@ function cartePosition(L, taux, band, g) {
 }
 function cartePosFigure(pos, compact, serie) {
   if (!pos) return '<span class="muted small">non publié</span>';
-  if (pos.moyenne) return `${mentionShareTxt(pos.lo, pos.hi)}${estimTag(compact ? "des admis sous votre moyenne" : "des admis nouveaux bacheliers avaient une moyenne plus basse que la vôtre", true)}`;
+  if (pos.moyenne) return `${mentionShareTxt(pos.lo, pos.hi)}${estimTag(compact ? "" : "des admis nouveaux bacheliers avaient une moyenne plus basse que la vôtre", true)}`;
   return `${mentionShareTxt(pos.lo, pos.hi)} <span class="muted small">(${mentionWho(pos.serie, serie)})</span>`;
 }
 // ctx: { ok, prof, serie, chiffres: Map(code -> voeux.figures answer, or null while it loads), lec: {code: lec}, band, g, session }
@@ -1794,6 +1804,20 @@ function carteBacs(f) {
   if (!f.bacs) return "";
   const cell = (b) => `<li class="cb cb-${b}"><span class="cb-k">${{ bg: "Bac général", bt: "Bac techno", bp: "Bac pro" }[b]}</span> ${bacAccesHtml(f.bacs[b])}</li>`;
   return `<ul class="cbacs" aria-label="Taux d'accès par bac">${["bg", "bt", "bp"].map(cell).join("")}</ul>`;
+}
+// lot 1, PR 11: a result card fits one phone screen: the rates per bac route and the most represented line among the admits
+// are folded under one summary (the profile's own figures and the official rate stay in sight), never removed
+function carteJump(n) {
+  const st = document.getElementById("sr-status");
+  if (st) st.textContent = `Résultats : ${fmt(n)} formation${n > 1 ? "s" : ""} correspondant à vos critères`;
+  const el = document.getElementById("carte-count");
+  if (el && narrow()) el.scrollIntoView({ block: "start" });
+}
+function carteMore(f, reo) {
+  const app = appOffers(f.offres_app);
+  const inner = `${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}${app}`;
+  const what = [reo ? "" : "Taux d'accès par bac et profil des admis", app ? (reo ? "Aussi en apprentissage" : "aussi en apprentissage") : ""].filter(Boolean).join(" · ");
+  return inner ? `<details class="cc-more"><summary class="small">${what}</summary>${inner}</details>` : "";
 }
 function carteMajo(f) {
   const m = f.majo;
@@ -1837,10 +1861,10 @@ function carteCard(f, ctx, pinned) {
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
-    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${ctx.reo ? "" : carteBacs(f)}</div>
-    ${ctx.reo ? "" : carteMajo(f)}
+    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div></div>
+    ${carteMore(f, ctx.reo)}
     ${carteFigures(f, { ...ctx, compact: true })}
-    ${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}
+    ${robCardLine(f.cod_aff_form)}`}
     <div class="toolbar ctools">${f.stats === false ? "" : `${voeuButton(f.cod_aff_form)}${compareButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Fiche →</a>`}${pinned ? '<button type="button" class="btn-sec" data-unpin>Fermer</button>' : ""}</div>
   </div>`;
 }
@@ -2225,6 +2249,9 @@ async function viewCarte(dArg, mArg) {
     lastCards = { listed, empty: !kept.length && paid
       ? `Aucune formation publique ou privée sous contrat ne correspond : les ${fmt(paid)} trouvée${paid > 1 ? "s" : ""} ${paid > 1 ? "sont" : "est"} dans des établissements privés payants (voir ci-dessus).` : null };
     drawCards();
+    // lot 1, PR 11: after « Rechercher » the page goes down to the results on a phone (the first one was about two screens
+    // lower: Yanis), and the count is said in the status line; the focus stays in the search field
+    if (carteUI.jump) { carteUI.jump = false; carteJump(kept.length); }
     if (fetch) figures(listed.slice(carteUI.page * cartePage(), (carteUI.page + 1) * cartePage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
   }
   // audit PR 8: the cards alone, drawn again from the last list (the cards' details or the profile figures arrived): no filter
@@ -2276,7 +2303,7 @@ async function viewCarte(dArg, mArg) {
     save();
     if (q) suggestLycee(q, "carte");
   }
-  form.onsubmit = (e) => { e.preventDefault(); carteUI.kwErr = ""; doSearch(); };
+  form.onsubmit = (e) => { e.preventDefault(); carteUI.kwErr = ""; carteUI.jump = true; doSearch(); };
   // audit PR 8: the place suggestions (thousands of towns) are written when the field is first used, not with the page
   // (their HTML was parsed in the page's first long task on a phone); same list, same order (red team VT13)
   const fillLieux = () => { const dl = document.getElementById("cs-lieux"); if (dl && !dl.options.length) dl.innerHTML = [...lieux.keys()].map((l) => `<option value="${esc(l)}">`).join(""); };
@@ -3114,7 +3141,7 @@ async function viewFormation(cod, session, refresh) {
       <div><div class="muted small">Parmi les candidats appelés, part des élèves de terminale générale (phase principale) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (toute la campagne)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
-  ${doubletteCard(d.doublettes, d.rapport, d.semblables)}
+  ${doubletteCard(d.doublettes, d.rapport, d.semblables, profileRate(d, bacProfile()))}
   ${appelCard(d.appel)}
   <div id="planb"></div>
   ${offerCard(r, d.apprentissage)}
@@ -3485,7 +3512,8 @@ const pvCov = (i) => (i.coverage == null ? "non testée" : `${fmt(100 * i.covera
 function pvLine(p, key) {
   const i = p && p.indicators.find((x) => x.indicator === key);
   if (!i) return "";
-  return `<div class="small">Prévision ${esc(p.target)} : <strong class="nowrap">${pvRange(i)}</strong> ${tip("prevision")}${i.fragile ? ' <span class="muted">(fourchette moins fiable)</span>' : ""}</div>`;
+  // lot 1, PR 11: folded under the published figure (testers read « 8 – 39,5 % » beside it as a competing figure); never removed
+  return `<details class="pv-fold small"><summary>Prévision ${esc(p.target)}</summary><strong class="nowrap">${pvRange(i)}</strong> ${tip("prevision")}${i.fragile ? ' <span class="muted">(fourchette moins fiable)</span>' : ""}</details>`;
 }
 function previsionCard(p) {
   if (!p || !p.indicators.length) return "";
@@ -3501,7 +3529,7 @@ function previsionCard(p) {
   };
   return `<div class="card"><h2>Prévision ${esc(p.target)} ${tip("prevision")}</h2>
     <p class="small">Fourchettes estimées pour la campagne ${esc(p.target)} à partir des campagnes passées de cette formation. La méthode a été réglée sur ${esc(p.calibration)} puis testée sur ${esc(p.holdout)} sans l'avoir vue : la dernière colonne dit combien de vraies valeurs ${esc(p.holdout)} sont tombées dans leur fourchette (objectif ${fmt(100 * p.level, 0)}\u00a0%).</p>
-    ${PV_GROUPS.map((g, k) => block(g, k === 0)).join("")}
+    ${PV_GROUPS.map((g) => block(g, false)).join("")}
     <p class="muted small">Ce sont des estimations, pas des chiffres officiels, et jamais des chances d'admission. Chaque fourchette est calculée séparément. Les petites formations ont des fourchettes plus larges.</p></div>`;
 }
 
@@ -4279,11 +4307,6 @@ function moyenneCard(r) {
     <p class="muted small">Les points sont publiés (part des admis avec chaque mention ou moins) ; entre deux points, les notes ne sont pas publiées et les deux courbes donnent la fourchette. Tous bacs confondus : les mentions ne sont pas publiées par série. Des repères, pas des chances d'admission.</p></div>`;
 }
 // R5: the range of the two within-band hypotheses (all bacs: mentions are not published by series), said as an estimation
-function moyRange(pos) {
-  if (!pos) return "";
-  const a = Math.min(pos.normale, pos.uniforme), b = Math.max(pos.normale, pos.uniforme);
-  return estimTag(`dans la mention : ${Math.abs(b - a) < 0.005 ? pc1(a) : `${pc1(a)} – ${pc1(b)}`} (tous bacs)`, true);
-}
 function bgCell(f) {
   if (!f.spos) {
     return `${pc1(f.cdf)}<div class="muted small">tous bacs · [${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}] · n=${fmt(f.n_known)}</div>`;
@@ -4689,8 +4712,25 @@ function dblFigure(v) {
 function voieFigure(r, prof) {
   return r ? `${pct1(r.taux)}<div class="estim">${fmt(r.en_position)} sur ${fmt(r.confirmes)} · rapport public ${esc(r.session)} de la formation${r.source === "autres" ? `, ligne « ${esc(rpLabel(r.libelle))} »` : ""}${r.recoupe === false ? `, pas encore recoupé avec les chiffres de ${esc(r.session)}` : ""}</div>` : prof.voie ? '<span class="muted small">pas de ligne publiée</span>' : '<a class="small" href="#/profil">indiquez votre série</a>';
 }
+// lot 1, PR 11: ONE figure for the student's bac in Mes vœux: the report's line (published), else the estimated access the zone
+// reads (taux d'accès officiel x the series' proposal ratio), said; never both side by side (the audit's 34 % beside 31,2 %)
+function vxVoieFigure(v, prof) {
+  if (v.status !== "ok") return "—";
+  if (v.rapport || !isNum(v.taux_acces_ens)) return voieFigure(v.rapport, prof);
+  return `${pct1(v.taux_acces_ens)}${estimTag(`accès estimé pour votre série, sans ligne publiée dans un rapport du jury${v.rate_fragile ? " · peu de candidats de votre série" : ""}`, true)}`;
+}
 function vxVoieCell(v, prof) {
-  return `<td class="num" data-label="Votre bac, rapport du jury">${v.status !== "ok" ? "—" : voieFigure(v.rapport, prof)}</td>`;
+  return `<td class="num" data-label="Pour votre bac, cette formation">${vxVoieFigure(v, prof)}</td>`;
+}
+// lot 1, PR 11: « Admis sous votre moyenne » / « Admis avec votre mention ou moins » in Mes vœux = the search card's figure
+// (cartePosFigure over the same reading: the average's position range, else the mention share), never another range
+function vxPos(v, withAverage) {
+  if (withAverage) {
+    const p = v.position_moyenne;
+    return p ? { lo: Math.min(p.normale, p.uniforme), hi: Math.max(p.normale, p.uniforme), moyenne: true } : null;
+  }
+  if (v.bounds) return { lo: v.bounds[0], hi: v.bounds[1], serie: true, moyenne: false };
+  return isNum(v.position) ? { lo: v.position, hi: v.position, serie: false, moyenne: false } : null;
 }
 // primary (sprint Q5): the formation page's one main action is adding the formation to Mes vœux
 function voeuButton(cod, primary) {
@@ -4744,15 +4784,16 @@ async function viewVoeux() {
   await recoP;
   if ($view.dataset.rendered !== marker) return;                       // the user navigated meanwhile
   const L = d.lecture, z = L.zones;
-  const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
+  const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";    // the Compléter table's own column (its figure)
+  const avg = d.moyenne !== null && d.moyenne !== undefined;
+  const posHead = avg ? "Admis sous votre moyenne" : "Admis avec votre mention ou moins";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
       : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">moins de 10 admis de votre bac</span>' : ""}${autresBadge(v)}`;
-    const position = `${v.bounds ? mentionShareTxt(v.bounds[0], v.bounds[1]) : pc1(v.position)}${d.moyenne !== null && d.moyenne !== undefined ? "" : ` <span class="muted small">(${mentionWho(!!v.bounds, serie)})</span>`}`;
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain, v.large)}${v.status === "ok" ? zoneAxisNote(v) : ""}${flags}</td>
-      <td class="num" data-label="${rate}">${v.status === "ok" ? `${fmt(v.taux_acces_ens)} %` : "—"}</td>
-      <td class="num" data-label="${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}">${v.status === "ok" ? `${position}${moyRange(v.position_moyenne)}` : "—"}</td>
+      <td class="num" data-label="Taux d'accès officiel">${v.status === "ok" && isNum(serie === "bg" ? v.taux_acces_ens : v.taux_acces_all) ? `${fmt(serie === "bg" ? v.taux_acces_ens : v.taux_acces_all)} %` : "—"}</td>
+      <td class="num" data-label="${posHead}">${v.status === "ok" ? cartePosFigure(vxPos(v, avg), false, serie) : "—"}</td>
       <td class="num" data-label="Places">${v.capa_fin != null ? fmt(v.capa_fin) : "—"}</td>
       ${serie === "bg" ? `<td class="num" data-label="Vos deux spécialités, cette formation">${dblFigure(v)}</td>` : vxVoieCell(v, prof)}
       <td class="acts">${v.status === "ok" && VX_PLANB.includes(v.zone) ? `<button type="button" class="small planb-btn" data-vxplanb="${esc(v.cod_aff_form)}" aria-expanded="false">Voir un plan B</button>` : ""}<button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
@@ -4764,9 +4805,9 @@ async function viewVoeux() {
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}${m.code === "aucune_securite" ? " vx-alert" : ""}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
     <p class="muted small">Ces repères comptent les zones de votre liste, une par formation. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
   <div class="card"><h2>${vxTitre(d.voeux)}</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">Taux d'accès officiel ${d.session}</th><th class="num">${posHead}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Pour votre bac (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
-    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
+    <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. Taux d'accès officiel de la dernière campagne, tous candidats. Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Pour votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation (seuls les candidats scolarisés en terminale en France y figurent) ; sans rapport, une estimation : le taux d'accès officiel × le taux de proposition de votre série / celui de tous les candidats. Jamais les deux à la fois."}</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     // audit PR 5: right under the « aucune sécurité » alert (it was below the whole list, out of sight on a phone)
@@ -5465,7 +5506,7 @@ function appelCard(rows) {
     ${lead ? `<p class="info">${lead}${places}.</p>` : ""}
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Session</th><th class="num">Candidats</th><th class="num">Classés</th><th>Rang du dernier appelé</th><th class="num">Jusqu'où la liste a été appelée</th><th class="num">Places</th></tr>
       ${ok.map((r) => `<tr><td data-label="Session">${esc(r.session)}</td><td class="num" data-label="Candidats">${fmt(r.candidats)}</td><td class="num" data-label="Classés">${fmt(r.classes)}</td>
-        <td data-label="Rang du dernier appelé">${r.groupes.map((g) => `${esc(g.label || "Groupe")} : ${fmt(g.rang)}`).join("<br>")}</td>
+        <td data-label="Rang du dernier appelé">${r.groupes.map((g) => `${esc(g.label || "Groupe")} : <span class="nowrap">rang ${fmt(g.rang)}</span>`).join("<br>")}</td>
         <td class="num" data-label="Jusqu'où la liste a été appelée">${r.toute_la_liste ? "toute la liste" : pct(r.profondeur)}</td><td class="num" data-label="Places">${fmt(r.places)}</td></tr>`).join("")}</table></div>
     <p class="muted small">${APPEL_NOTE} Jusqu'où la liste a été appelée : somme des rangs des derniers appelés de chaque groupe, divisée par le nombre de classés (calcul à partir des effectifs publiés). <a href="#/comprendre">Comprendre l'appel →</a></p></div>`;
 }
@@ -6071,7 +6112,8 @@ async function viewPremiere() {
 }
 
 // a shared list: "#/liste/<codes>[/<profile>]"; codes validated like the stored list; the profile only if the student joined it
-const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut" };
+// lot 1, PR 11: v = the bac techno / pro route (validated by vxProfile against the vocabulary), so the reader sees the same bac
+const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut", v: "voie" };
 function shareCodes(raw) {
   const out = [];
   for (const c0 of String(raw || "").split(",")) { const c = c0.trim(); if (/^\d{1,9}$/.test(c) && !out.includes(c) && out.length < voeux.MAX) out.push(c); }
@@ -6085,6 +6127,10 @@ function shareProfile(raw) {
   if (!["bg", "bt", "bp"].includes(p.serie) || !MENTION_CODES.includes(p.mention)) return null;   // never a default; the average is never shared
   const codes = JV && JV.specialties ? new Set(JV.specialties.map((x) => x.code)) : null;
   if (p.serie === "bg" && (!codes || !codes.has(p.spe1) || !codes.has(p.spe2) || p.spe1 === p.spe2)) return null;
+  if (p.serie === "bg") delete p.voie;
+  const route = p.voie && JV && JV.voies && (JV.voies[p.serie] || []).find((x) => x.code === p.voie);
+  if (p.voie && !route) delete p.voie;                                  // an unknown route is dropped, never guessed
+  if (route) p.voie_label = route.label;
   return vxProfile(p);
 }
 function shareLink(ids, prof) {
@@ -6095,13 +6141,14 @@ function shareLink(ids, prof) {
   else {
     q.set("s", prof.serie); q.set("m", prof.mention);
     if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }
+    else if (prof.voie && prof.voie !== "autre") q.set("v", prof.voie);      // « autre » (not in the list) never travels
   }
   return `${base}/${q.toString()}`;
 }
 function shareCard(ids, withProfile) {
   return `<section class="card no-print" id="vx-share"><h2>Partager ou imprimer ma liste</h2>
     <p class="small">Envoyez ce lien à un parent ou à votre professeur principal : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Le lien lui-même n'est jamais envoyé au serveur, et rien n'est enregistré.</p>
-    ${withProfile ? `<label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités, mention ; jamais l'académie ni le lycée)</label>` : ""}
+    ${withProfile ? `<label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités ou voie, mention ; jamais la moyenne, l'académie ni le lycée : les zones y sont lues avec la mention seule)</label>` : ""}
     <div class="share-row"><input id="share-url" type="text" readonly aria-label="Lien de ma liste" value="${esc(shareLink(ids, null))}">
       <button type="button" id="share-copy">Copier le lien</button><button type="button" id="share-print">Imprimer</button></div>
     <p class="small muted" id="share-msg" aria-live="polite"></p>
@@ -6131,7 +6178,7 @@ async function viewListe(rawCodes, rawProfile) {
   const prof = shareProfile(rawProfile);
   const who = !prof && rawProfile ? "Le profil joint n'a pas pu être lu : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
     : !prof ? "Aucun profil n'a été joint : les zones ne sont pas lues, seuls les chiffres officiels s'affichent."
-    : `Lue pour le profil joint : ${profileLine(prof, prof.serie)}.`;
+    : `Lue pour le profil joint : ${profileLine(prof, prof.serie)}.${isReo(prof) ? "" : " Les zones sont lues avec la mention seule : le lien ne contient jamais la moyenne, elles peuvent donc différer de celles de l'élève."}`;
   const head = `<div class="card"><h1>Liste partagée</h1><p class="small">${who}</p>
     <p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   if (!ids.length) { $view.innerHTML = `${head}<div class="card"><p class="muted">Ce lien ne contient aucune formation valide.</p></div>`; return; }

@@ -295,7 +295,7 @@ def k5(c: Ctx):
     js = c.js
     card = "const semEst = own.hasBg ? null : estimateSemblable(d.series, sem, dkey0);" in js \
         and "const est = own.hasBg || semEst ? null : estimateDoublette(d.series, g, dkey);" in js \
-        and "${doubletteCard(d.doublettes, d.rapport, d.semblables)}" in js
+        and "${doubletteCard(d.doublettes, d.rapport, d.semblables, profileRate(d, bacProfile()))}" in js
     # owner, 2026-11-22: the curves read the formation's own report year by year (pairByYear, red team EV5); the estimate
     # fills only the years without one, the similar formations before the group
     evo = "const est = sEst || (g ? estimateDoublette(d.series, g, dk) : null);" in js \

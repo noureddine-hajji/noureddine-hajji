@@ -485,7 +485,7 @@ PY_MUTANTS = [   # (module key, file, name, old, new)
 JS_MUTANTS = [
     ("estimate replaced by the official rate", "reoCell(f.reo && { ...f.reo, taux_acces_ens: f.taux_acces_ens })",
      "reoCell(f.reo && { ...f.reo, acces_estime: f.taux_acces_ens, taux_acces_ens: f.taux_acces_ens })"),
-    ("bac rates kept outside terminale", '${ctx.reo ? "" : carteBacs(f)}', "${carteBacs(f)}"),
+    ("bac rates kept outside terminale", '${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}', "${carteBacs(f)}${carteMajo(f)}"),
     ("profile prompt kept outside terminale", "  if (ctx.reo) return carteReo(f);\n", ""),
     ("no loading line", "if (f.reo === undefined) return '<p class=\"cbacs-wait small muted\">Accès estimé hors terminale : chargement…</p>';",
      "if (f.reo === undefined) return '';"),

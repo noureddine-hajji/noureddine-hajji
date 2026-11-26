@@ -602,7 +602,7 @@ def t6(c: Ctx):
     if "Le profil joint n'a pas pu être lu" not in r["unread"]:
         bad.append("an unreadable joined profile is said as none")
     if "v=" in r["linkBp"] or "autre" in r["linkBp"] or "ASSP" in r["linkBp"]:
-        bad.append(("the bac pro route in the link", r["linkBp"]))
+        bad.append(("the bac pro route « autre » in the link", r["linkBp"]))
     if r["race0"] != "OTHER PAGE":
         bad.append("a late answer drew over another page before the vocabulary")
     if 'id="share-prof"' in r["cardNone"] or r["urlNone"] != f"https://supcompass.example/#/liste/{','.join(cods)}":
@@ -657,7 +657,7 @@ def t6(c: Ctx):
         bad.append("the merge does not say what is left out")
     if r["race"] != "OTHER PAGE":
         bad.append("a late answer drew over another page")
-    if "Le lien lui-même n'est jamais envoyé au serveur" not in r["card"] or "jamais l'académie ni le lycée" not in r["card"]:
+    if "Le lien lui-même n'est jamais envoyé au serveur" not in r["card"] or "l'académie ni le lycée" not in r["card"] or "jamais la moyenne" not in r["card"]:
         bad.append("the share card's privacy line")
     return not bad, f"{len(bad)} problems {bad[:5]}"
 
@@ -755,8 +755,8 @@ JS_MUTANTS = [
     ("stored choices not validated", '.filter((c) => typeof c === "string" && codes.has(c))', '.filter((c) => typeof c === "string")'),
     ("missing doublette not said", ': "absente des données 2022–2025"}', ': ""}'),
     ("codes not validated", 'if (/^\\d{1,9}$/.test(c) && !out.includes(c)', "if (c && !out.includes(c)"),
-    ("académie shared", 'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut" };',
-     'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut", academie: "academie" };'),
+    ("académie shared", 'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut", v: "voie" };',
+     'const SHARE_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", t: "statut", v: "voie", academie: "academie" };'),
     ("profile always in the link", "url.value = shareLink(ids, box && box.checked ? prof : null);", "url.value = shareLink(ids, prof);"),
     ("zones without a profile", "const zoned = prof && !isReo(prof);", "const zoned = !isReo(prof);"),
     ("merge replaces the list", "for (const c of fresh) if (voeux.add(c)) n++;", 'VOEUX = []; for (const c of fresh) if (voeux.add(c)) n++;'),
@@ -779,8 +779,8 @@ JS_MUTANTS += [
     ("premiere race", '  JV = JV || await api("/api/journey/vocab");\n  if ($view.dataset.rendered !== first) return;', '  JV = JV || await api("/api/journey/vocab");'),
     ("failure said absent", '/absente/i.test(e.message) ? "absente" : "indisponible"', '"absente"'),
     ("codes not trimmed", "const c = c0.trim();", "const c = c0;"),
-    ("route in the link", '    if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }\n  }',
-     '    if (prof.serie === "bg") { q.set("a", prof.spe1 || "MATHS"); q.set("b", prof.spe2 || "SES"); }\n    else if (prof.voie) q.set("v", prof.voie);\n  }'),
+    # lot 1, PR 11 (owner): a CHECKED route rides the link (redteam_unchiffre UC7); « autre » (not in the vocabulary) never does
+    ("the route « autre » in the link", '    else if (prof.voie && prof.voie !== "autre") q.set("v", prof.voie);', '    else if (prof.voie) q.set("v", prof.voie);'),
     ("unsafe decoding", "function safeDecode(x) { try { return decodeURIComponent(x); } catch (_) { return x; } }", "function safeDecode(x) { return decodeURIComponent(x); }"),
     ("profile bar on a shared list", 'if (this.tab === "stats" || this.tab === "liste")', 'if (this.tab === "stats")'),
 ]
