@@ -4766,6 +4766,11 @@ minutes: each of the six shards planned 4.8 thousand seconds, too close to the l
 4.1 thousand seconds each (same greedy plan from `tests/durations.json`; `tests/test_shards.py` reads the count from the
 workflow; red team S6's mutant now splits the seven-shard command).
 
+**CI: eight shards (2026-11-26).** Three shards of PR 12 hit the 45-minute limit while every file of the two that finished
+ran 1.5 to 2 times slower than the same files earlier that day (doublettes 542 -> 1,116 s, robustesse mutants 469 -> 837 s): the
+runner, not a test. An eighth shard brings each plan back under about 3.7 thousand seconds; `tests/test_shards.py` reads the count
+from the workflow and red team S6 checks `--shard=i/n` against the matrix.
+
 ## A shorter formation page on a phone (audit PR 5, 2026-11-24)
 
 The audit's testers met four obstacles on a phone, each fixed where it was:

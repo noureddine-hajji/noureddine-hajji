@@ -373,8 +373,8 @@ CI_MUTANTS = [
     ("stale runs not cancelled", "cancel-in-progress: true", "cancel-in-progress: false"),
     ("timing check run in parallel", " --ignore=tests/test_analytics.py", ""),
     ("Plan B latency check run in parallel", " --ignore=tests/test_planb.py", ""),
-    ("a shard left out of the matrix", "shard: [1, 2, 3, 4, 5, 6, 7]", "shard: [1, 2, 3, 4, 5, 6]"),
-    ("shards split for another count", "--shard=${{ matrix.shard }}/7", "--shard=${{ matrix.shard }}/3"),
+    ("a shard left out of the matrix", "shard: [1, 2, 3, 4, 5, 6, 7, 8]", "shard: [1, 2, 3, 4, 5, 6, 7]"),
+    ("shards split for another count", "--shard=${{ matrix.shard }}/8", "--shard=${{ matrix.shard }}/3"),
     ("test check ignores the timed job", ' && test "${{ needs.timed.result }}" = success', ""),
     ("test check skipped when a shard fails", "    if: always()\n    needs: [shard, timed]", "    needs: [shard, timed]"),
 ]
