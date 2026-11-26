@@ -647,7 +647,7 @@ PY_MUTANTS = [
      "rows = J.stage2(con, dkey, 'tb', next(iter(by_type)), None, serie=serie, only=cods, moyenne=None,"),
 ]
 JS_MUTANTS = [
-    ("zone shown without a profile", "zone: ok ? (zones.get(f.cod_aff_form) || null) : null", "zone: zones.get(f.cod_aff_form) || null"),
+    ("zone shown without a profile", "f.zone = ok ? (zones.get(f.cod_aff_form) || null) : null", "f.zone = zones.get(f.cod_aff_form) || null"),
     ("paid ticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };', 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app", "prive"] };'),
     ("presentiel misread", 'o === "presentiel" ? (!f.distance || f.distance === "aucune")', 'o === "presentiel" ? f.distance === "aucune"'),
     ("facet counts ignore other groups", '(g) => g !== skip && (F[g] || []).length', '(g) => (F[g] || []).length'),

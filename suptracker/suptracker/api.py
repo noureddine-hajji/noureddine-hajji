@@ -750,6 +750,8 @@ def formation(cod: str, session: int | None = None):
             "reconnaissance": RC.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # audit PR 7: the vœu multiple the fiche names, when other formations share it (one vœu on Parcoursup)
             "voeu_multiple": MU.for_formation(_con().cursor(), rec["cod_aff_form"]),
+            # audit PR 8: what tells this formation apart (its parcours), by THE rule Plan B and Mes vœux show it with
+            "complement": PB.complement_fiche(rec),
             "vie": vie,
             # sprint F: the student aids as the official pages state them, adapted to this place and these fees
             "aides": AID.for_formation(_con().cursor(), rec["cod_aff_form"], vie),
@@ -1173,8 +1175,16 @@ def voeux(ids: str = Query("", max_length=200), mention: str | None = Query(None
                           academie=academie or None, voie=VO.valid(_con().cursor(), serie, voie), moyenne=moy)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
+    marked = _with_groups(ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok"))
     return {**res, "moyenne": moyenne,                  # R5 (review): the average given, never the rattrapage's implicit 10
-            "voeux": ADM.mark(_con().cursor(), res["voeux"], session=res["session"], only=lambda v: v["status"] == "ok")}
+            "voeux": marked, "n_voeux": MU.compte(marked)}
+
+
+def _with_groups(voeux: list[dict]) -> list[dict]:
+    """Audit PR 8: each row carries the vœu multiple its fiche names (multiples.py), in NEW dicts, so the page counts the list
+    in Parcoursup vœux (`vxCompte`) in its headings, like the « Avant de confirmer » card."""
+    groups = MU.of_codes(_con().cursor(), [v["cod_aff_form"] for v in voeux])
+    return [{**v, "voeu_multiple": groups.get(v["cod_aff_form"])} for v in voeux]
 
 
 @app.get("/api/reorientation")
@@ -1228,9 +1238,9 @@ def reorientation_voeux(ids: str = Query("", max_length=200)):
         ville_etab AS ville, acad_mies AS academie FROM core.formation_year WHERE session = (SELECT max(session) FROM core.formation_year)
         AND list_contains(?, cod_aff_form)""", [cods])} if cods else {}
     session = rows("SELECT max(session) AS s FROM core.formation_year")[0]["s"]
-    return {"session": session, "min_candidats": RO.MIN_CANDIDATS,
-            "voeux": [{"cod_aff_form": c, "status": "ok", **meta[c], "reorientation": blocks.get(c)} if c in meta
-                      else {"cod_aff_form": c, "status": "absente"} for c in cods]}
+    voeux = _with_groups([{"cod_aff_form": c, "status": "ok", **meta[c], "reorientation": blocks.get(c)} if c in meta
+                          else {"cod_aff_form": c, "status": "absente"} for c in cods])
+    return {"session": session, "min_candidats": RO.MIN_CANDIDATS, "voeux": voeux, "n_voeux": MU.compte(voeux)}
 
 
 @app.get("/api/voeux/completer")

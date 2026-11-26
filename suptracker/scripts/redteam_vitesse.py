@@ -269,7 +269,10 @@ def vt4(c: Ctx):
         "CARTE_TOUS = carte.TOUS": f'const CARTE_TOUS = "{CA.TOUS}";' in c.js,
         "detail keys = carte.DETAIL_KEYS": f'const CARTE_DETAIL_KEYS = {json.dumps(list(CA.DETAIL_KEYS))};'.replace('","', '", "') in c.js
                                            and tuple(CA.DETAIL_KEYS) == DETAIL,
-        "details merged into the drawn rows": "CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; });" in view,
+        # audit PR 8: the drawn rows ARE the layer's rows (carteMerge writes on them), which coucheDetailsParts fills
+        "details merged into the drawn rows": "neutral.forEach((f) => { f.zone = ok" in fn_src(c.js, "carteMerge") and "return neutral;" in fn_src(c.js, "carteMerge")
+                                              and "if (f) Object.assign(f, x);" in fn_src(c.js, "coucheDetailsParts")
+                                              and "let rows = carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok);" in view,
         "a failed details answer clears the wait": 'rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });' in view,
         "rates wait while details come": "if (f.bacs === undefined && f.stats !== false) return" in fn_src(c.js, "carteBacs")
                                          and "chargement…" in fn_src(c.js, "carteBacs"),
@@ -677,7 +680,7 @@ def mutants():
 
     page_mut("one zones request per diploma when nothing is ticked", "Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ))",
              "Promise.all(dips.map(loadZ))", {"VT4"})
-    page_mut("details never merged into the drawn rows", "CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; });", "", {"VT4"})
+    page_mut("details never merged into the drawn rows", "      if (f) Object.assign(f, x);\n    }\n  }\n  C.details = true;", "    }\n  }\n  C.details = true;", {"VT4"})
     page_mut("rates wait forever after a failure", "rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });", "", {"VT4"})
     # (decoding the dictionary inside nested objects too is an equivalent mutant on this layer: no nested key of
     # DICT_KEYS ever holds an integer; the build's round-trip check guards that case)

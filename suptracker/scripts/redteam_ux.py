@@ -249,7 +249,7 @@ viewHome(); process.stdout.write(JSON.stringify([$view.innerHTML, $view.dataset.
     leak = "<b>x</b>" in html
     words = all(w in html for w in ("Je cherche une formation", "Je pars d'un métier", "Je veux savoir où je me situe",
                                      "Je me réoriente ou je reprends mes études",
-                                     "jamais des pronostics", "Vous avez 2 vœux dans votre liste"))
+                                     "jamais des pronostics", "Vous avez 2 formations dans votre liste"))   # audit PR 8: formations
     technical = "META.methodology" in blk or "voe_tot" in html
     ok = doors == 4 and links and not leak and words and not technical and rendered == "home" and "if (!q) return viewHome();" in js
     return ok, f"doors {doors}; links {links}; raw tag {leak}; wording {words}; technical note {technical}; routed {'if (!q) return viewHome();' in js}"
@@ -694,7 +694,7 @@ process.stdout.write(JSON.stringify(out));"""
             return False
         cells = re.findall(r"<td(?![^>]*data-label)(?![^>]*class=\"acts\")[^>]*>", rows.group(0))
         return len(cells) == 1                                 # only the formation cell has no label
-    vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large)}" in vx
+    vx_ok = labelled(vx, r"return `<tr><td>\$\{name\}</td>.*?</tr>`;") and '<section class="card summary" aria-label="Lecture de votre liste">' in vx and "${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large, vxCompte(d.voeux) === d.voeux.length ? \"vœu\" : \"formation\")}" in vx
     pc_ok = (labelled(pc) and "${hasProfile ? `<p class=\"home-profile\"><span>Lu pour : <strong>${profileLine(vp, serie)}</strong></span><a class=\"btnlink\" href=\"#/profil\">Modifier mon profil</a></p>`" in pc
              and 'const hasProfile = !!store.get("profile", null);' in pc and ".slice(0, allPos ? 80 : 20)" in pc and 'id="allpos"' in pc)
     vs_ok = ("const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);" in vs and 'data-cpage="1"' in vs

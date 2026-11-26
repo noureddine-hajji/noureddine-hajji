@@ -331,6 +331,8 @@ def page_prog(c: Ctx) -> str:
     parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
               top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine"),
               ]
+    parts += [top(js, n) for n in ("vmKey", "vxCompte", "vxCompteTxt", "vxTitre")       # audit PR 8: the list's count, one wording
+              if not re.search(rf"^(?:const|function) {n}\b", block(js, BLOCK_START, BLOCK_END), re.M)]
     parts.append(jstext.q4_defs(js, present="\n".join(parts)))     # sprint Q4: the estimation label, zone texts, next steps
     sec = block(js, BLOCK_START, BLOCK_END)
     return "\n".join(parts) + "\n" + sec

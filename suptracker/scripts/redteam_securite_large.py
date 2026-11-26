@@ -350,7 +350,7 @@ DISPLAY_SPOTS = (
     r"zoneBadge\(\"securite\", false, f\.large\)",
     r"zoneBadge\(z, false, f\.large\)",
     r"f\.large = ok && f\.zone === \"securite\" && larges\.has\(f\.cod_aff_form\)",
-    r"zoneTiles\(z, z\.hors_profil \+ z\.non_ouvert \+ z\.indetermine \+ z\.non_situe, L\.securite_large\)",
+    r"zoneTiles\(z, z\.hors_profil \+ z\.non_ouvert \+ z\.indetermine \+ z\.non_situe, L\.securite_large[,)]",
 )
 
 

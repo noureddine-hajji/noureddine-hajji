@@ -4897,3 +4897,51 @@ Red team `scripts/redteam_multiples.py` (VM1-VM8; run in CI by `tests/test_multi
 - VM8 is the mutation test.
 
 The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in TR3 (`redteam_transports.py`).
+
+## One count, one message, one name (audit PR 8, 2026-11-25)
+
+**Why.** The re-audit of 2026-11-25 (same rubric, sample and testers as 2026-11-23) found five defects. I re-checked each one by hand:
+- Mes vœux outside terminale said « 3 vœux » and « Mes 3 vœux », while its « Avant de confirmer » card said « 3 formations, soit
+  2 vœux ». PR 7 counted the vœux multiples in that card only.
+- « école de commerce » + Lyon printed « Aucune formation ne correspond » twice, while 22 paid formations were only hidden.
+- The formation page of the licence of Lyon 2 (35342) said « Economie et gestion ». Mes vœux and Plan B showed its parcours
+  « Economie et gestion - Informatique », and the tester thought she had added the wrong formation.
+- « Mon profil » threw « Failed to set the 'innerHTML' property … moved in a 'blur' event handler » before the first save.
+- The search page blocked a phone longer than before: Lighthouse 49-51, 1.0-1.6 s of blocking time.
+
+**What changes.**
+- **Count:** `/api/voeux` and `/api/reorientation/voeux` give each row its vœu multiple (`multiples.of_codes`) and `n_voeux`. The
+  page uses one wording everywhere (`vxCompteTxt`, `vxTitre`): « Mes 3 formations (2 vœux sur Parcoursup) » and « 3 formations,
+  soit 2 vœux sur Parcoursup ». It appears in the list's title, the reading outside terminale and the « Avant de confirmer » card.
+  The zone tiles count formations when the list holds sub-wishes, and the home link counts formations.
+- **Search:** when the criteria keep nothing but hidden paid formations, the status says « Les N formations qui correspondent à
+  votre recherche sont dans des établissements privés payants, masqués par défaut » with « Les afficher », and the list's empty
+  line says the same. « Aucune formation ne correspond » is never printed beside them.
+- **One name:** `planb.complement_of` is THE rule Plan B and Mes vœux show. `planb.complement_fiche` gives the formation page the
+  parts the page does not already print (its title, its h1), served by `/api/formation` as `complement` and printed escaped after
+  the title. On 2025, 1,834 of 14,252 formations get a line: parcours, mineure, concours, IFSI regroupement.
+- **« Mon profil »:** a change fired by a field losing focus is acted on once the blur is over, and only if the form is still the
+  page's. A change of the focused field (a select) is acted on at once.
+- **Search page speed:**
+  - the zones are written on the layer's own rows (`carteMerge`; the copy of 21,000 formations is gone);
+  - the cards' details are decoded in slices of 1,500 rows (`coucheDetailsParts`) and not copied a second time;
+  - details and profile figures redraw the cards only (`drawCards`);
+  - zones already here are read before the first draw;
+  - the status, count and legend lines are written only when they change (`setHtml`);
+  - the thousands of place suggestions are written when the field is first used;
+  - the loading card says what loads.
+
+  Measured on an emulated phone (CPU ×4): 1 full draw without a profile instead of 2, and 2 with one instead of 4. Long tasks
+  total 2.0-2.7 s instead of 2.7-3.9 s. Lighthouse (search page, mobile): 74-80 instead of 49-51, with 0.4-0.9 s of blocking time
+  and a 3.0 s LCP instead of 7.9 s.
+
+**Red team** `scripts/redteam_coherence.py` (CO1-CO8), via `tests/test_coherence.py`, and CO6 in the nightly browser suite:
+- CO1 count: the wording against an independent one on 124 lists, the APIs on a real group.
+- CO2 search: the paid-only message.
+- CO3 one name: every part Mes vœux shows is on the formation page, checked on every formation of the warehouse.
+- CO4 profile: the deferred redraw.
+- CO5 speed twins: the sliced decode equals the one-task decode on the real layer; no copy; unchanged lines kept.
+- CO6 browser: the draws counted on a phone, the paid ones, the parcours, a vœu multiple counted once, the profile saved without
+  error.
+- CO7: every seeded bug caught.
+- CO8: wiring.

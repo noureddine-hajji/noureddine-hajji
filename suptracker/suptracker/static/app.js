@@ -916,7 +916,7 @@ function viewHome() {
   <p class="home-more small"><a href="#/premiere">En seconde ou en première ? Comparez les paires possibles de vos spécialités</a> · <a href="#/calendrier">Calendrier Parcoursup</a> · <a href="#/accompagner">Parents et professeurs</a></p>
   <div class="card"><h2>Idées de recherche</h2>
     <div class="toolbar">${HOME_EXAMPLES.map((e) => `<a class="badge" href="#/s/${encodeURIComponent(e)}">${esc(e)}</a>`).join("")}</div>
-    ${n ? `<p><a href="#/voeux">Vous avez ${n} vœu${n > 1 ? "x" : ""} dans votre liste →</a></p>` : ""}</div>`;
+    ${n ? `<p><a href="#/voeux">Vous avez ${n} formation${n > 1 ? "s" : ""} dans votre liste →</a></p>` : ""}</div>`;
   $view.dataset.rendered = "home";
 }
 
@@ -927,9 +927,11 @@ const searchPage = () => (narrow() ? 20 : 40);
 // owner, 2026-11-15: the search list's cards carry three figures, the bac lines and the actions: 10 per page on a phone
 const cartePage = () => (narrow() ? 10 : 40);
 // zoneTiles: the zone counts of a list read as a summary (one tile per zone, the zone's own colour, never a chance)
-function zoneTiles(counts, other, large) {
+// audit PR 8: a list holding sub-wishes of one vœu multiple counts its tiles in formations (they are not that many vœux)
+function zoneTiles(counts, other, large, unit = "vœu") {
+  const word = (n) => (unit === "formation" ? `formation${n > 1 ? "s" : ""}` : `vœu${n > 1 ? "x" : ""}`);
   const tile = (k, n, note) => `<div class="sum-tile">${zonePillHtml(k)}
-      <span class="sum-value">${fmt(n)}</span><span class="sum-note">vœu${n > 1 ? "x" : ""}${note || ""}</span></div>`;
+      <span class="sum-value">${fmt(n)}</span><span class="sum-note">${word(n)}${note || ""}</span></div>`;
   const lg = large > 0 && counts.securite ? `, dont ${fmt(large)} « sécurité large »` : "";   // none (or not read): the information says so
   return `<div class="sum-grid">${tile("securite", counts.securite || 0, lg)}${tile("cible", counts.cible || 0)}${tile("ambitieux", counts.ambitieux || 0)}
     <div class="sum-tile"><span class="sum-label">Autres</span><span class="sum-value">${fmt(other)}</span><span class="sum-note">hors-profil, non ouverts ou non situés</span></div></div>`;
@@ -1459,9 +1461,28 @@ function coucheDetails(C, D) {
   C.details = true;
   return C;
 }
+// audit PR 8: the same as coucheDetails(C, coucheDecode(P)), in slices of CARTE_SLICE rows with a pause between them (the
+// page stays responsive while 21,000 cards' details are decoded on a phone)
+const CARTE_SLICE = 1500;
+async function coucheDetailsParts(C, P) {
+  const K = { kinds: P.kinds, dict: new Set(P.dict_keys) };
+  const by = new Map(C.rows.map((f) => [f.cod_aff_form, f]));
+  for (let i = 0; i < P.rows.length; i += CARTE_SLICE) {
+    if (i) await new Promise((r) => setTimeout(r, 0));
+    for (const r of P.rows.slice(i, i + CARTE_SLICE)) {
+      const x = coucheDec(r, K, P.strings, true), f = by.get(x.cod_aff_form);
+      if (f) Object.assign(f, x);
+    }
+  }
+  C.details = true;
+  return C;
+}
+// audit PR 8: the zones are written ON the layer's own rows (copying its 21,000 formations blocked a phone ~0.25 s at every
+// visit); each visit writes zone and large again for every row, so nothing read for an earlier profile stays
 function carteMerge(neutral, stage2, ok) {
   const zones = new Map(((stage2 && stage2.formations) || []).map((f) => [f.cod_aff_form, f.zone]));
-  return neutral.map((f) => ({ ...f, zone: ok ? (zones.get(f.cod_aff_form) || null) : null }));
+  neutral.forEach((f) => { f.zone = ok ? (zones.get(f.cod_aff_form) || null) : null; f.large = false; });
+  return neutral;
 }
 // the filter groups, inspired by the Parcoursup map: each group is a list of ticked options; an empty group keeps all.
 // "prive" (fee-charging private institutions) is never ticked by default (Plan B's rule); "prive_app" is a private establishment
@@ -1832,9 +1853,16 @@ function robCardLine(cod) {
     : R.certification && R.certification[cod] ? " Métiers lus par les codes de la certification du même intitulé (France Compétences) : lien moins sûr." : "";
   return `<p class="small rc-rob">Robustesse 2035 des métiers visés ${estimTag("", false, true)} : <strong>${esc(w)}</strong> ${echelleJauge(R.echelle[cod])}${dip ? `<br>${esc(dip.trim())}` : ""}</p>`;
 }
-function carteList(rows, ctx) {
+// audit PR 8: an element of the search page is written again only when its content changes (each rewrite of an unchanged
+// line made a new « largest paint » seconds later, and the browser laid it out again for nothing)
+function setHtml(el, html) {
+  if (!el || el.__html === html) return;
+  el.__html = html;
+  el.innerHTML = html;
+}
+function carteList(rows, ctx, empty) {
   const PAGE = cartePage(), start = carteUI.page * PAGE, part = rows.slice(start, start + PAGE);
-  return `<div class="carte-list" role="list">${part.map((f) => carteCard(f, ctx, false)).join("") || `<p class="muted small">Aucune formation ne correspond à ces filtres dans cette partie de la carte.</p>`}</div>
+  return `<div class="carte-list" role="list">${part.map((f) => carteCard(f, ctx, false)).join("") || `<p class="muted small">${esc(empty || "Aucune formation ne correspond à ces filtres dans cette partie de la carte.")}</p>`}</div>
     <div class="toolbar">${carteUI.page ? `<button type="button" data-cpage="-1">← Précédentes</button>` : ""}${rows.length > start + PAGE ? `<button type="button" data-cpage="1">Suivantes (${fmt(start + PAGE + 1)}–${fmt(Math.min(rows.length, start + 2 * PAGE))}) →</button>` : ""}</div>`;
 }
 // R9/R10: several types of diploma and mention groups at once. sel = { d: [diploma, ...], m: { diploma: [group, ...] } };
@@ -1899,7 +1927,7 @@ async function viewCarte(dArg, mArg) {
   // R10: the page's heading and a loading line at once, BEFORE the first answer (a cold server takes ~3 s: the page must
   // never be without its heading meanwhile, WCAG 2.4.6; red team A4 on a fresh server)
   const fresh = $view.dataset.rendered !== "carte";                  // audit PR 4: entering the page (not a re-render of it)
-  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p></div>`;
+  if ($view.dataset.rendered !== "carte") $view.innerHTML = `${explorerViews("carte")}<div class="card carte-head"><h1>Rechercher une formation</h1><p class="small muted" role="status">Chargement des formations…</p><p class="cs-wait">La liste rassemble toutes les formations de Parcoursup, avec la carte et les filtres. Sur un téléphone ou une connexion lente, il faut parfois quelques secondes.</p></div>`;
   document.title = "Rechercher une formation — SupCompass";       // the tab already names the page while it loads (R8 rule)
   const FAC = await api("/api/carte");
   // "#/carte/t/<type_key>" comes from Mon parcours: its most frequent type of diploma
@@ -1924,7 +1952,9 @@ async function viewCarte(dArg, mArg) {
   // R10: the neutral layer first (list and map at once), the zones after: with every diploma the zones take the longest
   // sprint Q3: the whole layer in ONE compact answer (cached by the browser and the CDN), decoded once; the selected diplomas
   // are kept in the browser. Zones: one answer for every diploma when nothing is ticked, else one per ticked diploma
-  const loadDetails = (C) => cached("couche-details", () => api("/api/carte/couche?partie=details").then((D) => coucheDetails(C, coucheDecode(D))));
+  // audit PR 8: decoded in slices between which the page answers (one 0.5 s task on a phone before), same result as
+  // coucheDetails(C, coucheDecode(D)) (red team VT12)
+  const loadDetails = (C) => cached("couche-details", () => api("/api/carte/couche?partie=details").then((D) => coucheDetailsParts(C, D)));
   const loadZ = (d) => (ok ? cached(`z|${d}|${sq}|${bandParam(VP)}`, () => api(`/api/carte/zones?diplome=${encodeURIComponent(d)}&${sq}&mention_bac=${encodeURIComponent(bandParam(VP))}&lecture=true`)).catch(() => null) : Promise.resolve(null));
   // R10: no diploma ticked = every diploma
   const tous = !sel.d.length;
@@ -1933,6 +1963,8 @@ async function viewCarte(dArg, mArg) {
   // sprint Vitesse: the zones are asked at once, beside the layer: the server's reading (seconds for a new profile) runs while
   // the layer downloads; the cards' details wait for the zones instead (below)
   const zonesP = Promise.all(tous ? [loadZ(CARTE_TOUS)] : dips.map(loadZ));
+  let zonesEarly;                                 // audit PR 8: set as soon as the zones are here (read before the first draw if so)
+  zonesP.then((zs) => { zonesEarly = zs; }, () => {});
   // sprint Vitesse: the badges are awaited with the layer (the cards need them), no longer before the page's heading
   const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null)]);
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;        // the visitor left while the map loaded
@@ -1940,6 +1972,7 @@ async function viewCarte(dArg, mArg) {
   let zonesReady = false;
   const keep = new Set(dips);
   let rows = carteMerge(tous ? C.rows : C.rows.filter((f) => keep.has(f.diplome)), null, ok);
+  let lastCards = null;                           // the list the cards were last drawn from (drawCards)
   // the zones, read with the average the page keeps, land on the same rows when they come (navigation race checked)
   const applyZones = (zs) => {
     const zone = {}, larges = new Set();
@@ -2001,7 +2034,7 @@ async function viewCarte(dArg, mArg) {
     <form id="cs-form" class="cs-bar" role="search" aria-label="Rechercher une formation">
       <label class="cs-field cs-q"><span>Formation, établissement, mot-clé</span><input id="cs-q" type="search" autocomplete="off" value="${esc(F.q || "")}" placeholder="ex. BTS NDRC, IUT informatique, kiné"></label>
       <label class="cs-field cs-lieu"><span>Ville, département, région</span><input id="cs-lieu" type="search" list="cs-lieux" autocomplete="off" value="${esc(F.lieuTxt || "")}" placeholder="ex. Lyon, Nord (59), Bretagne"></label>
-      <datalist id="cs-lieux">${[...lieux.keys()].map((l) => `<option value="${esc(l)}">`).join("")}</datalist>
+      <datalist id="cs-lieux"></datalist>
       <label class="cs-field cs-km"${F.autour ? "" : " hidden"}><span>Rayon</span><select id="cs-km">${[10, 25, 50, 100, 200].map((k) => `<option value="${k}" ${(F.autour ? F.autour.km : 25) === k ? "selected" : ""}>${k} km</option>`).join("")}</select></label>
       <button type="submit" class="cs-go">${ICONS.search}Rechercher</button>
     </form>
@@ -2124,7 +2157,7 @@ async function viewCarte(dArg, mArg) {
     want.forEach((c) => ctx.chiffres.set(c, null));
     api(`/api/carte/chiffres?codes=${want.join(",")}&${sq}`).then((r) => {
       Object.entries(r.chiffres || {}).forEach(([c, x]) => ctx.chiffres.set(c, x));
-      if (seq === carteUI.seq && $view.dataset.rendered === "carte") { draw(false); }
+      if (seq === carteUI.seq && $view.dataset.rendered === "carte") drawCards();
     }).catch(() => want.forEach((c) => ctx.chiffres.delete(c)));
   }
   function draw(fetch = true) {
@@ -2143,15 +2176,21 @@ async function viewCarte(dArg, mArg) {
       .sort((a, b) => (a.stats === false) - (b.stats === false) || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)
         || (kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)
         || byName(a, b));
-    document.getElementById("cs-status").innerHTML = [
+    // audit PR 4 (owner, 2026-11-23): the paid private establishments stay unticked by default (Plan B's rule), and the list SAYS how
+    // many of them the other criteria would show, with a button that ticks their box
+    const paid = carteHiddenPaid(shown(), F, kw), showPaid = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };
+    setHtml(document.getElementById("cs-status"), [
       kw && kw.interp.length ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${kw.interp.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : "",
       kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
       carteUI.kwErr ? `<p class="warn small">La recherche par mot-clé n'a pas abouti : ${esc(carteUI.kwErr)}. La liste montre toutes les formations.</p>` : "",
       carteUI.lieuBad ? `<p class="warn small">Lieu non reconnu : « ${esc(carteUI.lieuBad)} ». Choisissez une ville, un département, une académie ou une région dans la liste.</p>` : "",
       (carteUI.restored || []).length ? `<p class="small cs-restored">Filtres gardés de votre dernière visite : ${esc(carteUI.restored.join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button></p>` : "",
-      !kept.length && (kw || F.lieu || F.autour || carteActive(F).length) ? `<p class="muted">Aucune formation ne correspond.${carteActive(F).length ? ` Filtres actifs : ${esc(carteActive(F).join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button>` : ""} Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou un autre lieu.</p>` : "",
-    ].join("");
+      // audit PR 8: nothing kept but paid formations hidden = say THAT, never « aucune formation ne correspond » beside them
+      !kept.length && paid ? `<p class="info cs-paid-only">Les ${fmt(paid)} formation${paid > 1 ? "s" : ""} qui correspond${paid > 1 ? "ent" : ""} à votre recherche ${paid > 1 ? "sont" : "est"} dans des établissements privés payants, masqués par défaut. <button type="button" class="linkish" data-show-paid>Les afficher</button></p>`
+      : !kept.length && (kw || F.lieu || F.autour || carteActive(F).length) ? `<p class="muted">Aucune formation ne correspond.${carteActive(F).length ? ` Filtres actifs : ${esc(carteActive(F).join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button>` : ""} Essayez un sigle (BTS, BUT, MPSI…), un intitulé (droit, psychologie…) ou un autre lieu.</p>` : "",
+    ].join(""));
     document.querySelectorAll("#cs-status [data-reset-filters]").forEach((b) => { b.onclick = resetFilters; });
+    document.querySelectorAll("#cs-status [data-show-paid]").forEach((b) => { b.onclick = showPaid; });
     if (carteUI.fit && carteUI.map) {
       carteUI.fit = false;
       const pts = kept.filter((f) => f.lat != null).map((f) => [f.lat, f.lon]);
@@ -2159,14 +2198,10 @@ async function viewCarte(dArg, mArg) {
       if ((kw || F.lieu) && pts.length) { carteUI.map.fitBounds(pts, { maxZoom: 12, padding: [24, 24] }); return; }   // moveend draws again
     }
     const counts = {}; kept.forEach((f) => { const z = carteZone(f); counts[z] = (counts[z] || 0) + 1; });
-    // audit PR 4 (owner, 2026-11-23): the paid private establishments stay unticked by default (Plan B's rule), and the list SAYS how
-    // many of them the other criteria would show, with a button that ticks their box
-    const paid = carteHiddenPaid(shown(), F, kw);
-    document.getElementById("carte-count").innerHTML = `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte${paid
-      ? `<br><span class="cs-paid">${fmt(paid)} formation${paid > 1 ? "s" : ""} d'établissements privés payants ${paid > 1 ? "masquées" : "masquée"} — <button type="button" class="linkish" id="cs-paid">les afficher</button></span>` : ""}`;
-    const pb = document.getElementById("cs-paid");
-    if (pb) pb.onclick = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };
-    document.getElementById("carte-legend").innerHTML = ok && !zonesReady ? '<span class="muted">Zones en cours de chargement…</span>' : ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`;
+    setHtml(document.getElementById("carte-count"), `${fmt(kept.length)} formation${kept.length > 1 ? "s" : ""} correspondant à vos critères · ${fmt(listed.length)} dans la partie visible de la carte${paid
+      ? `<br><span class="cs-paid">${fmt(paid)} formation${paid > 1 ? "s" : ""} d'établissements privés payants ${paid > 1 ? "masquées" : "masquée"} — <button type="button" class="linkish" id="cs-paid" data-show-paid>les afficher</button></span>` : ""}`);
+    document.querySelectorAll("[data-show-paid]").forEach((pb) => { pb.onclick = showPaid; });
+    setHtml(document.getElementById("carte-legend"), ok && !zonesReady ? '<span class="muted">Zones en cours de chargement…</span>' : ok ? [...CARTE_ZONES, "autre"].map((z) => `<span><i class="lg-${z}" style="background:${carteColor(z)}"></i>${esc(carteLabel(z))}${z !== "autre" ? ` (${CARTE_SHAPE[z]})` : ""} : ${fmt(counts[z] || 0)}</span>`).join("") : `<span><i class="lg-autre" style="background:var(--muted)"></i>Formation (sans profil, pas de zone)</span>`);
     if (carteUI.map) {
       carteUI.layer.clearLayers();
       const map = carteUI.map, pts = kept.filter((f) => f.lat != null).map((f) => { const p = map.latLngToLayerPoint([f.lat, f.lon]); return { x: p.x, y: p.y, f }; });
@@ -2183,12 +2218,20 @@ async function viewCarte(dArg, mArg) {
         }
       }
     }
+    lastCards = { listed, empty: !kept.length && paid
+      ? `Aucune formation publique ou privée sous contrat ne correspond : les ${fmt(paid)} trouvée${paid > 1 ? "s" : ""} ${paid > 1 ? "sont" : "est"} dans des établissements privés payants (voir ci-dessus).` : null };
+    drawCards();
+    if (fetch) figures(listed.slice(carteUI.page * cartePage(), (carteUI.page + 1) * cartePage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
+  }
+  // audit PR 8: the cards alone, drawn again from the last list (the cards' details or the profile figures arrived): no filter
+  // count, sort or map marker is redone for an answer that changes none of them (each full draw blocked a phone ~0.3 s)
+  function drawCards() {
+    if (!lastCards || seq !== carteUI.seq || $view.dataset.rendered !== "carte" || !document.getElementById("carte-items")) return;
     showSel();
-    document.getElementById("carte-items").innerHTML = carteList(listed, ctx);
+    document.getElementById("carte-items").innerHTML = carteList(lastCards.listed, ctx, lastCards.empty);
     bindCarte();
     document.querySelectorAll("[data-cpage]").forEach((b) => { b.onclick = () => { carteUI.page = Math.max(0, carteUI.page + Number(b.dataset.cpage)); draw(); }; });
     document.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = (e) => { if (e.target.closest("a,button")) return; carteUI.sel = el.dataset.pick; showSel(false); }; });
-    if (fetch) figures(listed.slice(carteUI.page * cartePage(), (carteUI.page + 1) * cartePage()).concat(rows.filter((f) => f.cod_aff_form === carteUI.sel)));
   }
   // R10: a formation chosen on the MAP is pinned at the top of the list (its card, with a close button); one chosen in the
   // list is only marked there. Its figures are asked whatever chose it (Codex, R9).
@@ -2230,7 +2273,11 @@ async function viewCarte(dArg, mArg) {
     if (q) suggestLycee(q, "carte");
   }
   form.onsubmit = (e) => { e.preventDefault(); carteUI.kwErr = ""; doSearch(); };
-  lieuEl.oninput = () => { const L = carteLieu(lieux, lieuEl.value); kmBox.hidden = !(L && L.t === "ville"); };
+  // audit PR 8: the place suggestions (thousands of towns) are written when the field is first used, not with the page
+  // (their HTML was parsed in the page's first long task on a phone); same list, same order (red team VT13)
+  const fillLieux = () => { const dl = document.getElementById("cs-lieux"); if (dl && !dl.options.length) dl.innerHTML = [...lieux.keys()].map((l) => `<option value="${esc(l)}">`).join(""); };
+  lieuEl.addEventListener("focus", fillLieux, { once: true });
+  lieuEl.oninput = () => { fillLieux(); const L = carteLieu(lieux, lieuEl.value); kmBox.hidden = !(L && L.t === "ville"); };
   kmEl.onchange = () => { if (F.autour) { F.autour = { ...F.autour, km: Number(kmEl.value) || 25 }; carteUI.fit = true; save(false); } };
   // the shared link: copied when the browser allows it, else shown selected (never sent anywhere by the site)
   document.getElementById("cs-share").onclick = async () => {
@@ -2257,21 +2304,23 @@ async function viewCarte(dArg, mArg) {
       if (d) { d.open = false; d.querySelector("summary").focus(); }
     });
   }
+  // audit PR 8: zones already here (a cached answer, a quick server) are read before the first draw: one full draw, not two
+  const early = ok && zonesEarly !== undefined;
+  if (early && applyZones(zonesEarly)) track("journey", { stage: "stage2" });
   panel();
   draw();
   // sprint Q3: the cards' keys after the list (one cached answer); a failure leaves the rates out, never "chargement…" forever
   // sprint Vitesse: with a profile, after the zones (a slow phone line shares its bandwidth: the zones come first)
   if (!C.details) (ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C)).then(() => {
     if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
-    const by = new Map(C.rows.map((f) => [f.cod_aff_form, f]));
-    rows.forEach((f) => { const g = by.get(f.cod_aff_form); if (g) CARTE_DETAIL_KEYS.forEach((k) => { if (k in g) f[k] = g[k]; }); });
-    draw(false);
+    // the drawn rows ARE the layer's rows (carteMerge writes on them): coucheDetails filled them, only the cards change
+    drawCards();
   }, () => {
     // Codex (PR #116): the estimate outside terminale too: « indisponible », never « chargement… » forever
     rows.forEach((f) => { if (f.bacs === undefined) f.bacs = null; if (f.reo === undefined) f.reo = false; });
-    if (seq === carteUI.seq && $view.dataset.rendered === "carte") draw(false);
+    drawCards();
   });
-  if (ok) zonesP.then((zs) => {
+  if (ok && !early) zonesP.then((zs) => {
     if (seq !== carteUI.seq || $view.dataset.rendered !== "carte") return;
     if (applyZones(zs)) track("journey", { stage: "stage2" });
     panel(); draw();          // a saved zone filter reveals its cards only now: fetch their figures (cached codes are skipped; Codex)
@@ -3037,7 +3086,7 @@ async function viewFormation(cod, session, refresh) {
   $view.innerHTML = `
   <div class="card fhead">
     <h1>${esc(r.g_ea_lib_vx)}</h1>
-    <div class="fhead-lib">${esc(r.lib_for_voe_ins)}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
+    <div class="fhead-lib">${esc(r.lib_for_voe_ins)}${d.complement ? `<span class="fhead-parcours"> · ${esc(d.complement)}</span>` : ""}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
     ${d.reconnaissance ? `<div class="fhead-reco">${recoPill(d.reconnaissance.categorie, d.reconnaissance.libelle, d.reconnaissance.explication)}</div>` : ""}
     <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
     <div class="toolbar" style="margin-top:8px">
@@ -4437,10 +4486,17 @@ async function viewProfil() {
     form.onchange = (e) => {
       const name = e.target.name || "";
       if (!name || name === "lyc-q") return;
-      if (name === "moyenne" && badMoyenne()) return;
-      if (name === "statut") return setSituation(e.target.value, has, raw, new FormData(form), p, serie, lyc, form);
-      if (has) { form.requestSubmit(); return; }
-      draft = { ...(draft || {}), ...readForm(new FormData(form), p, serie, lyc, form, null) }; draw(name);   // no profile yet: nothing stored before "Enregistrer"
+      const act = () => {
+        if (name === "moyenne" && badMoyenne()) return;
+        if (name === "statut") return setSituation(e.target.value, has, raw, new FormData(form), p, serie, lyc, form);
+        if (has) { form.requestSubmit(); return; }
+        draft = { ...(draft || {}), ...readForm(new FormData(form), p, serie, lyc, form, null) }; draw(name);   // no profile yet: nothing stored before "Enregistrer"
+      };
+      // audit PR 8: a change fired by the field LOSING focus (typed, then a tap elsewhere) is dispatched inside the browser's blur:
+      // redrawing the page there threw « Failed to set the 'innerHTML' property … moved in a 'blur' event handler » (testers, twice).
+      // Redraw once the blur is over, and only if the form is still the page's (a tap on « Enregistrer » has drawn it already).
+      if (document.activeElement === e.target) act();
+      else setTimeout(() => { if (form.isConnected) act(); }, 0);
     };
     form.onsubmit = (e) => {
       e.preventDefault();
@@ -4682,11 +4738,11 @@ async function viewVoeux() {
   }).join("");
   $view.innerHTML = `${head}
   <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
-    ${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large)}
+    ${zoneTiles(z, z.hors_profil + z.non_ouvert + z.indetermine + z.non_situe, L.securite_large, vxCompte(d.voeux) === d.voeux.length ? "vœu" : "formation")}
     ${zoneLegend()}
     ${L.messages.map((m) => `<div class="${m.niveau === "warn" ? "warn" : "info"}${m.code === "aucune_securite" ? " vx-alert" : ""}">${esc(VX_MSG[m.code] || "")}</div>`).join("")}
-    <p class="muted small">Ces repères comptent les zones de votre liste, une par vœu. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
-  <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
+    <p class="muted small">Ces repères comptent les zones de votre liste, une par formation. Ils ne disent pas vos chances d'être admis quelque part : les zones décrivent les admis des campagnes passées, et vos vœux ne se combinent pas en une probabilité.</p></section>
+  <div class="card"><h2>${vxTitre(d.voeux)}</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">${rate} ${d.session}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Admis sous votre moyenne (estimation)" : "Admis avec votre mention ou moins"}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Votre bac dans le rapport du jury (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. ${serie === "bg" ? "Taux d'accès officiel de la dernière campagne." : "Accès estimé pour votre série (taux d'accès officiel × taux de proposition de votre série / taux de proposition de tous), pas un taux officiel."} Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation ; seuls les candidats scolarisés en terminale en France y figurent."}</p>
@@ -4745,6 +4801,15 @@ function vxCompte(voeux) {
   }
   return n;
 }
+// audit PR 8: ONE wording of a list's size, everywhere a page counts it (reading, heading, « Avant de confirmer »): the
+// formations, then the Parcoursup vœux they make when some are sub-wishes of the same vœu multiple
+function vxCompteTxt(n, nVx) {
+  return nVx === n ? `${fmt(n)} vœu${n > 1 ? "x" : ""}` : `${fmt(n)} formations, soit ${fmt(nVx)} vœu${nVx > 1 ? "x" : ""} sur Parcoursup`;
+}
+function vxTitre(voeux) {
+  const n = (voeux || []).length, nVx = vxCompte(voeux);
+  return nVx === n ? `Mes ${fmt(n)} vœu${n > 1 ? "x" : ""}` : `Mes ${fmt(n)} formations (${fmt(nVx)} vœu${nVx > 1 ? "x" : ""} sur Parcoursup)`;
+}
 function vmNote(g) {
   if (!vmKey(g)) return "";
   return `<p class="small vm-note">Sur Parcoursup, cette formation est un sous-vœu du vœu multiple «&nbsp;${esc(g.nom)}&nbsp;» (${fmt(g.n_formations)} formations, nom écrit sur sa fiche) : avec les autres formations de ce vœu, elle compte pour un seul vœu.</p>`;
@@ -4759,7 +4824,7 @@ function verifierCard(ids, f, cal, opts) {
   const n = f.voeux.length, app = f.voeux.filter((v) => v.apprentissage), nApp = vxCompte(app);
   const nVx = vxCompte(f.voeux), nSco = vxCompte(f.voeux.filter((v) => !v.apprentissage));
   const max = Number.isInteger(R.voeux_max) ? R.voeux_max : null, maxApp = Number.isInteger(R.apprentissage_max) ? R.apprentissage_max : null;
-  const compte = nVx === n ? `${fmt(n)} vœu${n > 1 ? "x" : ""}` : `${fmt(n)} formations, soit ${fmt(nVx)} vœu${nVx > 1 ? "x" : ""} sur Parcoursup`;
+  const compte = vxCompteTxt(n, nVx);
   items.push(li(max !== null && nSco <= max ? ok : info, `Votre liste compte ${compte}${nApp ? `, dont ${fmt(nApp)} en apprentissage` : ""}. ${max !== null
     ? `Parcoursup accepte jusqu'à ${fmt(max)} vœux, sans les classer.` : "Vérifiez le nombre de vœux permis sur parcoursup.gouv.fr."}${maxApp !== null
     ? ` Vous pouvez ajouter jusqu'à ${fmt(maxApp)} vœux en apprentissage en plus.` : ""}`));
@@ -5814,9 +5879,9 @@ async function viewVoeuxReo(ids, prof) {
   }).join("");
   $view.innerHTML = `${head}
   <section class="card summary" aria-label="Lecture de votre liste"><h2>Lecture de votre liste</h2>
-    <p>${fmt(d.voeux.length)} vœu${d.voeux.length > 1 ? "x" : ""} · ${fmt(nEst)} avec un accès estimé hors terminale.</p>
+    <p>${vxCompteTxt(d.voeux.length, vxCompte(d.voeux))} · ${fmt(nEst)} formation${nEst > 1 ? "s" : ""} avec un accès estimé hors terminale.</p>
     <p class="small">${REO_NO_ZONE} Les repères de zones, le plan B et « Compléter ma liste » reposent sur ces zones : ils ne sont pas proposés. Vos vœux ne se combinent pas en une chance d'admission.</p></section>
-  <div class="card"><h2>Mes ${fmt(d.voeux.length)} vœux</h2>
+  <div class="card"><h2>${vxTitre(d.voeux)}</h2>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>

@@ -377,11 +377,13 @@ def paid_ok(c: Ctx, js: str | None = None) -> tuple[bool, str]:
         if got != want or not got[0]:
             bad.append(("real layer", got, want))
     # the line: its count, the owner's words, a button that ticks the paid box and saves
-    if not re.search(r"d'établissements privés payants \$\{paid > 1 \? \"masquées\" : \"masquée\"\} — <button type=\"button\" class=\"linkish\" id=\"cs-paid\">les afficher</button>", js):
+    if not re.search(r"d'établissements privés payants \$\{paid > 1 \? \"masquées\" : \"masquée\"\} — <button type=\"button\" class=\"linkish\" id=\"cs-paid\" data-show-paid>les afficher</button>", js):
         bad.append("the line « N … masquées — les afficher » is not drawn")
-    if 'if (pb) pb.onclick = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };' not in js:
+    # audit PR 8: one handler for this button and the paid-only message's (showPaid), bound to every [data-show-paid]
+    if 'showPaid = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };' not in js \
+            or 'document.querySelectorAll("[data-show-paid]").forEach((pb) => { pb.onclick = showPaid; });' not in js:
         bad.append("« les afficher » does not tick the paid box")
-    if "const paid = carteHiddenPaid(shown(), F, kw);" not in js:
+    if "const paid = carteHiddenPaid(shown(), F, kw)," not in js:
         bad.append("the count is not the shown rows' (the other criteria applied)")
     if 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };' not in js:
         bad.append("the paid box is ticked by default (Plan B's rule)")
@@ -622,7 +624,7 @@ def mq7(c: Ctx):
     js_mut("kwLoad drops the terms", "terms: Array.isArray(d.terms) ? d.terms :", "terms: [] || ", T)
     js_mut("hidden count ignores the keyword", "{ ...F, statut: [] }, undefined, kw).length", "{ ...F, statut: [] }, undefined, null).length", P)
     js_mut("hidden count with paid ticked", '|| F.statut.includes("prive")) return 0;', ") return 0;", P)
-    js_mut("paid line without its button", 'masquée"} — <button type="button" class="linkish" id="cs-paid">les afficher</button>', 'masquée"}', P)
+    js_mut("paid line without its button", 'masquée"} — <button type="button" class="linkish" id="cs-paid" data-show-paid>les afficher</button>', 'masquée"}', P)
     js_mut("button does not tick the box", '[...new Set([...F.statut, "prive"])]', "[...F.statut]", P)
     js_mut("paid ticked by default", 'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app"] };',
            'const CARTE_DEFAULT = { statut: ["public", "contrat", "prive_app", "prive"] };', P)
