@@ -362,7 +362,7 @@ process.stdout.write(JSON.stringify({ l1, back, bad, bg, l2, nojv }));""",
 # ------------------------------------------------------------------ UC8 (browser)
 BROWSER = r"""
 const { chromium, devices } = require('playwright');
-const base = process.argv[2];
+const base = process.argv[1];                        // run through nodefile: node -e's argv
 const PROFILES = { none: null,
   bg: { statut: 'terminale', serie: 'bg', spe1: 'MATHS', spe2: 'SES', mention: 'b', moyenne: 14.6, academie: 'Lyon' },
   bt: { statut: 'terminale', serie: 'bt', mention: 'ab', voie: 'stmg_merc', voie_label: 'STMG Mercatique' } };
@@ -416,9 +416,9 @@ def uc8(c: Ctx):
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(8)
-        script = Path(tmp) / "uc8.js"
-        script.write_text(BROWSER)
-        r = subprocess.run([exe, str(script), f"http://127.0.0.1:{port}"], capture_output=True, text=True, timeout=1500)
+        # Codex (PR #121): through nodefile, run from the repository: require('playwright') resolves from the working directory
+        # (a local node_modules too), never from a temporary directory
+        r = nodefile.run([exe, "-e", BROWSER, f"http://127.0.0.1:{port}"], capture_output=True, text=True, timeout=1500, cwd=str(ROOT))
     finally:
         srv.terminate()
     if r.returncode:
@@ -511,6 +511,9 @@ def uc10(c: Ctx):
         bad.append("CLAUDE.md rule")
     if '"unchiffre": ("UC8",)' not in (ROOT / "scripts" / "browser_nightly.py").read_text():
         bad.append("nightly suite")
+    src = Path(__file__).read_text()
+    if 'nodefile.run([exe, "-e", BROWSER, f"http://127.0.0.1:{port}"]' not in src or src.count("cwd=str(ROOT))") < 1:
+        bad.append("the browser program is not run through nodefile from the repository (Codex, PR #121)")
     return not bad, f"problems {bad}"
 
 

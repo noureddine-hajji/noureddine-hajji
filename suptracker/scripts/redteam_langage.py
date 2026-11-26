@@ -771,6 +771,8 @@ process.stdout.write(JSON.stringify([acadLabel("Besancon"), acadLabel("Etranger"
         o, bad = None, bad + [("acadLabel does not run", str(e)[:80])]
     if o is not None and o != ["Besançon", "Étranger", "Lyon", None, ""]:
         bad.append(("acadLabel", o))
+    if 'nodefile.run([node, "-e", SCAN2_JS' not in Path(__file__).read_text():         # Codex, PR #121: require from the repository
+        bad.append("LA12's browser program is not run through nodefile")
     pr = defn(c.js, "profileRate")
     if pr.count("rpLabel(") < 3:
         bad.append("profileRate prints a report label without rpLabel")
@@ -779,7 +781,7 @@ process.stdout.write(JSON.stringify([acadLabel("Besancon"), acadLabel("Etranger"
 
 SCAN2_JS = r"""
 const { chromium, devices } = require('playwright');
-const [base, cods] = [process.argv[2], JSON.parse(process.argv[3])];
+const [base, cods] = [process.argv[1], JSON.parse(process.argv[2])];      // run through nodefile: node -e's argv
 const BAN = /\bISCO\b|FAP-20\d\d|O\*NET(?! \(minist)|\bθ\b|néo-bachelier(?! »)|Pas de conclusion|\bBesancon\b|\bEtranger\b|×\s?\d[\d,]*(?![\d,]|\s*m²)|taux_acces_ens|series_eq|stage1|Msgn\/|\bSIES\b/i;
 (async () => {
   const b = await chromium.launch(); const hits = []; const errs = []; let n = 0;
@@ -837,9 +839,8 @@ def la12(c: Ctx):
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(8)
-        script = Path(tmp) / "la12.js"
-        script.write_text(SCAN2_JS)
-        r = subprocess.run([node, str(script), f"http://127.0.0.1:{port}", json.dumps(cods)], capture_output=True, text=True, timeout=1200)
+        # Codex (PR #121): through nodefile, from the repository (require('playwright') from a local node_modules too)
+        r = nodefile.run([node, "-e", SCAN2_JS, f"http://127.0.0.1:{port}", json.dumps(cods)], capture_output=True, text=True, timeout=1200, cwd=str(ROOT))
     finally:
         srv.terminate()
     if r.returncode:
