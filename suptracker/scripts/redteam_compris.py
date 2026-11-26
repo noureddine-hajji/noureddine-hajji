@@ -50,7 +50,9 @@ import redteam_unchiffre as UC  # noqa: E402
 top = CH.top
 HOSTILE = '<img src=x onerror="alert(1)">'
 QUERIES = ["licence economie gestion", "licence économie gestion lyon", "bts ndrc", "but informatique", "cpge mpsi", "licence psycho",
-           "ecole de commerce", "droit sorbonne"]
+           "ecole de commerce", "droit sorbonne",
+           # Codex (PR #123): a place of several words is split into words by offer_terms; none of them may count
+           "licence aix en provence", "bts saint denis", "droit clermont-ferrand"]
 
 
 def check(name):
@@ -96,7 +98,10 @@ def sc1(c: Ctx):
             for x in res["results"]:
                 first.setdefault(x["cod_aff_form"], x)
             places = {my_fold(i["value"]) for i in res.get("interpretation", []) if i.get("type") == "lieu"}
-            groups = [g for g in S.offer_terms(q) if not any(my_fold(a) in places for a in g)]
+            place_words = {w for p in places for w in p.split()}
+            groups = [g for g in S.offer_terms(q) if not any(my_fold(a) and set(my_fold(a).split()) <= place_words for a in g)]
+            if any(set(my_fold(a).split()) <= place_words for g in api.word_groups(q, res.get("interpretation")) for a in g):
+                bad.append((q, "a word of the place counted"))
             for cod, m in zip(d["codes"], d["mots"]):
                 x = first[cod]
                 text = " " + my_fold(" ".join(str(x.get(k) or "") for k in ("fili", "fil_lib_voe_acc", "lib_for_voe_ins", "lib_comp_voe_ins", "g_ea_lib_vx"))) + " "
@@ -203,7 +208,10 @@ def sc4(c: Ctx):
 # ------------------------------------------------------------------ SC5
 MUTANTS = [
     ("api", "SC1", "the domain counted", 'MOTS_FIELDS = ("fili", "fil_lib_voe_acc",', 'MOTS_FIELDS = ("fili", "form_lib_voe_acc", "fil_lib_voe_acc",'),
-    ("api", "SC1", "a place counted", "    return [g for g in S.offer_terms(q) if not any(a.strip() in places for a in g)]", "    return S.offer_terms(q)"),
+    ("api", "SC1", "a place counted", "    return [g for g in S.offer_terms(q) if not any(set(a.split()) <= place_words for a in g)]", "    return S.offer_terms(q)"),
+    ("api", "SC1", "a multiword place's words counted (Codex, PR #123)",
+     "    return [g for g in S.offer_terms(q) if not any(set(a.split()) <= place_words for a in g)]",
+     "    return [g for g in S.offer_terms(q) if not any(a.strip() in {' '.join(sorted(place_words))} for a in g)]"),
     ("api", "SC1", "counts misaligned", "    for c in codes:\n        r = first[c]", "    for c in reversed(codes):\n        r = first[c]"),
     ("js", "SC2", "distance before the words", "(kw ? (kw.mots.get(b.cod_aff_form) ?? 0) - (kw.mots.get(a.cod_aff_form) ?? 0) : 0)\n        || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)",
      "(F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)\n        || (kw ? (kw.mots.get(b.cod_aff_form) ?? 0) - (kw.mots.get(a.cod_aff_form) ?? 0) : 0)"),

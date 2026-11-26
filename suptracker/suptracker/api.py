@@ -668,8 +668,9 @@ MOTS_FIELDS = ("fili", "fil_lib_voe_acc", "lib_for_voe_ins", "lib_comp_voe_ins",
 
 def word_groups(q: str, interp: list) -> list[list[str]]:
     """The typed words the page counts (search.offer_terms: a word, or an acronym's own label phrases), a place out."""
-    places = {S.fold(i.get("value")).strip() for i in interp or [] if i.get("type") == "lieu"}
-    return [g for g in S.offer_terms(q) if not any(a.strip() in places for a in g)]
+    # every word of a recognised place: offer_terms splits « aix en provence » into « aix », « provence » (Codex, PR #123)
+    place_words = {w for i in interp or [] if i.get("type") == "lieu" for w in S.fold(i.get("value")).split()}
+    return [g for g in S.offer_terms(q) if not any(set(a.split()) <= place_words for a in g)]
 
 
 def words_matched(res: dict, q: str, codes: list[str]) -> list[int]:
