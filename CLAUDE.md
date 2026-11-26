@@ -994,7 +994,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   parameter, public). A « formation continue » fee line gets `fcNote` (our words, no amount, age or condition). IFSI pages quote the official
   parcoursup.gouv.fr sentence on the formation professionnelle continue (`aides.r_ifsi_fpc`, verbatim, one line; the page is in
   data/aides/request.json). parcoursup.gouv.fr refuses robots its HTML pages (403): never read around it (no archive copy, no other host);
-  the item waits in `aides.EN_ATTENTE` (said in the audit, card hidden) until the fetch or an owner-committed copy brings the page. Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
+  the owner's browser copy `data/aides/depot/*.html` is read instead (`aides_fetch.depot_row`, only for its OWN canonical URL, logged `via`
+  « depot »); no copy = the item waits in `aides.EN_ATTENTE` (said in the audit, card hidden). Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
   adviser. Red team `redteam_adulte.py` (AD1-AD9).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).

@@ -5057,9 +5057,10 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **Fees « formation continue »:** a note says whom they concern, in our own words, with no amount, no age and no condition. It asks the student to check with the formation which tariff applies, and links the help page (`fcNote`).
 - **The IFSI route for professionals:** the parcoursup.gouv.fr page « Les formations en soins infirmiers (IFSI) » is fetched by the `suptracker-aides` workflow. Its own sentence on the formation professionnelle continue (« … hors Parcoursup ») is quoted verbatim on IFSI pages (`aides.r_ifsi_fpc`, `ifsiFpcCard`). A changed page drops the item and says so in the audit.
   parcoursup.gouv.fr answers 403 to robots for its HTML pages (its calendar PDFs are served). The page is never read around that
-  refusal (no copy, no other host): the item is listed in `aides.EN_ATTENTE`, the audit says « waiting », and the card stays hidden
-  until the page is read, by the weekly fetch or from a copy the owner commits in `data/aides/`. A waiting page that arrives is read
-  by the same rule (red team AI1, AI2, AI8).
+  refusal (no archive copy, no other host). The owner saved the page in a browser and committed it as
+  `data/aides/depot/les-formations-en-soins-1652.html` (2026-11-26): when the live page answers 403, `aides_fetch.depot_row` reads that copy,
+  only because its own canonical link is the requested URL, and logs it `via` « depot » with the live status. With no copy, the item waits in
+  `aides.EN_ATTENTE` (« waiting » in the audit, card hidden). The copy stays out of the Vercel bundle (red team AI1, AI2, AI8).
 - **Outside terminale:**
   - the two aids tied to the lycée and the year's bac (mérite, mobilité Parcoursup) are folded, never removed;
   - the help page opens on the adults' services;

@@ -17,3 +17,4 @@ requirements-pipeline.txt
 **/data/rncp/
 **/data/transports/
 **/data/sources_brutes.duckdb
+**/data/aides/depot/
