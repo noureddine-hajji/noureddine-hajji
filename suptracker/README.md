@@ -5038,3 +5038,30 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **UC2:** replays real `/api/voeux` answers and prints the card's figure and Mes vœux's figure for 180 rows, 120 of them with an average. They are identical.
 - **UC8 (browser, nightly):** measures every card of three searches × three profiles on a phone, and checks the jump to the results.
 - **UC9:** 17 seeded defects, each caught.
+
+
+## The adult path, finished (lot 1, PR 12, 2026-11-26)
+
+**Why.** The 2026-11-25 audit's adult tester was an aide-soignante who wants to become a nurse. Outside terminale she found:
+- « Selon votre bac » before the block that concerns her (the last of a fold);
+- an IFSI absent from the 2026 map offered with no warning by the search and its page;
+- « formation continue : 9 000 € » without saying whom it concerns;
+- aids for lycéens in the tiles;
+- nothing on the continuing-education route into an IFSI;
+- « 783 propositions pour 4 836 candidats (16 %) » beside the 22 % estimate;
+- a help page and a share card written for lycéens.
+
+**What changes.**
+- **« Y entrer », outside terminale:** the tab opens on « Candidats qui ne sont plus en terminale », before « Selon votre bac ». In terminale it stays folded where it was. The card leads with the estimated access; the published counts come under it, as what the estimate is computed from. L'essentiel's tile points to it.
+- **Absent from the latest Parcoursup map:** `liste.presence` / `liste.absentes`, the rule « Avant de confirmer » already used. The formation page warns « Absente de la carte des formations Parcoursup 2026 : vérifiez sur Parcoursup qu'elle existe toujours », never « fermée ». The search card carries a badge « absente de la carte 2026 », read from `/api/carte/absentes` (no parameter, public cache, 716 codes today).
+- **Fees « formation continue »:** a note says whom they concern, in our own words, with no amount, no age and no condition. It asks the student to check with the formation which tariff applies, and links the help page (`fcNote`).
+- **The IFSI route for professionals:** the parcoursup.gouv.fr page « Les formations en soins infirmiers (IFSI) » is fetched by the `suptracker-aides` workflow. Its own sentence on the formation professionnelle continue (« … hors Parcoursup ») is quoted verbatim on IFSI pages (`aides.r_ifsi_fpc`, `ifsiFpcCard`). A changed page drops the item and says so in the audit.
+- **Outside terminale:**
+  - the two aids tied to the lycée and the year's bac (mérite, mobilité Parcoursup) are folded, never removed;
+  - the help page opens on the adults' services;
+  - the share card names « un proche ou le conseiller qui vous accompagne ».
+
+**Red team** `scripts/redteam_adulte.py` (AD1-AD9), run by `tests/test_adulte.py`:
+- **AD2:** re-derives the absent codes in SQL and checks the route's cache and parameters.
+- **AD7 (browser, nightly):** checks an absent IFSI with a reorientation and a terminale profile.
+- **AD8:** a mutation test of 13 seeded defects.

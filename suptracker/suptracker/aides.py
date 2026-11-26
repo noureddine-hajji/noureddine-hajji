@@ -38,6 +38,8 @@ PAGES = {
     "regions": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
     "mobilite_mesr": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
     "logement": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
+    # lot 1, PR 12: how a working professional enters an IFSI (formation professionnelle continue, outside Parcoursup)
+    "ifsi_fpc": "https://www.parcoursup.gouv.fr/trouver-une-formation/zoom-sur-des-formations-en-sante-pass-las-et-ifsi/les-formations-en-soins-1652",
 }
 ECHELONS = ("0 bis", "1", "2", "3", "4", "5", "6", "7")
 
@@ -199,8 +201,18 @@ def r_logement(text: str, links: list) -> dict | None:
     return {"simulateur": sim, "verifie": _verifie(text), "source": PAGES["logement"]}
 
 
+def r_ifsi_fpc(text: str, links: list) -> dict | None:
+    """The page's own sentence on the continuing-education route into an IFSI, verbatim (one sentence naming both
+    « formation professionnelle continue » and « hors Parcoursup »); never rewritten, never a condition of our own."""
+    for line in _lines(text):
+        m = re.search(r"[^.!?]*formation professionnelle continue[^.!?]*hors Parcoursup[^.!?]*[.!?]", re.sub(r"\s+", " ", line))
+        if m:
+            return {"texte": m.group(0).strip(), "source": PAGES["ifsi_fpc"]}
+    return None
+
+
 RULES = {"bourse": r_bourse, "merite": r_merite, "mobilite": r_mobilite, "mobilite_mesr": r_mobilite_mesr, "droits": r_droits, "cvec": r_cvec,
-         "repas": r_repas, "regions": r_regions, "logement": r_logement}
+         "repas": r_repas, "regions": r_regions, "logement": r_logement, "ifsi_fpc": r_ifsi_fpc}
 
 
 def read(d: Path = DIR) -> dict:
@@ -273,6 +285,7 @@ def for_formation(con, cod: str, vie: dict | None) -> dict | None:
                            "academies_idf": mm["academies_idf"], "complement_source": mm["source"]}
     out.update({"statut": statut, "academie": acad, "lu_le": A.get("lu_le"), "sanitaire_social": None, "bourse": None,
                 "outre_mer": bool(dep and str(dep).startswith(OUTRE_MER)), "droits_exoneres": None, "annuel_boursier": None})
+    out["ifsi_fpc"] = A.get("ifsi_fpc") if fili == "IFSI" else None       # lot 1, PR 12: the official route for professionals
     if fili in SANITAIRE_SOCIAL:
         out["sanitaire_social"] = A.get("regions")      # the Region, not the Crous: no Crous table
     elif A.get("bourse"):

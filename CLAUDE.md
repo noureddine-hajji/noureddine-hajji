@@ -988,6 +988,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   comparer ». Call history says « rang ». A search card fits the visible phone screen: per-bac rates, most represented line and
   apprenticeship offers in ONE `<details>` (`carteMore`); « Rechercher » scrolls to the count on a phone (`carteJump`, status line, focus
   kept). Prévision headlines folded. Shared list: `v=` route (checked), « zones lues sans la moyenne ». Red team `redteam_unchiffre.py` (UC1-UC10).
+- **The adult path, finished (lot 1, PR 12, owner 2026-11-26).** Outside terminale « Y entrer » opens on the estimate (reoCard, its counts under
+  it), before « Selon votre bac »; in terminale it stays folded. Absent from the latest map = `liste.presence` / `liste.absentes` (THE rule of
+  « Avant de confirmer »): page warning and search badge « vérifiez qu'elle existe toujours », never « fermée », `/api/carte/absentes` (no
+  parameter, public). A « formation continue » fee line gets `fcNote` (our words, no amount, age or condition). IFSI pages quote the official
+  parcoursup.gouv.fr sentence on the formation professionnelle continue (`aides.r_ifsi_fpc`, verbatim, one line; the page is in
+  data/aides/request.json). Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
+  adviser. Red team `redteam_adulte.py` (AD1-AD9).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

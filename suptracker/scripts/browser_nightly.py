@@ -43,6 +43,7 @@ SUITE = {
     "guide": ("GU6",),
     "langage": ("LA7", "LA10", "LA12"),
     "unchiffre": ("UC8",),
+    "adulte": ("AD7",),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

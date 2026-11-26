@@ -329,6 +329,8 @@ const estimTag = (d) => `<span class="estim">estimation</span> ${esc(d || "")}`;
 let PROFILE = null; let CALLS = 0;
 const api = () => { CALLS++; return Promise.resolve({}); };
 const bacProfile = () => PROFILE;
+const isReo = (p) => !!p && p.statut === "reorientation";                 // lot 1, PR 12: aidesCard folds the lycée aids outside terminale
+const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 """
 
 

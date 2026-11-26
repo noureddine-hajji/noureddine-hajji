@@ -494,7 +494,7 @@ def vt9(c: Ctx):
                                   and "coucheP.then(() => Promise.all(" not in view,
         "details after the zones with a profile": "(ok ? zonesP.catch(() => null) : Promise.resolve()).then(() => loadDetails(C))" in view,
         "badges with the layer, not before the heading": "await recoP" not in view
-                                                         and "Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null)])" in view,
+                                                         and "Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null), absLoad()])" in view,
         "bounds read once per draw": "vb = carteUI.map && carteUI.map.getBounds();" in view and "getBounds().contains" not in view,
         "the sort by rank": "|| byName(a, b));" in view and "const rank = carteNameRank(C)" in view,
     }

@@ -752,6 +752,8 @@ def formation(cod: str, session: int | None = None):
             "voeu_multiple": MU.for_formation(_con().cursor(), rec["cod_aff_form"]),
             # audit PR 8: what tells this formation apart (its parcours), by THE rule Plan B and Mes vœux show it with
             "complement": PB.complement_fiche(rec),
+            # lot 1, PR 12: in the latest Parcoursup map or not (liste.presence: the rule « Avant de confirmer » uses)
+            "carte": LST.presence(_con().cursor(), rec["cod_aff_form"]),
             "vie": vie,
             # sprint F: the student aids as the official pages state them, adapted to this place and these fees
             "aides": AID.for_formation(_con().cursor(), rec["cod_aff_form"], vie),
@@ -937,6 +939,12 @@ def journey_persona():
 def carte_facets():
     """Sprint "Carte": every type of diploma and its mentions, with their counts (two-level filter)."""
     return CA.facets(_con().cursor())
+
+
+@app.get("/api/carte/absentes")
+def carte_absentes():
+    """lot 1, PR 12: formations of the latest SIES campaign absent from the latest Parcoursup map (no parameter)."""
+    return LST.absentes(_con().cursor())
 
 
 @app.get("/api/carte/formations")

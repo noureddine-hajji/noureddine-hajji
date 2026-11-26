@@ -58,6 +58,7 @@ POLICY = [
     (r"/api/journey/stage2", PUBLIC, "positioning (the audience count is sent by the page)"),
     (r"/api/planb/[^/]+", PUBLIC, "plan B for one formation and a coarse profile"),
     (r"/api/carte", PUBLIC, "map: the types of diploma and their mentions (no parameter)"),
+    (r"/api/carte/absentes", PUBLIC, "lot 1, PR 12: formations absent from the latest Parcoursup map (no parameter)"),
     (r"/api/carte/couche", PUBLIC, "sprint Q3: the whole neutral layer of the map in one compact answer (no parameter)"),
     (r"/api/carte/formations", PUBLIC, "map: the neutral layer of a type of diploma (no profile, no position)"),
     (r"/api/carte/chiffres", PUBLIC, "map (R9): doublette / line figures of one page of the list for a coarse profile (no average)"),
