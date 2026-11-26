@@ -1020,7 +1020,7 @@ def rf11(c: Ctx):
         "hidden when the repères did not load or are empty": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view
                                                               and "const robOk = robReady();" in view,
         "estimation label and method link in the dropdowns": 'estimTag("modèle de SupCompass")} <a href="#/info/robustesse">' in view,
-        "card line on the formations with statistics": "${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}" in c.js,
+        "card line on the formations with statistics": "    ${robCardLine(f.cod_aff_form)}`}" in c.js,
         "never sorted by a repère": "rob" not in sort.lower(),
         "help texts": "robf" in RB.top(c.js, "FI_HELP") and "robn" in RB.top(c.js, "FI_HELP"),
         "the formation page passes its insertion": "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })" in c.js,
@@ -1200,7 +1200,7 @@ SOURCE_MUTANTS = [
     ("robf", "compact drops the inherited list", '            acc["herite"].setdefault("diplome", []).append(cod)', "            pass", "RF13"),
     ("js", "inherited repère not said", '" Repères du diplôme : les mêmes pour toutes les formations qui y préparent."', '""', "RF13"),
     ("js", "no line on apprenticeship cards", 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}`', 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>`', "RF13"),
-    ("js", "card line dropped", "${appOffers(f.offres_app)}${robCardLine(f.cod_aff_form)}`}", "${appOffers(f.offres_app)}`}", "RF11"),
+    ("js", "card line dropped", "    ${robCardLine(f.cod_aff_form)}`}", "    `}", "RF11"),
     ("js", "list sorted by repère", "        || byName(a, b));", "        || (robLevel(a.cod_aff_form, \"robn\") < robLevel(b.cod_aff_form, \"robn\") ? -1 : 0) || byName(a, b));", "RF11"),
 ]
 

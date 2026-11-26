@@ -42,6 +42,7 @@ SUITE = {
     "filtres": ("FI7",),
     "guide": ("GU6",),
     "langage": ("LA7", "LA10", "LA12"),
+    "unchiffre": ("UC8",),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

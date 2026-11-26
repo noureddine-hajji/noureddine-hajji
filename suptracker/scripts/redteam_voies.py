@@ -111,7 +111,7 @@ def node(prog: str, data=None):
     if not n:
         return None
     r = nodefile.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
-    return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-500:]}
+    return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-1500:]}
 
 
 def top(js: str, name: str) -> str:
@@ -339,7 +339,7 @@ def w5(c: Ctx):
     try:
         lib = "\n".join(top(js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "pct", "VOIES", "pct1", "rateBar", "voiePill", "profileDkey", "pickRapport",
                                              "pickVoie", "VOIE_WORD", "RP_CAVEAT", "rpPending", "rapportSource", "SPE_SHORT", "speName", "rpLabel", "rapportDoublettes",
-                                             "REO_LABEL", "isReo", "profileLine", "vxQuery", "voieFigure", "vxVoieCell", "voieFromForm",
+                                             "REO_LABEL", "isReo", "profileLine", "vxQuery", "voieFigure", "ESTIM_DEF", "estimTag", "vxVoieFigure", "vxVoieCell", "voieFromForm",
                                              "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT", "vxProfile"))
     except KeyError as e:
         return False, f"missing definition {e}"
@@ -418,7 +418,7 @@ def w6(c: Ctx):
 def w7(c: Ctx):
     js = c.js
     form = 'select name="voie"' in top(js, "profileForm") and "return { ...voieFromForm(fd, serie, vsel ? vsel.selectedOptions[0].textContent : null)," in top(js, "readForm")
-    column = 'data-label="Votre bac, rapport du jury"' in js and "Votre bac dans le rapport du jury (cette formation)" in js
+    column = 'data-label="Pour votre bac, cette formation"' in js and "Pour votre bac (cette formation)" in js        # lot 1, PR 11: one column
     appr = 'serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage' in js
     vocab = '"voies": VO.choices(_con().cursor())' in c.api
     voeux = "x = VO.pick_voie(b, serie, voie)" in c.vx and "voie=VO.valid(_con().cursor(), serie, voie)" in c.api

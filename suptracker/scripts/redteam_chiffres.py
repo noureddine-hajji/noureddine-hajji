@@ -131,8 +131,9 @@ def ch1(c: Ctx):
         bad.append("the card's mention share is not drawn by the shared formatter with who it counts")
     if '"Admis avec votre mention ou moins"' not in mes or "cartePosFigure(pos, ctx.compact, ctx.serie)" not in mes:
         bad.append("the card's label is not the shared one")
-    if "mentionShareTxt(v.bounds[0], v.bounds[1])" not in view or "mentionWho(!!v.bounds, serie)" not in view \
-            or view.count('"Admis avec votre mention ou moins"') < 2:
+    # lot 1, PR 11: Mes vœux draws the card's figure through the card's own formatter (vxPos -> cartePosFigure)
+    if "cartePosFigure(vxPos(v, avg), false, serie)" not in view or "lo: v.bounds[0], hi: v.bounds[1], serie: true" not in top(js, "vxPos") \
+            or view.count('"Admis avec votre mention ou moins"') < 1:
         bad.append("Mes vœux does not print the same figure under the same name")
     old = [n for n in OLD_NAMES if n in js]
     if old:
@@ -339,7 +340,7 @@ MUTANTS = [
      "  return { lo: (L.kt - L.kb) / L.n, hi: L.kt / L.n, moyenne: false };", "ch1"),
     ("js", "card's share without who it counts", "${mentionShareTxt(pos.lo, pos.hi)} <span class=\"muted small\">(${mentionWho(pos.serie, serie)})</span>", "${mentionShareTxt(pos.lo, pos.hi)}", "ch1"),
     ("js", "old card name back", '"Admis sous votre moyenne" : "Admis avec votre mention ou moins"', '"Admis sous votre moyenne" : "Votre mention parmi les admis"', "ch1"),
-    ("js", "Mes vœux header renamed", ': "Admis avec votre mention ou moins"}</th><th class="num">Places', ': "Votre mention ou moins parmi les admis"}</th><th class="num">Places', "ch1"),
+    ("js", "Mes vœux header renamed", 'const posHead = avg ? "Admis sous votre moyenne" : "Admis avec votre mention ou moins";', 'const posHead = avg ? "Admis sous votre moyenne" : "Votre mention ou moins parmi les admis";', "ch1"),
     ("js", "formation page keeps the card's figures to itself", "  if (d.doublettes && d.bacs) d.doublettes = { ...d.doublettes, acces: d.bacs };", "", "ch1"),
     ("api", "formation answer without the card's source", '"bacs": _bacs_block(rec)}', '"bacs": None}', "ch2"),
     ("api", "an older page carries the latest figures", '    if rec["session"] != con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]:\n        return None\n', "", "ch2"),

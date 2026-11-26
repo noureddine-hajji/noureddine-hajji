@@ -981,6 +981,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   moyenne » (never « ×N »); an académie DISPLAYED through `acadLabel` (Besançon, Étranger; keys raw); `profileRate` prints report lines
   through `rpLabel`; job-page codes (ISCO, FAP, O*NET, θ, the ILO table) only inside `details.more-card` « Détail du calcul »,
   folded, never removed. Red team `redteam_langage.py` LA11-LA13 (LA12 browser, nightly).
+- **One figure per question, in percent (lot 1, PR 11, owner 2026-11-26).** The percent stays the figure (comparable across sizes, Parcoursup's
+  unit), its counts printed beside it, smaller. Mes vœux, bac techno / pro: ONE « Pour votre bac » column (report line, else the zone's
+  estimate labelled; never both: `vxVoieFigure`), the rate column is the OFFICIAL rate for every bac. Mes vœux's position = the search
+  card's (`vxPos` + `cartePosFigure`). « Selon votre bac » opens on L'essentiel's figure (`profileLead`), the per-route table folded « pour
+  comparer ». Call history says « rang ». A search card fits the visible phone screen: per-bac rates, most represented line and
+  apprenticeship offers in ONE `<details>` (`carteMore`); « Rechercher » scrolls to the count on a phone (`carteJump`, status line, focus
+  kept). Prévision headlines folded. Shared list: `v=` route (checked), « zones lues sans la moyenne ». Red team `redteam_unchiffre.py` (UC1-UC10).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

@@ -580,7 +580,8 @@ process.stdout.write(JSON.stringify(out));"""
         "statut words": o["statut"] == "Privé hors contrat (payant)",
         "compare states": "Comparer" in o["cmp0"] and "aria-pressed=\"false\"" in o["cmp0"] and "Retirer du comparateur" in o["cmp1"] and "disabled" in o["cmp2"],
         "sort ignores punctuation": o["sort"] == ["Alpha", "(CFA b)", "« Zeta »"],
-        "card shows statut, selectivity, rates, line, actions": all(x in card for x in ("STATUT_LABEL[f.statut]", "Sélective", "Non sélective", "carteBacs(f)", "carteMajo(f)", "compareButton(f.cod_aff_form)", "voeuButton(f.cod_aff_form)")),
+        "card shows statut, selectivity, rates, line, actions": all(x in card for x in ("STATUT_LABEL[f.statut]", "Sélective", "Non sélective", "carteMore(f, ctx.reo)", "compareButton(f.cod_aff_form)", "voeuButton(f.cod_aff_form)"))
+            and all(x in RL.top(c.js, "carteMore") for x in ("carteBacs(f)", "carteMajo(f)")),       # lot 1, PR 11: folded in ONE <details>
         "compare wired": "basket.toggle(b.dataset.cmp)" in sec,
         "footnote says both sources": "rapport du jury de la formation (candidats de terminale en France)" in sec and "* = pas de rapport, accès estimé" in sec,
     }
@@ -688,7 +689,7 @@ JS_MUTANTS = [
     ("mention filter ignored", "(!(sel.m[f.diplome] || []).length || carteGroupes(f).some((g) => sel.m[f.diplome].includes(g)))", "true", "CR4"),
     ("stored diploma trusted", "(stored && Array.isArray(stored.d) ? stored.d : []).filter((x) => typeof x === \"string\" && known(x))", "(stored && Array.isArray(stored.d) ? stored.d : [])", "CR4"),
     ("series line sent to the server", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}`)", "api(`/api/carte/chiffres?codes=${want.join(\",\")}&${sq}&voie=${encodeURIComponent(ctx.prof.voie || \"\")}`)", "CR5"),
-    ("position called a chance", 'estimTag(compact ? "des admis sous votre moyenne"', 'estimTag(compact ? "vos chances d\'être admis"', "CR7"),
+    ("position called a chance", 'estimTag(compact ? "" : "des admis nouveaux bacheliers avaient', 'estimTag(compact ? "vos chances d\'être admis" : "des admis nouveaux bacheliers avaient', "CR7"),
     ("footnote without the caveat", "aucun taux d'accès par moyenne n'est publié", "", "CR7"),
     ("doublette figure not Mes vœux's", "ctx.serie === \"bg\" ? dblFigure(ch)", "ctx.serie === \"bg\" ? pct(ch.taux)", "CR7"),
     ("marker choice never asks its figures (Codex)", "    if (f) figures([f]);", "    if (focus && f) figures([f]);", "CR7"),
