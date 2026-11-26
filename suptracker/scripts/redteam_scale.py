@@ -87,7 +87,7 @@ class Ctx:
             "/api/reconnaissance": "/api/reconnaissance",
             "/api/communes": "/api/communes",
             "/api/transports": "/api/transports",
-            "/api/carte": "/api/carte", "/api/carte/couche": "/api/carte/couche", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
+            "/api/carte": "/api/carte", "/api/carte/couche": "/api/carte/couche", "/api/carte/absentes": "/api/carte/absentes", "/api/carte/formations": "/api/carte/formations?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/zones": f"/api/carte/zones?{bg}&mention_bac=ab&diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/carte/chiffres": f"/api/carte/chiffres?{bg}&codes={c}",
             "/api/comprendre": "/api/comprendre",
