@@ -292,7 +292,7 @@ process.stdout.write(JSON.stringify(out));"""
 # ------------------------------------------------------------------ AD7 (browser)
 BROWSER = r"""
 const { chromium, devices } = require('playwright');
-const [base, absent] = process.argv.slice(2);
+const [base, absent] = process.argv.slice(1);                  // run through nodefile: node -e's argv
 (async () => {
   const b = await chromium.launch(); const errs = []; const out = {};
   for (const [k, prof] of [['reo', { statut: 'reorientation', academie: 'Reims' }], ['term', { statut: 'terminale', serie: 'bg', spe1: 'MATHS', spe2: 'SVT', mention: 'b' }]]) {
@@ -348,9 +348,8 @@ def ad7(c: Ctx):
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(8)
-        script = Path(tmp) / "ad7.js"
-        script.write_text(BROWSER)
-        r = subprocess.run([exe, str(script), f"http://127.0.0.1:{port}", row[0]], capture_output=True, text=True, timeout=900)
+        # Codex (PR #121): through nodefile, from the repository (require('playwright') from a local node_modules too)
+        r = nodefile.run([exe, "-e", BROWSER, f"http://127.0.0.1:{port}", row[0]], capture_output=True, text=True, timeout=900, cwd=str(ROOT))
     finally:
         srv.terminate()
     if r.returncode:
@@ -461,6 +460,8 @@ def ad9(c: Ctx):
         bad.append("CLAUDE.md rule")
     if '"adulte": ("AD7",)' not in (ROOT / "scripts" / "browser_nightly.py").read_text():
         bad.append("nightly suite")
+    if 'nodefile.run([exe, "-e", BROWSER, f"http://127.0.0.1:{port}", row[0]]' not in Path(__file__).read_text():
+        bad.append("the browser program is not run through nodefile from the repository (Codex, PR #121)")
     return not bad, f"problems {bad}"
 
 
