@@ -187,7 +187,7 @@ def a3(c: Ctx):
 
 @check("A4 pages on hostile data (Node): escaped, labelled cells, 'toute la liste' never a share, caveat, no rank input")
 def a4(c: Ctx):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ")))
     part = block(c.js, "// ---- Comprendre l'appel and the selectivity matrix", "async function viewComprendre(")
     plot = block(c.js, "const SEL_Q = [", "async function viewSelectivite(")
     prog = helpers + "\n" + part + "\n" + plot + """
@@ -216,13 +216,13 @@ process.stdout.write(JSON.stringify({ card: appelCard(rows), plot: selPlot(sel, 
     raw = "<img" in card or "<img" in plot or "<img" in apart
     cells = re.findall(r'<td class="num"([^>]*)>', card + apart)
     # the formations the graph leaves out: named, linked, each with its reason and counts; nothing when there is none
-    named = ('<a href="#/f/2469">' in apart and "Non placée : 6 admis néo-bacheliers sur 28 admis" in apart
-             and "Non placée : aucun admis en 2025" in apart and "Non placée : 1 admis néo-bachelier sur 12 admis" in apart
+    named = ('<a href="#/f/2469">' in apart and "Non placée : 6 admis nouveaux bacheliers sur 28 admis" in apart
+             and "Non placée : aucun admis en 2025" in apart and "Non placée : 1 admis nouveau bachelier sur 12 admis" in apart
              and 'data-label="Taux d\'accès">76 %' in apart and "42 formations" in apart
-             and "41 : moins de 10 admis néo-bacheliers · 1 : aucun admis" in apart
+             and "41 : moins de 10 admis nouveaux bacheliers · 1 : aucun admis" in apart
              and apart.count("<tr><td") == 40 and "40 premières sur 42" in apart and o["none"] == "")
     unlabelled = [x for x in cells if "data-label" not in x]
-    shares = re.findall(r'data-label="Part des classés appelés">([^<]*)</td>', card)
+    shares = re.findall(r'data-label="Jusqu\'où la liste a été appelée">([^<]*)</td>', card)
     whole = shares == ["62,5 %", "toute la liste"]
     lead = "toute la liste</strong> des 848 candidats classés" in card
     caveat = "pas des chances d'admission" in card and "vous n'avez pas encore de rang" in card
@@ -277,7 +277,7 @@ PY_MUTANTS = [
 JS_MUTANTS = [
     ("group label unescaped", '${esc(g.label || "Groupe")} : ${fmt(g.rang)}', '${g.label || "Groupe"} : ${fmt(g.rang)}'),
     ("dot title unescaped", "<title>${esc(f.etablissement)} — ${esc(f.formation)}", "<title>${f.etablissement} — ${f.formation}"),
-    ("figure without its label", '<td class="num" data-label="Part des classés appelés">', '<td class="num">'),
+    ("figure without its label", '<td class="num" data-label="Jusqu\'où la liste a été appelée">', '<td class="num">'),
     ("whole list shown as a share", 'r.toute_la_liste ? "toute la liste" : pct(r.profondeur)', "pct(r.profondeur)"),
     ("caveat dropped", "Des campagnes passées, pas des chances d'admission : vous n'avez pas encore de rang", "Voici les chiffres"),
     ("rank asked", "<p class=\"small\">Le jury classe les candidats ;", '<input placeholder="votre rang"><p class="small">Le jury classe les candidats ;'),
@@ -286,8 +286,8 @@ JS_MUTANTS = [
     ("non-placed formations only counted", "\n  ${selApart(d)}\n", "\n  ${fmt(d.non_placees.length)} non placées\n"),
     ("non-placed name unescaped", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée',
      '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée'),
-    ("néo-bachelier and total admits swapped", "${fmt(f.admis_neobac)} admis néo-bachelier${f.admis_neobac > 1 ? \"s\" : \"\"} sur ${fmt(f.admis)} admis",
-     "${fmt(f.admis)} admis néo-bachelier${f.admis_neobac > 1 ? \"s\" : \"\"} sur ${fmt(f.admis_neobac)} admis"),
+    ("néo-bachelier and total admits swapped", "${fmt(f.admis_neobac)} admis ${f.admis_neobac > 1 ? \"nouveaux bacheliers\" : \"nouveau bachelier\"} sur ${fmt(f.admis)} admis",
+     "${fmt(f.admis)} admis ${f.admis_neobac > 1 ? \"nouveaux bacheliers\" : \"nouveau bachelier\"} sur ${fmt(f.admis_neobac)} admis"),
     ("reason dropped from the row", '<div class="small">Non placée : ${selWhy(f, d)}</div>', ""),
     ("non-placed figure without its label", '<td class="num" data-label="Taux d\'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;\n  return `<details',
      '<td class="num">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;\n  return `<details'),

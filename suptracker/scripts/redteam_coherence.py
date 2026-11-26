@@ -197,7 +197,7 @@ def co1_static(js: str, api: str) -> list[str]:
 def co1(c: Ctx):
     bad = co1_static(c.js, c.src["api"])
     lists = crafted_lists()
-    prog = "\n".join(top(c.js, n) for n in ("esc", "fmt", "vmKey", "vxCompte", "vxCompteTxt", "vxTitre", "zoneTiles")) + """
+    prog = "\n".join(top(c.js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "vmKey", "vxCompte", "vxCompteTxt", "vxTitre", "zoneTiles")) + """
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify({ t: P.map((L) => [vxTitre(L), vxCompteTxt(L.length, vxCompte(L))]),
   tiles: [zoneTiles({ securite: 2, cible: 1, ambitieux: 0 }, 1, 0), zoneTiles({ securite: 2, cible: 1, ambitieux: 0 }, 1, 0, "formation")] }));"""
@@ -265,7 +265,7 @@ def co2_static(js: str) -> list[str]:
 @check("CO2 search: nothing kept but hidden paid formations = said with the button, never « Aucune formation ne correspond »")
 def co2(c: Ctx):
     bad = co2_static(c.js)
-    prog = "\n".join(top(c.js, n) for n in ("esc", "fmt", "carteList")) + """
+    prog = "\n".join(top(c.js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "fmt", "carteList")) + """
 const carteUI = { page: 0 }; const cartePage = () => 10; const carteCard = () => 'CARD';
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify([carteList([], {}, P.e), carteList([], {}, null), carteList([{}], {}, P.e)]));"""

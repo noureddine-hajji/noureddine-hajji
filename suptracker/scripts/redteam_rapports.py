@@ -276,7 +276,7 @@ def node_render(js: str, block: dict, block_nobg: dict):
         return None
     a = js.index("// ---- Sprint \"Doublettes\"")
     blk = js[a:js.index("// ---- lot 2 (Claude design guidelines)")]
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pc1 = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pc1 = ")))
     series = {s: {"label": s, "candidats": 50, "taux": 40, "fragile": False, "trend": [{"session": 2025, "candidats": 50, "taux": 40}]} for s in ("bg", "bt", "bp")}
     g = {"label": "G", "seuil": 20, "campagnes_ecartees": [], "tous": {"candidats": 100, "taux": 50, "trend": []},
          "autres": {"candidats": 0, "taux": None, "n_doublettes": 0, "trend": []},

@@ -189,7 +189,7 @@ def top_def(js: str, name: str) -> str:
 
 
 def helpers(js: str) -> str:
-    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ", "const rpLabel = ")))
+    return "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const REO_LABEL = ", "const isReo = ", "const SPE_SHORT = ", "const speName = ", "const rpLabel = ")))
 
 
 def r2_defs(js: str) -> str:
@@ -522,8 +522,8 @@ process.stdout.write(JSON.stringify(out));"""
         and re.search(r'id="panel-fiche-c"[^>]*hidden', tabs) is not None and 'aria-selected="true"' in tabs.split("</button>")[0]
     planb = 'role="tab"' in o["planbOnly"] and o["planbOnly"].count('role="tab"') == 2
     vf = js[js.index("async function viewFormation("):js.index("// ---- Plan B: same programme elsewhere")]
-    order = vf.index("${summaryBand(r, d)}") < vf.index("${tabbed(\"fiche\"") < vf.index("Indicateurs officiels SIES") if all(
-        s in vf for s in ("${summaryBand(r, d)}", "${tabbed(\"fiche\"", "Indicateurs officiels SIES")) else False
+    order = vf.index("${summaryBand(r, d)}") < vf.index("${tabbed(\"fiche\"") < vf.index("Chiffres officiels du ministère") if all(
+        s in vf for s in ("${summaryBand(r, d)}", "${tabbed(\"fiche\"", "Chiffres officiels du ministère")) else False
     groups = all(f'["{k}", "' in vf for k in ("admission", "reussite", "emploi", "historique")) and 'bindTabs("fiche");' in vf
     fill = "if (!opts.inline && p) fillZoneTile(d.target);" in js
     vm = js[js.index("async function viewMetier("):js.index("// ---- Sprint 15")]
@@ -583,7 +583,7 @@ def x13(c: Ctx):
 
 
 # ------------------------------------------------------------------ sprint 19: a shorter formation page
-Y_SHOWN = ['<div class="card"><h2>Indicateurs officiels SIES', "${doubletteCard(d.doublettes, d.rapport, d.semblables)}", "${appelCard(d.appel)}",
+Y_SHOWN = ['<div class="card"><h2>Chiffres officiels du ministère', "${doubletteCard(d.doublettes, d.rapport, d.semblables)}", "${appelCard(d.appel)}",
            '<div id="planb"></div>', "${offerCard(r, d.apprentissage)}"]
 Y_FOLDED = ["${previsionCard(d.prevision)}", "${timingCard(r, d.history)}", "${lyceeHere(r)}", "Entonnoir · trois étapes distinctes",
             "Position dans la filière"]
@@ -719,7 +719,7 @@ def x14(c: Ctx):
 LOT3_MUTANTS = [
     ("zone tile in the accent colour", 'class="zone-pill" style="background:${zz.color}"', 'class="zone-pill" style="background:var(--accent)"', ("js", (x14,))),
     ("profile line unescaped", '[ser, serie === "bg" ? `${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}`', '[ser, serie === "bg" ? `${speName(p.spe1)} + ${speName(p.spe2)}`', ("js", (x14,))),
-    ("académie unescaped", 'p.academie ? `académie de ${esc(p.academie)}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
+    ("académie unescaped", 'p.academie ? `académie de ${esc(acadLabel(p.academie))}` : ""]\n', 'p.academie ? `académie de ${p.academie}` : ""]\n', ("js", (x14,))),
     ("a figure loses its label", '<td class="num" data-label="Places">', '<td class="num">', ("js", (x14,))),
     ("stored profile never read back on Où je me situe", "${hasProfile ? `<p class=\"home-profile\">", "${false ? `<p class=\"home-profile\">", ("js", (x14,))),
     ("every positioning row at once", ".slice(0, allPos ? 80 : 20)", ".slice(0, 80)", ("js", (x14,))),

@@ -426,7 +426,7 @@ SAMPLE = {
 
 
 def page(c: Ctx, data):
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const lineLegend = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const lineLegend = ")))
     svg = block(c.js, "const COLORS = [", "function stackedBars(")
     view = block(c.js, "// ---- Observatoire (owner, 2026-11-19)", "// the selectivity matrix:")
     prog = helpers + "\n" + svg + "\n" + view + """
@@ -456,7 +456,7 @@ def ob5(c: Ctx):
     raw = "<img" in h or "<img" in dem
     cells = re.findall(r'<td class="num"([^>]*)>', h + dem)
     unlabelled = [x for x in cells if "data-label" not in x]
-    caveat = "Ce ne sont pas vos chances" in h and "Ce sont des vœux, pas des personnes" in h and "admis néo-bacheliers" in h \
+    caveat = "Ce ne sont pas vos chances" in h and "Ce sont des vœux, pas des personnes" in h and "admis nouveaux bacheliers" in h \
         and "Elle n'est pas publiée pour les autres admis" in h and SAMPLE["prudence"] in h
     under = dem.count("trop peu de formations") >= 3
     bubbles = re.findall(r"<circle [^>]*><title>([^<]*)</title>", dem)
@@ -489,9 +489,9 @@ def ob11(c: Ctx):
              and f.count('<li><span class="obs-lab">') == 11 and "Les autres types de formation (1)" in f
              and "à 2,2 points au plus" in f and "vœux 77,8 %" in f and "des vœux, pas des personnes" in f)
     routes = (all(f'<i style="background:var(--voie-{v})"></i>bac {n}' in b for v, n in (("bg", "général"), ("bt", "techno"), ("bp", "pro")))
-              and "« rare », jamais « fermé »" in b and "Admis néo-bacheliers seulement" in b and "<strong>37 % · 45 %</strong>" in b
+              and "« rare », jamais « fermé »" in b and "Admis nouveaux bacheliers seulement" in b and "<strong>37 % · 45 %</strong>" in b
               and "bac général 18 %" in b)
-    ments = ("<strong>12,3 %</strong> des admis néo-bacheliers" in mn and "(12,8 % en 2022)" in mn and "<strong>52,4 % → 48 %</strong>" in mn
+    ments = ("<strong>12,3 %</strong> des admis nouveaux bacheliers" in mn and "(12,8 % en 2022)" in mn and "<strong>52,4 % → 48 %</strong>" in mn
              and "<strong>1 %</strong>" in mn and "ni le niveau demandé ni vos chances" in mn and "pas publiées par série de bac" in mn)
     hero = "Six regards" in h
     ok = not raw and girls and routes and ments and hero
@@ -561,7 +561,7 @@ JS_MUTANTS = [
     ("all types shown", "const OBS_SHOWN = 10;", "const OBS_SHOWN = 99;"),
     ("gap hard-coded", "est à ${fmt(gap, 1)} points au plus", "est à 5 points au plus"),
     ("félicitations left out of the before figure", '`${pct(r.avant.tb_plus)} → `}${pct(r.lecture.tb_plus)}', '`${pct(r.avant.tb_plus)} → `}${pct(r.lecture.parts.tb)}'),
-    ("académie unescaped", '<td data-label="Académie">${esc(r.a.academie)}</td>', '<td data-label="Académie">${r.a.academie}</td>'),
+    ("académie unescaped", '<td data-label="Académie">${esc(acadLabel(r.a.academie))}</td>', '<td data-label="Académie">${r.a.academie}</td>'),
     ("type label unescaped", '<span class="obs-lab">${esc(p.diplome)}</span>', '<span class="obs-lab">${p.diplome}</span>'),
     ("figure without its label", '<td class="num" data-label="Vœux par place">${r.x.voeux_par_place', '<td class="num">${r.x.voeux_par_place'),
     ("chance caveat dropped", "Ce ne sont pas vos chances.", "Voici les chiffres."),

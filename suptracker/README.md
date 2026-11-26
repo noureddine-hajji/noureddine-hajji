@@ -4971,3 +4971,39 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **OU4:** replays audit PR 8.
 - **OU5:** 12 seeded bugs, each caught.
 - **OU6:** wiring.
+
+## Plain words, the testers' list (lot 1, PR 10, 2026-11-26)
+
+**Why.** In two audits (2026-11-23 and 2026-11-25), the testers quoted the words they could not read. Language was their lowest criterion.
+
+**What changes.** Only display text changes: the data, filter keys and rules still read the raw values.
+- « néo-bachelier(s) » becomes « nouveau(x) bachelier(s) » in every page string and server text. The glossary entry is titled « Nouveau bachelier » and adds: « Les chiffres officiels disent « néo-bachelier ». ».
+- « SIES » alone becomes « le ministère ». Examples: « Chiffres officiels du ministère », « Données : ministère de l'Enseignement supérieur (SIES) ».
+- Two words are replaced:
+
+  | Before | After |
+  |---|---|
+  | « Pas de conclusion » | « Prévisions divergentes », with the note « les projections pour ce métier ne s'accordent pas » |
+  | « ×1,8 » | « 1,8 fois la moyenne » |
+
+- Académies are printed with their accents through `acadLabel`: Besançon, Étranger. The filter and the profile keep the raw keys.
+- L'essentiel's « Pour votre profil » prints report lines through `rpLabel`. For example, « Msgn/ Mercatique » becomes « Management (Mercatique) ».
+- Job page: these codes are folded under « Détail du calcul et sources » and « Voir les familles et les codes officiels », never removed:
+  - ISCO, FAP and O*NET;
+  - the ILO task table;
+  - θ.
+
+  The summary tile says « note de 0 à 1 des tâches (Organisation internationale du travail), pas un risque de perte d'emploi ».
+- Quality page: column names become sentences, for example « Taux d'accès = fichier officiel brut ». The persona list and the schema audit are folded.
+- Comprendre l'appel: « Jusqu'où la liste a été appelée ». A sentence replaces « Part des terminales générales parmi les appelés ».
+
+**Red team** `scripts/redteam_langage.py`:
+- **LA11:** none of the quoted words is left in the page or server texts. It also runs `acadLabel` and checks that `profileRate` goes through `rpLabel`.
+- **LA12 (browser, nightly):** opens these pages on the real warehouse, with every fold open except the « Détail du calcul » folds:
+  - home, profile, Où je me situe, Mes vœux, quality, observatoire, reorientation;
+  - a formation whose report has a STMG Mercatique line;
+  - formations of Besançon and Étranger;
+  - three job pages.
+
+  It reads them for three profiles: bac général, bac techno STMG with its route, and reorientation. It looks for the quoted words and for JS errors.
+- **LA13:** a mutation test of 8 seeded returns, every one caught by LA11.

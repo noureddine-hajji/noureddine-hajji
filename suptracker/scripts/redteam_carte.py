@@ -85,7 +85,7 @@ def node(prog: str, data) -> object:
     if not n:
         return None
     r = nodefile.run([n, "-e", prog], input=json.dumps(data), capture_output=True, text=True, timeout=120)
-    return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-400:]}
+    return json.loads(r.stdout) if r.returncode == 0 else {"error": r.stderr[-1500:]}
 
 
 def zone_shape(js: str) -> str:
@@ -354,7 +354,7 @@ def c5(c: Ctx):
 @check("C6 page pieces on hostile data: escaped, zone named on every marker, shapes differ, wording; no position sent")
 def c6(c: Ctx):
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
@@ -549,7 +549,7 @@ def c9(c: Ctx):
             bad.append((cod, "link"))
     # the page card on hostile data
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
@@ -605,7 +605,7 @@ def c10(c: Ctx):
         bad.append((sample, "formation page"))
     # the page: both labels and the CFA list, escaped
     js = carte_js(c.js)
-    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
+    helpers = "\n".join(ln for ln in c.js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pct = ", "const AUTRES_LABEL = ", "const autresBadge = ")))
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;

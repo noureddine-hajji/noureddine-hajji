@@ -268,7 +268,7 @@ def render(js: str, payload) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ")))
     prog = helpers + "\n" + block(js) + "\nconst P = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nprocess.stdout.write(JSON.stringify(P.map(codesCard)));"
     r = nodefile.run([node, "-e", prog], input=json.dumps([HOSTILE, [], None]), capture_output=True, text=True, timeout=60)
     if r.returncode != 0:

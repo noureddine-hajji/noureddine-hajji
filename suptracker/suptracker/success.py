@@ -542,7 +542,7 @@ def for_formation(con, cod: str, fili: str | None, contrat: str | None) -> dict 
         n = out["national"].get(kind) or {}
         u["maillon"] = E.maillon(
             ETAPE[kind], u["taux"], france=n.get("taux"), attendu=u["taux_simule"], granularite="universite_x_discipline",
-            population="néo-bacheliers inscrits en L1", cohorte=u["cohort"], effectif=u["inscrits"],
+            population="nouveaux bacheliers inscrits en L1", cohorte=u["cohort"], effectif=u["inscrits"],
             source="SIES, Note Flash 2025-29", lien=out["lien"],
             avertissement="tous les inscrits de cette grande discipline dans l'université, pas seulement cette licence")
     if disc and not out["kinds"]:

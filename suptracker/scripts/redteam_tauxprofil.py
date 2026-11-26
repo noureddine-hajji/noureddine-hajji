@@ -241,7 +241,7 @@ def harness(js: str) -> str:
     """The page's own code for the doublette card and the profile tile (no copy)."""
     blk = js[js.index('// ---- Sprint "Doublettes"'):js.index("// ---- lot 2 (Claude design guidelines)")]
     r2 = js[js.index("// R2 (owner, 2026-11-11): ONE sourced figure"):js.index("function summaryBand(")]
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pc1 = ", "const pct = ",
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pc1 = ", "const pct = ",
                                                                           "const isReo = ", "const REO_LABEL = ")))
     bac = re.search(r"^function bacProfile\(\) \{.*?^\}", js, re.M | re.S).group(0)
     # sprint Q4: the one estimation label the card and the tile use

@@ -564,7 +564,7 @@ def but_for_formation(con, cod: str, fili: str | None, contrat: str | None) -> d
     if r:
         n = out["national"].get("reussite3") or {}
         r["maillon"] = E.maillon("but_3_ans", r["taux"], france=n.get("taux"), attendu=r["taux_simule"],
-                                 granularite="universite", population="néo-bacheliers inscrits en 1re année de BUT",
+                                 granularite="universite", population="nouveaux bacheliers inscrits en 1re année de BUT",
                                  cohorte=r["cohort"], effectif=r["inscrits"], source=src, lien=out["lien"],
                                  avertissement="tous les BUT de l'université, toutes spécialités, pas seulement celui-ci")
     p = out["kinds"].get("poursuite")

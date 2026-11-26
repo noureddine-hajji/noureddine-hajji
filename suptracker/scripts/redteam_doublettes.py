@@ -424,7 +424,7 @@ def node_card(js: str):
         return None
     blk = js[js.index("// ---- Sprint \"Doublettes\""):js.index("// ---- lot 2 (Claude design guidelines)")]
     blk += js[js.index("function stage1Matrix("):js.index("function stage1SeriesMatrix(")]
-    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const fmt = ", "const pc1 = ")))
+    helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ", "const pc1 = ")))
     g0 = re.search(r"const GATES = \{.*?\n\};", js, re.S)
     helpers += "\n" + (g0.group(0) if g0 else "")
     hostile = '<img src=x onerror=alert(1)>'

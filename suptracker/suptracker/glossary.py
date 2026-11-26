@@ -17,8 +17,8 @@ GLOSSARY = {
     "taux_acces": ("Taux d'accès", "Indicateur officiel publié par le ministère. C'est la part des candidats de la phase "
                    "principale dont le rang était au moins aussi bon que celui du dernier candidat appelé. "
                    "Ce n'est pas votre chance personnelle d'être admis.", "taux_acces_ens"),
-    "neo_bachelier": ("Néo-bachelier", "Un élève qui passe le bac l'année de sa candidature (par opposition à un étudiant "
-                      "déjà dans le supérieur qui se réoriente).", "mentions"),
+    "neo_bachelier": ("Nouveau bachelier", "Un élève qui passe le bac l'année de sa candidature (par opposition à un étudiant "
+                      "déjà dans le supérieur qui se réoriente). Les chiffres officiels disent « néo-bachelier ».", "mentions"),
     "mention": ("Mention au bac", "Sans mention : de 10 à 12 (le bac au rattrapage y est compté). Assez bien : de 12 à 14. Bien : de 14 à 16. "
                 "Très bien : de 16 à 18. Très bien avec félicitations : 18 et plus. Les chiffres « avec votre mention ou moins » "
                 "décrivent les admis des années passées. Ce n'est pas une chance.", "journey_bg"),

@@ -546,7 +546,7 @@ def cr11(c: Ctx):
                                    f"{n_majo} lines; differing {bad[:3]}")
 
 
-CARD_TWINS = ("esc", "fmt", "pct", "pct1", "STATUT_LABEL", "bacAccesHtml", "rpLabel", "carteBacs", "carteMajo", "compareButton", "carteSortName")
+CARD_TWINS = ("esc", "ACAD_LABEL", "acadLabel", "fmt", "pct", "pct1", "STATUT_LABEL", "bacAccesHtml", "rpLabel", "carteBacs", "carteMajo", "compareButton", "carteSortName")
 
 
 @check("CR12 the card (Node): statut and selectivity said, rate per bac (masked = non publié, estimation starred and named), the line, compare button")

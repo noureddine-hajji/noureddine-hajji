@@ -212,7 +212,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - CI: push on `main` only, branches through their PR, stale runs cancelled. Seven shard runners
     (`pytest -n auto --dist loadfile --shard=i/7`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
-    of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
+    of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times); 2026-11-26: refreshed again from one full CI run's lines (shard 2 measured 6,430 s for 4,812 planned and hit 45 min: carte, robustesse_formations, securite, licence_master had doubled) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
@@ -976,6 +976,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   a `-e` program written to a temp file: one argv string is capped at 128 KiB), never `subprocess.run([node, "-e", …])` (OU2). Before
   pushing a change, run `python scripts/blast.py --run --certain` (red teams holding a text the diff removed) and look at its « possible »
   list (red teams naming a touched function). Red team `redteam_outillage.py` (OU1-OU6; OU4 replays audit PR 8: 10/10 named).
+- **Plain words, the testers' list (lot 1, PR 10, owner 2026-11-26).** « nouveau(x) bachelier(s) », never « néo-bachelier » (only quoted as
+  the official word, glossary); « SIES » only beside « ministère »; « Prévisions divergentes » (never « Pas de conclusion »); « N fois la
+  moyenne » (never « ×N »); an académie DISPLAYED through `acadLabel` (Besançon, Étranger; keys raw); `profileRate` prints report lines
+  through `rpLabel`; job-page codes (ISCO, FAP, O*NET, θ, the ILO table) only inside `details.more-card` « Détail du calcul »,
+  folded, never removed. Red team `redteam_langage.py` LA11-LA13 (LA12 browser, nightly).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

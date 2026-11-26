@@ -330,7 +330,7 @@ def e3(c: Ctx):
 # ---------------------------------------------------------------- the page in Node
 def page_prog(c: Ctx) -> str:
     js = c.js
-    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT")]   # R5: the average
+    parts = [top(js, n) for n in ("fmt", "pct", "pct1", "esc", "ACAD_LABEL", "acadLabel", "MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "mentionParams", "bandParam", "localAverage", "BAND_SIGMA", "erf", "withinBand", "ZONE_RULES", "MIN_BOUNDS_N", "VX_SITUATED", "wilsonCI", "zoneOf", "isNum", "classifyZone", "seriesPos", "lire", "relireVue", "lectureOf", "readList", "voeuxLocal", "moyenneText", "MENTION_SHORT")]   # R5: the average
     parts += [top(js, "vxProfile"), top(js, "REO_LABEL"), top(js, "isReo"), top(js, "bacProfile"), top(js, "profileDkey"), top(js, "AUTRES_LABEL"), top(js, "autresBadge"),
               top(js, "voeuButton"), top(js, "bindVoeuButton"), top(js, "profileLine"),
               ]
@@ -498,7 +498,7 @@ def e4(c: Ctx):
             or "estimation" not in got.get("Accès estimé hors terminale", "") \
             or "5 propositions pour 41 candidats" not in got.get("Accès estimé hors terminale", "") \
             or got.get("Taux d'accès officiel, tous candidats", "").strip() != "77 %" \
-            or not got.get("Admis hors néo-bacheliers", "").strip().startswith("61,5 %") or "8 sur 13 admis" not in got.get("Admis hors néo-bacheliers", ""):
+            or not got.get("Admis hors nouveaux bacheliers", "").strip().startswith("61,5 %") or "8 sur 13 admis" not in got.get("Admis hors nouveaux bacheliers", ""):
         bad.append(("a figure in the wrong cell", got))
     if r["noProfile"] is not None or r["reoAcad"] != acad or "Ordre : l'académie de" not in r["apart"]:
         bad.append(("an académie picked with no profile", r["noProfile"], r["reoAcad"]))
@@ -738,7 +738,7 @@ JS_MUTANTS = [
     ("académie not first", "(home ? (b.academie === home) - (a.academie === home) : 0)", "0"),
     ("name unescaped", '<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ?',
      '<a href="#/f/${esc(f.cod_aff_form)}">${f.etablissement}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ?'),
-    ("cell without label", '<td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>\n      <td class="acts" data-label="Mes vœux">${voeuButton',
+    ("cell without label", '<td class="num" data-label="Admis hors nouveaux bacheliers">${reoAutres(b)}</td>\n      <td class="acts" data-label="Mes vœux">${voeuButton',
      '<td class="num">${reoAutres(b)}</td>\n      <td class="acts" data-label="Mes vœux">${voeuButton'),
     ("estimation word dropped", '${estimTag(`${b.plafonne', '${(() => "")(`${b.plafonne'),
     ("cap not said", '${b.plafonne ? "plafonnée à 100 % · " : ""}', ""),
@@ -751,11 +751,11 @@ JS_MUTANTS = [
     ("Plan B for a reorientation profile", "  if (isReo(p)) {                                                     // sprint 21", "  if (false) {"),
     ("profile bar zone request", "    if (isReo(prof)) {                                                   // sprint 21", "    if (false) {"),
     ("status not validated", 'statut: p.statut === "reorientation" ? "reorientation" : "terminale" };', "statut: p.statut };"),
-    ("académie unescaped in the profile line", '[REO_LABEL, p.academie ? `académie de ${esc(p.academie)}`', '[REO_LABEL, p.academie ? `académie de ${p.academie}`'),
+    ("académie unescaped in the profile line", '[REO_LABEL, p.academie ? `académie de ${esc(acadLabel(p.academie))}`', '[REO_LABEL, p.academie ? `académie de ${p.academie}`'),
     ("Mes vœux reads zones", "  if (isReo(prof)) return viewVoeuxReo(ids, prof);", ""),
     ("Mes vœux reo through the zone route", "d = await api(`/api/reorientation/voeux?${qs}`)", "d = await api(`/api/voeux?${qs}`)"),
-    ("Mes vœux reo name unescaped", '${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation',
-     '${v.etablissement}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation'),
+    ("Mes vœux reo name unescaped", '${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}</div>${v.reorientation',
+     '${v.etablissement}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}</div>${v.reorientation'),
     ("Mon parcours does not delegate", '  if (isReo(store.get("profile", null))) return viewReorientation("", "");', ""),
     ("zone tile outside terminale", "${!isReo(prof) && prof ? tile(", "${prof ? tile("),
     ("door removed", '<a class="door" href="#/reorientation">', '<a class="doorx" href="#/reorientation">'),

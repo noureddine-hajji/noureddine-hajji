@@ -6,6 +6,10 @@ let META = null;
 const HOME_TITLE = "SupCompass — Les chiffres officiels de l'orientation post-bac, expliqués";   // sprint Q1 (owner): legal.TAGLINE
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// lot 1, PR 10: two académie labels come unaccented from the official files; the page prints them accented, the value (filters,
+// profile, requests) stays the published one
+const ACAD_LABEL = { Besancon: "Besançon", Etranger: "Étranger" };
+const acadLabel = (a) => (a && ACAD_LABEL[a]) || a;
 const fmt = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toLocaleString("fr-FR", { maximumFractionDigits: d });
 const pct = (v) => (v === null || v === undefined) ? "—" : `${fmt(v, 1)} %`;
 const tip = (key) => {
@@ -938,11 +942,11 @@ function zoneTiles(counts, other, large, unit = "vœu") {
 }
 // profileLine: the stored profile read back in one line (the form folds under it once a profile exists)
 function profileLine(p, serie) {
-  if (isReo(p)) return [REO_LABEL, p.academie ? `académie de ${esc(p.academie)}` : ""].filter(Boolean).join(" · ");
+  if (isReo(p)) return [REO_LABEL, p.academie ? `académie de ${esc(acadLabel(p.academie))}` : ""].filter(Boolean).join(" · ");
   const ser = { bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie];
   const men = p.mention === "rattrapage" ? "bac au rattrapage" : MENTION_SHORT[p.mention] ? `mention ${MENTION_SHORT[p.mention]}` : "";
   const moy = validMoyenne(p.moyenne);
-  return [ser, serie === "bg" ? `${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}` : p.voie_label ? esc(p.voie_label) : "", men, moy !== null ? `moyenne ${moyenneText(moy)}` : "", p.academie ? `académie de ${esc(p.academie)}` : ""]
+  return [ser, serie === "bg" ? `${esc(speName(p.spe1))} + ${esc(speName(p.spe2))}` : p.voie_label ? esc(p.voie_label) : "", men, moy !== null ? `moyenne ${moyenneText(moy)}` : "", p.academie ? `académie de ${esc(acadLabel(p.academie))}` : ""]
     .filter(Boolean).join(" · ");
 }
 
@@ -1351,7 +1355,7 @@ function semblablesJuryCard(sem, rp) {
   const optHtml = opts.length ? `<h3>Options et parcours cités</h3><ul class="small sem-list">${opts.map(([k, c]) => `<li>${esc(RP_OPTIONS[k] || k)} : citée dans ${fmt(c)} rapport${c > 1 ? "s" : ""} sur ${fmt(n)}</li>`).join("")}</ul>
     <p class="muted small">Une option qu'un rapport ne cite pas peut compter quand même : regardez les attendus de la fiche Parcoursup.</p>` : "";
   const list = sem.formations || [];
-  const links = list.length ? `<details class="dip"><summary>Lire les rapports de ces formations (${fmt(list.length)})</summary><ul class="small sem-list">${list.map((f) => `<li><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a> · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</li>`).join("")}</ul></details>` : "";
+  const links = list.length ? `<details class="dip"><summary>Lire les rapports de ces formations (${fmt(list.length)})</summary><ul class="small sem-list">${list.map((f) => `<li><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a> · ${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</li>`).join("")}</ul></details>` : "";
   return `<div class="card"><h2>Ce que regardent les jurys de formations semblables <span class="estim">pas le rapport de cette formation</span></h2>
     <p class="small">${rp ? `Le rapport public ${esc(rp.session)} de cette formation ne donne pas de critères lisibles.` : `Cette formation n'a pas de rapport public vérifié pour la session ${esc(sem.session)}.`} Voici ce que disent ${fmt(n)} rapports publics ${esc(sem.session)} de formations du même diplôme et de la même mention (${semName(sem)}), vérifiés avec les chiffres du ministère. Le jury de cette formation peut avoir d'autres attentes : sa fiche Parcoursup fait foi.</p>
     ${critHtml}${edsHtml}${optHtml}${links}
@@ -1619,7 +1623,7 @@ const CARTE_ROB = [
 const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);
 const robLevel = (cod, k) => (k === "robn" ? ((RECO && RECO.rob && RECO.rob.echelle[cod]) || ["sans"])
   : (RECO && RECO.rob && RECO.rob.filiere[cod]) || "sans");
-const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, a])], ...CARTE_GROUPS.slice(1),
+const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, acadLabel(a)])], ...CARTE_GROUPS.slice(1),
   ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
@@ -1743,7 +1747,7 @@ function appOffers(list) {
 }
 // R9 (owner, 2026-11-12): three figures per formation, always in the same place: the OFFICIAL access rate; the figure for the
 // student's doublette (or bac techno / pro line), the one Mes vœux and the formation page show (voeux.figures, read per page of
-// the list); where the student's average or mention stands among the formation's néo-bachelier admits, a RANGE read here from
+// the list); where the student's average or mention stands among the formation's nouveau bachelier admits, a RANGE read here from
 // the published counts (journey.stage2's `lec`), never an access rate or a chance: SIES publishes no access rate by mention.
 // PR 2 of the audit (2026-11-23): « admis avec votre mention ou moins » has ONE meaning on every page (search card, Mes vœux,
 // Où je me situe): the reading the zone uses with no average (the band's top, w = 1): the series' exact bounds when the formation
@@ -1767,7 +1771,7 @@ function cartePosition(L, taux, band, g) {
 }
 function cartePosFigure(pos, compact, serie) {
   if (!pos) return '<span class="muted small">non publié</span>';
-  if (pos.moyenne) return `${mentionShareTxt(pos.lo, pos.hi)}${estimTag(compact ? "des admis sous votre moyenne" : "des admis néo-bacheliers avaient une moyenne plus basse que la vôtre", true)}`;
+  if (pos.moyenne) return `${mentionShareTxt(pos.lo, pos.hi)}${estimTag(compact ? "des admis sous votre moyenne" : "des admis nouveaux bacheliers avaient une moyenne plus basse que la vôtre", true)}`;
   return `${mentionShareTxt(pos.lo, pos.hi)} <span class="muted small">(${mentionWho(pos.serie, serie)})</span>`;
 }
 // ctx: { ok, prof, serie, chiffres: Map(code -> voeux.figures answer, or null while it loads), lec: {code: lec}, band, g, session }
@@ -1831,7 +1835,7 @@ function carteCard(f, ctx, pinned) {
     <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form) + tensionBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z, false, f.large)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
-      <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
+      <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
     ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div>${ctx.reo ? "" : carteBacs(f)}</div>
     ${ctx.reo ? "" : carteMajo(f)}
@@ -2047,7 +2051,7 @@ async function viewCarte(dArg, mArg) {
       <p class="muted small" id="carte-count"></p>
       <div id="carte-sel" aria-live="off"></div>
       <div id="carte-items"></div>
-      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance," : ""} par pertinence de votre recherche s'il y a un mot-clé, puis par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (paire de spécialités, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Vos deux spécialités : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : SIES / MESR, session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
+      <p class="muted small">Liste : les formations avec des chiffres publiés d'abord, puis${F.autour ? " par distance," : ""} par pertinence de votre recherche s'il y a un mot-clé, puis par nom, jamais par chances. Taux d'accès : officiel (Parcoursup). Par bac : calculé à partir des effectifs publiés dans le rapport du jury de la formation (candidats de terminale en France) ; * = pas de rapport, accès estimé par le site à partir des propositions publiées. Le plus représenté chez les admis : la ligne du rapport (paire de spécialités, série ou spécialité) qui compte le plus d'admis, pour le bac qui en compte le plus. Vos deux spécialités : rapport public du jury de la formation, sinon estimation. Votre moyenne parmi les admis : une fourchette estimée à partir des mentions publiées, pas une chance d'admission (aucun taux d'accès par moyenne n'est publié). Carte : ${CARTE_ATTRIB}. Données : ministère de l'Enseignement supérieur (SIES), session ${esc(session)}${offre ? ` ; apprentissage : cartographie Parcoursup ${esc(offre)}` : ""}.</p>
     </section>
     <div class="carte-mapcol">
       <div class="legend" id="carte-legend"></div>
@@ -2330,20 +2334,20 @@ async function viewCarte(dArg, mArg) {
 // summaryBand: four figures read at a glance (official access rate, the student's zone, admits, jobs); every tile opens its tab.
 // The zone tile is filled by the Plan B answer (same profile, same zone as « Mon parcours »); without a stored profile it asks for one.
 const fmt2 = (x) => Number(x).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// who the admits are (owner, 2026-11-10): the PUBLISHED counts of néo-bacheliers and other admits (admis.py on the server);
+// who the admits are (owner, 2026-11-10): the PUBLISHED counts of nouveaux bacheliers and other admits (admis.py on the server);
 // the bar is drawn only when they add up to the published total; the label in lists comes from the server's fixed rule
-const AUTRES_LABEL = "Majorité d'admis hors néo-bacheliers";
-const autresBadge = (x) => (x && x.autres_majoritaires ? ` <span class="badge autres" title="Plus d'admis déjà bacheliers ou venus d'un autre parcours (réorientation, reprise d'études…) que de néo-bacheliers, sur au moins 10 admis">${AUTRES_LABEL}</span>` : "");
+const AUTRES_LABEL = "Majorité d'admis hors nouveaux bacheliers";
+const autresBadge = (x) => (x && x.autres_majoritaires ? ` <span class="badge autres" title="Plus d'admis déjà bacheliers ou venus d'un autre parcours (réorientation, reprise d'études…) que de nouveaux bacheliers, sur au moins 10 admis">${AUTRES_LABEL}</span>` : "");
 function admisBar(a) {
   if (!a) return "";
   const head = `<strong>Qui sont les admis ${esc(a.session)} ?</strong>`;
   // sprint Q5: the definitions are folded (the summary stays short on a phone); the text is unchanged
-  const note = `<details class="adm-more"><summary class="small">Néo-bacheliers, autres admis : que veulent dire ces mots ?</summary><p class="muted small">Néo-bacheliers : ils passaient le bac l'année de leur admission. Autres admis : ils avaient déjà le bac ou venaient d'un autre parcours (réorientation, reprise d'études…) ; le SIES ne les détaille pas. Les mentions et les séries de bac publiées ne concernent que les néo-bacheliers.</p></details>`;
-  if (!a.coherent) return `<div class="adm"><p class="small">${head} ${fmt(a.admis_neobac)} néo-bacheliers et ${fmt(a.admis_autres)} autres admis publiés, pour ${fmt(a.admis)} admis : les deux effectifs ne font pas exactement le total publié, la répartition n'est pas dessinée.</p>${note}</div>`;
+  const note = `<details class="adm-more"><summary class="small">Nouveaux bacheliers, autres admis : que veulent dire ces mots ?</summary><p class="muted small">Nouveaux bacheliers : ils passaient le bac l'année de leur admission. Autres admis : ils avaient déjà le bac ou venaient d'un autre parcours (réorientation, reprise d'études…) ; le ministère ne les détaille pas. Les mentions et les séries de bac publiées ne concernent que les nouveaux bacheliers.</p></details>`;
+  if (!a.coherent) return `<div class="adm"><p class="small">${head} ${fmt(a.admis_neobac)} nouveaux bacheliers et ${fmt(a.admis_autres)} autres admis publiés, pour ${fmt(a.admis)} admis : les deux effectifs ne font pas exactement le total publié, la répartition n'est pas dessinée.</p>${note}</div>`;
   const w = (n) => (100 * n / a.admis).toFixed(2);
   return `<div class="adm"><p class="small">${head}${autresBadge(a)}</p>
-    <div class="adm-bar" role="img" aria-label="${fmt(a.admis_neobac)} néo-bacheliers et ${fmt(a.admis_autres)} autres admis sur ${fmt(a.admis)} admis"><span class="neo" style="width:${w(a.admis_neobac)}%"></span><span class="autres" style="width:${w(a.admis_autres)}%"></span></div>
-    <p class="small"><span class="adm-key neo"></span>${fmt(a.admis_neobac)} néo-bacheliers${a.pct_neobac != null ? ` (${pct(a.pct_neobac)} des admis)` : ""} · <span class="adm-key autres"></span>${fmt(a.admis_autres)} autres admis</p>${note}</div>`;
+    <div class="adm-bar" role="img" aria-label="${fmt(a.admis_neobac)} nouveaux bacheliers et ${fmt(a.admis_autres)} autres admis sur ${fmt(a.admis)} admis"><span class="neo" style="width:${w(a.admis_neobac)}%"></span><span class="autres" style="width:${w(a.admis_autres)}%"></span></div>
+    <p class="small"><span class="adm-key neo"></span>${fmt(a.admis_neobac)} nouveaux bacheliers${a.pct_neobac != null ? ` (${pct(a.pct_neobac)} des admis)` : ""} · <span class="adm-key autres"></span>${fmt(a.admis_autres)} autres admis</p>${note}</div>`;
 }
 const admisCell = (a) => (!a ? "—" : `${fmt(a.admis_neobac)} / ${fmt(a.admis_autres)}${a.coherent ? "" : ` <span class="muted small">(total publié ${fmt(a.admis)})</span>`}${autresBadge(a)}`);
 // R2 (owner, 2026-11-11): ONE sourced figure for the profile beside the official access rate (inside the lot 2 summary section).
@@ -2378,7 +2382,7 @@ function profileRate(d, prof) {
     if (!dkey) return { kind: "incomplet" };                   // review: no doublette without two distinct specialties
     if (ownHasBg(rp)) {
       const x = pickRapport(rp, dkey);
-      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "vos deux spécialités, ligne « Autres paires de spécialités »" : x.libelle,
+      return x ? { kind: "publie", taux: x.taux, what: x.source === "autres" ? "vos deux spécialités, ligne « Autres paires de spécialités »" : rpLabel(x.libelle),
         source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: x.en_position, confirmes: x.confirmes }
         : { kind: "aucun", what: "vos deux spécialités", why: `pas de ligne dans le rapport ${rp.session}` };
     }
@@ -2389,7 +2393,8 @@ function profileRate(d, prof) {
     return route();
   }
   const v = pickVoie(rp, serie, prof.voie || null);
-  if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${v.libelle} »` : `votre bac, ligne « ${v.libelle} »`,
+  // lot 1, PR 10: the report's label as a student reads it (rpLabel: « Msgn/ X » is « Management (X) »; Yanis read it raw here)
+  if (v) return { kind: "publie", taux: v.taux, what: v.source === "autres" ? `votre ${VOIE_WORD[serie]}, ligne « ${rpLabel(v.libelle)} »` : `votre bac, ligne « ${rpLabel(v.libelle)} »`,
     source: "rapport", session: rp.session, recoupe: rp.recoupe !== false, en_position: v.en_position, confirmes: v.confirmes };
   return route();
 }
@@ -2783,8 +2788,8 @@ function aidesHint(a) {
   const p = bacProfile(), hints = [];
   if (p && (p.mention === "tb" || p.mention === "tbf") && a.merite) hints.push(`Votre profil indique une mention très bien : c'est l'une des conditions de l'aide au mérite.`);
   if (p && p.academie && a.academie && a.mobilite) {
-    hints.push(p.academie === a.academie ? `Cette formation est dans votre académie (${esc(a.academie)}) : l'aide à la mobilité Parcoursup ne s'applique pas à ce vœu.`
-      : `Cette formation est dans l'académie de ${esc(a.academie)}, pas la vôtre (${esc(p.academie)}) : si vous avez une bourse de lycée, l'aide à la mobilité Parcoursup peut vous concerner.`);
+    hints.push(p.academie === a.academie ? `Cette formation est dans votre académie (${esc(acadLabel(a.academie))}) : l'aide à la mobilité Parcoursup ne s'applique pas à ce vœu.`
+      : `Cette formation est dans l'académie de ${esc(acadLabel(a.academie))}, pas la vôtre (${esc(acadLabel(p.academie))}) : si vous avez une bourse de lycée, l'aide à la mobilité Parcoursup peut vous concerner.`);
   }
   const m = a.mobilite, idf = (m && m.academies_idf) || [];
   if (p && m && m.complement_bp_idf && p.serie === "bp" && idf.includes(p.academie) && a.academie && !idf.includes(a.academie))
@@ -3088,7 +3093,7 @@ async function viewFormation(cod, session, refresh) {
     <h1>${esc(r.g_ea_lib_vx)}</h1>
     <div class="fhead-lib">${esc(r.lib_for_voe_ins)}${d.complement ? `<span class="fhead-parcours"> · ${esc(d.complement)}</span>` : ""}${d.apprentissage && d.apprentissage.length ? ` ${voieBadges({ initiale: r.apprentissage !== true, apprentissage: true })}` : ""}</div>
     ${d.reconnaissance ? `<div class="fhead-reco">${recoPill(d.reconnaissance.categorie, d.reconnaissance.libelle, d.reconnaissance.explication)}</div>` : ""}
-    <div class="muted small">${esc(r.ville_etab)} · ${esc(r.acad_mies)} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
+    <div class="muted small">${esc(r.ville_etab)} · ${esc(acadLabel(r.acad_mies))} · ${esc(r.contrat_etab)} · ${esc(r.select_form)} · n° Parcoursup ${esc(r.cod_aff_form)}</div>
     <div class="toolbar" style="margin-top:8px">
       ${voeuButton(r.cod_aff_form, true)}
       <button id="bask">${inBasket ? "Retirer du comparateur" : "Comparer"}</button>
@@ -3103,10 +3108,10 @@ async function viewFormation(cod, session, refresh) {
     ["admission", "Y entrer", `
   ${jpoCard(d.jpo)}
   ${decouvrirCard(d.immersion, d.handicap)}
-  <div class="card"><h2>Indicateurs officiels SIES · ${r.session}</h2>
+  <div class="card"><h2>Chiffres officiels du ministère · ${r.session}</h2>
     <div class="grid3">
       <div><div class="muted small">Taux d'accès (phase principale) ${tip("taux_acces_ens")}</div><div class="big">${pct(r.taux_acces_ens)}</div>${pvLine(d.prevision, "taux_acces_ens")}</div>
-      <div><div class="muted small">Part des terminales générales parmi les candidats appelés (phase principale) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
+      <div><div class="muted small">Parmi les candidats appelés, part des élèves de terminale générale (phase principale) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (toute la campagne)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
   ${doubletteCard(d.doublettes, d.rapport, d.semblables)}
@@ -3210,7 +3215,7 @@ async function loadPlanB(cod, opts = {}) {
   }
   if (!box.isConnected || box.dataset.req !== req) return;
   if (!opts.inline && p) fillZoneTile(d.target);
-  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(speName(prof.spe1 || "MATHS"))} + ${esc(speName(prof.spe2 || "SES"))}` : ""}, ${mentionWords({ mention: "ab", ...prof })}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}`;
+  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(speName(prof.spe1 || "MATHS"))} + ${esc(speName(prof.spe2 || "SES"))}` : ""}, ${mentionWords({ mention: "ab", ...prof })}${prof.academie ? `, académie de ${esc(acadLabel(prof.academie))}` : ""}`;
   const head = opts.inline
     ? `<h3 class="planb-title">Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h3>`
     : `<h2>Plan B : la même filière, plus accessible pour vous ${tip("planb")}</h2>
@@ -3224,7 +3229,7 @@ async function loadPlanB(cod, opts = {}) {
   else {
     body = `<p class="small">Formation visée${d.target.complement ? ` (${esc(d.target.complement)})` : ""} : ${zoneBadge(d.target.zone, false, d.target.large && !d.target.uncertain)} · ${d.target.serie === "bg" ? "taux d'accès" : "accès estimé"} ${fmt(d.target.taux_acces_ens)} %</p>
     <div class="scroll"><table><tr><th>Formation</th><th>Zone</th><th class="num">${serie === "bg" ? "Taux d'accès" : "Accès estimé"}</th><th class="num">${d.moyenne !== null && d.moyenne !== undefined ? "Sous votre moyenne (estimation)" : "Votre mention ou moins"}</th><th class="num">Distance de la formation visée</th>${opts.onPin ? '<th><span class="sr-only">Actions</span></th>' : ""}</tr>
-    ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(a.academie)})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
+    ${d.alternatives.map((a) => `<tr><td><a href="#/f/${esc(a.cod_aff_form)}">${esc(a.etablissement)}</a><div class="muted small">${esc(a.complement || a.filiere)} · ${esc(a.ville)}${a.academie ? ` (${esc(acadLabel(a.academie))})` : ""}</div>${a.paid ? '<span class="badge warnb">privé : frais possibles</span>' : ""}${offerBadges(a, true)}</td>
       <td>${zoneBadge(a.zone, false, a.large && !a.uncertain)}${zoneAxisNote(a)}<div class="muted small">${WHY[a.why] || ""}</div></td>
       <td class="num">${fmt(a.taux_acces_ens)} %</td>
       <td class="num">${a.bounds ? (a.bounds[1] - a.bounds[0] < 0.005 ? pc1(a.bounds[0]) : `${pc1(a.bounds[0])} – ${pc1(a.bounds[1])}`) : pc1(a.position)}</td>
@@ -3282,7 +3287,7 @@ function successCard(s) {
       ${N && suBar(N) ? `<div class="su-line"><span class="small muted">France</span>${suBar(N)}</div>` : ""}
       <div class="legend"><span class="muted">Université :</span>${SU_DEVENIR.map(([k, l, c]) => `<span><i class="${c}"></i>${l} ${pc1d(P[k])} %</span>`).join("")}${N ? `<span class="muted">France : ${SU_DEVENIR.map(([k]) => `${pc1d(N[k])} %`).join(" · ")}</span>` : ""}</div></div>` : "";
   return `<div class="card">${head}
-    <p class="small"><strong>${esc(s.etab_label)}</strong> · ${esc(s.discipline_label)}. Chiffres de <strong>tous les néo-bacheliers inscrits en L1</strong> de cette grande discipline dans l'université, pas seulement de cette licence.${small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
+    <p class="small"><strong>${esc(s.etab_label)}</strong> · ${esc(s.discipline_label)}. Chiffres de <strong>tous les nouveaux bacheliers inscrits en L1</strong> de cette grande discipline dans l'université, pas seulement de cette licence.${small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("success")}</th><th class="num">France, même discipline</th></tr>${rows}</table></div>
     ${bars}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), tableaux par établissement et discipline. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
@@ -3326,7 +3331,7 @@ function butCard(b) {
   const spe = b.specialite ? `<p class="small">En France, en <strong>${esc(b.specialite.label)}</strong> : <strong>${suVal(b.specialite, "taux")}</strong> des inscrits ont obtenu leur BUT en 3 ans (passage en 2e année : ${suVal(b.specialite, "passage2")} ; entrés en ${esc(b.specialite.cohort)}).</p>` : "";
   const profBox = prof ? `<h3 class="small">Selon le profil de bac, en France (toutes spécialités, entrés en ${esc((pr.serie || pr.mention).cohort)})</h3>
     <div class="scroll"><table><tr><th>Profil</th><th class="num">Passage en 2e année</th><th class="num">BUT en 3 ans</th></tr>${prof}</table></div>
-    <p class="muted small">Deux lignes séparées : le SIES ne croise pas la série et la mention.${pr.note ? ` ${esc(pr.note)}.` : ""}</p>` : "";
+    <p class="muted small">Deux lignes séparées : le ministère ne croise pas la série et la mention.${pr.note ? ` ${esc(pr.note)}.` : ""}</p>` : "";
   if (!R && !P) return statusCard(head, b, `${spe}${profBox}`, "2025-26");
   const rows = [];
   if (R) rows.push(`<tr><td>BUT obtenu en 3 ans<div class="muted small">entrés en ${esc(R.cohort)}${R.inscrits != null ? ` · ${fmt(R.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(R.maillon)}</div></td>
@@ -3337,7 +3342,7 @@ function butCard(b) {
   const but3 = MB ? `<p class="small">Passerelle vers le master : en ${esc(MB.session)}, ${mbu ? `les masters de l'université ont admis <strong>${fmt(mbu.n_accept_but3)}</strong> titulaires d'un BUT (${pcs(mbu.part_but3)} de leurs admis) ; ` : ""}en France, ${pcs(MB.france.part_but3)} des admis en master venaient d'un BUT (MonMaster).</p>` : "";
   const after = P && P.taux_master != null ? `<p class="small">Après le BUT, parmi les diplômés de l'université : master ${suVal(P, "taux_master")}, école de commerce ${suVal(P, "taux_commerce")}, école d'ingénieurs ${suVal(P, "taux_ingenieur")}${NP ? ` <span class="muted">(France : ${suVal(NP, "taux_master")}, ${suVal(NP, "taux_commerce")}, ${suVal(NP, "taux_ingenieur")})</span>` : ""}.</p>` : "";
   return `<div class="card"><h2>${head}</h2>
-    <p class="small"><strong>${esc(b.etab_label)}</strong> · toutes spécialités de BUT. Chiffres de <strong>tous les néo-bacheliers inscrits en 1re année de BUT</strong> dans l'université : le SIES ne les publie ni par IUT, ni par spécialité.${R && R.small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
+    <p class="small"><strong>${esc(b.etab_label)}</strong> · toutes spécialités de BUT. Chiffres de <strong>tous les nouveaux bacheliers inscrits en 1re année de BUT</strong> dans l'université : le ministère ne les publie ni par IUT, ni par spécialité.${R && R.small ? ' <span class="badge warnb">petit effectif</span>' : ""}</p>
     <div class="scroll"><table><tr><th>Indicateur · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">Attendu vu le profil des inscrits ${tip("but")}</th><th class="num">France</th></tr>${rows.join("")}</table></div>
     ${after}${but3}${butInsertion(b.insertion)}${spe}${profBox}
     <p class="muted small">Source : SIES (ministère de l'Enseignement supérieur), Note Flash 2025-26. Résultats de cohortes passées, pas des chances de réussite ; l'écart au taux attendu ne classe pas les universités.</p></div>`;
@@ -3364,7 +3369,7 @@ function masterCard(m) {
     .map(([l, r]) => `<tr><td>${l}</td><td class="num">${suVal(r, "licence34")}</td><td class="num">${suVal(r, "passage_master")}</td><td class="num"><strong>${suVal(r, "master567")}</strong></td></tr>`).join("");
   const chainBox = chain ? `<h3 class="small">Le parcours complet, en France : bacheliers ${esc((pr.ensemble || pr.serie).cohort)} entrés en L1 ${tip("master")}</h3>
     <div class="scroll"><table><tr><th>Profil</th><th class="num">Licence en 3 ou 4 ans</th><th class="num">Entrée en master</th><th class="num">Master en 5 à 7 ans</th></tr>${chain}</table></div>
-    <p class="muted small">Une cohorte suivie de bout en bout (pas une multiplication de taux). Lignes séparées : le SIES ne croise pas le type de bac et la mention.</p>` : "";
+    <p class="muted small">Une cohorte suivie de bout en bout (pas une multiplication de taux). Lignes séparées : le ministère ne croise pas le type de bac et la mention.</p>` : "";
   const pl = (m.poursuite_lg || []).filter((r) => r.code === (m.discipline || "toutes")).sort((a, b) => a.cohort - b.cohort);
   const plBox = pl.length ? `<p class="small">En France, ${m.discipline ? `en ${esc(m.discipline_label)}` : "toutes disciplines"}, part des diplômés de licence inscrits en master l'année suivante : ${pl.map((r) => `<span class="nowrap">${esc(r.cohort)} <strong>${suVal(r, "taux")}</strong></span>`).join(" · ")}.</p>` : "";
   if (!m.kinds || !Object.keys(m.kinds).length) return statusCard(head, m, `${plBox}${chainBox}`, "2025-30");
@@ -3398,7 +3403,7 @@ function reoTable(r, n) {
   return `<div class="scroll"><table><tr><th>Sur 100 inscrits en L1 · fiabilité ${tip("fiabilite")}</th><th class="num">Cette université</th><th class="num">France, même discipline</th></tr>
     <tr><td><strong>Se réorientent l'année suivante</strong><div class="muted small">entrés en L1 en ${esc(r.cohort)}${r.inscrits != null ? ` · ${fmt(r.inscrits)} inscrits` : ""}</div><div class="fiab-row">${fiabBadge(r.maillon)}</div></td>
       <td class="num"><strong>${suVal(r, "taux_reorientation")}</strong></td><td class="num">${suVal(n, "taux_reorientation")}</td></tr>${rows}</table></div>
-    <p class="muted small">Ce sont des parts des inscrits en L1, pas des réorientés. Le détail publié n'est pas complet : les autres réorientés suivent des formations que le SIES ne détaille pas.</p>`;
+    <p class="muted small">Ce sont des parts des inscrits en L1, pas des réorientés. Le détail publié n'est pas complet : les autres réorientés suivent des formations que le ministère ne détaille pas.</p>`;
 }
 function mastersBox(p) {
   const m = p.masters, f = p.masters_france;
@@ -3469,7 +3474,7 @@ function licenceMasterCard(x) {
     <div class="scroll"><table class="lm"><tr class="lm-head"><th>Master (mention)</th><th class="num">Admis</th><th class="num">Emploi salarié à 18 mois</th><th>Métiers visés</th>
       <th class="num">IA générative (OIT)</th><th class="num">Complémentarité humaine</th><th>Emploi d'ici 2030 (nombre de métiers)</th></tr>
       ${x.mentions.map(row).join("")}</table></div>
-    <p class="muted small">Admis : des personnes ; vœux : des candidatures additionnées sur les parcours, pas des personnes. Emploi salarié à 18 mois : parmi les diplômés qui ont quitté les études (InserSup, promotion ${esc(x.annee_insertion)}). Les métiers visés sont ceux de la fiche nationale Onisep du master, pas de cette université. Pour ces métiers, on donne l'écart entre la note la plus basse et la plus haute, jamais une moyenne, et le nombre de métiers selon la projection 2030 ; un métier exposé à l'IA est plus souvent transformé que remplacé, et la complémentarité humaine est une estimation adaptée. Un repère n'apparaît que si les deux écarts ne se chevauchent pas. Ce sont des résultats passés et des projections, pas des chances d'admission ou d'emploi. Sources : SIES (MonMaster, InserSup), Onisep (Idéo, licence ODbL), OIT 2025, O*NET, Dares / France Stratégie.</p></div>`;
+    <p class="muted small">Admis : des personnes ; vœux : des candidatures additionnées sur les parcours, pas des personnes. Emploi salarié à 18 mois : parmi les diplômés qui ont quitté les études (InserSup, promotion ${esc(x.annee_insertion)}). Les métiers visés sont ceux de la fiche nationale Onisep du master, pas de cette université. Pour ces métiers, on donne l'écart entre la note la plus basse et la plus haute, jamais une moyenne, et le nombre de métiers selon la projection 2030 ; un métier exposé à l'IA est plus souvent transformé que remplacé, et la complémentarité humaine est une estimation adaptée. Un repère n'apparaît que si les deux écarts ne se chevauchent pas. Ce sont des résultats passés et des projections, pas des chances d'admission ou d'emploi. Sources : ministère de l'Enseignement supérieur (MonMaster, InserSup), Onisep (Idéo, licence ODbL), OIT 2025, O*NET (ministère du Travail des États-Unis), Dares / France Stratégie.</p></div>`;
 }
 
 // ---- Prévision n+1: calibrated ranges of every published indicator with a history (never a probability) ----
@@ -3599,13 +3604,13 @@ function butInsertion(i) {
   return `<h3 class="small">Insertion après le BUT ${tip("insertion")}</h3><div class="scroll"><table>${INS_HEAD}
     ${insRow("Cette spécialité dans l'université", i.specialite)}${insRow("Tous les BUT de l'université", i.total)}
     ${insRow("Cette spécialité, France", i.france_specialite)}${insRow("Tous les BUT, France", i.france)}</table></div>
-    <p class="muted small">${INS_NOTE} Après un BUT, la plupart des diplômés poursuivent leurs études : ces taux portent sur ceux qui sont partis travailler. Source : InserSup (SIES).</p>`;
+    <p class="muted small">${INS_NOTE} Après un BUT, la plupart des diplômés poursuivent leurs études : ces taux portent sur ceux qui sont partis travailler. Source : InserSup (ministère de l'Enseignement supérieur).</p>`;
 }
 
 function offerCard(r, app) {
   const list = offerList(r);
   if (!r.carto_session && !list.length && !(app && app.length)) return "";
-  const src = r.carto_session ? `cartographie Parcoursup ${r.carto_session}` : "libellé SIES";
+  const src = r.carto_session ? `cartographie Parcoursup ${r.carto_session}` : "libellé du ministère";
   return `<div class="card"><h2>Bon à savoir ${tip("offer")}</h2>
     ${list.length ? `<ul class="offer-list">${list.map(([k, t]) => `<li><span aria-hidden="true">${OPT_ICON[k]}</span> ${esc(t)}</li>`).join("")}</ul>`
       : app && app.length ? "" : `<p class="muted small">Ni internat, ni apprentissage, ni enseignement à distance, ni aménagement pour sportifs ou artistes de haut niveau ne sont signalés.</p>`}
@@ -3653,7 +3658,7 @@ const EVO = { k1: "var(--k1)", k2: "var(--k2)", k3: "var(--k3)", ref: "var(--k4)
 const MENTIONS = [{ key: "acc_tbf", name: "TB félicitations", color: "var(--m1)" }, { key: "acc_tb", name: "Très bien", color: "var(--m2)" },
   { key: "acc_b", name: "Bien", color: "var(--m3)" }, { key: "acc_ab", name: "Assez bien", color: "var(--m4)" },
   { key: "acc_sansmention", name: "Sans mention", color: "var(--m5)" }, { key: "acc_mention_non_renseignee", name: "Non renseignée", color: "var(--c5)" }];
-// owner, 2026-11-22: year by year, the share of the néo-bachelier admits (mention known) whose mention is the student's or lower
+// owner, 2026-11-22: year by year, the share of the nouveau bachelier admits (mention known) whose mention is the student's or lower
 // (published counts), the share strictly below, and with an average the estimate below it (positionMoyenne, R5: the curve centred
 // in the band; the uniform spread gives the other end, in the tooltip). Shares of admits, never a chance: SIES publishes no marks
 // and no candidates by mention. All bacs: mentions are not published by series. The average never leaves the browser (R6).
@@ -3781,14 +3786,14 @@ function mentionEvolutionCard(years, rows) {
       notes: ys.map((x) => (x ? `estimation : entre ${pc1(x.moyRange[0] / 100)} et ${pc1(x.moyRange[1] / 100)} selon la répartition des notes dans la mention` : "")) });
   }
   const li = ys.reduce((k, x, i) => (x ? i : k), -1), last = li >= 0 ? ys[li] : null;
-  const sentence = last ? `<p>En ${esc(years[li])}, ${last.moy !== null ? `environ <strong>${fmt(last.moy, 0)} %</strong> des ${fmt(last.n)} admis néo-bacheliers dont la mention est connue avaient une note en dessous de ${moyenneText(vp.moyenne)} (estimation), et ${fmt(last.upto, 0)} %` : `<strong>${fmt(last.upto, 0)} %</strong> des ${fmt(last.n)} admis néo-bacheliers dont la mention est connue`} avaient « ${esc(M)} » ou moins${band === "sansmention" && vp.mention === "rattrapage" ? " (le bac au rattrapage est compté avec « sans mention »)" : ""}.${last.n < 20 ? ` <span class="badge warnb">peu d'admis (${fmt(last.n)}) : repère fragile</span>` : ""}</p>` : "";
+  const sentence = last ? `<p>En ${esc(years[li])}, ${last.moy !== null ? `environ <strong>${fmt(last.moy, 0)} %</strong> des ${fmt(last.n)} admis nouveaux bacheliers dont la mention est connue avaient une note en dessous de ${moyenneText(vp.moyenne)} (estimation), et ${fmt(last.upto, 0)} %` : `<strong>${fmt(last.upto, 0)} %</strong> des ${fmt(last.n)} admis nouveaux bacheliers dont la mention est connue`} avaient « ${esc(M)} » ou moins${band === "sansmention" && vp.mention === "rattrapage" ? " (le bac au rattrapage est compté avec « sans mention »)" : ""}.${last.n < 20 ? ` <span class="badge warnb">peu d'admis (${fmt(last.n)}) : repère fragile</span>` : ""}</p>` : "";
   return `<div class="card">${head}${sentence}
-    <p class="small chart-cap">Part des admis néo-bacheliers, mention connue. Des parts d'admis, pas une chance.</p>
+    <p class="small chart-cap">Part des admis nouveaux bacheliers, mention connue. Des parts d'admis, pas une chance.</p>
     ${lineLegend(lines)}${lineChart(years, lines)}
     ${vp.moyenne !== null ? estimTag(`losanges : votre moyenne placée dans votre mention`, true) : ""}
     <details class="dip"><summary>Comment lire cette courbe</summary>
     <p class="small">Plus la part est haute, plus les admis de la formation avaient une mention comme la vôtre ou plus basse.</p>
-    ${vp.moyenne !== null ? `<p class="small">La courbe en tirets place votre moyenne de ${moyenneText(vp.moyenne)} à l'intérieur de votre mention. SIES ne publie pas les notes : c'est une estimation.</p>` : ""}
+    ${vp.moyenne !== null ? `<p class="small">La courbe en tirets place votre moyenne de ${moyenneText(vp.moyenne)} à l'intérieur de votre mention. Le ministère ne publie pas les notes : c'est une estimation.</p>` : ""}
     <p class="muted small">Calculé avec les nombres d'admis publiés par mention, tous bacs confondus : les mentions ne sont pas publiées par série. Points creux : moins de 20 admis dont la mention est connue. Des parts d'admis, pas des chances d'admission.</p></details></div>`;
 }
 
@@ -3831,7 +3836,7 @@ async function viewEvolution(cod) {
     ${appelEvolutionCard(years, lin.contexte)}
     ${timingEvolutionCard(years, rows)}
     <div class="card"><h2>Admis par mention au bac ${tip("mentions")}</h2>${legend(MENTIONS)}${stackedBars(years, MENTIONS, rows)}</div>
-    <div class="card"><h2>Admis néo-bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}${seriesWords(years, rows)}</div>
+    <div class="card"><h2>Admis nouveaux bacheliers par série de bac ${tip("mentions")}</h2>${legend(SERIES)}${stackedBars(years, SERIES, rows)}${seriesWords(years, rows)}</div>
     <div class="card"><h2>Boursiers, femmes, origine</h2>
       ${lineLegend(socialLines)}${lineChart(years, socialLines)}
       <p class="muted small">Points creux : moins de ${META.low_n_threshold} admis. ${tip("low_n")}</p></div>
@@ -3852,11 +3857,11 @@ async function viewCompare() {
     ["Session", (f) => f.record.session], ["Filière", (f) => esc(f.record.fil_lib_voe_acc)],
     ["Taux d'accès (phase principale) " + tip("taux_acces_ens"), (f) => pct(f.record.taux_acces_ens)],
     ["… percentile filière", (f) => metric(f, "taux_acces_ens").peer_percentile != null ? "P" + fmt(metric(f, "taux_acces_ens").peer_percentile) : "—"],
-    ["Part des terminales générales parmi les appelés (phase principale) " + tip("part_terminale_generale_en_position_admis_pp"), (f) => pct(f.record.part_terminale_generale_en_position_admis_pp)],
+    ["Parmi les candidats appelés, part des élèves de terminale générale (phase principale) " + tip("part_terminale_generale_en_position_admis_pp"), (f) => pct(f.record.part_terminale_generale_en_position_admis_pp)],
     ["Vœux (toutes phases)", (f) => fmt(f.record.voe_tot) + (f.record.subwish_flag ? ' <span class="badge warnb">sous-vœu</span>' : "")],
     ["Classés (phase principale)", (f) => fmt(f.record.nb_cla_pp)], ["Proposés", (f) => fmt(f.record.prop_tot)],
     ["Admis", (f) => fmt(f.record.acc_tot) + (f.record.low_n_flag ? ` <span class="badge warnb">n&lt;${META.low_n_threshold}</span>` : "")],
-    ["Néo-bacheliers / autres admis", (f) => admisCell(f.admis)],
+    ["Nouveaux bacheliers / autres admis", (f) => admisCell(f.admis)],
     ["% TB + TBF", (f) => pct(metric(f, "pct_tb_tbf").value)], ["% boursiers", (f) => pct(f.record.pct_bours)],
     ["% femmes", (f) => pct(f.record.pct_f)], ["% bac général", (f) => pct(f.record.pct_bg)],
     ["% même académie", (f) => pct(f.record.pct_aca_orig)],
@@ -3887,7 +3892,7 @@ async function viewSpecialites(session, ftype) {
   const d = await api(`/api/specialites${sq.toString() ? `?${sq}` : ""}`);
   const max = Math.max(1, ...d.rows.map((r) => r.pct_acceptations || 0));
   $view.innerHTML = `<div class="card"><h1>Spécialités des admis, par paire</h1>
-    <p class="muted small">Source : SIES, propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). SIES publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par paire de spécialités : c'est une répartition, pas un taux d'accès.</p>
+    <p class="muted small">Source : ministère de l'Enseignement supérieur (SIES), propositions d'admission des terminales générales selon leurs enseignements de spécialité, agrégées au niveau national par type de formation (pas par formation). Le ministère publie les propositions et les acceptations, sans nombre de candidats. Le tableau montre donc la composition des admis (acceptations) par paire de spécialités : c'est une répartition, pas un taux d'accès.</p>
     <div class="toolbar"><label>Session <select id="ss">${META.years.map((y) => `<option ${y === d.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       <label>Type de formation <select id="st" style="max-width:100%">${d.formation_types.map((t) => `<option ${t === d.formation_type ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label></div>
     <p class="small">${fmt(d.totals.n_accepte)} acceptations · ${fmt(d.totals.n_proposition)} propositions</p>
@@ -3900,15 +3905,31 @@ async function viewSpecialites(session, ftype) {
   document.getElementById("st").onchange = (e) => { location.hash = `#/specialites/${d.session}/${encodeURIComponent(e.target.value)}`; };
 }
 
+// lot 1, PR 10: the quality page in French (a teacher read English check codes there); the raw names stay in a folded list
+const QUAL_CHECK = {
+  series_eq_acc_neobac: "Bacs général + techno + pro = admis nouveaux bacheliers",
+  mentions_eq_acc_neobac: "Mentions = admis nouveaux bacheliers",
+  series_plus_at_eq_acc_tot: "Bacs + autres admis = tous les admis",
+  mention_by_series_eq_acc_neobac: "Mentions par bac = admis nouveaux bacheliers",
+  series_eq_acc_term: "Bacs = admis venant de terminale (contrôle du dénominateur)",
+  mentions_eq_acc_term: "Mentions = admis venant de terminale (contrôle du dénominateur)",
+};
+const QUAL_STATUS = { PASS: "réussie", FAIL: "en échec" };
+function qualCol(k) {
+  if (k === "fili") return "Filière";
+  let m = /^n_(\d{4})$/.exec(k); if (m) return `Formations ${m[1]}`;
+  m = /^pct_linked_(\d{4})$/.exec(k); if (m) return `% reliées à ${m[1]}`;
+  return { pct_full_span: "% suivies sur toutes les campagnes", pct_full_span_exact: "% suivies, lien exact", pct_with_inferred_link: "% avec un lien déduit" }[k] || k;
+}
 function verificationCard(v) {
-  if (!v) return `<div class="card"><h2>Vérification SIES</h2><p class="muted">Aucun rapport publié pour ce build.</p></div>`;
-  const st = (x) => ({ pass: "✓", fail: "✗", upstream_inconsistency: "incohérence SIES (reproduite à l'identique)" }[x] || "–");
-  return `<div class="card"><h2>Vérification SIES : ${esc(v.overall)}</h2>
-    <p class="muted small">Rapport du ${esc(v.generated_at)}. Identités comptables par campagne (« diag » = contrôle diagnostique du dénominateur).</p>
+  if (!v) return `<div class="card"><h2>Vérification des chiffres officiels</h2><p class="muted">Aucun rapport publié pour ce build.</p></div>`;
+  const st = (x) => ({ pass: "✓", fail: "✗", upstream_inconsistency: "incohérence du fichier officiel (reproduite à l'identique)" }[x] || "–");
+  return `<div class="card"><h2>Vérification des chiffres officiels : ${esc(QUAL_STATUS[v.overall] || v.overall)}</h2>
+    <p class="muted small">Rapport du ${esc(v.generated_at)}. Les totaux publiés doivent se recouper, campagne par campagne (« contrôle » = un recoupement qui vérifie seulement le dénominateur).</p>
     <div class="scroll"><table><tr><th>Contrôle</th><th>Session</th><th class="num">Évaluables</th><th class="num">Écarts</th><th class="num">% ok</th><th>Statut</th></tr>
-    ${v.identities.map((r) => `<tr><td>${esc(r.check)}${r.primary ? "" : ` <span class="badge">diag</span>`}</td><td>${r.session}</td><td class="num">${fmt(r.n_evaluable)}</td><td class="num">${fmt(r.n_violations)}</td><td class="num">${r.pct_ok ?? "—"}</td><td>${st(r.status)}</td></tr>`).join("")}
-    ${(v.taux_raw || []).map((r) => `<tr><td>taux_acces_ens = fichier SIES brut</td><td>${r.session}</td><td class="num">${fmt(r.n_upstream)}</td><td class="num">${fmt(r.n_mismatch)}</td><td></td><td>${st(r.status)}</td></tr>`).join("")}
-    ${(v.taux_live || []).map((r) => `<tr><td>taux_acces_ens = API SIES en direct (échantillon)</td><td>${r.session}</td><td class="num">${fmt(r.n_sampled)}</td><td class="num">${fmt(r.n_mismatch)}</td><td></td><td>${st(r.status)}</td></tr>`).join("")}
+    ${v.identities.map((r) => `<tr><td>${esc(QUAL_CHECK[r.check] || r.check)}${r.primary ? "" : ` <span class="badge">contrôle</span>`}</td><td>${r.session}</td><td class="num">${fmt(r.n_evaluable)}</td><td class="num">${fmt(r.n_violations)}</td><td class="num">${r.pct_ok ?? "—"}</td><td>${st(r.status)}</td></tr>`).join("")}
+    ${(v.taux_raw || []).map((r) => `<tr><td>Taux d'accès = fichier officiel brut</td><td>${r.session}</td><td class="num">${fmt(r.n_upstream)}</td><td class="num">${fmt(r.n_mismatch)}</td><td></td><td>${st(r.status)}</td></tr>`).join("")}
+    ${(v.taux_live || []).map((r) => `<tr><td>Taux d'accès = site officiel en direct (échantillon)</td><td>${r.session}</td><td class="num">${fmt(r.n_sampled)}</td><td class="num">${fmt(r.n_mismatch)}</td><td></td><td>${st(r.status)}</td></tr>`).join("")}
     </table></div></div>`;
 }
 
@@ -3919,15 +3940,15 @@ async function viewQualite() {
   try { pr = await api("/api/journey/persona"); } catch (_) { /* no persona report */ }
   const cols = c.rows.length ? Object.keys(c.rows[0]) : [];
   const audit = META.schema_audit.filter((a) => a.status !== "keyword");
-  const personaCard = pr ? `<div class="card"><h2>Calibration du parcours : ${esc(pr.overall)}</h2>
-    <p class="muted small">Persona : Mathématiques + SES, mention Assez bien. Rapport du ${esc(pr.generated_at)}.</p>
-    <table>${pr.checks.map((c) => `<tr><td>${esc(c.check)}</td><td>${c.ok ? "✓" : "✗"}</td></tr>`).join("")}</table></div>` : "";
-  $view.innerHTML = `<div class="card"><h1>Qualité des données</h1><p class="muted small">Les contrôles faits à chaque mise à jour des chiffres officiels.</p></div>` + verificationCard(v) + personaCard + `<div class="card"><h2>Continuité longitudinale (ancre ${c.anchor}) ${tip("lineage")}</h2><div class="scroll"><table>
-    <tr>${cols.map((k) => `<th class="${k === "fili" ? "" : "num"}">${esc(k)}</th>`).join("")}</tr>
+  const personaCard = pr ? `<div class="card"><h2>Calibration de « Où je me situe » : ${esc(QUAL_STATUS[pr.overall] || pr.overall)}</h2>
+    <p class="muted small">Un profil type (Mathématiques + SES, mention assez bien) relu à chaque mise à jour : ${fmt(pr.checks.filter((c) => c.ok).length)} contrôles réussis sur ${fmt(pr.checks.length)}. Rapport du ${esc(pr.generated_at)}.</p>
+    <details class="more-card"><summary>Voir la liste des contrôles (noms techniques)</summary><table>${pr.checks.map((c) => `<tr><td>${esc(c.check)}</td><td>${c.ok ? "✓" : "✗"}</td></tr>`).join("")}</table></details></div>` : "";
+  $view.innerHTML = `<div class="card"><h1>Qualité des données</h1><p class="muted small">Les contrôles faits à chaque mise à jour des chiffres officiels.</p></div>` + verificationCard(v) + personaCard + `<div class="card"><h2>Formations suivies d'une année à l'autre (référence ${c.anchor}) ${tip("lineage")}</h2><div class="scroll"><table>
+    <tr>${cols.map((k) => `<th class="${k === "fili" ? "" : "num"}">${esc(qualCol(k))}</th>`).join("")}</tr>
     ${c.rows.map((r) => `<tr>${cols.map((k) => `<td class="${k === "fili" ? "" : "num"}">${esc(r[k])}</td>`).join("")}</tr>`).join("")}</table></div></div>
-  <div class="card"><h2>Harmonisation des schémas</h2><p class="muted small">Champs canoniques alimentés par un alias, ou absents d'un millésime (laissés à NULL, jamais imputés).</p>
-    <div class="scroll"><table><tr><th>Session</th><th>Champ canonique</th><th>Colonne amont</th><th>Statut</th></tr>
-    ${audit.map((a) => `<tr><td>${a.session ?? ""}</td><td>${esc(a.canonical)}</td><td>${esc(a.upstream ?? "—")}</td><td>${esc(a.status)}</td></tr>`).join("")}</table></div>
+  <div class="card"><h2>Harmonisation des fichiers</h2><p class="muted small">D'une année à l'autre, le ministère renomme parfois une colonne ou n'en publie pas : la colonne est alors reliée à son nouveau nom, ou laissée vide (jamais devinée).</p>
+    <details class="more-card"><summary>Voir les colonnes concernées (noms techniques)</summary><div class="scroll"><table><tr><th>Session</th><th>Champ canonique</th><th>Colonne amont</th><th>Statut</th></tr>
+    ${audit.map((a) => `<tr><td>${a.session ?? ""}</td><td>${esc(a.canonical)}</td><td>${esc(a.upstream ?? "—")}</td><td>${esc(a.status)}</td></tr>`).join("")}</table></div></details>
     <p class="muted small">Construit le ${esc(META.built_at)}.</p></div>`;
 }
 
@@ -3983,11 +4004,11 @@ function profileForm(p, saved) {
       <label class="pf-opt"><strong><input type="radio" name="statut" value="terminale" ${reo ? "" : "checked"}> En terminale</strong>
         <span>Vous passez le bac cette année : chaque formation se lit avec votre bac, vos spécialités et votre mention (vœu de sécurité, cible ou ambitieux).</span></label>
       <label class="pf-opt"><strong><input type="radio" name="statut" value="reorientation" ${reo ? "checked" : ""}> ${REO_LABEL}</strong>
-        <span>Réorientation, reprise d'études : le SIES ne publie ni mention ni série pour vous. SupCompass affiche un accès estimé, sans zone.</span></label>
+        <span>Réorientation, reprise d'études : le ministère ne publie ni mention ni série pour vous. SupCompass affiche un accès estimé, sans zone.</span></label>
       <a class="pf-opt" href="#/premiere"><strong>En seconde ou en première</strong>
         <span>Pas encore de spécialités de terminale ni de mention : comparez les paires possibles de vos spécialités.</span></a>
     </div></section>`;
-  const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: a })), p.academie)}</select></label>`,
+  const acad = field(`<label>Votre académie <select name="academie"><option value="">Pas indiquée</option>${opt(JV.academies.map((a) => ({ code: a, label: acadLabel(a) })), p.academie)}</select></label>`,
     "Pour une licence très demandée, le recteur fixe une part maximale de candidats venant d'une autre académie : votre académie compte. Elle sert aussi à montrer d'abord les formations proches de vous.");
   if (reo) {
     return `<form id="pf">${sit}<section class="card"><h2>2 · Où vous êtes</h2>${acad}${villeField()}</section>${saved ? "" : PF_SAVE}</form>`;
@@ -4064,7 +4085,7 @@ function lyceeCard(p) {
         <td class="num">${pct(v.taux_reu_total)}<div class="muted small">valeur ajoutée ${sgn(v.va_reu_total)}</div></td>
         <td class="num">${pct(v.taux_men_total)}<div class="muted small">valeur ajoutée ${sgn(v.va_men_total)}</div></td>
         <td class="num">${pct(v.taux_acces_2nde)}<div class="muted small">valeur ajoutée ${sgn(v.va_acces_2nde)}</div></td></tr>`).join("")}</table></div>` : `<p class="muted small">Pas d'indicateurs de résultats publiés (lycée professionnel ou effectifs trop faibles).</p>`;
-  return `<div class="card">${head}<p class="small"><strong>${esc(l.nom)}</strong> · ${esc(l.commune)}${l.academie ? ` · académie de ${esc(l.academie)}` : ""}</p>
+  return `<div class="card">${head}<p class="small"><strong>${esc(l.nom)}</strong> · ${esc(l.commune)}${l.academie ? ` · académie de ${esc(acadLabel(l.academie))}` : ""}</p>
     ${ref}${iv}
     <p class="info small">Ce sont des indicateurs de votre lycée, pas les vôtres. Aucune donnée publique ne relie les admissions Parcoursup au lycée d'origine : votre lycée <strong>ne modifie pas</strong> votre positionnement. Seule exception publiée : pour une formation située dans votre lycée (BTS, CPGE), la part d'admis qui en venaient est signalée.</p></div>`;
 }
@@ -4088,7 +4109,7 @@ async function suggestLycee(q, marker) {
   const box = document.createElement("div");
   box.className = "card lyc-suggest";
   box.innerHTML = `<h2>C'est votre lycée ?</h2><p class="small muted">Choisissez-le pour votre profil : il s'affichera en contexte dans « Mon profil » (il reste dans votre navigateur). Les formations post-bac de ce lycée sont listées plus bas.</p>
-    <div class="lyc-res">${hits.map((l) => `<button type="button" data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie ? ` (${esc(l.academie)})` : ""}</span> → Le choisir comme mon lycée</button>`).join("")}</div>`;
+    <div class="lyc-res">${hits.map((l) => `<button type="button" data-suggest="${esc(l.uai)}"><strong>${esc(l.nom)}</strong><span class="muted small"> · ${esc(l.commune)}${l.academie ? ` (${esc(acadLabel(l.academie))})` : ""}</span> → Le choisir comme mon lycée</button>`).join("")}</div>`;
   $view.querySelectorAll(".lyc-suggest").forEach((x) => x.remove());   // the search page stays: one suggestion at a time
   $view.prepend(box);
   box.querySelectorAll("[data-suggest]").forEach((b) => {
@@ -4148,7 +4169,7 @@ function stage1Matrix(s1, show, all) {
   ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.candidates)} candidats avec ces deux spécialités · ${f.years} campagne${f.years > 1 ? "s" : ""}</div></td>
     <td class="num" data-label="Taux de proposition pour vos deux spécialités">${rate(f)}</td><td class="num muted" data-label="Tous les bacheliers généraux">${pc1(f.offer_rate_all)}</td>
     <td data-label="Où vont les admis ayant vos spécialités" style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
-    <td class="num" data-label="Part des admis">${pc1(f.share)}</td><td class="num" data-label="Par rapport à la moyenne">×${fmt(f.lift, 2)}</td>
+    <td class="num" data-label="Part des admis">${pc1(f.share)}</td><td class="num" data-label="Par rapport à la moyenne">${fmt(f.lift, 2)} fois la moyenne</td>
     <td class="acts">${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : '<span class="muted small">pas de correspondance formation par formation</span>'}</td></tr>`).join("")}
   </table></div>
   <p class="muted small">Taux de proposition : parmi les candidats ayant vos deux spécialités et au moins un vœu dans cette filière (toute la France, 2022–2025), part ayant reçu au moins une proposition. Pas des chances d'admission.</p>
@@ -4164,13 +4185,13 @@ function stage1SeriesMatrix(s1, show, all) {
   <div class="scroll"><table><tr><th>Filière</th><th>Où vont les ${sl} admis</th><th class="num">Part des ${sl} parmi les admis</th><th class="num">Par rapport à la moyenne</th><th class="num">Accès estimé ${sl} (médiane) ${tip("serie_offer")}</th><th><span class="sr-only">Actions</span></th></tr>
   ${rows.map((f) => `<tr><td><span class="badge gbadge" style="--zc:${GATES[f.gate].color}">${GATES[f.gate].label}</span><br>${esc(f.label)}<div class="muted small">${fmt(f.accepted)} ${sl} admis · ${f.years} campagne${f.years > 1 ? "s" : ""}</div></td>
     <td style="min-width:130px"><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block"><rect width="${100 * (f.destination_share || 0) / max}" height="10" fill="${GATES[f.gate].color}"/></svg><span class="small">${pc1(f.destination_share)}</span></td>
-    <td class="num">${pc1(f.share)}</td><td class="num">×${fmt(f.lift, 2)}</td><td class="num"><strong>${f.access_median != null ? `${fmt(f.access_median)} %` : "—"}</strong></td>
+    <td class="num">${pc1(f.share)}</td><td class="num">${fmt(f.lift, 2)} fois la moyenne</td><td class="num"><strong>${f.access_median != null ? `${fmt(f.access_median)} %` : "—"}</strong></td>
     <td>${f.gate === "atypique" || f.gate === "insuffisant" ? "" : f.n_formations ? `<button data-type="${esc(f.type_key)}" data-label="${esc(f.label)}">${fmt(f.n_formations)} établissements →</button>` : ""}</td></tr>`).join("")}
   </table></div>
   ${kept.length > 15 ? `<button id="allf">${all ? "Réduire" : `Afficher les ${kept.length} filières`}</button>` : ""}`;
 }
 
-// A3 / B4: position among admits of the student's series when it can be bounded, else all néo-bacheliers
+// A3 / B4: position among admits of the student's series when it can be bounded, else all nouveaux bacheliers
 const SERIE_SHORT = { bg: "bacs généraux", bt: "bacs technos", bp: "bacs pros" };
 const pos = (f) => (f.spos ? f.spos.cdf_used : f.cdf);
 // rows of "Mon parcours" that get a "Voir un plan B" button: a plan B is only proposed when the
@@ -4204,7 +4225,7 @@ function withinBand(g, m, model) {
   return (phi((x - mid) / BAND_SIGMA) - a) / (b - a);
 }
 const LADDER = ["sansmention", "ab", "b", "tb", "tbf"];
-// the share of a formation's néo-bachelier admits (known mention) below an average: the published share of the bands below,
+// the share of a formation's nouveau bachelier admits (known mention) below an average: the published share of the bands below,
 // plus the band's own share times the within-band fraction; the hard bounds are the band's bottom and top (published)
 function positionMoyenne(counts, g) {
   const n = LADDER.reduce((a, m) => a + (counts[m] || 0), 0);
@@ -4240,7 +4261,7 @@ function moyenneChart(counts, g) {
     gr += `<line x1="${x(g)}" x2="${x(g)}" y1="${T}" y2="${H - B}" stroke="var(--ink)" stroke-width="1.5"/>`;
     gr += `<rect x="${x(g) - 5}" y="${y(b)}" width="10" height="${Math.max(2, y(a) - y(b))}" fill="var(--ink)" opacity=".35"/>`;
   }
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`Graphique : part des admis néo-bacheliers sous chaque note de 8 à 20, estimation dans chaque mention${g !== null && g !== undefined ? `, votre moyenne ${fmt(g, 1)}` : ""}`)}">${gr}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`Graphique : part des admis nouveaux bacheliers sous chaque note de 8 à 20, estimation dans chaque mention${g !== null && g !== undefined ? `, votre moyenne ${fmt(g, 1)}` : ""}`)}">${gr}</svg>`;
 }
 function moyenneCard(r) {
   const counts = Object.fromEntries(LADDER.map((m) => [m, r[`acc_${m}`] || 0]));
@@ -4249,7 +4270,7 @@ function moyenneCard(r) {
   const p = bacProfile(), vp = p ? vxProfile(p) : null, g = vp ? vp.moyenne : null;
   const pm = g !== null ? positionMoyenne(counts, g) : null;
   const a = pm && Math.min(pm.normale, pm.uniforme), b = pm && Math.max(pm.normale, pm.uniforme);
-  const head = pm ? `<p>Avec <strong>${moyenneText(g)}</strong>, ${Math.abs(b - a) < 0.0005 ? `<strong>${pc1(a)}</strong>` : `entre <strong>${pc1(a)}</strong> et <strong>${pc1(b)}</strong>`} des ${fmt(n)} admis néo-bacheliers ${esc(r.session)} dont la mention est connue avaient, selon cette estimation, une note au bac en dessous de la vôtre.${n < 20 ? ` <span class="badge warnb">peu d'admis (${fmt(n)}) : repère fragile</span>` : ""}</p>
+  const head = pm ? `<p>Avec <strong>${moyenneText(g)}</strong>, ${Math.abs(b - a) < 0.0005 ? `<strong>${pc1(a)}</strong>` : `entre <strong>${pc1(a)}</strong> et <strong>${pc1(b)}</strong>`} des ${fmt(n)} admis nouveaux bacheliers ${esc(r.session)} dont la mention est connue avaient, selon cette estimation, une note au bac en dessous de la vôtre.${n < 20 ? ` <span class="badge warnb">peu d'admis (${fmt(n)}) : repère fragile</span>` : ""}</p>
       <p class="small">Ce qui est publié : ${pc1(pm.bornes[0])} avaient une mention plus basse que « ${esc(MENTION_SHORT[pm.band])} », ${pc1(pm.bornes[1])} avaient « ${esc(MENTION_SHORT[pm.band])} » ou moins. Votre position dans la mention est estimée entre ces deux chiffres.${g < 10 ? " Le bac au rattrapage est compté avec « sans mention » : il se lit en bas de cette mention." : ""}</p>`
     : `<p class="small">${p ? `<a href="#/profil">Indiquez votre moyenne visée dans « Mon profil »</a>` : `<a href="#/profil">Créez votre profil et indiquez votre moyenne visée</a>`} pour vous placer sur cette courbe, à l'intérieur de votre mention.</p>`;
   return `<div class="card"><h2>Votre moyenne parmi les admis ${esc(r.session)}</h2>${head}
@@ -4353,13 +4374,13 @@ async function viewParcours() {
       : `<p class="home-profile"><span>Exemple avec un bac général Mathématiques + SES, mention assez bien : <strong>créez votre profil</strong> pour lire ces chiffres pour vous.</span><a class="btnlink" href="#/profil">Créer mon profil</a></p>`}${mathsExpertesNote(p, serie)}
     ${!s1 ? `<div class="warn">Vos deux spécialités sont identiques : <a href="#/profil">choisissez deux spécialités distinctes dans « Mon profil »</a>.</div>` : serie === "bg"
       ? `<p class="small muted">Spécialités ${esc(s1.doublette.split("+").map(speName).join(" + "))} : ${fmt(s1.national.candidates)} candidats bacheliers généraux sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des admis, taux de proposition toutes filières confondues ${pc1(s1.national.offer_rate)}.</p>`
-      : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des néo-bacheliers admis. SIES regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>
+      : `<p class="small muted">${fmt(s1.national.accepted)} ${SERIE_SHORT[serie]} admis sur ${s1.national.years} campagnes, ${pc1(s1.national.national_share)} des nouveaux bacheliers admis. Le ministère regroupe toutes les séries ${serie === "bt" ? "technologiques (STMG, STI2D, ST2S…)" : "et spécialités du bac professionnel"} : le site ne peut pas les distinguer. ${tip("serie_offer")}</p>
         <p class="small">Une part faible veut dire « rare », pas « fermé ». Le chiffre de votre bac publié dans le rapport du jury de chaque formation s'affiche sur sa fiche et dans « Mes vœux »${p.voie ? "" : ` : indiquez votre ${serie === "bt" ? "série et vos spécialités" : "spécialité de bac pro"} dans <a href="#/profil">« Mon profil »</a>`}.${serie === "bp" ? ` Beaucoup de BTS se préparent aussi en apprentissage : <a href="#/carte/${encodeURIComponent("BTS - BTSA - BTSM")}">voir les offres sur la carte</a> (filtre « Apprentissage »).` : ""}</p>`}</div>
   ${lyceeCard(p)}
   ${s1 ? `<div class="card"><h2>2 · Filières qui recrutent ${serie === "bg" ? "vos deux spécialités" : `les ${SERIE_SHORT[serie]}`} ${tip(serie === "bg" ? "journey_stage1" : "serie_offer")} ${tip("journey_gate")}</h2>${serie === "bg" ? stage1Matrix(s1, show, allF) : stage1SeriesMatrix(s1, show, allF)}</div>` : ""}
   ${s2 ? `<div class="card" id="stage3"><h2>3 · Positionnement : ${esc(drill.label)} ${tip("journey_cdf")} ${tip("journey_zones")}</h2>
     <p class="small muted">Mention visée : ${esc(mLabel)}. ${fmt(F.length)} formations en ${s2.session}, profils cumulés sur 2022–2025. Chaque point est placé parmi les ${SERIE_SHORT[serie]} admis ; le trait vertical montre l'encadrement exact quand les données ne permettent pas d'être plus précis. Les formes pâles sont incertaines (intervalle à 95 %) ou ont moins de 10 ${SERIE_SHORT[serie]} admis ; un anneau vide est hors des trois zones${serie !== "bg" ? " ; l'axe horizontal est l'accès estimé pour votre série, pas le taux d'accès officiel" : ""}${p.academie ? " ; les cercles épais sont dans votre académie" : ""}. Cliquez sur un point pour l'ajouter à « Mes vœux ».${closed ? ` ${closed} formation(s) fermées à votre série par leurs groupes d'appel${serie === "bg" ? " ou parce que les bacheliers généraux y représentent moins de 5 % des admis 2022–2025 (ex. CPGE ECT)" : ""} sont exclues.` : ""}</p>
-    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(p.academie)}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
+    <div class="toolbar">${p.academie ? `<label><input type="checkbox" id="oh" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(acadLabel(p.academie))}</label>` : ""}<a href="#/carte/t/${encodeURIComponent(drill.type)}">Voir ces formations sur la carte →</a></div>
     <div class="legend">${Object.entries(ZONES).map(([k, z]) => `<span style="color:${z.color}">${zoneMark(k)}<span class="lg-text">${z.label} (${F.filter((f) => f.zone === k).length})</span></span>`).join("")}</div>
     ${zoneLegend()}
     ${repereNote(s2.calibration)}
@@ -4699,7 +4720,7 @@ async function viewVoeux() {
   const prof = vxProfile(p);                                             // stored profile: never trusted
   if (isReo(prof)) return viewVoeuxReo(ids, prof);                      // sprint 21: no zone, no Plan B, no "Compléter"
   const { serie, mention } = prof;
-  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(speName(p.spe1 || "MATHS"))} + ${esc(speName(p.spe2 || "SES"))}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, ${mentionWords(p)}${p.academie ? `, académie de ${esc(p.academie)}` : ""}`;
+  const who = `${{ bg: "bac général", bt: "bac technologique", bp: "bac professionnel" }[serie]}${serie === "bg" ? ` ${esc(speName(p.spe1 || "MATHS"))} + ${esc(speName(p.spe2 || "SES"))}` : prof.voie_label ? `, ${esc(prof.voie_label)}` : ""}, ${mentionWords(p)}${p.academie ? `, académie de ${esc(acadLabel(p.academie))}` : ""}`;
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
     <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a> · <a href="#/projet">Préparer mes projets de formation motivés</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
@@ -4726,7 +4747,7 @@ async function viewVoeux() {
   const rate = serie === "bg" ? "Taux d'accès" : "Accès estimé pour votre série";
   const rows = d.voeux.map((v) => {
     const name = v.status === "absente" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${d.session}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere)}${v.complement ? ` · ${esc(v.complement)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}${v.home_academie ? ' · <span class="badge exact">votre académie</span>' : ""}${kmFromHome(v.lat, v.lon) ? ` · ${esc(kmFromHome(v.lat, v.lon))}` : ""}</div>${recoBadge(v.cod_aff_form)}${tensionBadge(v.cod_aff_form)}${appBadge(v.cod_aff_form)}`;
     const flags = v.status !== "ok" ? "" : `${v.rate_fragile ? ' <span class="badge warnb">peu de candidats de votre série</span>' : ""}${v.rare_for_serie ? ` <span class="badge warnb">rare pour les ${SERIE_SHORT[serie]}</span>` : ""}${v.small_cohort ? ' <span class="badge warnb">moins de 10 admis de votre bac</span>' : ""}${autresBadge(v)}`;
     const position = `${v.bounds ? mentionShareTxt(v.bounds[0], v.bounds[1]) : pc1(v.position)}${d.moyenne !== null && d.moyenne !== undefined ? "" : ` <span class="muted small">(${mentionWho(!!v.bounds, serie)})</span>`}`;
     return `<tr><td>${name}</td><td data-label="Zone">${zoneBadge(v.zone, v.uncertain, v.large)}${v.status === "ok" ? zoneAxisNote(v) : ""}${flags}</td>
@@ -4919,7 +4940,7 @@ async function loadCompleter(qs, marker, rate, paid, prof) {
     if (!g.formations.length) return `<h3>${title}</h3><p class="muted small">Aucune formation de cette filière n'est en zone sécurité sans incertitude pour votre profil, d'après les admis des campagnes passées.</p>`;
     const rows = g.formations.map((f) => {
       const pos = f.bounds ? (f.bounds[1] - f.bounds[0] < 0.005 ? pc1(f.bounds[0]) : `${pc1(f.bounds[0])} – ${pc1(f.bounds[1])}`) : pc1(f.position);
-      return `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${f.complement ? `${esc(f.complement)} · ` : ""}${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}${f.paid ? ' · <span class="badge warnb">privé payant</span>' : ""}</div></td>
+      return `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${f.complement ? `${esc(f.complement)} · ` : ""}${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}${f.paid ? ' · <span class="badge warnb">privé payant</span>' : ""}</div></td>
         <td data-label="Zone">${zoneBadge("securite", false, f.large)}</td>
         <td class="num" data-label="${rate}">${fmt(f.taux_acces_ens)} %</td>
         <td class="num" data-label="Votre position parmi les admis">${pos}</td>
@@ -5006,7 +5027,7 @@ function paRoute(r, d) {
   const home = typeof prof.academie === "string" ? prof.academie : "";
   const rows = (r.formations || []).slice().sort((a, b) => (b[3] === home) - (a[3] === home));
   const list = rows.length ? `<details class="dip pa-forms"><summary>Voir ${rows.length < e.n_formations ? `${fmt(rows.length)} des ${fmt(e.n_formations)}` : `les ${fmt(rows.length)}`} formation${rows.length > 1 ? "s" : ""}${home ? ` (votre académie d'abord)` : ""}</summary>
-    <ul class="small pa-flist">${rows.map(([cod, etab, ville, acad, places, lib]) => `<li><a href="#/f/${esc(cod)}">${esc(etab)}</a>${lib ? ` · ${esc(lib)}` : ""} · ${esc(ville || "")}${acad ? ` (${esc(acad)})` : ""}${places != null ? ` · ${fmt(places)} places` : ""}</li>`).join("")}</ul></details>` : "";
+    <ul class="small pa-flist">${rows.map(([cod, etab, ville, acad, places, lib]) => `<li><a href="#/f/${esc(cod)}">${esc(etab)}</a>${lib ? ` · ${esc(lib)}` : ""} · ${esc(ville || "")}${acad ? ` (${esc(acadLabel(acad))})` : ""}${places != null ? ` · ${fmt(places)} places` : ""}</li>`).join("")}</ul></details>` : "";
   return `<li class="pa-route"><div class="pa-chain"><strong class="pa-entry">${esc(e.libelle || "")}</strong>${steps.length ? ` <span aria-hidden="true">→</span> ${steps.join(' <span aria-hidden="true">→</span> ')}` : ""}</div>
     <div class="muted small">${fmt(e.n_formations)} formation${e.n_formations > 1 ? "s" : ""} sur Parcoursup ${esc(d.session)} · ${fmt(e.places)} places · ${esc(PA_HOW[r.comment] || "")}</div>${list}</li>`;
 }
@@ -5056,7 +5077,7 @@ async function viewMetier(id, from = "") {
     const forms = !x.parcoursup ? `<p class="muted small">Diplôme hors Parcoursup (il se prépare après un premier diplôme, ou dans une école) : pas de formation listée ici.</p>`
       : !rows.length ? `<p class="muted small">Aucune formation de ce diplôme dans votre académie.</p>`
       : `<div class="scroll"><table><tr><th>Formation ${d.session}</th><th class="num">Taux d'accès</th><th class="num">Places</th><th><span class="sr-only">Actions</span></th></tr>
-        ${shown.map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>${f.cod_aff_form === from ? ' <span class="badge exact">la formation que vous regardiez</span>' : ""}<div class="muted small">${esc(f.filiere)}${f.complement ? ` · ${esc(f.complement)}` : ""} · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}</div></td>
+        ${shown.map((f) => `<tr><td><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>${f.cod_aff_form === from ? ' <span class="badge exact">la formation que vous regardiez</span>' : ""}<div class="muted small">${esc(f.filiere)}${f.complement ? ` · ${esc(f.complement)}` : ""} · ${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</div></td>
           <td class="num">${f.taux_acces_ens != null ? `${fmt(f.taux_acces_ens)} %` : "—"}</td><td class="num">${f.capa_fin != null ? fmt(f.capa_fin) : "—"}</td><td>${voeuButton(f.cod_aff_form)}</td></tr>`).join("")}</table></div>
         ${rows.length > shown.length ? `<p class="muted small">${fmt(shown.length)} formations affichées sur ${fmt(rows.length)}${home && !onlyHome ? " : cochez « mon académie seulement » pour resserrer" : ""}.</p>` : ""}`;
     // lot 2: one folded block per diploma (open when it holds the formation the student came from)
@@ -5069,18 +5090,18 @@ async function viewMetier(id, from = "") {
     : d.status === "hors_parcoursup" ? `<div class="info">Les diplômes qui mènent à ce métier ne sont pas sur Parcoursup (ils se préparent après un premier diplôme, ou dans une école) : regardez leur fiche Onisep.</div>` : "";
   const nForm = d.n_formations;                                       // distinct formations (one may prepare several diplomas)
   const read = (d.emploi2030 || []).filter((f) => !f.absent && f.lecture).map((f) => f.lecture);
-  const word = { debutants_insuffisants: "Recrute au-delà des débutants", debutants_nombreux: "Entrée plus disputée", incertain: "Pas de conclusion" };
+  const word = { debutants_insuffisants: "Recrute au-delà des débutants", debutants_nombreux: "Entrée plus disputée", incertain: "Prévisions divergentes" };   // lot 1, PR 10: « Pas de conclusion » read as nothing known (Sarah)
   // fixed rule (sprint 16): every family read agrees, else no conclusion
   const r2030 = !read.length ? null : read.every((x) => x === read[0]) ? word[read[0]] : word.incertain;
   const n2030 = !read.length ? "pas de projection pour ce métier" : read.every((x) => x === read[0]) ? "projection Dares, sous hypothèses"
-    : "les familles du métier ne concordent pas";
+    : "les projections pour ce métier ne s'accordent pas";
   const iaSpan = d.ia && d.ia.min != null ? (d.ia.min === d.ia.max ? fmt2(d.ia.min) : `${fmt2(d.ia.min)} à ${fmt2(d.ia.max)}`) : null;
   const tile = (tab, label, value, note) => `<button type="button" class="sum-tile" data-goto="${tab}"><span class="sum-label">${label}</span><span class="sum-value">${value}</span><span class="sum-note">${note}</span></button>`;
   const summary = `<section class="card summary" aria-label="L'essentiel en 30 secondes"><h2>L'essentiel</h2><div class="sum-grid">
       ${tile("formations", "Niveau minimum", d.niveau_acces_min ? esc(d.niveau_acces_min) : "—", "d'après l'Onisep")}
       ${tile("formations", "Diplômes", fmt(d.diplomes.length), nForm ? `${fmt(nForm)} formation(s) Parcoursup` : "aucune formation Parcoursup")}
       ${tile("avenir", "Emploi d'ici 2030", r2030 ? `<span class="text">${esc(r2030)}</span>` : "—", n2030)}
-      ${tile("avenir", "Tâches exposées à l'IA", iaSpan || "—", iaSpan ? "note OIT sur 1, pas un risque de perte d'emploi" : "pas de note OIT")}
+      ${tile("avenir", "Tâches exposées à l'IA", iaSpan || "—", iaSpan ? "note de 0 à 1 des tâches (Organisation internationale du travail), pas un risque de perte d'emploi" : "pas de note pour ce métier")}
       ${robustesseTile(d.robustesse)}
     </div></section>`;
   $view.innerHTML = `<div class="card"><p class="small"><a href="#/metiers">← Autres métiers</a></p>
@@ -5089,7 +5110,7 @@ async function viewMetier(id, from = "") {
     </div>
     ${summary}${tabbed("metier", [
       ["formations", "Diplômes et formations", `${parcoursCard(d.parcours, d)}${status}
-    ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(home)})</label>` : ""}
+    ${home ? `<label class="small"><input type="checkbox" id="mhome" ${onlyHome ? "checked" : ""}> Mon académie seulement (${esc(acadLabel(home))})</label>` : ""}
     <p class="muted small">Liste nationale : un établissement figure parce qu'il prépare le diplôme, pas parce que ses étudiants exercent ce métier. Ce n'est pas une promesse d'emploi. Les formations sont rangées par académie et par ville, pas par chances d'admission.</p>
     ${d.diplomes.map(dip).join("")}
     <p class="muted small">Source : Onisep, Idéo (licence ODbL) ; formations Parcoursup ${d.session}.</p>`],
@@ -5302,20 +5323,22 @@ function iaCard(ia) {
   const theta = (i) => (i.theta_min === null || i.theta_min === undefined ? '<span class="muted">non calculée</span>'
     : `${span(i.theta_min, i.theta_max)}<div class="muted small">${fmt(i.n_onet)} profession${i.n_onet > 1 ? "s" : ""} US</div>`);
   const rows = (ia.isco || []).map((i) => `<tr><td>${esc(i.code)}</td><td>${esc(i.libelle || "")}<div class="muted small">${fmt(i.n_intitules)} intitulé${i.n_intitules > 1 ? "s" : ""} de profession</div></td>
-      <td>${i.gradient ? esc(IA_GRADIENT[i.gradient] || i.gradient) : '<span class="muted">pas de note OIT</span>'}</td><td class="num">${score(i.score)}</td>
+      <td>${i.gradient ? esc(IA_GRADIENT[i.gradient] || i.gradient) : '<span class="muted">pas de note pour ce code</span>'}</td><td class="num">${score(i.score)}</td>
       <td class="num">${theta(i)}</td></tr>`).join("");
   const range = ia.min === null || ia.min === undefined ? ""
     : ia.min === ia.max ? `<p class="small">Note moyenne des tâches : ${score(ia.min)} sur 1.</p>`
-    : `<p class="small">Selon le code ISCO, la note moyenne des tâches va de ${score(ia.min)} à ${score(ia.max)} sur 1.</p>`;
+    : `<p class="small">Selon les intitulés de ce métier, la note moyenne des tâches va de ${score(ia.min)} à ${score(ia.max)} sur 1.</p>`;
   const tagText = { Oui: "liée à la transition numérique", Non: "non liée à la transition numérique" };
   const tags = (ia.tags || []).length ? `<p class="small">France Travail : ${ia.tags.map((t) => `fiche ROME ${esc(t.rome)} ${t.transition_numerique ? esc(tagText[t.transition_numerique] || "") : "non renseignée pour la transition numérique"}`).join(" ; ")}.</p>` : "";
+  // lot 1, PR 10: the codes (ISCO-08, O*NET) and the method are folded under « Détail du calcul et sources », never removed
   return `<div class="card"><h2>L'IA générative et les tâches de ce métier</h2>
-    <p class="muted small">L'OIT a noté chaque tâche des métiers de la classification internationale ISCO-08 selon la part que l'IA générative pourrait en faire. C'est un potentiel technique des tâches, pas une prévision de pertes d'emplois ni un risque pour vous : un métier exposé est plus souvent transformé que remplacé.</p>
+    <p class="muted small">L'Organisation internationale du travail (OIT) a noté chaque tâche de chaque métier selon la part que l'IA générative pourrait en faire. C'est un potentiel technique des tâches, pas une prévision de pertes d'emplois ni un risque pour vous : un métier exposé est plus souvent transformé que remplacé.</p>
     ${range}
-    ${rows ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th>Classement OIT</th><th class="num">Note moyenne des tâches</th><th class="num">Complémentarité humaine</th></tr>${rows}</table></div>` : ""}
     ${ia.theta_min === null || ia.theta_min === undefined ? "" : `<p class="small">Complémentarité humaine (méthode du FMI, estimation adaptée) : de ${score(ia.theta_min)} à ${score(ia.theta_max)} sur 1 selon le code et la profession américaine. Plus elle est haute, plus le métier a des traits qui font de l'IA un outil d'appui plutôt qu'un remplaçant (contact humain, responsabilité, conditions physiques, décisions lourdes, travail peu routinier, longue formation).</p>`}
     ${tags}
-    <p class="muted small">Le classement de l'OIT tient compte de la note moyenne et de l'écart entre les tâches : deux notes proches peuvent avoir deux classements différents. Les codes ISCO viennent des intitulés de profession (voir les codes officiels plus bas) ; on ne fait pas la moyenne entre eux. La complémentarité humaine reprend la méthode du FMI (Pizzinelli et al., 2023) sur les données américaines O*NET 31.0 : c'est une estimation adaptée (fiabilité C), pas le score publié par le FMI ; elle passe par les tables officielles O*NET et BLS (O*NET-SOC 2019, SOC 2018, SOC 2010, ISCO-08). Elle n'est jamais combinée avec la note de l'OIT. Sources : OIT, Gmyrek, Berg et al. (2025), « Generative AI and Jobs: A Refined Global Index of Occupational Exposure », CC BY 4.0 ; France Travail, étiquettes des fiches ROME (octobre 2026) ; O*NET 31.0 (U.S. Department of Labor, CC BY 4.0) ; BLS, tables de passage SOC et ISCO-08.</p></div>`;
+    <details class="more-card"><summary>Détail du calcul et sources</summary>
+    ${rows ? `<div class="scroll"><table><tr><th>ISCO-08</th><th>Groupe de base</th><th>Classement OIT</th><th class="num">Note moyenne des tâches</th><th class="num">Complémentarité humaine</th></tr>${rows}</table></div>` : ""}
+    <p class="muted small">Le classement de l'OIT tient compte de la note moyenne et de l'écart entre les tâches : deux notes proches peuvent avoir deux classements différents. Les codes ISCO viennent des intitulés de profession (voir les codes officiels plus bas) ; on ne fait pas la moyenne entre eux. La complémentarité humaine reprend la méthode du FMI (Pizzinelli et al., 2023) sur les données américaines O*NET 31.0 : c'est une estimation adaptée (fiabilité C), pas le score publié par le FMI ; elle passe par les tables officielles O*NET et BLS (O*NET-SOC 2019, SOC 2018, SOC 2010, ISCO-08). Elle n'est jamais combinée avec la note de l'OIT. Sources : OIT, Gmyrek, Berg et al. (2025), « Generative AI and Jobs: A Refined Global Index of Occupational Exposure », CC BY 4.0 ; France Travail, étiquettes des fiches ROME (octobre 2026) ; O*NET 31.0 (U.S. Department of Labor, CC BY 4.0) ; BLS, tables de passage SOC et ISCO-08.</p></details></div>`;
 }
 
 // ---- Sprint 14 follow-up: les recrutements prévus en 2026 (enquête BMO de France Travail) -----
@@ -5418,8 +5441,9 @@ function codesCard(codes) {
       <p class="small"><strong>Codes ISCO-08 possibles</strong> (classification internationale du BIT), retrouvés par les intitulés de profession : la Dares relie l'intitulé au code ROME, l'Insee le code en ISCO. Le nombre d'intitulés n'est pas une part des emplois.</p>
       ${isco}`;
   };
-  return `<div class="card">${head}${codes.map(one).join("")}
-    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés) ; France Travail (appellations du ROME, pour les métiers sans code Onisep). Licence Ouverte.</p></div>`;
+  // lot 1, PR 10: the families and codes (FAP, ISCO-08) are folded, never removed: the testers read them as jargon
+  return `<div class="card">${head}<details class="more-card"><summary>Voir les familles et les codes officiels</summary>${codes.map(one).join("")}
+    <p class="muted small">Sources : Onisep (codes ROME de la fiche métier) ; Dares (passages ROME → FAP-2021 et FAP-2009, intitulés de profession) ; Insee (codification ISCO-08 des intitulés) ; France Travail (appellations du ROME, pour les métiers sans code Onisep). Licence Ouverte.</p></details></div>`;
 }
 
 // ---- Comprendre l'appel and the selectivity matrix (owner's request, 2026-11-09) ----
@@ -5439,11 +5463,11 @@ function appelCard(rows) {
   return `<div class="card"><h2>Jusqu'où la liste a-t-elle été appelée ?</h2>
     <p class="small">Le jury classe les candidats ; les propositions partent dans l'ordre du classement, au fil des places libérées. Le rang du dernier appelé de chaque groupe d'appel est publié.</p>
     ${lead ? `<p class="info">${lead}${places}.</p>` : ""}
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Session</th><th class="num">Candidats</th><th class="num">Classés</th><th>Rang du dernier appelé</th><th class="num">Part des classés appelés</th><th class="num">Places</th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Session</th><th class="num">Candidats</th><th class="num">Classés</th><th>Rang du dernier appelé</th><th class="num">Jusqu'où la liste a été appelée</th><th class="num">Places</th></tr>
       ${ok.map((r) => `<tr><td data-label="Session">${esc(r.session)}</td><td class="num" data-label="Candidats">${fmt(r.candidats)}</td><td class="num" data-label="Classés">${fmt(r.classes)}</td>
         <td data-label="Rang du dernier appelé">${r.groupes.map((g) => `${esc(g.label || "Groupe")} : ${fmt(g.rang)}`).join("<br>")}</td>
-        <td class="num" data-label="Part des classés appelés">${r.toute_la_liste ? "toute la liste" : pct(r.profondeur)}</td><td class="num" data-label="Places">${fmt(r.places)}</td></tr>`).join("")}</table></div>
-    <p class="muted small">${APPEL_NOTE} Part des classés appelés : somme des rangs des derniers appelés de chaque groupe, divisée par le nombre de classés (calcul à partir des effectifs publiés). <a href="#/comprendre">Comprendre l'appel →</a></p></div>`;
+        <td class="num" data-label="Jusqu'où la liste a été appelée">${r.toute_la_liste ? "toute la liste" : pct(r.profondeur)}</td><td class="num" data-label="Places">${fmt(r.places)}</td></tr>`).join("")}</table></div>
+    <p class="muted small">${APPEL_NOTE} Jusqu'où la liste a été appelée : somme des rangs des derniers appelés de chaque groupe, divisée par le nombre de classés (calcul à partir des effectifs publiés). <a href="#/comprendre">Comprendre l'appel →</a></p></div>`;
 }
 async function viewComprendre() {
   const d = await api("/api/comprendre");
@@ -5459,9 +5483,9 @@ async function viewComprendre() {
     </ul>
     <p class="muted small">${APPEL_NOTE}</p></div>
   <div class="card"><h2>Jusqu'où les listes ont été appelées, par type de diplôme (${esc(d.session)})</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de diplôme</th><th class="num">Formations</th><th class="num">Part des classés appelés (médiane)</th><th class="num">Formations ayant appelé toute leur liste</th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Type de diplôme</th><th class="num">Formations</th><th class="num">Jusqu'où la liste a été appelée (médiane)</th><th class="num">Formations ayant appelé toute leur liste</th></tr>
       ${ts.map((t) => `<tr><td data-label="Type de diplôme">${esc(t.diplome)}</td><td class="num" data-label="Formations">${fmt(t.n)}</td>
-        <td class="num" data-label="Part des classés appelés (médiane)">${pct(t.profondeur_mediane)}</td><td class="num" data-label="Formations ayant appelé toute leur liste">${pct(t.part_toute_la_liste)}</td></tr>`).join("")}</table></div>
+        <td class="num" data-label="Jusqu'où la liste a été appelée (médiane)">${pct(t.profondeur_mediane)}</td><td class="num" data-label="Formations ayant appelé toute leur liste">${pct(t.part_toute_la_liste)}</td></tr>`).join("")}</table></div>
     <p class="muted small">Médiane sur les formations du type, calculée à partir des effectifs publiés (rangs des derniers appelés et candidats classés). Types d'au moins 20 formations.</p></div>
   <div class="card"><h2>Quand arrivent les propositions ?</h2>
     ${bts && bts.calendrier[0] != null ? `<p class="info">Une liste qui bouge lentement les premiers jours est normale : dans la moitié des BTS, ${pct(bts.calendrier[0])} au plus des futurs admis avaient leur proposition dès l'ouverture ; ${pct(bts.calendrier[1])} l'avaient avant les résultats du bac.</p>` : ""}
@@ -5472,7 +5496,7 @@ async function viewComprendre() {
 }
 // ---- Observatoire (owner, 2026-11-19): three national overviews of the published figures, read for nobody ----
 // Vœux par place = the vœux / the places SUMMED over a type (vœux, never people); the access rate is the MEDIAN of the
-// official rates (never recomputed); the same-académie share counts néo-bachelier admits (people) only. Never a chance: the
+// official rates (never recomputed); the same-académie share counts nouveau bachelier admits (people) only. Never a chance: the
 // académies and the types are ranked, never the formations. Île-de-France's three académies are ONE bubble on the map (their
 // centres are a few km apart: `ile_de_france`, summed by the server), each keeps its row in the table.
 const OBS_DEFAULT = ["BTS - BTSA - BTSM", "Licence", "BUT", "Écoles d'ingénieurs", "CPGE scientifique"];
@@ -5524,11 +5548,11 @@ function obsDemande(d) {
   const known = rows.filter((r) => r.x.voeux_par_place != null).sort((p, q) => q.x.voeux_par_place - p.x.voeux_par_place);
   const apart = d.academies.filter((a) => !a.metropole && dem[a.cle]);
   const hi = known[0], lo = known[known.length - 1];
-  const line = (r) => `<tr><td data-label="Académie">${esc(r.a.academie)}</td><td class="num" data-label="Vœux par place">${r.x.voeux_par_place == null ? "trop peu de formations" : fmt(r.x.voeux_par_place, 1)}</td>
+  const line = (r) => `<tr><td data-label="Académie">${esc(acadLabel(r.a.academie))}</td><td class="num" data-label="Vœux par place">${r.x.voeux_par_place == null ? "trop peu de formations" : fmt(r.x.voeux_par_place, 1)}</td>
     <td class="num" data-label="Vœux">${fmt(r.x.voeux)}</td><td class="num" data-label="Places">${fmt(r.x.places)}</td><td class="num" data-label="Formations">${fmt(r.x.formations)}</td></tr>`;
-  return `${hi && lo && hi !== lo ? `<p>De <strong>${fmt(lo.x.voeux_par_place, 1)}</strong> vœux par place (${esc(lo.a.academie)}) à <strong>${fmt(hi.x.voeux_par_place, 1)}</strong> (${esc(hi.a.academie)}).</p>` : ""}
+  return `${hi && lo && hi !== lo ? `<p>De <strong>${fmt(lo.x.voeux_par_place, 1)}</strong> vœux par place (${esc(acadLabel(lo.a.academie))}) à <strong>${fmt(hi.x.voeux_par_place, 1)}</strong> (${esc(acadLabel(hi.a.academie))}).</p>` : ""}
     ${obsMap(d, typ)}
-    ${apart.length ? `<p class="small">Pas sur la carte (outre-mer, étranger) : ${apart.map((a) => `${esc(a.academie)} ${dem[a.cle].voeux_par_place == null ? "(trop peu de formations)" : fmt(dem[a.cle].voeux_par_place, 1)}`).join(" · ")}.</p>` : ""}
+    ${apart.length ? `<p class="small">Pas sur la carte (outre-mer, étranger) : ${apart.map((a) => `${esc(acadLabel(a.academie))} ${dem[a.cle].voeux_par_place == null ? "(trop peu de formations)" : fmt(dem[a.cle].voeux_par_place, 1)}`).join(" · ")}.</p>` : ""}
     <details><summary>Toutes les académies (${fmt(rows.length)})</summary>
       <div class="scroll"><table class="stack"><tr class="stack-head"><th>Académie</th><th class="num">Vœux par place</th><th class="num">Vœux</th><th class="num">Places</th><th class="num">Formations</th></tr>
       ${[...known, ...rows.filter((r) => r.x.voeux_par_place == null)].map(line).join("")}</table></div></details>`;
@@ -5569,22 +5593,22 @@ function obsBacs(d) {
   const seg = (r) => [["general", "bg"], ["techno", "bt"], ["pro", "bp"]].map(([k, v]) => `<i style="width:${r[`part_${k}`]}%;background:var(--voie-${v})"></i>`).join("");
   const line = (r) => `<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-stack" aria-hidden="true">${seg(r)}</span><span class="obs-val"><strong>${pct(r.part_techno)} · ${pct(r.part_pro)}</strong><span class="sr-only">bac techno, bac pro ; bac général ${pct(r.part_general)}</span></span></li>`;
   return `<section class="card" aria-labelledby="obs-b"><h2 id="obs-b">Bac général, techno ou pro : le bac des admis (${esc(d.session)})</h2>
-    ${tous && tous.part_techno != null ? `<p>Parmi les admis néo-bacheliers, <strong>${pct(tous.part_techno)}</strong> ont un bac techno et <strong>${pct(tous.part_pro)}</strong> un bac pro.</p>` : ""}
+    ${tous && tous.part_techno != null ? `<p>Parmi les admis nouveaux bacheliers, <strong>${pct(tous.part_techno)}</strong> ont un bac techno et <strong>${pct(tous.part_pro)}</strong> un bac pro.</p>` : ""}
     <div class="legend obs-key"><span><i style="background:var(--voie-bg)"></i>bac général</span><span><i style="background:var(--voie-bt)"></i>bac techno</span><span><i style="background:var(--voie-bp)"></i>bac pro</span><span class="muted">à droite : techno · pro</span></div>
     ${obsSplit(rows, d, line)}
     <p class="small">Une part faible veut dire « rare », jamais « fermé ». Chaque fiche formation donne aussi le chiffre de votre bac, dans « Y entrer ».</p>
-    <p class="muted small">Admis néo-bacheliers seulement (ceux qui viennent d'avoir leur bac), calcul sur les effectifs publiés, additionnés par type.</p></section>`;
+    <p class="muted small">Admis nouveaux bacheliers seulement (ceux qui viennent d'avoir leur bac), calcul sur les effectifs publiés, additionnés par type.</p></section>`;
 }
 const OBS_MENTIONS = [["sansmention", "sans mention", "var(--c6)"], ["ab", "assez bien", "var(--c5)"], ["b", "bien", "var(--c4)"], ["tb", "très bien", "var(--c2)"], ["tbf", "félicitations", "var(--c1)"]];
 function obsMentions(d) {
   const rows = d.mentions.filter((r) => r.diplome !== d.tous && r.lecture), tous = d.mentions.find((r) => r.diplome === d.tous);
   const line = (r) => `<li><span class="obs-lab">${esc(r.diplome)}</span><span class="obs-stack" aria-hidden="true">${OBS_MENTIONS.map(([k, , c]) => `<i style="width:${r.lecture.parts[k]}%;background:${c}"></i>`).join("")}</span><span class="obs-val"><strong>${r.avant.tb_plus == null ? "" : `${pct(r.avant.tb_plus)} → `}${pct(r.lecture.tb_plus)}</strong><span class="sr-only">très bien ou plus${r.avant.tb_plus == null ? "" : `, ${esc(d.mentions_avant)} puis ${esc(d.session)}`} ; ${OBS_MENTIONS.map(([k, lab]) => `${lab} ${pct(r.lecture.parts[k])}`).join(", ")}</span></span></li>`;
   return `<section class="card" aria-labelledby="obs-m"><h2 id="obs-m">Les mentions au bac des admis (${esc(d.mentions_avant)} → ${esc(d.session)})</h2>
-    ${tous && tous.lecture ? `<p><strong>${pct(tous.lecture.tb_plus)}</strong> des admis néo-bacheliers avaient « très bien » ou « très bien avec félicitations » en ${esc(d.session)}${tous.avant.tb_plus != null ? ` (${pct(tous.avant.tb_plus)} en ${esc(d.mentions_avant)})` : ""}.</p>` : ""}
+    ${tous && tous.lecture ? `<p><strong>${pct(tous.lecture.tb_plus)}</strong> des admis nouveaux bacheliers avaient « très bien » ou « très bien avec félicitations » en ${esc(d.session)}${tous.avant.tb_plus != null ? ` (${pct(tous.avant.tb_plus)} en ${esc(d.mentions_avant)})` : ""}.</p>` : ""}
     <div class="legend obs-key">${OBS_MENTIONS.map(([, lab, c]) => `<span><i style="background:${c}"></i>${lab}</span>`).join("")}<span class="muted">à droite : très bien ou plus, ${esc(d.mentions_avant)} → ${esc(d.session)}</span></div>
     ${obsSplit(rows, d, line)}
     <p class="small">Une mention fréquente chez les admis ne dit pas qu'elle est exigée : ce sont les admis passés, ni le niveau demandé ni vos chances.</p>
-    <p class="muted small">Admis néo-bacheliers seulement. Les mentions ne sont pas publiées par série de bac. Calcul sur les effectifs publiés, additionnés par type ; le nombre de formations d'un type change d'une année à l'autre.</p></section>`;
+    <p class="muted small">Admis nouveaux bacheliers seulement. Les mentions ne sont pas publiées par série de bac. Calcul sur les effectifs publiés, additionnés par type ; le nombre de formations d'un type change d'une année à l'autre.</p></section>`;
 }
 async function viewObservatoire() {
   // owner, 2026-11-20: opened at /observatoire, the server's summary ([data-seo]) stays until the page replaces it
@@ -5625,10 +5649,10 @@ async function viewObservatoire() {
       <div id="obs-dem">${obsDemande(d)}</div>
       <p class="muted small">Vœux par place de chaque académie : vœux et places additionnés sur ses formations du type. Pas de chiffre sous ${fmt(d.seuils.academie_formations)} formations ou ${fmt(d.seuils.academie_places)} places. Une demande forte ne dit pas qu'une formation est difficile : regardez son taux d'accès.</p></section>
     <section class="card" aria-labelledby="obs-p"><h2 id="obs-p">Rester près de chez soi ou partir loin (${esc(last)})</h2>
-      ${tous && tous.part_meme_academie != null ? `<p><strong>${pct(tous.part_meme_academie)}</strong> des admis néo-bacheliers venaient de l'académie de leur formation (${fmt(tous.meme_academie)} sur ${fmt(tous.admis_neobac)}).</p>` : ""}
+      ${tous && tous.part_meme_academie != null ? `<p><strong>${pct(tous.part_meme_academie)}</strong> des admis nouveaux bacheliers venaient de l'académie de leur formation (${fmt(tous.meme_academie)} sur ${fmt(tous.admis_neobac)}).</p>` : ""}
       <ul class="obs-bars">${big.map(bar).join("")}</ul>
       ${small.length ? `<details><summary>Les types de moins de ${fmt(d.seuils.type)} formations (${fmt(small.length)})</summary><ul class="obs-bars">${small.map(bar).join("")}</ul></details>` : ""}
-      <p class="muted small">Part des admis néo-bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.min_neobac)} admis néo-bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
+      <p class="muted small">Part des admis nouveaux bacheliers (ceux qui viennent d'avoir leur bac) qui venaient de la même académie que la formation, calculée sur les effectifs publiés. Elle n'est pas publiée pour les autres admis. ${noProx ? `${fmt(noProx)} type${noProx > 1 ? "s ont" : " a"} moins de ${fmt(d.seuils.min_neobac)} admis nouveaux bacheliers ou moins de ${fmt(d.seuils.proximite_formations)} formations : pas de chiffre.` : ""}</p></section>
     ${obsFilles(d)}
     ${obsBacs(d)}
     ${obsMentions(d)}
@@ -5647,7 +5671,7 @@ async function viewObservatoire() {
   const s = document.getElementById("obs-type");
   if (s) s.onchange = () => { obsUI.type = s.value; const box = document.getElementById("obs-dem"); if (box) box.innerHTML = obsDemande(d); };
 }
-// the selectivity matrix: official access rate x share of néo-bachelier admits with "Bien" or better; the quadrant lines
+// the selectivity matrix: official access rate x share of nouveau bachelier admits with "Bien" or better; the quadrant lines
 // are the medians of the selection (fixed rule); names describe a position, never a cause or a chance
 const SEL_Q = ["Plus accessible", "Très demandée", "Admis souvent mentionnés", "Très sélective"];
 const SEL_Q_HELP = { "Plus accessible": "taux d'accès élevé, admis moins souvent mentionnés que la médiane", "Très demandée": "taux d'accès bas, admis moins souvent mentionnés : beaucoup de candidats pour les places",
@@ -5668,21 +5692,21 @@ function selPlot(d, sel) {
     <text x="12" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(T + H - B) / 2})" class="sel-axis">Admis avec mention Bien ou mieux</text></svg>`;
 }
 // the formations the matrix cannot place are NAMED with their reason and their published counts (a quarter of the
-// formations of a campaign: nearly all have fewer than 10 néo-bachelier admits, so one person would move the share a lot)
+// formations of a campaign: nearly all have fewer than 10 nouveau bachelier admits, so one person would move the share a lot)
 function selWhy(f, d) {
   if (f.raison === "aucun_admis") return `aucun admis en ${esc(d.session)}`;
-  if (f.raison === "peu_neobac") return `${fmt(f.admis_neobac)} admis néo-bachelier${f.admis_neobac > 1 ? "s" : ""} sur ${fmt(f.admis)} admis`;
+  if (f.raison === "peu_neobac") return `${fmt(f.admis_neobac)} admis ${f.admis_neobac > 1 ? "nouveaux bacheliers" : "nouveau bachelier"} sur ${fmt(f.admis)} admis`;
   return f.raison === "sans_taux" ? "taux d'accès non publié" : "mentions des admis non publiées";
 }
 function selApart(d) {
   const n = d.non_placees.length;
   if (!n) return "";
-  const parts = [["peu_neobac", `moins de ${fmt(d.min_admis)} admis néo-bacheliers`], ["aucun_admis", "aucun admis"], ["sans_taux", "taux d'accès non publié"], ["sans_mentions", "mentions non publiées"]]
+  const parts = [["peu_neobac", `moins de ${fmt(d.min_admis)} admis nouveaux bacheliers`], ["aucun_admis", "aucun admis"], ["sans_taux", "taux d'accès non publié"], ["sans_mentions", "mentions non publiées"]]
     .filter(([k]) => d.raisons[k]).map(([k, t]) => `${fmt(d.raisons[k])} : ${t}`).join(" · ");
   const row = (f) => `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div><div class="small">Non placée : ${selWhy(f, d)}</div></td>
     <td class="num" data-label="Taux d'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;
   return `<details class="card" id="sel-apart"><summary><strong>Non placées sur le graphique</strong> · ${fmt(n)} formation${n > 1 ? "s" : ""} <span class="muted small">(${parts})</span></summary>
-    <p class="small">La part des mentions n'est publiée que pour les admis néo-bacheliers (les élèves qui viennent d'obtenir leur bac). Avec moins de ${fmt(d.min_admis)} néo-bacheliers admis, une seule personne déplace beaucoup ce chiffre : la formation n'est pas placée, mais son taux d'accès officiel reste indiqué ici. Les autres admis ne sont pas des néo-bacheliers (réorientation, reprise d'études…) ; leurs mentions ne sont pas publiées.</p>
+    <p class="small">La part des mentions n'est publiée que pour les admis nouveaux bacheliers (les élèves qui viennent d'obtenir leur bac). Avec moins de ${fmt(d.min_admis)} nouveaux bacheliers admis, une seule personne déplace beaucoup ce chiffre : la formation n'est pas placée, mais son taux d'accès officiel reste indiqué ici. Les autres admis ne sont pas des nouveaux bacheliers (réorientation, reprise d'études…) ; leurs mentions ne sont pas publiées.</p>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Taux d'accès</th><th class="num">Candidats par place</th></tr>${d.non_placees.slice(0, 40).map(row).join("")}</table></div>
     ${n > 40 ? `<p class="muted small">40 premières sur ${fmt(n)} (ordre alphabétique) ; choisissez une mention pour réduire la liste.</p>` : ""}</details>`;
 }
@@ -5698,11 +5722,11 @@ async function viewSelectivite(dArg, mArg) {
   const row = (f) => `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}</div></td>
     <td class="num" data-label="Taux d'accès">${pct(f.taux_acces_ens)}</td><td class="num" data-label="Mention Bien ou mieux">${pct(f.part_bien_plus)}</td><td class="num" data-label="Candidats par place">${fmt(f.candidats_par_place, 1)}</td></tr>`;
   $view.innerHTML = `<div class="card"><h1>Vraie sélectivité</h1>
-    <p class="small">Un taux d'accès bas peut venir de nombreux candidats pour les places, ou d'admissions très exigeantes. Chaque formation est placée selon son <strong>taux d'accès officiel</strong> et la <strong>part de ses admis néo-bacheliers avec une mention Bien ou mieux</strong>.</p>
+    <p class="small">Un taux d'accès bas peut venir de nombreux candidats pour les places, ou d'admissions très exigeantes. Chaque formation est placée selon son <strong>taux d'accès officiel</strong> et la <strong>part de ses admis nouveaux bacheliers avec une mention Bien ou mieux</strong>.</p>
     <div class="carte-pick"><label class="small">Type de diplôme <select id="sdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
     <label class="small">Mention <select id="smen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label></div></div>
   <div class="card"><div class="scroll">${d.formations.length ? selPlot(d, null) : `<p class="muted">Aucune formation placée.</p>`}</div>
-    <p class="muted small">Lignes pointillées : médianes de la sélection (taux d'accès ${pct(d.mediane_taux)}, mention Bien ou mieux ${pct(d.mediane_bien)}). Les quatre zones décrivent une position, pas une cause ni des chances d'admission. Données : SIES / MESR, session ${esc(d.session)}.</p></div>
+    <p class="muted small">Lignes pointillées : médianes de la sélection (taux d'accès ${pct(d.mediane_taux)}, mention Bien ou mieux ${pct(d.mediane_bien)}). Les quatre zones décrivent une position, pas une cause ni des chances d'admission. Données : ministère de l'Enseignement supérieur (SIES), session ${esc(d.session)}.</p></div>
   ${SEL_Q.map((q) => `<details class="card"${q === "Très demandée" ? " open" : ""}><summary><strong>${esc(q)}</strong> · ${fmt(by[q].length)} formation${by[q].length > 1 ? "s" : ""} <span class="muted small">(${esc(SEL_Q_HELP[q])})</span></summary>
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Taux d'accès</th><th class="num">Mention Bien ou mieux</th><th class="num">Candidats par place</th></tr>${by[q].slice(0, 40).map(row).join("")}</table></div>
     ${by[q].length > 40 ? `<p class="muted small">40 premières sur ${fmt(by[q].length)} (ordre alphabétique) ; choisissez une mention pour réduire la liste.</p>` : ""}</details>`).join("")}
@@ -5718,7 +5742,7 @@ async function viewSelectivite(dArg, mArg) {
 // The group outside terminale (reorientation, return to studies, other routes) has no published access rate: the server derives
 // its candidates and proposals from the published counts and scales the official rate (reorientation.py). Always an estimation,
 // never a zone, never a Plan B; the list is sorted by the student's académie, then by name, never by figures.
-const REO_NO_ZONE = "Pour ces candidats, le SIES ne publie ni la mention ni la série du bac : aucune zone (sécurité, cible, ambitieux) ne peut donc être lue.";
+const REO_NO_ZONE = "Pour ces candidats, le ministère ne publie ni la mention ni la série du bac : aucune zone (sécurité, cible, ambitieux) ne peut donc être lue.";
 function reoWhy(b, ok) {
   if (!b) return "pas de chiffres pour cette formation";
   if (b.acces_estime != null) return b.plafonne ? `${ok} (plafonnée à 100 %)` : ok;
@@ -5746,7 +5770,7 @@ function reoAdultesCard() {
 function reoCard(b) {
   if (!b) return "";
   return `<div class="card"><h2>Candidats qui ne sont plus en terminale · ${esc(b.session)}</h2>
-    <p class="small">Réorientation, reprise d'études ou autre parcours : le SIES les compte ensemble, comme « autres candidats ».</p>
+    <p class="small">Réorientation, reprise d'études ou autre parcours : le ministère les compte ensemble, comme « autres candidats ».</p>
     <div class="small">${b.candidats != null ? `${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)}), contre ${pct1(b.taux_proposition_tous)} pour l'ensemble des candidats.` : "Effectifs publiés incohérents : pas de lecture pour cette campagne."}</div>
     <div class="small">Accès estimé hors terminale : ${reoCell(b)}</div>
     <p class="muted small">${REO_METHOD} ${REO_NO_ZONE}</p></div>`;
@@ -5786,29 +5810,29 @@ async function viewReorientation(dArg, mArg) {
     const rows = reoSort(d.formations.filter((f) => (!onlyHome || !home || f.academie === home) && (!onlyAutres || (f.reorientation && f.reorientation.autres_majoritaires))), home);
     const nEst = d.formations.filter((f) => f.reorientation && f.reorientation.acces_estime != null).length;
     const nAut = d.formations.filter((f) => f.reorientation && f.reorientation.autres_majoritaires).length;
-    const row = (f) => { const b = f.reorientation; return `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ? ` (${esc(f.academie)})` : ""}${f.payant ? ' · <span class="badge warnb">privé, frais de scolarité</span>' : ""}</div>${b ? autresBadge(b) : ""}</td>
+    const row = (f) => { const b = f.reorientation; return `<tr><td data-label="Formation"><a href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a><div class="muted small">${esc(f.formation)} · ${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}${f.payant ? ' · <span class="badge warnb">privé, frais de scolarité</span>' : ""}</div>${b ? autresBadge(b) : ""}</td>
       <td class="num" data-label="Accès estimé hors terminale">${reoCell(b)}</td>
       <td class="num" data-label="Taux d'accès officiel, tous candidats">${pct(b && b.taux_acces_ens)}</td>
-      <td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>
+      <td class="num" data-label="Admis hors nouveaux bacheliers">${reoAutres(b)}</td>
       <td class="acts" data-label="Mes vœux">${voeuButton(f.cod_aff_form)}</td></tr>`; };
     $view.innerHTML = `<div class="card"><h1>Je me réoriente ou je reprends mes études</h1>
-      <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le SIES compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page calcule une estimation pour chaque formation, avec les chiffres publiés.</p>
+      <p>Vous n'êtes plus en terminale : réorientation, reprise d'études, ou un autre parcours. Le ministère compte ces candidats ensemble et ne publie pas de taux d'accès pour eux. Cette page calcule une estimation pour chaque formation, avec les chiffres publiés.</p>
       <p class="small">${REO_NO_ZONE} Les chiffres ci-dessous sont des parts de candidats des campagnes passées, pas des chances d'admission.</p>
       <div class="toolbar">${mine ? `<span class="badge exact">Votre situation : ${REO_LABEL}</span><button type="button" id="reo-back" class="small">Je suis en terminale</button>`
         : `<button type="button" id="reo-me">C'est ma situation</button><span class="muted small">« Où je me situe », la fiche des formations et « Mes vœux » afficheront alors l'accès estimé hors terminale, sans zone.</span>`}</div></div>
     ${reoAdultesCard()}
     <div class="card"><div class="carte-pick"><label class="small">Type de diplôme <select id="rdip">${FAC.diplomes.map((x) => `<option value="${esc(x.label)}" ${x.label === D.label ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label>
       <label class="small">Mention <select id="rmen"><option value="">Toutes les mentions</option>${D.mentions.map((m) => `<option value="${esc(m.label)}" ${m.label === mention ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
-      <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label></div>
-      <div class="toolbar">${home ? `<label class="small"><input type="checkbox" id="rhome" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(home)}</label>` : ""}
-        <label class="small"><input type="checkbox" id="raut" ${onlyAutres ? "checked" : ""}> Seulement les formations où les admis hors néo-bacheliers sont majoritaires</label></div>
-      <p class="small">${fmt(d.formations.length)} formation${d.formations.length > 1 ? "s" : ""} en ${esc(d.session)} · ${fmt(nEst)} avec un accès estimé hors terminale · ${fmt(nAut)} où les admis hors néo-bacheliers sont majoritaires. Ordre : ${home ? `l'académie de ${esc(home)} d'abord, puis ` : ""}le nom de l'établissement, jamais les chiffres.</p></div>
+      <label class="small">Votre académie <select id="racad"><option value="">—</option>${JV.academies.map((a) => `<option value="${esc(a)}" ${a === home ? "selected" : ""}>${esc(acadLabel(a))}</option>`).join("")}</select></label></div>
+      <div class="toolbar">${home ? `<label class="small"><input type="checkbox" id="rhome" ${onlyHome ? "checked" : ""}> Seulement l'académie de ${esc(acadLabel(home))}</label>` : ""}
+        <label class="small"><input type="checkbox" id="raut" ${onlyAutres ? "checked" : ""}> Seulement les formations où les admis hors nouveaux bacheliers sont majoritaires</label></div>
+      <p class="small">${fmt(d.formations.length)} formation${d.formations.length > 1 ? "s" : ""} en ${esc(d.session)} · ${fmt(nEst)} avec un accès estimé hors terminale · ${fmt(nAut)} où les admis hors nouveaux bacheliers sont majoritaires. Ordre : ${home ? `l'académie de ${esc(acadLabel(home))} d'abord, puis ` : ""}le nom de l'établissement, jamais les chiffres.</p></div>
     <div class="card"><h2>Formations ${esc(D.label)}${mention ? ` · ${esc(mention)}` : ""}</h2>
-      ${rows.length ? `<div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${d.session}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
+      ${rows.length ? `<div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${d.session}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors nouveaux bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
       ${rows.slice(0, shown).map(row).join("")}</table></div>` : `<p class="muted">Aucune formation pour ces filtres.</p>`}
       ${rows.length > shown ? `<p><button type="button" id="rmore">Afficher ${fmt(Math.min(searchPage(), rows.length - shown))} de plus (${fmt(shown)} sur ${fmt(rows.length)})</button></p>` : ""}
       <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-      <p class="muted small">Admis hors néo-bacheliers : les admis qui n'ont pas passé le bac l'année de leur admission. Le SIES publie leur nombre, sans détail.</p></div>
+      <p class="muted small">Admis hors nouveaux bacheliers : les admis qui n'ont pas passé le bac l'année de leur admission. Le ministère publie leur nombre, sans détail.</p></div>
     ${nextSteps("reorientation")}${feedbackBox("reorientation")}`;
     $view.dataset.rendered = marker;
     document.getElementById("rdip").onchange = (e) => goTo(e.target.value, "");
@@ -5847,7 +5871,7 @@ async function viewReorientation(dArg, mArg) {
 // Mes vœux outside terminale: the estimated access of each vœu, no zone tiles, no alert, no Plan B, no "Compléter ma liste"
 async function viewVoeuxReo(ids, prof) {
   const head = `<div class="card"><h1>Mes vœux ${tip("mes_voeux")}</h1>
-    <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(prof.academie)}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
+    <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(acadLabel(prof.academie))}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche ou depuis « Je me réoriente » (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux).</p>`;
   if (!ids.length) {
     $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
@@ -5869,12 +5893,12 @@ async function viewVoeuxReo(ids, prof) {
   const ok = d.voeux.filter((v) => v.status === "ok"), nEst = ok.filter((v) => v.reorientation && v.reorientation.acces_estime != null).length;
   const rows = d.voeux.map((v) => {
     const name = v.status !== "ok" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${esc(d.session)}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>${v.reorientation ? autresBadge(v.reorientation) : ""}`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.formation)} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}</div>${v.reorientation ? autresBadge(v.reorientation) : ""}`;
     const b = v.status === "ok" ? v.reorientation : null;
     return `<tr><td data-label="Formation">${name}</td>
       <td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>
       <td class="num" data-label="Taux d'accès officiel, tous candidats">${pct(b && b.taux_acces_ens)}</td>
-      <td class="num" data-label="Admis hors néo-bacheliers">${reoAutres(b)}</td>
+      <td class="num" data-label="Admis hors nouveaux bacheliers">${reoAutres(b)}</td>
       <td class="acts" data-label="Mes vœux"><button type="button" class="small" data-vxdel="${esc(v.cod_aff_form)}">Retirer</button></td></tr>`;
   }).join("");
   $view.innerHTML = `${head}
@@ -5882,7 +5906,7 @@ async function viewVoeuxReo(ids, prof) {
     <p>${vxCompteTxt(d.voeux.length, vxCompte(d.voeux))} · ${fmt(nEst)} formation${nEst > 1 ? "s" : ""} avec un accès estimé hors terminale.</p>
     <p class="small">${REO_NO_ZONE} Les repères de zones, le plan B et « Compléter ma liste » reposent sur ces zones : ils ne sont pas proposés. Vos vœux ne se combinent pas en une chance d'admission.</p></section>
   <div class="card"><h2>${vxTitre(d.voeux)}</h2>
-    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors néo-bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors nouveaux bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
     <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
@@ -6121,7 +6145,7 @@ async function viewListe(rawCodes, rawProfile) {
   if ($view.dataset.rendered !== marker) return;
   const rows = d.voeux.map((v) => {
     const name = v.status !== "ok" ? `<span class="muted">Formation ${esc(v.cod_aff_form)} absente de la campagne ${esc(d.session)}</span>`
-      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")} · ${esc(v.ville)}${v.academie ? ` (${esc(v.academie)})` : ""}</div>`;
+      : `<a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a><div class="muted small">${esc(v.filiere || v.formation || "")} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}</div>`;
     const b = v.reorientation;
     const third = zoned ? `<td data-label="Zone pour ce profil">${v.status === "ok" && v.zone && ZONES[v.zone] ? zoneBadge(v.zone, v.uncertain, v.large) : "—"}</td>`
       : isReo(prof) ? `<td class="num" data-label="Accès estimé hors terminale">${v.status === "ok" ? reoCell(b) : "—"}</td>` : "";

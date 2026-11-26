@@ -349,7 +349,7 @@ UI_MUTANTS = [
     ("unescaped mention", "<td>${esc(x.mention)}</td>", "<td>${x.mention}</td>"),
     ("unescaped university", "<strong>${esc(p.etab_label)}</strong>", "<strong>${p.etab_label}</strong>"),
     ("vœux caveat dropped", "(des vœux : une même personne postule à plusieurs masters)", ""),
-    ("incomplete-detail caveat dropped", "Le détail publié n'est pas complet : les autres réorientés suivent des formations que le SIES ne détaille pas.", ""),
+    ("incomplete-detail caveat dropped", "Le détail publié n'est pas complet : les autres réorientés suivent des formations que le ministère ne détaille pas.", ""),
     ("proposal ratio shown", "<strong>${fmt(m.n_accept)} admis</strong>", "<strong>${fmt(m.n_accept)} admis</strong> (${pcs(100 * m.n_prop / m.n_can)} de propositions)"),
     ("remainder computed", '<td class="num">${suVal(r, k)}</td>', '<td class="num">${pcs(r.taux_hors_univ - r[k])}</td>'),
     ("card not wired", "${passerellesCard(d.passerelles)}", ""),

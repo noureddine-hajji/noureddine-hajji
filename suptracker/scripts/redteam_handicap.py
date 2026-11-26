@@ -510,7 +510,7 @@ def top(js: str, name: str) -> str:
     return js[m.start(): js.find("\n}", m.start()) + 2]
 
 
-NAMES = ("esc", "frDate", "ficheLink", "ficheCredit", "decouvrirCard", "handicapCard")
+NAMES = ("esc", "ACAD_LABEL", "acadLabel", "frDate", "ficheLink", "ficheCredit", "decouvrirCard", "handicapCard")
 
 
 def run_node(js: str, payload):
