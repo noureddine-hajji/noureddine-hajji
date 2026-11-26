@@ -659,8 +659,11 @@ def e6(c: Ctx):
     if "Accès estimé hors terminale" in r["nop"]:
         bad.append("no profile: the estimate shows")
     b = d["reorientation"]
-    if "${reoCard(d.reorientation)}" not in more:
-        bad.append("the calculation card is not folded in « Plus de chiffres sur l'admission »")
+    # lot 1, PR 12: outside terminale the calculation card opens « Y entrer » (before « Selon votre bac »); in terminale it
+    # stays folded in « Plus de chiffres sur l'admission »
+    if '${reoFirst ? "" : reoCard(d.reorientation)' not in more or "${reoFirst ? reoCard(d.reorientation)" not in c.js \
+            or c.js.index("${reoFirst ? reoCard(d.reorientation)") > c.js.index("${doubletteCard(d.doublettes"):
+        bad.append("the calculation card is not first outside terminale, folded in terminale")
     if HOSTILE in r["card"] or r["cardNone"] or (b["candidats"] is not None and r["card"].count(f"pour {r['candFmt']} candidats hors terminale") < 2) \
             or "plafonné à 100 %" not in r["card"]:
         bad.append("the calculation card: counts, method or escaping")
@@ -770,9 +773,9 @@ JS_MUTANTS = [
     ("terminale profile invented", 'else store.set("profile", null);', 'else store.set("profile", { ...(p0 || {}), statut: st });'),
     ("bacProfile ignores the status", "!Array.isArray(p) && !isReo(p) ? p : null;", "!Array.isArray(p) ? p : null;"),
     ("map reads the raw profile", "  const P = bacProfile();", '  const P = store.get("profile", null);'),
-    ("calculation card dropped", "  ${reoCard(d.reorientation)}\n", ""),
-    ("calculation card without counts", "${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)})",
-     "des propositions (${pct1(b.taux_proposition)})"),
+    ("calculation card dropped", "  ${reoFirst ? \"\" : reoCard(d.reorientation) + ifsiFpcCard(d.aides)}\n", ""),
+    ("calculation card without counts", "${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)} d'entre eux",
+     "des propositions (${pct1(b.taux_proposition)} d'entre eux"),
 ]
 TEXT_MUTANTS = [("cache", "voeux route shared-cached", '(r"/api/reorientation/voeux", NO_STORE,', '(r"/api/reorientation/voeux", PUBLIC,'),
                 ("analytics", "feedback page refused", '"voeux", "reorientation")', '"voeux")')]

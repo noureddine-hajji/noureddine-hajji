@@ -65,3 +65,29 @@ def test_red_team_on_real_data():
     import redteam_rapports as R
     failed = [r for r in R.run(REAL_DB, real=True) if not r["ok"]]
     assert not failed, failed
+
+
+def test_insert_one_arrow_table_equals_executemany():
+    """rapports._insert (2026-11-26): the rows go in as one Arrow table (executemany took 6 of the synthetic build's 12 minutes);
+    the table must equal executemany's row for row, NULLs, booleans and accents included, and a column pyarrow cannot type
+    (mixed values) falls back to executemany with the same result."""
+    import duckdb
+
+    from suptracker import rapports as RP
+
+    cases = [
+        ("a VARCHAR, b INTEGER, c BOOLEAN, d DOUBLE", [("é", 1, True, 1.5), (None, None, None, None), ("x'y", -3, False, 0.0)]),
+        ("a VARCHAR, b INTEGER", [("1", 2), ("2", "3")]),          # a mixed column: the row-by-row path
+        ("a INTEGER, b VARCHAR", [(1, "z")] * 3),
+    ]
+    for cols, rows in cases:
+        fast, slow = duckdb.connect(), duckdb.connect()
+        for c in (fast, slow):
+            c.execute(f"CREATE TABLE t ({cols})")
+        n = cols.count(",") + 1
+        sql = "INSERT INTO t VALUES (" + ", ".join("?" * n) + ")"
+        RP._insert(fast, sql, rows)
+        slow.executemany(sql, rows)
+        assert fast.execute("SELECT * FROM t").fetchall() == slow.execute("SELECT * FROM t").fetchall(), cols
+        assert fast.execute("SELECT count(*) FROM duckdb_views() WHERE view_name = '_rows_insert'").fetchone()[0] == 0
+    RP._insert(duckdb.connect(), "INSERT INTO nowhere VALUES (?)", [])      # no row: nothing done, no error

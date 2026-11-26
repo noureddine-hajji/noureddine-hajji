@@ -4,6 +4,9 @@ Reads data/aides/request.json ({"urls": [...]}), downloads each page of an offic
 etudiant.gouv.fr, parcoursup.gouv.fr, the ministry) and writes its extracted text with its digest; a redirect to another host is
 refused. The amounts the site shows are read from these files by fixed rules (`aides.py`), never typed from a press article.
 When no page could be read, the previous log is kept and the script fails (an empty log would empty the card).
+An official host that refuses robots a page (parcoursup.gouv.fr answers 403 to its HTML pages) is never read around that refusal:
+the page is then read from the copy the owner saved in a browser and committed under data/aides/depot/ (`depot_row`), only when that
+copy's own canonical link is the requested URL; the log says `via` "depot" (lot 1, PR 12, owner 2026-11-26).
 """
 from __future__ import annotations
 
@@ -48,6 +51,31 @@ def page_links(html: str, base: str) -> list:
     return out
 
 
+DEPOT = "depot"
+
+
+def canonical(html: str) -> str | None:
+    m = re.search(r'<link\b[^>]*rel="canonical"[^>]*href="([^"]+)"', html) or re.search(r'<link\b[^>]*href="([^"]+)"[^>]*rel="canonical"', html)
+    return htmlmod.unescape(m.group(1)) if m else None
+
+
+def depot_row(d: Path, url: str, live_status) -> dict | None:
+    """The owner's saved copy of an official page the host refuses to robots: its text and links written like a fetched page's,
+    and its log row; None when no copy in data/aides/depot/ names `url` as its canonical link."""
+    for f in sorted((d / DEPOT).glob("*.html")) if (d / DEPOT).is_dir() else []:
+        html = f.read_text(encoding="utf-8", errors="replace")
+        if canonical(html) != url or not url.startswith(ALLOWED):
+            continue
+        text = page_text(html)
+        (d / name_of(url)).write_text(text)
+        (d / name_of(url).replace(".txt", ".links.json")).write_text(
+            json.dumps(page_links(html, url), ensure_ascii=False, indent=0) + "\n")
+        return {"url": url, "status": 200, "final_url": url, "via": DEPOT, "depot": f.name, "live_status": live_status,
+                "sha256": hashlib.sha256(text.encode()).hexdigest(),
+                "fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"), "file": name_of(url)}
+    return None
+
+
 def name_of(url: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", url.split("://", 1)[-1])[:140] + ".txt"
 
@@ -71,6 +99,11 @@ def main(out: str) -> int:
             if not str(r.url).startswith(ALLOWED):
                 log.append({"url": url, "status": f"refused: redirected to {r.url.host}"})
                 continue
+            if r.status_code != 200:
+                row = depot_row(d, url, r.status_code)
+                if row:
+                    log.append(row)
+                    continue
             text = page_text(r.text) if r.status_code == 200 else ""
             row = {"url": url, "status": r.status_code, "final_url": str(r.url),
                    "sha256": hashlib.sha256(text.encode()).hexdigest(),          # of the text read: a page's tokens change daily

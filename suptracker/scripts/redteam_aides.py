@@ -123,8 +123,13 @@ def reread() -> dict:
 
 @check("AI1 official pages: every item read, equal to an independent re-reading, two official sources agree, official links only")
 def ai1(c: Ctx):
-    A = c.mod().read(DIR)
-    bad = list(A["audit"])
+    ai = c.mod()
+    A = ai.read(DIR)
+    # an item whose host refuses robots may wait for its page (EN_ATTENTE, never more than one, its page absent); every other must be read
+    waiting = [k for k in ai.EN_ATTENTE if not (DIR / ai._file(ai.PAGES[k])).exists()]
+    bad = [x for x in A["audit"] if not any(x == f"{k}: waiting ({ai.EN_ATTENTE[k]})" for k in waiting)]
+    if len(ai.EN_ATTENTE) > 1 or not set(ai.EN_ATTENTE) <= {"ifsi_fpc"}:
+        bad.append(f"waiting items {sorted(ai.EN_ATTENTE)}: only the IFSI page is refused to robots")
     try:
         R = reread()
     except Exception as e:  # noqa: BLE001
@@ -188,17 +193,17 @@ def ai2(c: Ctx):
     for key, fn, why in cases:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
-            for f in DIR.iterdir():
+            for f in (x for x in DIR.iterdir() if x.is_file()):
                 shutil.copy(f, d / f.name)
             tamper(d, key, fn)
             A = ai.read(d)
             if A.get(key) is not None or not any(x.startswith(key + ":") for x in A["audit"]):
                 bad.append(f"{key} ({why}): still read")
-            if sum(1 for k in ai.RULES if A.get(k) is None) != 1:
+            if sum(1 for k in ai.RULES if A.get(k) is None and not (k in ai.EN_ATTENTE and not (DIR / ai._file(ai.PAGES[k])).exists())) != 1:
                 bad.append(f"{key} ({why}): another item was lost too")
     with tempfile.TemporaryDirectory() as tmp:          # the simulator link moved to a foreign host
         d = Path(tmp)
-        for f in DIR.iterdir():
+        for f in (x for x in DIR.iterdir() if x.is_file()):
             shutil.copy(f, d / f.name)
         lf = d / ai._file(ai.PAGES["bourse"], ".links.json")
         lf.write_text(lf.read_text().replace("https://www.service-public.gouv.fr/particuliers/vosdroits/R18296", "https://simulateur.example.com/"))
@@ -208,7 +213,44 @@ def ai2(c: Ctx):
         A = ai.read(d)
         if A.get("merite") is not None or "merite: page not fetched" not in A["audit"]:
             bad.append("a missing page is not said")
+    with tempfile.TemporaryDirectory() as tmp:          # a waiting item whose page arrives is read by its rule, a changed one said
+        d = Path(tmp)
+        for f in (x for x in DIR.iterdir() if x.is_file()):
+            shutil.copy(f, d / f.name)
+        for k in ai.EN_ATTENTE:
+            (d / ai._file(ai.PAGES[k])).write_text("Une page officielle sans la phrase attendue.\n")
+            A = ai.read(d)
+            if A.get(k) is not None or f"{k}: the rule no longer matches the official page" not in A["audit"]:
+                bad.append(f"{k}: a page that arrived without the sentence is not said")
     fe = c.mod("fetch")
+    # the owner's saved copy of a page the host refuses to robots (data/aides/depot): used only for ITS canonical URL, an official one
+    url = ai.PAGES["ifsi_fpc"]
+    page = lambda canon: f'<html><head><link rel="canonical" href="{canon}"></head><body><p>Texte officiel.</p><a href="/x">x</a></body></html>'  # noqa: E731
+    for canon, want in ((url, True), (url + "-autre", False), ("https://www.parcoursup.example/" + url.split("/", 3)[3], False)):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / fe.DEPOT).mkdir()
+            (d / fe.DEPOT / "copie.html").write_text(page(canon))
+            row = fe.depot_row(d, url, 403)
+            if bool(row) != want:
+                bad.append(f"owner copy with canonical {canon}: used = {bool(row)}")
+            if row and (row.get("via") != "depot" or row.get("live_status") != 403 or (d / fe.name_of(url)).read_text() != fe.page_text(page(canon))):
+                bad.append(f"owner copy row {row}")
+            if not row and (d / fe.name_of(url)).exists():
+                bad.append("a refused owner copy still wrote its text")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / fe.DEPOT).mkdir()
+        (d / fe.DEPOT / "copie.html").write_text(page("https://example.com/x"))
+        if fe.depot_row(d, "https://example.com/x", 403):
+            bad.append("an owner copy of a non-official page is used")
+    for r in json.loads((DIR / "fetch_log.json").read_text()):
+        if r.get("via") == "depot":
+            f = DIR / fe.DEPOT / str(r.get("depot"))
+            if not f.exists() or fe.canonical(f.read_text(encoding="utf-8", errors="replace")) != r["url"]:
+                bad.append(f"logged owner copy {r.get('depot')} missing or of another page")
+            elif (DIR / r["file"]).read_text() != fe.page_text(f.read_text(encoding="utf-8", errors="replace")):
+                bad.append(f"{r['file']}: not the owner copy's text")
     if not all(u.startswith("https://") and u.endswith(".gouv.fr/") for u in fe.ALLOWED) or any("example" in u for u in fe.ALLOWED):
         bad.append(f"fetcher hosts {fe.ALLOWED}")
     req = json.loads((DIR / "request.json").read_text())["urls"]
@@ -329,6 +371,8 @@ const estimTag = (d) => `<span class="estim">estimation</span> ${esc(d || "")}`;
 let PROFILE = null; let CALLS = 0;
 const api = () => { CALLS++; return Promise.resolve({}); };
 const bacProfile = () => PROFILE;
+const isReo = (p) => !!p && p.statut === "reorientation";                 // lot 1, PR 12: aidesCard folds the lycée aids outside terminale
+const store = { get: (k, d) => (k === "profile" ? PROFILE : d) };
 """
 
 
@@ -519,6 +563,11 @@ SOURCE_MUTANTS = [
     ("vie", "CVEC typed differently", '"montant": 105, "annee": "2026-2027"', '"montant": 103, "annee": "2026-2027"', "AI5"),
     ("vie", "meal link reverted", '"url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123"', '"url": "https://www.etudiant.gouv.fr/fr/se-restaurer"', "AI5"),
     ("build", "aids not built", "        aides.build(con)", "        pass", "AI7"),
+    ("ai", "a fetched page waits too", 'EN_ATTENTE = {"ifsi_fpc": ', 'EN_ATTENTE = {"bourse": "x", "ifsi_fpc": ', "AI1"),
+    ("ai", "a waiting page that arrived is not read", '            audit.append(f"{key}: waiting ({EN_ATTENTE[key]})" if key in EN_ATTENTE else f"{key}: page not fetched")\n            continue',
+     '            audit.append(f"{key}: waiting ({EN_ATTENTE[key]})" if key in EN_ATTENTE else f"{key}: page not fetched")\n            continue\n        if key in EN_ATTENTE:\n            out[key] = None\n            continue', "AI2"),
+    ("fetch", "owner copy of any page", "        if canonical(html) != url or not url.startswith(ALLOWED):", "        if not url.startswith(ALLOWED):", "AI2"),
+    ("fetch", "owner copy of any host", "        if canonical(html) != url or not url.startswith(ALLOWED):", "        if canonical(html) != url:", "AI2"),
     ("fetch", "any host fetched", '    "https://www.messervices.etudiant.gouv.fr/")', '    "https://www.messervices.etudiant.gouv.fr/", "https://example.com/")', "AI2"),
 ]
 

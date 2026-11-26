@@ -77,9 +77,33 @@ def _int(x):
         return None
 
 
+_VALUES = re.compile(r"\s*INSERT INTO (\S+) VALUES \(\?(?:, \?)*\)\s*")
+
+
 def _insert(con, sql: str, rows: list) -> None:
-    if rows:                                   # DuckDB refuses an empty executemany (e.g. no report matches the warehouse)
-        con.executemany(sql, rows)
+    """The rows into the table, in their order. DuckDB runs executemany row by row (the growing harvests made it 6 of the
+    synthetic build's 12 minutes, 2026-11-26): the rows go in as ONE Arrow table instead, each column typed by pyarrow from its
+    Python values; a column pyarrow cannot type (mixed values) falls back to executemany, the same rows either way."""
+    if not rows:                               # DuckDB refuses an empty executemany (e.g. no report matches the warehouse)
+        return
+    m = _VALUES.fullmatch(sql)
+    if m:
+        try:
+            import pyarrow as pa
+            cols = list(zip(*rows))
+            table = pa.table({f"c{i}": pa.array(list(col)) for i, col in enumerate(cols)})
+        except Exception:  # noqa: BLE001  (pyarrow absent or a column it cannot type: the row-by-row path)
+            table = None
+        if table is not None and table.num_columns == sql.count("?"):
+            con.register("_rows_insert", table)
+            try:
+                con.execute(f"INSERT INTO {m.group(1)} SELECT * FROM _rows_insert")
+                return
+            except Exception:  # noqa: BLE001  (a type DuckDB will not cast: one statement, nothing inserted, row by row then)
+                pass
+            finally:
+                con.unregister("_rows_insert")
+    con.executemany(sql, rows)
 
 
 def _read(path: Path) -> list[dict]:

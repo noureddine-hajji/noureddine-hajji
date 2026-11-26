@@ -10,21 +10,22 @@ on:
 concurrency:
   group: suptracker-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-# CI speed-up (after PR #41 took 56 min in one job): the test files are split over 7 runners (3 until 2026-11-17, when two
+# CI speed-up (after PR #41 took 56 min in one job): the test files are split over 8 runners (3 until 2026-11-17, when two
 # shards reached 41-45 min; 4 until 2026-11-19, when the slowest of 4 took 34 of its 45 minutes, before the vœux peak; 5 until
 # 2026-11-23, when balanced shards of the same plan ran 24 to 45 minutes from one run to the next; 6 until 2026-11-24, when
-# a shard of 4.8 thousand planned seconds hit the 45-minute limit on a slow runner) by their measured
+# a shard of 4.8 thousand planned seconds hit the 45-minute limit on a slow runner; 7 until 2026-11-26, when three shards hit
+# the limit on runners measured 1.5-2x slower on the same commit, every file alike) by their measured
 # duration (tests/conftest.py --shard, tests/durations.json; tests/test_shards.py checks each file runs exactly once),
 # the timed red teams get a runner of their own, and the "test" job reports all of them under the old check name.
 jobs:
   shard:
-    name: shard ${{ matrix.shard }}/7
+    name: shard ${{ matrix.shard }}/8
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     defaults:
       run:
         working-directory: suptracker
@@ -39,7 +40,7 @@ jobs:
       # the red teams are independent: one worker per core, a test file per worker; the synthetic warehouse is built
       # once per set of inputs and shared (tests/synthetic.py cached_build). Red teams that MEASURE TIME
       # (analytics R16, Plan B B11, search R12) run in the "timed" job, never next to busy workers.
-      - run: python -m pytest -q -n auto --dist loadfile --ignore=tests/test_analytics.py --ignore=tests/test_planb.py --ignore=tests/test_search.py --shard=${{ matrix.shard }}/7
+      - run: python -m pytest -q -n auto --dist loadfile --ignore=tests/test_analytics.py --ignore=tests/test_planb.py --ignore=tests/test_search.py --shard=${{ matrix.shard }}/8
   timed:
     runs-on: ubuntu-latest
     timeout-minutes: 45

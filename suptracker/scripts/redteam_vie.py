@@ -564,7 +564,7 @@ def node(prog: str, data):
 def v6(c: Ctx):
     rc, vie, _fp = c.mods()
     defs = "\n".join(top(c.js, n) for n in ("esc", "fmt", "euros", "eurosRange", "recoPill", "recoBadge", "recoCard",
-                                            "fraisALire", "fraisTexte", "coutFraisValue", "coutFraisNote", "coutCard",
+                                            "fraisALire", "fraisTexte", "coutFraisValue", "coutFraisNote", "FC_RE", "FC_NOTE", "fcNote", "coutCard",
                                             "haversineKm", "villeLabel", "villeDepart", "distanceText", "distanceBlock"))
     stub = """const ICONS = { check: '<svg class="i"></svg>' };
       const store = { get: () => null };

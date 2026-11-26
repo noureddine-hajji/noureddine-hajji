@@ -17,6 +17,9 @@ and the attachment by one part of the type list (same UAI, same mention label, s
       2026-11-21, so the check reads the offer's own mention).
   TY4 docs and wiring: README, CLAUDE.md, durations.json, the test file.
   TY5 mutation test of TY1-TY3 (mutants built in memory).
+  TY6 the export's list separator (2026-11-26: « | » in place of « , »): a crafted export written with « | » gives the SAME
+      core.cartographie labels as the one written with « , » (type lists and mentions, BUT items included); the other
+      columns are untouched; a harmonize that keeps « | » is caught; the real warehouse holds no « | » in these columns.
 """
 from __future__ import annotations
 
@@ -222,6 +225,54 @@ def ty4(c: Ctx):
     if not (ROOT / "tests" / "test_types_liste.py").exists():
         bad.append("test file")
     return not bad, f"problems {bad}"
+
+
+@check("TY6 list separator: an export with « | » is read like the one with « , » (types and mentions); other columns untouched")
+def ty6(c: Ctx):
+    import tempfile
+
+    import pandas as pd
+    src = (ROOT / "suptracker" / "harmonize.py").read_text()
+    rows = [  # real 2026-11-26 spellings, written once with each separator
+        {"gta": "1", "annee": 2026, "tf": "Formations aux métiers de l'hôtellerie restauration{s}BTS - BTSA - BTSM",
+         "fl": "BTS - Management en hôtellerie restauration", "nm": "Lycée X - BTS, option A", "etab_nom": "Lycée, X"},
+        {"gta": "2", "annee": 2026, "tf": "BUT",
+         "fl": "BUT - Marketing digital, e-business et entrepreneuriat{s}BUT - Techniques de commercialisation",
+         "nm": "IUT", "etab_nom": "IUT"},
+        {"gta": "3", "annee": 2026, "tf": "Licence sélective{s}Licence", "fl": "L1 - Droit", "nm": "Université", "etab_nom": "U"},
+    ]
+
+    def read(mod_src: str, sep: str):
+        mod = load("harmonize", mod_src)
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            pd.DataFrame([{k: (v.format(s=sep) if isinstance(v, str) else v) for k, v in r.items()} for r in rows]).to_parquet(
+                d / "cartographie.parquet", index=False)
+            con = duckdb.connect()
+            con.execute("CREATE SCHEMA core; CREATE SCHEMA meta; CREATE TABLE meta.schema_audit (s VARCHAR, c VARCHAR, u VARCHAR, st VARCHAR)")
+            mod.build_cartographie(con, d)
+            return con.execute("SELECT cod_aff_form, type_formation, mention_lib, nom_long, etab_nom FROM core.cartographie ORDER BY 1").fetchall()
+
+    bad = []
+    try:
+        comma, pipe = read(src, ","), read(src, "|")
+    except Exception as e:  # noqa: BLE001
+        return False, f"crafted build fails: {type(e).__name__} {e}"
+    if comma != pipe:
+        bad.append(f"« | » read otherwise: {[(a, b) for a, b in zip(comma, pipe) if a != b][:2]}")
+    if not comma or comma[0][3] != "Lycée X - BTS, option A" or comma[0][4] != "Lycée, X":
+        bad.append("another column changed")
+    kept = src.replace("    return f\"replace({expr}, '|', ',')\"", "    return expr", 1)
+    if kept == src:
+        bad.append("mutant anchor gone")
+    elif read(kept, "|") == comma:
+        bad.append("a harmonize keeping « | » is not caught")
+    if c.real:
+        con = duckdb.connect(str(c.db), read_only=True)
+        n = con.execute("SELECT count(*) FROM core.cartographie WHERE type_formation LIKE '%|%' OR mention_lib LIKE '%|%'").fetchone()[0]
+        if n:
+            bad.append(f"{n} warehouse rows still hold « | »: rebuild")
+    return not bad, f"{len(comma)} crafted rows; problems {bad}"
 
 
 MUTANTS = [

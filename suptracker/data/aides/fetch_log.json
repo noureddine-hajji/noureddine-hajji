@@ -4,7 +4,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12214",
   "sha256": "38261df54befba540fc98316cd293c9142cafdd13bc8f45357da0e5b65dbc517",
-  "fetched": "2026-11-24T23:43:54+00:00",
+  "fetched": "2026-11-26T13:02:10+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12214.txt"
  },
  {
@@ -12,7 +12,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1010",
   "sha256": "b91aaeaf50db43b561b1e1d9cdbab3a16d2a5a3d3cf5a2e4b48aa157c0550599",
-  "fetched": "2026-11-24T23:43:54+00:00",
+  "fetched": "2026-11-26T13:02:10+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1010.txt"
  },
  {
@@ -20,7 +20,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34643",
   "sha256": "e1b0aa4df0ba268601c8bd47165f0f891da2789e1dd6ac90bf904677058458f8",
-  "fetched": "2026-11-24T23:43:54+00:00",
+  "fetched": "2026-11-26T13:02:10+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F34643.txt"
  },
  {
@@ -28,7 +28,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2865",
   "sha256": "e5a861175d4a766194ebc6d9ef6c5b2a4a063666682a0633032a212a12938211",
-  "fetched": "2026-11-24T23:43:54+00:00",
+  "fetched": "2026-11-26T13:02:10+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2865.txt"
  },
  {
@@ -36,7 +36,7 @@
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-au-merite-1291",
   "sha256": "c5d4f7f28448d9296e7cfddab42baf084f31bc5e41db92918459b63ba7bcbcc3",
-  "fetched": "2026-11-24T23:43:55+00:00",
+  "fetched": "2026-11-26T13:02:11+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-au-merite-1291.txt"
  },
  {
@@ -44,7 +44,7 @@
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aide-la-mobilite-parcoursup-1447",
   "sha256": "a790422c3f3babf313551225bb686e7fc2c7c33e04b88ed884a14907f80005df",
-  "fetched": "2026-11-24T23:43:56+00:00",
+  "fetched": "2026-11-26T13:02:11+00:00",
   "file": "www.etudiant.gouv.fr_fr_aide-la-mobilite-parcoursup-1447.txt"
  },
  {
@@ -52,7 +52,7 @@
   "status": 200,
   "final_url": "https://cvec.etudiant.gouv.fr/",
   "sha256": "b38a1bd44ac644ec6c5a7cf58fa93b1fe0ee995c447da91700feece091b97de0",
-  "fetched": "2026-11-24T23:43:57+00:00",
+  "fetched": "2026-11-26T13:02:12+00:00",
   "file": "cvec.etudiant.gouv.fr_.txt"
  },
  {
@@ -60,7 +60,7 @@
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/comment-beneficier-du-repas-crous-1-eu-3123",
   "sha256": "7d3f8cb2c095428dd7b2aea5dfd4985256345b562bfda5d6ae4cdd5dbbdef0ce",
-  "fetched": "2026-11-24T23:43:57+00:00",
+  "fetched": "2026-11-26T13:02:12+00:00",
   "file": "www.etudiant.gouv.fr_fr_comment-beneficier-du-repas-crous-1-eu-3123.txt"
  },
  {
@@ -68,7 +68,7 @@
   "status": 200,
   "final_url": "https://www.etudiant.gouv.fr/fr/aides-des-regions-et-des-outre-mer-2006",
   "sha256": "8908b5bab2b41de57a924e31606d926429448aa29214e82856e851cdea8a37f2",
-  "fetched": "2026-11-24T23:43:57+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.etudiant.gouv.fr_fr_aides-des-regions-et-des-outre-mer-2006.txt"
  },
  {
@@ -76,7 +76,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
   "sha256": "696852d3cb598432733223698af7881e50d98ebf0960d48d7a23bc195270882b",
-  "fetched": "2026-11-24T23:43:57+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F1563.txt"
  },
  {
@@ -84,7 +84,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F10705",
   "sha256": "1b79b0035d7c931bda216929c28707ae1b6c2c66ebba98dd4bd18aaa28da8b8c",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F10705.txt"
  },
  {
@@ -92,7 +92,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F14018",
   "sha256": "3851b14bda470ee614535ddc76fea1ac07ba2040f28fc07920c6ef7e24f8e54b",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F14018.txt"
  },
  {
@@ -100,7 +100,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F32457",
   "sha256": "b62c8003a99c2f310b293a351cbdc51f34838dc7a8096076a7a61666116c6de8",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F32457.txt"
  },
  {
@@ -108,7 +108,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/R60574",
   "sha256": "31971d5e28a3e6830636174096c3bdcb361a27f63bb819b31f7e407ac43f3e0d",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_R60574.txt"
  },
  {
@@ -116,7 +116,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F12382",
   "sha256": "b003e496d60292d177f6dd97bce02bcb7e156ee49c8224b160d48e47c4ea4854",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:13+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F12382.txt"
  },
  {
@@ -124,7 +124,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F17556",
   "sha256": "dc63727f82b3b64f54ae4efaa8c6b5448c72cb822c7253b42aa17751ca42f92f",
-  "fetched": "2026-11-24T23:43:58+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F17556.txt"
  },
  {
@@ -132,7 +132,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N19806",
   "sha256": "f610bcd5634a241aa1ef2fcbb852b7f6e53024f0120aec62fc063b39e48607e9",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_N19806.txt"
  },
  {
@@ -140,7 +140,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N19805",
   "sha256": "915416195b826cc70920768f27879b7c1a264a381216ca5054ca100f6ab60100",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_N19805.txt"
  },
  {
@@ -148,7 +148,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F3087",
   "sha256": "69889084733bdae358013a1d431deeeaeee2592f1dcf1f2dcccaf26a9b3e5d34",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F3087.txt"
  },
  {
@@ -156,7 +156,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2401",
   "sha256": "bd64d18901f094ddcbcaed4e80d7cbd3f4a6dfb118608adcccec37e7c2d61ebf",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F2401.txt"
  },
  {
@@ -164,7 +164,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N177",
   "sha256": "a6ae27e117636ad00cb2a3e8419a0238f04da4d1a3118cc37b7fb682a74145ca",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_N177.txt"
  },
  {
@@ -172,7 +172,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F32846",
   "sha256": "369b7ec54277ed5d327dcc6784efdf99ad584ae848bcc3e12424a35291435195",
-  "fetched": "2026-11-24T23:43:59+00:00",
+  "fetched": "2026-11-26T13:02:14+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F32846.txt"
  },
  {
@@ -180,7 +180,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N58",
   "sha256": "e3fb763dd579acf99a098306251ab5f03aebb64f56b2d94164b35be29a41e3c1",
-  "fetched": "2026-11-24T23:44:00+00:00",
+  "fetched": "2026-11-26T13:02:15+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_N58.txt"
  },
  {
@@ -188,7 +188,7 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/R31528",
   "sha256": "b9a00ae708c35d3c861aec05848e17af52184b8d3bef353bc70043d82100a77f",
-  "fetched": "2026-11-24T23:44:00+00:00",
+  "fetched": "2026-11-26T13:02:15+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_R31528.txt"
  },
  {
@@ -196,7 +196,18 @@
   "status": 200,
   "final_url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F760",
   "sha256": "7792a6d61e88f018817acc6bd366326e0aefea919dd72b36a231f6fa0ee6fdbb",
-  "fetched": "2026-11-24T23:44:00+00:00",
+  "fetched": "2026-11-26T13:02:15+00:00",
   "file": "www.service-public.gouv.fr_particuliers_vosdroits_F760.txt"
+ },
+ {
+  "url": "https://www.parcoursup.gouv.fr/trouver-une-formation/zoom-sur-des-formations-en-sante-pass-las-et-ifsi/les-formations-en-soins-1652",
+  "status": 200,
+  "final_url": "https://www.parcoursup.gouv.fr/trouver-une-formation/zoom-sur-des-formations-en-sante-pass-las-et-ifsi/les-formations-en-soins-1652",
+  "via": "depot",
+  "depot": "les-formations-en-soins-1652.html",
+  "live_status": 403,
+  "sha256": "175d3e42aa1a5dfa00e4918bf2c86b31647426493c71172536e16c9225f5b01a",
+  "fetched": "2026-11-26T14:23:29+00:00",
+  "file": "www.parcoursup.gouv.fr_trouver-une-formation_zoom-sur-des-formations-en-sante-pass-las-et-ifsi_les-formations-en-soins-1652.txt"
  }
 ]

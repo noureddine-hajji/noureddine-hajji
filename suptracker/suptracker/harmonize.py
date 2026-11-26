@@ -262,6 +262,17 @@ def carto_flags(app: str | None, internat: str | None, amg: str | None) -> dict:
     }
 
 
+# The cartographie lists a formation's several types and mentions in one cell. Until 2026-11-25 the export joined them with
+# « , »; since 2026-11-26 with « | » (« …hôtellerie restauration|BTS - BTSA - BTSM »). Every rule reads the comma form (type
+# lists, BUT items, label votes), so the new separator is written back as « , » here, once, for every session: a format-only
+# change, the same labels as before (a type whose own name holds a comma is cut as it always was). Red team TY6.
+CARTO_LISTS = ("type_formation", "mention_lib")
+
+
+def _list_sep(expr: str) -> str:
+    return f"replace({expr}, '|', ',')"
+
+
 def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
     path = raw_dir / "cartographie.parquet"
     if not path.exists():
@@ -303,7 +314,7 @@ def build_cartographie(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
              {_fold(m['amenagement'])} AS amg_raw,
              {pays('etablissement_id_paysage')} AS etablissement_id_paysage,
              {pays('composante_id_paysage')} AS composante_id_paysage,
-             {", ".join(f"{pays(src)} AS {k}" for k, src in CARTO_LABELS.items())},
+             {", ".join(f"{_list_sep(pays(src)) if k in CARTO_LISTS else pays(src)} AS {k}" for k, src in CARTO_LABELS.items())},
              row_number() OVER (PARTITION BY {_text(m['cod_aff_form'], True)} ORDER BY {order}) AS rn
       FROM read_parquet('{path}')) WHERE rn = 1 AND cod_aff_form IS NOT NULL
     """)

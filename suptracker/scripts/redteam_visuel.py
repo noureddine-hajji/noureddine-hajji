@@ -346,7 +346,7 @@ def vi4(c: Ctx):
 CARD_PROG = r"""
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
 const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
-const pct1 = (x) => String(x).replace(".", ",") + " %"; const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; var RECO = null;
+const pct1 = (x) => String(x).replace(".", ",") + " %"; const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
 const H = "<img src=x onerror=alert(1)>";
 const base = { cod_aff_form: "123", etablissement: H, formation: "<u>BTS</u>", ville: "<b>Lyon</b>", academie: "<i>Lyon</i>", statut: "public",
   contrat_etab: "Public", select_form: "formation sélective", stats: true, taux_acces_ens: 63.5, capa_fin: 24, lat: 45.7, lon: 4.8, offres_app: [],

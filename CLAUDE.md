@@ -209,8 +209,9 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Seven shard runners
-    (`pytest -n auto --dist loadfile --shard=i/7`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), files spread by `tests/durations.json`; a new test file goes in that table, with its
+  - CI: push on `main` only, branches through their PR, stale runs cancelled. Eight shard runners
+    (`pytest -n auto --dist loadfile --shard=i/8`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), eight since 2026-11-26 (three shards
+    hit 45 min on runners 1.5-2x slower on every file alike than the same files earlier that day), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
     of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times); 2026-11-26: refreshed again from one full CI run's lines (shard 2 measured 6,430 s for 4,812 planned and hit 45 min: carte, robustesse_formations, securite, licence_master had doubled) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
@@ -415,7 +416,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     its offers under one; an offer whose labels no SIES formation carries whole takes `carte.part_votes` (the SIES formations whose
     type list CONTAINS its type, same mention label, ALL reading the same; split = raw label), and is attached at the SAME UAI to an
     initial formation of which its type is one part, same mention label and same reading (607 BTS offers read, 153 more attached).
-    Red team `redteam_types_liste.py` (TY1-TY5); C9 / C10 `rt_reading`.
+    Since 2026-11-26 the export joins the lists with « | »: `harmonize.CARTO_LISTS` writes it back as « , » for every session
+    (format only, the labels as before; red team TY6). Red team `redteam_types_liste.py` (TY1-TY6); C9 / C10 `rt_reading`.
   - Lighter mention filter (owner, 2026-11-21): only the GROUP changes, each formation keeps its label. `carte.groupes_of` (fixed
     rules): professional titles « FP - … » by the NSF domain of their RNCP fiches of the SAME title (`domaines.py`, `core.fp_domaine`
     built at build: active fiches first, one NSF 3-digit group, several in one sub-domain = its plurivalent X0 code, else « Autres
@@ -988,6 +990,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   comparer ». Call history says « rang ». A search card fits the visible phone screen: per-bac rates, most represented line and
   apprenticeship offers in ONE `<details>` (`carteMore`); « Rechercher » scrolls to the count on a phone (`carteJump`, status line, focus
   kept). Prévision headlines folded. Shared list: `v=` route (checked), « zones lues sans la moyenne ». Red team `redteam_unchiffre.py` (UC1-UC10).
+- **The adult path, finished (lot 1, PR 12, owner 2026-11-26).** Outside terminale « Y entrer » opens on the estimate (reoCard, its counts under
+  it), before « Selon votre bac »; in terminale it stays folded. Absent from the latest map = `liste.presence` / `liste.absentes` (THE rule of
+  « Avant de confirmer »): page warning and search badge « vérifiez qu'elle existe toujours », never « fermée », `/api/carte/absentes` (no
+  parameter, public). A « formation continue » fee line gets `fcNote` (our words, no amount, age or condition). IFSI pages quote the official
+  parcoursup.gouv.fr sentence on the formation professionnelle continue (`aides.r_ifsi_fpc`, verbatim, one line; the page is in
+  data/aides/request.json). parcoursup.gouv.fr refuses robots its HTML pages (403): never read around it (no archive copy, no other host);
+  the owner's browser copy `data/aides/depot/*.html` is read instead (`aides_fetch.depot_row`, only for its OWN canonical URL, logged `via`
+  « depot »); no copy = the item waits in `aides.EN_ATTENTE` (said in the audit, card hidden). Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
+  adviser. Red team `redteam_adulte.py` (AD1-AD9).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

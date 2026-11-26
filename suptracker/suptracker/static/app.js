@@ -1856,7 +1856,7 @@ function carteCard(f, ctx, pinned) {
     : `<a class="rc-title" href="#/f/${esc(f.cod_aff_form)}">${esc(f.etablissement)}</a>`;
   const sel = f.select_form === "formation sélective" ? '<span class="badge sel">Sélective</span>' : f.select_form === "formation non sélective" ? '<span class="badge">Non sélective</span>' : "";
   return `<div class="result rc carte-rc${zc ? " rc-z" : ""}${pinned ? " carte-pinned" : ""}"${zc ? ` style="--zc:${zc}"` : ""} role="listitem" data-pick="${esc(f.cod_aff_form)}" data-rdip="${esc(f.diplome || "")}" data-groupe="${esc(f.groupe || "")}"${carteUI.sel === f.cod_aff_form ? ' aria-current="true"' : ""}>
-    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form) + tensionBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z, false, f.large)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
+    <div class="rc-badges"><span class="badge statut st-${esc(f.statut || "")}">${esc(STATUT_LABEL[f.statut] || f.contrat_etab || "")}</span>${sel}${f.stats === false ? "" : recoBadge(f.cod_aff_form) + tensionBadge(f.cod_aff_form) + absBadge(f.cod_aff_form)}${f.stats === false ? '<span class="badge">en apprentissage</span>' : `${ctx.ok ? (z === "autre" ? carteZoneBadge(null, CARTE_OTHER.label) : zoneBadge(z, false, f.large)) : ""}${voieBadges(f)}${autresBadge(f)}`}${f.lat == null ? '<span class="badge">non localisée</span>' : ""}</div>
     <div class="rc-main">${title}
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
@@ -1994,7 +1994,7 @@ async function viewCarte(dArg, mArg) {
   let zonesEarly;                                 // audit PR 8: set as soon as the zones are here (read before the first draw if so)
   zonesP.then((zs) => { zonesEarly = zs; }, () => {});
   // sprint Vitesse: the badges are awaited with the layer (the cards need them), no longer before the page's heading
-  const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null)]);
+  const [C] = await Promise.all([coucheP, carteLeaflet().catch(() => null), recoP.catch(() => null), absLoad()]);
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;        // the visitor left while the map loaded
   const lec = {};
   let zonesReady = false;
@@ -2447,7 +2447,7 @@ const ACCES_EXPLAIN = "Officiel : la part de tous les candidats qui ont reçu un
 function accesTile(r, d, prof, pr) {
   const off = `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Taux d'accès ${r.session}</span><span class="sum-value">${pct(r.taux_acces_ens)}</span><span class="sum-note">officiel, tous candidats, phase principale</span></button>`;
   const reo = isReo(prof);
-  const second = reo ? `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Accès estimé hors terminale</span><span class="sum-value">${pct1(d.reorientation && d.reorientation.acces_estime)}</span><span class="sum-note">${reoWhy(d.reorientation, "estimation, pas une zone : calcul dans « Plus de chiffres sur l'admission »")}</span></button>`
+  const second = reo ? `<button type="button" class="sum-part" data-goto="admission"><span class="sum-label">Accès estimé hors terminale</span><span class="sum-value">${pct1(d.reorientation && d.reorientation.acces_estime)}</span><span class="sum-note">${reoWhy(d.reorientation, "estimation, pas une zone : calcul en tête de l'onglet « Y entrer »")}</span></button>`
     : profileRateTile(pr);
   const why = reo ? "Hors terminale : une estimation pour les candidats qui ne sont pas en terminale."
     : "Pour votre profil : le même taux, pour les candidats qui ont votre bac ou vos deux spécialités.";
@@ -2552,6 +2552,18 @@ function bindTabs(id) {
 // (reconnaissance.py: the label verbatim beside it, the fiche fait foi), and what a year there costs (vie.py): the local rent
 // of a 20 m² studio (Carte des loyers 2025) and the Crous residences, the national items of the OVE survey (2023), the fiche's
 // tuition fees verbatim. Ranges, each line with its source; always an estimation, never a promise or a family's budget.
+// lot 1, PR 12: the latest campaign's formations absent from the latest Parcoursup map (liste.absentes, the rule of « Avant
+// de confirmer »): the search card and the formation page say « vérifiez qu'elle existe toujours », never « fermée »
+let ABS = null, ABS_P = null;
+function absLoad() {
+  if (!ABS_P) ABS_P = api("/api/carte/absentes").then((d) => { ABS = { session: d.carte_session, codes: new Set(d.codes || []) }; return ABS; })
+    .catch(() => { ABS_P = null; return null; });
+  return ABS_P;
+}
+const absenteText = (session) => `Absente de la carte des formations Parcoursup ${session} : vérifiez sur Parcoursup qu'elle existe toujours.`;
+function absBadge(cod) {
+  return ABS && ABS.session && ABS.codes.has(String(cod)) ? `<span class="badge warnb" title="${esc(absenteText(ABS.session))}">absente de la carte ${esc(ABS.session)}</span>` : "";
+}
 let RECO = null, RECO_P = null;
 function recoLoad() {
   if (RECO) return Promise.resolve(RECO);
@@ -2771,6 +2783,12 @@ function coutFraisNote(fr) {
   if (fr.montant === null || fr.montant === undefined) return "aucun montant sur la fiche";
   return "selon la fiche Parcoursup";
 }
+// lot 1, PR 12: a fee « pour la formation continue » says whom it concerns (Sarah read « 9 000 € » as hers); our own words,
+// never an amount, an age or a condition (the audit PR 6 rule for adults): the formation says which tariff applies
+const FC_RE = /formation continue/i;
+const FC_NOTE = "Formation continue : ces frais concernent les personnes inscrites au titre de la formation professionnelle, pas les élèves de terminale. Si vous reprenez vos études, demandez à la formation lequel de ses tarifs s'applique à vous. Un conseiller en évolution professionnelle peut vous aider à chercher un financement.";
+const fcNote = (fr) => (fr && (fr.lignes || []).some((l) => FC_RE.test(`${l.rubrique} ${l.texte}`))
+  ? `<p class="small fc-note">${FC_NOTE} <a href="#/info/aide">Se faire aider</a></p>` : "");
 function coutCard(v, r) {
   if (!v) return `<div class="card"><h2>Combien coûte une année ici ?</h2><p class="muted small">Pas encore de données sur le coût de la vie pour cette formation.</p></div>`;
   const fr = v.frais, m = v.mensuel, an = v.annuel, lo = v.loyer;
@@ -2781,6 +2799,7 @@ function coutCard(v, r) {
   </div>`;
   const fraisHtml = fr ? `<h3>${esc(fr.titre || "Frais de scolarité")}</h3>
     <ul class="small cout-frais">${fr.lignes.map((l) => `<li><strong>${esc(l.rubrique)}</strong> : ${esc(fraisTexte(l.texte))}</li>`).join("")}${fr.cvec ? `<li>${esc(v.cvec.texte)} <a href="${esc(v.cvec.url)}" target="_blank" rel="noopener">En savoir plus ↗</a></li>` : ""}</ul>
+    ${fcNote(fr)}
     <p class="muted small">Recopié de la fiche Parcoursup, qui fait foi.</p>` : "";
   const loyerRow = lo ? `<tr><td>Loyer d'un studio de ${esc(v.studio_m2)} m² ${lo.maille ? '<span class="badge warnb" title="Peu d\'annonces dans cette commune : le loyer est estimé à partir des communes voisines.">peu d\'annonces</span>' : ""}</td>
       <td class="num" data-label="Par mois">${eurosRange(lo.min, lo.max)}</td>
@@ -2828,12 +2847,14 @@ function aidesCard(a, v) {
   const b = a.bourse, ab = a.annuel_boursier, fr = v && v.frais, src = [];
   const verif = (x) => x && x.verifie ? ` (vérifié le ${esc(x.verifie)})` : "";
   const lien = (url, texte) => /^https:\/\/[a-z0-9.-]+\.gouv\.fr\//.test(url || "") ? `<a href="${esc(url)}" target="_blank" rel="noopener">${texte} ↗</a>` : "";   // official hosts only
+  // lot 1, PR 12 (Sarah): outside terminale the two aids tied to the lycée and the year's bac are folded, never removed
+  const reo = isReo(store.get("profile", null));
+  const lyc = `${a.merite ? `<div class="sum-tile"><span class="sum-label">Aide au mérite</span><span class="sum-value">+ ${euros(a.merite.par_mois)} par mois</span><span class="sum-note">boursiers avec la mention très bien</span></div>` : ""}${a.mobilite ? `<div class="sum-tile"><span class="sum-label">Aide à la mobilité Parcoursup</span><span class="sum-value">${euros(a.mobilite.montant)}</span><span class="sum-note">une fois, pour une formation hors de votre académie</span></div>` : ""}`;
   const tiles = `<div class="sum-grid cout-tiles">
     <div class="sum-tile"><span class="sum-label">Une année ici avec une bourse</span><span class="sum-value">${ab ? eurosRange(ab.min, ab.max) : "—"}</span><span class="sum-note">${ab ? `sans la CVEC${ab.frais_gardes ? "" : " ni les frais d'inscription"} ${estimTag("même calcul que ci-dessus, sans ce dont les boursiers sont exonérés ; la bourse n'est pas déduite")}` : "il manque une partie du calcul"}</span></div>
     <div class="sum-tile"><span class="sum-label">Bourse sur critères sociaux</span><span class="sum-value">${b ? `${euroMois(b.echelons[0].mensuel)} à ${euroMois(b.echelons[b.echelons.length - 1].mensuel)}` : "—"}</span><span class="sum-note">${b ? `par mois sur ${esc(b.mensualites)} mois, selon l'échelon` : a.sanitaire_social ? "gérée par la Région pour cette formation" : "non lue"}</span></div>
-    ${a.merite ? `<div class="sum-tile"><span class="sum-label">Aide au mérite</span><span class="sum-value">+ ${euros(a.merite.par_mois)} par mois</span><span class="sum-note">boursiers avec la mention très bien</span></div>` : ""}
-    ${a.mobilite ? `<div class="sum-tile"><span class="sum-label">Aide à la mobilité Parcoursup</span><span class="sum-value">${euros(a.mobilite.montant)}</span><span class="sum-note">une fois, pour une formation hors de votre académie</span></div>` : ""}
-  </div>`;
+    ${reo ? "" : lyc}
+  </div>${reo && lyc ? `<details class="more-card"><summary>Aides liées au lycée et au bac de l'année (aide au mérite, aide à la mobilité Parcoursup)</summary><div class="sum-grid cout-tiles">${lyc}</div></details>` : ""}`;
   let bourse = "";
   if (a.sanitaire_social) {
     bourse = `<h3>La bourse pour cette formation</h3><p class="small">${esc(a.sanitaire_social.texte)} ${lien(a.sanitaire_social.source, "Trouver l'aide de votre Région")}</p>`;
@@ -3104,6 +3125,9 @@ async function viewFormation(cod, session, refresh) {
   store.set("guideVu", true);                                         // R7: step 2 of "Construire ma liste" (this browser only)
   const r = d.record, inBasket = basket.get().includes(r.cod_aff_form);
   const years = d.history.map((h) => h.session);
+  // lot 1, PR 12: outside terminale the estimate that concerns the student comes first in « Y entrer », before « Selon votre bac »
+  // (Sarah found it as the last block of the folded part); in terminale it stays folded, where it was
+  const reoFirst = isReo(store.get("profile", null)) && !!d.reorientation;
   const geo = r.lat != null ? ` · <a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=15/${r.lat}/${r.lon}" target="_blank" rel="noopener">carte</a>` : "";
   // sprint 19: the jury tab is rendered once; the summary links to it (own report first, else the similar formations' reports)
   // the fiche's grid first (the campaign it serves), then the jury's own report, else the similar formations' reports
@@ -3127,6 +3151,7 @@ async function viewFormation(cod, session, refresh) {
     </div>${vmNote(d.voeu_multiple)}
   </div>
   ${d.warnings.map((w) => `<div class="warn">${ICONS.warn} ${esc(w.text)}</div>`).join("")}
+  ${d.carte && d.carte.dans === false && d.carte.session ? `<div class="warn">${ICONS.warn} ${esc(absenteText(d.carte.session))}</div>` : ""}
   ${summaryBand(r, d)}
   <p class="small fhead-links"><label>Session <select id="sess">${years.map((y) => `<option ${y === r.session ? "selected" : ""}>${y}</option>`).join("")}</select></label>
       · <a href="#/evolution/${encodeURIComponent(r.cod_aff_form)}">Évolution 4 ans →</a>
@@ -3141,6 +3166,7 @@ async function viewFormation(cod, session, refresh) {
       <div><div class="muted small">Parmi les candidats appelés, part des élèves de terminale générale (phase principale) ${tip("part_terminale_generale_en_position_admis_pp")}</div><div class="big">${pct(r.part_terminale_generale_en_position_admis_pp)}</div>${pvLine(d.prevision, "part_terminale_generale_en_position_admis_pp")}</div>
       <div><div class="muted small">Admis (toute la campagne)</div><div class="big">${fmt(r.acc_tot)}</div><div class="muted small">capacité ${fmt(r.capa_fin)}</div>${pvLine(d.prevision, "acc_tot")}</div>
     </div></div>
+  ${reoFirst ? reoCard(d.reorientation) + ifsiFpcCard(d.aides) : ""}
   ${doubletteCard(d.doublettes, d.rapport, d.semblables, profileRate(d, bacProfile()))}
   ${appelCard(d.appel)}
   <div id="planb"></div>
@@ -3149,7 +3175,7 @@ async function viewFormation(cod, session, refresh) {
   ${tensionCard(d.tension, r.session)}
   ${isReo(store.get("profile", null)) ? "" : moyenneCard(r)}
   ${previsionCard(d.prevision)}
-  ${reoCard(d.reorientation)}
+  ${reoFirst ? "" : reoCard(d.reorientation) + ifsiFpcCard(d.aides)}
   ${timingCard(r, d.history)}
   ${lyceeHere(r)}
   <div class="card"><h2>Entonnoir · trois étapes distinctes ${tip("funnel")}</h2>
@@ -5808,12 +5834,22 @@ function reoAdultesCard() {
     <p class="muted small">Pages officielles lues le ${esc(R.verifie)}. <a href="#/info/aide">Tous les services qui aident à choisir</a></p></details>`;
 }
 // the formation page's folded card: the published counts, the estimate and its method (review: never a figure without them)
+// lot 1, PR 12: an IFSI page tells a working professional the official route (formation professionnelle continue, outside
+// Parcoursup): the official page's own sentence, quoted (aides.r_ifsi_fpc), its link (.gouv.fr only); never a condition of ours
+function ifsiFpcCard(a) {
+  const x = a && a.ifsi_fpc;
+  if (!x || !/^https:\/\/www\.parcoursup\.gouv\.fr\//.test(x.source || "")) return "";
+  return `<div class="card"><h2>Vous travaillez déjà dans le soin ?</h2>
+    <blockquote class="small">« ${esc(x.texte)} »</blockquote>
+    <p class="small"><a href="${esc(x.source)}" target="_blank" rel="noopener">Lire la page officielle de Parcoursup ↗</a> · <a href="#/info/aide">Se faire aider</a></p>
+    <p class="muted small">Phrase recopiée de la page officielle, qui fait foi. Les dates et les épreuves sont données par chaque institut.</p></div>`;
+}
 function reoCard(b) {
   if (!b) return "";
   return `<div class="card"><h2>Candidats qui ne sont plus en terminale · ${esc(b.session)}</h2>
     <p class="small">Réorientation, reprise d'études ou autre parcours : le ministère les compte ensemble, comme « autres candidats ».</p>
-    <div class="small">${b.candidats != null ? `${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)}), contre ${pct1(b.taux_proposition_tous)} pour l'ensemble des candidats.` : "Effectifs publiés incohérents : pas de lecture pour cette campagne."}</div>
-    <div class="small">Accès estimé hors terminale : ${reoCell(b)}</div>
+    <div class="pr-lead"><span class="sum-label">Accès estimé hors terminale</span><div class="pr-lead-v">${reoCell(b)}</div></div>
+    <p class="muted small">${b.candidats != null ? `Calculé à partir des effectifs publiés : ${fmt(b.propositions)} propositions pour ${fmt(b.candidats)} candidats hors terminale (${pct1(b.taux_proposition)} d'entre eux ont reçu une proposition), contre ${pct1(b.taux_proposition_tous)} pour l'ensemble des candidats.` : "Effectifs publiés incohérents : pas de lecture pour cette campagne."}</p>
     <p class="muted small">${REO_METHOD} ${REO_NO_ZONE}</p></div>`;
 }
 const reoAutres = (b) => (b && b.part_admis_autres != null ? `${pct1(b.part_admis_autres)}<div class="estim">${fmt(b.admis_autres)} sur ${fmt(b.admis)} admis</div>` : "—");
@@ -6147,7 +6183,7 @@ function shareLink(ids, prof) {
 }
 function shareCard(ids, withProfile) {
   return `<section class="card no-print" id="vx-share"><h2>Partager ou imprimer ma liste</h2>
-    <p class="small">Envoyez ce lien à un parent ou à votre professeur principal : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Le lien lui-même n'est jamais envoyé au serveur, et rien n'est enregistré.</p>
+    <p class="small">Envoyez ce lien ${isReo(store.get("profile", null)) ? "à un proche ou au conseiller qui vous accompagne" : "à un parent ou à votre professeur principal"} : il verra la même liste. Le lien contient seulement les numéros des formations, et votre profil si vous cochez la case. Le lien lui-même n'est jamais envoyé au serveur, et rien n'est enregistré.</p>
     ${withProfile ? `<label class="small"><input type="checkbox" id="share-prof"> Joindre mon profil (bac, spécialités ou voie, mention ; jamais la moyenne, l'académie ni le lycée : les zones y sont lues avec la mention seule)</label>` : ""}
     <div class="share-row"><input id="share-url" type="text" readonly aria-label="Lien de ma liste" value="${esc(shareLink(ids, null))}">
       <button type="button" id="share-copy">Copier le lien</button><button type="button" id="share-print">Imprimer</button></div>
@@ -6234,7 +6270,22 @@ async function viewInfo(slug, code) {
     $view.innerHTML = `<article class="card legal" data-seo="${esc(slug)}">${p.html}</article>`;
   }
   $view.dataset.rendered = "info";
+  if (slug === "aide" && isReo(store.get("profile", null))) aideAdultesFirst();
   if (slug === "contact") contactForm(/^\d{1,9}$/.test(code) ? code : "");
+}
+// lot 1, PR 12 (Sarah: « le ton est lycéen, l'aide commence par le professeur principal »): outside terminale the help page
+// opens on the adults' services (same page, same text, only the order changes; the server page stays the same for everyone)
+function aideAdultesFirst() {
+  const art = $view.querySelector("article.legal"), h = art && art.querySelector("#aide-adultes"), first = art && art.querySelector("section.aide-service");
+  if (!h || !first || h.dataset.moved) return;
+  const parts = [h];
+  for (let n = h.nextElementSibling; n && !n.matches("p.muted.small:last-child"); n = n.nextElementSibling) {
+    if (n.matches("p.muted.small") && /Pages officielles lues/.test(n.textContent)) { parts.push(n); break; }
+    parts.push(n);
+  }
+  for (const n of parts) first.before(n);
+  h.dataset.moved = "1";
+  first.insertAdjacentHTML("beforebegin", '<h2 id="aide-lycee">Les services pour les lycéens et leurs familles</h2>');
 }
 function contactForm(code) {
   const box = document.getElementById("contact-form");

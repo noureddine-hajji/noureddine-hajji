@@ -124,7 +124,9 @@ def official_check(con) -> tuple[bool, str]:
         rows = list(csv.reader(fh, delimiter=";"))
     head, body = rows[0], rows[1:]
     label = "Nombre de candidats bacheliers ayant confirmé au moins un vœu" in head
-    db = {(str(s), d, f): (c, p, a) for s, f, d, c, p, a in con.execute(
+    # the export joins a pair with « & » since 2026-11-26 (« , » before, as in the committed CSV): the separator is format only
+    sep = lambda d: (d or "").replace("&", ",")  # noqa: E731
+    db = {(str(s), sep(d), f): (c, p, a) for s, f, d, c, p, a in con.execute(
         "SELECT session, formation_type, doublette, n_candidats, n_proposition, n_accepte FROM core.specialites WHERE source = 'specialites_2021_2024'").fetchall()}
     seen = [r for r in body if (r[0], r[1], r[2]) in db]
     diff = [r[:3] for r in seen if db[(r[0], r[1], r[2])] != (int(r[3]), int(float(r[4])), int(r[5]))]

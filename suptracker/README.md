@@ -4532,8 +4532,13 @@ apart from the initial formation of their lycée.
 - Checked first (owner's question): elsewhere, the offers listed apart are at CFAs without an initial formation of the same
   kind (DCG, DEUST, CS/CSA, sport, social work), not a label mismatch. Grouping BTS options, prefixes such as « DEUST - » and
   BPJEPS mentions were proposed and not chosen.
-- Red team `scripts/redteam_types_liste.py` (TY1-TY5): a crafted warehouse against a table written by hand, every real offer
+- Red team `scripts/redteam_types_liste.py` (TY1-TY6): a crafted warehouse against a table written by hand, every real offer
   re-derived, the filter, docs, 10 mutants. The map red team's C9 / C10 re-derive the rule on their own (`rt_reading`).
+- **List separator (2026-11-26).** The cartographie export now joins a formation's types and mentions with « | »
+  (« …hôtellerie restauration|BTS - BTSA - BTSM »), where it used « , ». Every rule reads the comma form, so
+  `harmonize.build_cartographie` writes « | » back as « , » in `type_formation` and `mention_lib` (`CARTO_LISTS`), for every
+  session: the format changes, the labels are the ones read before. TY6 builds a crafted export with each separator and
+  requires the same table.
 
 ## Filtre des mentions allégé (owner 2026-11-21)
 
@@ -4760,6 +4765,11 @@ Red team `redteam_enregistrement.py` (EN1-EN5):
 minutes: each of the six shards planned 4.8 thousand seconds, too close to the limit on a slow runner. Seven shards plan about
 4.1 thousand seconds each (same greedy plan from `tests/durations.json`; `tests/test_shards.py` reads the count from the
 workflow; red team S6's mutant now splits the seven-shard command).
+
+**CI: eight shards (2026-11-26).** Three shards of PR 12 hit the 45-minute limit while every file of the two that finished
+ran 1.5 to 2 times slower than the same files earlier that day (doublettes 542 -> 1,116 s, robustesse mutants 469 -> 837 s): the
+runner, not a test. An eighth shard brings each plan back under about 3.7 thousand seconds; `tests/test_shards.py` reads the count
+from the workflow and red team S6 checks `--shard=i/n` against the matrix.
 
 ## A shorter formation page on a phone (audit PR 5, 2026-11-24)
 
@@ -5038,3 +5048,35 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **UC2:** replays real `/api/voeux` answers and prints the card's figure and Mes vœux's figure for 180 rows, 120 of them with an average. They are identical.
 - **UC8 (browser, nightly):** measures every card of three searches × three profiles on a phone, and checks the jump to the results.
 - **UC9:** 17 seeded defects, each caught.
+
+
+## The adult path, finished (lot 1, PR 12, 2026-11-26)
+
+**Why.** The 2026-11-25 audit's adult tester was an aide-soignante who wants to become a nurse. Outside terminale she found:
+- « Selon votre bac » before the block that concerns her (the last of a fold);
+- an IFSI absent from the 2026 map offered with no warning by the search and its page;
+- « formation continue : 9 000 € » without saying whom it concerns;
+- aids for lycéens in the tiles;
+- nothing on the continuing-education route into an IFSI;
+- « 783 propositions pour 4 836 candidats (16 %) » beside the 22 % estimate;
+- a help page and a share card written for lycéens.
+
+**What changes.**
+- **« Y entrer », outside terminale:** the tab opens on « Candidats qui ne sont plus en terminale », before « Selon votre bac ». In terminale it stays folded where it was. The card leads with the estimated access; the published counts come under it, as what the estimate is computed from. L'essentiel's tile points to it.
+- **Absent from the latest Parcoursup map:** `liste.presence` / `liste.absentes`, the rule « Avant de confirmer » already used. The formation page warns « Absente de la carte des formations Parcoursup 2026 : vérifiez sur Parcoursup qu'elle existe toujours », never « fermée ». The search card carries a badge « absente de la carte 2026 », read from `/api/carte/absentes` (no parameter, public cache, 716 codes today).
+- **Fees « formation continue »:** a note says whom they concern, in our own words, with no amount, no age and no condition. It asks the student to check with the formation which tariff applies, and links the help page (`fcNote`).
+- **The IFSI route for professionals:** the parcoursup.gouv.fr page « Les formations en soins infirmiers (IFSI) » is fetched by the `suptracker-aides` workflow. Its own sentence on the formation professionnelle continue (« … hors Parcoursup ») is quoted verbatim on IFSI pages (`aides.r_ifsi_fpc`, `ifsiFpcCard`). A changed page drops the item and says so in the audit.
+  parcoursup.gouv.fr answers 403 to robots for its HTML pages (its calendar PDFs are served). The page is never read around that
+  refusal (no archive copy, no other host). The owner saved the page in a browser and committed it as
+  `data/aides/depot/les-formations-en-soins-1652.html` (2026-11-26): when the live page answers 403, `aides_fetch.depot_row` reads that copy,
+  only because its own canonical link is the requested URL, and logs it `via` « depot » with the live status. With no copy, the item waits in
+  `aides.EN_ATTENTE` (« waiting » in the audit, card hidden). The copy stays out of the Vercel bundle (red team AI1, AI2, AI8).
+- **Outside terminale:**
+  - the two aids tied to the lycée and the year's bac (mérite, mobilité Parcoursup) are folded, never removed;
+  - the help page opens on the adults' services;
+  - the share card names « un proche ou le conseiller qui vous accompagne ».
+
+**Red team** `scripts/redteam_adulte.py` (AD1-AD9), run by `tests/test_adulte.py`:
+- **AD2:** re-derives the absent codes in SQL and checks the route's cache and parameters.
+- **AD7 (browser, nightly):** checks an absent IFSI with a reorientation and a terminale profile.
+- **AD8:** a mutation test of 13 seeded defects.
