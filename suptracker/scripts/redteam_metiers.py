@@ -364,7 +364,7 @@ def vercel_ignored(path: str, text: str) -> bool:
     return any(r.match("/".join(parts[:k])) for r in rxs for k in range(1, len(parts) + 1))
 
 
-BUNDLE_OUT = ("data/sources", "data/probe")          # owner uploads and probes: never read when serving
+BUNDLE_OUT = ("data/sources", "data/probe", "data/aides/depot")   # owner uploads, probes, owner page copies: never read when serving
 BUNDLE_IN = ("data/suptracker.duckdb", "data/rapport_textes.duckdb", "suptracker/api.py", "suptracker/static/app.js", "requirements.txt")
 
 
