@@ -86,16 +86,18 @@ def crafted_agenda(J) -> list:
     con = duckdb.connect()
     con.execute("CREATE SCHEMA core")
     con.execute("CREATE TABLE core.formation_year AS SELECT * FROM (VALUES ('1', 'U1', 2025, 'BTS', 'X'), ('2', 'U2', 2025, 'BTS', 'Y'),"
-                " ('3', 'U3', 2025, 'Licence', 'Z')) t(cod_aff_form, cod_uai, session, lib_for_voe_ins, lib_comp_voe_ins)")
+                " ('3', 'U3', 2025, 'Licence', 'Z'), ('4', 'U5', 2025, 'Licence', 'W')) t(cod_aff_form, cod_uai, session, lib_for_voe_ins, lib_comp_voe_ins)")
     con.execute("CREATE TABLE core.cartographie (cod_aff_form VARCHAR, etab_uai VARCHAR)")
     con.execute(f"CREATE TABLE jpo_date AS SELECT * FROM (VALUES ('U1', DATE '2027-01-10', false), ('U1', DATE '2027-01-10', true),"
                 f" ('{J.fiche_key('2')}', DATE '2027-02-01', false), ('U4', DATE '2027-03-01', false)) t(uai, debut, virtuel)")
-    con.execute("CREATE TABLE jpo_etab AS SELECT * FROM (VALUES ('U3', 'U4')) t(uai, univ_uai)")
+    con.execute("CREATE TABLE jpo_etab AS SELECT * FROM (VALUES ('U3', 'U4'), ('U5', 'U4')) t(uai, univ_uai)")
     rows = [{"cod_aff_form": c, "formation": f"F{c}", "etablissement": f"E{c}", "lat": 45.0, "lon": 5.0, "ville": "V"} for c in "123"]
+    rows.append({"cod_aff_form": "4", "formation": "F4", "etablissement": "E4", "lat": 45.8, "lon": 5.5, "ville": "W"})   # another campus
     d = lambda u, day, v, src="onisep": {"uai": u, "date": day, "fin": None, "virtuel": v, "source": src, "nom": f"N{u}"}  # noqa: E731
     fake = {"1": {"dates": [d("U1", "2027-01-10", False), d("U1", "2027-01-10", True)]},
             "2": {"dates": [d("U2", "2027-02-01", False, "fiche")]},
-            "3": {"dates": [d("U4", "2027-03-01", False)], "universite": {"nom": "Université X"}}}
+            "3": {"dates": [d("U4", "2027-03-01", False)], "universite": {"nom": "Université X"}},
+            "4": {"dates": [d("U4", "2027-03-01", False)], "universite": {"nom": "Université X"}}}
     saved = (J._src, J._for_formation, CA._layer)
     try:
         J._src = lambda _con: (con, "")
@@ -107,10 +109,13 @@ def crafted_agenda(J) -> list:
         con.close()
     got = sorted((e["uai"], e["date"], e["virtuel"], tuple(e["formations"])) for e in A["evenements"])
     want = [("U1", "2027-01-10", False, ("1",)), ("U1", "2027-01-10", True, ("1",)), ("U2", "2027-02-01", False, ("2",)),
-            ("U4", "2027-03-01", False, ("3",))]
+            ("U4", "2027-03-01", False, ("3", "4"))]
     bad = [] if got == want else [("crafted agenda: fiche-only, university-only, online + on-site the same day", got)]
     if not any(e["universite"] and e["nom"] == "Université X" for e in A["evenements"]):
         bad.append("crafted agenda: the university's name")
+    u = [e for e in A["evenements"] if e["uai"] == "U4"]
+    if not u or sorted(v[2] for v in u[0].get("lieux") or []) != ["V", "W"]:
+        bad.append(("crafted agenda: every campus of a university day kept for the distance (Codex)", u[0].get("lieux") if u else None))
     return bad
 
 
@@ -326,21 +331,22 @@ def po4(c: Ctx):
     # crafted: two formations of one establishment and day = one event naming both; a passed day left out
     crafted = {"aujourdhui": "2026-11-27", "formations": [
         {"cod_aff_form": "1", "formation": "BTS A, option B", "etablissement": "Lycée X", "jpo": {"dates": [
-            {"uai": "0000001A", "date": "2027-01-10", "fin": None, "virtuel": False, "source": "onisep", "nom": "Lycée X", "heures": "9h-12h"},
+            {"uai": "0000001A", "date": "2027-01-10", "fin": None, "virtuel": False, "source": "onisep", "nom": "Lycée X", "heures": "9h-12h",
+             "remarque": "inscription en ligne obligatoire"},
             {"uai": "0000001A", "date": "2026-11-01", "fin": None, "virtuel": False, "source": "onisep", "nom": "Lycée X"}]}, "concours": None},
         {"cod_aff_form": "2", "formation": "BTS C", "etablissement": "Lycée X", "jpo": {"dates": [
             {"uai": "0000001A", "date": "2027-01-10", "fin": None, "virtuel": False, "source": "site", "nom": "Lycée X"}]}, "concours": None}],
         "concours": {}}
     ce = ics_events(J.ics_list(crafted))
     if len(ce) != 1 or "BTS A\\, option B" not in ce[0].get("DESCRIPTION", "") or "BTS C" not in ce[0].get("DESCRIPTION", "") \
-            or "Source : Onisep" not in ce[0].get("DESCRIPTION", ""):
+            or "Source : Onisep" not in ce[0].get("DESCRIPTION", "") or "inscription en ligne obligatoire" not in ce[0].get("DESCRIPTION", ""):
         bad.append(("crafted: one event naming both formations, the passed day out", len(ce)))
     return not bad, f"{len(evs)} events for {len(codes)} formations; problems {bad[:4]}"
 
 
 # ------------------------------------------------------------------ PO5
-PAGE_NAMES = ("JPO_KIND_LINE", "JPO_LISTE_FIRST", "jpoListeEvents", "poKeep", "jpoUrl", "jpoWhen", "jpoSrc", "JPO_KIND", "jpoConcours",
-              "jpoListeCard")
+PAGE_NAMES = ("JPO_KIND_LINE", "JPO_LISTE_FIRST", "jpoListeEvents", "poKeep", "poNearest", "poConcQ", "poConcKeep", "jpoUrl", "jpoWhen",
+              "jpoSrc", "JPO_KIND", "jpoConcours", "jpoListeCard")
 PAGE_STUB = r"""
 const fmt = (x) => String(x); const frDate = (d) => d; const localIso = () => "2026-11-27";
 const foldText = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -350,7 +356,8 @@ PAGE_PROG = r"""
 const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const evs = jpoListeEvents(D.L, "2026-11-27");
 const keep = D.cases.map(([F, home]) => D.A.evenements.filter((x) => poKeep(x, D.A, home, F, "2026-11-27")).map((x) => x.uai + x.date));
-process.stdout.write(JSON.stringify({ evs: evs.map((x) => [x.e.uai, x.e.date, x.forms.map((f) => f.cod_aff_form)]), keep, card: jpoListeCard(D.L, ["1", "2", "3"]) }));"""
+const conc = D.cases.map(([F]) => D.K.map((k) => poConcKeep(k, F, "2026-11-27").map((e) => e.date)));
+process.stdout.write(JSON.stringify({ evs: evs.map((x) => [x.e.uai, x.e.date, x.forms.map((f) => f.cod_aff_form)]), keep, conc, card: jpoListeCard(D.L, ["1", "2", "3"]) }));"""
 
 
 def own_keep(x, A, home, F, today):
@@ -365,9 +372,18 @@ def own_keep(x, A, home, F, today):
         if not any(q in (A["formations"].get(cod, [""])[0] or "").lower() for cod in x["formations"]) and q not in (x["nom"] or "").lower():
             return False
     if not x["virtuel"] and home and F["km"]:
-        if x["lat"] is None or ((home["lat"] - x["lat"]) ** 2 + (home["lon"] - x["lon"]) ** 2) ** 0.5 * 100 > F["km"]:
-            return False
+        lieux = x.get("lieux") or ([[x["lat"], x["lon"], x["ville"]]] if x["lat"] is not None else [])
+        if not lieux or min(((home["lat"] - a) ** 2 + (home["lon"] - b) ** 2) ** 0.5 * 100 for a, b, _ in lieux) > F["km"]:
+            return False                         # the NEAREST campus of the formations the day concerns (Codex)
     return True
+
+
+def own_conc(k, F, today):
+    q = F["q"].lower()
+    if q and q not in k["nom"].lower() and not any(q in v.lower() for v in k["libelles"]):
+        return []
+    return [e["date"] for e in k["dates"] if not (F["periode"] == "avenir" and e["date"] < today)
+            and not (F["type"] == "place" and e["kind"] == "en_ligne") and not (F["type"] == "ligne" and e["kind"] != "en_ligne")]
 
 
 @check("PO5 page twins: coming dates grouped, filters (radius never on an online session), escaped, five first; the town never sent")
@@ -378,7 +394,9 @@ def po5(c: Ctx):
                                                         "nom": nom, "lat": lat, "lon": 4.0, "ville": "V", "formations": forms}
     A = {"formations": {"1": ["BTS Commerce", True], "2": ["Licence Droit", True], "3": [HOSTILE, False]},
          "evenements": [ev("A", "2026-11-01", False, ["1"]), ev("B", "2027-01-10", False, ["1", "2"]), ev("C", "2027-01-11", True, ["3"], lat=None),
-                        ev("D", "2027-02-01", False, ["2"], lat=48.0), ev("E", "2027-02-02", False, ["3"], lat=None, nom=HOSTILE)]}
+                        ev("D", "2027-02-01", False, ["2"], lat=48.0), ev("E", "2027-02-02", False, ["3"], lat=None, nom=HOSTILE),
+                        # a university day: its first campus 300 km away, another 10 km away (Codex)
+                        {**ev("F", "2027-02-03", False, ["1", "2"], lat=48.0), "lieux": [[45.1, 4.0, "Près"], [48.0, 4.0, "Loin"]]}]}
     home = {"lat": 45.0, "lon": 4.0}
     cases = [({"periode": "avenir", "type": "tous", "q": "", "km": 50}, home), ({"periode": "saison", "type": "tous", "q": "", "km": 0}, home),
              ({"periode": "avenir", "type": "place", "q": "", "km": 50}, home), ({"periode": "avenir", "type": "ligne", "q": "", "km": 50}, home),
@@ -386,12 +404,15 @@ def po5(c: Ctx):
     lst = {"saison": {"annees": "2026-2027"}, "concours": {}, "formations": [
         {"cod_aff_form": "1", "formation": "BTS Commerce", "etablissement": HOSTILE, "jpo": {"dates": [
             {"uai": "A", "date": "2026-11-01", "virtuel": False, "source": "onisep", "nom": "A"},
-            {"uai": "B", "date": "2027-01-10", "virtuel": False, "source": "onisep", "nom": HOSTILE}]}},
+            {"uai": "B", "date": "2027-01-10", "virtuel": False, "source": "onisep", "nom": HOSTILE, "remarque": "inscription obligatoire"}]}},
         {"cod_aff_form": "2", "formation": "Licence", "etablissement": "Fac", "jpo": {"dates": [
             {"uai": "B", "date": "2027-01-10", "virtuel": False, "source": "site", "nom": "B", "site": "javascript:alert(1)"}] + [
             {"uai": f"Z{i}", "date": f"2027-03-{10 + i}", "virtuel": True, "source": "onisep", "nom": "Z"} for i in range(6)]}},
         {"cod_aff_form": "3", "formation": "Sans", "etablissement": "X", "jpo": None}]}
-    o = RB.node(RB.STUB + PAGE_STUB + "\n".join(top(c.js, n) for n in PAGE_NAMES) + PAGE_PROG, {"A": A, "cases": cases, "L": lst})
+    K = [{"nom": "concours Avenir", "libelles": ["Ingénieur"], "dates": [{"date": "2026-11-17", "kind": "en_ligne"},
+          {"date": "2027-01-20", "kind": "en_ligne"}, {"date": "2027-02-05", "kind": "information"}]},
+         {"nom": "concours Puissance Alpha", "libelles": ["Droit et commerce"], "dates": [{"date": "2027-03-01", "kind": "information"}]}]
+    o = RB.node(RB.STUB + PAGE_STUB + "\n".join(top(c.js, n) for n in PAGE_NAMES) + PAGE_PROG, {"A": A, "cases": cases, "L": lst, "K": K})
     if o is None:
         return True, "node absent: not run"
     bad = []
@@ -401,7 +422,12 @@ def po5(c: Ctx):
         want = [x["uai"] + x["date"] for x in A["evenements"] if own_keep(x, A, h, F, "2026-11-27")]
         if got != want:
             bad.append(("poKeep", F, h, got, want))
+    for (F, _h), got in zip(cases, o["conc"]):
+        if got != [own_conc(k, F, "2026-11-27") for k in K]:
+            bad.append(("poConcKeep: the concours under the page's filters (Codex)", F, got))
     card = o["card"]
+    if "(inscription obligatoire)" not in card:
+        bad.append("the list card drops a date's remark (registration required: Codex)")
     if "<img" in card or "javascript:" in card or "&lt;img" not in card:
         bad.append("the list card is not escaped")
     first = card.split("<details>")[0]
@@ -410,6 +436,9 @@ def po5(c: Ctx):
     if "/api/jpo/liste.ics?ids=1%2C2%2C3" not in card or "rien n'en est enregistré" not in card:
         bad.append("the .ics link or the privacy sentence")
     view = top(c.js, "viewPortesOuvertes")
+    if "${x.remarque ? ` (${esc(x.remarque)})` : \"\"}" not in view or "poNearest(x, home)" not in view \
+            or "poConcKeep(k, poUI, today)" not in view or 'id="po-conc"' not in view:
+        bad.append("the near-me page: remark, nearest campus or filtered concours (Codex)")
     calls = re.findall(r"api\(([^)]*)\)", view)
     if calls != ['"/api/jpo/agenda"'] or "villeDepart()" not in view:
         bad.append(("the page sends something besides the plain agenda request", calls))
@@ -496,6 +525,12 @@ MUTANTS = [
     ("py", "PO4", "past dates in the .ics", "            if (e.get(\"fin\") or e[\"date\"]) < today:\n                continue\n            k = (e[\"uai\"]",
      "            k = (e[\"uai\"]"),
     ("py", "PO4", "the source dropped from the .ics", 'f"Source : {SRC_WORDS.get(e.get(\'source\'), \'Onisep\')}. ', 'f"'),
+    ("py", "PO1", "a university day keeps its first campus only", '                if lieu not in x["lieux"]:', '                if not x["lieux"]:'),
+    ("py", "PO4", "the remark dropped from the .ics", "{' (' + e['remarque'] + ')' if e.get('remarque') else ''}", ""),
+    ("js", "PO5", "the first campus only for the distance", "const lieux = (x.lieux && x.lieux.length) ? x.lieux :", "const lieux = false ? x.lieux :"),
+    ("js", "PO5", "the concours ignore the type", ' && !(F.type === "place" && e.kind === "en_ligne")', ""),
+    ("js", "PO5", "the concours ignore the formation", "  if (!poConcQ(k, F)) return [];\n", ""),
+    ("js", "PO5", "the remark dropped from the list card", '${x.e.remarque ? ` (${esc(x.e.remarque)})` : ""}', ""),
     ("py", "PO3", "the concours left in each block", "        conc = b.pop(\"concours\", None) if b else None", "        conc = b.get(\"concours\") if b else None"),
     ("js", "PO5", "the radius applied to online sessions", "  if (!x.virtuel && home && F.km &&", "  if (home && F.km &&"),
     ("js", "PO5", "passed dates in the list", "      if ((e.fin || e.date) < today) continue;\n      const k = `${e.uai}", "      const k = `${e.uai}"),

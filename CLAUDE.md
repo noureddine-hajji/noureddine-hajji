@@ -1018,7 +1018,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   `#/portes-ouvertes` (tab Calendrier, linked from the calendar) reads `/api/jpo/agenda` (no parameter, shared cache), built at build
   (`jpo.build_agenda`, beside the warehouse, `today` = the build day: the page flags passed dates itself), coverage MEASURED and
   printed; the town of « Mon profil » never sent (distance in the browser), an online session never filtered by distance, sorted by
-  date then distance, never by a figure; five dates first in Mes vœux. Red team `redteam_portes.py` (PO1-PO8).
+  date then distance, never by a figure; five dates first in Mes vœux. An event keeps every campus of the formations it concerns (`lieux`,
+  ~1 km): the distance is to the NEAREST; a date's remark (registration) is printed everywhere, the .ics included; the concours sessions
+  follow the page's filters (Codex). Red team `redteam_portes.py` (PO1-PO8).
 - **Public repository (owner, 2026-11-27).** The repository is public (GitHub Actions on standard runners is free there). Nothing
   kept may name a person's contacts: the Parcoursup material kept (probe pages, live probe, harvested jury texts, fiche texts) and
   the warehouse's jury texts carry no e-mail address or phone number (masked at writing, `fiche_parse.mask` /

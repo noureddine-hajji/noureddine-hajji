@@ -2851,7 +2851,7 @@ function jpoListeCard(L, ids) {
   const withDate = fs.filter((f) => f.jpo && (f.jpo.dates || []).some((e) => (e.fin || e.date) >= today));
   const without = fs.filter((f) => !withDate.includes(f));
   const fname = (f) => `<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.formation || f.cod_aff_form)}</a>${f.etablissement ? ` <span class="muted">(${esc(f.etablissement)})</span>` : ""}`;
-  const line = (x) => `<li><strong>${esc(jpoWhen(x.e))}</strong>, ${JPO_KIND_LINE(x.e)}${x.e.heures ? `, de ${esc(x.e.heures)}` : ""} · ${esc(x.nom)}${x.universite ? " (portes ouvertes de l'université)" : ""}
+  const line = (x) => `<li><strong>${esc(jpoWhen(x.e))}</strong>, ${JPO_KIND_LINE(x.e)}${x.e.heures ? `, de ${esc(x.e.heures)}` : ""}${x.e.remarque ? ` (${esc(x.e.remarque)})` : ""} · ${esc(x.nom)}${x.universite ? " (portes ouvertes de l'université)" : ""}
       <br><span class="small">Pour : ${x.forms.map(fname).join(" ; ")}</span>
       <br><span class="small muted">${jpoSrc(x.e)}${x.e.source !== "site" && jpoUrl(x.e.voir) ? ` · <a href="${esc(jpoUrl(x.e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
   const conc = Object.values(L.concours || {});
@@ -2898,8 +2898,28 @@ function poKeep(x, A, home, F, today) {
     const q = foldText(F.q);
     if (!x.formations.some((c) => foldText(((A.formations[c] || [])[0]) || "").includes(q)) && !foldText(x.nom || "").includes(q)) return false;
   }
-  if (!x.virtuel && home && F.km && (x.lat == null || haversineKm(home.lat, home.lon, x.lat, x.lon) > F.km)) return false;
+  if (!x.virtuel && home && F.km) {
+    const near = poNearest(x, home);
+    if (!near || near.km > F.km) return false;
+  }
   return true;
+}
+// the nearest place of the formations an event concerns (Codex, PR 16: a university's day concerns campuses in other towns)
+function poNearest(x, home) {
+  const lieux = (x.lieux && x.lieux.length) ? x.lieux : (x.lat != null ? [[x.lat, x.lon, x.ville]] : []);
+  let best = null;
+  for (const [lat, lon, ville] of lieux) {
+    const km = haversineKm(home.lat, home.lon, lat, lon);
+    if (!best || km < best.km) best = { km, ville };
+  }
+  return best;
+}
+// the concours's sessions under the same filters (Codex, PR 16): period, type (a « journée d'information » is not online), formation
+const poConcQ = (k, F) => !F.q || foldText(k.nom || "").includes(foldText(F.q)) || (k.libelles || []).some((l) => foldText(l).includes(foldText(F.q)));
+function poConcKeep(k, F, today) {
+  if (!poConcQ(k, F)) return [];
+  return (k.dates || []).filter((e) => !(F.periode === "avenir" && e.date < today) && !(F.type === "place" && e.kind === "en_ligne")
+    && !(F.type === "ligne" && e.kind !== "en_ligne"));
 }
 async function viewPortesOuvertes() {
   const marker = "portes-ouvertes";
@@ -2913,11 +2933,11 @@ async function viewPortesOuvertes() {
   const form = (c) => { const f = A.formations[c] || [];
     return f[1] === false ? `${esc(f[0] || c)}${/apprentissage/i.test(f[0] || "") ? "" : ' <span class="muted">(en apprentissage)</span>'}` : `<a href="#/f/${esc(c)}">${esc(f[0] || c)}</a>`; };
   const row = (x) => {
-    const km = !x.virtuel && home && x.lat != null ? Math.round(haversineKm(home.lat, home.lon, x.lat, x.lon)) : null;
+    const near = !x.virtuel && home ? poNearest(x, home) : null, km = near ? Math.round(near.km) : null;
     const past = (x.fin || x.date) < today;
     const shown = x.formations.slice(0, 3), rest = x.formations.slice(3);
-    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(x))}</strong> <span class="badge">${JPO_KIND_LINE(x)}</span>${past ? " · passée" : ""}${x.heures ? `, de ${esc(x.heures)}` : ""}
-      <br>${esc(x.nom || "")}${x.universite ? " (portes ouvertes de l'université)" : ""}${x.ville ? ` · ${esc(x.ville)}` : ""}${km != null ? ` · ${fmt(km)} km de chez vous` : ""}
+    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(x))}</strong> <span class="badge">${JPO_KIND_LINE(x)}</span>${past ? " · passée" : ""}${x.heures ? `, de ${esc(x.heures)}` : ""}${x.remarque ? ` (${esc(x.remarque)})` : ""}
+      <br>${esc(x.nom || "")}${x.universite ? " (portes ouvertes de l'université)" : ""}${near && near.ville ? ` · ${esc(near.ville)}` : x.ville ? ` · ${esc(x.ville)}` : ""}${km != null ? ` · ${fmt(km)} km de chez vous` : ""}
       <br><span class="small">Pour : ${shown.map(form).join(" ; ")}${rest.length ? ` <details class="po-more"><summary class="small">et ${fmt(rest.length)} autre${rest.length > 1 ? "s" : ""}</summary>${rest.map(form).join(" ; ")}</details>` : ""}</span>
       <br><span class="small muted">${jpoSrc(x)}${x.source !== "site" && jpoUrl(x.voir) ? ` · <a href="${esc(jpoUrl(x.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
   };
@@ -2925,7 +2945,7 @@ async function viewPortesOuvertes() {
   const draw = () => {
     if ($view.dataset.rendered !== marker) return;
     const kept = evs.filter((x) => poKeep(x, A, home, poUI, today))
-      .map((x) => ({ x, km: !x.virtuel && home && x.lat != null ? haversineKm(home.lat, home.lon, x.lat, x.lon) : null }))
+      .map((x) => ({ x, km: !x.virtuel && home ? (poNearest(x, home) || {}).km ?? null : null }))
       .sort((a, b) => (a.x.date < b.x.date ? -1 : a.x.date > b.x.date ? 1 : (a.km ?? 1e9) - (b.km ?? 1e9) || (a.x.nom < b.x.nom ? -1 : 1)));
     const list = document.getElementById("po-list");
     if (!list) return;
@@ -2933,6 +2953,12 @@ async function viewPortesOuvertes() {
       : '<p class="muted" role="status">Aucune date ne correspond. Élargissez la distance ou la période.</p>';
     const more = document.getElementById("po-more");
     if (more) more.onclick = () => { poUI.n += PO_PAGE; draw(); };
+    const cbox = document.getElementById("po-conc");
+    if (cbox) {
+      const shown = conc.map((k) => ({ k, dates: poConcKeep(k, poUI, today) })).filter((c) => c.dates.length || (!(c.k.dates || []).length && poConcQ(c.k, poUI)));   // no date at all: its site, as before
+      cbox.innerHTML = shown.length ? shown.map(({ k, dates }) => `${jpoConcours({ ...k, dates: dates.map((e) => ({ ...e, passee: e.date < today })) }, today)}<p class="small">${fmt(k.formations.length)} formation${k.formations.length > 1 ? "s" : ""} recrute${k.formations.length > 1 ? "nt" : ""} par ce concours.</p>`).join("")
+        : '<p class="muted small">Aucune session de concours ne correspond à vos critères.</p>';
+    }
   };
   const sel = (id, label, opts, v) => `<label class="po-f">${label} <select id="${id}">${opts.map(([k, t]) => `<option value="${k}"${String(k) === String(v) ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
   $view.innerHTML = `<div class="card"><h1>Portes ouvertes et webinaires près de chez moi</h1>
@@ -2944,7 +2970,7 @@ async function viewPortesOuvertes() {
     <p class="muted small">${A.n_formations ? `Une date est publiée pour ${fmt(A.n_avec_date)} formations sur ${fmt(A.n_formations)} (${String(pctCov).replace(".", ",")} %) cette saison. Les autres n'en ont pas encore annoncé.` : "Les dates ne sont pas encore disponibles."} Votre ville reste dans ce navigateur : la distance, à vol d'oiseau, est calculée ici.</p></div>
   <section class="card"><h2>Les journées</h2><div id="po-list"></div>
     <p class="muted small">Une ligne par établissement, jour et type. Une université sans date propre à une formation montre les siennes. Sources : Onisep, Idéo-Structures (licence ODbL), la fiche Parcoursup de la formation et le site de l'établissement${A.aujourdhui ? `, lus au plus tard le ${esc(frDate(A.aujourdhui))}` : ""}. Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></section>
-  ${conc.length ? `<section class="card"><h2>Concours : webinaires et journées d'information</h2>${conc.map((k) => `${jpoConcours({ ...k, dates: (k.dates || []).map((e) => ({ ...e, passee: e.date < today })) }, today)}<p class="small">${fmt(k.formations.length)} formation${k.formations.length > 1 ? "s" : ""} recrute${k.formations.length > 1 ? "nt" : ""} par ce concours.</p>`).join("")}</section>` : ""}`;
+  ${conc.length ? `<section class="card"><h2>Concours : webinaires et journées d'information</h2><div id="po-conc"></div><p class="muted small">Les mêmes critères de type, de période et de formation s'appliquent ; un concours vaut pour toute la France.</p></section>` : ""}`;
   const bind = (id, key, num) => { const el = document.getElementById(id); if (el) el.onchange = el.oninput = () => { poUI[key] = num ? Number(el.value) : el.value; poUI.n = PO_PAGE; draw(); }; };
   bind("po-km", "km", true); bind("po-type", "type"); bind("po-periode", "periode"); bind("po-q", "q");
   draw();

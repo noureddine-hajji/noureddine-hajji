@@ -833,7 +833,7 @@ def ics_list(lst: dict) -> str:
     for (uai, d, virt), x in sorted(ev.items(), key=lambda kv: (kv[0][1], kv[0][0], kv[0][2])):
         e = x["e"]
         kind = "Portes ouvertes en ligne" if virt else "Portes ouvertes"
-        desc = (f"{kind} : {x['nom']}{', ' + e['heures'] if e.get('heures') else ''}. Pour : {' ; '.join(sorted(set(x['forms'])))}. "
+        desc = (f"{kind} : {x['nom']}{', ' + e['heures'] if e.get('heures') else ''}{' (' + e['remarque'] + ')' if e.get('remarque') else ''}. Pour : {' ; '.join(sorted(set(x['forms'])))}. "
                 f"Source : {SRC_WORDS.get(e.get('source'), 'Onisep')}. À vérifier sur le site de l'établissement avant de vous déplacer."
                 + (f" {https(e.get('voir'))}" if https(e.get("voir")) else ""))
         add(f"jpo-{re.sub(r'[^A-Za-z0-9]', '', uai)}-{d}-{'l' if virt else 'p'}", d, e.get("fin"), f"{kind} : {x['nom']}", desc)
@@ -897,6 +897,8 @@ def agenda(con, today: date | None = None) -> dict:
                     cb = None
                 concours[k[0]] = {**(cb or {"cle": k[0], "nom": k[1], "site": None, "lu_le": None, "dates": []}), "formations": []}
             concours[k[0]]["formations"].append(cod)
+            if f.get("formation") and f["formation"] not in concours[k[0]].setdefault("libelles", []):
+                concours[k[0]]["libelles"].append(f["formation"])     # the page's « Formation » filter reads them
         dates = (b or {}).get("dates") or []
         if not dates:
             continue
@@ -909,13 +911,22 @@ def agenda(con, today: date | None = None) -> dict:
                                         "heures": e.get("heures"), "remarque": e.get("remarque"), "source": e.get("source"),
                                         "voir": https(e.get("voir")), "site": https(e.get("site")), "lu_le": e.get("lu_le"),
                                         "nom": who or e.get("nom") or f.get("etablissement"), "universite": bool(who),
-                                        "lat": None, "lon": None, "ville": None, "formations": []})
+                                        "lat": None, "lon": None, "ville": None, "lieux": [], "formations": []})
             x["formations"].append(cod)
-            if x["lat"] is None and f.get("lat") is not None:
-                x["lat"], x["lon"], x["ville"] = f["lat"], f["lon"], f.get("ville")
+            if f.get("lat") is not None:
+                if x["lat"] is None:
+                    x["lat"], x["lon"], x["ville"] = f["lat"], f["lon"], f.get("ville")
+                # every place of the formations it concerns (Codex, PR 16): a university's day concerns campuses in other towns,
+                # and the page's distance filter takes the NEAREST of them
+                lieu = [round(f["lat"], 2), round(f["lon"], 2), f.get("ville")]   # about a kilometre: enough for a distance
+                if lieu not in x["lieux"]:
+                    x["lieux"].append(lieu)
     evs = sorted(events.values(), key=lambda x: (x["date"], x["uai"], x["virtuel"]))
     for x in evs:
         x["formations"] = sorted(set(x["formations"]))
+        x["lieux"].sort(key=lambda v: (v[0], v[1]))
+    for v in concours.values():
+        v["libelles"] = sorted(v.get("libelles", []))
     return {"aujourdhui": today.isoformat(), "saison": {"debut": w0.isoformat(), "fin": w1.isoformat(), "annees": f"{s - 1}-{s}"},
             "n_formations": len(rows), "n_avec_date": n_date, "evenements": evs,
             "formations": {k: v for k, v in sorted(forms.items())},
