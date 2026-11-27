@@ -561,6 +561,8 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 /* PR 17: the transfer QR code and the class kit (the code stays black on white in both themes: a phone must read it) */
 .qr-box { margin: 8px 0; }
 .qr { display: block; width: min(240px, 100%); height: auto; border: var(--bw) solid var(--edge); }
+.qr .qr-bg { fill: var(--paper-surface); }                       /* --paper-* tokens: the same in both themes */
+.qr .qr-ink { fill: var(--paper-ink); }
 .kit-steps li, .kit-sheet ol li { margin-bottom: 8px; }
 .kit-check { list-style: none; padding-left: 0; }
 .kit-check li { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }

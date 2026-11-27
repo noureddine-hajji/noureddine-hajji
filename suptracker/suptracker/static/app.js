@@ -6563,7 +6563,7 @@ function qrSvg(text, label) {                                           // black
   const m = qrMatrix(text), n = m.length, q = 4;
   let d = "";
   m.forEach((row, r) => row.forEach((v, c) => { if (v) d += `M${c + q} ${r + q}h1v1h-1z`; }));
-  return `<svg class="qr" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" role="img" aria-label="${esc(label)}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/><path d="${d}" fill="#000000"/></svg>`;
+  return `<svg class="qr" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" role="img" aria-label="${esc(label)}" shape-rendering="crispEdges"><rect class="qr-bg" width="100%" height="100%"/><path class="qr-ink" d="${d}"/></svg>`;
 }
 function transferCard() {
   const ids = voeux.get(), prof = store.get("profile", null);
