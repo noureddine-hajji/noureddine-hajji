@@ -1021,6 +1021,15 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   date then distance, never by a figure; five dates first in Mes vœux. An event keeps every campus of the formations it concerns (`lieux`,
   ~1 km): the distance is to the NEAREST; a date's remark (registration) is printed everywhere, the .ics included; the concours sessions
   follow the page's filters (Codex). Red team `redteam_portes.py` (PO1-PO8).
+- **Transfert vers un autre appareil et kit enseignant (owner, 2026-11-27, PR 17).** « Transférer sur mon autre appareil » (Mes vœux,
+  Mon profil): `#/transfert/<…>` (`transferLink` / `transferRead`, after « # », never sent, nothing stored) carries the list's codes and
+  the profile WITH the average (owner: the same person, the one exception to « a shared list never carries the average »), never the
+  académie, the lycée, the town, « boursier » or the drafts; every field validated, an unreadable part dropped and said, never a default.
+  The other device replaces only after a second click (an empty device installs at once), keeps its own académie, lycée and boursier
+  (`transferProfile`); « ajouter » merges the codes only; the hash is cleared after. QR codes: qrcode-generator 1.4.4 (MIT) vendored
+  unchanged in static/vendor/qrcode (digest checked, credited on the legal page), loaded on demand, black on white, level M.
+  Kit `#/kit` (tab Parents et professeurs): six timed steps, our words, no figure, never a chance, the students' sheet printed apart
+  with the site's QR code. Red team `redteam_transfert.py` (TF1-TF9; TF3 = the Python qrcode package as oracle, pipeline only).
 - **Public repository (owner, 2026-11-27).** The repository is public (GitHub Actions on standard runners is free there). Nothing
   kept may name a person's contacts: the Parcoursup material kept (probe pages, live probe, harvested jury texts, fiche texts) and
   the warehouse's jury texts carry no e-mail address or phone number (masked at writing, `fiche_parse.mask` /

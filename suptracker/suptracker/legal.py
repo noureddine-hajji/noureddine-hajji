@@ -122,7 +122,8 @@ publiques.</p>
 officiels sont repris tels qu'ils sont publiés ; un chiffre calculé par {SITE} est signalé comme une estimation.</p>
 {_sources()}
 <p>Fond de carte : © les contributeurs d'OpenStreetMap (licence ODbL), affiché avec la bibliothèque Leaflet (licence BSD).
-Polices de caractères hébergées par le site, sous licence SIL Open Font License.</p>
+Polices de caractères hébergées par le site, sous licence SIL Open Font License. Les QR codes sont dessinés dans le
+navigateur avec la bibliothèque qrcode-generator de Kazuhiko Arase (licence MIT) ; « QR Code » est une marque de DENSO WAVE.</p>
 <h2>Responsabilité</h2>
 <p>Les chiffres décrivent les campagnes passées ; ce ne sont pas des chances d'admission. La fiche de chaque formation sur
 Parcoursup fait foi. Malgré le soin apporté aux vérifications, une erreur reste possible : signalez-la avec le
@@ -161,7 +162,9 @@ formations, pour présenter d'abord les formations de votre académie (pour « J
 entre deux formations aussi proches de vos mots, celle de votre académie passe en premier ; elle ne retire aucune formation. Le lieu choisi (ville, département, région ou
 académie), votre moyenne et les filtres restent dans votre navigateur. Un lien de recherche partagé porte, après le
 « # », vos mots, le lieu tapé et vos filtres : votre navigateur ne l'envoie pas au site, et il ne contient ni votre profil,
-ni « Ma ville », ni vos zones. Votre lycée n'est jamais envoyé. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
+ni « Ma ville », ni vos zones. Votre lycée n'est jamais envoyé. Le lien « Transférer sur mon autre appareil » porte, après le « # », les numéros des
+formations de votre liste et votre profil, moyenne comprise, jamais votre académie, votre lycée ni votre ville : il n'est pas
+envoyé au site et sert à vous seul. Ces demandes ne sont ni enregistrées ni reliées à vous par {SITE}. Vous pouvez tout effacer depuis « Mon profil » ou en vidant les données du site dans votre navigateur.</p>
 <h2>2. Mesure d'audience, sans cookie</h2>
 <p>{SITE} compte ses visites pour s'améliorer, sans cookie et sans rien lire sur votre appareil. Aucune adresse IP et aucun
 identifiant de navigateur n'est enregistré : un visiteur est un pseudonyme calculé pour la journée, qui change chaque jour

@@ -46,7 +46,7 @@ SUITE = {
     "adulte": ("AD7",),
     "compris": ("SC4",),
     "jury": ("JU6",),
-    "portes": ("PO6",),
+    "portes": ("PO6",), "transfert": ("TF7",),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

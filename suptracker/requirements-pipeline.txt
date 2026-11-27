@@ -22,3 +22,4 @@ pikepdf>=9
 beautifulsoup4>=4.12
 # Brotli bodies of the map layer and the lists' badges, compressed once at build (suptracker/precomp.py, red team VT10)
 brotli>=1.2   # httpx 0.28 decodes br with the 1.2 API (TestClient)
+qrcode==8.0   # PR 17: the independent oracle of the vendored QR encoder (red team TF3), never shipped to Vercel

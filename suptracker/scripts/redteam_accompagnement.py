@@ -770,8 +770,8 @@ JS_MUTANTS = [
 ]
 JS_MUTANTS += [
     ("bac pro estimate as official", '(prof.serie === "bg" ? v.taux_acces_ens : v.taux_acces_all)', "v.taux_acces_ens"),
-    ("default profile shared", 'bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)\n}',
-     "bindShare(ids, prof);\n}"),
+    ("default profile shared", 'bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)\n  bindTransfer();                                                       // PR 17: the same person, on another device\n}',
+     "bindShare(ids, prof);\n  bindTransfer();\n}"),
     ("box without a profile", '${withProfile ? `<label class="small"><input type="checkbox" id="share-prof">', '${true ? `<label class="small"><input type="checkbox" id="share-prof">'),
     ("over when nothing read", '  const head = !nOk ? "Les dates officielles n\'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr."\n    : next', "  const head = next"),
     ("list race before vocabulary", '  JV = JV || await api("/api/journey/vocab").catch(() => null);\n  if ($view.dataset.rendered !== marker) return;',
