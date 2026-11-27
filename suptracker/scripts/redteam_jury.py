@@ -356,7 +356,8 @@ const { chromium } = require('playwright');
     await p.goto(base + '/#/carte'); await p.waitForSelector('#cs-q', { timeout: 60000 });
     await p.waitForFunction(() => document.querySelector('details[data-dd="jury"]'), null, { timeout: 90000 }).catch(() => {});
     const fold = await p.$('#dd-fold'); if (fold && name === 'phone') { await p.evaluate(() => { const d = document.getElementById('dd-fold'); if (d) d.open = true; }); }
-    const before = await p.evaluate(() => (document.getElementById('sr-status') || {}).textContent || '');
+    await p.waitForFunction(() => /formation/.test((document.getElementById('carte-count') || {}).textContent || ''), null, { timeout: 90000 }).catch(() => {});
+    const before = await p.evaluate(() => (document.getElementById('carte-count') || {}).textContent || '');
     await p.evaluate(() => { const d = document.querySelector('details[data-dd="jury"]'); if (d) d.open = true; });
     const info = await p.evaluate(() => { const d = document.querySelector('details[data-dd="jury"]');
       return d ? { legends: [...d.querySelectorAll('legend')].map((l) => l.textContent), boxes: d.querySelectorAll('input[type=checkbox]').length,
@@ -366,7 +367,7 @@ const { chromium } = require('playwright');
     await p.evaluate(() => { const d = document.querySelector('details[data-dd="jury"]'); if (d) d.open = true; });
     await p.click('details[data-dd="jury"] input[data-g="jury_mot"][data-o="beaucoup"]').catch(() => {});
     await p.waitForTimeout(1500);
-    const after = await p.evaluate(() => ({ status: (document.getElementById('sr-status') || {}).textContent || '',
+    const after = await p.evaluate(() => ({ status: (document.getElementById('carte-count') || {}).textContent || '',
       nogrid: (document.querySelector('.cs-nogrid') || {}).textContent || '',
       jline: (document.querySelector('.cjury') || {}).textContent || '',
       scroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));

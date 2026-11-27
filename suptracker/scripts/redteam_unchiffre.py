@@ -269,7 +269,7 @@ def uc5(c: Ctx):
           "majo": {"libelle": "Maths & SES", "bac": "bg"}, "offres_app": [{"etablissement": "CFA <b>X</b>", "ville": "Lyon"}]}
     f2 = {"cod_aff_form": "2", "bacs": None, "majo": None, "offres_app": []}
     f3 = {"cod_aff_form": "3", "majo": None, "offres_app": []}            # details not loaded yet
-    o = node(c.js, ("bacAccesHtml", "carteBacs", "carteMajo", "carteFiche", "appParcours", "appOffers", "carteMore"), READ_STDIN + """
+    o = node(c.js, ("bacAccesHtml", "carteBacs", "carteMajo", "carteFiche", "appParcours", "appOffers", "JURY_KEYS", "juryMeta", "carteJury", "carteMore"), READ_STDIN + """
 const CARTE_DETAIL_KEYS = [];
 process.stdout.write(JSON.stringify([carteMore(D[0], false), carteMore(D[0], true), carteMore(D[1], false), carteMore(D[2], false)]));""", [f1, f2, f3])
     if o is None:
@@ -462,7 +462,7 @@ MUTANTS = [
     ("UC4", "a bare rank", '${esc(g.label || "Groupe")} : <span class="nowrap">rang ${fmt(g.rang)}</span>', '${esc(g.label || "Groupe")} : ${fmt(g.rang)}'),
     ("UC5", "the per-bac rates back outside the fold", '<span class="muted small">officiel</span></div></div>',
      '<span class="muted small">officiel</span></div>${carteBacs(f)}</div>'),
-    ("UC5", "the offers lost", "  const app = appOffers(f.offres_app);", '  const app = "";'),
+    ("UC5", "the offers lost", "  const app = appOffers(f.offres_app), jury = carteJury(f);", '  const app = "", jury = carteJury(f);'),
     ("UC5", "per-bac rates outside terminale", '${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}', "${carteBacs(f)}${carteMajo(f)}"),
     ("UC6", "the prévision headline unfolded", '`<details class="pv-fold small"><summary>Prévision ${esc(p.target)}</summary>', '`<div class="small"><span>Prévision ${esc(p.target)}</span>'),
     ("UC6", "the first group opens", "${PV_GROUPS.map((g) => block(g, false)).join(\"\")}", "${PV_GROUPS.map((g, k) => block(g, k === 0)).join(\"\")}"),
