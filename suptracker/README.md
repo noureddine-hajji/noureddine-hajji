@@ -5110,7 +5110,9 @@ out on 2026-11-26. The owner made the repository public, where standard runners 
   - the probe pages (`data/rapports/probe`), the live probe and the harvested jury texts (`qualitatif.jsonl.gz`) were masked in place;
   - the writers mask before writing (`fiche_parse.mask`, `rapports_harvest.masked`);
   - the build masks the jury texts again (`rapports.mask_contacts`, the fiche reader's patterns), so the page never shows them.
-- **Report PDFs** (signature, contacts): the ten probe PDFs are removed and the probe keeps only their masked text.
+- **Report PDFs** (signature, contacts): the probe and the harvest write no PDF any more. The ten probe PDFs stay, frozen, as the
+  parser's test set (red team rapports R1, R7, R8 read real reports): official reports as Parcoursup published them, also public in
+  the Internet Archive. The owner can still have them removed (those three checks then lose their real-PDF input).
 - **Secrets:** no token in the tracked files or the history present in a clone (only the « demo » values of the local examples).
   The site's tokens live on Vercel only, and no workflow reads a secret.
 - **Workflows:** no `pull_request_target`; the one workflow a pull request triggers (the tests) reads no secret, cannot write the
@@ -5128,7 +5130,7 @@ out on 2026-11-26. The owner made the repository public, where standard runners 
 
 **Red team** `scripts/redteam_public.py` (PB1-PB7), run by `tests/test_public.py`:
 - **PB1:** no contact in the kept material nor in the warehouse's jury texts (own patterns; hex digests are not phones).
-- **PB2:** no report PDF kept or written.
+- **PB2:** report PDFs only in the parser's frozen test set; none written.
 - **PB3:** the writers and the build mask (a crafted report through `store`).
 - **PB4:** no secret in a tracked file or a workflow.
 - **PB5:** the workflows are safe for a public repository.

@@ -1008,8 +1008,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Public repository (owner, 2026-11-27).** The repository is public (GitHub Actions on standard runners is free there). Nothing
   kept may name a person's contacts: the Parcoursup material kept (probe pages, live probe, harvested jury texts, fiche texts) and
   the warehouse's jury texts carry no e-mail address or phone number (masked at writing, `fiche_parse.mask` /
-  `rapports_harvest.masked`, and again at build, `rapports.mask_contacts`, same patterns); no report PDF is kept (signature,
-  contacts). No secret in a tracked file (the site's tokens live on Vercel only). A workflow a pull request triggers reads no
+  `rapports_harvest.masked`, and again at build, `rapports.mask_contacts`, same patterns); report PDFs only in the parser's frozen test set
+  (`data/rapports/probe/pdf`, 10 official reports, red team rapports R1/R7/R8), never written again. No secret in a tracked file (the site's tokens live on Vercel only). A workflow a pull request triggers reads no
   secret, cannot write, never interpolates pull-request text; never `pull_request_target`. Cost rules: no suite re-run on `main`
   after a merge, reports daily only in the campaign, one data build a day, monitor every 4 h, artifacts kept 7 days.
   Red team `redteam_public.py` (PB1-PB7).

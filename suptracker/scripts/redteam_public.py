@@ -7,7 +7,8 @@ What a public repository must not hold, and what keeps it that way:
       probes, the live probe, the harvested jury texts, the fiches' texts) nor in the jury texts of the warehouse: the reports
       print the contacts of named staff. Own patterns, not the code's (a phone is never inside a longer run of letters or
       digits: the fiches' hex digests are not phones)
-  PB2 no report PDF is kept (it prints the signature and the staff's contacts): none tracked, and the probe writes none
+  PB2 report PDFs (signature, contacts) only in the parser's frozen test set (10 official reports, red team rapports R1/R7/R8):
+      none elsewhere, the probe writes no new one, the harvest keeps none
   PB3 the writers mask: the harvest's store (crafted report), the build's mask_contacts (nested values), the probe and the live
       probe write through fiche_parse.mask; the build's patterns are the fiche reader's
   PB4 no secret in the tracked files: token formats (GitHub, AWS, Slack, Google, OpenAI / Anthropic, private keys) and the
@@ -125,12 +126,20 @@ def pb1(c: Ctx):
 
 
 # ------------------------------------------------------------------ PB2
-@check("PB2 no report PDF kept: none tracked under data/rapports, and the probe writes none")
+# the parser's test set (red team rapports R1, R7, R8): official reports as Parcoursup published them, kept frozen
+PDF_TEST_SET = "data/rapports/probe/pdf/"
+
+
+@check("PB2 report PDFs only in the parser's frozen test set; the probe writes none, the live harvest keeps none")
 def pb2(c: Ctx):
-    pdfs = [f for f in c.files if f.startswith("data/rapports") and f.lower().endswith(".pdf")]
+    pdfs = [f for f in c.files if f.lower().endswith(".pdf") and f.startswith("data/rapports")]
+    outside = [f for f in pdfs if not f.startswith(PDF_TEST_SET)]
     probe = (ROOT / "scripts" / "rapports_probe.py").read_text()
     writes = re.findall(r"\.write_bytes\(", probe)
-    return not pdfs and not writes, f"PDFs tracked {pdfs[:3]}; PDF writes in the probe {len(writes)}"
+    live = (ROOT / "scripts" / "rapports_live.py").read_text() + (ROOT / "scripts" / "rapports_harvest.py").read_text()
+    live_pdf = re.findall(r"\.pdf[\"']\)\.write_bytes|write_bytes\(pdf", live)
+    return not outside and not writes and not live_pdf and len(pdfs) <= 10, (
+        f"{len(pdfs)} PDFs in the test set; outside it {outside[:3]}; PDF writes in the probe {len(writes)}, in the harvest {len(live_pdf)}")
 
 
 # ------------------------------------------------------------------ PB3
