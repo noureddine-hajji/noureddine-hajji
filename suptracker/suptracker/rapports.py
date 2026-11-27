@@ -203,13 +203,31 @@ def build(con, harvest: Path | None = HARVEST, textes: Path | None = None) -> di
                     eds = d.get("eds") or {}
                     if eds.get("liste"):                # harvested before the parser stopped there: same rule, applied here
                         eds["liste"] = {k: clean_eds_list(v) for k, v in eds["liste"].items() if clean_eds_list(v)}
-                    texts.append((d["digest"], json.dumps({k: d.get(k) for k in TEXT_KEYS}, ensure_ascii=False)))
+                    texts.append((d["digest"], json.dumps({k: mask_contacts(d.get(k)) for k in TEXT_KEYS}, ensure_ascii=False)))
     if textes is None:
         _insert(con, "INSERT INTO core.rapport_texte VALUES (?, ?)", texts)
     else:
         con.execute("DROP TABLE core.rapport_texte")
         _write_texts(textes, texts)
     return {"rapports": len(chosen), "doublettes": len(dbl), "textes": len(texts), "ecartes": sum(1 for a in audit if a[-1] == "écarté")}
+
+
+# Public repository (owner, 2026-11-27): the reports print the e-mail addresses and phone numbers of named staff; the jury
+# texts keep every word but those, masked at build like the fiches (scripts/fiche_parse.mask), in the warehouse and on the page
+CONTACT_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+CONTACT_PHONE = re.compile(r"(?<!\d)(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)")
+MASK_EMAIL, MASK_PHONE = "[adresse dans le rapport Parcoursup]", "[numéro dans le rapport Parcoursup]"
+
+
+def mask_contacts(v):
+    """Every string inside v (str, list, dict) with its e-mail addresses and phone numbers masked; other values as they are."""
+    if isinstance(v, str):
+        return CONTACT_PHONE.sub(MASK_PHONE, CONTACT_EMAIL.sub(MASK_EMAIL, v))
+    if isinstance(v, list):
+        return [mask_contacts(x) for x in v]
+    if isinstance(v, dict):
+        return {k: mask_contacts(x) for k, x in v.items()}
+    return v
 
 
 TEXT_KEYS = ("criteres", "eds", "options_citees", "eliminatoires", "modalites", "algorithme", "conseils")

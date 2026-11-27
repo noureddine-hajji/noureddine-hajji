@@ -5,8 +5,7 @@
 name: suptracker-monitor
 on:
   schedule:
-    - cron: "41 * * 1-3 *"      # January to March: every hour (the vœux peak); a failure is known within the hour
-    - cron: "41 */6 * 4-12 *"   # April to December: every 6 hours
+    - cron: "41 */4 * * *"      # every 4 hours all year (owner, 2026-11-27: the hourly peak check cost ~2,200 runner minutes a month)
   workflow_dispatch:
 permissions:
   contents: read

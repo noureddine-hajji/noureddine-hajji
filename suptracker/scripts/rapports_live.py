@@ -31,6 +31,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).parent))
 from rapports_harvest import INDEX_COLS, UA, call, store, write  # noqa: E402
+import fiche_parse as FP  # noqa: E402
 from rapports_parse import parse  # noqa: E402
 
 # between campaigns the fiches (with the last session's reports) stay on dossier.parcoursup.fr while dossierappel answers 404
@@ -238,7 +239,7 @@ def probe(http, out: Path, pause: float = 1.5) -> dict:
         res.append({"url": url, "saved": True, "bytes": len(r.content), "refs": [x for x in refs if not x.startswith("#")][:200]})
     summary = {"checked_at": _now(), "results": res}
     out.mkdir(parents=True, exist_ok=True)
-    (out / "probe.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), encoding="utf-8")
+    (out / "probe.json").write_text(FP.mask(json.dumps(summary, indent=1, ensure_ascii=False)), encoding="utf-8")
     return summary
 
 

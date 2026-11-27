@@ -5098,3 +5098,40 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
 - **SC1:** re-counts 1,705 codes over 8 queries with its own folding.
 - **SC4 (browser, nightly):** replays Léa's search.
 - **SC5:** a mutation test.
+
+## The repository is public (owner, 2026-11-27)
+
+**Why.** GitHub Actions ran about 55,500 runner minutes in 30 days (87 % of them the test suite), and the account's minutes ran
+out on 2026-11-26. The owner made the repository public, where standard runners are free, and asked for an audit first.
+
+**Audit (what a public repository must not hold).**
+- **Contacts of named staff.** The Parcoursup reports and fiches print e-mail addresses and phone numbers. They are now masked
+  everywhere the repository keeps that material:
+  - the probe pages (`data/rapports/probe`), the live probe and the harvested jury texts (`qualitatif.jsonl.gz`) were masked in place;
+  - the writers mask before writing (`fiche_parse.mask`, `rapports_harvest.masked`);
+  - the build masks the jury texts again (`rapports.mask_contacts`, the fiche reader's patterns), so the page never shows them.
+- **Report PDFs** (signature, contacts): the probe and the harvest write no PDF any more. The ten probe PDFs stay, frozen, as the
+  parser's test set (red team rapports R1, R7, R8 read real reports): official reports as Parcoursup published them, also public in
+  the Internet Archive. The owner can still have them removed (those three checks then lose their real-PDF input).
+- **Secrets:** no token in the tracked files or the history present in a clone (only the « demo » values of the local examples).
+  The site's tokens live on Vercel only, and no workflow reads a secret.
+- **Workflows:** no `pull_request_target`; the one workflow a pull request triggers (the tests) reads no secret, cannot write the
+  repository and runs no pull-request text.
+- **Not changed here:** older commits keep their content (rewriting a public history breaks every clone). The commits authored
+  with the owner's personal address keep it.
+
+**Fewer runner minutes** (still useful when free: less waiting, a lighter history).
+- A merge no longer re-runs the whole suite on `main`; `main` runs it every Sunday and on demand.
+- The reports and grids harvest runs daily from December to March (the campaign), weekly otherwise.
+- The data workflow checks the two daily fetches once a day (10:37 UTC) instead of building after each: one warehouse a day at
+  most in `main`'s history.
+- The live monitor runs every 4 hours all year (owner).
+- Workflow artifacts are kept 7 days.
+
+**Red team** `scripts/redteam_public.py` (PB1-PB7), run by `tests/test_public.py`:
+- **PB1:** no contact in the kept material nor in the warehouse's jury texts (own patterns; hex digests are not phones).
+- **PB2:** report PDFs only in the parser's frozen test set; none written.
+- **PB3:** the writers and the build mask (a crafted report through `store`).
+- **PB4:** no secret in a tracked file or a workflow.
+- **PB5:** the workflows are safe for a public repository.
+- **PB6:** a mutation test.

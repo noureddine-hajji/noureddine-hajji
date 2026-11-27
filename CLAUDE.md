@@ -209,7 +209,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   - Counts that a CDN hit would skip are sent by the page (`journey` beacon), never by a cacheable endpoint.
   - `journey.public_stage2` drops only fields the page never reads; rounding is guarded so no printed number changes
     (`toLocaleString` rounds the exact double half away from zero). Plan B and Mes vœux use the full `stage2` rows.
-  - CI: push on `main` only, branches through their PR, stale runs cancelled. Eight shard runners
+  - CI: branches through their PR, `main` weekly and on demand (no push trigger since 2026-11-27: a merge does not re-run the suite), stale runs cancelled. Eight shard runners
     (`pytest -n auto --dist loadfile --shard=i/8`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), eight since 2026-11-26 (three shards
     hit 45 min on runners 1.5-2x slower on every file alike than the same files earlier that day), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
@@ -222,8 +222,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     checks={"RF8"}, part=(i, 3))`), its baseline read on the crafted data like the mutants (2026-11-23: one 30-minute file).
   - Synthetic warehouses come from `synthetic.cached_build` (keyed by every input, shared through a file lock); never call
     `build.build` on `make_raw` output in a new test. `tests/test_shards.py` checks each file runs in exactly one shard.
-  - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every hour from January to March (the vœux peak), every 6 h
-    otherwise (red team S6), `DNT: 1` + robot UA (never counted).
+  - Monitor: `suptracker-monitor.yml` on `vars.SUPTRACKER_URL`, every 4 hours all year (owner, 2026-11-27;
+    red team S6), `DNT: 1` + robot UA (never counted).
 - **Du métier aux formations (sprint 12).**
   - The job page is the formation jobs card read backwards (same sheets, same link, same flag): red team M3 checks both ways.
   - The diploma level is the matched Onisep sheet's (`onisep.sheet_level`; 3-year BTS orthoprothésiste / podo-orthésiste are bac+3);
@@ -302,7 +302,8 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
   every vœux file is kept only if its own `session` column is the registry year (`ingest.check_session`); a year reads its frozen
   `_<year>` id first. `parcoursup_<NEXT_YEAR>` is an optional slot: ingested and flagged ("Nouvelle campagne SIES"), never built
   until `config.YEARS` is updated by hand. The warehouse fingerprint includes `data/rapports/harvest`; the data workflow runs
-  weekly and after each successful harvest on main (only when the harvest changed). The live harvest reads first the fiches with no
+  weekly, after the rare fetches (aides, transports, RNCP), and ONCE a day at 10:37 UTC for the two daily ones (reports, open days;
+  owner 2026-11-27: one build a day at most), always only when the harvest changed. The live harvest reads first the fiches with no
   report of the newest report session read. Tests: `tests/test_campaign.py`.
 - **Search.**
   - The index is stored at build in `mart.search_index` (compressed JSON, never pickle; `INDEX_VERSION` = digest of `search.py`, a
@@ -376,13 +377,13 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     and shown with them. The table covers only candidates schooled in terminale in France since 2020-2021: say so.
     "Autres doublettes" is the FORMATION's own bucket. A published figure replaces the estimate, never sits beside it.
   - Jury texts live in `data/rapport_textes.duckdb` beside the warehouse (built and committed with it; they alone pushed it over 95 MB),
-    read by digest (`rapports.texte`). Jury texts are verbatim and escaped. Options (maths expertes...) are only QUOTED; never infer that an unnamed option
+    read by digest (`rapports.texte`). Jury texts are verbatim and escaped, the staff's e-mail addresses and phone numbers masked (public repository, `rapports.mask_contacts`). Options (maths expertes...) are only QUOTED; never infer that an unnamed option
     does not count. The signature (a person's name) is never stored.
   - Credit: session, capture date and archived link on every card. Red team `redteam_rapports.py` (R1-R9).
   - Unread files (`--repair`, request mode "repair"): every other capture of the URL, as archived then rebuilt by qpdf
     (pikepdf); a rebuilt file is `ok_repare` only if COMPLETE (every page has text, the signature line is there), else `incomplet`
     and never used. Coverage is bounded by what the archive kept: the live fiches link the reports only during a campaign.
-  - Live harvest (`scripts/rapports_live.py`, mode "live", daily schedule on main): every fiche of the latest cartographie session,
+  - Live harvest (`scripts/rapports_live.py`, mode "live", schedule on main: daily from December to March, weekly otherwise, owner 2026-11-27): every fiche of the latest cartographie session,
     its report link(s) (relative, `&amp;`-escaped; only parcoursup.fr hosts), each PDF once (archive digest form), rows with
     `source` "live" in the SAME harvest files, hence the SAME verification. A closed site (404 / "indisponible") writes nothing
     (no daily commit). The page credits the fiche ("lu le … sur la fiche Parcoursup"), not the archive. Red team R8.
@@ -1004,6 +1005,14 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   « Droit-économie-gestion », never a place); the page sorts figures first, then (keyword) more words first, then distance, rank, name;
   search.py untouched (no index rebuild). Chips (`kwChips`): recognised words with their kind (« Mot compris »…), the others « Mots cherchés » as
   typed; the order said around a town. Red team `redteam_compris.py` (SC1-SC6).
+- **Public repository (owner, 2026-11-27).** The repository is public (GitHub Actions on standard runners is free there). Nothing
+  kept may name a person's contacts: the Parcoursup material kept (probe pages, live probe, harvested jury texts, fiche texts) and
+  the warehouse's jury texts carry no e-mail address or phone number (masked at writing, `fiche_parse.mask` /
+  `rapports_harvest.masked`, and again at build, `rapports.mask_contacts`, same patterns); report PDFs only in the parser's frozen test set
+  (`data/rapports/probe/pdf`, 10 official reports, red team rapports R1/R7/R8), never written again. No secret in a tracked file (the site's tokens live on Vercel only). A workflow a pull request triggers reads no
+  secret, cannot write, never interpolates pull-request text; never `pull_request_target`. Cost rules: no suite re-run on `main`
+  after a merge, reports daily only in the campaign, one data build a day, monitor every 4 h, artifacts kept 7 days.
+  Red team `redteam_public.py` (PB1-PB7).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt
@@ -1034,7 +1043,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Roadmap (decision-support plan, agreed with the owner):**
   - sprint 8 follow-up: Céreq card and Onisep jobs card shipped;
   - sprint 9: removed at the owner's request (2026-11-02); sprints 10-14 done; sprint 15 done (ILO, France Travail tag, θ; C-AIOE awaits a positive AIOE scale); sprint 16 licence → master done.
-- **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 6 hours).
+- **Resolved (2026-11-05):** production serves the latest `main` (the live monitor checks it every 4 hours).
 - **Horizon 2030 plan (agreed):** sprint 13 job reference (ROME → FAP 2009 / FAP 2021 → PCS → ISCO-08, official DARES and Insee
   tables), 14 employment to 2030 (DARES Métiers 2030, scenarios as ranges), 15 AI task exposure (OIT 2025 + France Travail tags +
   complementarity θ rebuilt from O*NET per the owner's guide, grade C; Felten AIOE still needed), 16 licence → master.
