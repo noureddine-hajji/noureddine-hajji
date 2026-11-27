@@ -44,6 +44,7 @@ SUITE = {
     "langage": ("LA7", "LA10", "LA12"),
     "unchiffre": ("UC8",),
     "adulte": ("AD7",),
+    "compris": ("SC4",),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

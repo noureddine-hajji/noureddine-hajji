@@ -441,7 +441,9 @@ def order_ok(js: str) -> tuple[bool, str]:
     if not srt:
         return False, "no sort found"
     body = re.sub(r"//[^\n]*", "", srt.group(1))
-    want = ['(a.stats === false) - (b.stats === false)', '(F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)',
+    # lot 1, PR 13 (owner): with a keyword, the number of typed words the names carry comes BEFORE the distance
+    want = ['(a.stats === false) - (b.stats === false)', '(kw ? (kw.mots.get(b.cod_aff_form) ?? 0) - (kw.mots.get(a.cod_aff_form) ?? 0) : 0)',
+            '(F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)',
             '(kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)',
             'byName(a, b)']
     pos = [body.find(w) for w in want]
@@ -458,7 +460,7 @@ def order_ok(js: str) -> tuple[bool, str]:
         bad.append("a superseded keyword answer can overwrite the latest")
     if "carteUI.lieuBad = lt && !L ? lt : \"\";" not in vc or "Lieu non reconnu : « ${esc(carteUI.lieuBad)} »" not in vc:
         bad.append("an unknown place is not said (or not escaped)")
-    if "${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}" not in vc or "kw.notes.map((n) => `<div class=\"info\">${esc(n)}</div>`)" not in vc:
+    if "${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}" not in top(js, "kwChips") or "kwChips(kw, F.autour)" not in vc or "kw.notes.map((n) => `<div class=\"info\">${esc(n)}</div>`)" not in vc:
         bad.append("the engine's reading is not shown escaped")
     return not bad, f"problems {bad[:4]}"
 
@@ -787,16 +789,16 @@ def rs7(c: Ctx):
 # (name, old, new, witness): a mutant needing a witness ("dup": a code the engine answers for two campaigns, "many": a query with
 # more than 40 results) is counted only on a warehouse that has one (the real one does; the small synthetic one does not)
 KW_MUTANTS = [
-    ("engine order lost", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": sorted(set(r["cod_aff_form"] for r in res["results"]))', None),
-    ("a code once per campaign", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": [r["cod_aff_form"] for r in res["results"]]', "dup"),
-    ("a code at its last rank", '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', '"codes": list(dict.fromkeys(r["cod_aff_form"] for r in res["results"][::-1]))[::-1]', "dup"),
+    ("engine order lost", 'codes = list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', 'codes = sorted(set(r["cod_aff_form"] for r in res["results"]))', None),
+    ("a code once per campaign", 'codes = list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', 'codes = [r["cod_aff_form"] for r in res["results"]]', "dup"),
+    ("a code at its last rank", 'codes = list(dict.fromkeys(r["cod_aff_form"] for r in res["results"]))', 'codes = list(dict.fromkeys(r["cod_aff_form"] for r in res["results"][::-1]))[::-1]', "dup"),
     ("only the first page", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, near=near or None, offset=0, limit=40)", "many"),
     ("the profile's académie ignored", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, offset=0, limit=10 ** 6)", "near"),
     ("the académie used as a filter", "res = S.search(con, q, near=near or None, offset=0, limit=10 ** 6)", "res = S.search(con, q, academie=near or None, near=near or None, offset=0, limit=10 ** 6)", "near"),
     ("blank accepted", '    if not q:\n        raise HTTPException(422, "Recherche vide : tapez au moins un mot.")\n', "", None),
     ("foreign URL searched", 'if q.lower().startswith(("http", "www.")) and not cod:', "if False:", None),
     ("a code searched as words", "if cod or (q.isdigit() and len(q) <= 9):", "if cod:", None),
-    ("an older code not resolved (Codex)", '"codes": list(dict.fromkeys([*(latest or []), code]))', '"codes": [code]', "old"),
+    ("an older code not resolved (Codex)", 'codes = list(dict.fromkeys([*(latest or []), code]))', 'codes = [code]', "old"),
     ("words not trimmed", "    q = q.strip()\n    if not q:", "    if not q.strip():", None),
 ]
 JS_MUTANTS = [

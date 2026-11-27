@@ -213,7 +213,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     (`pytest -n auto --dist loadfile --shard=i/8`, four since 2026-11-17 when two shards reached 41-45 min, five since 2026-11-19 before the vœux peak (slowest of 4: 34 of 45 min), six since 2026-11-23 (balanced shards of one plan ran 24-45 min from run to run), seven since 2026-11-24 (a shard of 4.8 thousand planned seconds hit 45 min on a slow runner), eight since 2026-11-26 (three shards
     hit 45 min on runners 1.5-2x slower on every file alike than the same files earlier that day), files spread by `tests/durations.json`; a new test file goes in that table, with its
     measured seconds: each file's MINIMUM over several runs of the `measured-durations` line each CI shard prints, since the first file
-    of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times); 2026-11-26: refreshed again from one full CI run's lines (shard 2 measured 6,430 s for 4,812 planned and hit 45 min: carte, robustesse_formations, securite, licence_master had doubled) plus a `timed` runner. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
+    of a shard to need the shared synthetic warehouse also carries its build; 2026-11-25: the table was refreshed from one full CI run's lines, the minima having drifted 15 % under: shard 4 measured 6,200 s for 4,140 planned and hit 45 min three times); 2026-11-26: refreshed again from one full CI run's lines (shard 2 measured 6,430 s for 4,812 planned and hit 45 min: carte, robustesse_formations, securite, licence_master had doubled) plus a `timed` runner; 2026-11-26 evening: refreshed from the 8-shard run's lines after shard 8 hit 45 min (robustesse_mutants_1 measured 1,184 s for 592 planned), each shard now planned at ~2,650 s. Every red team that calls `time.perf_counter()` (analytics, Plan B, search) runs in the
     `timed` job only (red team S6 enforces it). The `test` job gates them all.
   - Carte C8 (mutation test, 12 min on real data) runs in `tests/test_carte_mutants_{1,2,3}.py` (`run(..., checks={"C8"}, part=)`);
     split any red team whose single real-data file grows past ~10 min the same way. The verification tests on a doctored export or
@@ -581,7 +581,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   outside click), a group marked only when it differs from its default, options counted with the other groups applied, one reset;
   folded under "Filtrer (n actifs)" on a phone, list before the map there. NO filter field of the earlier pages may be lost
   (owner, 2026-11-16): type, mention, statut, académie (its own dropdown, `CARTE_ACADS`), apprentissage, internat,
-  aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order unchanged (figures first, distance, the engine's
+  aménagements, sélectivité, capacité, phase complémentaire, taux, zone, keyword, place + radius (red team RS9). Order (figures first; with a keyword, the number of typed words the formation's names carry, `api.words_matched`, lot 1 PR 13; then distance, the engine's
   relevance, name; never a figure). The home has no switch and no search field (door + hero link). Shared link (owner,
   2026-11-16): `#/recherche/<parameters>` (`carteShareLink` / `carteShareRead`, after "#", never sent): words, TYPED place + radius,
   types, mentions, groups differing from their default; NEVER "Ma ville", the zones or a profile key; every value checked on opening
@@ -999,6 +999,11 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   the owner's browser copy `data/aides/depot/*.html` is read instead (`aides_fetch.depot_row`, only for its OWN canonical URL, logged `via`
   « depot »); no copy = the item waits in `aides.EN_ATTENTE` (said in the audit, card hidden). Outside terminale the lycée aids are folded, the help page opens on the adults, the share card names a relative or
   adviser. Red team `redteam_adulte.py` (AD1-AD9).
+- **The search says what it understood (lot 1, PR 13, owner 2026-11-26).** `/api/search/codes` carries `mots`: per code, the typed word
+  groups (`search.offer_terms`) its own names carry (`api.words_matched`: filière, mention, labels, establishment; never the domain
+  « Droit-économie-gestion », never a place); the page sorts figures first, then (keyword) more words first, then distance, rank, name;
+  search.py untouched (no index rebuild). Chips (`kwChips`): recognised words with their kind (« Mot compris »…), the others « Mots cherchés » as
+  typed; the order said around a town. Red team `redteam_compris.py` (SC1-SC6).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

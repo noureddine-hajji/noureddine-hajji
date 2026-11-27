@@ -1813,6 +1813,17 @@ function carteJump(n) {
   const el = document.getElementById("carte-count");
   if (el && narrow()) el.scrollIntoView({ block: "start" });
 }
+// lot 1, PR 13 (Léa read « Mot compris : licence » as « only licence was understood »): every typed word the search used is
+// said, the recognised ones (acronyms, places, corrections) first, then « Mots cherchés » for the plain words; with a keyword
+// around a town, the order is said in words
+function kwChips(kw, autour) {
+  const seen = new Set(kw.interp.map((i) => foldText(i.value)));
+  const plain = (kw.terms || []).filter((g) => g.length === 1 && !g[0].startsWith(" ")).map((g) => g[0]).filter((w) => ![...seen].some((v) => v.split(" ").includes(w)));
+  const chips = [...kw.interp.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`),
+    plain.length ? `<span class="badge">Mots cherchés : ${esc(plain.map((w) => String(kw.q || "").split(/\s+/).find((t) => foldText(t).replace(/[^a-z0-9]/g, "") === w) || w).join(", "))}</span>` : ""].join("");
+  const ordre = autour ? '<span class="small muted">Les formations dont le nom contient le plus de vos mots d\'abord, puis les plus proches.</span>' : "";
+  return chips || ordre ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${chips}${ordre}</div>` : "";
+}
 function carteMore(f, reo) {
   const app = appOffers(f.offres_app);
   const inner = `${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}${app}`;
@@ -2044,6 +2055,8 @@ async function viewCarte(dArg, mArg) {
   const kwQuery = (q) => { const qs = new URLSearchParams({ q }); if (near) qs.set("near", near); return qs; };
   const kwLoad = (q) => cached(`kw|${q}|${near}`, () => api(`/api/search/codes?${kwQuery(q)}`).then((d) => ({ q, codes: new Set(d.codes),
     rank: new Map(d.codes.map((c, i) => [c, i])), words: kwWords(q),
+    // lot 1, PR 13: how many typed words each formation's names carry (api.words_matched); « tous vos mots » before the distance
+    mots: new Map(Array.isArray(d.mots) && d.mots.length === d.codes.length ? d.codes.map((c, i) => [c, d.mots[i]]) : []),
     terms: Array.isArray(d.terms) ? d.terms : kwWords(q).map((w) => [w]), app: !!d.apprentissage, internat: !!d.internat, interp: d.interpretation || [], notes: d.notes || [] })));
   carteUI.kw = F.q ? await kwLoad(F.q).catch(() => null) : null;
   if (!/^#\/carte(\/|$)/.test(location.hash) || seq !== carteUI.seq) return;
@@ -2201,14 +2214,17 @@ async function viewCarte(dArg, mArg) {
     const listed = kept.filter((f) => inView(f) || f.lat == null)
       // R10: formations with published figures first, then the apprenticeship offers; then distance (around a town), then the
       // name without its leading punctuation ("(CFA …)" sorted with C). Never by a figure.
-      .sort((a, b) => (a.stats === false) - (b.stats === false) || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)
+      // lot 1, PR 13 (owner): with a keyword, the formations whose names carry more of the typed words come first, BEFORE the
+      // distance; then the distance, the engine's relevance, the name
+      .sort((a, b) => (a.stats === false) - (b.stats === false) || (kw ? (kw.mots.get(b.cod_aff_form) ?? 0) - (kw.mots.get(a.cod_aff_form) ?? 0) : 0)
+        || (F.autour ? (a.dist ?? 1e9) - (b.dist ?? 1e9) : 0)
         || (kw ? (kw.rank.get(a.cod_aff_form) ?? 1e9) - (kw.rank.get(b.cod_aff_form) ?? 1e9) : 0)
         || byName(a, b));
     // audit PR 4 (owner, 2026-11-23): the paid private establishments stay unticked by default (Plan B's rule), and the list SAYS how
     // many of them the other criteria would show, with a button that ticks their box
     const paid = carteHiddenPaid(shown(), F, kw), showPaid = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };
     setHtml(document.getElementById("cs-status"), [
-      kw && kw.interp.length ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${kw.interp.map((i) => `<span class="badge">${esc(INTERP_LABEL[i.type] || i.type)} : ${esc(i.value)}</span>`).join("")}</div>` : "",
+      kw ? kwChips(kw, F.autour) : "",
       kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
       carteUI.kwErr ? `<p class="warn small">La recherche par mot-clé n'a pas abouti : ${esc(carteUI.kwErr)}. La liste montre toutes les formations.</p>` : "",
       carteUI.lieuBad ? `<p class="warn small">Lieu non reconnu : « ${esc(carteUI.lieuBad)} ». Choisissez une ville, un département, une académie ou une région dans la liste.</p>` : "",
