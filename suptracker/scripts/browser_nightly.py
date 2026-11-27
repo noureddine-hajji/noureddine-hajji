@@ -45,6 +45,7 @@ SUITE = {
     "unchiffre": ("UC8",),
     "adulte": ("AD7",),
     "compris": ("SC4",),
+    "jury": ("JU6",),
     "lecture": ("LE8",),
     "masque": ("MQ6",),
     "reprise": ("RP6",),

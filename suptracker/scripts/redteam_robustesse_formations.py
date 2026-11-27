@@ -887,24 +887,25 @@ FILTER_NAMES = ECH_NAMES + ("CARTE_ROB", "robReady", "robLevel", "CARTE_FGROUPS"
                              "carteInLieu", "robCardLine")
 FILTER_STUB = """
 const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, carteZone = () => "autre", carteText = () => "", haversineKm = () => 0;
+const JURY_KEYS = ["res", "eng", "mot", "se", "met"], juryLevel = () => null, juryCuts = () => null;
 """
 FILTER_PROG = """
 const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 var RECO = { rob: robDecode(D.p) };
 const ref = {};
 for (const [g, os] of Object.entries(D.opts)) for (const o of os) ref[g + ":" + o] = carteFilter(D.rows, { [g]: [o] }).map((f) => f.cod_aff_form);
-const both = carteFilter(D.rows, { robf: ["haut", "sans"], robn: ["plus_exposee"] }).map((f) => f.cod_aff_form);
-const fac = carteFacets(D.rows, { robf: ["haut"] }, null, D.opts);
+const both = carteFilter(D.rows, { robf: ["haut"] }).map((f) => f.cod_aff_form);   // owner, 2026-11-27: a stored filière filter is ignored
+const fac = carteFacets(D.rows, { robn: ["plus_exposee"] }, null, D.opts);
 const facets = Object.fromEntries(Object.entries(fac).map(([g, m]) => [g, Object.fromEntries(m)]));
 const lines = D.rows.map((f) => robCardLine(f.cod_aff_form));
 RECO = { rob: robDecode({ filiere: {}, national: {}, raison: {}, apres: {} }) };     // tables missing: an empty payload (Codex)
-const empty = carteFilter(D.rows, { robf: ["haut"], robn: ["plus_exposee"] }).length;
+const empty = carteFilter(D.rows, { robn: ["plus_exposee"] }).length;
 RECO = null;
-const none = carteFilter(D.rows, { robf: ["haut"], robn: ["plus_exposee"] }).length;
+const none = carteFilter(D.rows, { robn: ["plus_exposee"] }).length;
 process.stdout.write(JSON.stringify({ ref, both, facets, lines, none, empty, noline: robCardLine("1") }));"""
 
 
-@check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by the filière repère and the five levels, counted, never sorted by")
+@check("RF11 beside the score: published BTS / BUT insertion apart, never in it; search filters by the five levels (the filière filter gone, its repère kept), counted, never sorted by")
 def rf11(c: Ctx):
     bad = []
     if not all(RB.top(c.js, n) for n in NAMES + FILTER_NAMES + VX_NAMES[1:]):
@@ -974,19 +975,18 @@ def rf11(c: Ctx):
     rows.append({"cod_aff_form": "X1", "statut": "prive_app", "stats": False})          # an apprenticeship offer: no repère
     exp["X1"] = ("sans", ["sans"])
     payload = {k: {lvl: ",".join(v) for lvl, v in d.items()} for k, d in p.items()}
-    opts = {"robf": ["haut", "moyen", "bas", "sans"], "robn": E + ["sans"]}
+    opts = {"robn": E + ["sans"]}
     fprog = RB.STUB + FILTER_STUB + "\n".join(RB.top(c.js, n) for n in ("robDecode",) + FILTER_NAMES) + FILTER_PROG
     o = RB.node(fprog, {"p": payload, "rows": rows, "opts": opts})
-    for g, k in (("robf", 0), ("robn", 1)):
+    for g, k in (("robn", 1),):
         for lvl in opts[g]:
             want = [cod for cod, e in exp.items() if (lvl in e[k] if k else e[k] == lvl)]
             if sorted(o["ref"][f"{g}:{lvl}"]) != sorted(want):
                 bad.append(f"filter {g}={lvl}: {len(o['ref'][f'{g}:{lvl}'])} kept, {len(want)} expected")
-    if sorted(o["both"]) != sorted(cod for cod, e in exp.items() if e[0] in ("haut", "sans") and "plus_exposee" in e[1]):
-        bad.append("two groups together: options OR inside a group, AND between groups")
-    keep = [cod for cod, e in exp.items() if e[0] == "haut"]
-    want_n = {lvl: sum(1 for cod in keep if lvl in exp[cod][1]) for lvl in opts["robn"]}
-    if o["facets"]["robn"] != want_n or o["facets"]["robf"] != {lvl: sum(1 for e in exp.values() if e[0] == lvl) for lvl in opts["robf"]}:
+    if sorted(o["both"]) != sorted(exp):
+        bad.append("a filière filter kept from an earlier visit still filters (owner, 2026-11-27: the filter is gone)")
+    want_n = {lvl: sum(1 for cod in exp if lvl in exp[cod][1]) for lvl in opts["robn"]}
+    if o["facets"]["robn"] != want_n:
         bad.append("the counts beside the options are not those of the other groups' selection")
     if o["empty"] != len(rows):
         bad.append("an empty repères payload (tables missing) filters every formation out (Codex, PR #84)")
@@ -1016,13 +1016,16 @@ def rf11(c: Ctx):
     start = view.index("const listed = kept.filter(")
     sort = view[start: view.index('document.getElementById("cs-status")', start)]   # the end after the start (draw's guard names it too)
     wiring = {
-        "the groups in the dropdowns": "...CARTE_ROB];" in c.js and '"robf", "robn"];' in c.js,
-        "hidden when the repères did not load or are empty": '.filter(([gr]) => robOk || !gr.startsWith("rob"))' in view
+        "the groups in the dropdowns": "...CARTE_ROB, ...juryGroups()];" in c.js and '"robn", ...JURY_KEYS' in c.js,
+        "the filière filter is gone (owner, 2026-11-27)": '"robf"' not in RB.top(c.js, "CARTE_ROB") and '"robf"' not in RB.top(c.js, "CARTE_FGROUPS")
+                                                          and 'g === "robf"' not in RB.top(c.js, "carteHas"),
+        "the filière repère is still read (kept in the payload)": "filiere" in RB.top(c.js, "robDecode"),
+        "hidden when the repères did not load or are empty": '.filter(([gr]) => (robOk || !gr.startsWith("rob"))' in view
                                                               and "const robOk = robReady();" in view,
         "estimation label and method link in the dropdowns": 'estimTag("modèle de SupCompass")} <a href="#/info/robustesse">' in view,
         "card line on the formations with statistics": "    ${robCardLine(f.cod_aff_form)}`}" in c.js,
         "never sorted by a repère": "rob" not in sort.lower(),
-        "help texts": "robf" in RB.top(c.js, "FI_HELP") and "robn" in RB.top(c.js, "FI_HELP"),
+        "help texts": "robf" not in RB.top(c.js, "FI_HELP") and "robn" in RB.top(c.js, "FI_HELP"),
         "the formation page passes its insertion": "formationRobustesseCard(d.robustesse, { ins: d.insertion, but: d.but && d.but.insertion })" in c.js,
     }
     bad += [k for k, v in wiring.items() if not v]
@@ -1146,9 +1149,9 @@ SOURCE_MUTANTS = [
     ("js", "empty payload counted as loaded (Codex)", "out.ok = Object.keys(out.filiere).length > 0 || Object.keys(out.national).length > 0 || Object.keys(out.echelle).length > 0;", "out.ok = true;", "RF11"),
     ("js", "readiness ignores an empty payload", "const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);", "const robReady = () => !!(RECO && RECO.rob);", "RF11"),
     ("js", "dropdowns shown for an empty payload", "    const robOk = robReady();", "    const robOk = !!(RECO && RECO.rob);", "RF11"),
-    ("js", "filter ignored by the list", '...CARTE_R3, "robf", "robn"];', "...CARTE_R3];", "RF11"),
-    ("js", "groups not offered", "fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "fiOptions(g).map((o) => [o.key, o.label])])];", "RF11"),
-    ("js", "groups offered without repères", '.filter(([gr]) => robOk || !gr.startsWith("rob"))', ".filter(() => true)", "RF11"),
+    ("js", "filter ignored by the list", '...CARTE_R3, "robn", ...JURY_KEYS', "...CARTE_R3, ...JURY_KEYS", "RF11"),
+    ("js", "groups not offered", "fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB, ...juryGroups()];", "fiOptions(g).map((o) => [o.key, o.label])]), ...juryGroups()];", "RF11"),
+    ("js", "groups offered without repères", '.filter(([gr]) => (robOk || !gr.startsWith("rob"))', '.filter(([gr]) => (true', "RF11"),
     ("js", "dropdown without its estimation label", '${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} ', '${gr.startsWith("rob") ? `<p class="small"> ', "RF11"),
     ("js", "card line reads unknown levels", "const w = R && R.echelle && echelleWords(R.echelle[cod]);", "const w = R && R.echelle && (echelleWords(R.echelle[cod]) || (R.echelle[cod] || []).join(\" \"));", "RF11"),
     ("robf", "ties counted below", "    below = bisect.bisect_left(ref, v) / n\n    above = (n - bisect.bisect_right(ref, v)) / n\n    for i, part in enumerate(ECHELLE_PARTS):",

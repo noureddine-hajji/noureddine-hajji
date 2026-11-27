@@ -1005,6 +1005,13 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   « Droit-économie-gestion », never a place); the page sorts figures first, then (keyword) more words first, then distance, rank, name;
   search.py untouched (no index rebuild). Chips (`kwChips`): recognised words with their kind (« Mot compris »…), the others « Mots cherchés » as
   typed; the order said around a town. Red team `redteam_compris.py` (SC1-SC6).
+- **Ce que regarde le jury (owner, 2026-11-27).** `jury.py`: the five fields of the fiche's grid (`core.fiche_champ` of VERIFIED grids;
+  a field not listed = 0 %), three levels each (« Peu / Moyen / Beaucoup »), cut points MEASURED at build by one fixed rule (multiples
+  of 5, every band >= a tenth, nearest a third each, smallest first; never typed), served in `META.jury` (once per warehouse); the
+  weights in the layer's BASE (`jury`, the CHAMPS order = app.js `JURY_KEYS`). ONE dropdown, five fieldsets, gradation bars 1-3 (aria-hidden,
+  the words written), OR inside a field, AND between, no grid = left out and SAID (dropdown + list, `carteNoGrid`); the card's folded
+  block prints the published weights (« la fiche fait foi »). Never a score, a sort or a chance. The filter « Robustesse 2035 dans sa
+  filière » is gone from the page (owner), its repère kept in the payload and « Détail du calcul ». Red team `redteam_jury.py` (JU1-JU8).
 - **Public repository (owner, 2026-11-27).** The repository is public (GitHub Actions on standard runners is free there). Nothing
   kept may name a person's contacts: the Parcoursup material kept (probe pages, live probe, harvested jury texts, fiche texts) and
   the warehouse's jury texts carry no e-mail address or phone number (masked at writing, `fiche_parse.mask` /

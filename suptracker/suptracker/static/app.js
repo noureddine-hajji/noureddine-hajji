@@ -959,7 +959,6 @@ const FI_HELP = {
   zone: "Lue pour votre profil (bac, spécialités, mention), comme dans « Mes vœux » : rien n'est enregistré. Des repères, pas des chances.",
   complementaire: "Des admis en phase complémentaire lors de la campagne de la formation : pas une promesse de places cette année.",
   taux: "Le taux d'accès officiel de la formation, tous candidats confondus : un repère, pas vos chances.",
-  robf: "Estimation du modèle de SupCompass : les métiers auxquels mène la formation devraient-ils garder de la valeur entre 2030 et 2035 ? Comparée aux formations de sa filière. Ni une chance d'admission, ni une promesse d'emploi.",
   robn: "Cinq niveaux parmi les formations Parcoursup, de très exposée à très robuste, sur les métiers visés et leur diversité : une estimation du modèle de SupCompass. Ni une chance d'admission, ni une promesse d'emploi.",
 };
 const fiOptions = (g) => ((typeof META !== "undefined" && META && META.filtres && META.filtres[g]) || []);
@@ -1623,18 +1622,29 @@ function echelleJauge(niv) {
 // owner, 2026-11-18: the robustesse 2035 repères of each formation (the two the formation page shows, read from the lists'
 // payload /api/reconnaissance: no request of its own, nothing sent); "sans" = no repère (not ranked, or no estimate). A FILTER only:
 // the list is never sorted by a repère, and a repère is never merged with the zone
+// owner, 2026-11-27: the filter « Robustesse 2035 dans sa filière » is gone from the page (the repère stays in the payload and in
+// « Détail du calcul »): only the five levels the pages show (a formation between two levels carries both)
 const CARTE_ROB = [
-  ["robf", "Robustesse 2035 dans sa filière", [["haut", "Parmi les 20 % les plus robustes de sa filière"], ["moyen", "Dans la moyenne de sa filière"],
-    ["bas", "Parmi les 20 % les moins robustes de sa filière"], ["sans", "Non classée dans sa filière"]]],
-  // owner, 2026-11-22: the five levels the pages show (a formation between two levels carries both)
   ["robn", "Robustesse 2035", [...ECHELLE.map(([k, lab]) => [k, lab]), ["sans", "Pas de niveau"]]],
 ];
 // the repères are usable only when the payload carried at least one level (robDecode's `ok`): never filter on an empty payload
 const robReady = () => !!(RECO && RECO.rob && RECO.rob.ok);
 const robLevel = (cod, k) => (k === "robn" ? ((RECO && RECO.rob && RECO.rob.echelle[cod]) || ["sans"])
   : (RECO && RECO.rob && RECO.rob.filiere[cod]) || "sans");
+// owner, 2026-11-27: « Ce que regarde le jury ». The five fields of the fiche's evaluation grid (jury.CHAMPS, same order as the
+// layer's `jury` weights), each with three levels whose cut points are MEASURED on the fiches' grids (META.jury, jury.cuts: never
+// typed here). Published weights only: a filter, never a sort, a score or a chance
+const JURY_KEYS = ["res", "eng", "mot", "se", "met"];
+const JURY_LEVELS = [["peu", "Peu", 1], ["moyen", "Moyen", 2], ["beaucoup", "Beaucoup", 3]];
+const JURY_HELP = "Le poids que le jury de la formation donne à chaque critère, publié sur sa fiche Parcoursup (la fiche fait foi). Les niveaux comparent ce poids à celui des autres formations : ni une note, ni une chance.";
+const juryMeta = () => ((typeof META !== "undefined" && META && META.jury && META.jury.champs) || []);
+// the level of a published weight: lower limit included, upper limit excluded (twin of jury.level)
+const juryLevel = (v, c) => (v === null || v === undefined || !Array.isArray(c) ? null : v < c[0] ? "peu" : v < c[1] ? "moyen" : "beaucoup");
+const juryGroups = () => juryMeta().filter((c) => JURY_KEYS.includes(c.key))
+  .map((c) => [`jury_${c.key}`, `Jury : ${c.titre}`, JURY_LEVELS.map(([o, w]) => [o, `${w} : ${c.labels[o]}`])]);
+const juryCuts = (g) => { const c = juryMeta().find((x) => `jury_${x.key}` === g); return c ? c.cuts : null; };
 const carteGroups = () => [CARTE_GROUPS[0], ["acad", "Académie", CARTE_ACADS.map((a) => [a, acadLabel(a)])], ...CARTE_GROUPS.slice(1),
-  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];
+  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB, ...juryGroups()];
 // does a formation carry an option of a group (one pure function, re-derived by red team C3)
 function carteHas(f, g, o) {
   if (g === "statut") return f.statut === o;
@@ -1646,13 +1656,21 @@ function carteHas(f, g, o) {
   if (g === "zones") return carteZone(f) === o;
   if (g === "capacite") return filtreBand(f.capa_fin, fiOptions("capacite")) === o;
   if (g === "taux") return filtreBand(f.taux_acces_ens, fiOptions("taux")) === o;
-  if (g === "robf") return !robReady() || robLevel(f.cod_aff_form, g) === o;   // repères not loaded or empty: no filter
+  if (g.startsWith("jury_")) return Array.isArray(f.jury) && juryLevel(f.jury[JURY_KEYS.indexOf(g.slice(5))], juryCuts(g)) === o;   // no grid: no level
   if (g === "robn") return !robReady() || robLevel(f.cod_aff_form, g).includes(o);   // a formation between two levels: both
   if (g === "complementaire") return f.acc_pc !== null && f.acc_pc !== undefined && (o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0);   // unknown: neither
   return false;
 }
 // every filter in one pure function; `skip` leaves one group out (the counts shown next to its options)
-const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3, "robf", "robn"];
+const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3, "robn", ...JURY_KEYS.map((k) => `jury_${k}`)];
+// owner, 2026-11-27: the formations a ticked jury level leaves out only because their fiche publishes no verified grid (said)
+function carteNoGrid(rows, F, kw) {
+  const jg = JURY_KEYS.map((k) => `jury_${k}`).filter((g) => (F[g] || []).length);
+  if (!jg.length) return 0;
+  const G = { ...F };
+  jg.forEach((g) => { G[g] = []; });
+  return carteFilter(rows, G, undefined, kw).filter((f) => !Array.isArray(f.jury)).length;
+}
 // sprint Vitesse (owner, 2026-11-16): an apprenticeship offer's folded name is computed once per name, not at every count
 const carteFolded = new Map();
 function carteText(f) {
@@ -1824,10 +1842,17 @@ function kwChips(kw, autour) {
   const ordre = autour ? '<span class="small muted">Les formations dont le nom contient le plus de vos mots d\'abord, puis les plus proches.</span>' : "";
   return chips || ordre ? `<div class="toolbar"><span class="small muted">Recherche comprise :</span>${chips}${ordre}</div>` : "";
 }
+// owner, 2026-11-27: the weights the jury gives to the five fields, as the fiche publishes them (never a score)
+function carteJury(f) {
+  if (!Array.isArray(f.jury)) return "";
+  const names = juryMeta().length ? Object.fromEntries(juryMeta().map((c) => [c.key, c.titre])) : {};
+  const parts = JURY_KEYS.map((k, i) => `${esc(names[k] || k)} ${fmt(f.jury[i])} %`).filter((x, i) => names[JURY_KEYS[i]]);
+  return parts.length ? `<p class="cjury small"><span class="muted">Ce que regarde le jury (fiche Parcoursup, la fiche fait foi) :</span> ${parts.join(" · ")}</p>` : "";
+}
 function carteMore(f, reo) {
-  const app = appOffers(f.offres_app);
-  const inner = `${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}${app}`;
-  const what = [reo ? "" : "Taux d'accès par bac et profil des admis", app ? (reo ? "Aussi en apprentissage" : "aussi en apprentissage") : ""].filter(Boolean).join(" · ");
+  const app = appOffers(f.offres_app), jury = carteJury(f);
+  const inner = `${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}${jury}${app}`;
+  const what = [reo ? "" : "Taux d'accès par bac et profil des admis", jury ? (reo ? "Ce que regarde le jury" : "ce que regarde le jury") : "", app ? (reo && !jury ? "Aussi en apprentissage" : "aussi en apprentissage") : ""].filter(Boolean).join(" · ");
   return inner ? `<details class="cc-more"><summary class="small">${what}</summary>${inner}</details>` : "";
 }
 function carteMajo(f) {
@@ -2155,21 +2180,31 @@ async function viewCarte(dArg, mArg) {
     // a group is marked (and its ticked count shown) only when it differs from its default (statut: paid unticked)
     const moved = (gr) => JSON.stringify(F[gr] || []) !== JSON.stringify(CARTE_DEFAULT[gr] || []);
     const robOk = robReady();
-    const groups = carteGroups().filter(([gr]) => robOk || !gr.startsWith("rob")).map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
+    const groups = carteGroups().filter(([gr]) => (robOk || !gr.startsWith("rob")) && !gr.startsWith("jury_")).map(([gr, title, opts]) => dd(gr, title, moved(gr) ? (F[gr] || []).length : 0, `${clear(gr)}${opts.map(([o, label]) => box2(gr, o, esc(label))).join("")}
       ${gr === "statut" ? `<p class="muted small">Les établissements privés payants ne sont montrés que si vous cochez leur case.</p>` : ""}${FI_HELP[gr] ? `<p class="muted small">${esc(FI_HELP[gr])}</p>` : ""}${gr.startsWith("rob") ? `<p class="small">${estimTag("modèle de SupCompass")} <a href="#/info/robustesse">Comment on calcule la robustesse</a></p>` : ""}`, moved(gr)));
+    // owner, 2026-11-27: « Ce que regarde le jury », the five fields in ONE dropdown, each level drawn as gradation bars (1 to 3)
+    const jg = juryGroups(), jn = jg.reduce((a, [gr]) => a + (moved(gr) ? (F[gr] || []).length : 0), 0), noGrid = carteNoGrid(base, F, kw);
+    const bars = (w) => `<span class="jbars" aria-hidden="true">${[1, 2, 3].map((i) => `<i${i <= w ? ' class="on"' : ""}></i>`).join("")}</span>`;
+    const jbox = (gr, o, label, w) => { const nn = facets[gr].get(o);
+      return `<label class="jlev"><input type="checkbox" data-g="${gr}" data-o="${o}" ${(F[gr] || []).includes(o) ? "checked" : ""}> ${bars(w)}<span>${esc(label)}</span> <span class="muted">${fmt(nn)}</span></label>`; };
+    const jury = jg.length ? dd("jury", "Ce que regarde le jury", jn, `${jn ? '<button type="button" class="linkish" data-clear-jury>Tout décocher (tout afficher)</button>' : ""}
+      <p class="muted small">${esc(JURY_HELP)}</p>
+      ${jg.map(([gr, title, opts]) => `<fieldset class="dd-group jury-row"><legend>${esc(title.replace(/^Jury : /, ""))}</legend>${opts.map(([o, label], i) => jbox(gr, o, label, JURY_LEVELS[i][2])).join("")}</fieldset>`).join("")}
+      ${noGrid ? `<p class="muted small">${fmt(noGrid)} formation${noGrid > 1 ? "s" : ""} sans grille publiée sur leur fiche ${noGrid > 1 ? "ne sont" : "n'est"} pas retenue${noGrid > 1 ? "s" : ""}.</p>` : ""}`, jn > 0) : "";
     const zones = ok ? dd("zones", "Votre zone", (F.zones || []).length, `${clear("zones")}${[...CARTE_ZONES, "autre"].map((z) => box2("zones", z, zoneLabel(z))).join("")}<p class="muted small">${esc(FI_HELP.zone)}</p>`) : "";
     // the count of active groups, said on the "Filtrer" fold that hides the dropdowns on a phone
     const active = [sel.d.length, menDips.length && sel.d.some((d) => (sel.m[d] || []).length), (F.zones || []).length,
       ...carteGroups().map(([gr]) => moved(gr))].filter(Boolean).length;
     const changed = active > 0;
     document.getElementById("dd-fold-n").textContent = active ? `(${active} actif${active > 1 ? "s" : ""})` : "";
-    bar.innerHTML = `${dips}${mens}${groups[0]}${zones}${groups.slice(1).join("")}${changed ? '<button type="button" class="linkish dd-reset" id="dd-reset">Réinitialiser les filtres</button>' : ""}
+    bar.innerHTML = `${dips}${mens}${groups[0]}${zones}${groups.slice(1).join("")}${jury}${changed ? '<button type="button" class="linkish dd-reset" id="dd-reset">Réinitialiser les filtres</button>' : ""}
       <p class="muted small dd-note">Les offres en apprentissage listées à part viennent de la cartographie Parcoursup ${esc(offre || "")}. Les statistiques officielles ne les couvrent plus depuis 2022 : elles n'ont ni zone, ni taux d'accès.</p>`;
     bar.querySelectorAll("details.dd").forEach((d) => d.addEventListener("toggle", () => {
       if (d.open) { carteUI.open = d.dataset.dd; bar.querySelectorAll("details.dd[open]").forEach((o) => { if (o !== d) o.open = false; }); }
       else if (carteUI.open === d.dataset.dd) carteUI.open = null;
     }));
     bar.querySelectorAll("[data-clear]").forEach((b) => { b.onclick = () => { F[b.dataset.clear] = []; save(); }; });
+    bar.querySelectorAll("[data-clear-jury]").forEach((b) => { b.onclick = () => { juryGroups().forEach(([gr]) => { F[gr] = []; }); save(); }; });
     bar.querySelectorAll("[data-g]").forEach((el) => { el.onchange = () => {
       const gr = el.dataset.g; F[gr] = [...bar.querySelectorAll(`[data-g="${gr}"]:checked`)].map((x) => x.dataset.o);
       carteUI.focus = `[data-g="${gr}"][data-o="${el.dataset.o}"]`; save(); }; });
@@ -2222,12 +2257,14 @@ async function viewCarte(dArg, mArg) {
         || byName(a, b));
     // audit PR 4 (owner, 2026-11-23): the paid private establishments stay unticked by default (Plan B's rule), and the list SAYS how
     // many of them the other criteria would show, with a button that ticks their box
+    const noGridN = carteNoGrid(shown(), F, kw);   // owner, 2026-11-27: what the jury filter leaves out for want of a grid, said
     const paid = carteHiddenPaid(shown(), F, kw), showPaid = () => { F.statut = [...new Set([...F.statut, "prive"])]; save(); };
     setHtml(document.getElementById("cs-status"), [
       kw ? kwChips(kw, F.autour) : "",
       kw ? kw.notes.map((n) => `<div class="info">${esc(n)}</div>`).join("") : "",
       carteUI.kwErr ? `<p class="warn small">La recherche par mot-clé n'a pas abouti : ${esc(carteUI.kwErr)}. La liste montre toutes les formations.</p>` : "",
       carteUI.lieuBad ? `<p class="warn small">Lieu non reconnu : « ${esc(carteUI.lieuBad)} ». Choisissez une ville, un département, une académie ou une région dans la liste.</p>` : "",
+      noGridN ? `<p class="small muted cs-nogrid">${fmt(noGridN)} formation${noGridN > 1 ? "s" : ""} sans grille publiée sur leur fiche ${noGridN > 1 ? "ne sont" : "n'est"} pas retenue${noGridN > 1 ? "s" : ""} par le filtre « Ce que regarde le jury ».</p>` : "",
       (carteUI.restored || []).length ? `<p class="small cs-restored">Filtres gardés de votre dernière visite : ${esc(carteUI.restored.join(", "))}. <button type="button" class="linkish" data-reset-filters>Réinitialiser les filtres</button></p>` : "",
       // audit PR 8: nothing kept but paid formations hidden = say THAT, never « aucune formation ne correspond » beside them
       !kept.length && paid ? `<p class="info cs-paid-only">Les ${fmt(paid)} formation${paid > 1 ? "s" : ""} qui correspond${paid > 1 ? "ent" : ""} à votre recherche ${paid > 1 ? "sont" : "est"} dans des établissements privés payants, masqués par défaut. <button type="button" class="linkish" data-show-paid>Les afficher</button></p>`

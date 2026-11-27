@@ -640,6 +640,8 @@ def _layer(con) -> tuple:
     from . import reorientation as RO         # (reorientation imports this module)
     reo = RO.latest(con)                      # audit PR 6: the card's figure for a candidate outside terminale (no profile)
     dom = DOM.groups(con)
+    from . import jury as JU                  # owner, 2026-11-27: the jury's published field weights (the « jury » filter)
+    jw = JU.weights(con)
     for r in rows:
         d, m = diplome_of(r[15], r[16], r[17], r[2])
         x = dict(zip(FIELDS, r[:15]))
@@ -660,6 +662,7 @@ def _layer(con) -> tuple:
         ln = lines.get(x["cod_aff_form"]) or {}
         x["bacs"], x["majo"] = ln.get("bacs"), ln.get("majo")
         x["reo"] = reo.get(x["cod_aff_form"])
+        x["jury"] = jw.get(x["cod_aff_form"])
         x["initiale"], x["apprentissage"] = not sies_app, sies_app or bool(x["offres_app"])
         by_dip.setdefault(d, []).append(x)
     # an apprenticeship offer has its académie (UAI, else département), not the SIES region: the region most SIES formations of
@@ -677,7 +680,7 @@ def _layer(con) -> tuple:
     for a in apprentissage(con):
         if not a["rattachee"]:
             dep, dep_lib = dep_code.get(_fold(carto_dep.get(a["cod_aff_form"]) or ""), (None, None))
-            a = {**a, "region": acad_region.get(a.get("academie")), "dep": dep, "dep_lib": dep_lib}
+            a = {**a, "region": acad_region.get(a.get("academie")), "dep": dep, "dep_lib": dep_lib, "jury": jw.get(a["cod_aff_form"])}
             by_dip.setdefault(a["diplome"], []).append({**{k: v for k, v in a.items() if k not in ("diplome", "rattachee")},
                                                         "groupe": groupe_of(a["diplome"], a["mention"], dom), "initiale": False, "offres_app": []})
     session = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]

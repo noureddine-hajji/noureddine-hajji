@@ -60,6 +60,7 @@ from . import robustesse_formation as ROBF
 from . import rapports as RP
 from . import evolution as EVO
 from . import carte as CA
+from . import jury as JU
 from . import appel as AP
 from . import selectivite as SEL
 from . import observatoire as OBS
@@ -541,6 +542,14 @@ def _warm_search_index():
     threading.Thread(target=run, daemon=True).start()
 
 
+_JURY: dict = {}
+
+
+def _jury_meta() -> dict:
+    con = _con().cursor()
+    return CA.once(_JURY, CA._fingerprint(con), lambda: JU.meta(con))
+
+
 @app.get("/api/meta")
 def meta():
     _warm_search_index()
@@ -560,6 +569,8 @@ def meta():
         "schema_audit": audit,
         "low_n_threshold": config.LOW_N_THRESHOLD,
         "filtres": FI.vocab(),             # sprint R3: one definition of every band, for the search and the map
+        # owner, 2026-11-27: « Ce que regarde le jury », the five fields' cut points measured on the fiches' grids (once a warehouse)
+        "jury": _jury_meta(),
         # audit PR 6: the services that help an adult go back to studies (aide.ADULTES, the same list as the help page)
         "reprise": {"intro": AIDE.ADULTES_INTRO, "verifie": AIDE.ADULTES_CHECKED, "services": AIDE.ADULTES},
     }

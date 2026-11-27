@@ -5135,3 +5135,37 @@ out on 2026-11-26. The owner made the repository public, where standard runners 
 - **PB4:** no secret in a tracked file or a workflow.
 - **PB5:** the workflows are safe for a public repository.
 - **PB6:** a mutation test.
+
+## Ce que regarde le jury (owner, 2026-11-27)
+
+**Why.** The owner asked for a search filter on what each formation's jury looks at. The fiche Parcoursup publishes it: its
+evaluation grid weighs five fields (« Résultats scolaires », « Engagement et activités », « Motivation », « Savoir-être »,
+« Méthodes de travail »). 22,222 formations of the 2026 campaign have a verified grid, and each grid sums to 100.
+
+**What changes.**
+- **The filter:** one dropdown « Ce que regarde le jury » on the search page.
+  - Five fields, three levels each (« Peu », « Moyen », « Beaucoup »), drawn as gradation bars 1 to 3, with their words and % range
+    (« Beaucoup : 25 % ou plus »).
+  - Several levels of a field are OR, several fields AND; each level is counted with the other filters applied.
+  - A formation whose fiche publishes no verified grid is left out when a level is ticked, and the dropdown and the list say how many.
+- **The levels** (`jury.py`) follow a fixed rule measured on the grids at every build, never typed: two cut points, multiples of
+  5 %, every band at least a tenth of the grids, the bands nearest a third each. On 2026-11-27 the cut points were:
+  - Résultats scolaires 30 / 45 %;
+  - Engagement et activités 5 / 10 %;
+  - Motivation, Savoir-être and Méthodes de travail 15 / 25 %.
+- **Published weights only:** a field the grid does not list weighs 0 %. Never a note, a ranking or a chance, and the list is never
+  sorted by a weight. The card's folded block prints the five weights, with « la fiche fait foi ».
+- **The weights** travel in the search layer's base (`carte._layer`, key `jury`), and the cut points travel in `META.jury`
+  (computed once per warehouse).
+- **« Robustesse 2035 dans sa filière »:** this filter is gone from the page (owner). The repère stays in the payload and in
+  « Détail du calcul », and the five-level filter stays.
+
+**Red team** `scripts/redteam_jury.py` (JU1-JU8), run by `tests/test_jury.py`:
+- **JU1:** re-derives the cut points, including crafted skewed fields and an unverified grid.
+- **JU2:** checks the layer.
+- **JU3:** checks the page's twins and the filter.
+- **JU4:** checks what a student reads.
+- **JU5:** checks the API and the removed filter.
+- **JU6 (browser, nightly):** checks the page in a browser.
+- **JU7:** a mutation test, 14/14 caught.
+
