@@ -532,7 +532,7 @@ MUTANTS = [
     ("js", "PO5", "the concours ignore the formation", "  if (!poConcQ(k, F)) return [];\n", ""),
     ("js", "PO5", "the remark dropped from the list card", '${x.e.remarque ? ` (${esc(x.e.remarque)})` : ""}', ""),
     ("py", "PO3", "the concours left in each block", "        conc = b.pop(\"concours\", None) if b else None", "        conc = b.get(\"concours\") if b else None"),
-    ("js", "PO5", "the radius applied to online sessions", "  if (!x.virtuel && home && F.km &&", "  if (home && F.km &&"),
+    ("js", "PO5", "the radius applied to online sessions", "  if (!x.virtuel && home && F.km) {", "  if (home && F.km) {"),
     ("js", "PO5", "passed dates in the list", "      if ((e.fin || e.date) < today) continue;\n      const k = `${e.uai}", "      const k = `${e.uai}"),
     ("js", "PO5", "an establishment unescaped", '· ${esc(x.nom)}${x.universite ?', '· ${x.nom}${x.universite ?'),
     ("js", "PO5", "every date shown", "evs.slice(0, JPO_LISTE_FIRST).map(line)", "evs.map(line)"),
