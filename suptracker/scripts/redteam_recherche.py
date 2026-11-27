@@ -509,7 +509,7 @@ def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
             bad.append(("options", g, groups[g][1], exp))
     vc = js[js.index("async function viewCarte("):js.index("\n// ---- ", js.index("async function viewCarte("))]
     # the dropdowns themselves: every group above, the types, the mentions and the zones (with a profile)
-    if 'const groups = carteGroups().filter(([gr]) => (robOk || !gr.startsWith("rob")) && !gr.startsWith("jury_")).map(([gr, title, opts]) => dd(gr, title,' not in vc
+    if 'const groups = carteGroups().filter(([gr]) => (robOk || !gr.startsWith("rob")) && !gr.startsWith("jury_")).map(([gr, title, opts]) => dd(gr, title,' not in vc \
             or 'const jury = jg.length ? dd("jury", "Ce que regarde le jury"' not in vc or 'dd("dips", "Type de formation"' not in vc \
             or 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"' not in vc or 'const zones = ok ? dd("zones"' not in vc:
         bad.append("a dropdown of the bar")

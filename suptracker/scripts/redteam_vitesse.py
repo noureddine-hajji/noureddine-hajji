@@ -281,7 +281,7 @@ def vt4(c: Ctx):
                                          and "chargement…" in fn_src(c.js, "carteBacs"),
     }
     # the list, the map and the filters read no detail key (they are drawn before the details come)
-    for fn in ("carteFilter", "carteHas", "carteSortName", "carteMarker"):
+    for fn in ("carteFilter", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryLevel", "juryGroups", "juryCuts", "carteHas", "carteSortName", "carteMarker"):
         src = fn_src(c.js, fn)
         if any(re.search(rf"\.{k}\b", src) for k in DETAIL):
             need[f"{fn} reads a detail key"] = False
@@ -448,7 +448,7 @@ def js_top(js: str, name: str) -> str:
     return top(js, name)
 
 
-FACET_PARTS = ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteOfferMatch", "carteCommon",
+FACET_PARTS = ("fiOptions", "filtreBand", "CARTE_R3", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryLevel", "juryGroups", "juryCuts", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteOfferMatch", "carteCommon",
                "carteFilter", "carteFacets", "carteInLieu", "foldText", "haversineKm", "carteZone", "carteSortName", "FR_COLL",
                "carteNameRank")
 FACET_PROG = r"""

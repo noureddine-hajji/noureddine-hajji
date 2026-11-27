@@ -201,7 +201,7 @@ def mq1(c: Ctx):
 STUBS = """const CARTE_R3 = [], fiOptions = () => [], filtreBand = () => null, robReady = () => false, robLevel = () => "",
   haversineKm = () => 0, carteZone = (f) => f.zone || "autre", FI_TITLE = {}, CARTE_ROB = [];
 """
-NAMES = ("ACAD_LABEL", "acadLabel", "foldText", "CARTE_DEFAULT", "CARTE_GROUPS", "CARTE_ACADS", "carteGroups", "CARTE_FGROUPS", "carteHas",
+NAMES = ("ACAD_LABEL", "acadLabel", "foldText", "CARTE_DEFAULT", "CARTE_GROUPS", "CARTE_ACADS", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryLevel", "juryGroups", "juryCuts", "carteGroups", "CARTE_FGROUPS", "carteHas",
          "carteFolded", "carteText", "carteOfferMatch", "KW_INTERNAT", "carteInLieu", "carteCommon", "carteFilter", "carteHiddenPaid", "carteActive")
 
 
