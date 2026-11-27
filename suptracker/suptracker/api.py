@@ -1275,6 +1275,40 @@ def liste_verifier(ids: str = Query("", max_length=200)):
     return LST.verifier(_con().cursor(), cods)
 
 
+# PR 16 (owner, 2026-11-27): « Portes ouvertes et webinaires » of the student's list (codes only, no-store, no event) and of
+# the whole season (« près de chez moi »: no parameter, shared-cached; the town and the distance stay in the browser)
+def _jpo_codes(ids: str) -> list[str]:
+    try:
+        return VX.clean_ids(ids.split(","))
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/api/jpo/liste")
+def jpo_liste(ids: str = Query("", max_length=200)):
+    """The open days and webinars of the list's formations and of their concours (jpo.for_list: the formation page's rules)."""
+    return JPO.for_list(_con().cursor(), _jpo_codes(ids))
+
+
+@app.get("/api/jpo/liste.ics")
+def jpo_liste_ics(ids: str = Query("", max_length=200)):
+    """The same coming dates as an .ics file (all-day events, each with its source and « à vérifier »)."""
+    lst = JPO.for_list(_con().cursor(), _jpo_codes(ids))
+    return Response(JPO.ics_list(lst), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="portes-ouvertes-ma-liste.ics"'})
+
+
+_JPO_AGENDA: dict = {}
+JPO_EMPTY = {"aujourdhui": None, "saison": None, "n_formations": 0, "n_avec_date": 0, "evenements": [], "formations": {}, "concours": {}}
+
+
+@app.get("/api/jpo/agenda")
+def jpo_agenda():
+    """Every open day of the season (built at build, jpo.agenda), read once per warehouse; empty before the first build."""
+    con = _con().cursor()
+    return CA.once(_JPO_AGENDA, CA._fingerprint(con), lambda: JPO.agenda_payload(con)) or JPO_EMPTY
+
+
 @app.get("/api/reorientation/voeux")
 def reorientation_voeux(ids: str = Query("", max_length=200)):
     """Sprint 21: the student's list read for a candidate outside terminale (no zone, no Plan B). No analytics event."""

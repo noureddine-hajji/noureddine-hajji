@@ -203,7 +203,7 @@ def li3(c: Ctx):
         bad.append("cache.py: no no-store policy")
     if '"verifier_liste"' not in c.src["api"]:
         bad.append("FEATURES")
-    fn = re.search(r'@app.get\("/api/liste/verifier"\)\ndef liste_verifier\(.*?(?=\n@app\.)', c.src["api"], re.S)
+    fn = re.search(r'@app.get\("/api/liste/verifier"\)\ndef liste_verifier\(.*?(?=\n\S)', c.src["api"], re.S)   # up to the next top-level line
     if not fn or "cods = VX.clean_ids(ids.split(\",\"))" not in fn.group(0) or "raise HTTPException(422, str(exc)) from exc" not in fn.group(0) \
             or "LST.verifier(_con().cursor(), cods)" not in fn.group(0) or re.search(r"\bA\.record|bg\.add_task|track\(", fn.group(0)):
         bad.append("route source: codes not validated (422), or an audience event")
@@ -391,7 +391,8 @@ MUTANTS = [
     ("js", "safety always said", "  else if (opts.securite === \"ok\") items.push", "  else items.push", "LI4"),
     ("js", "a valid list", "SupCompass ne voit pas votre dossier Parcoursup&nbsp;: ces repères ne remplacent pas la confirmation de chaque vœu.",
      "Votre liste est valide.", "LI4"),
-    ("js", "race unguarded", "  if ($view.dataset.rendered !== marker || !box || !box.isConnected) return;", "", "LI5"),
+    ("js", "race unguarded", "  if ($view.dataset.rendered !== marker || !box || !box.isConnected) return;   // the student left or changed the list meanwhile\n  box.outerHTML = verifierCard(",
+     "  box.outerHTML = verifierCard(", "LI5"),
     ("js", "profile sent", 'api(`/api/liste/verifier?${new URLSearchParams({ ids: ids.join(",") })}`)',
      'api(`/api/liste/verifier?${new URLSearchParams({ ids: ids.join(","), mention: (opts.profil || {}).mention })}`)', "LI5"),
     ("js", "reo view not wired", "  loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status === \"ok\")", "  void (0, { noms: Object.fromEntries(d.voeux.filter((v) => v.status === \"ok\")", "LI5"),
