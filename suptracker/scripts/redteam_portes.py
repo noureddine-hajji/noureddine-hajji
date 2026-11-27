@@ -78,6 +78,42 @@ class Ctx:
 
 
 # ------------------------------------------------------------------ PO1
+def crafted_agenda(J) -> list:
+    """The rarer paths on a crafted warehouse (the real season may have none): a date read ONLY on the formation's own fiche, one
+    only through its university, an online and an on-site session the same day at the same establishment (two events)."""
+    import duckdb
+    from suptracker import carte as CA
+    con = duckdb.connect()
+    con.execute("CREATE SCHEMA core")
+    con.execute("CREATE TABLE core.formation_year AS SELECT * FROM (VALUES ('1', 'U1', 2025, 'BTS', 'X'), ('2', 'U2', 2025, 'BTS', 'Y'),"
+                " ('3', 'U3', 2025, 'Licence', 'Z')) t(cod_aff_form, cod_uai, session, lib_for_voe_ins, lib_comp_voe_ins)")
+    con.execute("CREATE TABLE core.cartographie (cod_aff_form VARCHAR, etab_uai VARCHAR)")
+    con.execute(f"CREATE TABLE jpo_date AS SELECT * FROM (VALUES ('U1', DATE '2027-01-10', false), ('U1', DATE '2027-01-10', true),"
+                f" ('{J.fiche_key('2')}', DATE '2027-02-01', false), ('U4', DATE '2027-03-01', false)) t(uai, debut, virtuel)")
+    con.execute("CREATE TABLE jpo_etab AS SELECT * FROM (VALUES ('U3', 'U4')) t(uai, univ_uai)")
+    rows = [{"cod_aff_form": c, "formation": f"F{c}", "etablissement": f"E{c}", "lat": 45.0, "lon": 5.0, "ville": "V"} for c in "123"]
+    d = lambda u, day, v, src="onisep": {"uai": u, "date": day, "fin": None, "virtuel": v, "source": src, "nom": f"N{u}"}  # noqa: E731
+    fake = {"1": {"dates": [d("U1", "2027-01-10", False), d("U1", "2027-01-10", True)]},
+            "2": {"dates": [d("U2", "2027-02-01", False, "fiche")]},
+            "3": {"dates": [d("U4", "2027-03-01", False)], "universite": {"nom": "Université X"}}}
+    saved = (J._src, J._for_formation, CA._layer)
+    try:
+        J._src = lambda _con: (con, "")
+        J._for_formation = lambda _con, cod, _t: fake.get(cod)
+        CA._layer = lambda _con: ({"BTS": rows}, None, None)
+        A = J.agenda(con, TODAY)
+    finally:
+        J._src, J._for_formation, CA._layer = saved
+        con.close()
+    got = sorted((e["uai"], e["date"], e["virtuel"], tuple(e["formations"])) for e in A["evenements"])
+    want = [("U1", "2027-01-10", False, ("1",)), ("U1", "2027-01-10", True, ("1",)), ("U2", "2027-02-01", False, ("2",)),
+            ("U4", "2027-03-01", False, ("3",))]
+    bad = [] if got == want else [("crafted agenda: fiche-only, university-only, online + on-site the same day", got)]
+    if not any(e["universite"] and e["nom"] == "Université X" for e in A["evenements"]):
+        bad.append("crafted agenda: the university's name")
+    return bad
+
+
 @check("PO1 the agenda follows the formation page's rules (both ways, one event per establishment, day and kind)")
 def po1(c: Ctx):
     J = c.jpo()
@@ -118,6 +154,7 @@ def po1(c: Ctx):
     keys = [(e["uai"], e["date"], e["virtuel"]) for e in evs]
     if len(keys) != len(set(keys)):
         bad.append("two events for one establishment, day and kind")
+    bad += crafted_agenda(J)
     return not bad, f"{len(evs)} events, {len(sample)} checked; {len(sample_f)} formations re-read; problems {bad[:4]}"
 
 
@@ -177,7 +214,12 @@ def dated_codes(c: Ctx, n: int = 6) -> list[str]:
     if len(out) < n:
         out += [r[0] for r in c.con.execute("""SELECT cod_aff_form FROM core.formation_year
             WHERE session = (SELECT max(session) FROM core.formation_year) ORDER BY cod_aff_form LIMIT ?""", [n]).fetchall()]
-    return list(dict.fromkeys(out))[:n]
+    out = list(dict.fromkeys(out))[:n]
+    for k, v in sorted(A["concours"].items()):      # one formation recruited through a concours (its block must lose it)
+        if v["formations"] and v["formations"][0] not in out:
+            out.append(v["formations"][0])
+            break
+    return out
 
 
 @check("PO3 the list = for_formation code by code, concours once; 422 on bad codes; no-store, no audience event; agenda shared")
@@ -300,7 +342,6 @@ def po4(c: Ctx):
 PAGE_NAMES = ("JPO_KIND_LINE", "JPO_LISTE_FIRST", "jpoListeEvents", "poKeep", "jpoUrl", "jpoWhen", "jpoSrc", "JPO_KIND", "jpoConcours",
               "jpoListeCard")
 PAGE_STUB = r"""
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (x) => String(x); const frDate = (d) => d; const localIso = () => "2026-11-27";
 const foldText = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const haversineKm = (a, b, c, d) => Math.hypot(a - c, b - d) * 100;
@@ -363,7 +404,8 @@ def po5(c: Ctx):
     card = o["card"]
     if "<img" in card or "javascript:" in card or "&lt;img" not in card:
         bad.append("the list card is not escaped")
-    if card.count("<li>") < 7 or "Voir les 2 autres dates" not in card or "Sans date à venir (2)" not in card:
+    first = card.split("<details>")[0]
+    if first.count("<li>") != 5 or card.count("<li>") < 7 or "Voir les 2 autres dates" not in card or "Sans date à venir (1)" not in card:
         bad.append("five dates first, the others folded; the formations without a coming date listed")
     if "/api/jpo/liste.ics?ids=1%2C2%2C3" not in card or "rien n'en est enregistré" not in card:
         bad.append("the .ics link or the privacy sentence")
@@ -473,7 +515,7 @@ def po7(c: Ctx):
     missed, skipped = [], []
     dated = bool(c.agenda()["evenements"])
     for kind, target, name, old, new in MUTANTS:
-        if kind == "py" and target in ("PO1", "PO2", "PO3") and not dated:
+        if kind == "py" and target in ("PO2", "PO3") and not dated:
             skipped.append(name)                  # a warehouse with no open day (the synthetic fixture): these need real dates
             continue
         m = copy.copy(c)
@@ -489,6 +531,7 @@ def po7(c: Ctx):
             spec = importlib.util.spec_from_loader("suptracker.jpo_mutant", loader=None)
             mod = importlib.util.module_from_spec(spec)
             mod.__package__ = "suptracker"
+            mod.__file__ = str(ROOT / "suptracker" / "jpo.py")
             exec(compile(c.src.replace(old, new, 1), "jpo_mutant", "exec"), mod.__dict__)
             m.J = mod
             m._agenda = None
@@ -513,7 +556,7 @@ def po8(c: Ctx):
         bad.append("route, tab or audience name")
     if '<a href="#/portes-ouvertes">Portes ouvertes et webinaires près de chez moi</a>' not in top(js, "viewCalendrier"):
         bad.append("the way in from the calendar")
-    if js.count("loadJpoListe(ids, marker);") != 2 or js.count('<section class="card" id="vx-jpo">') != 2:
+    if js.count("loadJpoListe(ids, marker);") != 2 or js.count('<section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>') != 2:
         bad.append("the Mes vœux block in both situations")
     if "jpo.build_agenda(con, textes=rapports.textes_path(db_path))" not in (ROOT / "suptracker" / "build.py").read_text():
         bad.append("the build")

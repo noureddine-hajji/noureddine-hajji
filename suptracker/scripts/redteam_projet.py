@@ -193,9 +193,9 @@ def pj1(c: Ctx):
 # ------------------------------------------------------------------ PJ2 the route
 def route_ok(js: str, api_src: str, analytics: str) -> tuple[bool, str]:
     bad = []
-    if 'projet: "projet" };' not in js or 'guide: "voeux", projet: "voeux" };' not in js:
+    if 'projet: "projet",' not in js or 'guide: "voeux", projet: "voeux",' not in js:
         bad.append("router or tab list")
-    if not re.search(r'ROUTES = \([^)]*"projet"\)', analytics, re.S):
+    if not re.search(r'ROUTES = \([^)]*"projet"[,)]', analytics, re.S):
         bad.append("analytics closed route list")
     body = api_src[api_src.find('@app.get("/api/projet/{cod}")'):]
     body = body[: body.find("\n\n\n")]
