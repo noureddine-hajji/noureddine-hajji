@@ -1849,6 +1849,9 @@ function carteJury(f) {
   const parts = JURY_KEYS.map((k, i) => `${esc(names[k] || k)} ${fmt(f.jury[i])} %`).filter((x, i) => names[JURY_KEYS[i]]);
   return parts.length ? `<p class="cjury small"><span class="muted">Ce que regarde le jury (fiche Parcoursup, la fiche fait foi) :</span> ${parts.join(" · ")}</p>` : "";
 }
+// Codex (PR #125): an apprenticeship offer listed apart is kept or left out by the jury filter too: its card shows the same
+// published weights, folded alone (never the admission figures such an offer does not have)
+const carteJuryMore = (f) => (carteJury(f) ? `<details class="cc-more"><summary class="small">Ce que regarde le jury</summary>${carteJury(f)}</details>` : "");
 function carteMore(f, reo) {
   const app = appOffers(f.offres_app), jury = carteJury(f);
   const inner = `${reo ? "" : `${carteBacs(f)}${carteMajo(f)}`}${jury}${app}`;
@@ -1897,7 +1900,7 @@ function carteCard(f, ctx, pinned) {
       <div class="rc-sub">${esc(f.formation)}${carteMentionTail(f)}</div>${f.stats === false && appParcours(f) ? `<div class="small">En apprentissage : ${appParcours(f)}</div>` : ""}
       <div class="rc-meta muted small"><span>${esc(f.ville)}${f.academie ? ` (${esc(acadLabel(f.academie))})` : ""}</span>${f.dist != null ? `<span>${fmt(f.dist)} km</span>` : ""}${f.capa_fin != null ? `<span>${ICONS.places}${fmt(f.capa_fin)} places</span>` : ""}</div>
     </div>
-    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div></div>
+    ${f.stats === false ? `<p class="small muted">Pas de statistiques d'admission publiées pour l'apprentissage <button type="button" class="tip" aria-label="${esc(CARTE_APP_NOTE)}" data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}${carteJuryMore(f)}` : `<div class="crates"><div class="cofficiel"><span class="cf-k">Taux d'accès ${esc(ctx.session)}</span> <strong class="cf-big">${pct(f.taux_acces_ens)}</strong> <span class="muted small">officiel</span></div></div>
     ${carteMore(f, ctx.reo)}
     ${carteFigures(f, { ...ctx, compact: true })}
     ${robCardLine(f.cod_aff_form)}`}

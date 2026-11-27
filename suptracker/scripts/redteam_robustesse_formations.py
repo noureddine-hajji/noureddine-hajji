@@ -1203,7 +1203,7 @@ SOURCE_MUTANTS = [
     ("robf", "inheritance not said", '"herite": {"source": "diplome", "formations": len(cods)}', '"herite": {"source": "diplome", "formations": 1}', "RF13"),
     ("robf", "compact drops the inherited list", '            acc["herite"].setdefault("diplome", []).append(cod)', "            pass", "RF13"),
     ("js", "inherited repère not said", '" Repères du diplôme : les mêmes pour toutes les formations qui y préparent."', '""', "RF13"),
-    ("js", "no line on apprenticeship cards", 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}`', 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>`', "RF13"),
+    ("js", "no line on apprenticeship cards", 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${robCardLine(f.cod_aff_form)}${carteJuryMore(f)}`', 'data-tip="${esc(CARTE_APP_NOTE)}">i</button></p>${carteJuryMore(f)}`', "RF13"),
     ("js", "card line dropped", "    ${robCardLine(f.cod_aff_form)}`}", "    `}", "RF11"),
     ("js", "list sorted by repère", "        || byName(a, b));", "        || (robLevel(a.cod_aff_form, \"robn\") < robLevel(b.cod_aff_form, \"robn\") ? -1 : 0) || byName(a, b));", "RF11"),
 ]

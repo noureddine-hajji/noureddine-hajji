@@ -309,6 +309,11 @@ def ju4(c: Ctx):
             bad.append("a card line without a grid")
     if "${jury}${app}" not in top(c.js, "carteMore"):
         bad.append("the card line is not in the folded block")
+    # Codex (PR #125): an apprenticeship offer listed apart is filtered by the jury too: its card shows the weights, folded alone
+    card = top(c.js, "carteCard")
+    if "${robCardLine(f.cod_aff_form)}${carteJuryMore(f)}` : `" not in card or "carteJury(f)" not in top(c.js, "carteJuryMore") \
+            or "carteBacs" in top(c.js, "carteJuryMore"):
+        bad.append("an apprenticeship offer's card does not show its jury weights (or shows admission figures)")
     css = c.css
     if ".jbars i.on { background: var(--ink); }" not in css or re.search(r"\.jbars[^{]*\{[^}]*#[0-9a-fA-F]{3,6}", css):
         bad.append("the bars' style (tokens only)")
@@ -436,6 +441,8 @@ MUTANTS = [
      "Les niveaux comparent ce poids à celui des autres formations."),
     ("js", "JU4", "sorted by the weight", "      .sort((a, b) => (a.stats === false) - (b.stats === false) ||",
      "      .sort((a, b) => (a.stats === false) - (b.stats === false) || ((b.jury || [0])[0] - (a.jury || [0])[0]) ||"),
+    ("js", "JU4", "an offer's card without its weights (Codex, PR #125)", "${robCardLine(f.cod_aff_form)}${carteJuryMore(f)}` : `",
+     "${robCardLine(f.cod_aff_form)}` : `"),
     ("js", "JU5", "the filière filter back", '  ["robn",', '  ["robf", "Robustesse 2035 dans sa filière", [["haut", "x"]]],\n  ["robn",'),
 ]
 
