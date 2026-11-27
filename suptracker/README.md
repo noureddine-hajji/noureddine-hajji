@@ -5169,3 +5169,40 @@ evaluation grid weighs five fields (« Résultats scolaires », « Engagement et
 - **JU6 (browser, nightly):** checks the page in a browser.
 - **JU7:** a mutation test, 14/14 caught.
 
+## Portes ouvertes et webinaires de ma liste (owner, 2026-11-27, PR 16)
+
+**Why.** In the 2026-11-25 audit, Yanis found no open day for his list. The season runs from January to March, and the owner
+asked for the formations' and the concours's webinars too.
+
+**What changes.**
+- **Mes vœux** gets a block « Portes ouvertes et webinaires de ma liste », in terminale and outside it.
+  - It reads `/api/jpo/liste?ids=` (`jpo.for_list`): each code's block is the formation page's own (`jpo.for_formation`: Onisep,
+    the fiche, the establishment's site, the university's open days when the formation has none), and each concours is
+    listed once with the formations of the list it concerns.
+  - Coming dates only, one line per establishment, day and kind (on site / online), naming the formations it concerns. The next
+    five dates are shown and the others folded. The formations without a coming date are listed, with their usual period when
+    one is known.
+  - « Ajouter ces dates à mon agenda »: `/api/jpo/liste.ics` gives the same coming dates as all-day events. Each event says its
+    source and « À vérifier ».
+  - The list's codes only are sent: no-store, no audience event.
+- **A page « Portes ouvertes et webinaires près de chez moi »** (`#/portes-ouvertes`, from the calendar page).
+  - It shows every open day of the season: `jpo.agenda`, built at build time (`build_agenda`, one compressed JSON value beside
+    the warehouse), with one event per establishment, day and kind, for the formations of the search page (offers included).
+  - It reads `/api/jpo/agenda`, which takes no parameter and is shared-cached. The town is the one entered in « Mon profil » and
+    is never sent: the distance is computed in the browser.
+  - Filters: distance (an online session is shown whatever the distance), type, period and a formation word.
+  - The list is sorted by date, then distance, never by a figure.
+  - The coverage is measured at build and printed. On 2026-11-27, 6,552 of the 22,936 formations (28.6 %) had a date this
+    season.
+  - The concours's webinars and information days have their own section, read on their official sites.
+
+**Red team** `scripts/redteam_portes.py` (PO1-PO8), run by `tests/test_portes.py`:
+- **PO1:** the agenda follows the formation page's rules both ways, for every formation dated through its university or its
+  fiche.
+- **PO2:** the coverage is measured, never typed.
+- **PO3:** the list route, the no-store policy and the 422 on bad codes.
+- **PO4:** the .ics follows RFC 5545 and always carries the source and « À vérifier ».
+- **PO5:** the page's twins in Node; the town is never in a request.
+- **PO6 (browser, nightly):** the page in a browser.
+- **PO7:** mutation test.
+

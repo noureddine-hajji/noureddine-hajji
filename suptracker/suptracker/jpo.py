@@ -750,3 +750,217 @@ def csv_text(rows: list[dict], cols: list[str]) -> str:
     for r in rows:
         w.writerow({c: r.get(c, "") for c in cols})
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------------------------- PR 16 (owner, 2026-11-27)
+# « Portes ouvertes et webinaires » of the student's list (Mes vœux, an .ics file) and « près de chez moi » (every open day of
+# the season, the distance computed in the browser). The SAME rules as the formation page: every line comes from
+# for_formation / for_concours (red team PO1 compares them), nothing typed, the source of each line said, « à vérifier ».
+LISTE_MAX = 10
+
+
+def _names(con, codes: list[str]) -> dict:
+    """{code: (establishment, formation)} from the latest campaign of each code, else the cartographie (an offer)."""
+    out = {}
+    if not codes:
+        return out
+    ph = ", ".join("?" * len(codes))
+    for c, e, f in con.execute(f"""SELECT cod_aff_form, any_value(g_ea_lib_vx ORDER BY session DESC),
+                                         any_value(lib_for_voe_ins ORDER BY session DESC)
+                                  FROM core.formation_year WHERE cod_aff_form IN ({ph}) GROUP BY 1""", codes).fetchall():
+        out[c] = (e, f)
+    missing = [c for c in codes if c not in out]
+    if missing:
+        try:
+            ph = ", ".join("?" * len(missing))
+            for c, e, f in con.execute(f"""SELECT cod_aff_form, etab_nom, nom_long FROM core.cartographie
+                                          WHERE cod_aff_form IN ({ph})""", missing).fetchall():
+                out[c] = (e, f)
+        except Exception:  # noqa: BLE001  (a cartographie without those columns: the page has the names)
+            pass
+    return out
+
+
+def for_list(con, codes: list[str], today: date | None = None) -> dict:
+    """The student's list (codes only): each formation's block (for_formation, the concours apart and counted once)."""
+    today = today or datetime.now().date()
+    s = current_season(today)
+    w0, w1 = window(s)
+    names = _names(con, codes)
+    out = {"saison": {"debut": w0.isoformat(), "fin": w1.isoformat(), "annees": f"{s - 1}-{s}"}, "aujourdhui": today.isoformat(),
+           "formations": [], "concours": {}}
+    for c in codes:
+        b = for_formation(con, c, today)
+        conc = b.pop("concours", None) if b else None
+        if conc:
+            out["concours"].setdefault(conc["cle"], {**conc, "formations": []})["formations"].append(c)
+        e, f = names.get(c, (None, None))
+        out["formations"].append({"cod_aff_form": c, "etablissement": e, "formation": f, "jpo": b,
+                                  "concours": conc["cle"] if conc else None})
+    return out
+
+
+SRC_WORDS = {"onisep": "Onisep", "onisep_site": "Onisep, date retrouvée sur le site de l'établissement",
+             "fiche": "fiche Parcoursup de la formation", "fiche_site": "fiche Parcoursup de la formation et site de l'établissement",
+             "site": "site de l'établissement"}
+
+
+def ics_list(lst: dict) -> str:
+    """The list's coming dates (today included) as all-day events: one event per establishment, day and kind (on site / online),
+    the formations of the list it concerns named; the concours's sessions once. Every event says its source and « à vérifier »."""
+    from . import calendrier as CAL
+    today = lst["aujourdhui"]
+    stamp = today.replace("-", "") + "T000000Z"
+    ev: dict = {}
+    for f in lst["formations"]:
+        b = f["jpo"] or {}
+        who = (b.get("universite") or {}).get("nom")
+        for e in b.get("dates") or []:
+            if (e.get("fin") or e["date"]) < today:
+                continue
+            k = (e["uai"], e["date"], bool(e["virtuel"]))
+            x = ev.setdefault(k, {"e": e, "nom": who or e.get("nom") or f["etablissement"] or "l'établissement", "forms": []})
+            x["forms"].append(f["formation"] or f["cod_aff_form"])
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//SupCompass//Portes ouvertes de ma liste//FR", "CALSCALE:GREGORIAN",
+             "X-WR-CALNAME:Portes ouvertes de ma liste"]
+
+    def add(uid, d1, d2, summary, desc):
+        end = date.fromordinal(date.fromisoformat(d2 or d1).toordinal() + 1)
+        for ln in ("BEGIN:VEVENT", f"UID:{uid}@supcompass", f"DTSTAMP:{stamp}", f"DTSTART;VALUE=DATE:{date.fromisoformat(d1):%Y%m%d}",
+                   f"DTEND;VALUE=DATE:{end:%Y%m%d}", f"SUMMARY:{CAL._ics_text(summary)}", f"DESCRIPTION:{CAL._ics_text(desc)}", "END:VEVENT"):
+            lines.extend(CAL._fold_line(ln))
+
+    for (uai, d, virt), x in sorted(ev.items(), key=lambda kv: (kv[0][1], kv[0][0], kv[0][2])):
+        e = x["e"]
+        kind = "Portes ouvertes en ligne" if virt else "Portes ouvertes"
+        desc = (f"{kind} : {x['nom']}{', ' + e['heures'] if e.get('heures') else ''}. Pour : {' ; '.join(sorted(set(x['forms'])))}. "
+                f"Source : {SRC_WORDS.get(e.get('source'), 'Onisep')}. À vérifier sur le site de l'établissement avant de vous déplacer."
+                + (f" {https(e.get('voir'))}" if https(e.get("voir")) else ""))
+        add(f"jpo-{re.sub(r'[^A-Za-z0-9]', '', uai)}-{d}-{'l' if virt else 'p'}", d, e.get("fin"), f"{kind} : {x['nom']}", desc)
+    for k, c in sorted(lst["concours"].items()):
+        for e in c.get("dates") or []:
+            if e["date"] < today:
+                continue
+            what = "webinaire" if e["kind"] == "en_ligne" else "journée ou réunion d'information"
+            desc = (f"{c['nom']} : {what}, lu sur le site du concours le {e['lu_le']}. À vérifier."
+                    + (f" {https(e.get('url'))}" if https(e.get("url")) else ""))
+            add(f"concours-{k}-{e['date']}-{e['kind']}", e["date"], None, f"{c['nom']} : {what}", desc)
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def agenda(con, today: date | None = None) -> dict:
+    """Every open day of the season of `today` for the formations the search page lists (carte layer: latest SIES campaign and
+    the apprenticeship offers listed apart), ONE event per establishment, day and kind, with the formations it concerns; a
+    university's open days stand for its formations without a date of their own (named « Université X »); the concours's
+    sessions apart. Built at build time (`today` = that day): the page flags a passed date itself. Coverage measured, printed."""
+    from . import carte as CA
+    today = today or datetime.now().date()
+    s = current_season(today)
+    w0, w1 = window(s)
+    by_dip, _, _ = CA._layer(con)
+    rows = [f for fs in by_dip.values() for f in fs]
+    c, p = _src(con)
+    # the establishments with a date of this season (own, fiche or university), to call the formation's own rules only there
+    live = set()
+    if c is not None:
+        live = {r[0] for r in c.execute(f"SELECT DISTINCT uai FROM {p}jpo_date WHERE debut BETWEEN ? AND ?", [w0, w1]).fetchall()}
+        univ = dict(c.execute(f"SELECT uai, univ_uai FROM {p}jpo_etab WHERE univ_uai IS NOT NULL").fetchall())
+    else:
+        univ = {}
+    sies = dict(con.execute("""SELECT cod_aff_form, any_value(cod_uai ORDER BY session DESC) FROM core.formation_year
+                               GROUP BY 1""").fetchall())
+    try:
+        carto = dict(con.execute("SELECT cod_aff_form, etab_uai FROM core.cartographie").fetchall())
+    except Exception:  # noqa: BLE001
+        carto = {}
+    # the concours of a formation: the SAME labels as for_concours (its latest campaign's lib_for_voe_ins + lib_comp_voe_ins)
+    labels = {cod: " ".join(x or "" for x in (a, b)) for cod, a, b in con.execute(
+        """SELECT cod_aff_form, any_value(lib_for_voe_ins ORDER BY session DESC), any_value(lib_comp_voe_ins ORDER BY session DESC)
+           FROM core.formation_year GROUP BY 1""").fetchall()}
+    events: dict = {}
+    forms: dict = {}
+    concours: dict = {}
+    n_date = 0
+    for f in rows:
+        cod = f["cod_aff_form"]
+        uais = [str(u).strip().upper() for u in (sies.get(cod), carto.get(cod)) if u]
+        keys = set(uais) | {fiche_key(cod)} | {univ[u] for u in uais if u in univ}
+        b = _for_formation(con, cod, today) if keys & live else None
+        k = concours_of(labels[cod]) if cod in labels else None
+        if k is not None:
+            if k[0] not in concours:
+                cb = None
+                try:
+                    cb = for_concours(con, cod, today)
+                except Exception:  # noqa: BLE001
+                    cb = None
+                concours[k[0]] = {**(cb or {"cle": k[0], "nom": k[1], "site": None, "lu_le": None, "dates": []}), "formations": []}
+            concours[k[0]]["formations"].append(cod)
+        dates = (b or {}).get("dates") or []
+        if not dates:
+            continue
+        n_date += 1
+        who = (b.get("universite") or {}).get("nom")
+        forms[cod] = [f.get("formation"), f.get("stats") is not False]      # the event carries the establishment, town and position
+        for e in dates:
+            key = (e["uai"], e["date"], bool(e["virtuel"]))
+            x = events.setdefault(key, {"uai": e["uai"], "date": e["date"], "fin": e.get("fin"), "virtuel": bool(e["virtuel"]),
+                                        "heures": e.get("heures"), "remarque": e.get("remarque"), "source": e.get("source"),
+                                        "voir": https(e.get("voir")), "site": https(e.get("site")), "lu_le": e.get("lu_le"),
+                                        "nom": who or e.get("nom") or f.get("etablissement"), "universite": bool(who),
+                                        "lat": None, "lon": None, "ville": None, "formations": []})
+            x["formations"].append(cod)
+            if x["lat"] is None and f.get("lat") is not None:
+                x["lat"], x["lon"], x["ville"] = f["lat"], f["lon"], f.get("ville")
+    evs = sorted(events.values(), key=lambda x: (x["date"], x["uai"], x["virtuel"]))
+    for x in evs:
+        x["formations"] = sorted(set(x["formations"]))
+    return {"aujourdhui": today.isoformat(), "saison": {"debut": w0.isoformat(), "fin": w1.isoformat(), "annees": f"{s - 1}-{s}"},
+            "n_formations": len(rows), "n_avec_date": n_date, "evenements": evs,
+            "formations": {k: v for k, v in sorted(forms.items())},
+            "concours": {k: v for k, v in sorted(concours.items())}}
+
+
+def build_agenda(con, textes: Path | None = None, today: date | None = None) -> dict:
+    """The agenda as ONE compressed JSON value (`jpo_agenda`) in the file beside the warehouse (the jpo tables live there), else in
+    the warehouse (tests)."""
+    import zlib
+    data = agenda(con, today)
+    blob = zlib.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"), 9)
+
+    def write(c, p):
+        c.execute(f"CREATE OR REPLACE TABLE {p}jpo_agenda (data BLOB)")
+        c.execute(f"INSERT INTO {p}jpo_agenda VALUES (?)", [blob])
+
+    if textes is None or not Path(textes).exists():
+        write(con, "core.")
+    else:
+        import duckdb
+        from . import rapports as RP
+        con.execute("DROP TABLE IF EXISTS core.jpo_agenda")
+        RP._texts_con.cache_clear()
+        tc = duckdb.connect(str(textes))
+        try:
+            write(tc, "")
+            tc.execute("CHECKPOINT")
+        finally:
+            tc.close()
+    return {"evenements": len(data["evenements"]), "formations": data["n_avec_date"], "sur": data["n_formations"]}
+
+
+def agenda_payload(con) -> dict | None:
+    """The stored agenda (no parameter), or None before the first build."""
+    import zlib
+    c, p = _src(con)
+    r = None
+    for cur, pre in ((con, "core."), (c, p)):
+        if cur is None:
+            continue
+        try:
+            r = cur.execute(f"SELECT data FROM {pre}jpo_agenda LIMIT 1").fetchone()
+        except Exception:  # noqa: BLE001
+            r = None
+        if r:
+            break
+    return json.loads(zlib.decompress(bytes(r[0])).decode("utf-8")) if r and r[0] is not None else None

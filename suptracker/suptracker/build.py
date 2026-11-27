@@ -80,6 +80,8 @@ def build(raw_dir: Path = config.RAW_DIR, db_path: Path = config.DB_PATH, succes
         poursuite.build(con, pou)
         search.persist(con)            # the search index, stored once: the first search of an instance no longer builds it
         # sprint Vitesse: the map layer and the lists' badges compressed once (brotli), beside the warehouse, keyed by digest
+        # PR 16 (owner, 2026-11-27): every open day of the season for the formations of the search page, built once (beside)
+        jpo.build_agenda(con, textes=rapports.textes_path(db_path))
         precomp.build(con, rapports.textes_path(db_path), precomp.bodies(con))
         con.execute("CREATE OR REPLACE TABLE meta.build (key VARCHAR, value VARCHAR)")
         con.execute("INSERT INTO meta.build VALUES ('built_at', ?), ('manifest', ?), ('years', ?), ('success_source', ?), ('poursuite_sources', ?)", [

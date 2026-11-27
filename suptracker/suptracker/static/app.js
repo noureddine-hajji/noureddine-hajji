@@ -2730,16 +2730,20 @@ function jpoLine(j) {
     : "";
   return txt ? `<p class="small sum-jpo"><button type="button" class="linkish" data-goto="admission">${txt} →</button></p>` : "";
 }
+// where an open day was read, in words (one wording for the formation page, « ma liste » and « près de chez moi », PR 16)
+function jpoSrc(e) {
+  const fiche = e.fiche && e.source !== "fiche" && e.source !== "fiche_site" ? ", aussi sur la fiche Parcoursup de la formation" : "";
+  return e.source === "onisep_site" ? `Onisep, date retrouvée sur le site de l'établissement${fiche}`
+    : e.source === "onisep" ? `Onisep${fiche}`
+    : e.source === "fiche" ? "fiche Parcoursup de la formation"
+    : e.source === "fiche_site" ? "fiche Parcoursup de la formation, date retrouvée sur le site de l'établissement"
+    : `lue sur le site de l'établissement${e.lu_le ? ` le ${esc(frDate(e.lu_le))}` : ""}, à vérifier${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
+}
 function jpoCard(j) {
   if (!j) return "";
   const today = localIso(), dates = j.dates || [];
   const noms = [...new Set((j.etablissements || []).map((e) => e.nom).filter(Boolean))];
-  const fiche = (e) => (e.fiche && e.source !== "fiche" && e.source !== "fiche_site" ? ", aussi sur la fiche Parcoursup de la formation" : "");
-  const src = (e) => e.source === "onisep_site" ? `Onisep, date retrouvée sur le site de l'établissement${fiche(e)}`
-    : e.source === "onisep" ? `Onisep${fiche(e)}`
-    : e.source === "fiche" ? "fiche Parcoursup de la formation"
-    : e.source === "fiche_site" ? "fiche Parcoursup de la formation, date retrouvée sur le site de l'établissement"
-    : `lue sur le site de l'établissement le ${esc(frDate(e.lu_le))}, à vérifier${jpoUrl(e.site) ? ` (<a href="${esc(jpoUrl(e.site))}" target="_blank" rel="noopener">page lue ↗</a>)` : ""}`;
+  const src = jpoSrc;
   const li = (e) => {
     const past = (e.fin || e.date) < today;
     return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(e))}</strong>${e.heures ? `, de ${esc(e.heures)}` : ""}${e.virtuel ? ", en ligne" : ""}${e.remarque ? ` (${esc(e.remarque)})` : ""}${past ? " · passée" : ""}
@@ -2822,6 +2826,128 @@ function jpoConcours(k, today) {
     ${(k.dates || []).length ? `<ul class="jpo-list">${k.dates.map(li).join("")}</ul>`
       : `<p class="small muted">Aucune date de webinaire ou de journée d'information n'a été trouvée pour l'instant${site ? " sur le site officiel du concours" : ""}.</p>`}
     ${site ? `<p class="small"><a href="${esc(site)}" target="_blank" rel="noopener">Site officiel du ${esc(k.nom)} ↗</a>${k.lu_le ? ` <span class="muted">(consulté le ${esc(frDate(k.lu_le))})</span>` : ""}</p>` : ""}`;
+}
+// PR 16 (owner, 2026-11-27): « Portes ouvertes et webinaires de ma liste ». The formation page's blocks (jpo.for_list = for_formation
+// for each code), coming dates only, ONE line per establishment, day and kind with the formations of the list it concerns; the
+// concours's sessions once; an .ics file of the same dates. The list's codes only are sent (no-store, no audience event).
+const JPO_KIND_LINE = (e) => (e.virtuel ? "en ligne" : "sur place");
+const JPO_LISTE_FIRST = 5;        // the next five dates shown, the others folded (a phone page stays short: X7)
+function jpoListeEvents(L, today) {
+  const ev = new Map();
+  for (const f of L.formations || []) {
+    const j = f.jpo;
+    if (!j) continue;
+    for (const e of j.dates || []) {
+      if ((e.fin || e.date) < today) continue;
+      const k = `${e.uai}|${e.date}|${e.virtuel ? 1 : 0}`;
+      if (!ev.has(k)) ev.set(k, { e, nom: (j.universite && j.universite.nom) || e.nom || f.etablissement || "l'établissement", universite: !!j.universite, forms: [] });
+      ev.get(k).forms.push(f);
+    }
+  }
+  return [...ev.values()].sort((a, b) => (a.e.date < b.e.date ? -1 : a.e.date > b.e.date ? 1 : a.nom < b.nom ? -1 : 1));
+}
+function jpoListeCard(L, ids) {
+  const today = localIso(), evs = jpoListeEvents(L, today), fs = L.formations || [];
+  const withDate = fs.filter((f) => f.jpo && (f.jpo.dates || []).some((e) => (e.fin || e.date) >= today));
+  const without = fs.filter((f) => !withDate.includes(f));
+  const fname = (f) => `<a href="#/f/${esc(f.cod_aff_form)}">${esc(f.formation || f.cod_aff_form)}</a>${f.etablissement ? ` <span class="muted">(${esc(f.etablissement)})</span>` : ""}`;
+  const line = (x) => `<li><strong>${esc(jpoWhen(x.e))}</strong>, ${JPO_KIND_LINE(x.e)}${x.e.heures ? `, de ${esc(x.e.heures)}` : ""} · ${esc(x.nom)}${x.universite ? " (portes ouvertes de l'université)" : ""}
+      <br><span class="small">Pour : ${x.forms.map(fname).join(" ; ")}</span>
+      <br><span class="small muted">${jpoSrc(x.e)}${x.e.source !== "site" && jpoUrl(x.e.voir) ? ` · <a href="${esc(jpoUrl(x.e.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
+  const conc = Object.values(L.concours || {});
+  const coming = conc.reduce((n, k) => n + (k.dates || []).filter((e) => e.date >= today).length, 0);
+  const sans = without.map((f) => {
+    const env = f.jpo && f.jpo.environ;
+    return `<li>${fname(f)} : ${env ? `aucune date annoncée ; les années passées, <strong>${esc(env.texte)}</strong> (une période, à confirmer)` : (f.jpo && (f.jpo.dates || []).length ? "portes ouvertes déjà passées cette saison" : "aucune date publiée pour l'instant")}</li>`;
+  }).join("");
+  const q = new URLSearchParams({ ids: ids.join(",") });
+  return `<section class="card" id="vx-jpo"><h2>Portes ouvertes et webinaires de ma liste</h2>
+    <p>${fmt(withDate.length)} formation${withDate.length > 1 ? "s" : ""} de votre liste sur ${fmt(fs.length)} ${withDate.length > 1 ? "ont" : "a"} une date à venir cette saison (${esc(L.saison.annees)}).</p>
+    ${evs.length ? `<ul class="jpo-list">${evs.slice(0, JPO_LISTE_FIRST).map(line).join("")}</ul>` : ""}
+    ${evs.length > JPO_LISTE_FIRST ? `<details><summary class="small">Voir les ${fmt(evs.length - JPO_LISTE_FIRST)} autres dates</summary><ul class="jpo-list">${evs.slice(JPO_LISTE_FIRST).map(line).join("")}</ul></details>` : ""}
+    ${sans ? `<details${evs.length ? "" : " open"}><summary class="small">Sans date à venir (${fmt(without.length)})</summary><ul class="small">${sans}</ul></details>` : ""}
+    ${conc.map((k) => `${jpoConcours(k, today)}<p class="small">Formations de votre liste concernées : ${k.formations.map((c) => fname(fs.find((f) => f.cod_aff_form === c) || { cod_aff_form: c })).join(" ; ")}.</p>`).join("")}
+    <div class="toolbar no-print">${evs.length || coming ? `<a class="btnlink" href="/api/jpo/liste.ics?${q}" download>Ajouter ces dates à mon agenda (.ics)</a>` : ""}<a href="#/portes-ouvertes">Toutes les portes ouvertes près de chez moi</a></div>
+    <p class="muted small">Sources : Onisep, Idéo-Structures (licence ODbL), la fiche Parcoursup de la formation, le site de l'établissement et celui du concours. Vérifiez la date sur le site de l'établissement avant de vous déplacer. Pour lire ces dates, la page envoie seulement les codes des formations de votre liste ; rien n'en est enregistré.</p></section>`;
+}
+async function loadJpoListe(ids, marker) {
+  const box = $view.querySelector("#vx-jpo");
+  let L;
+  try {
+    L = await api(`/api/jpo/liste?${new URLSearchParams({ ids: ids.join(",") })}`);
+  } catch (e) {
+    if ($view.dataset.rendered === marker && box && box.isConnected) box.remove();
+    return;
+  }
+  if ($view.dataset.rendered !== marker || !box || !box.isConnected) return;   // the student left or changed the list meanwhile
+  box.outerHTML = jpoListeCard(L, ids);
+}
+
+// PR 16 (owner, 2026-11-27): « Portes ouvertes et webinaires près de chez moi ». Every open day of the season (jpo.agenda, built
+// at build: one event per establishment, day and kind, the formations it concerns), read once; the town is the one entered in
+// « Mon profil » and NEVER sent (the distance is computed here); an online session is shown whatever the distance; the list is
+// sorted by date, then distance, never by a figure; the coverage printed is the one measured at build.
+const PO_KM = [20, 50, 100, 200, 0];
+const PO_PAGE = 40;
+const poUI = { km: 50, type: "tous", periode: "avenir", q: "", n: PO_PAGE };
+function poKeep(x, A, home, F, today) {
+  if (F.periode === "avenir" && (x.fin || x.date) < today) return false;
+  if (F.type === "place" && x.virtuel) return false;
+  if (F.type === "ligne" && !x.virtuel) return false;
+  if (F.q) {
+    const q = foldText(F.q);
+    if (!x.formations.some((c) => foldText(((A.formations[c] || [])[0]) || "").includes(q)) && !foldText(x.nom || "").includes(q)) return false;
+  }
+  if (!x.virtuel && home && F.km && (x.lat == null || haversineKm(home.lat, home.lon, x.lat, x.lon) > F.km)) return false;
+  return true;
+}
+async function viewPortesOuvertes() {
+  const marker = "portes-ouvertes";
+  $view.dataset.rendered = marker;
+  $view.innerHTML = `<div class="card"><h1>Portes ouvertes et webinaires près de chez moi</h1><p class="muted small">Chargement des dates…</p></div>`;
+  const A = await api("/api/jpo/agenda");
+  if ($view.dataset.rendered !== marker) return;
+  const home = villeDepart(), today = localIso();
+  const evs = A.evenements || [];
+  const pctCov = A.n_formations ? Math.round(1000 * A.n_avec_date / A.n_formations) / 10 : 0;
+  const form = (c) => { const f = A.formations[c] || [];
+    return f[1] === false ? `${esc(f[0] || c)}${/apprentissage/i.test(f[0] || "") ? "" : ' <span class="muted">(en apprentissage)</span>'}` : `<a href="#/f/${esc(c)}">${esc(f[0] || c)}</a>`; };
+  const row = (x) => {
+    const km = !x.virtuel && home && x.lat != null ? Math.round(haversineKm(home.lat, home.lon, x.lat, x.lon)) : null;
+    const past = (x.fin || x.date) < today;
+    const shown = x.formations.slice(0, 3), rest = x.formations.slice(3);
+    return `<li class="${past ? "muted" : ""}"><strong>${esc(jpoWhen(x))}</strong> <span class="badge">${JPO_KIND_LINE(x)}</span>${past ? " · passée" : ""}${x.heures ? `, de ${esc(x.heures)}` : ""}
+      <br>${esc(x.nom || "")}${x.universite ? " (portes ouvertes de l'université)" : ""}${x.ville ? ` · ${esc(x.ville)}` : ""}${km != null ? ` · ${fmt(km)} km de chez vous` : ""}
+      <br><span class="small">Pour : ${shown.map(form).join(" ; ")}${rest.length ? ` <details class="po-more"><summary class="small">et ${fmt(rest.length)} autre${rest.length > 1 ? "s" : ""}</summary>${rest.map(form).join(" ; ")}</details>` : ""}</span>
+      <br><span class="small muted">${jpoSrc(x)}${x.source !== "site" && jpoUrl(x.voir) ? ` · <a href="${esc(jpoUrl(x.voir))}" target="_blank" rel="noopener">détails ↗</a>` : ""}</span></li>`;
+  };
+  const conc = Object.values(A.concours || {}).filter((k) => (k.dates || []).length || jpoUrl(k.site));
+  const draw = () => {
+    if ($view.dataset.rendered !== marker) return;
+    const kept = evs.filter((x) => poKeep(x, A, home, poUI, today))
+      .map((x) => ({ x, km: !x.virtuel && home && x.lat != null ? haversineKm(home.lat, home.lon, x.lat, x.lon) : null }))
+      .sort((a, b) => (a.x.date < b.x.date ? -1 : a.x.date > b.x.date ? 1 : (a.km ?? 1e9) - (b.km ?? 1e9) || (a.x.nom < b.x.nom ? -1 : 1)));
+    const list = document.getElementById("po-list");
+    if (!list) return;
+    list.innerHTML = kept.length ? `<p class="small" role="status">${fmt(kept.length)} journée${kept.length > 1 ? "s" : ""} correspondant à vos critères.</p><ul class="jpo-list">${kept.slice(0, poUI.n).map((k) => row(k.x)).join("")}</ul>${kept.length > poUI.n ? '<button type="button" id="po-more">Voir les suivantes</button>' : ""}`
+      : '<p class="muted" role="status">Aucune date ne correspond. Élargissez la distance ou la période.</p>';
+    const more = document.getElementById("po-more");
+    if (more) more.onclick = () => { poUI.n += PO_PAGE; draw(); };
+  };
+  const sel = (id, label, opts, v) => `<label class="po-f">${label} <select id="${id}">${opts.map(([k, t]) => `<option value="${k}"${String(k) === String(v) ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  $view.innerHTML = `<div class="card"><h1>Portes ouvertes et webinaires près de chez moi</h1>
+    <p>${home ? `Autour de <strong>${esc(villeLabel(home))}</strong>, la ville de <a href="#/profil">Mon profil</a>.` : `Indiquez votre ville dans <a href="#/profil">Mon profil</a> pour voir les plus proches : en attendant, toutes les dates sont listées.`} Les sessions en ligne sont montrées quelle que soit la distance.</p>
+    <div class="toolbar po-filters no-print">${home ? sel("po-km", "Distance", PO_KM.map((k) => [k, k ? `${k} km` : "Toute la France"]), poUI.km) : ""}
+      ${sel("po-type", "Type", [["tous", "Sur place et en ligne"], ["place", "Sur place"], ["ligne", "En ligne"]], poUI.type)}
+      ${sel("po-periode", "Période", [["avenir", "À venir"], ["saison", `Toute la saison ${A.saison ? A.saison.annees : ""}`]], poUI.periode)}
+      <label class="po-f">Formation <input type="search" id="po-q" value="${esc(poUI.q)}" placeholder="BTS, licence, infirmier…" autocomplete="off"></label></div>
+    <p class="muted small">${A.n_formations ? `Une date est publiée pour ${fmt(A.n_avec_date)} formations sur ${fmt(A.n_formations)} (${String(pctCov).replace(".", ",")} %) cette saison. Les autres n'en ont pas encore annoncé.` : "Les dates ne sont pas encore disponibles."} Votre ville reste dans ce navigateur : la distance, à vol d'oiseau, est calculée ici.</p></div>
+  <section class="card"><h2>Les journées</h2><div id="po-list"></div>
+    <p class="muted small">Une ligne par établissement, jour et type. Une université sans date propre à une formation montre les siennes. Sources : Onisep, Idéo-Structures (licence ODbL), la fiche Parcoursup de la formation et le site de l'établissement${A.aujourdhui ? `, lus au plus tard le ${esc(frDate(A.aujourdhui))}` : ""}. Vérifiez la date sur le site de l'établissement avant de vous déplacer.</p></section>
+  ${conc.length ? `<section class="card"><h2>Concours : webinaires et journées d'information</h2>${conc.map((k) => `${jpoConcours({ ...k, dates: (k.dates || []).map((e) => ({ ...e, passee: e.date < today })) }, today)}<p class="small">${fmt(k.formations.length)} formation${k.formations.length > 1 ? "s" : ""} recrute${k.formations.length > 1 ? "nt" : ""} par ce concours.</p>`).join("")}</section>` : ""}`;
+  const bind = (id, key, num) => { const el = document.getElementById(id); if (el) el.onchange = el.oninput = () => { poUI[key] = num ? Number(el.value) : el.value; poUI.n = PO_PAGE; draw(); }; };
+  bind("po-km", "km", true); bind("po-type", "type"); bind("po-periode", "periode"); bind("po-q", "q");
+  draw();
 }
 const euros = (x) => `${fmt(x)} €`;
 const eurosRange = (a, b) => (a === b ? euros(a) : `${fmt(a)} à ${fmt(b)} €`);
@@ -4890,7 +5016,7 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">Taux d'accès officiel ${d.session}</th><th class="num">${posHead}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Pour votre bac (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. Taux d'accès officiel de la dernière campagne, tous candidats. Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Pour votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation (seuls les candidats scolarisés en terminale en France y figurent) ; sans rapport, une estimation : le taux d'accès officiel × le taux de proposition de votre série / celui de tous les candidats. Jamais les deux à la fois."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     // audit PR 5: right under the « aucune sécurité » alert (it was below the whole list, out of sight on a phone)
     $view.querySelector("section.summary").insertAdjacentHTML("afterend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
@@ -4898,6 +5024,7 @@ async function viewVoeux() {
   }
   loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status !== "absente").map((v) => [v.cod_aff_form, v.etablissement])),
     securite: L.messages.some((m) => m.code === "aucune_securite") ? "aucune" : "ok" });
+  loadJpoListe(ids, marker);
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
   $view.querySelectorAll("[data-vxplanb]").forEach((el) => {
@@ -6042,8 +6169,9 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors nouveaux bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status === "ok").map((v) => [v.cod_aff_form, v.etablissement])), securite: null });
+  loadJpoListe(ids, marker);
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
 }
@@ -6094,7 +6222,7 @@ async function viewCalendrier() {
     : "Certaines dates n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr.";
   $view.innerHTML = `<div class="card"><h1>Calendrier Parcoursup ${esc(d.campagne)}</h1>
     <p>${head}</p>
-    <div class="toolbar no-print">${nOk ? `<a class="btnlink" href="/api/calendrier.ics">Ajouter ces dates à mon agenda (.ics)</a>` : ""}<button type="button" id="cal-print">Imprimer</button></div>
+    <div class="toolbar no-print">${nOk ? `<a class="btnlink" href="/api/calendrier.ics">Ajouter ces dates à mon agenda (.ics)</a>` : ""}<button type="button" id="cal-print">Imprimer</button><a href="#/portes-ouvertes">Portes ouvertes et webinaires près de chez moi</a></div>
     <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)} publié sur parcoursup.gouv.fr${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. Une date n'est affichée que si toutes les versions du document la donnent à l'identique. En cas de différence, le calendrier officiel fait foi.</p></div>
   ${steps.map((k) => `<section class="card"><h2>Étape ${k} · ${esc(d.etapes[k])}</h2><ol class="cal-list">${d.evenements.filter((e) => e.etape === k).map(item).join("")}</ol></section>`).join("")}`;
   const pr = document.getElementById("cal-print");
@@ -6399,7 +6527,8 @@ function contactForm(code) {
 const TAB_OF = { info: "info", s: "home", recherche: "home", f: "home", evolution: "home", parcours: "profil", profil: "profil", metiers: "home", voeux: "voeux",
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "profil",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux", projet: "voeux" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux", projet: "voeux",
+  "portes-ouvertes": "calendrier" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "observatoire", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];                                                   // "Plus" on a phone
 function markTab(tab) {
@@ -6425,7 +6554,8 @@ for (const [b, m] of [["more-btn", "more-menu"], ["comp-btn", "comp-menu"]]) {
 const ROUTE_NAME = { info: "info", s: "search", recherche: "search", f: "fiche", evolution: "evolution", compare: "compare", specialites: "specialites",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "reorientation",
-  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide", projet: "projet" };
+  calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide", projet: "projet",
+  "portes-ouvertes": "portesouvertes" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -6548,6 +6678,7 @@ async function routeView(a, b, c) {
     if (a === "liste") return await viewListe(b || "", c || "");
     if (a === "guide") return await viewGuide();
     if (a === "projet") return await viewProjet(b || "");
+    if (a === "portes-ouvertes") return await viewPortesOuvertes();
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     if (a === "info") return await viewInfo(b || "", c || "");

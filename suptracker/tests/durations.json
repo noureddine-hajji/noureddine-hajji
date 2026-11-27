@@ -57,6 +57,7 @@
  "tests/test_passerelles.py": 380,
  "tests/test_pipeline.py": 267,
  "tests/test_pipeline_verif.py": 270,
+ "tests/test_portes.py": 600,
  "tests/test_poursuite.py": 794,
  "tests/test_prevision.py": 440,
  "tests/test_probe.py": 0,
