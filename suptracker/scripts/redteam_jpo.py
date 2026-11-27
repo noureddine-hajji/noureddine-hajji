@@ -427,7 +427,7 @@ const frDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", 
 
 @check("J6 page: escaped, passed dates marked, a period is not a date, ODbL credit, safe links, vouvoiement, no chance, no call")
 def j6(c: Ctx):
-    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoCard")
+    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoSrc", "jpoCard")
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     J = c.J()
@@ -821,7 +821,7 @@ def j11(c: Ctx):
     if none and none.get("concours"):
         bad.append("a formation of no concours gets a concours block")
     # the page
-    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoCard")
+    names = ("jpoUrl", "jpoNext", "jpoWhen", "jpoLine", "JPO_KIND", "jpoConcours", "jpoSrc", "jpoCard")
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     prog = STUB + "\n".join(top(c.js, n) for n in names) + """
