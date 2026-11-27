@@ -558,6 +558,13 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .share-row input { flex: 1 1 260px; min-width: 0; min-height: 44px; }
 .home-more { margin: 0 0 14px; }
 .print-only { display: none; }
+/* PR 17: the transfer QR code and the class kit (the code stays black on white in both themes: a phone must read it) */
+.qr-box { margin: 8px 0; }
+.qr { display: block; width: min(240px, 100%); height: auto; border: var(--bw) solid var(--edge); }
+.kit-steps li, .kit-sheet ol li { margin-bottom: 8px; }
+.kit-check { list-style: none; padding-left: 0; }
+.kit-check li { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+.kit-check li::before { content: ""; flex: 0 0 auto; width: 1em; height: 1em; margin-top: 0.2em; border: 2px solid var(--ink); }
 /* ---- R1 (owner, 2026-11-11): journey menus, profile chip, Explorer views, the explained "Mon profil" page ---- */
 .topnav { align-items: center; }
 .drop { position: relative; }
@@ -628,6 +635,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
   .card { border: 1px solid #999; break-inside: avoid; }
   a { color: inherit; text-decoration: none; }
   table.stack td { break-inside: avoid; }
+  .kit-sheet { break-before: page; border: 0; }
 }
 
 /* R7: "Construire ma liste" */

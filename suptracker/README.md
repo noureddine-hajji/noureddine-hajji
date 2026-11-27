@@ -5206,3 +5206,39 @@ asked for the formations' and the concours's webinars too.
 - **PO6 (browser, nightly):** the page in a browser.
 - **PO7:** mutation test.
 
+
+## Transférer ma liste sur un autre appareil et kit pour la classe (owner, 2026-11-27, PR 17)
+
+**Why.** SupCompass keeps no account: the list and the profile live in one browser. A student who prepares her list on a school
+computer had no way to find it on her phone. A teacher in the 2026-11-25 audit, M. Dubois, could help one student at a time but
+had nothing for a whole class.
+
+**What changes.**
+- **« Transférer sur mon autre appareil »**: a card in Mes vœux (in terminale and outside it) and in Mon profil.
+  - The link `#/transfert/<…>` carries the list's codes and the profile, **the average included**. The owner allowed this
+    exception (2026-11-27) to « a shared list never carries the average », because it is the same person.
+  - It never carries the académie, the lycée, the town, the « boursier » box or the project drafts. The card says so and tells
+    the student the link is for herself only.
+  - Everything sits after the « # »: nothing is sent to the server, nothing is stored.
+  - The QR code is drawn in the browser by qrcode-generator 1.4.4 (MIT, Kazuhiko Arase), vendored unchanged in
+    `static/vendor/qrcode/` and loaded on demand. It is black on white in both themes, and the legal page credits the library.
+- **The other device** reads the link (`transferRead`: codes cleaned, every field validated; an unreadable average, pair or
+  route is dropped and said, never defaulted) and shows what it holds next to what the device already has.
+  - On a device with no list and no profile, « Installer sur cet appareil » does it in one click.
+  - Otherwise « Remplacer » asks a second click. The device keeps its own académie, lycée and « boursier » box. « Ajouter
+    seulement les formations » merges the codes and never touches the profile.
+  - The link is then removed from the address bar.
+- **The teacher's kit** (`#/kit`, linked from « Accompagner un élève »): a one-hour session in six timed steps, points to watch
+  (never a chance, the fiche prevails, no name, mark or rank asked), and a students' sheet that prints on its own page with
+  the site's address as a QR code.
+
+**Red team** `scripts/redteam_transfert.py` (TF1-TF9), run by `tests/test_transfert.py`:
+- **TF1:** the round trip.
+- **TF2:** hostile links against an independent oracle.
+- **TF3:** the QR matrix equals the Python `qrcode` package's for the same version, level M and byte mode
+  (`requirements-pipeline.txt` only, never shipped).
+- **TF4:** installing: what is kept, the second click, the cleared link.
+- **TF5:** the kit's wording (vouvoiement, no chance, sentences of 30 words at most, no figure).
+- **TF6:** privacy, credits, and the vendored file's digest.
+- **TF7 (browser, nightly):** both devices in a browser.
+- **TF9:** a mutation test, 18 seeded bugs caught.
