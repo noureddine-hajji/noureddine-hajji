@@ -276,7 +276,7 @@ def page_ok(c: Ctx):
         return True, "node not installed"
     helpers = "\n".join(ln for ln in js.splitlines() if ln.startswith(("const esc = ", "const ACAD_LABEL = ", "const acadLabel = ", "const fmt = ")))
     zones = re.search(r"^const ZONES = \{.*?^\};", js, re.M | re.S).group(0)
-    parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "zoneHelp", "zoneShape",
+    parts = [top(js, n) for n in ("FI_TITLE", "FI_HELP", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryGroups", "carteGroups", "zoneHelp", "zoneShape",
                                   "ZONE_FILLED", "zoneMark", "isLargeShown", "zonePillHtml", "ZONE_RULES")]
     prog = helpers + "\n" + zones + "\n" + "\n".join(parts) + r"""
 const META = { filtres: JSON.parse(process.env.VOCAB) };
@@ -336,7 +336,7 @@ def map_ok(c: Ctx):
     rows = rows + [{"cod_aff_form": f"X{i}", "capa_fin": cap, "acc_pc": pc, "taux_acces_ens": t, "statut": "public", "initiale": True}
                    for i, (cap, pc, t) in enumerate([(19, 0, 29.9), (20, 2, 30), (50, None, 90), (100, 0, None), (None, 1, 60)])]
     js = c.js
-    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteOfferMatch", "carteCommon",
+    parts = [top(js, n) for n in ("fiOptions", "filtreBand", "CARTE_R3", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryLevel", "juryGroups", "juryCuts", "CARTE_FGROUPS", "carteFolded", "carteHas", "carteText", "carteOfferMatch", "carteCommon",
                                  "carteFilter", "carteInLieu", "foldText")]
     prog = "const carteZone = () => 'autre'; const haversineKm = () => 0;\n" + "\n".join(parts) + MAP_PROG
     exe = shutil.which("node")
@@ -445,7 +445,7 @@ API_MUTANTS = [
 JS_MUTANTS = [
     ("page band upper limit included", "(x.max === null || x.max === undefined || v < x.max)", "(x.max === null || x.max === undefined || v <= x.max)", ("fi1", "fi6")),
     ("map complementary phase from candidates", '(o === "oui" ? f.acc_pc > 0 : f.acc_pc === 0)', '(o === "oui" ? f.acc_pc >= 0 : f.acc_pc === 0)', ("fi6",)),
-    ("map ignores the new groups", 'const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3, "robf", "robn"];',
+    ("map ignores the new groups", 'const CARTE_FGROUPS = ["statut", "acad", "app", "internat", "amenag", "select", "zones", ...CARTE_R3, "robn", ...JURY_KEYS.map((k) => `jury_${k}`)];',
      'const CARTE_FGROUPS = ["statut", "app", "internat", "amenag", "select", "zones"];', ("fi6",)),
     ("profile sent with the keyword", 'if (near) qs.set("near", near); return qs; };', 'if (near) qs.set("near", near); new URLSearchParams(sq).forEach((v, k) => qs.set(k, v)); return qs; };', ("fi3",)),
     ("the list sorted by capacity", '|| byName(a, b));', "|| (b.capa_fin ?? 0) - (a.capa_fin ?? 0));", ("fi4",)),

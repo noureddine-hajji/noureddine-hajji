@@ -260,6 +260,9 @@ def py_filter(rows, F, skip=None, kw=None):
 def c3(c: Ctx):
     js = carte_js(c.js)
     fns = "\n".join(m.group(0) for m in (re.search(r"function haversineKm\(a, b, c, d\) \{.*?\n\}", js, re.S),
+                                         # owner, 2026-11-27: the jury groups (META absent here: no cut points, no jury level)
+                                         re.search(r"const JURY_KEYS = .*?;\n", js), re.search(r"const juryMeta = .*?;\n", js),
+                                         re.search(r"const juryLevel = .*?;\n", js), re.search(r"const juryCuts = .*?;\n", js),
                                          re.search(r"const carteZone = .*?;", js),
                                          re.search(r"function carteHas\(f, g, o\) \{.*?\n\}", js, re.S),
                                          re.search(r"function carteFilter\(rows, F, skip, kw\) \{.*?\n\}", js, re.S),

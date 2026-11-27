@@ -491,7 +491,7 @@ process.stdout.write(JSON.stringify(carteGroups().map(([g, t, o]) => [g, t, o.ma
 def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
     voc = FI.vocab()
-    prog = "\n".join(top(js, n) for n in ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups")) + FIELD_PROG
+    prog = "\n".join(top(js, n) for n in ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryGroups", "carteGroups")) + FIELD_PROG
     exe = shutil.which("node")
     if not exe:
         return True, "node not installed"
@@ -509,7 +509,8 @@ def fields_ok(c: Ctx, js: str) -> tuple[bool, str]:
             bad.append(("options", g, groups[g][1], exp))
     vc = js[js.index("async function viewCarte("):js.index("\n// ---- ", js.index("async function viewCarte("))]
     # the dropdowns themselves: every group above, the types, the mentions and the zones (with a profile)
-    if 'const groups = carteGroups().filter(([gr]) => robOk || !gr.startsWith("rob")).map(([gr, title, opts]) => dd(gr, title,' not in vc or 'dd("dips", "Type de formation"' not in vc \
+    if 'const groups = carteGroups().filter(([gr]) => (robOk || !gr.startsWith("rob")) && !gr.startsWith("jury_")).map(([gr, title, opts]) => dd(gr, title,' not in vc \
+            or 'const jury = jg.length ? dd("jury", "Ce que regarde le jury"' not in vc or 'dd("dips", "Type de formation"' not in vc \
             or 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"' not in vc or 'const zones = ok ? dd("zones"' not in vc:
         bad.append("a dropdown of the bar")
     if "${groups[0]}${zones}${groups.slice(1).join(\"\")}" not in vc:
@@ -560,7 +561,7 @@ process.stdout.write(JSON.stringify(out));"""
 
 def share_ok(js: str) -> tuple[bool, str]:
     from suptracker import filtres as FI
-    names = ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
+    names = ("ACAD_LABEL", "acadLabel", "FI_TITLE", "fiOptions", "CARTE_GROUPS", "CARTE_ACADS", "CARTE_R3", "ECHELLE", "CARTE_ROB", "JURY_KEYS", "JURY_LEVELS", "juryMeta", "juryGroups", "carteGroups", "CARTE_DEFAULT", "CARTE_KMS", "MA_VILLE",
              "carteSelection", "carteShareLink", "carteShareRead")
     exe = shutil.which("node")
     if not exe:
@@ -823,7 +824,7 @@ JS_MUTANTS = [
     ("the académie dropdown dropped (owner, 2026-11-16)", '["acad", "Académie", CARTE_ACADS.map((a) => [a, acadLabel(a)])], ', "", "rs9"),
     ("the apprenticeship group dropped", '  ["app", "Apprentissage", [["non", "Formations hors apprentissage"], ["oui", "Formations en apprentissage"]]],\n', "", "rs9"),
     ("an aménagement option dropped", '["sport", "Aménagements pour sportifs de haut niveau"], ', "", "rs9"),
-    ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "  ...CARTE_ROB];", "rs9"),
+    ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB, ...juryGroups()];", "  ...CARTE_ROB, ...juryGroups()];", "rs9"),
     ("the mention dropdown dropped", 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"', 'const mens = false ? dd("mens", "Mention ou spécialité"', "rs9"),
     ("share: the profile's town kept", "if ((F.lieu || F.autour) && lt && !lt.startsWith(MA_VILLE))", "if ((F.lieu || F.autour) && lt)", "rs10"),
     ("share: the zones shared", "  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "  qs.set(\"f_zones\", (F.zones || []).join(\",\"));\n  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "rs10"),

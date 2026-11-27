@@ -802,6 +802,12 @@ footer .legal-links a { min-height: 24px; display: inline-flex; align-items: cen
   border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; }
 .dd-group { border: 0; border-top: 1px solid var(--line); margin: 4px 0 0; padding: 6px 0 0; display: grid; gap: 4px; }
 .dd-group legend { font-weight: 600; padding: 0; }
+/* owner, 2026-11-27: « Ce que regarde le jury »: each level drawn as gradation bars (1 to 3), its words always written beside */
+.jury-row .jlev { display: flex; align-items: center; gap: 6px; }
+.jbars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex: none; }
+.jbars i { display: block; width: 5px; border: 1px solid var(--ink); background: transparent; }
+.jbars i:nth-child(1) { height: 6px; } .jbars i:nth-child(2) { height: 10px; } .jbars i:nth-child(3) { height: 14px; }
+.jbars i.on { background: var(--ink); }
 .dd-panel i { display: inline-block; width: 10px; height: 10px; margin: 0 4px; vertical-align: middle; }
 .dd-panel i.lg-securite, .dd-panel i.lg-autre { border-radius: 50%; }
 .dd-panel i.lg-autre { background: transparent !important; box-shadow: inset 0 0 0 2px var(--zone-autre); }
