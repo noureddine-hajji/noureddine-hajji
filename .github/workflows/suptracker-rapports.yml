@@ -20,7 +20,11 @@ on:
         required: false
         default: "harvest"
   schedule:
-    - cron: "17 4 * * *"        # daily, mode "quotidien" = live + grilles (schedules run on the default branch only)
+    # mode "quotidien" = live + grilles (schedules run on the default branch only). Owner, 2026-11-27: daily during the campaign
+    # (December: the new fiches open; to March: the vœux), once a week otherwise (the fiches barely change; up to 330 runner
+    # minutes a run). Both end before the data workflow's daily check at 10:37 (timeout 355 min).
+    - cron: "17 4 * 12,1-3 *"
+    - cron: "17 4 * 4-11 1"
   push:
     branches: ["claude/**"]
     paths: ["suptracker/data/rapports/request.json"]

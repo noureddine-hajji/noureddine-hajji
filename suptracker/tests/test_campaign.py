@@ -98,6 +98,17 @@ def test_a_harvest_reaches_the_site():
     m = re.search(r"workflow_run:\n\s+workflows: \[([^\]]+)\]\n\s+types: \[completed\]\n\s+branches: \[main\]", wf)
     assert m, "the data workflow must rebuild after the scheduled fetches"
     rebuilt_after = {w.strip() for w in m.group(1).split(",")}
+    # owner, 2026-11-27: the two daily fetches are checked ONCE a day by the data workflow's own schedule (one build a day at
+    # most), which must come after both have ended: the fetch's start + its timeout, every one of its schedules
+    assert '- cron: "37 10 * * *"' in wf and "github.event.schedule == '37 10 * * *'" in wf
+    assert "github.event.schedule != '37 10 * * *'" in wf                 # the daily check builds only when a fetch changed
+    for name in ("suptracker-rapports", "suptracker-jpo"):
+        assert name not in rebuilt_after, name                            # never a second build the same day
+        fw = (DATA_WF.parent / f"{name}.yml").read_text()
+        crons = re.findall(r'- cron: "(\d+) (\d+) ', fw)
+        timeout = int(re.search(r"timeout-minutes: (\d+)", fw).group(1))
+        assert crons and all(int(h) * 60 + int(mi) + timeout < 10 * 60 + 37 for mi, h in crons), (name, crons, timeout)
+        rebuilt_after.add(name)
     # every workflow that pushes a BUILD input to main is followed by a rebuild (open days were not: J9 red on every PR),
     # and the harvest fingerprint covers what each one writes (else its fetch never triggers the build)
     hfp = (ROOT / "scripts" / "harvest_fingerprint.sh").read_text()

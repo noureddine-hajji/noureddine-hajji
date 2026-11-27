@@ -11,8 +11,8 @@ the page, one CI run per change, live monitoring.
   S4 the public "Mon parcours" view drops only fields the page never reads, keeps zones, and every number
      shown (one decimal of a percent, points of access) is identical after rounding
   S5 Plan B and "Mes vœux" still use the full rows; the count of "Mon parcours" is sent by the page (closed list)
-  S6 CI runs once per change (main on push, branches through their pull request), cancels stale runs, keeps the
-     timing check serial; the monitor runs on a schedule and its checks fail on a broken site
+  S6 CI runs once per change (branches through their pull request, main weekly: no push trigger), cancels stale runs, keeps the
+     timing check serial; the monitor runs every 4 hours and its checks fail on a broken site
   S7 mutation test: seeded bugs in the policy, the slim view, the audience count, the workflows and the monitor
 """
 from __future__ import annotations
@@ -296,16 +296,19 @@ def timed_test_files() -> list[str]:
 
 
 def ci_ok(ci: str, mon: str) -> tuple[bool, str]:
-    push = re.search(r"push:\s*\n\s*branches:\s*\[main\]", ci) is not None
+    # owner, 2026-11-27: no push trigger at all (a merge no longer re-runs the suite on main); main runs weekly and on demand
+    on = ci.split("\nconcurrency:", 1)[0]
+    push = "push:" not in on and re.search(r'schedule:\s*\n\s*- cron: "\d+ \d+ \* \* \d"', on) is not None and "workflow_dispatch:" in on
     pr = "pull_request:" in ci
     cancel = "cancel-in-progress: true" in ci
     par = re.search(r"^\s*- run: python -m pytest -q -n auto --dist loadfile(.*)$", ci, re.M)
     ser = re.search(r"^\s*- run: python -m pytest -q (tests/\S+(?: tests/\S+)*)\s*$", ci, re.M)
     timed = timed_test_files()
     serial = bool(par and ser) and all(f"--ignore={t}" in par.group(1) and t in ser.group(1).split() for t in timed)
-    # every hour from January to March (the vœux peak: a failure is known within the hour), every 6 hours otherwise
+    # every 4 hours all year (owner, 2026-11-27; hourly from January to March before), and no other schedule
+    crons = re.findall(r'- cron: "([^"]+)"', mon)
     sched = (re.search(r"schedule:\s*\n\s*- cron:", mon) is not None and "vars.SUPTRACKER_URL" in mon and "scripts/monitor.py" in mon
-             and '- cron: "41 * * 1-3 *"' in mon and '- cron: "41 */6 * 4-12 *"' in mon)
+             and crons == ["41 */4 * * *"])
     # CI speed-up: every shard 1..n of the matrix runs with --shard=i/n, and the "test" check fails when any job fails
     m = re.search(r"shard:\s*\[([\d, ]+)\]", ci)
     shards = [int(x) for x in m.group(1).split(",")] if m else []
@@ -314,7 +317,7 @@ def ci_ok(ci: str, mon: str) -> tuple[bool, str]:
     gate = re.search(r"\n  test:\n(?:    .*\n|\s*\n)*?    if: always\(\)\n    needs: \[shard, timed\]", ci) is not None \
         and 'test "${{ needs.shard.result }}" = success && test "${{ needs.timed.result }}" = success' in ci
     return all((push, pr, cancel, bool(par), serial, sched, sharded, gate)), (
-        f"push only main {push}; PR {pr}; cancel stale {cancel}; parallel {bool(par)}; timed red teams {timed} serial {serial}; "
+        f"no push trigger, weekly main run {push}; PR {pr}; cancel stale {cancel}; parallel {bool(par)}; timed red teams {timed} serial {serial}; "
         f"monitor scheduled {sched}; shards {shards} with --shard=i/{n.group(1) if n else None} {sharded}; test check gates every job {gate}")
 
 
@@ -369,7 +372,9 @@ def s6(c: Ctx):
 
 
 CI_MUTANTS = [
-    ("CI runs on every branch push again", "  push:\n    branches: [main]\n", "  push:\n"),
+    ("CI runs on every branch push again", "  workflow_dispatch:\n  pull_request:", "  workflow_dispatch:\n  push:\n  pull_request:"),
+    ("main re-runs the suite after every merge again", "  workflow_dispatch:\n  pull_request:", "  workflow_dispatch:\n  push:\n    branches: [main]\n  pull_request:"),
+    ("main never tested", '  schedule:\n    - cron: "53 2 * * 0"\n', ""),
     ("stale runs not cancelled", "cancel-in-progress: true", "cancel-in-progress: false"),
     ("timing check run in parallel", " --ignore=tests/test_analytics.py", ""),
     ("Plan B latency check run in parallel", " --ignore=tests/test_planb.py", ""),
@@ -378,8 +383,9 @@ CI_MUTANTS = [
     ("test check ignores the timed job", ' && test "${{ needs.timed.result }}" = success', ""),
     ("test check skipped when a shard fails", "    if: always()\n    needs: [shard, timed]", "    needs: [shard, timed]"),
 ]
-MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 * * 1-3 *\"", "  manual:\n    - cron: \"41 * * 1-3 *\""),
-               ("no hourly check during the vœux peak", "    - cron: \"41 * * 1-3 *\"", "    - cron: \"41 */6 * 1-3 *\"")]
+MON_MUTANTS = [("monitor not scheduled", "  schedule:\n    - cron: \"41 */4 * * *\"", "  manual:\n    - cron: \"41 */4 * * *\""),
+               ("the hourly peak check back", "    - cron: \"41 */4 * * *\"", "    - cron: \"41 * * 1-3 *\"\n    - cron: \"41 */4 * * *\""),
+               ("a check every 6 hours", "    - cron: \"41 */4 * * *\"", "    - cron: \"41 */6 * * *\"")]
 
 
 @check("S7 mutation test: policy, slim view, audience count, workflows and monitor bugs are each caught")

@@ -51,6 +51,7 @@ jobs:
           name: browser-report
           path: ${{ runner.temp }}/report.md
           if-no-files-found: ignore
+          retention-days: 7
       - name: Open or update the issue
         if: failure()
         env:

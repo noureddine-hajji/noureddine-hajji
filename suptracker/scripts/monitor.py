@@ -1,4 +1,4 @@
-"""Sprint 10: check the LIVE site (every hour from January to March, every 6 hours otherwise: .github/workflows/suptracker-monitor.yml).
+"""Sprint 10: check the LIVE site (every 4 hours since 2026-11-27, owner: .github/workflows/suptracker-monitor.yml).
 
     python scripts/monitor.py https://<production domain> [--max-seconds 8]
 

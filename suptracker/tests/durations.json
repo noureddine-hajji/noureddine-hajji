@@ -60,6 +60,7 @@
  "tests/test_prevision.py": 440,
  "tests/test_probe.py": 0,
  "tests/test_projet.py": 59,
+ "tests/test_public.py": 30,
  "tests/test_rapports.py": 507,
  "tests/test_recherche.py": 56,
  "tests/test_referentiel.py": 312,

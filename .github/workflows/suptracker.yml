@@ -1,10 +1,12 @@
 name: suptracker
 # Sprint 10: one run per change. A push to a pull-request branch used to run the suite twice (push + pull_request);
-# branches are now tested through their pull request, and main on push. A newer push cancels the older run.
+# branches are tested through their pull request, main once a week (2026-11-27). A newer push cancels the older run.
 on:
-  push:
-    branches: [main]
-    paths: ["suptracker/**", ".github/workflows/suptracker.yml"]
+  # owner, 2026-11-27: a merge no longer re-runs the whole suite on main (the PR's merge commit was just tested, ~10,500 runner
+  # minutes a month); main runs it once a week and on demand
+  schedule:
+    - cron: "53 2 * * 0"
+  workflow_dispatch:
   pull_request:
     paths: ["suptracker/**", ".github/workflows/suptracker.yml"]
 concurrency:

@@ -25,6 +25,9 @@ from urllib.parse import quote, urljoin
 import duckdb
 import httpx
 
+sys.path.insert(0, str(Path(__file__).parent))
+import fiche_parse as FP  # noqa: E402  (public repository, owner 2026-11-27: every kept page and text is masked)
+
 UA = "SupCompass-research/1.0 (+https://github.com/noureddine-hajji/noureddine-hajji)"
 PAUSE = 1.5
 DOMS = ("dossierappel.parcoursup.fr", "dossier.parcoursup.fr")
@@ -98,7 +101,7 @@ def main(db: str, out: str, n: int) -> None:
             if r is None:
                 continue
             html = r.text
-            (dest / "fiches" / f"{cod}.html").write_text(html, encoding="utf-8")
+            (dest / "fiches" / f"{cod}.html").write_text(FP.mask(html), encoding="utf-8")
             hrefs = sorted({urljoin(str(r.url), h.replace("&amp;", "&")) for h in re.findall(r'href="([^"]+)"', html)
                             if re.search(r"rapport|Rapport|\.pdf", h)})
             links[cod] = hrefs
@@ -110,10 +113,10 @@ def main(db: str, out: str, n: int) -> None:
                 if r is None or r.status_code != 200 or not r.content.startswith(b"%PDF"):
                     continue
                 tag = hashlib.sha256(h.encode()).hexdigest()[:8]
-                (dest / "pdf" / f"live_{cod}_{tag}.pdf").write_bytes(r.content)
+                pass  # the PDF itself is not kept (it prints the signature and the staff's contacts): its masked text is
                 try:
                     pages = pdf_text(r.content)
-                    (dest / "pdf" / f"live_{cod}_{tag}.txt").write_text("\n\n=== PAGE ===\n\n".join(pages), encoding="utf-8")
+                    (dest / "pdf" / f"live_{cod}_{tag}.txt").write_text(FP.mask("\n\n=== PAGE ===\n\n".join(pages)), encoding="utf-8")
                 except Exception as e:  # noqa: BLE001
                     pages = [f"parse error {e}"]
                 pdfs.append({"code": cod, "url": h, "bytes": len(r.content), "pages": len(pages)})
@@ -137,9 +140,9 @@ def main(db: str, out: str, n: int) -> None:
                     ts, orig = v[1][0], v[1][1]
                     r = get(http, f"https://web.archive.org/web/{ts}id_/{orig}", log)
                     if r is not None and r.content.startswith(b"%PDF"):
-                        (dest / "pdf" / f"wayback_{cod}_{ts}.pdf").write_bytes(r.content)
+                        pass  # the PDF itself is not kept (it prints the signature and the staff's contacts): its masked text is
                         try:
-                            (dest / "pdf" / f"wayback_{cod}_{ts}.txt").write_text("\n\n=== PAGE ===\n\n".join(pdf_text(r.content)), encoding="utf-8")
+                            (dest / "pdf" / f"wayback_{cod}_{ts}.txt").write_text(FP.mask("\n\n=== PAGE ===\n\n".join(pdf_text(r.content))), encoding="utf-8")
                         except Exception:  # noqa: BLE001
                             pass
                         got += 1
@@ -156,7 +159,7 @@ def main(db: str, out: str, n: int) -> None:
                     r = get(http, f"https://web.archive.org/web/{ts}id_/{orig}", log)
                     if r is None or r.status_code != 200:
                         continue
-                    (dest / "wayback_fiches" / f"{cod}_{ts}.html").write_text(r.text, encoding="utf-8")
+                    (dest / "wayback_fiches" / f"{cod}_{ts}.html").write_text(FP.mask(r.text), encoding="utf-8")
                     hrefs = sorted({urljoin(orig, h.replace("&amp;", "&")) for h in re.findall(r'href="([^"]+)"', r.text)
                                     if re.search(r"[Rr]apport|\.pdf", h)})
                     found[f"{cod}_{ts}"] = hrefs
@@ -168,9 +171,9 @@ def main(db: str, out: str, n: int) -> None:
                             r3 = get(http, f"https://web.archive.org/web/{row[0]}id_/{row[1]}", log)
                             if r3 is not None and r3.content.startswith(b"%PDF"):
                                 (dest / "pdf").mkdir(exist_ok=True)
-                                (dest / "pdf" / f"wayback_{cod}_{row[0]}.pdf").write_bytes(r3.content)
+                                pass  # the PDF itself is not kept (it prints the signature and the staff's contacts): its masked text is
                                 try:
-                                    (dest / "pdf" / f"wayback_{cod}_{row[0]}.txt").write_text("\n\n=== PAGE ===\n\n".join(pdf_text(r3.content)), encoding="utf-8")
+                                    (dest / "pdf" / f"wayback_{cod}_{row[0]}.txt").write_text(FP.mask("\n\n=== PAGE ===\n\n".join(pdf_text(r3.content))), encoding="utf-8")
                                 except Exception:  # noqa: BLE001
                                     pass
         summary["wayback_fiche_report_links"] = found

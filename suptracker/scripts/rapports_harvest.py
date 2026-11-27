@@ -24,6 +24,21 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).parent))
 from rapports_parse import parse  # noqa: E402
+import fiche_parse as FP  # noqa: E402
+
+# public repository (owner, 2026-11-27): the staff's e-mail addresses and phone numbers the reports print are masked before
+# the texts are written (same rule and words as suptracker/rapports.mask_contacts, which masks again at build)
+MASK_EMAIL, MASK_PHONE = "[adresse dans le rapport Parcoursup]", "[numéro dans le rapport Parcoursup]"
+
+
+def masked(v):
+    if isinstance(v, str):
+        return FP.PHONE.sub(MASK_PHONE, FP.EMAIL.sub(MASK_EMAIL, v))
+    if isinstance(v, list):
+        return [masked(x) for x in v]
+    if isinstance(v, dict):
+        return {k: masked(x) for k, x in v.items()}
+    return v
 
 UA = "SupCompass-research/1.0 (+https://github.com/noureddine-hajji/noureddine-hajji)"
 ROOTS = ("dossier.parcoursup.fr/Candidats/public/fiches/telechargerRapportPublic",
@@ -96,7 +111,7 @@ def store(out: Path, r: dict, p: dict, status: str = "ok") -> None:
     write(out / "masked.csv", MSK_COLS, [{**key, **d} for d in p["masked"]], append=True)
     # the jury's own texts (criteria, EDS, eliminating criteria, method, algorithm, advice), gzip members appended
     with gzip.open(out / "qualitatif.jsonl.gz", "at", encoding="utf-8") as g:
-        g.write(json.dumps({**key, "codes": p["codes"], **{k: p[k] for k in QUALI}}, ensure_ascii=False) + "\n")
+        g.write(json.dumps({**key, "codes": p["codes"], **{k: masked(p[k]) for k in QUALI}}, ensure_ascii=False) + "\n")
     r.update(status=status, session=p["session"], codes=";".join(p["codes"]), n_doublettes=len(p["doublettes"]),
              n_synthese=len(p["synthese"]))
 
