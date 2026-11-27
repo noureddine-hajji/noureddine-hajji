@@ -824,7 +824,7 @@ JS_MUTANTS = [
     ("the académie dropdown dropped (owner, 2026-11-16)", '["acad", "Académie", CARTE_ACADS.map((a) => [a, acadLabel(a)])], ', "", "rs9"),
     ("the apprenticeship group dropped", '  ["app", "Apprentissage", [["non", "Formations hors apprentissage"], ["oui", "Formations en apprentissage"]]],\n', "", "rs9"),
     ("an aménagement option dropped", '["sport", "Aménagements pour sportifs de haut niveau"], ', "", "rs9"),
-    ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB];", "  ...CARTE_ROB];", "rs9"),
+    ("the R3 groups dropped", "  ...CARTE_R3.map((g) => [g, FI_TITLE[g], fiOptions(g).map((o) => [o.key, o.label])]), ...CARTE_ROB, ...juryGroups()];", "  ...CARTE_ROB, ...juryGroups()];", "rs9"),
     ("the mention dropdown dropped", 'const mens = menDips.length ? dd("mens", "Mention ou spécialité"', 'const mens = false ? dd("mens", "Mention ou spécialité"', "rs9"),
     ("share: the profile's town kept", "if ((F.lieu || F.autour) && lt && !lt.startsWith(MA_VILLE))", "if ((F.lieu || F.autour) && lt)", "rs10"),
     ("share: the zones shared", "  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "  qs.set(\"f_zones\", (F.zones || []).join(\",\"));\n  for (const [gr] of carteGroups()) {\n    if (JSON.stringify", "rs10"),
