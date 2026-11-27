@@ -159,9 +159,10 @@ def own_read(raw: str):
         if p["serie"] == "bg":
             if p.get("spe1") in SPECS and p.get("spe2") in SPECS and p["spe1"] != p["spe2"]:
                 prof["spe1"], prof["spe2"] = p["spe1"], p["spe2"]
-            else:
+                prof["maths_expertes"] = p.get("maths_expertes") == "1"
+            else:                                                       # no pair: no profile (Codex), the note said
                 notes += 1
-            prof["maths_expertes"] = p.get("maths_expertes") == "1"
+                prof = None
         elif p.get("voie"):
             if any(r["code"] == p["voie"] for r in VOIES.get(p["serie"], [])):
                 prof["voie"] = p["voie"]
@@ -172,6 +173,9 @@ def own_read(raw: str):
     if not ids and not prof:
         return None
     return {"ids": ids, "prof": prof, "notes": notes}
+
+
+ADD_ONLY = "${t.ids.length && (mine.length || hasLocal) ? '<button type=\"button\" id=\"tf-add\">"
 
 
 def shape(prof):
@@ -221,8 +225,9 @@ def expected_pair(ids, prof):
     m = valid_moyenne(prof.get("moyenne"))
     out = {"serie": prof["serie"], "statut": "terminale", "moyenne": m, "mention": band_of(m) if m is not None else prof["mention"]}
     if prof["serie"] == "bg":
-        if prof.get("spe1") and prof.get("spe2"):
-            out["spe1"], out["spe2"] = prof["spe1"], prof["spe2"]
+        if not (prof.get("spe1") and prof.get("spe2")):
+            return {"ids": ids, "prof": None}                         # never installed with a default pair (Codex)
+        out["spe1"], out["spe2"] = prof["spe1"], prof["spe2"]
         out["maths_expertes"] = bool(prof.get("maths_expertes"))
     elif prof.get("voie") and prof["voie"] != "autre":
         out["voie"] = prof["voie"]
@@ -391,6 +396,8 @@ def tf4(c: Ctx, js: str | None = None):
     view = top(js, "viewTransfert")
     if 'if (replaces) { draw("confirm");' not in view or 'id="tf-yes"' not in view or "finish(transferApply(t, \"replace\"))" not in view:
         bad.append("replacing does not ask a second click")
+    if ADD_ONLY.replace('\\"', '"') not in view:
+        bad.append("« ajouter seulement les formations » hidden when this device has a profile but no list (Codex)")
     if 'history.replaceState(history.state, "", "#/transfert")' not in view:
         bad.append("the link stays in the address bar after the install")
     if re.search(r"\bapi\(", view.replace('api("/api/journey/vocab")', "")):
@@ -621,6 +628,9 @@ MUTANTS = [
      '  else if (["bg", "bt", "bp"].includes(p.serie)) {'),
     ("TF2", "an unread route said nothing", '      else notes.push("La voie du bac du lien n\'a pas pu être lue : choisissez-la dans « Mon profil ».");\n', ""),
     ("TF3", "level L", '  const qr = qrcode(0, "M");', '  const qr = qrcode(0, "L");'),
+    ("TF2", "a pairless bac général profile installed", '        return ids.length ? { ids, prof: null, notes } : null;\n      }\n      out.spe1 = p.spe1;',
+     '      } else {\n      out.spe1 = p.spe1; }'),
+    ("TF4", "add-only hidden for a profile without a list", "${t.ids.length && (mine.length || hasLocal) ? '<button", "${t.ids.length && mine.length ? '<button"),
     ("TF4", "this device's académie lost", '  for (const k of ["academie", "lycee", "boursier"])', '  for (const k of [])'),
     ("TF4", "add replaces the profile", "    for (const c of t.ids) if (voeux.add(c)) n++;\n    return { list: n, profile: false };",
      "    for (const c of t.ids) if (voeux.add(c)) n++;\n    if (t.prof) store.set(\"profile\", t.prof);\n    return { list: n, profile: false };"),

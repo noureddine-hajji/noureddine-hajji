@@ -6511,8 +6511,12 @@ function transferRead(raw) {
     }
     if (p.serie === "bg") {
       const codes = JV && JV.specialties ? new Set(JV.specialties.map((x) => x.code)) : null;
-      if (codes && codes.has(p.spe1) && codes.has(p.spe2) && p.spe1 !== p.spe2) { out.spe1 = p.spe1; out.spe2 = p.spe2; }
-      else notes.push("Les spécialités du lien n'ont pas pu être lues : choisissez-les dans « Mon profil ».");
+      if (!(codes && codes.has(p.spe1) && codes.has(p.spe2) && p.spe1 !== p.spe2)) {
+        // no pair, no bac général profile (Codex): the pages would read it with a default pair the student never chose
+        notes.push("Les spécialités du lien n'ont pas pu être vérifiées : le profil n'est pas repris. Indiquez-le dans « Mon profil ».");
+        return ids.length ? { ids, prof: null, notes } : null;
+      }
+      out.spe1 = p.spe1; out.spe2 = p.spe2;
       out.maths_expertes = p.maths_expertes === "1";
     } else if (p.voie) {
       const route = JV && JV.voies && (JV.voies[p.serie] || []).find((x) => x.code === p.voie);
@@ -6620,7 +6624,7 @@ async function viewTransfert(raw) {
       <p class="small">Sur cet appareil : ${fmt(mine.length)} formation${mine.length > 1 ? "s" : ""} et ${hasLocal ? `ce profil : ${line(vxProfile(local))}` : "aucun profil"}.${hasLocal && local.academie ? " Votre académie, votre lycée et votre ville restent ceux de cet appareil." : ""}</p>
       ${done ? `<p class="info" role="status">${done}</p><p class="toolbar"><a class="btnlink" href="#/voeux">Voir ma liste</a><a href="#/profil">Vérifier mon profil</a></p>`
         : step === "confirm" ? `<p class="toolbar"><span class="small">Remplacer la liste${t.prof ? " et le profil" : ""} de cet appareil par ceux du lien ?</span><button type="button" id="tf-yes">Oui, remplacer</button><button type="button" id="tf-no">Annuler</button></p>`
-        : `<p class="toolbar"><button type="button" id="tf-install">${replaces ? "Remplacer par le contenu du lien" : "Installer sur cet appareil"}</button>${t.ids.length && mine.length ? '<button type="button" id="tf-add">Ajouter seulement les formations à ma liste</button>' : ""}</p>`}
+        : `<p class="toolbar"><button type="button" id="tf-install">${replaces ? "Remplacer par le contenu du lien" : "Installer sur cet appareil"}</button>${t.ids.length && (mine.length || hasLocal) ? '<button type="button" id="tf-add">Ajouter seulement les formations à ma liste</button>' : ""}</p>`}
       <p class="small muted">Rien n'a été envoyé au serveur : le contenu du lien est lu dans ce navigateur. Après l'installation, il est retiré de la barre d'adresse.</p></div>`;
     const finish = (r) => {
       try { history.replaceState(history.state, "", "#/transfert"); } catch (_) { /* old browser */ }

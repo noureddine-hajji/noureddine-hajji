@@ -5241,4 +5241,4 @@ had nothing for a whole class.
 - **TF5:** the kit's wording (vouvoiement, no chance, sentences of 30 words at most, no figure).
 - **TF6:** privacy, credits, and the vendored file's digest.
 - **TF7 (browser, nightly):** both devices in a browser.
-- **TF9:** a mutation test, 18 seeded bugs caught.
+- **TF9:** a mutation test, 20 seeded bugs caught.
