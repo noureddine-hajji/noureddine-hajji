@@ -1275,6 +1275,18 @@ def liste_verifier(ids: str = Query("", max_length=200)):
     return LST.verifier(_con().cursor(), cods)
 
 
+@app.get("/api/apprentissage/voeux")
+def apprentissage_voeux(ids: str = Query("", max_length=200)):
+    """PR 18 (owner, 2026-11-28): « Mes vœux en apprentissage », the student's SEPARATE list of apprenticeship offers of the
+    latest map (apprentissage.voeux): no zone, no rate, the offer's Parcoursup page, the official contract sentences and
+    minimum-pay table. The list's codes only: never shared-cached, no analytics event (like /api/voeux)."""
+    try:
+        cods = VX.clean_ids(ids.split(",")) if ids else []
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500
+        raise HTTPException(422, str(exc)) from exc
+    return APP.voeux(_con().cursor(), cods)
+
+
 # PR 16 (owner, 2026-11-27): « Portes ouvertes et webinaires » of the student's list (codes only, no-store, no event) and of
 # the whole season (« près de chez moi »: no parameter, shared-cached; the town and the distance stay in the browser)
 def _jpo_codes(ids: str) -> list[str]:

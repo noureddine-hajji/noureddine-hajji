@@ -398,7 +398,7 @@ concrete click-by-click steps when Vercel or GitHub settings are involved.** Cod
     with its count among what the other groups keep. Paid private institutions: the "Privés (payants)" box is unticked by
     default (Plan B's rule). Zones: `/api/carte/zones` = journey.stage2 per own type, `only=`.
   - Apprenticeship (owner's request, 2026-11-08): the offers of the LATEST cartographie session absent from the latest SIES
-    campaign (`carte.apprentissage`, own codes) are LISTED only: no zone, no rate, no paid flag, never "Mes vœux", a link to their
+    campaign (`carte.apprentissage`, own codes) are LISTED only: no zone, no rate, no paid flag, never the main "Mes vœux" list (since PR 18: its own list, below), a link to their
     Parcoursup page (only `https://dossierappel.parcoursup.fr/`). Type and mention = the vote of the SIES formations carrying the
     same cartographie labels (`label_votes`); académie by UAI, else département. A private CFA outside State contract is
     `prive_app` (free for the apprentice, Code du travail L6211-1), ticked by default; never the paid `prive`. Filter
@@ -701,8 +701,8 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   no new door, everything merged into the existing pages.
   - Demand = `nb_voe_pp / capa_fin` (published counts, labelled), placed per (campaign, `fili`): >= p90 "Forte demande" (lists),
     >= p75 "Demande élevée"; < 20 formations or no places = no position. Always "pas peu de chances", never a zone colour.
-  - Apprenticeship: free tuition (L6211-1) and a salary in words with the official simulator, NEVER a computed amount; links on La
-    bonne alternance only. The BTS route comparison is the MEDIAN OF ESTABLISHMENTS publishing (Inserjeunes has no headcount),
+  - Apprenticeship: free tuition (L6211-1) and a salary in words with the official simulator, NEVER a computed amount (since PR 18
+    the official table is QUOTED, below); links on La bonne alternance and the quoted service-public page only. The BTS route comparison is the MEDIAN OF ESTABLISHMENTS publishing (Inserjeunes has no headcount),
     >= 5 DISTINCT establishments per route (a multi-code UAI = the median of its own rows, counted once; built after insertion.build:
     Codex), labelled, on every BTS page. `propose` = an attached offer or a SIES apprenticeship formation.
   - Size: `mart.tension` stores the classes only (ratio re-read from formation_year); the communes are ONE zlib JSON value in
@@ -1038,6 +1038,17 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   secret, cannot write, never interpolates pull-request text; never `pull_request_target`. Cost rules: no suite re-run on `main`
   after a merge, reports daily only in the campaign, one data build a day, monitor every 4 h, artifacts kept 7 days.
   Red team `redteam_public.py` (PB1-PB7).
+- **Mes vœux en apprentissage (PR 18, owner 2026-11-28).** The owner reversed the 2026-11-08 « never Mes vœux » rule: a SEPARATE
+  list of apprenticeship offers of the latest map (`voeuxApp`, localStorage key `voeuxApp`, codes cleaned like the list, 10 at most),
+  its own card and counter in both Mes vœux views (empty list included), read by `/api/apprentissage/voeux` (`apprentissage.voeux`:
+  codes only, no-store, no event): each offer with its Parcoursup page and the initial formation the map attaches; absent from the
+  latest map = « vérifiez qu'elle existe toujours ». NO zone, NO rate, NO SIES figure, never counted in the list's reading, never a
+  safety, never sent with the zones (profile bar, Plan B, Compléter, « Avant de confirmer », guide: red team AV6 lists who may read
+  it). The number allowed only from `calendrier.regles` (else « vérifiez »). The transfer link carries it (`p=`). The contract and the
+  minimum pay are QUOTED from service-public.gouv.fr F2918 (`aides.r_apprenti`: the table's cells verbatim, its notes, the page's two
+  contract sentences, « Vérifié le », its own links; fixed checks: 3 years in order, rising with the year, never falling with the age;
+  else no item, said in the audit), folded, in both apprenticeship cards; euro amounts only inside that quote, never a salary
+  computed for the student. Red team `redteam_apprentissage_voeux.py` (AV1-AV8).
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

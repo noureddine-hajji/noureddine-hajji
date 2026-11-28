@@ -5242,3 +5242,34 @@ had nothing for a whole class.
 - **TF6:** privacy, credits, and the vendored file's digest.
 - **TF7 (browser, nightly):** both devices in a browser.
 - **TF9:** a mutation test, 20 seeded bugs caught.
+
+## Mes vœux en apprentissage (owner, 2026-11-28, PR 18)
+
+The owner reversed the 2026-11-08 rule that kept apprenticeship offers out of « Mes vœux »: a student who wants an apprenticeship
+(the testers' Yanis) keeps them in a **separate list**, with its own counter.
+
+**The list.**
+- « Ajouter à mes vœux en apprentissage » sits on the search card of an offer listed apart and beside each CFA of a formation
+  (the search card's apprenticeship block and the formation page's « Et en apprentissage ? » card).
+- The list lives in this browser (`voeuxApp`, key `voeuxApp`): codes only, cleaned like the main list, 10 at most.
+- « Mes vœux » shows it in its own card, in both situations (terminale and « Je me réoriente »), even when the main list is empty.
+  It is read by `/api/apprentissage/voeux?ids=` (`apprentissage.voeux`): codes only, `no-store`, no audience event.
+- Each offer comes with its Parcoursup page, its town and distance, and the initial formation of the same establishment when the
+  map attaches it. An offer absent from the latest map says « vérifiez sur Parcoursup qu'elle existe toujours ».
+- **No zone, no rate, no SIES figure**: none is published for these offers. They are never counted in the reading of the list,
+  never a safety, never sent with the zones (the profile bar, Plan B, « Compléter », « Avant de confirmer » do not read them).
+- The number of apprenticeship vœux Parcoursup allows comes from the official calendar (`calendrier.regles`: « 10 vœux
+  supplémentaires », and apprenticeship vœux still possible after the last day); unknown = « vérifiez sur parcoursup.gouv.fr ».
+- « Transférer sur mon autre appareil » carries the list too (`p=` in the link, cleaned like the list).
+
+**The contract and the minimum pay, quoted.** `aides.r_apprenti` reads service-public.gouv.fr's « Contrat d'apprentissage » page
+(F2918, fetched by the `suptracker-aides` workflow): the table « Rémunération brute mensuelle minimale d'un apprenti » (4 age
+columns, 3 contract years, every cell's printed lines verbatim, only the page's « : titleContent » markers dropped), its three
+notes, the page's two sentences on the work contract and the employer, its « Vérifié le » date and its own links. Fixed checks:
+three years in order, the percentages rise with the year and never fall with the age; any mismatch drops the item and the audit
+says so. The quote is shown, folded, in the apprenticeship card of « Mes vœux » and of the formation page. **SupCompass never
+computes a salary**: the euro amounts shown are the page's own, inside the quote.
+
+Red team `scripts/redteam_apprentissage_voeux.py` (AV1-AV8): an independent reading of the official table, doctored pages, the
+list re-derived (crafted and 60 real offers), the route, the card in Node (escaping, no zone or rate, the calendar's number or
+« vérifiez », euro amounts only quoted), the store and who reads it, the wiring, and 25 mutants.

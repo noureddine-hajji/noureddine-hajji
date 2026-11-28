@@ -269,18 +269,32 @@ const fmt = (x) => (x === null || x === undefined ? "—" : Number(x).toLocaleSt
 const estimTag = (d) => `<span class="estim">estimation</span> ${esc(d || "")}`;
 const carteFiche = (o) => (o.fiche && /^https:\\/\\/dossierappel\\.parcoursup\\.fr\\//.test(o.fiche) ? o.fiche : null);
 let store = { v: null, get() { return this.v; }, set(k, v) { this.v = v; } };
+const localStorage = { getItem: () => null, setItem() {} };
 """
+
+
+def official_quote():
+    """aides.r_apprenti on the saved official page (PR 18), None when the page is not saved."""
+    from suptracker import aides as AI
+    f = AI.DIR / AI._file(AI.PAGES["apprenti"])
+    if not f.exists():
+        return None
+    lf = AI.DIR / AI._file(AI.PAGES["apprenti"], ".links.json")
+    return AI.r_apprenti(f.read_text(), json.loads(lf.read_text()) if lf.exists() else [])
 
 
 @check("VP3 page: the cards and badges escape, label computed figures, say demand is not a chance, compute no salary, safe links, no zone colour")
 def vp3(c: Ctx):
-    names = ("appParcours", "tensionCard", "apprentiCard", "apprentiInsertionCard", "tensionBadge", "appBadge")
+    names = ("appParcours", "tensionCard", "voeuxApp", "appVoeuLabel", "appVoeuButton", "SP_HOST", "appOfficiel", "apprentiCard",
+             "apprentiInsertionCard", "tensionBadge", "appBadge")
     defs = "\n".join(top(c.js, n) for n in names)
     if not all(top(c.js, n) for n in names):
         return False, "a renderer is missing from app.js"
     t = {"voeux": 300, "places": 10, "par_place": 30, "type": "BTS", "n_type": 5000, "classe": "tres", "libelle": "Forte " + HOSTILE,
          "explication": "Expl " + HOSTILE, "prudence": "Beaucoup de vœux par place ne veut pas dire peu de chances " + HOSTILE}
-    a = {"propose": True, "sies_apprentissage": False, "offres": [{"etablissement": "CFA " + HOSTILE, "ville": HOSTILE, "fiche": "javascript:alert(1)", "parcours": ["Parcours " + HOSTILE]}],
+    officiel = official_quote()                            # PR 18: the official table, quoted (its euro amounts only inside the quote)
+    a = {"propose": True, "sies_apprentissage": False, "officiel": officiel,
+         "offres": [{"cod_aff_form": "77", "etablissement": "CFA " + HOSTILE, "ville": HOSTILE, "fiche": "javascript:alert(1)", "parcours": ["Parcours " + HOSTILE]}],
          "national": {"voies": [{"voie": "apprentissage", "libelle": "En apprentissage " + HOSTILE, "annee": HOSTILE, "n_etab": 9, "n_emploi": 7,
                                  "emploi_med": 66, "emploi_q1": 59, "emploi_q3": 73, "poursuite_med": 45}]},
          "liens": {"entreprises": "https://labonnealternance.apprentissage.beta.gouv.fr/", "salaire": "https://labonnealternance.apprentissage.beta.gouv.fr/salaire-alternant",
@@ -315,8 +329,15 @@ def vp3(c: Ctx):
         bad.append("a computed figure (ratio, median) without the estimation label")
     if "pas dire peu de chances" not in tc:
         bad.append("the demand card does not say it is not a chance")
-    if re.search(r"\d[\d  ]*(?:,\d+)? ?€", re.sub(r"<[^>]+>", " ", ac)):
-        bad.append("the apprenticeship card prints a euro amount (never a computed salary)")
+    outside = re.sub(r'<div class="grille-officielle">.*?</div></details>', "", ac, flags=re.S)
+    if re.search(r"\d[\d  ]*(?:,\d+)? ?€", re.sub(r"<[^>]+>", " ", outside)):
+        bad.append("the apprenticeship card prints a euro amount outside the official quote (never a computed salary)")
+    quoted = {e for y in (officiel or {}).get("annees", []) for cell in y["cellules"] for x in cell for e in re.findall(r"\d[\d  ]*,\d{2} ?€", x)}
+    if not officiel or 'class="grille-officielle"' not in ac or \
+            any(e not in quoted for e in re.findall(r"\d[\d  ]*,\d{2} ?€", re.sub(r"<[^>]+>", " ", ac))):
+        bad.append("the official quote missing, or a euro amount the official page does not print")
+    if 'data-appvoeu="77"' not in ac:
+        bad.append("PR 18: a CFA line without « Ajouter à mes vœux en apprentissage »")
     if "L6211-1" not in ac or "javascript:" in ac:
         bad.append("apprenticeship card: free tuition not sourced, or an unsafe fiche link kept")
     if "médiane des établissements" not in ic:

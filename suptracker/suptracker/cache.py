@@ -68,6 +68,7 @@ POLICY = [
     (r"/api/selectivite", PUBLIC, "selectivity matrix of a type of diploma (no profile)"),
     (r"/api/reorientation", PUBLIC, "sprint 21: formations of a type for a candidate outside terminale (no profile, no position)"),
     (r"/api/liste/verifier", NO_STORE, "sprint 5: checks on the student's personal list: never kept by a shared cache"),
+    (r"/api/apprentissage/voeux", NO_STORE, "PR 18: the student's personal list of apprenticeship offers: never kept by a shared cache"),
     (r"/api/reorientation/voeux", NO_STORE, "sprint 21: the student's list read outside terminale (a personal list: never shared-cached)"),
     (r"/api/jpo/liste", NO_STORE, "PR 16: the open days of the student's personal list: never kept by a shared cache"),
     (r"/api/jpo/liste\.ics", NO_STORE, "PR 16: the same dates of the student's list as an .ics file (a personal list)"),

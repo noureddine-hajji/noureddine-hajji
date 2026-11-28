@@ -169,7 +169,7 @@ SOURCES = (
      "datasets": ("communes_geo",), "granularity": "commune", "keys": ("code commune INSEE",),
      "feeds": ("vie",), "status": "en_ligne", "sprint": "V2", "licence": LICENCE_OUVERTE,
      "url": "https://geo.api.gouv.fr/decoupage-administratif/communes"},
-    {"key": "aides_etudiantes", "title": "Aides aux étudiants : bourse sur critères sociaux, aide au mérite, aide à la mobilité Parcoursup, droits d'inscription, CVEC, repas Crous, aides des régions, aide au logement (pages officielles)",
+    {"key": "aides_etudiantes", "title": "Aides aux étudiants : bourse sur critères sociaux, aide au mérite, aide à la mobilité Parcoursup, droits d'inscription, CVEC, repas Crous, aides des régions, aide au logement, contrat et salaire minimum de l'apprenti (F2918, PR 18) (pages officielles)",
      "producer": "DILA (service-public.gouv.fr), MESR (etudiant.gouv.fr, cvec.etudiant.gouv.fr)", "access": "download",
      "granularity": "national (fetched by the suptracker-aides workflow into data/aides/)", "keys": ("aide",), "feeds": ("aides",),
      "status": "en_ligne", "sprint": "F", "licence": "Licence Ouverte (Etalab 2.0) pour service-public.gouv.fr ; pages publiques du ministère",
