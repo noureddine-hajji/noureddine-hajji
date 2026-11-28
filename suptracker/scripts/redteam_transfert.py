@@ -593,7 +593,7 @@ def tf8(c: Ctx):
         bad.append("routes")
     if 'transfert: "voeux", kit: "accompagner" };' not in js or 'transfert: "transfert", kit: "kit" };' not in js:
         bad.append("tab or audience name")
-    if js.count("${transferCard()}${nextSteps(\"voeux\")}") != 2 or js.count("  bindTransfer();") != 2:
+    if js.count("${transferCard()}${nextSteps(\"voeux\")}") != 2 or js.count("  bindTransfer();") != 4:   # PR 18 (Codex): also both empty-list branches
         bad.append("the card in both Mes vœux views")
     if "${has ? transferCard() : \"\"}" not in top(js, "viewProfil") or "if (has) bindTransfer();" not in top(js, "viewProfil"):
         bad.append("the card in Mon profil")

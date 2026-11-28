@@ -433,7 +433,7 @@ out.full = appVoeuButton("99"); out.has = appVoeuButton("1");
 voeuxApp.remove("1"); out.removed = voeuxApp.get();
 process.stdout.write(JSON.stringify(out));"""
 ALLOWED = {"voeuxApp", "appVoeuLabel", "appVoeuButton", "loadAppVoeux", "transferLink", "transferApply", "transferCard", "bindTransfer",
-           "viewTransfert"}
+           "transferRefresh", "viewTransfert"}
 
 
 def enclosing(js: str) -> set:
@@ -496,8 +496,17 @@ def av7(c: Ctx, js: str | None = None):
         bad.append("the formation page's apprenticeship card")
     if "appVoeuButton(o.cod_aff_form)" not in top(js, "appOffers"):
         bad.append("the search card's CFA lines")
-    if "voeuxApp.get()" not in top(js, "bindTransfer"):
-        bad.append("the transfer link")
+    tr, bt = top(js, "transferRefresh"), top(js, "bindTransfer")
+    if "voeuxApp.get()" not in tr or bt.count("transferRefresh();") < 3:
+        bad.append("the transfer link not written again when it is used (copy, QR)")
+    if 'box.innerHTML = ""' not in tr:
+        bad.append("a QR code of an older link kept")
+    if "voeuxApp.remove(el.dataset.appdel); transferRefresh();" not in top(js, "loadAppVoeux"):
+        bad.append("removing an apprenticeship offer leaves the transfer link stale (Codex)")
+    for v in ("viewVoeux", "viewVoeuxReo"):
+        empty = top(js, v).split("if (!ids.length) {", 1)[-1].split("return;", 1)[0]
+        if "${transferCard()}" not in empty or "bindTransfer();" not in empty:
+            bad.append(("an apprenticeship-only list cannot be transferred (Codex)", v))
     if "vœux en apprentissage" not in c.src["legal"]:
         bad.append("privacy page")
     if "F2918" not in c.src["sources"] or "salaire minimum de l'apprenti" not in c.src["sources"]:
@@ -549,6 +558,13 @@ MUTANTS = [
      "  const qs = vxQuery([...ids, ...voeuxApp.get()], prof);                                        // the profile bar sends the same query"),
     ("AV7", "js", "the reorientation view forgets the list", "securite: null });\n  loadJpoListe(ids, marker);\n  loadAppVoeux(marker);",
      "securite: null });\n  loadJpoListe(ids, marker);"),
+    ("AV7", "js", "a removal leaves the transfer link stale", "voeuxApp.remove(el.dataset.appdel); transferRefresh(); loadAppVoeux(marker);",
+     "voeuxApp.remove(el.dataset.appdel); loadAppVoeux(marker);"),
+    ("AV7", "js", "the copy button sends the link of the first draw", "    transferRefresh();                                                  // Codex (PR 18): the lists as they are now\n", ""),
+    ("AV7", "js", "an old QR code kept", '  if (box) box.innerHTML = "";\n', ""),
+    ("AV7", "js", "no transfer for an apprenticeship-only list (outside terminale)",
+     'hors sous-vœux).</p>`;\n  if (!ids.length) {\n    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}${transferCard()}`;',
+     'hors sous-vœux).</p>`;\n  if (!ids.length) {\n    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}`;'),
     ("AV7", "js", "the offer card without the button", "${f.stats === false ? appVoeuButton(f.cod_aff_form) :", '${f.stats === false ? "" :'),
 ]
 

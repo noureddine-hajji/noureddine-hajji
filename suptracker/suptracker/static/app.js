@@ -5056,9 +5056,10 @@ async function viewVoeux() {
     <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a> · <a href="#/projet">Préparer mes projets de formation motivés</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
-    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}`;
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}${transferCard()}`;
     $view.dataset.rendered = "voeux:0";
     loadAppVoeux("voeux:0");
+    bindTransfer();                                                     // Codex (PR 18): an apprenticeship-only list travels too
     return;
   }
   const qs = vxQuery(ids, prof);                                        // the profile bar sends the same query
@@ -5157,7 +5158,7 @@ async function loadAppVoeux(marker) {
   }
   if ($view.dataset.rendered !== marker || !box()) return;              // the student left meanwhile
   box().innerHTML = appVoeuxCard(d, cal);
-  box().querySelectorAll("[data-appdel]").forEach((el) => { el.onclick = () => { voeuxApp.remove(el.dataset.appdel); loadAppVoeux(marker); }; });
+  box().querySelectorAll("[data-appdel]").forEach((el) => { el.onclick = () => { voeuxApp.remove(el.dataset.appdel); transferRefresh(); loadAppVoeux(marker); }; });
 }
 function appVoeuxCard(d, cal) {
   const R = (cal && cal.regles) || {}, n = d.voeux.length;
@@ -6270,9 +6271,10 @@ async function viewVoeuxReo(ids, prof) {
     <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(acadLabel(prof.academie))}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche ou depuis « Je me réoriente » (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux).</p>`;
   if (!ids.length) {
-    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}`;
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}${transferCard()}`;
     $view.dataset.rendered = "voeux:0";
     loadAppVoeux("voeux:0");
+    bindTransfer();                                                     // Codex (PR 18): an apprenticeship-only list travels too
     return;
   }
   const qs = new URLSearchParams({ ids: ids.join(",") });
@@ -6695,18 +6697,32 @@ function transferCard() {
     <p class="small muted" id="tr-msg" aria-live="polite"></p>
     <p class="small muted">Le lien n'est jamais envoyé au serveur : tout se passe après le « # », dans vos navigateurs, et rien n'est enregistré. Vos brouillons de projets motivés restent sur cet appareil.</p></section>`;
 }
+// the transfer link of the lists and profile as they are NOW (Codex, PR 18: a removal on the page must not travel back); a QR code
+// drawn for an older link is removed and can be drawn again
+function transferRefresh() {
+  const url = document.getElementById("tr-url");
+  if (!url) return;
+  const prof = store.get("profile", null);
+  const link = transferLink(voeux.get(), prof && typeof prof === "object" && !Array.isArray(prof) ? prof : null, voeuxApp.get());
+  if (url.value === link) return;
+  url.value = link;
+  const box = document.getElementById("tr-qrbox"), btn = document.getElementById("tr-qr");
+  if (box) box.innerHTML = "";
+  if (btn) btn.disabled = false;
+}
 function bindTransfer() {
   const url = document.getElementById("tr-url"), msg = document.getElementById("tr-msg");
   if (!url) return;
-  const prof = store.get("profile", null);
-  url.value = transferLink(voeux.get(), prof && typeof prof === "object" && !Array.isArray(prof) ? prof : null, voeuxApp.get());
+  transferRefresh();
   document.getElementById("tr-copy").onclick = () => {
+    transferRefresh();                                                  // Codex (PR 18): the lists as they are now
     const done = () => { msg.textContent = "Lien copié : ouvrez-le sur votre autre appareil."; };
     const manual = () => { url.focus(); url.select(); msg.textContent = "Copiez le lien sélectionné."; };
     try { navigator.clipboard.writeText(url.value).then(done, manual); } catch (_) { manual(); }
   };
   const btn = document.getElementById("tr-qr"), box = document.getElementById("tr-qrbox");
   btn.onclick = async () => {
+    transferRefresh();
     btn.disabled = true;
     try {
       await loadQr();
