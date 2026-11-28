@@ -5278,3 +5278,38 @@ computes a salary**: the euro amounts shown are the page's own, inside the quote
 Red team `scripts/redteam_apprentissage_voeux.py` (AV1-AV8): an independent reading of the official table, doctored pages, the
 list re-derived (crafted and 60 real offers), the route, the card in Node (escaping, no zone or rate, the calendar's number or
 « vérifiez », euro amounts only quoted), the store and who reads it, the wiring, and 25 mutants.
+
+## Après le 1er juin (PR 19, owner 2026-11-28)
+
+**Why.** From 1 June, the formations answer the vœux on Parcoursup. Students then need to know what each answer means, when to reply, and what to do without a proposal. The plan of 2026-11-26 cut one idea: printing last year's last-called rank next to a student's real waiting-list position would build a probability.
+
+**What changes.** A new page `#/apres-juin`, in the Calendrier tab, linked from the calendar page and from its « classez » and « phase complémentaire » steps.
+- **The dates:** step 3 of the official calendar, as the calendar page reads it.
+- **The calendar's own sentences, quoted word for word:**
+  - « Consultez dans votre dossier… (Oui ou Oui-si) »;
+  - « Faites votre choix : vous devez répondre dans les délais… »;
+  - « Entre le … inclus : classez vos vœux en attente. »
+  - Each sentence is matched WHOLE by a fixed rule in `calendrier.REGLES`, and only when every version of the PDF prints it; otherwise it is not shown.
+  - The number of new vœux in the complementary phase is read the same way, else « vérifiez sur parcoursup.gouv.fr ».
+- **What each answer means:** quoted from service-public.gouv.fr « Première inscription » (F2861), fetched by the `suptracker-aides` workflow. Until the page is read, the card says so and links the official page; it never writes the meanings itself.
+- **Your vœux:** each vœu's name and a link to its own page (how far its list was called), plus « Comprendre l'appel ». There is no depth beside the list, no input field, and never a rank asked.
+- **Phase complémentaire:**
+  - First, the official live list on Parcoursup, from the date the calendar prints.
+  - Then, to prepare, the formations that admitted candidates in the complementary phase in the latest campaign. The link opens the search page with that filter.
+  - Then how often that repeats, measured on the two latest campaigns: 73.6 % (4,479 of 6,087) of those that admitted some in 2024 did again in 2025, against 19.1 % (1,423 of 7,453) of the others.
+  - These are labelled « estimation », with their counts, and « pas des places cette année ».
+- **Routes:**
+  - `/api/apres-juin` takes no parameter and is shared-cached.
+  - `/api/apres-juin/voeux?ids=` reads the list's codes only: no-store, no audience event.
+
+**Red team** `scripts/redteam_apresjuin.py` (AJ1-AJ8), run by `tests/test_apresjuin.py`:
+- **AJ1:** an independent reading of every PDF version, plus doctored versions.
+- **AJ2:** the repeat counted with Python sets, on crafted rows and on the real data.
+- **AJ3:** the routes.
+- **AJ4:** the page rendered in Node: escaping, quotes shown only when read, no typed number, no rank asked.
+- **AJ5:** wiring.
+- **AJ6:** plain words.
+- **AJ7:** the official answers.
+- **AJ8:** mutation test.
+
+**PR 20 (owner, 2026-11-28): option A.** The « Robustesse 2035 » tile stays in L'essentiel as it is; no code change. RF12 keeps guarding it.

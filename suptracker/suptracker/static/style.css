@@ -1149,3 +1149,10 @@ main { min-height: 100vh; }   /* a page still loading keeps the footer below the
 .app-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
 .app-grille ul { margin: 4px 0 0; padding-left: 18px; }
 .app-grille li + li { margin-top: 4px; }
+/* PR 19 « Après le 1er juin »: official sentences quoted, the answers as a definition list */
+.quote { margin: 8px 0; padding: 6px 12px; border-left: var(--bw) solid var(--edge); }
+.aj-rep { margin: 0; display: grid; gap: 12px; }
+.aj-rep dt { font-weight: 700; }
+.aj-rep dd { margin: 4px 0 0; }
+.aj-rep dd p { margin: 0 0 6px; }
+.aj-voeux { padding-left: 18px; display: grid; gap: 10px; }
