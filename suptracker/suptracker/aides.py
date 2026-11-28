@@ -326,7 +326,10 @@ def r_reponses(text: str, links: list) -> dict | None:
         i += 1
     if not ensuite or not ensuite[0].startswith("Après avoir accepté la proposition d'admission"):
         return None
-    return {"titre": "Première inscription dans l'enseignement supérieur", "etape": REPONSES_HEAD, "intro": _clean(L[intro]),
+    titre = re.match(r"^(.+?) \| Service Public$", L[0]) if L else None           # the page's own title, never typed
+    if not titre:
+        return None
+    return {"titre": titre.group(1), "etape": REPONSES_HEAD, "intro": _clean(L[intro]),
             "reponses": reponses, "situations": situations, "inscription": {"titre": REPONSES_NEXT, "texte": ensuite},
             "verifie": _verifie(text), "source": PAGES["reponses"]}
 

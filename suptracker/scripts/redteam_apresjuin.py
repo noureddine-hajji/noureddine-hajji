@@ -504,6 +504,8 @@ def aj7(c: Ctx):
         return False, f"unread: rule {bool(got)}, own {bool(mine)}"
     if got["reponses"] != mine["reponses"] or got["situations"] != mine["situations"] or got["inscription"]["texte"] != mine["ensuite"]:
         bad.append(("rule != own reading", got["reponses"], mine["reponses"]))
+    if got["titre"] != text.split("\n", 1)[0].rsplit(" | Service Public", 1)[0]:
+        bad.append(("title is not the page's own", got["titre"]))
     if got["verifie"] != mine["verifie"] or got["source"] != "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861":
         bad.append(("verified date or source", got["verifie"], got["source"]))
     for x in got["reponses"] + got["situations"] + got["inscription"]["texte"] + [got["intro"]]:
@@ -536,6 +538,7 @@ MUTANTS = [
     ("aides", "AJ7", "a fourth answer accepted", "if (len(reponses) != 3 or", "if (len(reponses) not in (3, 4) or"),
     ("aides", "AJ7", "the commission check dropped", """            or not any("commission d'accès à l'enseignement supérieur" in x for x in situations)):""", "            ):"),
     ("aides", "AJ7", "the 3e étape not checked", "    if i >= len(L) or L[i] != REPONSES_NEXT:\n        return None", "    if i >= len(L):\n        return None"),
+    ("aides", "AJ7", "a typed title", '"titre": titre.group(1),', '"titre": "Première inscription",'),
     ("aides", "AJ7", "the source not the page", '"verifie": _verifie(text), "source": PAGES["reponses"]}', '"verifie": _verifie(text), "source": PAGES["apprenti"]}'),
     ("js", "AJ4", "a quote shown without its rule", 'g.repondre_delais ? "Faites votre choix', 'true ? "Faites votre choix'),
     ("js", "AJ4", "a typed number of complementary vœux", '" Le nombre de nouveaux vœux possibles est sur parcoursup.gouv.fr."', '" Vous pouvez y formuler jusqu\'à 10 nouveaux vœux."'),
