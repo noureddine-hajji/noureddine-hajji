@@ -149,7 +149,7 @@ def rp1(c: Ctx):
 # ---------------------------------------------------------------- RP2
 CARD_PROG = r"""
 var STORE = {}; const store = { get: (k, x) => (k in STORE ? STORE[k] : x) }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const appVoeuButton = (c) => `<button type="button" class="small" data-appvoeu="${c}">Ajouter à mes vœux en apprentissage</button>`; const ICONS = { places: '<svg class="ico" aria-hidden="true"></svg>' };
 const pct1 = (x) => (x === null || x === undefined ? "—" : String(x).replace(".", ",") + " %"); const basket = { get: () => [] };
 const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null; const rpLabel = (x) => x;
 const H = "<img src=x onerror=alert(1)>";

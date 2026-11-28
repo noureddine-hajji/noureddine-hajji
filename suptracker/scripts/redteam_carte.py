@@ -361,7 +361,7 @@ def c6(c: Ctx):
     z = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (z.group(0) if z else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const appVoeuButton = (c) => `<button type="button" class="small" data-appvoeu="${c}">Ajouter à mes vœux en apprentissage</button>`; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const zs = ["securite", "cible", "ambitieux", null].map((zone) => ({ ...f, zone }));
@@ -556,7 +556,7 @@ def c9(c: Ctx):
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const appVoeuButton = (c) => `<button type="button" class="small" data-appvoeu="${c}">Ajouter à mes vœux en apprentissage</button>`; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const fs = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -570,7 +570,8 @@ process.stdout.write(JSON.stringify(fs.map((f) => ({ d: carteCard(f, CTX, true),
     if isinstance(o, dict):
         return False, o["error"]
     flat = json.dumps(o)
-    page = {"raw tag": "<img" in flat or "<b>" in flat, "vœu button": "data-voeu" in flat or "mes vœux" in flat.lower(),
+    page = {"raw tag": "<img" in flat or "<b>" in flat, "vœu button": 'data-voeu="' in flat or "ajouter à mes vœux<" in flat.lower(),
+            "no apprenticeship vœu button (PR 18)": 'data-appvoeu="' not in o[0]["d"],
             "zone pill": "zone-pill" in flat or "zbadge" in flat, "internal page link": "#/f/" in flat,
             "note": "Aucune statistique d'admission n'est publiée pour les formations en apprentissage" not in __import__("html").unescape(o[0]["d"]),
             "Parcoursup link": 'href="https://dossierappel.parcoursup.fr/' not in o[0]["d"] or 'rel="noopener noreferrer"' not in o[0]["d"],
@@ -612,7 +613,7 @@ def c10(c: Ctx):
     zz = re.search(r"const ZONES = \{.*?\n\};", c.js, re.S)
     prog = helpers + "\n" + (zz.group(0) if zz else "") + "\n" + zone_shape(c.js) + """
 const store = { get: () => null }; const narrow = () => false; const searchPage = () => 40; const cartePage = () => 40;
-const voeux = { has: () => false, get: () => [], MAX: 10 }; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
+const voeux = { has: () => false, get: () => [], MAX: 10 }; const appVoeuButton = (c) => `<button type="button" class="small" data-appvoeu="${c}">Ajouter à mes vœux en apprentissage</button>`; const ICONS = { places: "" }; const pct1 = (x) => String(x); const basket = { get: () => [] }; const recoBadge = () => ""; const tensionBadge = () => ""; const absBadge = () => ""; var RECO = null;
 const CTX = { ok: false, prof: {}, serie: "bg", chiffres: new Map(), lec: {}, band: "b", g: null, session: 2025 };
 """ + block(c.js, "function voeuButton(cod, primary) {", "\nfunction bindVoeuButton(") + "\n" + block(c.js, "function dblFigure(v) {", "\nfunction vxVoieCell(") + "\n" + js + """
 const [f] = JSON.parse(require('fs').readFileSync(0, 'utf8'));
