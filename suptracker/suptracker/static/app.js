@@ -4595,6 +4595,13 @@ function moyenneCard(r) {
     <p class="muted small">Les points sont publiés (part des admis avec chaque mention ou moins) ; entre deux points, les notes ne sont pas publiées et les deux courbes donnent la fourchette. Tous bacs confondus : les mentions ne sont pas publiées par série. Des repères, pas des chances d'admission.</p></div>`;
 }
 // R5: the range of the two within-band hypotheses (all bacs: mentions are not published by series), said as an estimation
+// R5: the range of the two within-band hypotheses (all bacs: mentions are not published by series), said as an estimation.
+// « Où je me situe » prints it under the bac général cell (PR 11 removed it with Mes vœux's column; red team OU7 since)
+function moyRange(pos) {
+  if (!pos) return "";
+  const a = Math.min(pos.normale, pos.uniforme), b = Math.max(pos.normale, pos.uniforme);
+  return estimTag(`dans la mention : ${Math.abs(b - a) < 0.005 ? pc1(a) : `${pc1(a)} – ${pc1(b)}`} (tous bacs)`, true);
+}
 function bgCell(f) {
   if (!f.spos) {
     return `${pc1(f.cdf)}<div class="muted small">tous bacs · [${pc1(f.cdf_ci[0])} ; ${pc1(f.cdf_ci[1])}] · n=${fmt(f.n_known)}</div>`;

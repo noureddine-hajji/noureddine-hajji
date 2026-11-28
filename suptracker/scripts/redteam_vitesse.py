@@ -18,7 +18,7 @@
   VT5 the memoised calling-group reading equals the unmemoised one for every published label x series x doublette, and the
       memoised fold equals the plain fold
   VT6 browser (--browser / --real), a mid-range phone (Pixel 5, CPU x4 slower, slow 4G): the map's list and its zones within
-      the budget, at most 5 map requests, no JS error; the home and a formation page show their heading within budget;
+      the budget, at most 5 map requests (+ the absent-formations list once, lot 1 PR 12), no JS error; the home and a formation page show their heading within budget;
       « Où je me situe » shows its filières, the jobs search its results and a job page its diplomas within budget
   VT7 docs: README section and CLAUDE.md rule
   VT8 mutation test of VT1-VT5, VT7 and VT9-VT11 (mutants built in memory)
@@ -356,8 +356,10 @@ def vt6(c: Ctx):
     finally:
         srv.terminate()
     over = [k for k, v in PHONE_BUDGET_MS.items() if res.get(k) is None or res[k] > v]
-    ok = not over and not res.get("errors") and res.get("map_requests", 99) <= 5 and res.get("voeux_requests") == 1
-    return ok, (f"phone ms {({k: res.get(k) for k in PHONE_BUDGET_MS})} (budget {PHONE_BUDGET_MS}); map requests {res.get('map_requests')}; "
+    ok = (not over and not res.get("errors") and res.get("map_requests", 99) <= 5 and res.get("absentes_requests", 99) <= 1
+          and res.get("voeux_requests") == 1)
+    return ok, (f"phone ms {({k: res.get(k) for k in PHONE_BUDGET_MS})} (budget {PHONE_BUDGET_MS}); map requests {res.get('map_requests')} "
+                f"(+ absentes {res.get('absentes_requests')}); "
                 f"Mes vœux requests {res.get('voeux_requests')}; errors {res.get('errors')}")
 
 
@@ -376,7 +378,8 @@ const { chromium, devices } = require('playwright');
     return { ctx, p };
   };
   let { ctx, p } = await page(true);
-  let mapReq = 0; p.on('request', (r) => { if (/\/api\/carte/.test(r.url())) mapReq++; });
+  // the list of formations absent from the latest map (lot 1 PR 12, no parameter, public cache) is counted apart: once at most
+  let mapReq = 0, absReq = 0; p.on('request', (r) => { if (/\/api\/carte\/absentes/.test(r.url())) absReq++; else if (/\/api\/carte/.test(r.url())) mapReq++; });
   let t0 = Date.now();
   await p.goto('http://127.0.0.1:__PORT__/#/carte');
   await p.waitForFunction(() => document.querySelector('#carte-items [data-pick]'), null, { timeout: 60000 }).catch(() => {});
@@ -384,7 +387,7 @@ const { chromium, devices } = require('playwright');
   await p.waitForFunction(() => { const l = document.getElementById('carte-legend'); return l && !/chargement/.test(l.textContent) && /\d/.test(l.textContent); }, null, { timeout: 60000 }).catch(() => {});
   out.zones = Date.now() - t0;
   await p.waitForTimeout(3000);
-  out.map_requests = mapReq;
+  out.map_requests = mapReq; out.absentes_requests = absReq;
   // sprint Vitesse: a keyword, then a ticked filter, each until the list has changed (the page must answer at once)
   const first = () => p.$eval('#carte-items [data-pick]', (e) => e.getAttribute('data-pick')).catch(() => null);
   let f0 = await first(); t0 = Date.now();

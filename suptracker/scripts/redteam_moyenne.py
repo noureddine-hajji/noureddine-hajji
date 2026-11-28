@@ -22,7 +22,8 @@
   MO6 wiring and wording: no query sends the raw stored mention; the map asks zones for every band (the "sm" bug); calibration
       keeps only the access-rate range with an average; method, glossary, README, CLAUDE.md
   MO7 browser (--browser / --real): set an average in "Mon profil", then "Où je me situe", "Mes vœux", a formation page and the
-      map with a sans-mention profile: no JS error, the stored profile, the card, zones on the map
+      map with a sans-mention profile: no JS error, the stored profile, the card, zones on the map; « Où je me situe » opens a
+      filière's positioning table with the average's range under the bac général figure (live crash of 2026-11-28)
   MO8 mutation test of MO1-MO6 (mutants built in memory)
 """
 from __future__ import annotations
@@ -580,7 +581,13 @@ const base = process.argv[2], cod = process.argv[3];
   o.stored = await p.evaluate(() => JSON.parse(localStorage.getItem("profile")));
   o.disabled = await p.$eval('#pf [name="mention"]', (s) => s.disabled);
   await p.goto(base + "/#/voeux"); await p.waitForTimeout(3500);
-  o.voeux = await p.evaluate(() => /estimation\S{0,2} · dans la mention : /.test(document.body.innerText));   // Q4: estimTag adds its "i" button
+  // lot 1 PR 11: Mes vœux's column reads « Admis sous votre moyenne », the figure labelled by estimTag (« … moyenne plus basse que la vôtre »)
+  o.voeux = await p.evaluate(() => { const h = document.getElementById("view").innerHTML; return /Admis sous votre moyenne/.test(h) && /moyenne plus basse que la vôtre/.test(h); });
+  // « Où je me situe » down to the positioning table (2026-11-28: « moyRange is not defined » there on the live phone page)
+  await p.goto(base + "/#/parcours"); await p.waitForTimeout(3500);
+  const drill = await p.$("#view [data-type]");
+  if (drill) { await drill.click(); await p.waitForTimeout(4000); }
+  o.parcours = await p.evaluate(() => { const c = document.getElementById("stage3"); return c ? { rows: c.querySelectorAll("tr").length, range: /dans la mention : /.test(c.innerText) } : null; });
   await p.goto(base + "/#/f/" + cod); await p.waitForTimeout(3500);
   await p.evaluate(() => document.querySelectorAll("details.more-card").forEach((d) => (d.open = true)));
   o.card = await p.evaluate(() => [...document.querySelectorAll("h2")].some((h) => h.textContent.startsWith("Votre moyenne parmi les admis")));
@@ -628,6 +635,8 @@ def mo7(c: Ctx):
         bad.append(("stored", o["stored"], o["disabled"]))
     if not o["voeux"] or not o["card"]:
         bad.append(("Mes vœux or the formation card", o["voeux"], o["card"]))
+    if not o.get("parcours") or o["parcours"]["rows"] < 2 or not o["parcours"]["range"]:
+        bad.append(("« Où je me situe »: no positioning table with the average's range", o.get("parcours")))
     if not o["mapZones"] or "mention_bac=sansmention" not in o["mapZones"][0]:
         bad.append(("the map asks no zone for a sans-mention profile", o["mapZones"][:1]))
     return not bad, f"{o}; problems {bad[:3]}"

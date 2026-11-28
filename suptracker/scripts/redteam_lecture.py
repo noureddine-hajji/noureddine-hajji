@@ -686,7 +686,8 @@ const base = process.argv[2], cod = process.argv[3];
   await ctx.addInitScript((c) => { localStorage.setItem("profile", JSON.stringify({ serie: "bg", spe1: "MATHS", spe2: "SES", mention: "ab", moyenne: 12.6, statut: "terminale" })); localStorage.setItem("voeux", JSON.stringify([c])); }, cod);
   const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(e.message)); p.on("request", (r) => { if (r.url().includes("/api/")) reqs.push(r.url()); });
   await p.goto(base + "/#/voeux"); await p.waitForTimeout(4000);
-  o.voeux = await p.evaluate(() => /sous votre moyenne \(estimation\)/i.test(document.getElementById("view").innerHTML));   // phone: the stacked table's head is hidden
+  // phone: the stacked table's head is hidden, the cells' data-label carry it; lot 1 PR 11 dropped « (estimation) » from the head, estimTag says it
+  o.voeux = await p.evaluate(() => { const h = document.getElementById("view").innerHTML; return /Admis sous votre moyenne/.test(h) && /moyenne plus basse que la vôtre/.test(h); });
   await p.goto(base + "/#/f/" + cod); await p.waitForTimeout(4000);
   o.tile = await p.evaluate(() => !!document.querySelector(".zbadge, .zone-pill, [data-zone]"));
   await p.goto(base + "/#/carte/BTS"); await p.waitForTimeout(5000);

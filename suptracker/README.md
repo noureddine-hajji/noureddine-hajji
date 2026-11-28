@@ -4974,13 +4974,18 @@ The fee rules are in red team V3/V4/V6 (`redteam_vie.py`), the travel ranges in 
   - Replayed on audit PR 8's first commit (`--base 6486067 --head acb3e8b --readers-at 6486067`), it names all ten red teams that broke in CI, seven of them « certain ».
   - Before every push: `python scripts/blast.py --run --certain`, then the « possible » ones that look relevant.
 
-**Red team** `scripts/redteam_outillage.py` (OU1-OU6), run by `tests/test_outillage.py`:
+**Red team** `scripts/redteam_outillage.py` (OU1-OU7), run by `tests/test_outillage.py`:
 - **OU1:** `nodefile` behaves exactly like `node -e`, and runs a 300 KiB program that `-e` refuses.
 - **OU2:** no script calls `node -e` directly any more.
 - **OU3:** checks the tiers on a crafted git repository.
 - **OU4:** replays audit PR 8.
 - **OU5:** 12 seeded bugs, each caught.
 - **OU6:** wiring.
+- **OU7 (2026-11-28):** every camelCase function that `app.js` and `stats.js` call must be declared in them, or be a browser global.
+  - PR 11 removed `moyRange` while « Où je me situe » still called it, so the live phone page showed « moyRange is not defined ».
+  - CI has no browser, so OU7 reads the code instead of running it.
+  - Its 3 seeded bugs are each caught: a removed declaration, an unknown name called inside a template, a name kept only as an object key.
+  - The helper is back: under the bac général figure, the page again shows the range between the two estimates of where an average falls within its mention band, marked « estimation ».
 
 ## Plain words, the testers' list (lot 1, PR 10, 2026-11-26)
 
