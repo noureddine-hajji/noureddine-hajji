@@ -124,6 +124,45 @@ const voeux = {
   render() { const n = this.get().length; document.querySelectorAll('[data-count="voeux"]').forEach((el) => { el.textContent = n; el.hidden = n === 0 && !!el.closest(".tabbar"); }); profileBar.render(); },
 };
 
+// ---- PR 18 (owner, 2026-11-28): « Mes vœux en apprentissage », a SEPARATE list in this browser (codes only) ----
+// The apprenticeship offers of the latest map publish no admission statistics: no zone, no rate, never counted among the main
+// list's zones, never a safety. Same cleaning as the main list; its own cap (Parcoursup: « 10 vœux supplémentaires pour des
+// formations en apprentissage », the official calendar's sentence, printed by the page). Not counted by the audience measure.
+const voeuxApp = {
+  MAX: 10,
+  get() {
+    let v;
+    try { v = JSON.parse(localStorage.getItem("voeuxApp")); } catch (_) { v = null; }
+    if (!Array.isArray(v)) v = [];
+    return [...new Set(v.filter((c) => typeof c === "string" && /^\d{1,9}$/.test(c)))].slice(0, this.MAX);
+  },
+  set(v) { try { localStorage.setItem("voeuxApp", JSON.stringify(v)); } catch (_) { /* storage blocked */ } },
+  has(cod) { return this.get().includes(cod); },
+  add(cod) { const v = this.get(); if (!v.includes(cod) && v.length < this.MAX) { v.push(cod); this.set(v); } return v.includes(cod); },
+  remove(cod) { this.set(this.get().filter((c) => c !== cod)); },
+};
+function appVoeuLabel(cod) {
+  const inV = voeuxApp.has(cod), full = !inV && voeuxApp.get().length >= voeuxApp.MAX;
+  return { inV, full, text: inV ? "Retirer de mes vœux en apprentissage" : full ? "Vœux en apprentissage : liste pleine" : "Ajouter à mes vœux en apprentissage" };
+}
+function appVoeuButton(cod) {
+  const l = appVoeuLabel(cod);
+  return `<button type="button" class="small" data-appvoeu="${esc(cod)}" aria-pressed="${l.inV}"${l.full ? ` disabled title="${voeuxApp.MAX} vœux en apprentissage au maximum dans cette liste"` : ""}>${l.text}</button>`;
+}
+// one delegated handler: the button lives in cards drawn by several pages (search, map, formation page)
+document.addEventListener("click", (e) => {
+  const b = e.target && e.target.closest ? e.target.closest("[data-appvoeu]") : null;
+  if (!b || b.disabled) return;
+  const cod = b.dataset.appvoeu;
+  if (!/^\d{1,9}$/.test(cod || "")) return;
+  voeuxApp.has(cod) ? voeuxApp.remove(cod) : voeuxApp.add(cod);
+  document.querySelectorAll("[data-appvoeu]").forEach((x) => {
+    const l = appVoeuLabel(x.dataset.appvoeu);
+    x.textContent = l.text; x.setAttribute("aria-pressed", String(l.inV)); x.disabled = l.full;
+    if (l.full) x.title = `${voeuxApp.MAX} vœux en apprentissage au maximum dans cette liste`; else x.removeAttribute("title");
+  });
+});
+
 // ---- point 4 of the UI brief: the profile and the zones of "Mes vœux", at the top of every page ----
 // The stored profile is never trusted: the same cleaning as "Mes vœux". vxQuery is the ONE query both send, so the bar and
 // the page always count the same zones (red team P2). Counts only, never a chance.
@@ -1771,7 +1810,7 @@ const appParcours = (o) => (o && Array.isArray(o.parcours) && o.parcours.length
 function appOffers(list) {
   if (!list || !list.length) return "";
   return `<div class="small"><strong>Aussi en apprentissage</strong> <span class="muted">(pas de statistiques d'admission publiées pour cette voie)</span><ul class="offer-list">${list.map((o) => { const url = carteFiche(o);
-    return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul></div>`;
+    return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fiche Parcoursup ↗</a>` : ""}${/^\d{1,9}$/.test(o.cod_aff_form || "") ? ` ${appVoeuButton(o.cod_aff_form)}` : ""}</li>`; }).join("")}</ul></div>`;
 }
 // R9 (owner, 2026-11-12): three figures per formation, always in the same place: the OFFICIAL access rate; the figure for the
 // student's doublette (or bac techno / pro line), the one Mes vœux and the formation page show (voeux.figures, read per page of
@@ -1904,7 +1943,7 @@ function carteCard(f, ctx, pinned) {
     ${carteMore(f, ctx.reo)}
     ${carteFigures(f, { ...ctx, compact: true })}
     ${robCardLine(f.cod_aff_form)}`}
-    <div class="toolbar ctools">${f.stats === false ? "" : `${voeuButton(f.cod_aff_form)}${compareButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Fiche →</a>`}${pinned ? '<button type="button" class="btn-sec" data-unpin>Fermer</button>' : ""}</div>
+    <div class="toolbar ctools">${f.stats === false ? appVoeuButton(f.cod_aff_form) : `${voeuButton(f.cod_aff_form)}${compareButton(f.cod_aff_form)}<a href="#/f/${esc(f.cod_aff_form)}">Fiche →</a>`}${pinned ? '<button type="button" class="btn-sec" data-unpin>Fermer</button>' : ""}</div>
   </div>`;
 }
 // the two robustesse repères on a result card, in words, apart from the zone and the rates (never one mark); nothing when unknown
@@ -3297,15 +3336,30 @@ function apprentiCard(a) {
   if (!a || !a.propose) return "";
   const offres = (a.offres || []).length ? `<p class="small">${a.offres.length > 1 ? "Ces établissements la proposent" : "Cet établissement la propose"} en apprentissage (pas de statistiques d'admission publiées pour cette voie) :</p>
     <ul class="small">${a.offres.map((o) => { const url = carteFiche(o);
-      return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}</li>`; }).join("")}</ul>` : "";
+      return `<li>${esc(o.etablissement)}${o.ville ? ` · ${esc(o.ville)}` : ""}${appParcours(o) ? ` · ${appParcours(o)}` : ""}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">sa fiche Parcoursup ↗</a>` : ""}${/^\d{1,9}$/.test(o.cod_aff_form || "") ? ` ${appVoeuButton(o.cod_aff_form)}` : ""}</li>`; }).join("")}</ul>` : "";
   return `<div class="card app-card" id="app-card"><h2>Et en apprentissage ?</h2>
     <ul class="small">
       <li><strong>Pas de frais de formation</strong> : la formation d'un apprenti est gratuite pour lui (Code du travail, article L6211-1).</li>
       <li><strong>Un salaire</strong> : un pourcentage du Smic qui dépend de votre âge et de l'année de formation. <a href="${esc(a.liens.salaire)}" target="_blank" rel="noopener">Calculer votre salaire d'apprenti ↗</a></li>
       <li><strong>Il faut un employeur</strong> : on signe un contrat d'apprentissage avec une entreprise, puis on alterne cours et travail. <a href="${esc(a.liens.entreprises)}" target="_blank" rel="noopener">Trouver une entreprise qui recrute des apprentis (La bonne alternance) ↗</a></li>
-    </ul>
+    </ul>${appOfficiel(a.officiel, false)}
     ${a.sies_apprentissage ? '<p class="small">Cette formation est elle-même proposée en apprentissage.</p>' : ""}${offres}
     <p class="muted small">Pour en savoir plus sur le salaire et les droits de l'apprenti : <a href="${esc(a.liens.guide)}" target="_blank" rel="noopener">guide officiel de La bonne alternance ↗</a>. Une formation en apprentissage a sa propre fiche Parcoursup : vérifiez-la.</p></div>`;
+}
+// PR 18 (owner, 2026-11-28): the contract and the minimum pay AS service-public.gouv.fr PRINTS THEM (aides.r_apprenti): the
+// page's own sentences and table cells, its « Vérifié le » date and links. A quote, never a salary computed for the student.
+const SP_HOST = /^https:\/\/www\.service-public\.gouv\.fr\//;
+function appOfficiel(o, open) {
+  if (!o || !Array.isArray(o.ages) || !Array.isArray(o.annees) || !SP_HOST.test(o.source || "")) return "";
+  const link = (u, t) => (SP_HOST.test(u || "") ? ` <a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>` : "");
+  const years = o.annees.map((r) => `<div class="app-annee"><p class="small"><strong>${esc(r.annee)}</strong></p><ul class="small">${r.cellules.map((c, j) => `<li><strong>${esc(o.ages[j] || "")}</strong> : ${c.map((x) => esc(x)).join("<br>")}</li>`).join("")}</ul></div>`).join("");
+  return `<details class="app-officiel"${open ? " open" : ""}><summary>Le contrat et le salaire minimum, d'après service-public.gouv.fr</summary>
+    <div class="grille-officielle">
+    ${(o.contrat || []).map((x) => `<p class="small">« ${esc(x)} »</p>`).join("")}
+    <p class="small"><strong>${esc(o.titre)}</strong>, selon l'âge de l'apprenti et l'année du contrat :</p>
+    <div class="app-grille">${years}</div>
+    ${(o.notes || []).map((x) => `<p class="small">« ${esc(x)} »</p>`).join("")}
+    <p class="muted small">Citation de la page officielle${o.verifie ? `, vérifiée le ${esc(o.verifie)} par service-public.gouv.fr` : ""} :${link(o.source, "Contrat d'apprentissage")}. Ce sont des minimums bruts publiés : SupCompass ne calcule pas votre salaire.${link(o.simulateur, "Estimer le salaire d'un apprenti")}${link(o.entreprises, "Trouver une entreprise qui recrute en alternance")}</p></div></details>`;
 }
 function apprentiInsertionCard(a) {
   const n = a && a.national;
@@ -5002,8 +5056,10 @@ async function viewVoeux() {
     <p class="small">Lue pour votre profil actuel : ${who}. <a href="#/profil">Modifier dans « Mon profil »</a></p><p class="small no-print"><a href="#/guide">Construire ma liste : les 5 étapes</a> · <a href="#/projet">Préparer mes projets de formation motivés</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche, « Où je me situe » ou un plan B (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux). Sur Parcoursup, les vœux ne sont pas classés : l'ordre de votre liste ne compte pas.</p>`;
   if (!ids.length) {
-    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}${transferCard()}`;
     $view.dataset.rendered = "voeux:0";
+    loadAppVoeux("voeux:0");
+    bindTransfer();                                                     // Codex (PR 18): an apprenticeship-only list travels too
     return;
   }
   const qs = vxQuery(ids, prof);                                        // the profile bar sends the same query
@@ -5045,7 +5101,7 @@ async function viewVoeux() {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th>Zone pour votre profil</th><th class="num">Taux d'accès officiel ${d.session}</th><th class="num">${posHead}</th><th class="num">Places ${d.session}</th>${serie === "bg" ? '<th class="num">Vos deux spécialités (cette formation)</th>' : '<th class="num">Pour votre bac (cette formation)</th>'}<th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">Parts d'admis des campagnes 2022–2025, pas des chances d'admission. Taux d'accès officiel de la dernière campagne, tous candidats. Vérifiez chaque fiche Parcoursup.${serie === "bg" ? " Vos deux spécialités : le rapport public de la formation quand il les détaille ; sinon une estimation (son taux des bacheliers généraux × l'écart de vos deux spécialités dans les rapports des formations semblables, ou à défaut dans son groupe au niveau national)." : " Pour votre bac : la part des candidats de votre série et spécialités (ou de votre spécialité de bac pro) ayant confirmé ce vœu qui ont été classés assez haut pour recevoir une proposition, d'après le rapport public de la formation (seuls les candidats scolarisés en terminale en France y figurent) ; sans rapport, une estimation : le taux d'accès officiel × le taux de proposition de votre série / celui de tous les candidats. Jamais les deux à la fois."}</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${transferCard()}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie les codes des formations et votre profil, comme « Où je me situe », sauf votre moyenne : elle reste dans ce navigateur, qui la place lui-même dans votre mention ; rien n'en est enregistré sur le serveur. Le site compte seulement, sans savoir de quelle formation il s'agit, qu'un vœu a été ajouté (mesure d'audience anonyme, désactivée si votre navigateur demande de ne pas être suivi).</p>${howto}</div>${APP_SECTION}<section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux, (v) => (v.status === "ok" ? zoneBadge(v.zone, v.uncertain, v.large) : "—"))}${shareCard(ids, !!store.get("profile", null))}${transferCard()}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   if (L.messages.some((m) => m.code === "aucune_securite")) {
     // audit PR 5: right under the « aucune sécurité » alert (it was below the whole list, out of sight on a phone)
     $view.querySelector("section.summary").insertAdjacentHTML("afterend", '<section class="card" id="vx-completer" aria-live="polite"><p class="muted small">Recherche de vœux de sécurité dans les filières de votre liste…</p></section>');
@@ -5054,6 +5110,7 @@ async function viewVoeux() {
   loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status !== "absente").map((v) => [v.cod_aff_form, v.etablissement])),
     securite: L.messages.some((m) => m.code === "aucune_securite") ? "aucune" : "ok" });
   loadJpoListe(ids, marker);
+  loadAppVoeux(marker);                                                 // PR 18: the separate apprenticeship list
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
   bindTransfer();                                                       // PR 17: the same person, on another device
@@ -5075,6 +5132,56 @@ async function viewVoeux() {
       } });
     };
   });
+}
+
+// ---- PR 18 (owner, 2026-11-28): « Mes vœux en apprentissage » ----
+// The separate list (voeuxApp) read by /api/apprentissage/voeux (codes only, no-store, no event): each offer with its Parcoursup
+// page and the initial formation of the same establishment, NO zone and NO rate (none is published), never a safety; Parcoursup's
+// own rules from the official calendar (« 10 vœux supplémentaires », still possible after the last day), the contract and the
+// minimum pay quoted from service-public.gouv.fr.
+const APP_SECTION = '<section class="card" id="vx-app" aria-live="polite"></section>';
+async function loadAppVoeux(marker) {
+  const box = () => document.getElementById("vx-app");
+  const ids = voeuxApp.get();
+  if (!box()) return;
+  if (!ids.length) {
+    box().innerHTML = `<h2>Mes vœux en apprentissage</h2><p class="muted small">Aucune formation en apprentissage dans cette liste à part. Ajoutez-en depuis la recherche (filtre « Apprentissage ») ou depuis la carte « Et en apprentissage ? » d'une fiche formation.</p>`;
+    return;
+  }
+  box().innerHTML = '<h2>Mes vœux en apprentissage</h2><p class="muted small">Lecture de vos vœux en apprentissage…</p>';
+  let d, cal;
+  try {
+    [d, cal] = await Promise.all([api(`/api/apprentissage/voeux?${new URLSearchParams({ ids: ids.join(",") })}`), api("/api/calendrier").catch(() => null)]);
+  } catch (e) {
+    if ($view.dataset.rendered === marker && box()) box().innerHTML = `<h2>Mes vœux en apprentissage</h2><div class="warn">${esc(e.message)}</div>`;
+    return;
+  }
+  if ($view.dataset.rendered !== marker || !box()) return;              // the student left meanwhile
+  box().innerHTML = appVoeuxCard(d, cal);
+  box().querySelectorAll("[data-appdel]").forEach((el) => { el.onclick = () => { voeuxApp.remove(el.dataset.appdel); transferRefresh(); loadAppVoeux(marker); }; });
+}
+function appVoeuxCard(d, cal) {
+  const R = (cal && cal.regles) || {}, n = d.voeux.length;
+  const max = Number.isInteger(R.apprentissage_max) ? R.apprentissage_max : null;
+  const fin = listeDate(cal, "fin_voeux");
+  const rule = max !== null ? `Le calendrier officiel le dit : en plus de vos vœux, « il est également possible d'ajouter ${fmt(max)} vœux supplémentaires pour des formations en apprentissage ».${R.apprentissage_apres ? ` Pour ces formations, vous pouvez encore formuler des vœux après le dernier jour des autres vœux${fin ? ` (${esc(frDate(fin))})` : ""}.` : ""}`
+    : "Le nombre de vœux en apprentissage permis par Parcoursup n'a pas pu être lu : vérifiez-le sur parcoursup.gouv.fr.";
+  const rows = d.voeux.map((v) => {
+    if (v.status !== "ok") return `<tr><td data-label="Formation"><span class="muted">Formation ${esc(v.cod_aff_form)} absente de la carte des formations ${esc(d.carte_session || "")} : vérifiez sur Parcoursup qu'elle existe toujours.</span></td><td data-label="Même formation sans apprentissage">—</td><td class="acts"><button type="button" class="small" data-appdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
+    const url = carteFiche(v), km = kmFromHome(v.lat, v.lon);
+    const ini = (v.rattachee || []).filter((x) => /^\d{1,9}$/.test(x.cod_aff_form || ""));
+    return `<tr><td data-label="Formation">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(v.etablissement)} ↗</a>` : esc(v.etablissement)}
+        <div class="muted small">${esc(v.formation)}${appParcours(v) ? ` · ${appParcours(v)}` : ""} · ${esc(v.ville)}${v.academie ? ` (${esc(acadLabel(v.academie))})` : ""}${km ? ` · ${esc(km)}` : ""}</div><span class="badge">en apprentissage</span></td>
+      <td data-label="Même formation sans apprentissage">${ini.length ? ini.map((x) => `<a href="#/f/${esc(x.cod_aff_form)}">${esc(x.etablissement || x.formation || "Fiche de la formation")}</a>`).join("<br>") : '<span class="muted small">Aucune ici</span>'}</td>
+      <td class="acts"><button type="button" class="small" data-appdel="${esc(v.cod_aff_form)}">retirer</button></td></tr>`;
+  }).join("");
+  return `<h2>Mes vœux en apprentissage (${fmt(n)})</h2>
+    <p class="small">${rule}</p>
+    <p class="small">Ces offres ne publient aucune statistique d'admission. Elles n'ont donc ni zone ni taux, et ne comptent jamais comme vœu de sécurité dans la lecture de votre liste. Pour entrer en formation, il faut aussi signer un contrat d'apprentissage avec un employeur.</p>
+    <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation en apprentissage</th><th>Même formation sans apprentissage</th><th><span class="sr-only">Actions</span></th></tr>${rows}</table></div>
+    <p class="muted small">Chaque offre a sa propre fiche Parcoursup : elle fait foi. Cette liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes de ces offres, et rien n'en est enregistré.</p>
+    ${appOfficiel(d.officiel, false)}
+    <p class="small"><a href="${esc(d.liens.entreprises)}" target="_blank" rel="noopener">Trouver une entreprise qui recrute des apprentis (La bonne alternance) ↗</a></p>`;
 }
 
 // ---- sprint 5 (owner, 2026-11-21): « Vérifier et confirmer ma liste » ----
@@ -6164,8 +6271,10 @@ async function viewVoeuxReo(ids, prof) {
     <p class="small">Lue pour votre situation : ${REO_LABEL}${prof.academie ? `, académie de ${esc(acadLabel(prof.academie))}` : ""}. <a href="#/reorientation">Modifier dans « Je me réoriente »</a></p><p class="print-only small">Liste lue sur SupCompass le ${esc(frDate(localIso()))}. Chiffres officiels Parcoursup 2022–2025 : des parts d'admis, pas des chances d'admission.</p></div>`;
   const howto = `<p class="muted small">Ajoutez des formations depuis leur fiche ou depuis « Je me réoriente » (${voeux.MAX} vœux au maximum sur Parcoursup, hors sous-vœux).</p>`;
   if (!ids.length) {
-    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>`;
+    $view.innerHTML = `${head}<div class="card"><p class="muted">Votre liste est vide.</p>${howto}</div>${APP_SECTION}${transferCard()}`;
     $view.dataset.rendered = "voeux:0";
+    loadAppVoeux("voeux:0");
+    bindTransfer();                                                     // Codex (PR 18): an apprenticeship-only list travels too
     return;
   }
   const qs = new URLSearchParams({ ids: ids.join(",") });
@@ -6199,9 +6308,10 @@ async function viewVoeuxReo(ids, prof) {
     <div class="scroll"><table class="stack"><tr class="stack-head"><th>Formation</th><th class="num">Accès estimé hors terminale ${esc(d.session)}</th><th class="num">Taux d'accès officiel, tous candidats</th><th class="num">Admis hors nouveaux bacheliers</th><th><span class="sr-only">Actions</span></th></tr>
     ${rows}</table></div>
     <p class="muted small">${REO_METHOD} Pas d'estimation sous ${d.min_candidats} candidats hors terminale.</p>
-    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div><section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${transferCard()}${nextSteps("voeux")}${feedbackBox("voeux")}`;
+    <p class="muted small">Votre liste reste dans ce navigateur. Pour la lire, la page envoie seulement les codes des formations ; rien n'en est enregistré sur le serveur.</p>${howto}</div>${APP_SECTION}<section class="card" id="vx-verifier"><p class="muted small">Vérification de votre liste…</p></section><section class="card" id="vx-jpo"><p class="muted small">Portes ouvertes de votre liste…</p></section>${robVoeuxCard(d.voeux)}${shareCard(ids, !!store.get("profile", null))}${transferCard()}${nextSteps("voeux")}${feedbackBox("voeux")}`;
   loadVerifier(ids, marker, { noms: Object.fromEntries(d.voeux.filter((v) => v.status === "ok").map((v) => [v.cod_aff_form, v.etablissement])), securite: null });
   loadJpoListe(ids, marker);
+  loadAppVoeux(marker);                                                 // PR 18: the separate apprenticeship list
   $view.querySelectorAll("[data-vxdel]").forEach((el) => { el.onclick = () => { voeux.remove(el.dataset.vxdel); viewVoeux(); }; });
   bindShare(ids, store.get("profile", null) ? prof : null);             // sprint 22: never a default profile (review)
   bindTransfer();                                                       // PR 17: the same person, on another device
@@ -6477,9 +6587,10 @@ async function viewListe(rawCodes, rawProfile) {
 // server, nothing stored. The other device replaces its list and profile only after a second click; its académie, lycée and town stay.
 const TRANSFER_KEYS = { s: "serie", a: "spe1", b: "spe2", m: "mention", n: "moyenne", t: "statut", v: "voie", x: "maths_expertes" };
 const TRANSFER_MAX = 600;                                               // a longer link is not read
-function transferLink(ids, prof) {
+function transferLink(ids, prof, app) {
   const q = new URLSearchParams();
   if (ids.length) q.set("l", ids.join(","));
+  if (app && app.length) q.set("p", app.join(","));                    // PR 18: the separate apprenticeship list
   if (prof) {
     if (isReo(prof)) q.set("t", "r");
     else {
@@ -6499,7 +6610,7 @@ function transferRead(raw) {
   if (!s || s.length > TRANSFER_MAX) return null;
   const q = new URLSearchParams(s), p = {}, notes = [];
   for (const [k, f] of Object.entries(TRANSFER_KEYS)) { const v = q.get(k); if (v && v.length <= 60) p[f] = v; }
-  const ids = shareCodes(q.get("l") || "");
+  const ids = shareCodes(q.get("l") || ""), app = shareCodes(q.get("p") || "");
   let prof = null;
   if (p.statut === "r") prof = vxProfile({ statut: "reorientation" });
   else if (["bg", "bt", "bp"].includes(p.serie) && (MENTION_CODES.includes(p.mention) || validMoyenne(p.moyenne) !== null)) {
@@ -6514,7 +6625,7 @@ function transferRead(raw) {
       if (!(codes && codes.has(p.spe1) && codes.has(p.spe2) && p.spe1 !== p.spe2)) {
         // no pair, no bac général profile (Codex): the pages would read it with a default pair the student never chose
         notes.push("Les spécialités du lien n'ont pas pu être vérifiées : le profil n'est pas repris. Indiquez-le dans « Mon profil ».");
-        return ids.length ? { ids, prof: null, notes } : null;
+        return ids.length || app.length ? { ids, app, prof: null, notes } : null;
       }
       out.spe1 = p.spe1; out.spe2 = p.spe2;
       out.maths_expertes = p.maths_expertes === "1";
@@ -6525,7 +6636,7 @@ function transferRead(raw) {
     }
     prof = vxProfile(out);                                              // an average always sets its band (R5)
   } else if (Object.keys(p).length) notes.push("Le profil du lien n'a pas pu être lu : il n'est pas repris.");
-  return ids.length || prof ? { ids, prof, notes } : null;
+  return ids.length || app.length || prof ? { ids, app, prof, notes } : null;
 }
 // what the other device keeps of its own profile: the académie, the lycée, the « boursier » box (never in the link)
 function transferProfile(prof, local) {
@@ -6535,15 +6646,18 @@ function transferProfile(prof, local) {
   return { ...prof, ...keep };
 }
 function transferApply(t, mode) {
+  const app = t.app || [];
   if (mode === "add") {
     let n = 0;
     for (const c of t.ids) if (voeux.add(c)) n++;
+    for (const c of app) if (voeuxApp.add(c)) n++;
     return { list: n, profile: false };
   }
   voeux.set(t.ids.slice(0, voeux.MAX));
+  voeuxApp.set(app.slice(0, voeuxApp.MAX));
   if (t.prof) store.set("profile", transferProfile(t.prof, store.get("profile", null)));
   voeux.render();
-  return { list: t.ids.length, profile: !!t.prof };
+  return { list: t.ids.length + app.length, profile: !!t.prof };
 }
 let qrLoad = null;
 function loadQr() {                                                     // static/vendor/qrcode (MIT), loaded on demand only
@@ -6570,10 +6684,10 @@ function qrSvg(text, label) {                                           // black
   return `<svg class="qr" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" role="img" aria-label="${esc(label)}" shape-rendering="crispEdges"><rect class="qr-bg" width="100%" height="100%"/><path class="qr-ink" d="${d}"/></svg>`;
 }
 function transferCard() {
-  const ids = voeux.get(), prof = store.get("profile", null);
-  if (!ids.length && !prof) return "";
+  const ids = voeux.get(), app = voeuxApp.get(), prof = store.get("profile", null);
+  if (!ids.length && !app.length && !prof) return "";
   const hasProf = !!prof && typeof prof === "object" && !Array.isArray(prof);
-  const what = [ids.length ? `vos ${fmt(ids.length)} formation${ids.length > 1 ? "s" : ""}` : "", hasProf ? (isReo(prof) ? "votre situation" : "votre profil, moyenne comprise") : ""].filter(Boolean).join(" et ");
+  const what = [ids.length ? `vos ${fmt(ids.length)} formation${ids.length > 1 ? "s" : ""}` : "", app.length ? `vos ${fmt(app.length)} vœu${app.length > 1 ? "x" : ""} en apprentissage` : "", hasProf ? (isReo(prof) ? "votre situation" : "votre profil, moyenne comprise") : ""].filter(Boolean).join(" et ");
   return `<section class="card no-print" id="vx-transfer"><h2>Transférer sur mon autre appareil</h2>
     <p class="small">Pour retrouver votre liste et votre profil sur votre téléphone ou sur un autre ordinateur, ouvrez ce lien sur l'autre appareil, ou scannez le QR code avec lui. Le lien contient ${what}. Il ne contient ni votre académie, ni votre lycée, ni votre ville : indiquez-les à nouveau dans « Mon profil ».</p>
     <p class="small"><strong>Ce lien est pour vous seul</strong>${hasProf && !isReo(prof) ? " : il contient votre moyenne" : ""}. Pour montrer votre liste à un proche, utilisez plutôt « Partager ou imprimer ma liste ».</p>
@@ -6583,18 +6697,32 @@ function transferCard() {
     <p class="small muted" id="tr-msg" aria-live="polite"></p>
     <p class="small muted">Le lien n'est jamais envoyé au serveur : tout se passe après le « # », dans vos navigateurs, et rien n'est enregistré. Vos brouillons de projets motivés restent sur cet appareil.</p></section>`;
 }
+// the transfer link of the lists and profile as they are NOW (Codex, PR 18: a removal on the page must not travel back); a QR code
+// drawn for an older link is removed and can be drawn again
+function transferRefresh() {
+  const url = document.getElementById("tr-url");
+  if (!url) return;
+  const prof = store.get("profile", null);
+  const link = transferLink(voeux.get(), prof && typeof prof === "object" && !Array.isArray(prof) ? prof : null, voeuxApp.get());
+  if (url.value === link) return;
+  url.value = link;
+  const box = document.getElementById("tr-qrbox"), btn = document.getElementById("tr-qr");
+  if (box) box.innerHTML = "";
+  if (btn) btn.disabled = false;
+}
 function bindTransfer() {
   const url = document.getElementById("tr-url"), msg = document.getElementById("tr-msg");
   if (!url) return;
-  const prof = store.get("profile", null);
-  url.value = transferLink(voeux.get(), prof && typeof prof === "object" && !Array.isArray(prof) ? prof : null);
+  transferRefresh();
   document.getElementById("tr-copy").onclick = () => {
+    transferRefresh();                                                  // Codex (PR 18): the lists as they are now
     const done = () => { msg.textContent = "Lien copié : ouvrez-le sur votre autre appareil."; };
     const manual = () => { url.focus(); url.select(); msg.textContent = "Copiez le lien sélectionné."; };
     try { navigator.clipboard.writeText(url.value).then(done, manual); } catch (_) { manual(); }
   };
   const btn = document.getElementById("tr-qr"), box = document.getElementById("tr-qrbox");
   btn.onclick = async () => {
+    transferRefresh();
     btn.disabled = true;
     try {
       await loadQr();
@@ -6612,19 +6740,20 @@ async function viewTransfert(raw) {
   const t = transferRead(raw);
   const head = `<div class="card"><h1>Transfert depuis un autre appareil</h1>`;
   if (!t) { $view.innerHTML = `${head}<p class="warn">Ce lien ne contient ni formation ni profil lisible. Copiez-le à nouveau depuis « Mes vœux » sur votre autre appareil.</p></div>`; return; }
-  const mine = voeux.get(), local = store.get("profile", null), hasLocal = !!local && typeof local === "object" && !Array.isArray(local);
+  const mine = voeux.get(), mineApp = voeuxApp.get(), local = store.get("profile", null), hasLocal = !!local && typeof local === "object" && !Array.isArray(local);
+  const nApp = (x) => (x.length ? ` et ${fmt(x.length)} vœu${x.length > 1 ? "x" : ""} en apprentissage` : "");
   const line = (p) => (p ? profileLine(p, p.serie) : "aucun profil");
   const notes = t.notes.map((n) => `<p class="warn small">${esc(n)}</p>`).join("");
-  const replaces = mine.length || hasLocal;
+  const replaces = mine.length || mineApp.length || hasLocal;
   const draw = (step, done) => {
     if ($view.dataset.rendered !== marker) return;
     $view.innerHTML = `${head}
-      <p>Ce lien vient de votre autre appareil. Il contient ${t.ids.length ? `<strong>${fmt(t.ids.length)} formation${t.ids.length > 1 ? "s" : ""}</strong>` : "aucune formation"} et ${t.prof ? `ce profil : <strong>${line(t.prof)}</strong>` : "aucun profil"}.</p>
+      <p>Ce lien vient de votre autre appareil. Il contient ${t.ids.length ? `<strong>${fmt(t.ids.length)} formation${t.ids.length > 1 ? "s" : ""}</strong>` : "aucune formation"}${nApp(t.app)}, et ${t.prof ? `ce profil : <strong>${line(t.prof)}</strong>` : "aucun profil"}.</p>
       ${notes}
-      <p class="small">Sur cet appareil : ${fmt(mine.length)} formation${mine.length > 1 ? "s" : ""} et ${hasLocal ? `ce profil : ${line(vxProfile(local))}` : "aucun profil"}.${hasLocal && local.academie ? " Votre académie, votre lycée et votre ville restent ceux de cet appareil." : ""}</p>
+      <p class="small">Sur cet appareil : ${fmt(mine.length)} formation${mine.length > 1 ? "s" : ""}${nApp(mineApp)}, et ${hasLocal ? `ce profil : ${line(vxProfile(local))}` : "aucun profil"}.${hasLocal && local.academie ? " Votre académie, votre lycée et votre ville restent ceux de cet appareil." : ""}</p>
       ${done ? `<p class="info" role="status">${done}</p><p class="toolbar"><a class="btnlink" href="#/voeux">Voir ma liste</a><a href="#/profil">Vérifier mon profil</a></p>`
         : step === "confirm" ? `<p class="toolbar"><span class="small">Remplacer la liste${t.prof ? " et le profil" : ""} de cet appareil par ceux du lien ?</span><button type="button" id="tf-yes">Oui, remplacer</button><button type="button" id="tf-no">Annuler</button></p>`
-        : `<p class="toolbar"><button type="button" id="tf-install">${replaces ? "Remplacer par le contenu du lien" : "Installer sur cet appareil"}</button>${t.ids.length && (mine.length || hasLocal) ? '<button type="button" id="tf-add">Ajouter seulement les formations à ma liste</button>' : ""}</p>`}
+        : `<p class="toolbar"><button type="button" id="tf-install">${replaces ? "Remplacer par le contenu du lien" : "Installer sur cet appareil"}</button>${(t.ids.length || t.app.length) && (mine.length || mineApp.length || hasLocal) ? '<button type="button" id="tf-add">Ajouter seulement les formations à ma liste</button>' : ""}</p>`}
       <p class="small muted">Rien n'a été envoyé au serveur : le contenu du lien est lu dans ce navigateur. Après l'installation, il est retiré de la barre d'adresse.</p></div>`;
     const finish = (r) => {
       try { history.replaceState(history.state, "", "#/transfert"); } catch (_) { /* old browser */ }

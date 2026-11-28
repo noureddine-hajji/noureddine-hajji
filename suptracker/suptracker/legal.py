@@ -156,7 +156,7 @@ identifiant, ce dont le calcul a besoin :</p>
 <li>la ligne de votre bac technologique ou professionnel (série et spécialités, ou spécialité), seulement pour lire votre liste de vœux ;</li>
 <li>votre académie, si vous l'avez indiquée, avec le plan B, « Où je me situe », votre liste de vœux et la recherche de
 formations, pour présenter d'abord les formations de votre académie (pour « Je me réoriente », elle reste dans votre navigateur) ;</li>
-<li>les codes des formations de votre liste de vœux, pour la lire.</li>
+<li>les codes des formations de votre liste de vœux, pour la lire, et ceux de votre liste à part de vœux en apprentissage.</li>
 </ul>
 <p>La recherche de formations envoie les mots que vous tapez et, si vous l'avez indiquée dans votre profil, votre académie :
 entre deux formations aussi proches de vos mots, celle de votre académie passe en premier ; elle ne retire aucune formation. Le lieu choisi (ville, département, région ou

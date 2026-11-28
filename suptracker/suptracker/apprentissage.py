@@ -11,11 +11,20 @@ Inserjeunes insertion rows of each BTS, `core.inserjeunes_bts`), one block per f
     MIN_ETAB establishments per route, never a single establishment and never a promise;
   * official links, all on La bonne alternance (the State's apprenticeship service, DINUM / ministries of Labour and
     Education): the companies that recruit apprentices, the salary simulator and its guide to the apprentice's pay.
-The apprentice pays no tuition (Code du travail, art. L6211-1) and is paid a share of the Smic set by age and year: said in
-words, with the official simulator, never a computed salary.
+The apprentice pays no tuition (Code du travail, art. L6211-1) and is paid a share of the Smic set by age and year: since PR 18
+(owner, 2026-11-28) the OFFICIAL table is quoted as service-public.gouv.fr prints it (aides.r_apprenti: cells verbatim, its
+« Vérifié le » date, its own links), never a salary computed for the student.
+
+« Mes vœux en apprentissage » (PR 18, owner 2026-11-28, reversing the 2026-11-08 rule « never Mes vœux »): the student keeps a
+SEPARATE list of apprenticeship offers of the latest cartographie (`voeux`): its own counter, its own cap (Parcoursup's « 10 vœux
+supplémentaires pour des formations en apprentissage », read from the official calendar by the page), NO zone, NO rate, NO
+SIES figure, never counted among the main list's zones and never a safety. Each offer comes back with its Parcoursup page and
+the initial formation it is attached to (same establishment, same diploma); a code absent from the latest map says so
+(« vérifiez qu'elle existe toujours »), never « fermée ». The list's codes only: no shared cache, no audience event.
 """
 from __future__ import annotations
 
+from . import aides as AID
 from . import carte
 from .insertion import bts_key
 
@@ -93,6 +102,47 @@ def for_formation(con, cod: str, session: int) -> dict | None:
     if not offres and not sies_app and not nat:
         return None
     return {"propose": bool(offres or sies_app), "offres": offres, "sies_apprentissage": bool(sies_app), "national": nat,
+            "liens": {"entreprises": LBA_URL, "salaire": SIMULATEUR_URL, "guide": GUIDE_URL}, "officiel": officiel(con)}
+
+
+def officiel(con) -> dict | None:
+    """PR 18: the official contract sentences and minimum-pay table (aides.r_apprenti), None when the page was not read."""
+    A = AID.national(con) or {}
+    return A.get("apprenti")
+
+
+MAX_IDS = 10
+OFFER_KEYS = ("cod_aff_form", "etablissement", "formation", "ville", "academie", "lat", "lon", "statut", "diplome", "mention",
+              "parcours", "fiche", "session_offre")
+
+
+def offres(con) -> dict:
+    """{code: offer} of EVERY apprenticeship offer of the latest cartographie session (attached or listed apart)."""
+    return {a["cod_aff_form"]: a for a in carte.apprentissage(con)}
+
+
+def voeux(con, ids: list[str]) -> dict:
+    """The student's apprenticeship list, in its order: each offer as the map lists it (no figure), with the initial
+    formations it is attached to (`rattachee`, their names) or `absente` from the latest map."""
+    O = offres(con)
+    s = carte._offer_session(con) if O else None
+    latest = con.execute("SELECT max(session) FROM core.formation_year").fetchone()[0]
+    noms = {}
+    att = sorted({y for c in ids if c in O for y in O[c]["rattachee"]})
+    if att:
+        q = ",".join("?" * len(att))
+        noms = {c: (e, f) for c, e, f in con.execute(f"""SELECT cod_aff_form, any_value(g_ea_lib_vx), any_value(lib_for_voe_ins)
+            FROM core.formation_year WHERE session = ? AND cod_aff_form IN ({q}) GROUP BY 1""", [latest, *att]).fetchall()}
+    out = []
+    for cod in ids:
+        a = O.get(cod)
+        if not a:
+            out.append({"cod_aff_form": cod, "status": "absente"})
+            continue
+        out.append({**{k: a.get(k) for k in OFFER_KEYS}, "status": "ok",
+                    "rattachee": [{"cod_aff_form": y, "etablissement": noms.get(y, (None, None))[0],
+                                   "formation": noms.get(y, (None, None))[1]} for y in a["rattachee"]]})
+    return {"carte_session": s, "session": latest, "voeux": out, "officiel": officiel(con),
             "liens": {"entreprises": LBA_URL, "salaire": SIMULATEUR_URL, "guide": GUIDE_URL}}
 
 

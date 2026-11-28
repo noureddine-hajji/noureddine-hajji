@@ -18,6 +18,8 @@
       (device with data), the hash cleared, no request carrying the payload, the kit page, 0 JS error, no horizontal scroll
   TF8 wiring and docs
   TF9 mutation test
+  TF10 the apprenticeship list (PR 18, owner 2026-11-28): carried as « p », its codes cleaned and capped like the list's, replaced
+      or merged with this device's own apprenticeship list, never mixed with the main list
 """
 from __future__ import annotations
 
@@ -72,7 +74,7 @@ class Ctx:
 
 # ------------------------------------------------------------------ the Node harness
 NAMES = ("MENTION_CODES", "BANDS", "validMoyenne", "bandOf", "vxProfile", "isReo", "shareCodes", "TRANSFER_KEYS", "TRANSFER_MAX",
-         "transferLink", "transferRead", "transferProfile", "transferApply", "qrMatrix", "KIT_STEPS", "KIT_CHECK")
+         "voeuxApp", "transferLink", "transferRead", "transferProfile", "transferApply", "qrMatrix", "KIT_STEPS", "KIT_CHECK")
 STUB = r"""
 const location = { origin: "%s", pathname: "/" };
 const fmt = (x) => String(x);
@@ -175,7 +177,7 @@ def own_read(raw: str):
     return {"ids": ids, "prof": prof, "notes": notes}
 
 
-ADD_ONLY = "${t.ids.length && (mine.length || hasLocal) ? '<button type=\"button\" id=\"tf-add\">"
+ADD_ONLY = "${(t.ids.length || t.app.length) && (mine.length || mineApp.length || hasLocal) ? '<button type=\"button\" id=\"tf-add\">"
 
 
 def shape(prof):
@@ -591,7 +593,7 @@ def tf8(c: Ctx):
         bad.append("routes")
     if 'transfert: "voeux", kit: "accompagner" };' not in js or 'transfert: "transfert", kit: "kit" };' not in js:
         bad.append("tab or audience name")
-    if js.count("${transferCard()}${nextSteps(\"voeux\")}") != 2 or js.count("  bindTransfer();") != 2:
+    if js.count("${transferCard()}${nextSteps(\"voeux\")}") != 2 or js.count("  bindTransfer();") != 4:   # PR 18 (Codex): also both empty-list branches
         bad.append("the card in both Mes vœux views")
     if "${has ? transferCard() : \"\"}" not in top(js, "viewProfil") or "if (has) bindTransfer();" not in top(js, "viewProfil"):
         bad.append("the card in Mon profil")
@@ -622,33 +624,38 @@ MUTANTS = [
     ("TF1", "a default pair invented", '        if (p.spe1 && p.spe2) { q.set("a", p.spe1); q.set("b", p.spe2); }', '        q.set("a", p.spe1 || "MATHS"); q.set("b", p.spe2 || "SES");'),
     ("TF1", "« autre » travels", '      } else if (p.voie && p.voie !== "autre") q.set("v", p.voie);         // « autre »', '      } else if (p.voie) q.set("v", p.voie);         // « autre »'),
     ("TF2", "an unreadable average kept", "      if (m !== null) out.moyenne = m; else notes.push(", "      out.moyenne = Number(p.moyenne); if (m === null) notes.push("),
-    ("TF2", "the codes not cleaned", '  const ids = shareCodes(q.get("l") || "");', '  const ids = (q.get("l") || "").split(",").filter(Boolean);'),
+    ("TF2", "the codes not cleaned", '  const ids = shareCodes(q.get("l") || ""), app', '  const ids = (q.get("l") || "").split(",").filter(Boolean), app'),
+    ("TF10", "the apprenticeship codes not cleaned", 'app = shareCodes(q.get("p") || "");', 'app = (q.get("p") || "").split(",").filter(Boolean);'),
     ("TF2", "no length cap", "  if (!s || s.length > TRANSFER_MAX) return null;", "  if (!s) return null;"),
     ("TF2", "a default mention", '  else if (["bg", "bt", "bp"].includes(p.serie) && (MENTION_CODES.includes(p.mention) || validMoyenne(p.moyenne) !== null)) {',
      '  else if (["bg", "bt", "bp"].includes(p.serie)) {'),
     ("TF2", "an unread route said nothing", '      else notes.push("La voie du bac du lien n\'a pas pu être lue : choisissez-la dans « Mon profil ».");\n', ""),
     ("TF3", "level L", '  const qr = qrcode(0, "M");', '  const qr = qrcode(0, "L");'),
-    ("TF2", "a pairless bac général profile installed", '        return ids.length ? { ids, prof: null, notes } : null;\n      }\n      out.spe1 = p.spe1;',
+    ("TF2", "a pairless bac général profile installed", '        return ids.length || app.length ? { ids, app, prof: null, notes } : null;\n      }\n      out.spe1 = p.spe1;',
      '      } else {\n      out.spe1 = p.spe1; }'),
-    ("TF4", "add-only hidden for a profile without a list", "${t.ids.length && (mine.length || hasLocal) ? '<button", "${t.ids.length && mine.length ? '<button"),
+    ("TF4", "add-only hidden for a profile without a list", "(mine.length || mineApp.length || hasLocal) ? '<button", "(mine.length || mineApp.length) ? '<button"),
     ("TF4", "this device's académie lost", '  for (const k of ["academie", "lycee", "boursier"])', '  for (const k of [])'),
-    ("TF4", "add replaces the profile", "    for (const c of t.ids) if (voeux.add(c)) n++;\n    return { list: n, profile: false };",
-     "    for (const c of t.ids) if (voeux.add(c)) n++;\n    if (t.prof) store.set(\"profile\", t.prof);\n    return { list: n, profile: false };"),
+    ("TF4", "add replaces the profile", "    for (const c of app) if (voeuxApp.add(c)) n++;\n    return { list: n, profile: false };",
+     "    for (const c of app) if (voeuxApp.add(c)) n++;\n    if (t.prof) store.set(\"profile\", t.prof);\n    return { list: n, profile: false };"),
+    ("TF10", "the apprenticeship list left out of the link", '  if (app && app.length) q.set("p", app.join(","));', ""),
+    ("TF10", "replace keeps the old apprenticeship list", "  voeuxApp.set(app.slice(0, voeuxApp.MAX));\n", ""),
+    ("TF10", "add drops the apprenticeship list", "    for (const c of app) if (voeuxApp.add(c)) n++;\n", ""),
     ("TF4", "a link without a profile erases this one", '  if (t.prof) store.set("profile", transferProfile(t.prof, store.get("profile", null)));',
      '  store.set("profile", t.prof ? transferProfile(t.prof, store.get("profile", null)) : null);'),
     ("TF4", "no second click", '    if (inst) inst.onclick = () => { if (replaces) { draw("confirm");', '    if (inst) inst.onclick = () => { if (false) { draw("confirm");'),
     ("TF4", "the link kept in the address bar", '      try { history.replaceState(history.state, "", "#/transfert"); } catch (_) { /* old browser */ }\n', ""),
     ("TF5", "a chance promised", '"SupCompass lit les chiffres officiels de Parcoursup. Il montre où se situaient les admis des années passées : des repères, jamais des chances d\'admission. Il ne crée pas de compte."',
      '"SupCompass lit les chiffres officiels de Parcoursup. Il donne vos chances d\'admission. Il ne crée pas de compte."'),
+    ("TF10", "the apprenticeship codes land in the main list", "    for (const c of app) if (voeuxApp.add(c)) n++;", "    for (const c of app) if (voeux.add(c)) n++;"),
     ("TF5", "tutoiement", '"Mon profil est rempli"', '"Ton profil est rempli"'),
     ("TF6", "the warning dropped", "<strong>Ce lien est pour vous seul</strong>", "<strong>Ce lien</strong>"),
 ]
 
 
-@check("TF9 mutation test: every seeded bug is caught by TF1-TF6")
+@check("TF9 mutation test: every seeded bug is caught by TF1-TF6 and TF10")
 def tf9(c: Ctx):
     by = {fn.check_name.split()[0]: fn for fn in CHECKS}
-    base = [k for k in ("TF1", "TF2", "TF3", "TF4", "TF5", "TF6") if not by[k](c)[0]]
+    base = [k for k in ("TF1", "TF2", "TF3", "TF4", "TF5", "TF6", "TF10") if not by[k](c)[0]]
     if base:
         return False, f"the unmutated code fails {base}"
     missed = []
@@ -665,6 +672,55 @@ def tf9(c: Ctx):
         if ok:
             missed.append(name)
     return not missed, f"{len(MUTANTS) - len(missed)}/{len(MUTANTS)} caught; missed {missed}"
+
+
+APP_PROG = r"""
+const D = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+JV = D.jv;
+const res = { links: [], reads: [], applied: [] };
+for (const [ids, app] of D.pairs) { const l = transferLink(ids, null, app); res.links.push(l); res.reads.push(transferRead(l.split("#/transfert/")[1])); }
+for (const k of D.cases) {
+  for (const x of Object.keys(_ls)) delete _ls[x];
+  if (k.list) localStorage.setItem("voeux", JSON.stringify(k.list));
+  if (k.app) localStorage.setItem("voeuxApp", JSON.stringify(k.app));
+  const t = transferRead(k.raw);
+  const linkApp = t ? t.app : null;
+  res.applied.push({ read: !!t, linkApp, r: t ? transferApply(t, k.mode) : null, list: voeux.get(), app: voeuxApp.get() });
+}
+process.stdout.write(JSON.stringify(res));"""
+
+
+@check("TF10 the apprenticeship list (PR 18): carried as « p », cleaned and capped like the list, replaced or merged, never mixed with the main list")
+def tf10(c: Ctx, js: str | None = None):
+    js = js if js is not None else c.js
+    pairs = [(["10"], ["37368", "23623"]), ([], ["37368"]), (["1"], [])]
+    cap = "%2C".join(str(i) for i in range(30, 46))
+    cases = [  # (case, expected main list, expected apprenticeship list)
+        ({"raw": "p=37368%2C23623", "mode": "replace", "list": ["1"], "app": ["99"]}, [], ["37368", "23623"]),
+        ({"raw": "l=5&p=37368", "mode": "add", "list": ["1"], "app": ["99", "37368"]}, ["1", "5"], ["99", "37368"]),
+        ({"raw": "p=x%2C7%2C7%2C%3Cimg%3E%2C8", "mode": "add"}, [], ["7", "8"]),
+        ({"raw": "p=" + cap, "mode": "replace"}, [], [str(i) for i in range(30, 40)]),
+        ({"raw": "l=5", "mode": "replace", "app": ["99"]}, ["5"], []),
+    ]
+    o = harness(c, APP_PROG, {"jv": JV, "pairs": pairs, "cases": [k for k, _, _ in cases]}, js)
+    if o is None:
+        return True, "node absent: not run"
+    bad = []
+    for (ids, app), link, got in zip(pairs, o["links"], o["reads"]):
+        if ("p=" in link) != bool(app):
+            bad.append(("the link and the apprenticeship list", link))
+        if not got or got.get("ids") != ids or got.get("app") != app:
+            bad.append(("round trip", ids, app, got))
+    for (k, want_l, want_a), got in zip(cases, o["applied"]):
+        clean = []                                       # the link's own codes, cleaned as the list's (the page counts them)
+        for x in __import__("urllib.parse").parse.parse_qs(k["raw"]).get("p", [""])[0].split(","):
+            if re.fullmatch(r"\d{1,9}", x.strip()) and x.strip() not in clean and len(clean) < 10:
+                clean.append(x.strip())
+        if got.get("linkApp") != clean:
+            bad.append(("the link's apprenticeship codes", k["raw"][:30], got.get("linkApp"), clean))
+        if not got["read"] or got["list"] != want_l or got["app"] != want_a:
+            bad.append((k["raw"][:30], k["mode"], got["list"], got["app"], want_l, want_a))
+    return not bad, f"{len(pairs)} links, {len(cases)} installs; problems {bad[:4]}"
 
 
 VENDOR_SHA = "18ae399f81182bc9de916e9c77b195df20cc58d6f2d55a62b085a299f1bf1780"   # sha256 of qrcode.js in the npm tarball qrcode-generator 1.4.4

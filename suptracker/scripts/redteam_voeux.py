@@ -248,7 +248,8 @@ def block(js: str) -> str:
 
 def ui(js: str) -> tuple[bool, str]:
     b = re.sub(r"(?m)^\s*//.*$", "", block(js))
-    store_ = js[js.index("const voeux = {"): js.index("// ---- SVG primitives")]
+    _s = js.index("const voeux = {")
+    store_ = js[_s: js.index("\n};", _s) + 3]            # the main list's object only (PR 18: voeuxApp follows it)
     raw = [m for m in re.findall(r"\$\{((?:(?!\$\{)[^}])*)\}", b)
            if re.search(r"\bv\.(?:etablissement|filiere|complement|ville|academie|cod_aff_form)\b", m)
            and not m.lstrip().startswith("esc(") and not re.fullmatch(r"\s*(?:recoBadge|tensionBadge|appBadge)\(v\.cod_aff_form\)\s*", m)]

@@ -40,6 +40,8 @@ PAGES = {
     "logement": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1563",
     # lot 1, PR 12: how a working professional enters an IFSI (formation professionnelle continue, outside Parcoursup)
     "ifsi_fpc": "https://www.parcoursup.gouv.fr/trouver-une-formation/zoom-sur-des-formations-en-sante-pass-las-et-ifsi/les-formations-en-soins-1652",
+    # PR 18 (owner, 2026-11-28): the apprentice's contract and minimum pay, as the official page states them
+    "apprenti": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2918",
 }
 ECHELONS = ("0 bis", "1", "2", "3", "4", "5", "6", "7")
 
@@ -211,13 +213,88 @@ def r_ifsi_fpc(text: str, links: list) -> dict | None:
     return None
 
 
+# PR 18 (owner, 2026-11-28): the apprentice's minimum pay QUOTED from the official table, never computed. The table « Rémunération
+# brute mensuelle minimale d'un apprenti »: 4 age columns, then each contract year and its 4 cells, verbatim (format only: the page's
+# « : titleContent » glossary markers dropped, spaces inside brackets closed). Fixed checks: 3 years in order, every cell names the
+# Smic, the percentages rise with the year in the first three columns and never fall with the age. The contract: the page's own two
+# sentences (a work contract; the alternation with the employer the apprentice signed with). Links: the page's own.
+APPRENTI_AGES = re.compile(r"^(?:\d{2} à \d{2} ans|\d{2}-\d{2} ans|\d{2} ans et plus)$")
+APPRENTI_ANNEE = re.compile(r"^(\d) (?:re|e) année$")
+APPRENTI_NOTES = (r"^Les jeunes apprentis de moins de 16 ans\b", r"^L'apprenti préparant une licence professionnelle\b",
+                  r"^Ces montants peuvent être majorés\b")
+APPRENTI_CONTRAT = (r"^Le contrat d'apprentissage est un contrat de travail\b[^.]*\.",
+                    r"^L'apprentissage repose sur le principe de l'alternance\b[^.]*signé son contrat de travail\.")
+
+
+def _clean(s: str) -> str:
+    s = re.sub(r"\s*:\s*titleContent\b", "", s)
+    s = re.sub(r"\b(\d) (re|e) (année|cycle)\b", r"\1\2 \3", s)      # the page's superscripts, read as « 2 e année »
+    s = re.sub(r"\(\s+", "(", re.sub(r"\s+\)", ")", s))
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _pcts(cell: str) -> list[int]:
+    return [int(x) for x in re.findall(r"(\d{1,3}) % du (?:Smic|salaire)", cell)]
+
+
+def r_apprenti(text: str, links: list) -> dict | None:
+    L = _lines(text)
+    head = next((i for i, x in enumerate(L) if x.startswith("Tableau - Rémunération brute mensuelle minimale d'un apprenti")), None)
+    if head is None:
+        return None
+    ages = []
+    i = head + 1
+    while i < len(L) and APPRENTI_AGES.match(L[i]):
+        ages.append(L[i])
+        i += 1
+    if len(ages) != 4:
+        return None
+    annees = []
+    while i < len(L) and len(annees) < 3:
+        m = APPRENTI_ANNEE.match(L[i])
+        if not m or int(m.group(1)) != len(annees) + 1:
+            return None
+        cells, i = [], i + 1
+        # a line naming a percentage starts a cell; a line without one continues the cell above (the 26-and-over cell prints
+        # « 100 % du Smic », then « Salaire le + élevé entre le Smic … »)
+        while i < len(L) and not APPRENTI_ANNEE.match(L[i]) and "Smic" in L[i] and len(cells) <= len(ages):
+            if _pcts(L[i]) or not cells:
+                cells.append([_clean(L[i])])
+            else:
+                cells[-1].append(_clean(L[i]))
+            i += 1
+        if len(cells) != len(ages):
+            return None
+        annees.append({"annee": f"{m.group(1)}{'re' if m.group(1) == '1' else 'e'} année", "cellules": cells})            # each cell: its printed lines
+    if len(annees) != 3:
+        return None
+    pct = [[_pcts(c[0])[0] for c in a["cellules"]] for a in annees]
+    for col in range(3):                      # the first three columns rise with the year
+        if not pct[0][col] < pct[1][col] < pct[2][col]:
+            return None
+    if any(row[j] > row[j + 1] for row in pct for j in range(len(row) - 1)):
+        return None                           # never less for an older apprentice
+    notes = [_clean(x) for x in L[i:i + 12] for pat in APPRENTI_NOTES if re.match(pat, x)]
+    contrat = []
+    for pat in APPRENTI_CONTRAT:
+        m = next((re.match(pat, x) for x in L if re.match(pat, x)), None)
+        if not m:
+            return None
+        contrat.append(_clean(m.group(0)))
+    return {"titre": "Rémunération brute mensuelle minimale d'un apprenti", "ages": ages, "annees": annees, "notes": notes,
+            "contrat": contrat, "entreprises": _link(links, "Trouver une entreprise qui recrute en alternance"),
+            "simulateur": _link(links, "Estimer le salaire d'un salarié en contrat d'apprentissage"),
+            "verifie": _verifie(text), "source": PAGES["apprenti"]}
+
+
 # Items whose official host refuses robots (lot 1, PR 12, owner 2026-11-26): their page is never fetched around that refusal (no
 # copy, no other host); the item stays out and its card hidden until the page is read (the fetcher keeps asking it, or the owner
 # commits it). A WAITING item whose page exists is read by its rule like any other: a page that no longer matches is said.
 EN_ATTENTE = {"ifsi_fpc": "parcoursup.gouv.fr refuse les robots : la carte attend la page officielle"}
 
 RULES = {"bourse": r_bourse, "merite": r_merite, "mobilite": r_mobilite, "mobilite_mesr": r_mobilite_mesr, "droits": r_droits, "cvec": r_cvec,
-         "repas": r_repas, "regions": r_regions, "logement": r_logement, "ifsi_fpc": r_ifsi_fpc}
+         "repas": r_repas, "regions": r_regions, "logement": r_logement, "ifsi_fpc": r_ifsi_fpc,
+         "apprenti": r_apprenti}
 
 
 def read(d: Path = DIR) -> dict:

@@ -1142,3 +1142,10 @@ main { min-height: 100vh; }   /* a page still loading keeps the footer below the
 @media (max-width: 480px) {
   .sum-rob .ech .ech-end { display: none; }
 }
+
+/* PR 18 (owner, 2026-11-28): the official contract sentences and minimum-pay table, quoted from service-public.gouv.fr */
+.app-officiel { margin-top: 12px; }
+.app-officiel > summary { cursor: pointer; font-weight: 700; padding-block: 12px; }
+.app-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.app-grille ul { margin: 4px 0 0; padding-left: 18px; }
+.app-grille li + li { margin-top: 4px; }
