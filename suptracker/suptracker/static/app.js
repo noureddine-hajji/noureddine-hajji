@@ -2997,7 +2997,7 @@ async function viewApresJuin() {
   const ev = (k) => (d.evenements || []).find((e) => e.key === k);
   const when = (e) => (!e || !e.verifie ? "date à vérifier sur parcoursup.gouv.fr" : e.fin ? `du ${frDate(e.debut)} au ${frDate(e.fin)}` : frDate(e.debut));
   const STATE = { passe: "passé", en_cours: "en cours", a_venir: "à venir", inconnu: "date à vérifier" };
-  const dates = (d.evenements || []).map((e) => `<li class="cal-item cal-${calState(e, today)}"><div class="cal-when"><strong>${esc(when(e))}</strong> <span class="badge">${STATE[calState(e, today)]}</span></div><div class="cal-what">${esc(e.libelle)}</div></li>`).join("");
+  const dates = (d.evenements || []).map((e) => `<li class="cal-item cal-${calState(e, today)}"><div class="cal-when"><strong>${esc(when(e))}</strong> <span class="badge">${STATE[calState(e, today)]}</span></div><div class="cal-what aj-what">${esc(e.libelle)}</div></li>`).join("");
   const quotes = [g.oui_ouisi ? "Consultez dans votre dossier, au fur et à mesure, les propositions d'admission (Oui ou Oui-si) des formations que vous avez demandées." : "",
     g.repondre_delais ? "Faites votre choix : vous devez répondre dans les délais à chaque proposition d'admission reçue." : "",
     g.classez && ev("classement") && ev("classement").verifie ? `Entre le ${ajDay(ev("classement").debut)} et le ${frDate(ev("classement").fin)} inclus : classez vos vœux en attente.` : ""].filter(Boolean);

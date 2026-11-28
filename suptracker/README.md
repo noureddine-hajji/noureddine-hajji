@@ -5289,7 +5289,7 @@ list re-derived (crafted and 60 real offers), the route, the card in Node (escap
   - « Consultez dans votre dossier… (Oui ou Oui-si) »;
   - « Faites votre choix : vous devez répondre dans les délais… »;
   - « Entre le … inclus : classez vos vœux en attente. »
-  - Each sentence is matched WHOLE by a fixed rule in `calendrier.REGLES`, and only when every version of the PDF prints it; otherwise it is not shown.
+  - Each sentence is matched WHOLE by a fixed rule in `calendrier.REGLES_ADMISSION`, and only when every version of the PDF prints it; otherwise it is not shown.
   - The number of new vœux in the complementary phase is read the same way, else « vérifiez sur parcoursup.gouv.fr ».
 - **What each answer means:** quoted from service-public.gouv.fr « Première inscription » (F2861), fetched by the `suptracker-aides` workflow. Until the page is read, the card says so and links the official page; it never writes the meanings itself.
 - **Your vœux:** each vœu's name and a link to its own page (how far its list was called), plus « Comprendre l'appel ». There is no depth beside the list, no input field, and never a rank asked.

@@ -1052,7 +1052,7 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   else no item, said in the audit), folded, in both apprenticeship cards; euro amounts only inside that quote, never a salary
   computed for the student. Red team `redteam_apprentissage_voeux.py` (AV1-AV8).
 - **Après le 1er juin (PR 19, owner 2026-11-28).** `apres_juin.py`, page `#/apres-juin` (tab Calendrier): the answers' meaning and the
-  deadlines are QUOTED, never written: the calendar PDF's sentences matched WHOLE by `calendrier.REGLES` (every version identical, else
+  deadlines are QUOTED, never written: the calendar PDF's sentences matched WHOLE by `calendrier.REGLES_ADMISSION` (every version identical, else
   not shown; the complementary phase's number of vœux likewise, else « vérifiez »), the meaning of each answer from service-public F2861
   (`aides`, fixed rule; unread = a warning and the official link). Per vœu only its name and a link to its own page (how far its list was
   called) + « Comprendre l'appel »: no depth beside the list, NEVER a rank asked (a waiting-list position beside last year's last-called

@@ -57,7 +57,7 @@ def page(con) -> dict:
     """The page's one answer (no parameter): the step-3 dates of the official calendar, its rules, the official meaning of the
     answers (or None), the measured persistence and the official links."""
     cal = CAL.calendar()
-    rg = CAL.regles()
+    rg = CAL.regles(rules=CAL.REGLES_ADMISSION)
     nat = AID.national(con) or {}
     return {"campagne": cal["campagne"], "lu_le": cal.get("lu_le"), "etape": cal["etapes"].get(STEP) or cal["etapes"].get(str(STEP)),
             "evenements": [e for e in cal["evenements"] if e["etape"] == STEP],

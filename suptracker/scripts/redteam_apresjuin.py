@@ -154,7 +154,7 @@ def aj1(c: Ctx):
         return True, "no calendar fetched: skipped"
     C = c.mod("calendrier")
     texts = versions_text(CAL)
-    mine, theirs = own_regles(texts), C.regles(CAL)
+    mine, theirs = own_regles(texts), C.regles(CAL, C.REGLES_ADMISSION)
     bad = [k for k in mine if (theirs.get(k) or None) != (mine[k] or None)]
     for k, q in QUOTED.items():                         # the page quotes these words
         if q not in c.js:
@@ -162,7 +162,7 @@ def aj1(c: Ctx):
     for name, how, key, want in DOCTORED:
         d = doctored(CAL, how)
         try:
-            got = C.regles(d).get(key)
+            got = C.regles(d, C.REGLES_ADMISSION).get(key)
         finally:
             shutil.rmtree(d, ignore_errors=True)
         if got != want:
