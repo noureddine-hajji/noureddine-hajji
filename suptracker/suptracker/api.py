@@ -1277,7 +1277,7 @@ def apres_juin_voeux(ids: str = Query("", max_length=200)):
     """PR 19: the names of the list's vœux and whether their own page shows how far their list was called. The list's codes
     only: never shared-cached, no analytics event (like /api/voeux)."""
     try:
-        cods = VX.clean_ids(ids.split(",")) if ids else []
+        cods = [] if not ids else VX.clean_ids(ids.split(","))
     except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500
         raise HTTPException(422, str(exc)) from exc
     return AJ.voeux(_con().cursor(), cods)

@@ -1053,8 +1053,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   computed for the student. Red team `redteam_apprentissage_voeux.py` (AV1-AV8).
 - **Après le 1er juin (PR 19, owner 2026-11-28).** `apres_juin.py`, page `#/apres-juin` (tab Calendrier): the answers' meaning and the
   deadlines are QUOTED, never written: the calendar PDF's sentences matched WHOLE by `calendrier.REGLES_ADMISSION` (every version identical, else
-  not shown; the complementary phase's number of vœux likewise, else « vérifiez »), the meaning of each answer from service-public F2861
-  (`aides`, fixed rule; unread = a warning and the official link). Per vœu only its name and a link to its own page (how far its list was
+  not shown; the complementary phase's number of vœux likewise, else « vérifiez »), the answers and what to do with them from service-public F2861
+  (`aides.r_reponses`: 3 answers, 4 « Si vous recevez » sentences naming the commission, the « 3e étape »; quoted verbatim; unread = a
+  warning and the official link; F2861 does not define « Oui-si », only the calendar names it). Per vœu only its name and a link to its own page (how far its list was
   called) + « Comprendre l'appel »: no depth beside the list, NEVER a rank asked (a waiting-list position beside last year's last-called
   rank would make a probability). Complementary phase: the official live list first, then the latest campaign's `acc_pc` > 0 formations
   (the search filter) and how often that repeats, MEASURED on the two latest campaigns (counts, « estimation », « pas des places cette

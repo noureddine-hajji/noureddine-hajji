@@ -5291,7 +5291,10 @@ list re-derived (crafted and 60 real offers), the route, the card in Node (escap
   - « Entre le … inclus : classez vos vœux en attente. »
   - Each sentence is matched WHOLE by a fixed rule in `calendrier.REGLES_ADMISSION`, and only when every version of the PDF prints it; otherwise it is not shown.
   - The number of new vœux in the complementary phase is read the same way, else « vérifiez sur parcoursup.gouv.fr ».
-- **What each answer means:** quoted from service-public.gouv.fr « Première inscription » (F2861), fetched by the `suptracker-aides` workflow. Until the page is read, the card says so and links the official page; it never writes the meanings itself.
+- **The formations' answers and what you can do:** quoted from service-public.gouv.fr « Première inscription » (F2861, checked on 6 November 2026), fetched by the `suptracker-aides` workflow.
+  - What is quoted: the three answers (« Proposition d'admission », « En attente d'une place », « Refus »), the four « Si vous recevez … » sentences (the last names the commission d'accès à l'enseignement supérieur) and the « 3e étape : l'inscription définitive ».
+  - It is read by one fixed rule, `aides.r_reponses`. Its checks: three answers, the first a proposal, one a waiting place; four situations, one naming the commission. A page that no longer matches drops the block: the card then says so and links the official page.
+  - The site never writes the meanings itself. The page does not define « Oui-si »; only the calendar's own sentence names it.
 - **Your vœux:** each vœu's name and a link to its own page (how far its list was called), plus « Comprendre l'appel ». There is no depth beside the list, no input field, and never a rank asked.
 - **Phase complémentaire:**
   - First, the official live list on Parcoursup, from the date the calendar prints.
@@ -5309,7 +5312,7 @@ list re-derived (crafted and 60 real offers), the route, the card in Node (escap
 - **AJ4:** the page rendered in Node: escaping, quotes shown only when read, no typed number, no rank asked.
 - **AJ5:** wiring.
 - **AJ6:** plain words.
-- **AJ7:** the official answers.
+- **AJ7:** the official answers: an independent reading of the page, plus 6 doctored pages.
 - **AJ8:** mutation test.
 
 **PR 20 (owner, 2026-11-28): option A.** The « Robustesse 2035 » tile stays in L'essentiel as it is; no code change. RF12 keeps guarding it.

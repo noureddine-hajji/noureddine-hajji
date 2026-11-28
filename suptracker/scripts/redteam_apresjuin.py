@@ -331,8 +331,9 @@ def page_case(**kw) -> dict:
 
 
 def page_cases() -> list[dict]:
-    rep = {"titre": HOSTILE, "verifie": HOSTILE, "source": "javascript:alert(1)",
-           "items": [{"reponse": HOSTILE, "texte": [HOSTILE]}], "notes": [HOSTILE]}
+    rep = {"titre": HOSTILE, "verifie": HOSTILE, "source": "javascript:alert(1)", "intro": HOSTILE,
+           "reponses": [HOSTILE, "En attente d'une place", "Refus"], "situations": [HOSTILE, "Si vous recevez x."],
+           "inscription": {"titre": HOSTILE, "texte": [HOSTILE]}}
     return [page_case(),                                                                    # 0 full, no official answers
             page_case(page={"regles": {"repondre_delais": None, "oui_ouisi": None, "classez": None, "complementaire_max": None}}),  # 1 rules unreadable
             page_case(page={"reponses": rep}),                                               # 2 official answers, hostile
@@ -462,12 +463,56 @@ def aj6(c: Ctx, js: str | None = None):
     return not bad, f"problems {bad[:4]}"
 
 
-# ------------------------------------------------------------------ AJ7 the official answers (filled once F2861 is fetched)
-@check("AJ7 the official meaning of the answers: an own reading of service-public F2861 (none fetched yet: the page warns)")
+# ------------------------------------------------------------------ AJ7 the official answers
+F2861 = ROOT / "data" / "aides" / "www.service-public.gouv.fr_particuliers_vosdroits_F2861.txt"
+
+
+def own_reponses(text: str) -> dict | None:
+    """My own reading: the block between « il vous donne l'une des réponses suivantes : » and « 3e étape », split by its own
+    markers (no line rules of aides.py), plus the 3e étape's sentences up to the next question."""
+    t = text.replace("\r", "")
+    m = re.search(r"il vous donne l'une des réponses suivantes :\n(.*?)\n3e étape : l'inscription définitive\n(.*?)\n[^\n]*\?\n", t, re.S)
+    if not m:
+        return None
+    lines = [x.strip() for x in m.group(1).split("\n") if x.strip()]
+    situations = [x for x in lines if x.startswith("Si vous recevez")]
+    reponses = lines[:len(lines) - len(situations)]
+    ensuite = [x.strip() for x in m.group(2).split("\n") if x.strip()]
+    ver = re.search(r"Vérifié le 0?(\d{1,2} \w+ \d{4})", t)
+    return {"reponses": reponses, "situations": situations, "ensuite": ensuite, "verifie": ver.group(1) if ver else None}
+
+
+REP_DOCTORED = [
+    ("a fourth answer", lambda t: t.replace("Refus\n", "Refus\nOui-si\n", 1)),
+    ("an answer missing", lambda t: t.replace("En attente d'une place\n", "", 1)),
+    ("a situation missing", lambda t: t.replace("Si vous recevez uniquement des réponses en attente, vous devez attendre qu'une place se libère.\n", "", 1)),
+    ("the commission gone", lambda t: t.replace("la commission d'accès à l'enseignement supérieur vous fera des propositions", "vous recevrez des propositions", 1)),
+    ("the 3e étape renamed", lambda t: t.replace("3e étape : l'inscription définitive", "3e étape : l'inscription", 1)),
+    ("the heading renamed", lambda t: t.replace("2e étape : Réception et acceptation des propositions sur Parcoursup", "2e étape : les réponses", 1)),
+]
+
+
+@check("AJ7 the official meaning of the answers: an own reading of service-public F2861 = aides.r_reponses; doctored pages give None")
 def aj7(c: Ctx):
-    if "def r_reponses" not in c.src["aides"]:
-        return True, "no rule yet: the page warns and links the official page (AJ4)"
-    return False, "a rule exists without its independent reading"
+    if not F2861.exists():
+        return True, "F2861 not fetched: the page warns and links the official page (AJ4)"
+    text = F2861.read_text()
+    M = c.mod("aides")
+    got, mine = M.r_reponses(text, []), own_reponses(text)
+    bad = []
+    if not got or not mine:
+        return False, f"unread: rule {bool(got)}, own {bool(mine)}"
+    if got["reponses"] != mine["reponses"] or got["situations"] != mine["situations"] or got["inscription"]["texte"] != mine["ensuite"]:
+        bad.append(("rule != own reading", got["reponses"], mine["reponses"]))
+    if got["verifie"] != mine["verifie"] or got["source"] != "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861":
+        bad.append(("verified date or source", got["verifie"], got["source"]))
+    for x in got["reponses"] + got["situations"] + got["inscription"]["texte"] + [got["intro"]]:
+        if x not in text.replace("\u2019", "'") and x not in text:
+            bad.append(("not verbatim", x[:50]))
+    for name, f in REP_DOCTORED:
+        if M.r_reponses(f(text), []) is not None:
+            bad.append(("doctored page still read", name))
+    return not bad, f"{len(got['reponses'])} answers, {len(got['situations'])} situations, vérifié le {got['verifie']}; problems {bad[:4]}"
 
 
 # ------------------------------------------------------------------ AJ8 mutation test
@@ -486,12 +531,16 @@ MUTANTS = [
     ("cache", "AJ3", "the list shared-cached", '(r"/api/apres-juin/voeux", NO_STORE', '(r"/api/apres-juin/voeux", PUBLIC'),
     ("js", "AJ4", "a stored name not escaped", '${esc(v.etablissement)}</a> <span class="muted small">${esc(v.formation)}${v.ville',
      '${v.etablissement}</a> <span class="muted small">${esc(v.formation)}${v.ville'),
-    ("js", "AJ4", "the answers' text not escaped", "<dd>${(x.texte || []).map((t) => `<p>${esc(t)}</p>`)", "<dd>${(x.texte || []).map((t) => `<p>${t}</p>`)"),
+    ("js", "AJ4", "the answers not escaped", "R.reponses.map((x) => `<li><strong>${esc(x)}</strong></li>`)", "R.reponses.map((x) => `<li><strong>${x}</strong></li>`)"),
+    ("js", "AJ4", "a hostile source link kept", '/^https:\\/\\/www\\.service-public\\.gouv\\.fr\\//.test(R.source || "") ? R.source', 'true ? R.source'),
+    ("aides", "AJ7", "a fourth answer accepted", "if (len(reponses) != 3 or", "if (len(reponses) not in (3, 4) or"),
+    ("aides", "AJ7", "the commission check dropped", """            or not any("commission d'accès à l'enseignement supérieur" in x for x in situations)):""", "            ):"),
+    ("aides", "AJ7", "the 3e étape not checked", "    if i >= len(L) or L[i] != REPONSES_NEXT:\n        return None", "    if i >= len(L):\n        return None"),
+    ("aides", "AJ7", "the source not the page", '"verifie": _verifie(text), "source": PAGES["reponses"]}', '"verifie": _verifie(text), "source": PAGES["apprenti"]}'),
     ("js", "AJ4", "a quote shown without its rule", 'g.repondre_delais ? "Faites votre choix', 'true ? "Faites votre choix'),
     ("js", "AJ4", "a typed number of complementary vœux", '" Le nombre de nouveaux vœux possibles est sur parcoursup.gouv.fr."', '" Vous pouvez y formuler jusqu\'à 10 nouveaux vœux."'),
     ("js", "AJ4", "the persistence without its counts", "(${fmt(P.avec.encore)} sur ${fmt(P.avec.n)})", ""),
     ("js", "AJ4", "the persistence's caveat dropped", "pas des places cette année", "des places"),
-    ("js", "AJ4", "a hostile source link kept", '${esc(/^https:\\/\\/www\\.service-public\\.gouv\\.fr\\//.test(R.source || "") ? R.source : ', '${esc(true ? R.source : '),
     ("js", "AJ4", "a rank asked", "${vx}\n", '${vx}<label>Votre rang <input name="rang"></label>\n'),
     ("js", "AJ4", "an unverified date printed", "comp && comp.verifie ? `À partir du", "comp ? `À partir du"),
     ("js", "AJ6", "a chance promised", "Ce n'est pas une prévision : SupCompass", "Vos chances sont bonnes : SupCompass"),
@@ -502,7 +551,7 @@ MUTANTS = [
 @check("AJ8 mutation test: calendar, module, route, cache, page, words and wiring bugs are each caught")
 def aj8(c: Ctx):
     by = {fn.check_name.split()[0]: fn for fn in CHECKS}
-    base = [k for k in ("AJ1", "AJ2", "AJ3", "AJ4", "AJ5", "AJ6") if not by[k](c)[0]]
+    base = [k for k in ("AJ1", "AJ2", "AJ3", "AJ4", "AJ5", "AJ6", "AJ7") if not by[k](c)[0]]
     if base:
         return False, f"the unmutated code fails {base}: mutants not counted"
     caught, missed = 0, []

@@ -2973,12 +2973,16 @@ const AJ_SANS_PROPOSITION = "https://www.parcoursup.gouv.fr/contenus/les-solutio
 const ajDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 function ajQuote(t) { return `<blockquote class="quote">« ${esc(t)} »</blockquote>`; }
 function ajReponses(R) {
-  if (!R || !(R.items || []).length) {
+  if (!R || !(R.reponses || []).length || !(R.situations || []).length) {
     return `<p class="warn">La page officielle qui explique les réponses n'a pas pu être lue ici. Lisez-la sur <a href="https://www.service-public.gouv.fr/particuliers/vosdroits/F2861" target="_blank" rel="noopener">service-public.gouv.fr ↗</a>.</p>`;
   }
-  return `<dl class="aj-rep">${R.items.map((x) => `<div><dt>${esc(x.reponse)}</dt><dd>${(x.texte || []).map((t) => `<p>${esc(t)}</p>`).join("")}</dd></div>`).join("")}</dl>
-    ${(R.notes || []).map((t) => `<p class="small">${esc(t)}</p>`).join("")}
-    <p class="muted small">Citation de la page officielle « ${esc(R.titre || "Première inscription")} » de service-public.gouv.fr${R.verifie ? `, vérifiée le ${esc(R.verifie)}` : ""}. <a href="${esc(/^https:\/\/www\.service-public\.gouv\.fr\//.test(R.source || "") ? R.source : "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861")}" target="_blank" rel="noopener">Lire la page ↗</a> En cas de différence, Parcoursup fait foi.</p>`;
+  const src = /^https:\/\/www\.service-public\.gouv\.fr\//.test(R.source || "") ? R.source : "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861";
+  const ins = R.inscription || {};
+  return `<p>${esc(R.intro)}</p>
+    <ul class="aj-rep">${R.reponses.map((x) => `<li><strong>${esc(x)}</strong></li>`).join("")}</ul>
+    ${R.situations.map(ajQuote).join("")}
+    ${(ins.texte || []).length ? `<h3>${esc(ins.titre)}</h3>${ins.texte.map(ajQuote).join("")}` : ""}
+    <p class="muted small">Citation de la page officielle « ${esc(R.titre || "Première inscription")} » de service-public.gouv.fr${R.verifie ? `, vérifiée le ${esc(R.verifie)}` : ""}. <a href="${esc(src)}" target="_blank" rel="noopener">Lire la page ↗</a> En cas de différence, Parcoursup fait foi.</p>`;
 }
 function ajPersistance(P) {
   if (!P) return "";
@@ -3012,7 +3016,7 @@ async function viewApresJuin() {
   <section class="card"><h2>Les dates</h2><ol class="cal-list">${dates}</ol>
     ${quotes.length ? `<h3>Ce que dit le calendrier officiel</h3>${quotes.map(ajQuote).join("")}` : ""}
     <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)}${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. <a href="#/calendrier">Tout le calendrier</a></p></section>
-  <section class="card"><h2>Ce que veulent dire les réponses</h2>${ajReponses(d.reponses)}</section>
+  <section class="card"><h2>Les réponses des formations, et ce que vous pouvez faire</h2>${ajReponses(d.reponses)}</section>
   <section class="card"><h2>Vos vœux</h2>
     <p class="small">Une formation appelle ses candidats dans l'ordre de son classement, au fil des places libérées. Sa fiche montre jusqu'où sa liste a été appelée les années passées. <a href="#/comprendre">Comprendre l'appel</a></p>
     ${vx}
