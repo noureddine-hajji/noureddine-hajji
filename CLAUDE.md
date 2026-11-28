@@ -978,7 +978,9 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
 - **Anti-breakage tooling (lot 1, PR 9, owner 2026-11-26).** Red teams run Node through `scripts/nodefile.py` (`run` = `subprocess.run`,
   a `-e` program written to a temp file: one argv string is capped at 128 KiB), never `subprocess.run([node, "-e", …])` (OU2). Before
   pushing a change, run `python scripts/blast.py --run --certain` (red teams holding a text the diff removed) and look at its « possible »
-  list (red teams naming a touched function). Red team `redteam_outillage.py` (OU1-OU6; OU4 replays audit PR 8: 10/10 named).
+  list (red teams naming a touched function). Red team `redteam_outillage.py` (OU1-OU7; OU4 replays audit PR 8: 10/10 named).
+  OU7 (2026-11-28, live « moyRange is not defined » on « Où je me situe »): every camelCase function app.js / stats.js call is DECLARED
+  in them or is a browser global (`JS_GLOBALS`); removing a helper means removing every call to it.
 - **Plain words, the testers' list (lot 1, PR 10, owner 2026-11-26).** « nouveau(x) bachelier(s) », never « néo-bachelier » (only quoted as
   the official word, glossary); « SIES » only beside « ministère »; « Prévisions divergentes » (never « Pas de conclusion »); « N fois la
   moyenne » (never « ×N »); an académie DISPLAYED through `acadLabel` (Besançon, Étranger; keys raw); `profileRate` prints report lines

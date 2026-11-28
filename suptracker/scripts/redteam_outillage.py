@@ -14,6 +14,10 @@
       broke in CI are named, at least seven « certain » (skipped when the history is not in the clone, as in CI)
   OU5 mutation test of OU1-OU4 and OU6 (mutants built in memory)
   OU6 wiring and docs: README section, CLAUDE.md rule, test file and its CI duration
+  OU7 every camelCase function the page scripts call (app.js, stats.js) is declared in them (function, const/let/var,
+      destructuring, a parameter) or is a browser global: PR 11 removed `moyRange` while « Où je me situe » still called it
+      and the live page showed « moyRange is not defined » (owner, 2026-11-28); CI has no browser, so this is read
+      statically; mutants: a removed declaration, a call to an unknown name in a template, a name left only as an object key
 """
 from __future__ import annotations
 
@@ -53,6 +57,7 @@ class Ctx:
         self.claude = (REPO / "CLAUDE.md").read_text() if (REPO / "CLAUDE.md").exists() else ""
         self.durations = (ROOT / "tests" / "durations.json").read_text()
         self.scripts = {p: Path(p).read_text() for p in glob.glob(str(ROOT / "scripts" / "*.py"))}
+        self.page = {n: (ROOT / "suptracker" / "static" / n).read_text() for n in ("app.js", "stats.js")}
 
     def mod(self, k):
         m = types.ModuleType(f"{k}_ou")
@@ -328,6 +333,61 @@ def ou5(c: Ctx):
         if not docs_ok(c, **kw):
             missed.append(name)
     return not missed, f"{caught}/{total} caught; missed {missed}"
+
+
+# ------------------------------------------------------------------ OU7
+# Browser globals the page scripts call; anything else must be declared in app.js or stats.js.
+JS_GLOBALS = {"fetch", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "encodeURIComponent",
+              "decodeURIComponent", "parseInt", "parseFloat", "isNaN", "isFinite", "requestAnimationFrame",
+              "cancelAnimationFrame", "matchMedia", "structuredClone", "queueMicrotask", "getComputedStyle", "encodeURI",
+              "decodeURI"}
+CAMEL = re.compile(r"[a-z][a-z0-9]*[A-Z][A-Za-z0-9]*")   # camelCase only: the French words of the page strings never are
+
+
+def js_strip(src: str) -> str:
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    return re.sub(r"(?m)^\s*//.*$", "", src)
+
+
+def js_declared(src: str) -> set:
+    d = set(re.findall(r"\bfunction\*?\s+([A-Za-z_$][\w$]*)", src))
+    d |= set(re.findall(r"\b(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)", src))
+    for m in re.findall(r"\b(?:const|let|var)\s*[{\[]([^=;]*?)[}\]]\s*=", src):
+        d |= set(re.findall(r"(?:^|[,{\s:])\s*\.{0,3}([A-Za-z_$][\w$]*)\s*(?=[,}\]=]|$)", m))
+    for m in re.findall(r"\(([^()]*)\)\s*=>", src) + re.findall(r"function\s*[\w$]*\s*\(([^()]*)\)", src):
+        d |= set(re.findall(r"([A-Za-z_$][\w$]*)", m))
+    d |= set(re.findall(r"([A-Za-z_$][\w$]*)\s*=>", src))
+    return d
+
+
+def js_undefined_calls(page: dict) -> dict:
+    srcs = {n: js_strip(s) for n, s in page.items()}
+    known = set().union(*(js_declared(s) for s in srcs.values())) | JS_GLOBALS
+    bad = {}
+    for n, s in srcs.items():
+        for m in re.finditer(r"(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(", s):
+            name = m.group(1)
+            if CAMEL.fullmatch(name) and name not in known:
+                bad.setdefault(f"{n}:{name}", s[:m.start()].count("\n") + 1)
+    return bad
+
+
+@check("OU7 every camelCase function app.js and stats.js call is declared in them or is a browser global (« moyRange is not defined », 2026-11-28)")
+def ou7(c: Ctx):
+    bad = js_undefined_calls(c.page)
+    if bad:
+        return False, f"called but never declared: {bad}"
+    app = c.page["app.js"]
+    mutants = [
+        ("a removed declaration (PR 11's moyRange)", app.replace("function moyRange(pos) {", "function moyRangeOld(pos) {", 1)),
+        ("a call to an unknown name in a template", app.replace("function bgCell(f) {", "function bgCell(f) {\n  const zz = `${noSuchHelper(f)}`;", 1)),
+        ("a name left only as an object key", app.replace("function moyRange(pos) {", "const moyKeys = { moyRange: (pos) => {", 1)),
+    ]
+    missed = [n for n, src in mutants if src == app or not js_undefined_calls(dict(c.page, **{"app.js": src}))]
+    sane = js_undefined_calls({"x.js": "function outer(cb, { pinIt }) { const [aB, ...restOf] = [1]; cb(); pinIt(); return ((sortBy) => sortBy())(); }"})
+    if sane:
+        return False, f"false alarm on parameters / destructuring: {sane}"
+    return not missed, f"0 undefined call; mutants missed {missed}"
 
 
 def run(checks: set | None = None) -> list[dict]:

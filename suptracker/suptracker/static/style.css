@@ -532,7 +532,7 @@ mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; pa
 .adm-bar .autres, .adm-key.autres { background: var(--adm-autres); }
 .adm-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
 .adm p { margin: 0; }
-.badge.autres { border-color: var(--adm-autres); color: var(--ink); }
+.badge.autres { border-color: var(--adm-autres); color: var(--ink); white-space: normal; }   /* « nouveaux bacheliers » (lot 1 PR 10) is longer: at 320 px it wraps (A4 reflow) */
 
 /* sprint 19: "Y entrer" keeps five cards in view; the other figures are folded, and the summary links to the jury tab */
 .more-card { margin: 12px 0; }
