@@ -73,7 +73,7 @@ ESTIMATE_RENDERERS = {"doubletteCard": 3, "cartePosFigure": 1, "PR_SOURCE": 2, "
                       "viewParcours": 1, "dblFigure": 2, "reoCell": 1, "tensionCard": 1, "distanceText": 1, "apprentiInsertionCard": 1, "aidesCard": 1}
 NEXT_PAGES = {"formation": ("viewFormation",), "parcours": ("viewParcours",), "voeux": ("viewVoeux", "viewVoeuxReo"),
               "reorientation": ("viewReorientation",), "metier": ("viewMetier",), "premiere": ("viewPremiere",),
-              "observatoire": ("viewObservatoire",)}
+              "observatoire": ("viewObservatoire",), "apresjuin": ("viewApresJuin",)}
 ZONE_PAGES = ("summaryBand", "viewVoeux", "viewParcours")
 # the red team's own copy of what the services publish (checked on their sites, 2026-11-13), never read from aide.py
 PHONES = {"moel": "01 77 77 12 25", "parcoursup": "0 800 400 070", "ecoute": "0 800 235 236"}

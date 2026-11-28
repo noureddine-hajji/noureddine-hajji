@@ -70,6 +70,7 @@ from . import sources as SRC
 from . import contact as CT
 from . import projet as PRJ
 from . import liste as LST
+from . import apres_juin as AJ
 from . import multiples as MU
 from . import handicap as HA
 from . import immersion as IMM
@@ -1261,6 +1262,25 @@ def calendrier_ics():
         raise HTTPException(404, "Les dates officielles n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr")
     return Response(CALR.ics(cal), media_type="text/calendar; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="parcoursup-{CALR.CAMPAGNE}.ics"'})
+
+
+@app.get("/api/apres-juin")
+def apres_juin():
+    """PR 19 (owner, 2026-11-28): « Après le 1er juin »: the official calendar's admission dates and sentences, the official
+    meaning of the answers (service-public, read by a fixed rule) and the measured repeat of complementary-phase admits.
+    No parameter: shared cache."""
+    return AJ.page(_con().cursor())
+
+
+@app.get("/api/apres-juin/voeux")
+def apres_juin_voeux(ids: str = Query("", max_length=200)):
+    """PR 19: the names of the list's vœux and whether their own page shows how far their list was called. The list's codes
+    only: never shared-cached, no analytics event (like /api/voeux)."""
+    try:
+        cods = [] if not ids else VX.clean_ids(ids.split(","))
+    except ValueError as exc:                     # a bad code or more than 10: a 422, never a 500
+        raise HTTPException(422, str(exc)) from exc
+    return AJ.voeux(_con().cursor(), cods)
 
 
 @app.get("/api/liste/verifier")

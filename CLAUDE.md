@@ -1051,6 +1051,18 @@ trend entry; the top-level figure is the lineage's latest: Codex). Report figure
   contract sentences, « Vérifié le », its own links; fixed checks: 3 years in order, rising with the year, never falling with the age;
   else no item, said in the audit), folded, in both apprenticeship cards; euro amounts only inside that quote, never a salary
   computed for the student. Red team `redteam_apprentissage_voeux.py` (AV1-AV8).
+- **Après le 1er juin (PR 19, owner 2026-11-28).** `apres_juin.py`, page `#/apres-juin` (tab Calendrier): the answers' meaning and the
+  deadlines are QUOTED, never written: the calendar PDF's sentences matched WHOLE by `calendrier.REGLES_ADMISSION` (every version identical, else
+  not shown; the complementary phase's number of vœux likewise, else « vérifiez »), the answers and what to do with them from service-public F2861
+  (`aides.r_reponses`: 3 answers, 4 « Si vous recevez » sentences naming the commission, the « 3e étape »; quoted verbatim; unread = a
+  warning and the official link; F2861 does not define « Oui-si », only the calendar names it). Per vœu only its name and a link to its own page (how far its list was
+  called) + « Comprendre l'appel »: no depth beside the list, NEVER a rank asked (a waiting-list position beside last year's last-called
+  rank would make a probability). Complementary phase: the official live list first, then the latest campaign's `acc_pc` > 0 formations
+  (the search filter) and how often that repeats, MEASURED on the two latest campaigns (counts, « estimation », « pas des places cette
+  année »). `/api/apres-juin` public, no parameter; `/api/apres-juin/voeux` codes only, no-store, no event. Red team
+  `redteam_apresjuin.py` (AJ1-AJ8).
+- **L'essentiel's Robustesse 2035 tile (PR 20, owner 2026-11-28): option A, KEEP it as it is** (the alternatives, moving it into its tab
+  or a one-line mention, were shown with phone measurements and declined). RF12 guards it.
 - **Profile bar (point 4 of the UI brief).** `#profile-bar` sits in the shell, above `<main>`, on every page except the stats.
   It shows the stored profile (escaped) and the Mes vœux zone COUNTS, read with the same query as the page (`vxQuery`).
   The alert comes only from the server's `aucune_securite` message. There is no request when the list is empty, and a prompt

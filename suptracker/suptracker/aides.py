@@ -42,6 +42,7 @@ PAGES = {
     "ifsi_fpc": "https://www.parcoursup.gouv.fr/trouver-une-formation/zoom-sur-des-formations-en-sante-pass-las-et-ifsi/les-formations-en-soins-1652",
     # PR 18 (owner, 2026-11-28): the apprentice's contract and minimum pay, as the official page states them
     "apprenti": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2918",
+    "reponses": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861",
 }
 ECHELONS = ("0 bis", "1", "2", "3", "4", "5", "6", "7")
 
@@ -287,6 +288,52 @@ def r_apprenti(text: str, links: list) -> dict | None:
             "verifie": _verifie(text), "source": PAGES["apprenti"]}
 
 
+# PR 19 « Après le 1er juin » (owner, 2026-11-28): service-public « Première inscription », its « 2e étape : Réception et
+# acceptation des propositions » QUOTED: the sentence introducing the answers, the answers a formation gives (printed one per
+# line), the « Si vous recevez … » sentences (what to do with them) and the « 3e étape » sentences. Fixed checks: three answers,
+# the first a proposal, one a waiting place; four « Si vous recevez » sentences, one naming the commission d'accès à
+# l'enseignement supérieur; else no item (the page then warns and links the official page).
+REPONSES_HEAD = "2e étape : Réception et acceptation des propositions sur Parcoursup"
+REPONSES_INTRO = re.compile(r"^Suivant votre projet,.*il vous donne l'une des réponses suivantes :$")
+REPONSES_NEXT = "3e étape : l'inscription définitive"
+
+
+def r_reponses(text: str, links: list) -> dict | None:
+    L = _lines(text)
+    head = next((i for i, x in enumerate(L) if x == REPONSES_HEAD), None)
+    if head is None:
+        return None
+    intro = next((i for i in range(head + 1, min(head + 4, len(L))) if REPONSES_INTRO.match(L[i])), None)
+    if intro is None:
+        return None
+    i, reponses = intro + 1, []
+    while i < len(L) and not L[i].startswith("Si vous recevez") and len(reponses) < 6:
+        reponses.append(_clean(L[i]))
+        i += 1
+    situations = []
+    while i < len(L) and L[i].startswith("Si vous recevez"):
+        situations.append(_clean(L[i]))
+        i += 1
+    if (len(reponses) != 3 or not reponses[0].startswith("Proposition d'admission") or not any("attente" in r for r in reponses)
+            or len(situations) != 4 or not all(x.endswith(".") for x in situations)
+            or not any("commission d'accès à l'enseignement supérieur" in x for x in situations)):
+        return None
+    if i >= len(L) or L[i] != REPONSES_NEXT:
+        return None
+    ensuite, i = [], i + 1
+    while i < len(L) and len(ensuite) < 4 and L[i].endswith(".") and not L[i].endswith("?"):
+        ensuite.append(_clean(L[i]))
+        i += 1
+    if not ensuite or not ensuite[0].startswith("Après avoir accepté la proposition d'admission"):
+        return None
+    titre = re.match(r"^(.+?) \| Service Public$", L[0]) if L else None           # the page's own title, never typed
+    if not titre:
+        return None
+    return {"titre": titre.group(1), "etape": REPONSES_HEAD, "intro": _clean(L[intro]),
+            "reponses": reponses, "situations": situations, "inscription": {"titre": REPONSES_NEXT, "texte": ensuite},
+            "verifie": _verifie(text), "source": PAGES["reponses"]}
+
+
 # Items whose official host refuses robots (lot 1, PR 12, owner 2026-11-26): their page is never fetched around that refusal (no
 # copy, no other host); the item stays out and its card hidden until the page is read (the fetcher keeps asking it, or the owner
 # commits it). A WAITING item whose page exists is read by its rule like any other: a page that no longer matches is said.
@@ -294,7 +341,7 @@ EN_ATTENTE = {"ifsi_fpc": "parcoursup.gouv.fr refuse les robots : la carte atten
 
 RULES = {"bourse": r_bourse, "merite": r_merite, "mobilite": r_mobilite, "mobilite_mesr": r_mobilite_mesr, "droits": r_droits, "cvec": r_cvec,
          "repas": r_repas, "regions": r_regions, "logement": r_logement, "ifsi_fpc": r_ifsi_fpc,
-         "apprenti": r_apprenti}
+         "apprenti": r_apprenti, "reponses": r_reponses}
 
 
 def read(d: Path = DIR) -> dict:

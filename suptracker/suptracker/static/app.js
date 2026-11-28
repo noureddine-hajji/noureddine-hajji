@@ -57,6 +57,8 @@ function zoneLegend() {
 // "Et maintenant ?": a few next actions, always ending with a person to talk to. Links only (no figure, no ranking).
 const AIDE_STEP = { href: "#/info/aide", text: "En parler à quelqu'un : professeur principal, psychologue de l'Éducation nationale, CIO, Mon orientation en ligne" };
 const NEXT_STEPS = {
+  apresjuin: [{ href: "#/calendrier", text: "Noter les dates de Parcoursup" },
+    { href: "#/voeux", text: "Revoir votre liste Mes vœux" }],
   formation: [{ href: "#/voeux", text: "Voir votre liste Mes vœux et l'équilibre de ses zones" },
     { href: "#/guide", text: "Construire une liste équilibrée, avec au moins un vœu de sécurité" }],
   parcours: [{ href: "#/guide", text: "Choisir des vœux dans plusieurs zones, avec au moins un vœu de sécurité" },
@@ -2959,6 +2961,71 @@ function poConcKeep(k, F, today) {
   if (!poConcQ(k, F)) return [];
   return (k.dates || []).filter((e) => !(F.periode === "avenir" && e.date < today) && !(F.type === "place" && e.kind === "en_ligne")
     && !(F.type === "ligne" && e.kind !== "en_ligne"));
+}
+// PR 19 (owner, 2026-11-28): « Après le 1er juin ». The answers' meaning and the deadlines are QUOTED from official pages (the
+// calendar PDF's sentences, service-public's « Première inscription » read by aides.r_reponses); what SupCompass adds is said as
+// its own. Per vœu only its name and a link to its own page (how far its list was called): never a rank asked, no depth beside
+// the list. The complementary phase: the official live list first, then the formations that admitted in it in the latest
+// campaign (the search page's filter) with how often that repeated, measured (counts, never a promise of places).
+const AJ_PC_SEARCH = `#/recherche/${encodeURIComponent("f_complementaire=oui")}`;
+const AJ_SANS_PROPOSITION = "https://www.parcoursup.gouv.fr/contenus/les-solutions-si-vous-n-avez-pas-recu-de-proposition-d-admission-3456";
+// the calendar prints the year once, at the range's end (« Entre le vendredi 4 juin et le lundi 7 juin 2027 inclus »)
+const ajDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+function ajQuote(t) { return `<blockquote class="quote">« ${esc(t)} »</blockquote>`; }
+function ajReponses(R) {
+  if (!R || !(R.reponses || []).length || !(R.situations || []).length) {
+    return `<p class="warn">La page officielle qui explique les réponses n'a pas pu être lue ici. Lisez-la sur <a href="https://www.service-public.gouv.fr/particuliers/vosdroits/F2861" target="_blank" rel="noopener">service-public.gouv.fr ↗</a>.</p>`;
+  }
+  const src = /^https:\/\/www\.service-public\.gouv\.fr\//.test(R.source || "") ? R.source : "https://www.service-public.gouv.fr/particuliers/vosdroits/F2861";
+  const ins = R.inscription || {};
+  return `<p>${esc(R.intro)}</p>
+    <ul class="aj-rep">${R.reponses.map((x) => `<li><strong>${esc(x)}</strong></li>`).join("")}</ul>
+    ${R.situations.map(ajQuote).join("")}
+    ${(ins.texte || []).length ? `<h3>${esc(ins.titre)}</h3>${ins.texte.map(ajQuote).join("")}` : ""}
+    <p class="muted small">Citation de la page officielle « ${esc(R.titre || "Première inscription")} » de service-public.gouv.fr${R.verifie ? `, vérifiée le ${esc(R.verifie)}` : ""}. <a href="${esc(src)}" target="_blank" rel="noopener">Lire la page ↗</a> En cas de différence, Parcoursup fait foi.</p>`;
+}
+function ajPersistance(P) {
+  if (!P) return "";
+  return `<p class="small">Pour préparer : <a href="${AJ_PC_SEARCH}">les ${fmt(P.derniere.avec_pc)} formations</a> (sur ${fmt(P.derniere.formations)}) qui ont admis des candidats en phase complémentaire en ${esc(P.derniere.session)}.</p>
+    <p class="small">Parmi les formations qui en avaient admis en ${esc(P.avant)}, <strong>${fmt(P.avec.part, 1)} %</strong> (${fmt(P.avec.encore)} sur ${fmt(P.avec.n)}) en ont encore admis en ${esc(P.apres)}. Parmi les autres, ${fmt(P.sans.part, 1)} % (${fmt(P.sans.puis)} sur ${fmt(P.sans.n)}).${estimTag("calcul de SupCompass à partir des admis publiés par le ministère", true)}</p>
+    <p class="muted small">Ce sont des admis des années passées, pas des places cette année : seule la liste de Parcoursup dit où il reste des places.</p>`;
+}
+async function viewApresJuin() {
+  const marker = "apres-juin";
+  $view.dataset.rendered = marker;
+  $view.innerHTML = `<div class="card"><h1>Après le 1er juin : les réponses des formations</h1><p class="muted small">Chargement…</p></div>`;
+  const ids = voeux.get();
+  const [d, L] = await Promise.all([api("/api/apres-juin"), ids.length ? api(`/api/apres-juin/voeux?ids=${ids.join(",")}`).catch(() => null) : null]);
+  if ($view.dataset.rendered !== marker) return;
+  const today = localIso(), g = d.regles || {};
+  const ev = (k) => (d.evenements || []).find((e) => e.key === k);
+  const when = (e) => (!e || !e.verifie ? "date à vérifier sur parcoursup.gouv.fr" : e.fin ? `du ${frDate(e.debut)} au ${frDate(e.fin)}` : frDate(e.debut));
+  const STATE = { passe: "passé", en_cours: "en cours", a_venir: "à venir", inconnu: "date à vérifier" };
+  const dates = (d.evenements || []).map((e) => `<li class="cal-item cal-${calState(e, today)}"><div class="cal-when"><strong>${esc(when(e))}</strong> <span class="badge">${STATE[calState(e, today)]}</span></div><div class="cal-what aj-what">${esc(e.libelle)}</div></li>`).join("");
+  const quotes = [g.oui_ouisi ? "Consultez dans votre dossier, au fur et à mesure, les propositions d'admission (Oui ou Oui-si) des formations que vous avez demandées." : "",
+    g.repondre_delais ? "Faites votre choix : vous devez répondre dans les délais à chaque proposition d'admission reçue." : "",
+    g.classez && ev("classement") && ev("classement").verifie ? `Entre le ${ajDay(ev("classement").debut)} et le ${frDate(ev("classement").fin)} inclus : classez vos vœux en attente.` : ""].filter(Boolean);
+  const comp = ev("complementaire");
+  const vx = L && (L.voeux || []).length ? `<ul class="aj-voeux">${L.voeux.map((v) => v.connu
+    ? `<li><a href="#/f/${esc(v.cod_aff_form)}">${esc(v.etablissement)}</a> <span class="muted small">${esc(v.formation)}${v.ville ? ` · ${esc(v.ville)}` : ""}</span><br><span class="small">${v.appel ? `Sur sa fiche, onglet « Y entrer » : jusqu'où sa liste a été appelée en ${esc(v.session)}.` : "Sa fiche ne publie pas jusqu'où sa liste a été appelée."}</span></li>`
+    : `<li class="muted small">Formation ${esc(v.cod_aff_form)} : introuvable dans les chiffres publiés.</li>`).join("")}</ul>`
+    : `<p class="small">Votre liste est vide. <a href="#/voeux">Ouvrir Mes vœux</a></p>`;
+  $view.innerHTML = `<div class="card"><h1>Après le 1er juin : les réponses des formations</h1>
+    <p>Du 1er juin à septembre, les formations répondent à vos vœux sur Parcoursup. Cette page rassemble ce que disent les pages officielles, et ce que SupCompass peut ajouter.</p>
+    <p class="muted small">SupCompass ne voit pas votre dossier Parcoursup. Il ne vous demande jamais votre rang. Parcoursup fait foi.</p></div>
+  <section class="card"><h2>Les dates</h2><ol class="cal-list">${dates}</ol>
+    ${quotes.length ? `<h3>Ce que dit le calendrier officiel</h3>${quotes.map(ajQuote).join("")}` : ""}
+    <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)}${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. <a href="#/calendrier">Tout le calendrier</a></p></section>
+  <section class="card"><h2>Les réponses des formations, et ce que vous pouvez faire</h2>${ajReponses(d.reponses)}</section>
+  <section class="card"><h2>Vos vœux</h2>
+    <p class="small">Une formation appelle ses candidats dans l'ordre de son classement, au fil des places libérées. Sa fiche montre jusqu'où sa liste a été appelée les années passées. <a href="#/comprendre">Comprendre l'appel</a></p>
+    ${vx}
+    <p class="muted small">Ce n'est pas une prévision : SupCompass ne compare jamais ces chiffres à votre place sur une liste d'attente.</p></section>
+  <section class="card"><h2>La phase complémentaire</h2>
+    <p>${comp && comp.verifie ? `À partir du ${esc(frDate(comp.debut))}` : "Pendant la phase complémentaire"}, la liste officielle des formations qui ont encore des places est sur Parcoursup.${g.complementaire_max ? ` Vous pouvez y formuler jusqu'à ${fmt(g.complementaire_max)} nouveaux vœux.` : " Le nombre de nouveaux vœux possibles est sur parcoursup.gouv.fr."}</p>
+    <p><a href="${esc(d.liens.parcoursup)}" target="_blank" rel="noopener">Parcoursup ↗</a> · <a href="${AJ_SANS_PROPOSITION}" target="_blank" rel="noopener">Sans proposition : les solutions officielles ↗</a></p>
+    ${ajPersistance(d.persistance)}</section>
+  ${nextSteps("apresjuin")}`;
 }
 async function viewPortesOuvertes() {
   const marker = "portes-ouvertes";
@@ -6336,7 +6403,7 @@ const localIso = (t = new Date()) => {
 };
 const frDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
-const CAL_LINKS = { voeux: "#/voeux", fin_voeux: "#/voeux", admission: "#/comprendre", carte: "#/carte" };
+const CAL_LINKS = { voeux: "#/voeux", fin_voeux: "#/voeux", admission: "#/comprendre", classement: "#/apres-juin", complementaire: "#/apres-juin", carte: "#/carte" };
 function calState(e, today) {
   if (!e.verifie) return "inconnu";
   const end = e.fin || e.debut;
@@ -6370,7 +6437,7 @@ async function viewCalendrier() {
     : "Certaines dates n'ont pas pu être lues : vérifiez-les sur parcoursup.gouv.fr.";
   $view.innerHTML = `<div class="card"><h1>Calendrier Parcoursup ${esc(d.campagne)}</h1>
     <p>${head}</p>
-    <div class="toolbar no-print">${nOk ? `<a class="btnlink" href="/api/calendrier.ics">Ajouter ces dates à mon agenda (.ics)</a>` : ""}<button type="button" id="cal-print">Imprimer</button><a href="#/portes-ouvertes">Portes ouvertes et webinaires près de chez moi</a></div>
+    <div class="toolbar no-print">${nOk ? `<a class="btnlink" href="/api/calendrier.ics">Ajouter ces dates à mon agenda (.ics)</a>` : ""}<button type="button" id="cal-print">Imprimer</button><a href="#/portes-ouvertes">Portes ouvertes et webinaires près de chez moi</a><a href="#/apres-juin">Après le 1er juin : les réponses</a></div>
     <p class="muted small">Source : calendrier officiel Parcoursup ${esc(d.campagne - 1)}-${esc(d.campagne)} publié sur parcoursup.gouv.fr${d.lu_le ? `, lu le ${esc(frDate(d.lu_le))}` : ""}. Une date n'est affichée que si toutes les versions du document la donnent à l'identique. En cas de différence, le calendrier officiel fait foi.</p></div>
   ${steps.map((k) => `<section class="card"><h2>Étape ${k} · ${esc(d.etapes[k])}</h2><ol class="cal-list">${d.evenements.filter((e) => e.etape === k).map(item).join("")}</ol></section>`).join("")}`;
   const pr = document.getElementById("cal-print");
@@ -6907,7 +6974,7 @@ const TAB_OF = { info: "info", s: "home", recherche: "home", f: "home", evolutio
   carte: "home", compare: "compare", specialites: "specialites", qualite: "qualite", glossaire: "glossaire", stats: "stats",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "profil",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "profil", liste: "liste", guide: "voeux", projet: "voeux",
-  "portes-ouvertes": "calendrier", transfert: "voeux", kit: "accompagner" };
+  "portes-ouvertes": "calendrier", transfert: "voeux", kit: "accompagner", "apres-juin": "calendrier" };
 const COMP_TABS = ["compare", "comprendre", "selectivite", "observatoire", "specialites", "qualite", "glossaire"];   // "Comprendre" on a wide screen
 const MORE_TABS = [...COMP_TABS, "accompagner", "aide"];                                                   // "Plus" on a phone
 function markTab(tab) {
@@ -6934,7 +7001,7 @@ const ROUTE_NAME = { info: "info", s: "search", recherche: "search", f: "fiche",
   qualite: "qualite", parcours: "parcours", stats: "stats", glossaire: "glossaire", voeux: "voeux", metiers: "metiers", carte: "carte",
   comprendre: "comprendre", selectivite: "selectivite", observatoire: "observatoire", reorientation: "reorientation",
   calendrier: "calendrier", accompagner: "accompagner", premiere: "premiere", liste: "liste", profil: "profil", guide: "guide", projet: "projet",
-  "portes-ouvertes": "portesouvertes", transfert: "transfert", kit: "kit" };
+  "portes-ouvertes": "portesouvertes", transfert: "transfert", kit: "kit", "apres-juin": "apresjuin" };
 // Sprint 17: a formation or job opened at its indexable address (/formation/<code>, /metier/<id>) is the same view as its
 // hash route; once the visitor navigates inside the app, the address goes back to "/#/…" so links stay the usual ones.
 function pathRoute(pathname, hash) {
@@ -7060,6 +7127,7 @@ async function routeView(a, b, c) {
     if (a === "guide") return await viewGuide();
     if (a === "projet") return await viewProjet(b || "");
     if (a === "portes-ouvertes") return await viewPortesOuvertes();
+    if (a === "apres-juin") return await viewApresJuin();
     if (a === "metiers") return await viewMetiers(b || "", c || "");
     if (a === "glossaire") return viewGlossaire(b || "");
     if (a === "info") return await viewInfo(b || "", c || "");

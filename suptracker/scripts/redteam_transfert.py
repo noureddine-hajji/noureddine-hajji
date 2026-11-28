@@ -591,7 +591,7 @@ def tf8(c: Ctx):
     js, bad = c.js, []
     if 'if (a === "transfert") return await viewTransfert(b || "");' not in js or 'if (a === "kit") return await viewKit();' not in js:
         bad.append("routes")
-    if 'transfert: "voeux", kit: "accompagner" };' not in js or 'transfert: "transfert", kit: "kit" };' not in js:
+    if 'transfert: "voeux", kit: "accompagner"' not in js or 'transfert: "transfert", kit: "kit"' not in js:
         bad.append("tab or audience name")
     if js.count("${transferCard()}${nextSteps(\"voeux\")}") != 2 or js.count("  bindTransfer();") != 4:   # PR 18 (Codex): also both empty-list branches
         bad.append("the card in both Mes vœux views")

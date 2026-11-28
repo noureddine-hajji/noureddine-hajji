@@ -96,6 +96,7 @@ class Ctx:
             "/api/selectivite": "/api/selectivite?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation": "/api/reorientation?diplome=" + __import__("urllib.parse").parse.quote(self.diplome),
             "/api/reorientation/voeux": f"/api/reorientation/voeux?ids={c}", "/api/liste/verifier": f"/api/liste/verifier?ids={c}", "/api/apprentissage/voeux": f"/api/apprentissage/voeux?ids={c}",
+            "/api/apres-juin": "/api/apres-juin", "/api/apres-juin/voeux": f"/api/apres-juin/voeux?ids={c}",   # PR 19
             "/api/calendrier": "/api/calendrier", "/api/calendrier.ics": "/api/calendrier.ics",
             "/api/stats": "/api/stats", "/api/version": "/api/version", "/": "/",
             "/docs": "/docs", "/docs/oauth2-redirect": "/docs/oauth2-redirect", "/redoc": "/redoc", "/openapi.json": "/openapi.json",

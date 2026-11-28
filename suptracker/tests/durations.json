@@ -6,6 +6,7 @@
  "tests/test_aides.py": 25,
  "tests/test_appel.py": 68,
  "tests/test_apprentissage_voeux.py": 10,
+ "tests/test_apresjuin.py": 6,
  "tests/test_bmo.py": 506,
  "tests/test_but.py": 6,
  "tests/test_calibration.py": 338,

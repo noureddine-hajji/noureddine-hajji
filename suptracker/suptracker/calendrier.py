@@ -70,14 +70,24 @@ REGLES = (
     ("sous_voeux", r"pour certaines formations vous pouvez egalement faire des sous-voeux"),
     ("apprentissage_apres", r"pour les formations en apprentissage,? vous pouvez toujours formuler des voeux apres"),
 )
+REGLES_ADMISSION = (
+    # PR 19 « Après le 1er juin » (owner, 2026-11-28): the admission phase's own sentences, matched WHOLE since the page quotes
+    # them (the PDF's columns interleave « sur parcoursup.gouv.fr » inside the Oui / Oui-si line, and its arrows split the first
+    # letter, « C onsultez »: those two pieces only are optional)
+    ("repondre_delais", r"f ?aites votre choix : vous devez repondre dans les delais a chaque proposition d.admission recue"),
+    ("oui_ouisi", r"c ?onsultez dans votre dossier, au fur et a mesure, les propositions (?:sur parcoursup\.gouv\.fr )?"
+                  r"d.admission \(oui ou oui-si\) des formations que vous avez demandees"),
+    ("classez", r"classez vos voeux en attente"),
+    ("complementaire_max", r"formuler jusqu'a (\d{1,2}) nouveaux voeux pour des formations ayant encore des places"),
+)
 
 
-def regles(base: Path = DIR) -> dict:
+def regles(base: Path = DIR, rules: tuple = REGLES) -> dict:
     """{rule: value} — an int (a number of vœux) or True (the sentence is printed) — when every version prints it identically,
     else None (the page then says to check parcoursup.gouv.fr, never a typed default)."""
     vs = versions(base)
     out = {}
-    for key, pat in REGLES:
+    for key, pat in rules:
         found = []
         for v in vs:
             m = re.search(pat, _fold_keep_dash(v["text"]))
