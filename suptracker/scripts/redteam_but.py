@@ -279,7 +279,9 @@ def bu5(c: Ctx):
             bad.append(f"{fn}: no parcours")
     if not exe:
         return not bad, f"node not installed; {bad}"
-    prog = "\n".join(top(js, n) for n in ("esc", "ACAD_LABEL", "acadLabel", "carteFiche", "appParcours", "appOffers", "apprentiCard")) + """
+    prog = "const voeuxApp = { has: () => false, get: () => [], MAX: 10 };\n" + "\n".join(top(js, n) for n in (
+        "esc", "ACAD_LABEL", "acadLabel", "carteFiche", "appParcours", "appVoeuLabel", "appVoeuButton",   # PR 18: the button
+        "SP_HOST", "appOfficiel", "appOffers", "apprentiCard")) + """
 const P = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const a = { propose: true, liens: { salaire: "https://x", entreprises: "https://y", guide: "https://z" }, offres: P.offres };
 process.stdout.write(JSON.stringify({ p: appParcours(P.offres[0]), none: appParcours(P.offres[1]), list: appOffers(P.offres), card: apprentiCard(a) }));"""
